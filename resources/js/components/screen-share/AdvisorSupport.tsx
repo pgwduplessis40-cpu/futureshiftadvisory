@@ -23,6 +23,8 @@ type Props = {
         heartbeat_seconds: number;
         participants: Array<{ id: string; name: string }>;
     };
+    onConnectionChange: (connected: boolean) => void;
+    onSessionEnded: () => void;
 };
 
 type Credentials = { connection_id: string; connection_secret: string; channel: string };
@@ -50,7 +52,7 @@ type NegotiationStage =
     | 'apply-answer'
     | 'send-answer';
 
-export function AdvisorSupport({ config }: Props) {
+export function AdvisorSupport({ config, onConnectionChange, onSessionEnded }: Props) {
     const [credentials, setCredentials] = useState<Credentials | null>(null);
     const [participant, setParticipant] = useState(config.participants[0]?.id ?? '');
     const [sessionId, setSessionId] = useState<string | null>(null);
@@ -68,6 +70,10 @@ export function AdvisorSupport({ config }: Props) {
     const receivedSignalIds = useRef(new Set<number>());
     const processingSignalIds = useRef(new Set<number>());
     const signalProcessingQueue = useRef<Promise<void>>(Promise.resolve());
+
+    useEffect(() => {
+        onConnectionChange(connected);
+    }, [connected, onConnectionChange]);
 
     useEffect(() => {
         let active = true;
@@ -93,6 +99,7 @@ export function AdvisorSupport({ config }: Props) {
                 setOverSharing(event.display_surface === 'monitor' || event.display_surface === 'window');
                 if (event.status === 'ended') {
                     stop();
+                    onSessionEnded();
                 }
             });
         }).catch(() => setError('Unable to connect screen support.'));
@@ -402,6 +409,7 @@ export function AdvisorSupport({ config }: Props) {
             ).catch(() => undefined);
         }
         stop();
+        onSessionEnded();
     }
 
     function setSession(nextSessionId: string | null): void {
@@ -508,12 +516,16 @@ export function AdvisorSupport({ config }: Props) {
             </div>
             {error ? <p className="mt-2 text-sm text-destructive">{error}</p> : null}
             {sessionId ? (
-                <div className="mt-4 flex min-h-0 flex-1 flex-col">
+                <div className={connected ? 'mt-4 flex min-h-0 flex-1 flex-col' : 'mt-4 shrink-0'}>
                     <video
                         ref={video}
                         autoPlay
                         playsInline
-                        className="min-h-0 flex-1 bg-black object-contain"
+                        className={
+                            connected
+                                ? 'min-h-0 w-full flex-1 bg-black object-contain'
+                                : 'aspect-video w-full bg-black object-contain'
+                        }
                         title="Double-click to view full screen"
                         onDoubleClick={() => void enterFullscreen()}
                     />

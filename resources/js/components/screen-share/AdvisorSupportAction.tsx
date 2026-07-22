@@ -1,5 +1,5 @@
 import { Monitor } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { AdvisorSupport } from '@/components/screen-share/AdvisorSupport';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,10 +29,25 @@ type Props = {
 
 export function AdvisorSupportAction({ config }: Props) {
     const [open, setOpen] = useState(false);
+    const [expanded, setExpanded] = useState(false);
     const available = config !== null && config.participants.length > 0;
+    const handleConnectionChange = useCallback((connected: boolean) => {
+        setExpanded(connected);
+    }, []);
+    const handleSessionEnded = useCallback(() => {
+        setExpanded(false);
+        setOpen(false);
+    }, []);
+
+    function handleOpenChange(nextOpen: boolean): void {
+        setOpen(nextOpen);
+        if (!nextOpen) {
+            setExpanded(false);
+        }
+    }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={handleOpenChange}>
             <Button
                 type="button"
                 size="sm"
@@ -49,11 +64,21 @@ export function AdvisorSupportAction({ config }: Props) {
                 Screen support
             </Button>
             {config ? (
-                <DialogContent className="h-[92vh] w-[96vw] max-w-none gap-0 overflow-hidden p-0 sm:max-w-none">
+                <DialogContent
+                    className={
+                        expanded
+                            ? 'h-[92vh] w-[96vw] max-w-none gap-0 overflow-hidden p-0 sm:max-w-none'
+                            : 'gap-0 overflow-hidden p-0'
+                    }
+                >
                     <DialogHeader className="sr-only">
                         <DialogTitle>Screen support</DialogTitle>
                     </DialogHeader>
-                    <AdvisorSupport config={config} />
+                    <AdvisorSupport
+                        config={config}
+                        onConnectionChange={handleConnectionChange}
+                        onSessionEnded={handleSessionEnded}
+                    />
                 </DialogContent>
             ) : null}
         </Dialog>
