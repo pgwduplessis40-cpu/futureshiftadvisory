@@ -98,18 +98,30 @@ php artisan inertia:stop-ssr || true
 The supervisor/daemon restarts it automatically, picking up the new bundle. Without
 this step a deploy silently serves stale pages.
 
-## Deploy script order
+## Deploying
+
+Use the script in the repo root - it performs every step in the right order and
+**fails loudly if the deployed site is not server-rendered**, so a broken SSR
+process cannot pass unnoticed:
 
 ```bash
-git pull
-composer install --no-dev --optimize-autoloader
-php artisan migrate --force
-npm ci
-npm run build:ssr          # not `npm run build`
-php artisan config:cache
-php artisan route:cache
-php artisan inertia:stop-ssr || true   # daemon restarts with the new bundle
+./deploy.sh
 ```
+
+Options (environment variables):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `RUN_MIGRATIONS` | `yes` | `RUN_MIGRATIONS=no ./deploy.sh` to skip `migrate --force` |
+| `SITE_URL` | `https://futureshiftadvisory.nz` | URL used for the post-deploy SSR check |
+| `SSR_SERVICE` | `inertia-ssr` | systemd unit name to restart |
+
+The script runs: pull → composer install → npm ci → **`npm run build:ssr`** →
+migrations → cache refresh → **restart the SSR daemon** → verify SSR output.
+
+Deploying by hand is possible but easy to get wrong: pulling alone updates PHP
+instantly while the SSR process keeps serving the previous JavaScript bundle,
+so page copy, titles and structured data silently go stale. Prefer the script.
 
 ## Verifying after deploy
 
