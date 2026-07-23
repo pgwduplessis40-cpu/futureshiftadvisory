@@ -24,6 +24,7 @@ import { useEffect, useState } from 'react';
 import InputError from '@/components/input-error';
 import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
 import type { InsightHoverCardRow } from '@/components/insight/InsightHoverCard';
+import type { AdvisorCoBrowseConfig } from '@/components/co-browse/AdvisorCoBrowseAction';
 import { AdvisorSupportAction } from '@/components/screen-share/AdvisorSupportAction';
 import type { AdvisorScreenShareConfig } from '@/components/screen-share/AdvisorSupportAction';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +50,7 @@ type Props = {
     entrepreneur: EntrepreneurDetail;
     serviceOptions: ServiceOption[];
     screenShare: AdvisorScreenShareConfig | null;
+    coBrowse: AdvisorCoBrowseConfig | null;
 };
 
 type IdeaViabilityGatePayload = NonNullable<
@@ -66,6 +68,7 @@ export default function EntrepreneursShow({
     entrepreneur,
     serviceOptions,
     screenShare,
+    coBrowse,
 }: Props) {
     const latestAssessment = entrepreneur.latest_plan?.latest_assessment;
     const latestAssessmentUsesCurrentRubric =
@@ -385,7 +388,7 @@ export default function EntrepreneursShow({
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <AdvisorSupportAction config={screenShare} />
+                        <AdvisorSupportAction config={screenShare} coBrowse={coBrowse} />
                         <Button asChild size="sm">
                             <Link href={entrepreneur.messages.url}>
                                 <MessageSquare

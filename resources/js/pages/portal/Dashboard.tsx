@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import type { ComponentType, MouseEvent, ReactNode } from 'react';
+import { ClientCoBrowse } from '@/components/co-browse/ClientCoBrowse';
+import type { ClientCoBrowseConfig } from '@/components/co-browse/ClientCoBrowse';
 import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
 import { ClientSupport } from '@/components/screen-share/ClientSupport';
 import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
@@ -88,6 +90,7 @@ type Props = {
         heartbeat_seconds: number;
         warning_at_minutes: number;
     } | null;
+    coBrowse: ClientCoBrowseConfig | null;
     progress: Progress;
     currentStep: string;
     onboardingUrl: string;
@@ -582,6 +585,7 @@ function WelcomeBanner({ welcomeMessage }: { welcomeMessage: WelcomeMessage }) {
 export default function PortalDashboard({
     client,
     screenShare,
+    coBrowse,
     progress,
     onboardingUrl,
     notificationSummary,
@@ -814,8 +818,9 @@ export default function PortalDashboard({
         <>
             <Head title="Client portal" />
             <ClientSupport config={screenShare} />
+            <ClientCoBrowse config={coBrowse} />
 
-            <main className="flex-1 space-y-6">
+            <main className="flex-1 space-y-6" data-co-browse-target="client.dashboard.workspace">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">
@@ -1165,6 +1170,7 @@ export default function PortalDashboard({
                             <section
                                 id="section-onboarding"
                                 className="rounded-md border bg-background p-4"
+                                data-co-browse-target="client.dashboard.progress"
                                 aria-labelledby="onboarding-progress-heading"
                             >
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

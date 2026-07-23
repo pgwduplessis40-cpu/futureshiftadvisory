@@ -10,6 +10,7 @@
         "format:check": "prettier --check resources/",
         "lint": "eslint . --fix",
         "lint:check": "eslint .",
+        "co-browse:guard": "node scripts/check-co-browse-guard.mjs",
         "screen-share:guard": "node scripts/check-screen-share-guard.mjs",
         "types:check": "tsc --noEmit"
     },

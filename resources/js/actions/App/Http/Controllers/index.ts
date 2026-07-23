@@ -7,6 +7,7 @@ import Auth from './Auth'
 import Admin from './Admin'
 import Advisor from './Advisor'
 import ScreenShare from './ScreenShare'
+import CoBrowse from './CoBrowse'
 import Portal from './Portal'
 import CalendarController from './CalendarController'
 import DocumentController from './DocumentController'
@@ -28,6 +29,7 @@ Auth: Object.assign(Auth, Auth),
 Admin: Object.assign(Admin, Admin),
 Advisor: Object.assign(Advisor, Advisor),
 ScreenShare: Object.assign(ScreenShare, ScreenShare),
+CoBrowse: Object.assign(CoBrowse, CoBrowse),
 Portal: Object.assign(Portal, Portal),
 CalendarController: Object.assign(CalendarController, CalendarController),
 DocumentController: Object.assign(DocumentController, DocumentController),

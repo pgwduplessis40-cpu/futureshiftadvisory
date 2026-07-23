@@ -42,6 +42,7 @@ import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { NpoHealthPanel } from '@/components/npo/NpoHealthPanel';
 import type { NpoHealthPayload } from '@/components/npo/NpoHealthPanel';
+import type { AdvisorCoBrowseConfig } from '@/components/co-browse/AdvisorCoBrowseAction';
 import { AdvisorSupportAction } from '@/components/screen-share/AdvisorSupportAction';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -139,6 +140,7 @@ type Props = {
         heartbeat_seconds: number;
         participants: Array<{ id: string; name: string }>;
     };
+    coBrowse: AdvisorCoBrowseConfig | null;
 };
 
 type ClientDetailTab = 'actions' | 'information';
@@ -974,7 +976,7 @@ type StandardAdvisorySummary = {
     generate_pack_url: string;
 };
 
-export default function ClientsShow({ client, conflictDeclaration, screenShare }: Props) {
+export default function ClientsShow({ client, conflictDeclaration, screenShare, coBrowse }: Props) {
     useDrillFocus();
     const [activeTab, setActiveTab] = useState<ClientDetailTab>(() =>
         initialClientDetailTab(),
@@ -1149,7 +1151,7 @@ export default function ClientsShow({ client, conflictDeclaration, screenShare }
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <AdvisorSupportAction config={screenShare} />
+                        <AdvisorSupportAction config={screenShare} coBrowse={coBrowse} />
                         <Button
                             asChild
                             id="section-messages"

@@ -1,5 +1,6 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 import screenShare from './screen-share'
+import coBrowse from './co-browse'
 import integrationScopes from './integration-scopes'
 import integrationScoping from './integration-scoping'
 import invite9ae5a1 from './invite'
@@ -674,6 +675,7 @@ show.head = (args: { client: string | { id: string } } | [client: string | { id:
 const clients = {
     index: Object.assign(index, index),
 screenShare: Object.assign(screenShare, screenShare),
+coBrowse: Object.assign(coBrowse, coBrowse),
 integrationScopes: Object.assign(integrationScopes, integrationScopes),
 integrationScoping: Object.assign(integrationScoping, integrationScoping),
 create: Object.assign(create, create),

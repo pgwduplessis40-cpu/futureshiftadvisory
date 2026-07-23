@@ -452,6 +452,26 @@ final class ClientController extends Controller
                     ->values()
                     ->all(),
             ],
+            'coBrowse' => (bool) config('co-browse.enabled') ? [
+                'connection_url' => route('advisor.clients.co-browse.connections.store', $client, absolute: false),
+                'connection_heartbeat_url' => route('co-browse.connections.heartbeat', ['connection' => '__connection__'], absolute: false),
+                'request_url' => route('advisor.clients.co-browse.sessions.store', $client, absolute: false),
+                'status_url' => route('co-browse.sessions.status', ['session' => '__session__'], absolute: false),
+                'heartbeat_url' => route('co-browse.sessions.heartbeat', ['session' => '__session__'], absolute: false),
+                'end_url' => route('co-browse.sessions.end', ['session' => '__session__'], absolute: false),
+                'action_url' => route('co-browse.sessions.actions.store', ['session' => '__session__'], absolute: false),
+                'heartbeat_seconds' => max(5, (int) config('co-browse.heartbeat_interval_seconds', 10)),
+                'participants' => $client->teamMembers()
+                    ->with('user')
+                    ->get()
+                    ->map(fn (ClientTeamMember $member): ?array => $member->user instanceof User
+                        && in_array($member->user->user_type, [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM], true)
+                        ? ['id' => (string) $member->user->getKey(), 'name' => $member->user->name]
+                        : null)
+                    ->filter()
+                    ->values()
+                    ->all(),
+            ] : null,
             'conflictDeclaration' => $client->conflictDeclarations()
                 ->latest('declared_at')
                 ->first()

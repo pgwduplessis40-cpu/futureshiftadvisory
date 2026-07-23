@@ -1,5 +1,6 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 import screenShare from './screen-share'
+import coBrowse from './co-browse'
 import messages from './messages'
 import ideaValidations from './idea-validations'
 import plans from './plans'
@@ -642,6 +643,7 @@ createManual: Object.assign(createManual, createManual),
 store: Object.assign(store, store),
 storeManual: Object.assign(storeManual, storeManual),
 screenShare: Object.assign(screenShare, screenShare),
+coBrowse: Object.assign(coBrowse, coBrowse),
 messages: Object.assign(messages, messages),
 ideaValidations: Object.assign(ideaValidations, ideaValidations),
 plans: Object.assign(plans, plans),

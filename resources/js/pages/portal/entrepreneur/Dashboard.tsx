@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { ClientCoBrowse } from '@/components/co-browse/ClientCoBrowse';
+import type { ClientCoBrowseConfig } from '@/components/co-browse/ClientCoBrowse';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { InspirationCard } from '@/components/inspiration/InspirationCard';
@@ -209,6 +211,7 @@ type Props = {
     gamification: GamificationPayload;
     welcomeMessage: WelcomeMessage;
     screenShare: ScreenShareConfig;
+    coBrowse: ClientCoBrowseConfig | null;
 };
 
 export default function EntrepreneurDashboard({
@@ -225,6 +228,7 @@ export default function EntrepreneurDashboard({
     gamification,
     welcomeMessage,
     screenShare,
+    coBrowse,
 }: Props) {
     const [documents, setDocuments] = useState<UploadedDocument[]>(
         profile?.latest_documents ?? [],
@@ -327,6 +331,7 @@ export default function EntrepreneurDashboard({
         <>
             <Head title="Entrepreneur dashboard" />
             <ClientSupport config={screenShare} />
+            <ClientCoBrowse config={coBrowse} />
 
             <div className="space-y-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -1151,7 +1156,7 @@ function GamificationPanel({
     };
 
     return (
-        <section className="space-y-3">
+        <section className="space-y-3" data-co-browse-target="entrepreneur.dashboard.journey">
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <Trophy className="size-4" aria-hidden="true" />
@@ -1178,7 +1183,7 @@ function GamificationPanel({
                         {journeyLevelLabel(gamification.current_level)}
                     </div>
                 </div>
-                <div className="rounded-md border bg-background p-4">
+                <div className="rounded-md border bg-background p-4" data-co-browse-target="entrepreneur.dashboard.progress">
                     <div className="text-xs text-muted-foreground">
                         Plan completion
                     </div>

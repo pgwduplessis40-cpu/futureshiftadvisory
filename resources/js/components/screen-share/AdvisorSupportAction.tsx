@@ -1,5 +1,6 @@
 import { Monitor } from 'lucide-react';
 import { useCallback, useState } from 'react';
+import type { AdvisorCoBrowseConfig } from '@/components/co-browse/AdvisorCoBrowseAction';
 import { AdvisorSupport } from '@/components/screen-share/AdvisorSupport';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,9 +26,10 @@ export type AdvisorScreenShareConfig = {
 
 type Props = {
     config: AdvisorScreenShareConfig | null;
+    coBrowse?: AdvisorCoBrowseConfig | null;
 };
 
-export function AdvisorSupportAction({ config }: Props) {
+export function AdvisorSupportAction({ config, coBrowse = null }: Props) {
     const [open, setOpen] = useState(false);
     const [expanded, setExpanded] = useState(false);
     const available = config !== null && config.participants.length > 0;
@@ -76,6 +78,7 @@ export function AdvisorSupportAction({ config }: Props) {
                     </DialogHeader>
                     <AdvisorSupport
                         config={config}
+                        coBrowse={coBrowse}
                         onConnectionChange={handleConnectionChange}
                         onSessionEnded={handleSessionEnded}
                     />

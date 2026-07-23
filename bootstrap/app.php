@@ -4,6 +4,7 @@ use App\Console\Commands\AggregateIntegrationHealth;
 use App\Console\Commands\AlertStuckRedIntegrations;
 use App\Console\Commands\CheckReferenceDataFreshness;
 use App\Console\Commands\CreatePracticeHealthSnapshots;
+use App\Console\Commands\ExpireCoBrowseSessions;
 use App\Console\Commands\ExpireProposals;
 use App\Console\Commands\ExpireScreenShareSessions;
 use App\Console\Commands\GenerateBenchmarkCommunityAggregate;
@@ -205,6 +206,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(ExpireScreenShareSessions::class)
             ->everyMinute()
             ->name('fsa-screen-share-expire')
+            ->withoutOverlapping();
+
+        $schedule->command(ExpireCoBrowseSessions::class)
+            ->everyMinute()
+            ->name('fsa-co-browse-expire')
             ->withoutOverlapping();
 
         $schedule->command(GenerateMonthlyIndustryBriefings::class)

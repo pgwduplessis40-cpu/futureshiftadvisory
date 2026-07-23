@@ -134,6 +134,20 @@ final class DashboardController extends Controller
                     'warning_at_minutes' => max(0, (int) config('screen-share.warning_at_minutes', 25)),
                 ]
                 : null,
+            'coBrowse' => (bool) config('co-browse.enabled') && $request->query('client') === (string) $client->getKey()
+                ? [
+                    'portal_context_token' => $this->screenShareContexts->issue($viewer, $client, 'portal.dashboard'),
+                    'connection_url' => route('portal.co-browse.connections.store', absolute: false),
+                    'prompt_url' => route('co-browse.connections.pending-prompt', ['connection' => '__connection__'], absolute: false),
+                    'connection_heartbeat_url' => route('co-browse.connections.heartbeat', ['connection' => '__connection__'], absolute: false),
+                    'response_url' => route('portal.co-browse.sessions.response', ['session' => '__session__'], absolute: false),
+                    'pending_actions_url' => route('co-browse.sessions.pending-actions', ['session' => '__session__'], absolute: false),
+                    'status_url' => route('co-browse.sessions.status', ['session' => '__session__'], absolute: false),
+                    'heartbeat_url' => route('co-browse.sessions.heartbeat', ['session' => '__session__'], absolute: false),
+                    'end_url' => route('co-browse.sessions.end', ['session' => '__session__'], absolute: false),
+                    'heartbeat_seconds' => max(5, (int) config('co-browse.heartbeat_interval_seconds', 10)),
+                ]
+                : null,
             'progress' => $this->wizard->progress($client),
             'currentStep' => $this->wizard->currentStepSlug($client),
             'welcomeMessage' => $this->welcomeMessage->renderForClient(

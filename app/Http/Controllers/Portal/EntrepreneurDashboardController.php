@@ -118,6 +118,7 @@ final class EntrepreneurDashboardController extends Controller
             'notificationsUrl' => route('notifications.index', absolute: false),
             'settingsUrl' => route('profile.edit', absolute: false),
             'screenShare' => $this->screenSharePayload($user, $profile),
+            'coBrowse' => $this->coBrowsePayload($user, $profile),
             'surveys' => $profile ? $this->surveyPayload($profile) : [
                 'total_open' => 0,
                 'index_url' => route('portal.entrepreneur.surveys.index', absolute: false),
@@ -171,6 +172,38 @@ final class EntrepreneurDashboardController extends Controller
             'end_url' => route('screen-share.sessions.end', ['session' => '__session__'], absolute: false),
             'heartbeat_seconds' => max(5, (int) config('screen-share.heartbeat_interval_seconds', 10)),
             'warning_at_minutes' => max(1, (int) config('screen-share.warning_at_minutes', 25)),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function coBrowsePayload(User $user, ?EntrepreneurProfile $profile): ?array
+    {
+        if (
+            ! (bool) config('co-browse.enabled')
+            || ! $profile instanceof EntrepreneurProfile
+            || $user->user_type !== User::TYPE_ENTREPRENEUR
+            || (string) $profile->user_id !== (string) $user->getKey()
+        ) {
+            return null;
+        }
+
+        return [
+            'portal_context_token' => $this->screenShareContexts->issueForEntrepreneur(
+                $user,
+                $profile,
+                'portal.entrepreneur.dashboard',
+            ),
+            'connection_url' => route('portal.co-browse.connections.store', absolute: false),
+            'prompt_url' => route('co-browse.connections.pending-prompt', ['connection' => '__connection__'], absolute: false),
+            'connection_heartbeat_url' => route('co-browse.connections.heartbeat', ['connection' => '__connection__'], absolute: false),
+            'response_url' => route('portal.co-browse.sessions.response', ['session' => '__session__'], absolute: false),
+            'pending_actions_url' => route('co-browse.sessions.pending-actions', ['session' => '__session__'], absolute: false),
+            'status_url' => route('co-browse.sessions.status', ['session' => '__session__'], absolute: false),
+            'heartbeat_url' => route('co-browse.sessions.heartbeat', ['session' => '__session__'], absolute: false),
+            'end_url' => route('co-browse.sessions.end', ['session' => '__session__'], absolute: false),
+            'heartbeat_seconds' => max(5, (int) config('co-browse.heartbeat_interval_seconds', 10)),
         ];
     }
 

@@ -25,6 +25,8 @@ use App\Http\Controllers\Portal\StrategicBudgetController;
 use App\Http\Controllers\Portal\StrategicPlanMilestoneController;
 use App\Http\Controllers\Portal\SurveyController;
 use App\Http\Controllers\Portal\WellbeingController;
+use App\Http\Controllers\CoBrowse\CoBrowseConnectionController;
+use App\Http\Controllers\CoBrowse\CoBrowseSessionController;
 use App\Http\Controllers\ScreenShare\EntrepreneurScreenShareController;
 use App\Http\Controllers\ScreenShare\ScreenShareConnectionController;
 use App\Http\Controllers\ScreenShare\ScreenShareSessionController;
@@ -34,6 +36,11 @@ Route::middleware(['auth', 'verified', 'mfa'])
     ->prefix('portal')
     ->name('portal.')
     ->group(function (): void {
+        Route::post('co-browse/connections', [CoBrowseConnectionController::class, 'registerClient'])
+            ->name('co-browse.connections.store');
+        Route::post('co-browse-sessions/{session}/response', [CoBrowseSessionController::class, 'respond'])
+            ->whereUuid('session')
+            ->name('co-browse.sessions.response');
         Route::post('screen-share/connections', [ScreenShareConnectionController::class, 'registerClient'])
             ->name('screen-share.connections.store');
         Route::post('entrepreneur-screen-share/connections', [EntrepreneurScreenShareController::class, 'registerPortalParticipant'])

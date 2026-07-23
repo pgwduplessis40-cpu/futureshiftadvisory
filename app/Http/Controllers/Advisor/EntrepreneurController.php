@@ -426,6 +426,7 @@ final class EntrepreneurController extends Controller
             ],
             'serviceOptions' => ServiceRatePackage::entrepreneurPackageScopeOptions(),
             'screenShare' => $this->screenSharePayload($viewer, $entrepreneurProfile),
+            'coBrowse' => $this->coBrowsePayload($viewer, $entrepreneurProfile),
         ]);
     }
 
@@ -452,6 +453,35 @@ final class EntrepreneurController extends Controller
             'heartbeat_url' => route('screen-share.sessions.heartbeat', ['session' => '__session__'], absolute: false),
             'end_url' => route('screen-share.sessions.end', ['session' => '__session__'], absolute: false),
             'heartbeat_seconds' => max(5, (int) config('screen-share.heartbeat_interval_seconds', 10)),
+            'participants' => [[
+                'id' => (string) $profile->user->getKey(),
+                'name' => $profile->user->name,
+            ]],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function coBrowsePayload(User $viewer, EntrepreneurProfile $profile): ?array
+    {
+        if (
+            ! (bool) config('co-browse.enabled')
+            || ! $profile->user instanceof User
+            || ! $this->screenShareAuthorizer->canRequestForEntrepreneur($viewer, $profile, $profile->user)
+        ) {
+            return null;
+        }
+
+        return [
+            'connection_url' => route('advisor.entrepreneurs.co-browse.connections.store', $profile, absolute: false),
+            'connection_heartbeat_url' => route('co-browse.connections.heartbeat', ['connection' => '__connection__'], absolute: false),
+            'request_url' => route('advisor.entrepreneurs.co-browse.sessions.store', $profile, absolute: false),
+            'status_url' => route('co-browse.sessions.status', ['session' => '__session__'], absolute: false),
+            'heartbeat_url' => route('co-browse.sessions.heartbeat', ['session' => '__session__'], absolute: false),
+            'end_url' => route('co-browse.sessions.end', ['session' => '__session__'], absolute: false),
+            'action_url' => route('co-browse.sessions.actions.store', ['session' => '__session__'], absolute: false),
+            'heartbeat_seconds' => max(5, (int) config('co-browse.heartbeat_interval_seconds', 10)),
             'participants' => [[
                 'id' => (string) $profile->user->getKey(),
                 'name' => $profile->user->name,

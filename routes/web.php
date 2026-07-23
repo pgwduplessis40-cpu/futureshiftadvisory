@@ -9,6 +9,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PanelAgreementController;
 use App\Http\Controllers\PanelApplicationController;
+use App\Http\Controllers\CoBrowse\CoBrowseConnectionController;
+use App\Http\Controllers\CoBrowse\CoBrowseSessionController;
 use App\Http\Controllers\ScreenShare\ScreenShareConnectionController;
 use App\Http\Controllers\ScreenShare\ScreenShareSessionController;
 use Illuminate\Support\Facades\Route;
@@ -28,6 +30,27 @@ Route::get('communications/open/{token}.gif', BulkCommunicationOpenController::c
     ->name('communications.open');
 
 Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
+    Route::post('co-browse/connections/{connection}/pending-prompt', [CoBrowseConnectionController::class, 'pendingPrompt'])
+        ->whereUuid('connection')
+        ->name('co-browse.connections.pending-prompt');
+    Route::post('co-browse/connections/{connection}/heartbeat', [CoBrowseConnectionController::class, 'heartbeat'])
+        ->whereUuid('connection')
+        ->name('co-browse.connections.heartbeat');
+    Route::post('co-browse/sessions/{session}/actions', [CoBrowseSessionController::class, 'action'])
+        ->whereUuid('session')
+        ->name('co-browse.sessions.actions.store');
+    Route::post('co-browse/sessions/{session}/pending-actions', [CoBrowseSessionController::class, 'pendingActions'])
+        ->whereUuid('session')
+        ->name('co-browse.sessions.pending-actions');
+    Route::post('co-browse/sessions/{session}/status', [CoBrowseSessionController::class, 'status'])
+        ->whereUuid('session')
+        ->name('co-browse.sessions.status');
+    Route::post('co-browse/sessions/{session}/heartbeat', [CoBrowseSessionController::class, 'heartbeat'])
+        ->whereUuid('session')
+        ->name('co-browse.sessions.heartbeat');
+    Route::post('co-browse/sessions/{session}/end', [CoBrowseSessionController::class, 'end'])
+        ->whereUuid('session')
+        ->name('co-browse.sessions.end');
     Route::post('screen-share/connections/{connection}/pending-prompt', [ScreenShareConnectionController::class, 'pendingPrompt'])
         ->whereUuid('connection')
         ->name('screen-share.connections.pending-prompt');

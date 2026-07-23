@@ -46,6 +46,8 @@ use App\Http\Controllers\Advisor\SurveyResultController;
 use App\Http\Controllers\Advisor\TemplateController;
 use App\Http\Controllers\Advisor\TestimonialController;
 use App\Http\Controllers\Advisor\VoiceNoteController;
+use App\Http\Controllers\CoBrowse\CoBrowseConnectionController;
+use App\Http\Controllers\CoBrowse\CoBrowseSessionController;
 use App\Http\Controllers\ScreenShare\EntrepreneurScreenShareController;
 use App\Http\Controllers\ScreenShare\ScreenShareConnectionController;
 use App\Http\Controllers\ScreenShare\ScreenShareSessionController;
@@ -85,6 +87,14 @@ Route::middleware(['auth', 'verified', 'mfa'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->whereUuid('client')
             ->name('clients.screen-share.sessions.store');
+        Route::post('clients/{client}/co-browse/connections', [CoBrowseConnectionController::class, 'registerAdvisor'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->whereUuid('client')
+            ->name('clients.co-browse.connections.store');
+        Route::post('clients/{client}/co-browse-sessions', [CoBrowseSessionController::class, 'store'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->whereUuid('client')
+            ->name('clients.co-browse.sessions.store');
         Route::get('client-transfers', [ClientTransferRequestController::class, 'index'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('client-transfers.index');
@@ -395,6 +405,14 @@ Route::middleware(['auth', 'verified', 'mfa'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->whereUuid('entrepreneurProfile')
             ->name('entrepreneurs.screen-share.sessions.store');
+        Route::post('entrepreneurs/{entrepreneurProfile}/co-browse/connections', [CoBrowseConnectionController::class, 'registerAdvisorForEntrepreneur'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
+            ->whereUuid('entrepreneurProfile')
+            ->name('entrepreneurs.co-browse.connections.store');
+        Route::post('entrepreneurs/{entrepreneurProfile}/co-browse-sessions', [CoBrowseSessionController::class, 'storeForEntrepreneur'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
+            ->whereUuid('entrepreneurProfile')
+            ->name('entrepreneurs.co-browse.sessions.store');
         Route::get('entrepreneurs/{entrepreneurProfile}/messages', [EntrepreneurMessageController::class, 'index'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.messages.index');

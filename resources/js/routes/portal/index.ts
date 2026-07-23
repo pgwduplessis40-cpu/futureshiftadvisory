@@ -1,4 +1,5 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
+import coBrowse from './co-browse'
 import screenShare from './screen-share'
 import entrepreneurScreenShare from './entrepreneur-screen-share'
 import businessPlanBudget from './business-plan-budget'
@@ -97,6 +98,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     
     dashboard.form = dashboardForm
 const portal = {
+    coBrowse: Object.assign(coBrowse, coBrowse),
     screenShare: Object.assign(screenShare, screenShare),
 entrepreneurScreenShare: Object.assign(entrepreneurScreenShare, entrepreneurScreenShare),
 dashboard: Object.assign(dashboard, dashboard),

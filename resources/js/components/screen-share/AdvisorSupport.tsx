@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Maximize2, Monitor, PhoneOff } from 'lucide-react';
+import { AdvisorCoBrowseControls, type AdvisorCoBrowseConfig } from '@/components/co-browse/AdvisorCoBrowseAction';
 import { Button } from '@/components/ui/button';
 import {
     closeScreenShareEcho,
@@ -23,6 +24,7 @@ type Props = {
         heartbeat_seconds: number;
         participants: Array<{ id: string; name: string }>;
     };
+    coBrowse?: AdvisorCoBrowseConfig | null;
     onConnectionChange: (connected: boolean) => void;
     onSessionEnded: () => void;
 };
@@ -52,7 +54,7 @@ type NegotiationStage =
     | 'apply-answer'
     | 'send-answer';
 
-export function AdvisorSupport({ config, onConnectionChange, onSessionEnded }: Props) {
+export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, onSessionEnded }: Props) {
     const [credentials, setCredentials] = useState<Credentials | null>(null);
     const [participant, setParticipant] = useState(config.participants[0]?.id ?? '');
     const [sessionId, setSessionId] = useState<string | null>(null);
@@ -517,18 +519,16 @@ export function AdvisorSupport({ config, onConnectionChange, onSessionEnded }: P
             {error ? <p className="mt-2 text-sm text-destructive">{error}</p> : null}
             {sessionId ? (
                 <div className={connected ? 'mt-4 flex min-h-0 flex-1 flex-col' : 'mt-4 shrink-0'}>
-                    <video
-                        ref={video}
-                        autoPlay
-                        playsInline
-                        className={
-                            connected
-                                ? 'min-h-0 w-full flex-1 bg-black object-contain'
-                                : 'aspect-video w-full bg-black object-contain'
-                        }
-                        title="Double-click to view full screen"
-                        onDoubleClick={() => void enterFullscreen()}
-                    />
+                    <div className={connected ? 'relative min-h-0 flex-1 bg-black' : 'relative aspect-video bg-black'}>
+                        <video
+                            ref={video}
+                            autoPlay
+                            playsInline
+                            className="size-full object-contain"
+                            title="Double-click to view full screen"
+                            onDoubleClick={() => void enterFullscreen()}
+                        />
+                    </div>
                     <p className="mt-2 shrink-0 text-sm text-muted-foreground">
                         {connected
                             ? overSharing
@@ -536,6 +536,12 @@ export function AdvisorSupport({ config, onConnectionChange, onSessionEnded }: P
                                 : 'The client is sharing their browser.'
                             : 'Waiting for the client to approve and choose a screen.'}
                     </p>
+                    <AdvisorCoBrowseControls
+                        config={coBrowse}
+                        participantId={participant}
+                        screenShareLive={connected}
+                        videoRef={video}
+                    />
                 </div>
             ) : null}
         </section>
