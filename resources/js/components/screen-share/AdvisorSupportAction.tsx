@@ -69,9 +69,19 @@ export function AdvisorSupportAction({ config, coBrowse = null }: Props) {
                 <DialogContent
                     className={
                         expanded
-                            ? 'h-[92vh] w-[96vw] max-w-none gap-0 overflow-hidden p-0 sm:max-w-none'
+                            ? 'h-[92vh] w-[96vw] max-w-none gap-0 overflow-hidden p-0 sm:max-w-none [&>[data-slot=dialog-close]]:hidden'
                             : 'gap-0 overflow-hidden p-0'
                     }
+                    onEscapeKeyDown={(event) => {
+                        if (expanded) {
+                            event.preventDefault();
+                        }
+                    }}
+                    onInteractOutside={(event) => {
+                        if (expanded) {
+                            event.preventDefault();
+                        }
+                    }}
                 >
                     <DialogHeader className="sr-only">
                         <DialogTitle>Screen support</DialogTitle>

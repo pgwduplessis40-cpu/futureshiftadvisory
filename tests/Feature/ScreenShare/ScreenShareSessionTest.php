@@ -617,6 +617,15 @@ final class ScreenShareSessionTest extends TestCase
         $this->assertInstanceOf(ScreenShareSession::class, $ended);
         $this->assertSame(ScreenShareSession::STATUS_ENDED, $session->refresh()->status);
         $this->assertSame('connection_lost', $session->end_reason);
+
+        $heartbeat = $sessions->heartbeat(
+            $this->clientUser,
+            $session,
+            (string) $clientTab->connection->getKey(),
+            $clientTab->secret,
+        );
+
+        $this->assertSame(ScreenShareSession::STATUS_ENDED, $heartbeat->status);
     }
 
     public function test_turn_credentials_are_scoped_to_an_approved_participant_and_do_not_expose_the_secret(): void

@@ -68,6 +68,10 @@ type PendingPromptResponse = {
     prompt: Prompt | null;
 };
 
+type SessionStatus = {
+    status: string;
+};
+
 export function ClientSupport({ config }: Props) {
     const [credentials, setCredentials] = useState<Credentials | null>(null);
     const [prompt, setPrompt] = useState<Prompt | null>(null);
@@ -264,12 +268,25 @@ export function ClientSupport({ config }: Props) {
             return;
         }
 
-        const interval = window.setInterval(() => {
-            void screenSharePost(replaceSession(config.heartbeat_url, sessionId), participant(credentials))
-                .catch(() => undefined);
-        }, config.heartbeat_seconds * 1000);
+        let active = true;
+        const heartbeat = (): void => {
+            void screenSharePost<SessionStatus>(
+                replaceSession(config.heartbeat_url, sessionId),
+                participant(credentials),
+            ).then((next) => {
+                if (active && next.status === 'ended') {
+                    stop();
+                }
+            }).catch(() => undefined);
+        };
 
-        return () => window.clearInterval(interval);
+        heartbeat();
+        const interval = window.setInterval(heartbeat, config.heartbeat_seconds * 1000);
+
+        return () => {
+            active = false;
+            window.clearInterval(interval);
+        };
     }, [config, credentials, sessionId, sharing]);
 
     useEffect(() => {

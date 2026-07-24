@@ -188,6 +188,7 @@ export function ClientCoBrowse({ config }: Props) {
 
         let mounted = true;
         let polling = false;
+        let statusPolling = false;
         const poll = (): void => {
             if (polling) {
                 return;
@@ -206,8 +207,30 @@ export function ClientCoBrowse({ config }: Props) {
             });
         };
 
+        const pollStatus = (): void => {
+            if (statusPolling) {
+                return;
+            }
+
+            statusPolling = true;
+            void coBrowsePost<Session>(
+                replaceCoBrowsePath(config.status_url, '__session__', session.id),
+                coBrowseParticipant(credentials),
+            ).then((next) => {
+                if (mounted && next.status === 'ended') {
+                    setSession(null);
+                    sessionId.current = null;
+                    clearGuidance();
+                }
+            }).catch(() => undefined).finally(() => {
+                statusPolling = false;
+            });
+        };
+
         poll();
+        pollStatus();
         const interval = window.setInterval(poll, 1_000);
+        const statusInterval = window.setInterval(pollStatus, 2_000);
         const heartbeat = window.setInterval(() => {
             void coBrowsePost(
                 replaceCoBrowsePath(config.heartbeat_url, '__session__', session.id),
@@ -218,9 +241,10 @@ export function ClientCoBrowse({ config }: Props) {
         return () => {
             mounted = false;
             window.clearInterval(interval);
+            window.clearInterval(statusInterval);
             window.clearInterval(heartbeat);
         };
-    }, [applyAction, config, credentials, session]);
+    }, [applyAction, clearGuidance, config, credentials, session]);
 
     async function approve(): Promise<void> {
         if (!config || !credentials || !prompt) {

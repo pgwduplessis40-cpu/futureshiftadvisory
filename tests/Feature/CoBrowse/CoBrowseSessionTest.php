@@ -147,6 +147,49 @@ final class CoBrowseSessionTest extends TestCase
         $this->assertTrue($connection->connection->expires_at->greaterThan(now()->addSeconds(90)));
     }
 
+    public function test_client_status_reports_when_the_advisor_ends_guided_assistance(): void
+    {
+        Event::fake([CoBrowsePrompt::class]);
+        $presence = app(CoBrowsePresence::class);
+        $sessions = app(CoBrowseSessions::class);
+        $advisor = $presence->registerAdvisorForClient($this->advisor, $this->client);
+        $client = $this->clientConnection();
+
+        $session = $sessions->requestForClient(
+            $this->advisor,
+            $this->client,
+            $this->clientUser,
+            (string) $advisor->connection->getKey(),
+            $advisor->secret,
+        );
+        $prompt = Event::dispatched(CoBrowsePrompt::class)[0][0];
+        $approved = $sessions->respond(
+            $this->clientUser,
+            $session,
+            (string) $client->connection->getKey(),
+            $client->secret,
+            $prompt->broadcastWith()['nonce'],
+            true,
+        );
+
+        $sessions->end(
+            $this->advisor,
+            $approved,
+            (string) $advisor->connection->getKey(),
+            $advisor->secret,
+            'completed_advisor_ended',
+        );
+
+        $status = $sessions->status(
+            $this->clientUser,
+            $approved,
+            (string) $client->connection->getKey(),
+            $client->secret,
+        );
+
+        $this->assertSame(CoBrowseSession::STATUS_ENDED, $status->status);
+    }
+
     public function test_unapproved_or_unknown_actions_cannot_be_delivered(): void
     {
         Event::fake([CoBrowsePrompt::class]);

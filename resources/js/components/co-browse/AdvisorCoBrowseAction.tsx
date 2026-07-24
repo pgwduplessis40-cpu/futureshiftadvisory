@@ -207,13 +207,18 @@ export function AdvisorCoBrowseControls({ config, participantId, screenShareLive
                 replaceCoBrowsePath(config.action_url, '__session__', session.id),
                 { ...coBrowseParticipant(credentials), type, payload },
             );
+            if (error !== null) {
+                setError(null);
+            }
         } catch (caught) {
             setError(messageFor(caught));
         }
     }
 
     function point(event: PointerEvent<HTMLDivElement>): void {
-        if (Date.now() - lastPointerSentAt.current < 150) {
+        // Stay below the server's five-points-per-second limit, including
+        // the occasional pointer clear sent when the advisor leaves the view.
+        if (Date.now() - lastPointerSentAt.current < 250) {
             return;
         }
 
