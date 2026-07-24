@@ -108,6 +108,6 @@ final class ScreenSharePresence
 
     private function ttlSeconds(): int
     {
-        return max(20, (int) config('screen-share.presence_ttl_seconds', 45));
+        return max(120, (int) config('screen-share.presence_ttl_seconds', 120));
     }
 }

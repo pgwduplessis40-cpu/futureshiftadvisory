@@ -96,6 +96,7 @@ export function ClientSupport({ config }: Props) {
         let active = true;
         let promptPoll: number | null = null;
         let connectionHeartbeat: number | null = null;
+        let refreshPresenceOnVisibilityChange: (() => void) | null = null;
         void registerScreenShareConnection(config.connection_url, {
             portal_context_token: config.portal_context_token,
         }).then((next) => {
@@ -116,12 +117,16 @@ export function ClientSupport({ config }: Props) {
             };
             pollForPrompt();
             promptPoll = window.setInterval(pollForPrompt, 3_000);
-            connectionHeartbeat = window.setInterval(() => {
+            const heartbeat = (): void => {
                 void screenSharePost(
                     replaceConnection(config.connection_heartbeat_url, next.connection_id),
                     participant(next),
                 ).catch(() => undefined);
-            }, config.heartbeat_seconds * 1000);
+            };
+            heartbeat();
+            connectionHeartbeat = window.setInterval(heartbeat, config.heartbeat_seconds * 1000);
+            refreshPresenceOnVisibilityChange = (): void => heartbeat();
+            document.addEventListener('visibilitychange', refreshPresenceOnVisibilityChange);
 
             try {
                 const channel = screenShareEcho(next).private(next.channel);
@@ -150,6 +155,9 @@ export function ClientSupport({ config }: Props) {
             }
             if (connectionHeartbeat !== null) {
                 window.clearInterval(connectionHeartbeat);
+            }
+            if (refreshPresenceOnVisibilityChange !== null) {
+                document.removeEventListener('visibilitychange', refreshPresenceOnVisibilityChange);
             }
             stop();
             closeScreenShareEcho();

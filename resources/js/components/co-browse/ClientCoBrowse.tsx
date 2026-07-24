@@ -107,6 +107,7 @@ export function ClientCoBrowse({ config }: Props) {
         let mounted = true;
         let promptPoll: number | null = null;
         let connectionHeartbeat: number | null = null;
+        let refreshPresenceOnVisibilityChange: (() => void) | null = null;
 
         void registerCoBrowseConnection(config.connection_url, {
             portal_context_token: config.portal_context_token,
@@ -128,12 +129,16 @@ export function ClientCoBrowse({ config }: Props) {
             };
             pollPrompt();
             promptPoll = window.setInterval(pollPrompt, 2_000);
-            connectionHeartbeat = window.setInterval(() => {
+            const heartbeat = (): void => {
                 void coBrowsePost(
                     replaceCoBrowsePath(config.connection_heartbeat_url, '__connection__', next.connection_id),
                     { connection_secret: next.connection_secret },
                 ).catch(() => undefined);
-            }, config.heartbeat_seconds * 1000);
+            };
+            heartbeat();
+            connectionHeartbeat = window.setInterval(heartbeat, config.heartbeat_seconds * 1000);
+            refreshPresenceOnVisibilityChange = (): void => heartbeat();
+            document.addEventListener('visibilitychange', refreshPresenceOnVisibilityChange);
 
             try {
                 const channel = coBrowseEcho(next).private(next.channel);
@@ -168,6 +173,9 @@ export function ClientCoBrowse({ config }: Props) {
             }
             if (connectionHeartbeat !== null) {
                 window.clearInterval(connectionHeartbeat);
+            }
+            if (refreshPresenceOnVisibilityChange !== null) {
+                document.removeEventListener('visibilitychange', refreshPresenceOnVisibilityChange);
             }
             closeCoBrowseEcho();
         };

@@ -572,6 +572,6 @@ final class CoBrowseSessions
 
     private function presenceTtlSeconds(): int
     {
-        return max(20, (int) config('co-browse.presence_ttl_seconds', 45));
+        return max(120, (int) config('co-browse.presence_ttl_seconds', 120));
     }
 }

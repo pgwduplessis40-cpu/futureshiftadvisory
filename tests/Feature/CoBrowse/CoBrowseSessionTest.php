@@ -138,6 +138,15 @@ final class CoBrowseSessionTest extends TestCase
         ]);
     }
 
+    public function test_guided_assistance_presence_lease_survives_background_browser_timer_throttling(): void
+    {
+        config(['co-browse.presence_ttl_seconds' => 45]);
+
+        $connection = $this->clientConnection();
+
+        $this->assertTrue($connection->connection->expires_at->greaterThan(now()->addSeconds(90)));
+    }
+
     public function test_unapproved_or_unknown_actions_cannot_be_delivered(): void
     {
         Event::fake([CoBrowsePrompt::class]);

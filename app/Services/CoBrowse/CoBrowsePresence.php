@@ -160,7 +160,7 @@ final class CoBrowsePresence
 
     private function ttlSeconds(): int
     {
-        return max(20, (int) config('co-browse.presence_ttl_seconds', 45));
+        return max(120, (int) config('co-browse.presence_ttl_seconds', 120));
     }
 
     private function assertEnabled(): void

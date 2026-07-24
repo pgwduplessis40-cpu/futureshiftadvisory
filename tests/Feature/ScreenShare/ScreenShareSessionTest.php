@@ -126,6 +126,37 @@ final class ScreenShareSessionTest extends TestCase
         $this->assertNull($late->end_reason);
     }
 
+    public function test_presence_lease_survives_background_browser_timer_throttling(): void
+    {
+        config(['screen-share.presence_ttl_seconds' => 45]);
+
+        $clientConnection = $this->clientConnection($this->clientUser);
+
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'assigned_advisor_id' => $this->advisor->getKey(),
+            'name' => 'Background Browser Entrepreneur',
+            'email' => 'background-browser-entrepreneur@example.test',
+        ]);
+        $token = app(ClientPortalContextTokens::class)->issueForEntrepreneur(
+            $entrepreneur,
+            $profile,
+            'portal.entrepreneur.dashboard',
+        );
+        $entrepreneurConnection = app(EntrepreneurScreenSharePresence::class)
+            ->registerPortalParticipant($entrepreneur, $token);
+
+        $minimumExpiry = now()->addSeconds(90);
+
+        $this->assertTrue($clientConnection->connection->expires_at->greaterThan($minimumExpiry));
+        $this->assertTrue($entrepreneurConnection->connection->expires_at->greaterThan($minimumExpiry));
+    }
+
     public function test_unprompted_client_team_member_cannot_answer_another_users_request(): void
     {
         [$session] = $this->requestedSession();
