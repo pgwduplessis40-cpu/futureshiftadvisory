@@ -30,7 +30,22 @@
       "Bash(grep -n \"EzypayTokenStore\\\\|EzypayWebhookReconciler\\\\|FakeEzypayClient\\\\|Integration\\\\\\\\\\\\\\\\Ezypay\\\\|GATEWAY_EZYPAY = \\\\|webhooks/payments/ezypay\" PLAN-DIRECT-DEBIT-EZYPAY.md)",
       "Bash(grep -n \"14\\\\.90\\\\|1\\\\.49%\\\\|\\\\$0\\\\.27\" PLAN-DIRECT-DEBIT-EZYPAY.md)",
       "Bash(grep -n \"\\\\`retired\\\\` is rejected\\\\|retired.*no.*rejected at the route\" PLAN-DIRECT-DEBIT-EZYPAY.md)",
-      "Bash(grep -n \"default \\\\`card\\\\`\\\\|no default\" PLAN-DIRECT-DEBIT-EZYPAY.md)"
+      "Bash(grep -n \"default \\\\`card\\\\`\\\\|no default\" PLAN-DIRECT-DEBIT-EZYPAY.md)",
+      "Bash(bash -n deploy.sh)",
+      "Bash(chmod +x deploy.sh)",
+      "Bash(git update-index *)",
+      "Bash(git commit -q -m ' *)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(git ls-tree *)",
+      "Bash(git config *)",
+      "Bash(bash -c 'set -euo pipefail; if printf \"inertia-ssr.service\\\\n\" | grep -q \"^inertia-ssr\\\\.service\"; then echo \"MATCH \\(correct\\)\"; else echo \"NO MATCH \\(the bug: false negative\\)\"; fi')",
+      "Bash(echo \"exit=$?\")",
+      "Bash(bash -c 'set -euo pipefail; if seq 1 2000000 | grep -q \"^1$\"; then echo \"MATCH \\(correct\\)\"; else echo \"NO MATCH -> false negative, exit was $?\"; fi')",
+      "Bash(bash -c 'set -eu; if seq 1 2000000 | grep -q \"^1$\"; then echo \"MATCH \\(correct\\)\"; else echo \"NO MATCH\"; fi')",
+      "Bash(bash -c 'set -euo pipefail; if systemctl cat nonexistent-unit >/dev/null 2>&1; then echo found; else echo \"not found \\(correct, and no pipefail hazard\\)\"; fi')",
+      "Bash(grep -n \"no \\\\`active\\\\` or \\\\`pending\\\\` authorit\\\\|no unrevoked\\\\|no \\\\`submitted\\\\` payment\" PLAN-DIRECT-DEBIT-EZYPAY.md)",
+      "Bash(grep -n \"insert the \\\\`submitted\\\\` payment row\" PLAN-DIRECT-DEBIT-EZYPAY.md)"
     ]
   }
 }

@@ -5,7 +5,7 @@ import actions from './actions'
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:103
  * @route '/co-browse/sessions/{session}/pending-actions'
  */
-export const pendingActions = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const pendingActions = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: pendingActions.url(args, options),
     method: 'post',
 })
@@ -20,7 +20,7 @@ pendingActions.definition = {
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:103
  * @route '/co-browse/sessions/{session}/pending-actions'
  */
-pendingActions.url = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+pendingActions.url = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { session: args }
     }
@@ -53,7 +53,7 @@ pendingActions.url = (args: { session: string | number | { id: string | number }
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:103
  * @route '/co-browse/sessions/{session}/pending-actions'
  */
-pendingActions.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+pendingActions.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: pendingActions.url(args, options),
     method: 'post',
 })
@@ -63,7 +63,7 @@ pendingActions.post = (args: { session: string | number | { id: string | number 
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:103
  * @route '/co-browse/sessions/{session}/pending-actions'
  */
-    const pendingActionsForm = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const pendingActionsForm = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: pendingActions.url(args, options),
         method: 'post',
     })
@@ -73,7 +73,7 @@ pendingActions.post = (args: { session: string | number | { id: string | number 
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:103
  * @route '/co-browse/sessions/{session}/pending-actions'
  */
-        pendingActionsForm.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        pendingActionsForm.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: pendingActions.url(args, options),
             method: 'post',
         })
@@ -84,7 +84,7 @@ pendingActions.post = (args: { session: string | number | { id: string | number 
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:122
  * @route '/co-browse/sessions/{session}/status'
  */
-export const status = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const status = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: status.url(args, options),
     method: 'post',
 })
@@ -99,7 +99,7 @@ status.definition = {
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:122
  * @route '/co-browse/sessions/{session}/status'
  */
-status.url = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+status.url = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { session: args }
     }
@@ -132,7 +132,7 @@ status.url = (args: { session: string | number | { id: string | number } } | [se
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:122
  * @route '/co-browse/sessions/{session}/status'
  */
-status.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+status.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: status.url(args, options),
     method: 'post',
 })
@@ -142,7 +142,7 @@ status.post = (args: { session: string | number | { id: string | number } } | [s
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:122
  * @route '/co-browse/sessions/{session}/status'
  */
-    const statusForm = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const statusForm = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: status.url(args, options),
         method: 'post',
     })
@@ -152,7 +152,7 @@ status.post = (args: { session: string | number | { id: string | number } } | [s
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:122
  * @route '/co-browse/sessions/{session}/status'
  */
-        statusForm.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        statusForm.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: status.url(args, options),
             method: 'post',
         })
@@ -163,7 +163,7 @@ status.post = (args: { session: string | number | { id: string | number } } | [s
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:130
  * @route '/co-browse/sessions/{session}/heartbeat'
  */
-export const heartbeat = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const heartbeat = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: heartbeat.url(args, options),
     method: 'post',
 })
@@ -178,7 +178,7 @@ heartbeat.definition = {
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:130
  * @route '/co-browse/sessions/{session}/heartbeat'
  */
-heartbeat.url = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+heartbeat.url = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { session: args }
     }
@@ -211,7 +211,7 @@ heartbeat.url = (args: { session: string | number | { id: string | number } } | 
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:130
  * @route '/co-browse/sessions/{session}/heartbeat'
  */
-heartbeat.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+heartbeat.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: heartbeat.url(args, options),
     method: 'post',
 })
@@ -221,7 +221,7 @@ heartbeat.post = (args: { session: string | number | { id: string | number } } |
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:130
  * @route '/co-browse/sessions/{session}/heartbeat'
  */
-    const heartbeatForm = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const heartbeatForm = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: heartbeat.url(args, options),
         method: 'post',
     })
@@ -231,7 +231,7 @@ heartbeat.post = (args: { session: string | number | { id: string | number } } |
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:130
  * @route '/co-browse/sessions/{session}/heartbeat'
  */
-        heartbeatForm.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        heartbeatForm.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: heartbeat.url(args, options),
             method: 'post',
         })
@@ -242,7 +242,7 @@ heartbeat.post = (args: { session: string | number | { id: string | number } } |
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:138
  * @route '/co-browse/sessions/{session}/end'
  */
-export const end = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const end = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: end.url(args, options),
     method: 'post',
 })
@@ -257,7 +257,7 @@ end.definition = {
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:138
  * @route '/co-browse/sessions/{session}/end'
  */
-end.url = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+end.url = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { session: args }
     }
@@ -290,7 +290,7 @@ end.url = (args: { session: string | number | { id: string | number } } | [sessi
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:138
  * @route '/co-browse/sessions/{session}/end'
  */
-end.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+end.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: end.url(args, options),
     method: 'post',
 })
@@ -300,7 +300,7 @@ end.post = (args: { session: string | number | { id: string | number } } | [sess
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:138
  * @route '/co-browse/sessions/{session}/end'
  */
-    const endForm = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const endForm = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: end.url(args, options),
         method: 'post',
     })
@@ -310,7 +310,7 @@ end.post = (args: { session: string | number | { id: string | number } } | [sess
  * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:138
  * @route '/co-browse/sessions/{session}/end'
  */
-        endForm.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        endForm.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: end.url(args, options),
             method: 'post',
         })

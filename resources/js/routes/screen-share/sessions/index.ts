@@ -4,7 +4,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:79
  * @route '/screen-share/sessions/{session}/active'
  */
-export const active = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const active = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: active.url(args, options),
     method: 'post',
 })
@@ -19,7 +19,7 @@ active.definition = {
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:79
  * @route '/screen-share/sessions/{session}/active'
  */
-active.url = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+active.url = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { session: args }
     }
@@ -52,7 +52,7 @@ active.url = (args: { session: string | number | { id: string | number } } | [se
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:79
  * @route '/screen-share/sessions/{session}/active'
  */
-active.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+active.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: active.url(args, options),
     method: 'post',
 })
@@ -62,7 +62,7 @@ active.post = (args: { session: string | number | { id: string | number } } | [s
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:79
  * @route '/screen-share/sessions/{session}/active'
  */
-    const activeForm = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const activeForm = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: active.url(args, options),
         method: 'post',
     })
@@ -72,7 +72,7 @@ active.post = (args: { session: string | number | { id: string | number } } | [s
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:79
  * @route '/screen-share/sessions/{session}/active'
  */
-        activeForm.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        activeForm.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: active.url(args, options),
             method: 'post',
         })
@@ -83,7 +83,7 @@ active.post = (args: { session: string | number | { id: string | number } } | [s
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:90
  * @route '/screen-share/sessions/{session}/signal'
  */
-export const signal = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const signal = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: signal.url(args, options),
     method: 'post',
 })
@@ -98,7 +98,7 @@ signal.definition = {
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:90
  * @route '/screen-share/sessions/{session}/signal'
  */
-signal.url = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+signal.url = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { session: args }
     }
@@ -131,7 +131,7 @@ signal.url = (args: { session: string | number | { id: string | number } } | [se
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:90
  * @route '/screen-share/sessions/{session}/signal'
  */
-signal.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+signal.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: signal.url(args, options),
     method: 'post',
 })
@@ -141,7 +141,7 @@ signal.post = (args: { session: string | number | { id: string | number } } | [s
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:90
  * @route '/screen-share/sessions/{session}/signal'
  */
-    const signalForm = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const signalForm = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: signal.url(args, options),
         method: 'post',
     })
@@ -151,7 +151,7 @@ signal.post = (args: { session: string | number | { id: string | number } } | [s
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:90
  * @route '/screen-share/sessions/{session}/signal'
  */
-        signalForm.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        signalForm.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: signal.url(args, options),
             method: 'post',
         })
@@ -159,10 +159,10 @@ signal.post = (args: { session: string | number | { id: string | number } } | [s
     signal.form = signalForm
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::pendingSignals
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:104
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:105
  * @route '/screen-share/sessions/{session}/pending-signals'
  */
-export const pendingSignals = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const pendingSignals = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: pendingSignals.url(args, options),
     method: 'post',
 })
@@ -174,10 +174,10 @@ pendingSignals.definition = {
 
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::pendingSignals
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:104
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:105
  * @route '/screen-share/sessions/{session}/pending-signals'
  */
-pendingSignals.url = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+pendingSignals.url = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { session: args }
     }
@@ -207,30 +207,30 @@ pendingSignals.url = (args: { session: string | number | { id: string | number }
 
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::pendingSignals
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:104
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:105
  * @route '/screen-share/sessions/{session}/pending-signals'
  */
-pendingSignals.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+pendingSignals.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: pendingSignals.url(args, options),
     method: 'post',
 })
 
     /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::pendingSignals
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:104
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:105
  * @route '/screen-share/sessions/{session}/pending-signals'
  */
-    const pendingSignalsForm = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const pendingSignalsForm = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: pendingSignals.url(args, options),
         method: 'post',
     })
 
             /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::pendingSignals
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:104
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:105
  * @route '/screen-share/sessions/{session}/pending-signals'
  */
-        pendingSignalsForm.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        pendingSignalsForm.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: pendingSignals.url(args, options),
             method: 'post',
         })
@@ -238,10 +238,10 @@ pendingSignals.post = (args: { session: string | number | { id: string | number 
     pendingSignals.form = pendingSignalsForm
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::iceServers
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:123
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:124
  * @route '/screen-share/sessions/{session}/ice-servers'
  */
-export const iceServers = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const iceServers = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: iceServers.url(args, options),
     method: 'post',
 })
@@ -253,10 +253,10 @@ iceServers.definition = {
 
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::iceServers
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:123
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:124
  * @route '/screen-share/sessions/{session}/ice-servers'
  */
-iceServers.url = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+iceServers.url = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { session: args }
     }
@@ -286,30 +286,30 @@ iceServers.url = (args: { session: string | number | { id: string | number } } |
 
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::iceServers
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:123
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:124
  * @route '/screen-share/sessions/{session}/ice-servers'
  */
-iceServers.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+iceServers.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: iceServers.url(args, options),
     method: 'post',
 })
 
     /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::iceServers
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:123
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:124
  * @route '/screen-share/sessions/{session}/ice-servers'
  */
-    const iceServersForm = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const iceServersForm = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: iceServers.url(args, options),
         method: 'post',
     })
 
             /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::iceServers
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:123
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:124
  * @route '/screen-share/sessions/{session}/ice-servers'
  */
-        iceServersForm.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        iceServersForm.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: iceServers.url(args, options),
             method: 'post',
         })
@@ -317,10 +317,10 @@ iceServers.post = (args: { session: string | number | { id: string | number } } 
     iceServers.form = iceServersForm
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::heartbeat
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:138
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:139
  * @route '/screen-share/sessions/{session}/heartbeat'
  */
-export const heartbeat = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const heartbeat = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: heartbeat.url(args, options),
     method: 'post',
 })
@@ -332,10 +332,10 @@ heartbeat.definition = {
 
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::heartbeat
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:138
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:139
  * @route '/screen-share/sessions/{session}/heartbeat'
  */
-heartbeat.url = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+heartbeat.url = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { session: args }
     }
@@ -365,30 +365,30 @@ heartbeat.url = (args: { session: string | number | { id: string | number } } | 
 
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::heartbeat
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:138
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:139
  * @route '/screen-share/sessions/{session}/heartbeat'
  */
-heartbeat.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+heartbeat.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: heartbeat.url(args, options),
     method: 'post',
 })
 
     /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::heartbeat
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:138
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:139
  * @route '/screen-share/sessions/{session}/heartbeat'
  */
-    const heartbeatForm = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const heartbeatForm = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: heartbeat.url(args, options),
         method: 'post',
     })
 
             /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::heartbeat
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:138
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:139
  * @route '/screen-share/sessions/{session}/heartbeat'
  */
-        heartbeatForm.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        heartbeatForm.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: heartbeat.url(args, options),
             method: 'post',
         })
@@ -396,10 +396,10 @@ heartbeat.post = (args: { session: string | number | { id: string | number } } |
     heartbeat.form = heartbeatForm
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::end
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:149
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:150
  * @route '/screen-share/sessions/{session}/end'
  */
-export const end = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const end = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: end.url(args, options),
     method: 'post',
 })
@@ -411,10 +411,10 @@ end.definition = {
 
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::end
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:149
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:150
  * @route '/screen-share/sessions/{session}/end'
  */
-end.url = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+end.url = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { session: args }
     }
@@ -444,30 +444,30 @@ end.url = (args: { session: string | number | { id: string | number } } | [sessi
 
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::end
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:149
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:150
  * @route '/screen-share/sessions/{session}/end'
  */
-end.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+end.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: end.url(args, options),
     method: 'post',
 })
 
     /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::end
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:149
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:150
  * @route '/screen-share/sessions/{session}/end'
  */
-    const endForm = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const endForm = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: end.url(args, options),
         method: 'post',
     })
 
             /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::end
- * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:149
+ * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:150
  * @route '/screen-share/sessions/{session}/end'
  */
-        endForm.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        endForm.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: end.url(args, options),
             method: 'post',
         })

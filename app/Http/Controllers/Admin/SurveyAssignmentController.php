@@ -51,6 +51,10 @@ final class SurveyAssignmentController extends Controller
         $survey = $this->resolveSurvey($request, $library, $user);
         $assignment = $activation->activateForEntrepreneur($entrepreneurProfile, $survey, $user, $this->dueAt($request));
 
+        if ($request->header('X-Inertia') === 'true') {
+            return back()->with('status', 'survey-activated')->with('survey_assignment_id', $assignment->getKey());
+        }
+
         return to_route('advisor.entrepreneurs.surveys', $entrepreneurProfile)->with('status', 'survey-activated')->with('survey_assignment_id', $assignment->getKey());
     }
 

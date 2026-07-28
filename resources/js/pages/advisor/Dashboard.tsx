@@ -2,6 +2,7 @@ import { Deferred, Head, Link, router } from '@inertiajs/react';
 import {
     Activity,
     AlertTriangle,
+    ArrowRightLeft,
     Banknote,
     BarChart3,
     CheckCircle2,
@@ -150,6 +151,14 @@ type PendingTermsPayload = {
 type MessagesPendingPayload = {
     total: number;
     index_url: string;
+};
+
+type ClientTransferQueuePayload = {
+    available: boolean;
+    total: number;
+    action_url: string | null;
+    action_label: string;
+    can_review: boolean;
 };
 
 type EntrepreneurReviewsPayload = {
@@ -794,6 +803,7 @@ type Props = {
     redFlags: RedFlagsPayload;
     documentVerificationFlags: DocumentVerificationFlag[];
     messagesPending: MessagesPendingPayload;
+    clientTransferQueue: ClientTransferQueuePayload;
     entrepreneurReviews: EntrepreneurReviewsPayload;
     strategicPlanDeployments: StrategicPlanDeploymentsPayload;
     pendingTermsReacceptance: PendingTermsPayload;
@@ -822,6 +832,7 @@ export default function AdvisorDashboard({
     redFlags,
     documentVerificationFlags,
     messagesPending,
+    clientTransferQueue,
     entrepreneurReviews,
     strategicPlanDeployments,
     pendingTermsReacceptance,
@@ -849,6 +860,7 @@ export default function AdvisorDashboard({
         cashFlowStatus,
         redFlags,
         documentVerificationFlags,
+        clientTransferQueue,
         entrepreneurReviews,
         strategicPlanDeployments,
         pendingTermsReacceptance,
@@ -1389,6 +1401,7 @@ function buildActionSummaryItems({
     cashFlowStatus,
     redFlags,
     documentVerificationFlags,
+    clientTransferQueue,
     entrepreneurReviews,
     strategicPlanDeployments,
     pendingTermsReacceptance,
@@ -1407,6 +1420,7 @@ function buildActionSummaryItems({
     | 'cashFlowStatus'
     | 'redFlags'
     | 'documentVerificationFlags'
+    | 'clientTransferQueue'
     | 'entrepreneurReviews'
     | 'strategicPlanDeployments'
     | 'pendingTermsReacceptance'
@@ -1435,6 +1449,35 @@ function buildActionSummaryItems({
         referenceDataTasks.summary.due_soon;
     const brokerApprovalActionCount = panelOperations.approvals.summary.broker;
     const coachApprovalActionCount = panelOperations.approvals.summary.coach;
+    const clientTransferAction =
+        clientTransferQueue.available && clientTransferQueue.action_url
+            ? {
+                  key: 'client-transfers',
+                  label: clientTransferQueue.can_review
+                      ? 'Client transfers'
+                      : 'My transfers',
+                  value: clientTransferQueue.total,
+                  statusLabel: clientTransferQueue.can_review
+                      ? 'Review'
+                      : 'Awaiting',
+                  href: clientTransferQueue.action_url,
+                  targetId: 'advisor-command-centre',
+                  tab: 'priorities' as const,
+                  priority:
+                      clientTransferQueue.total > 0
+                          ? ('warning' as const)
+                          : ('neutral' as const),
+                  explanation: clientTransferQueue.can_review
+                      ? 'Client transfer requests are waiting for a super administrator to approve or reject the ownership change.'
+                      : 'Client transfer requests are waiting for a super administrator to review the proposed ownership change.',
+                  nextStep: clientTransferQueue.can_review
+                      ? 'Open Client allocations, review the reason and receiving advisor, then approve or reject the request.'
+                      : 'Open the transfer request to review its status and the client context while the administrator decision is pending.',
+                  icon: (
+                      <ArrowRightLeft className="size-4" aria-hidden="true" />
+                  ),
+              }
+            : null;
     const redFlagAction =
         redFlags.summary.open > 0
             ? {
@@ -1477,6 +1520,7 @@ function buildActionSummaryItems({
             icon: <Banknote className="size-4" aria-hidden="true" />,
         },
         ...(redFlagAction ? [redFlagAction] : []),
+        ...(clientTransferAction ? [clientTransferAction] : []),
         {
             key: 'documents',
             label: 'Document review',

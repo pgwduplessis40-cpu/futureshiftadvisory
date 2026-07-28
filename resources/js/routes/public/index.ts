@@ -76,7 +76,7 @@ services.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     services.form = servicesForm
 /**
 * @see \App\Http\Controllers\Public\AboutController::__invoke
@@ -154,7 +154,7 @@ about.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     about.form = aboutForm
 /**
 * @see \App\Http\Controllers\Public\FaqController::__invoke
@@ -232,7 +232,7 @@ faq.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     faq.form = faqForm
 /**
 * @see \App\Http\Controllers\Public\ContactController::contact
@@ -310,7 +310,7 @@ contact.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     contact.form = contactForm
 /**
 * @see \App\Http\Controllers\Public\SitemapController::__invoke
@@ -388,14 +388,93 @@ sitemap.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     sitemap.form = sitemapForm
+/**
+* @see \App\Http\Controllers\Public\LlmsTxtController::__invoke
+ * @see app/Http/Controllers/Public/LlmsTxtController.php:19
+ * @route '/llms.txt'
+ */
+export const llms = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: llms.url(options),
+    method: 'get',
+})
+
+llms.definition = {
+    methods: ["get","head"],
+    url: '/llms.txt',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \App\Http\Controllers\Public\LlmsTxtController::__invoke
+ * @see app/Http/Controllers/Public/LlmsTxtController.php:19
+ * @route '/llms.txt'
+ */
+llms.url = (options?: RouteQueryOptions) => {
+    return llms.definition.url + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Public\LlmsTxtController::__invoke
+ * @see app/Http/Controllers/Public/LlmsTxtController.php:19
+ * @route '/llms.txt'
+ */
+llms.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: llms.url(options),
+    method: 'get',
+})
+/**
+* @see \App\Http\Controllers\Public\LlmsTxtController::__invoke
+ * @see app/Http/Controllers/Public/LlmsTxtController.php:19
+ * @route '/llms.txt'
+ */
+llms.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: llms.url(options),
+    method: 'head',
+})
+
+    /**
+* @see \App\Http\Controllers\Public\LlmsTxtController::__invoke
+ * @see app/Http/Controllers/Public/LlmsTxtController.php:19
+ * @route '/llms.txt'
+ */
+    const llmsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: llms.url(options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\Public\LlmsTxtController::__invoke
+ * @see app/Http/Controllers/Public/LlmsTxtController.php:19
+ * @route '/llms.txt'
+ */
+        llmsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: llms.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Public\LlmsTxtController::__invoke
+ * @see app/Http/Controllers/Public/LlmsTxtController.php:19
+ * @route '/llms.txt'
+ */
+        llmsForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: llms.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+
+    llms.form = llmsForm
 const publicMethod = {
     services: Object.assign(services, services),
 about: Object.assign(about, about),
 faq: Object.assign(faq, faq),
 contact: Object.assign(contact, contact50a660),
 sitemap: Object.assign(sitemap, sitemap),
+llms: Object.assign(llms, llms),
 }
 
 export default publicMethod

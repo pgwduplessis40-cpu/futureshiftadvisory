@@ -51,6 +51,7 @@ final class ClientTransferRequestController extends Controller
                     'target_advisor_name' => $transfer->targetAdvisor?->name,
                     'reason' => $transfer->reason,
                     'created_at' => $transfer->created_at?->toIso8601String(),
+                    'client_url' => route('advisor.clients.show', $transfer->client_id, absolute: false),
                 ])
                 ->values(),
             'defaults' => [

@@ -95,11 +95,11 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     dashboard.form = dashboardForm
 const portal = {
     coBrowse: Object.assign(coBrowse, coBrowse),
-    screenShare: Object.assign(screenShare, screenShare),
+screenShare: Object.assign(screenShare, screenShare),
 entrepreneurScreenShare: Object.assign(entrepreneurScreenShare, entrepreneurScreenShare),
 dashboard: Object.assign(dashboard, dashboard),
 businessPlanBudget: Object.assign(businessPlanBudget, businessPlanBudget),

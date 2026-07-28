@@ -412,6 +412,9 @@ final class EntrepreneurController extends Controller
                     ? $this->planProgressSummary($latestPlan, $entrepreneurProfile)
                     : null,
                 'readiness' => $this->readinessSummary($entrepreneurProfile),
+                'feedback_survey' => [
+                    'action_url' => route('advisor.entrepreneurs.survey-assignments.store', $entrepreneurProfile, absolute: false),
+                ],
                 'idea_validation' => $this->ideaValidationSummary($entrepreneurProfile),
                 'advisory_readiness' => $this->advisoryReadinessSummary($entrepreneurProfile),
                 'reports' => $this->reportSummary($entrepreneurProfile),
@@ -677,10 +680,6 @@ final class EntrepreneurController extends Controller
             'score' => $assessment?->score,
             'outcome' => $assessment?->outcome,
             'assessed_at' => $assessment?->assessed_at?->toIso8601String(),
-            'action_label' => $assessment instanceof ReadinessAssessment
-                ? 'Feedback surveys'
-                : 'Send feedback survey',
-            'action_url' => route('advisor.entrepreneurs.surveys', $profile, absolute: false),
         ];
     }
 

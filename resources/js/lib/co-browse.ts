@@ -8,6 +8,11 @@ export type CoBrowseCredentials = {
     expires_at: string;
 };
 
+type ConnectionRegistration = {
+    expiresAt: number | null;
+    promise: Promise<CoBrowseCredentials>;
+};
+
 declare global {
     interface Window {
         Pusher: typeof Pusher;
@@ -15,11 +20,57 @@ declare global {
 }
 
 let echo: Echo<'reverb'> | null = null;
+const connectionRegistrations = new Map<string, ConnectionRegistration>();
 
 export async function registerCoBrowseConnection(
     url: string,
     body: Record<string, string>,
 ): Promise<CoBrowseCredentials> {
+    const cacheKey = registrationCacheKey(url, body);
+
+    if (cacheKey !== null) {
+        const existing = connectionRegistrations.get(cacheKey);
+
+        if (
+            existing &&
+            (existing.expiresAt === null || existing.expiresAt > Date.now())
+        ) {
+            return existing.promise;
+        }
+
+        if (existing) {
+            connectionRegistrations.delete(cacheKey);
+        }
+
+        const registration: ConnectionRegistration = {
+            expiresAt: null,
+            promise: coBrowsePost<CoBrowseCredentials>(url, body),
+        };
+
+        registration.promise = registration.promise
+            .then((credentials) => {
+                registration.expiresAt = timestampOrNull(
+                    credentials.expires_at,
+                );
+
+                if (
+                    registration.expiresAt !== null &&
+                    registration.expiresAt <= Date.now()
+                ) {
+                    connectionRegistrations.delete(cacheKey);
+                }
+
+                return credentials;
+            })
+            .catch((caught: unknown) => {
+                connectionRegistrations.delete(cacheKey);
+                throw caught;
+            });
+        connectionRegistrations.set(cacheKey, registration);
+
+        return registration.promise;
+    }
+
     return coBrowsePost<CoBrowseCredentials>(url, body);
 }
 
@@ -51,7 +102,10 @@ export function closeCoBrowseEcho(): void {
     echo = null;
 }
 
-export async function coBrowsePost<T>(url: string, body: Record<string, unknown>): Promise<T> {
+export async function coBrowsePost<T>(
+    url: string,
+    body: Record<string, unknown>,
+): Promise<T> {
     const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -64,8 +118,15 @@ export async function coBrowsePost<T>(url: string, body: Record<string, unknown>
     });
 
     if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { message?: string } | null;
-        throw new Error((payload?.message ?? 'Guided assistance request failed.') + ' (HTTP ' + response.status + ')');
+        const payload = (await response.json().catch(() => null)) as {
+            message?: string;
+        } | null;
+        const message =
+            typeof payload?.message === 'string' &&
+            payload.message.trim() !== ''
+                ? payload.message
+                : 'Guided assistance request failed.';
+        throw new Error(message + ' (HTTP ' + response.status + ')');
     }
 
     if (response.status === 204) {
@@ -75,11 +136,17 @@ export async function coBrowsePost<T>(url: string, body: Record<string, unknown>
     return (await response.json()) as T;
 }
 
-export function replaceCoBrowsePath(url: string, placeholder: '__connection__' | '__session__', value: string): string {
+export function replaceCoBrowsePath(
+    url: string,
+    placeholder: '__connection__' | '__session__',
+    value: string,
+): string {
     return url.replace(placeholder, value);
 }
 
-export function coBrowseParticipant(credentials: CoBrowseCredentials): Record<string, string> {
+export function coBrowseParticipant(
+    credentials: CoBrowseCredentials,
+): Record<string, string> {
     return {
         connection_id: credentials.connection_id,
         connection_secret: credentials.connection_secret,
@@ -87,5 +154,23 @@ export function coBrowseParticipant(credentials: CoBrowseCredentials): Record<st
 }
 
 function csrfToken(): string {
-    return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+    return (
+        document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
+            ?.content ?? ''
+    );
+}
+
+function registrationCacheKey(
+    url: string,
+    body: Record<string, string>,
+): string | null {
+    const token = body.portal_context_token;
+
+    return token ? url + ':' + token : null;
+}
+
+function timestampOrNull(value: string): number | null {
+    const timestamp = Date.parse(value);
+
+    return Number.isNaN(timestamp) ? null : timestamp;
 }

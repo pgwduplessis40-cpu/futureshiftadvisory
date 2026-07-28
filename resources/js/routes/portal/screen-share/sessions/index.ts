@@ -4,7 +4,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:53
  * @route '/portal/screen-share-sessions/{session}/response'
  */
-export const response = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const response = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: response.url(args, options),
     method: 'post',
 })
@@ -19,7 +19,7 @@ response.definition = {
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:53
  * @route '/portal/screen-share-sessions/{session}/response'
  */
-response.url = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+response.url = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { session: args }
     }
@@ -52,7 +52,7 @@ response.url = (args: { session: string | number | { id: string | number } } | [
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:53
  * @route '/portal/screen-share-sessions/{session}/response'
  */
-response.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+response.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: response.url(args, options),
     method: 'post',
 })
@@ -62,7 +62,7 @@ response.post = (args: { session: string | number | { id: string | number } } | 
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:53
  * @route '/portal/screen-share-sessions/{session}/response'
  */
-    const responseForm = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const responseForm = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: response.url(args, options),
         method: 'post',
     })
@@ -72,7 +72,7 @@ response.post = (args: { session: string | number | { id: string | number } } | 
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:53
  * @route '/portal/screen-share-sessions/{session}/response'
  */
-        responseForm.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        responseForm.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: response.url(args, options),
             method: 'post',
         })
@@ -83,7 +83,7 @@ response.post = (args: { session: string | number | { id: string | number } } | 
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:66
  * @route '/portal/screen-share-sessions/{session}/browser-permission'
  */
-export const browserPermission = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const browserPermission = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: browserPermission.url(args, options),
     method: 'post',
 })
@@ -98,7 +98,7 @@ browserPermission.definition = {
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:66
  * @route '/portal/screen-share-sessions/{session}/browser-permission'
  */
-browserPermission.url = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+browserPermission.url = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { session: args }
     }
@@ -131,7 +131,7 @@ browserPermission.url = (args: { session: string | number | { id: string | numbe
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:66
  * @route '/portal/screen-share-sessions/{session}/browser-permission'
  */
-browserPermission.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+browserPermission.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: browserPermission.url(args, options),
     method: 'post',
 })
@@ -141,7 +141,7 @@ browserPermission.post = (args: { session: string | number | { id: string | numb
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:66
  * @route '/portal/screen-share-sessions/{session}/browser-permission'
  */
-    const browserPermissionForm = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const browserPermissionForm = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: browserPermission.url(args, options),
         method: 'post',
     })
@@ -151,7 +151,7 @@ browserPermission.post = (args: { session: string | number | { id: string | numb
  * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:66
  * @route '/portal/screen-share-sessions/{session}/browser-permission'
  */
-        browserPermissionForm.post = (args: { session: string | number | { id: string | number } } | [session: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        browserPermissionForm.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: browserPermission.url(args, options),
             method: 'post',
         })

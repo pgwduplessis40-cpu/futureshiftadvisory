@@ -10,6 +10,11 @@ type Credentials = {
 
 type CredentialsResponse = Credentials;
 
+type ConnectionRegistration = {
+    expiresAt: number | null;
+    promise: Promise<Credentials>;
+};
+
 declare global {
     interface Window {
         Pusher: typeof Pusher;
@@ -17,8 +22,64 @@ declare global {
 }
 
 let echo: Echo<'reverb'> | null = null;
+const connectionRegistrations = new Map<string, ConnectionRegistration>();
 
-export async function registerScreenShareConnection(url: string, body: Record<string, string>): Promise<Credentials> {
+export async function registerScreenShareConnection(
+    url: string,
+    body: Record<string, string>,
+): Promise<Credentials> {
+    const cacheKey = registrationCacheKey(url, body);
+
+    if (cacheKey !== null) {
+        const existing = connectionRegistrations.get(cacheKey);
+
+        if (
+            existing &&
+            (existing.expiresAt === null || existing.expiresAt > Date.now())
+        ) {
+            return existing.promise;
+        }
+
+        if (existing) {
+            connectionRegistrations.delete(cacheKey);
+        }
+
+        const registration: ConnectionRegistration = {
+            expiresAt: null,
+            promise: requestScreenShareConnection(url, body),
+        };
+
+        registration.promise = registration.promise
+            .then((credentials) => {
+                registration.expiresAt = timestampOrNull(
+                    credentials.expires_at,
+                );
+
+                if (
+                    registration.expiresAt !== null &&
+                    registration.expiresAt <= Date.now()
+                ) {
+                    connectionRegistrations.delete(cacheKey);
+                }
+
+                return credentials;
+            })
+            .catch((caught: unknown) => {
+                connectionRegistrations.delete(cacheKey);
+                throw caught;
+            });
+        connectionRegistrations.set(cacheKey, registration);
+
+        return registration.promise;
+    }
+
+    return requestScreenShareConnection(url, body);
+}
+
+async function requestScreenShareConnection(
+    url: string,
+    body: Record<string, string>,
+): Promise<Credentials> {
     const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -55,7 +116,8 @@ export function screenShareEcho(credentials: Credentials): Echo<'reverb'> {
         auth: {
             headers: {
                 'X-CSRF-TOKEN': csrfToken(),
-                'X-Screen-Share-Connection-Secret': credentials.connection_secret,
+                'X-Screen-Share-Connection-Secret':
+                    credentials.connection_secret,
             },
         },
     });
@@ -82,7 +144,10 @@ export function normalizeScreenShareDescription(
     };
 }
 
-export async function screenSharePost<T>(url: string, body: Record<string, unknown>): Promise<T> {
+export async function screenSharePost<T>(
+    url: string,
+    body: Record<string, unknown>,
+): Promise<T> {
     const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -95,7 +160,9 @@ export async function screenSharePost<T>(url: string, body: Record<string, unkno
     });
 
     if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+        const payload = (await response.json().catch(() => null)) as {
+            message?: string;
+        } | null;
         const message = payload?.message ?? 'Screen support request failed.';
         throw new Error(message + ' (HTTP ' + response.status + ')');
     }
@@ -108,5 +175,23 @@ export async function screenSharePost<T>(url: string, body: Record<string, unkno
 }
 
 function csrfToken(): string {
-    return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+    return (
+        document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
+            ?.content ?? ''
+    );
+}
+
+function registrationCacheKey(
+    url: string,
+    body: Record<string, string>,
+): string | null {
+    const token = body.portal_context_token;
+
+    return token ? url + ':' + token : null;
+}
+
+function timestampOrNull(value: string): number | null {
+    const timestamp = Date.parse(value);
+
+    return Number.isNaN(timestamp) ? null : timestamp;
 }

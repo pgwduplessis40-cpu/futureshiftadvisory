@@ -10,6 +10,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 final class Message extends Model
 {
+    /**
+     * @var array<int, string>
+     */
+    public const ADVISOR_PENDING_SENDER_TYPES = [
+        User::TYPE_CLIENT_PRIMARY,
+        User::TYPE_CLIENT_TEAM,
+        User::TYPE_ENTREPRENEUR,
+    ];
+
     use HasUuids;
 
     public const CHANNEL_IN_APP = 'in_app';
@@ -49,5 +58,11 @@ final class Message extends Model
     public function sender(): BelongsTo
     {
         return $this->belongsTo(User::class, 'sender_user_id');
+    }
+
+    public function needsAdvisorAttention(): bool
+    {
+        return $this->sender instanceof User
+            && in_array($this->sender->user_type, self::ADVISOR_PENDING_SENDER_TYPES, true);
     }
 }

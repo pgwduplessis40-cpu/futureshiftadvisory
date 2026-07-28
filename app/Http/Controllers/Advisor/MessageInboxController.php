@@ -35,9 +35,11 @@ final class MessageInboxController extends Controller
             'threads' => $threadPayloads->all(),
             'counts' => [
                 'all' => $threadPayloads->count(),
+                'pending' => $threadPayloads->where('pending', true)->count(),
                 'client' => $threadPayloads->where('kind', 'client')->count(),
                 'entrepreneur' => $threadPayloads->where('kind', 'entrepreneur')->count(),
             ],
+            'initial_filter' => $this->initialFilter($request),
         ]);
     }
 
@@ -47,6 +49,15 @@ final class MessageInboxController extends Controller
         abort_unless($user instanceof User, 403);
 
         return $user;
+    }
+
+    private function initialFilter(Request $request): string
+    {
+        $filter = $request->query('filter');
+
+        return is_string($filter) && in_array($filter, ['all', 'pending', 'client', 'entrepreneur'], true)
+            ? $filter
+            : 'all';
     }
 
     /**
@@ -190,6 +201,7 @@ final class MessageInboxController extends Controller
     {
         $latestMessage = $latestMessages->get((string) $thread->getKey());
         $activityAt = $thread->last_activity_at ?? $latestMessage?->sent_at ?? $thread->created_at;
+        $pending = $latestMessage?->needsAdvisorAttention() ?? false;
 
         if ($thread->client_id !== null && $thread->client !== null) {
             return [
@@ -204,6 +216,7 @@ final class MessageInboxController extends Controller
                 'last_activity_at' => $activityAt?->toIso8601String(),
                 'messages_count' => (int) ($thread->messages_count ?? 0),
                 'unread_count' => $unreadCounts[(string) $thread->getKey()] ?? 0,
+                'pending' => $pending,
                 'url' => route('advisor.clients.messages.show', [$thread->client, $thread], absolute: false),
             ];
         }
@@ -222,6 +235,7 @@ final class MessageInboxController extends Controller
                 'last_activity_at' => $activityAt?->toIso8601String(),
                 'messages_count' => (int) ($thread->messages_count ?? 0),
                 'unread_count' => $unreadCounts[(string) $thread->getKey()] ?? 0,
+                'pending' => $pending,
                 'url' => route('advisor.entrepreneurs.messages.show', [$profile, $thread], absolute: false),
             ];
         }

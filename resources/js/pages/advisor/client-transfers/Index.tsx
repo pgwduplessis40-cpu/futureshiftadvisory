@@ -1,5 +1,5 @@
-import { Head, useForm } from '@inertiajs/react';
-import { ArrowRightLeft, Send } from 'lucide-react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { ArrowRightLeft, ArrowUpRight, Send } from 'lucide-react';
 import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
@@ -25,6 +25,7 @@ type PendingRequest = {
     target_advisor_name: string | null;
     reason: string;
     created_at: string | null;
+    client_url: string;
 };
 
 type Props = {
@@ -155,12 +156,13 @@ export default function ClientTransfersIndex({
                                     <th className="px-3 py-2 font-medium">Receiving advisor</th>
                                     <th className="px-3 py-2 font-medium">Reason</th>
                                     <th className="px-3 py-2 font-medium">Status</th>
+                                    <th className="px-3 py-2 text-right font-medium">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {pendingRequests.length === 0 ? (
                                     <tr>
-                                        <td colSpan={4} className="px-3 py-4 text-sm text-muted-foreground">
+                                        <td colSpan={5} className="px-3 py-4 text-sm text-muted-foreground">
                                             No transfer requests are awaiting review.
                                         </td>
                                     </tr>
@@ -178,6 +180,16 @@ export default function ClientTransfersIndex({
                                             </td>
                                             <td className="px-3 py-2" data-label="Status">
                                                 <Badge variant="secondary">Pending review</Badge>
+                                            </td>
+                                            <td className="px-3 py-2" data-label="Action">
+                                                <div className="flex justify-end">
+                                                    <Button asChild size="sm" variant="outline">
+                                                        <Link href={transfer.client_url}>
+                                                            <ArrowUpRight className="size-4" aria-hidden="true" />
+                                                            Open client
+                                                        </Link>
+                                                    </Button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))

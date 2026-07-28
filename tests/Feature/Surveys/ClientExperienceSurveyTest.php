@@ -260,6 +260,28 @@ final class ClientExperienceSurveyTest extends TestCase
                 ->where('surveys.items.0.url', route('portal.entrepreneur.surveys.show', $assignment, absolute: false)));
     }
 
+    public function test_advisor_can_send_an_entrepreneur_feedback_survey_without_leaving_the_detail_page(): void
+    {
+        $advisor = $this->superAdmin('send-entrepreneur-feedback-survey@example.test');
+        [, $profile] = $this->entrepreneurUserWithProfile($advisor);
+        $detailUrl = route('advisor.entrepreneurs.show', $profile, absolute: false);
+
+        $this->actingAsMfa($advisor)
+            ->withHeaders([
+                'Referer' => $detailUrl,
+                'X-Inertia' => 'true',
+            ])
+            ->post(route('advisor.entrepreneurs.survey-assignments.store', $profile))
+            ->assertRedirect($detailUrl)
+            ->assertSessionHas('status', 'survey-activated');
+
+        $assignment = SurveyAssignment::query()->sole();
+
+        $this->assertSame($profile->id, $assignment->entrepreneur_profile_id);
+        $this->assertSame($this->survey->id, $assignment->survey_id);
+        $this->assertSame(SurveyAssignmentStatus::Pending, $assignment->status);
+    }
+
     /**
      * @return array{0:User,1:Client}
      */

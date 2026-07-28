@@ -85,7 +85,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
@@ -163,7 +163,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     create.form = createForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::createManual
@@ -241,7 +241,7 @@ createManual.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     createManual.form = createManualForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::store
@@ -296,7 +296,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::storeManual
@@ -351,7 +351,7 @@ storeManual.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: storeManual.url(options),
             method: 'post',
         })
-    
+
     storeManual.form = storeManualForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
@@ -381,7 +381,7 @@ convert.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepr
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -430,7 +430,7 @@ convert.post = (args: { entrepreneurProfile: string | { id: string } } | [entrep
             action: convert.url(args, options),
             method: 'post',
         })
-    
+
     convert.form = convertForm
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
@@ -460,7 +460,7 @@ surveys.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepr
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -532,7 +532,7 @@ surveys.head = (args: { entrepreneurProfile: string | { id: string } } | [entrep
                     }),
             method: 'get',
         })
-    
+
     surveys.form = surveysForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
@@ -562,7 +562,7 @@ show.url = (args: { entrepreneurProfile: string | { id: string } } | [entreprene
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -634,7 +634,7 @@ show.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepren
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 const entrepreneurs = {
     index: Object.assign(index, index),

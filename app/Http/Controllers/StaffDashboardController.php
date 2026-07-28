@@ -9,6 +9,7 @@ use App\Enums\EngagementType;
 use App\Enums\EntrepreneurStage;
 use App\Enums\Permission;
 use App\Enums\ProposalStatus;
+use App\Models\AdvisorClientTransferRequest;
 use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
@@ -696,6 +697,7 @@ final class StaffDashboardController extends Controller
             'redFlags' => $this->redFlags($clientIds),
             'documentVerificationFlags' => $this->documentVerificationFlags($clientIds),
             'messagesPending' => $this->messagesPending($user, $clientIds),
+            'clientTransferQueue' => $this->clientTransferQueue($user),
             'entrepreneurReviews' => $this->entrepreneurReviews($user),
             'strategicPlanDeployments' => $this->strategicPlanDeployments($clientIds),
             'pendingTermsReacceptance' => $this->pendingTermsReacceptance($clientIds, $termsGate),
@@ -728,6 +730,47 @@ final class StaffDashboardController extends Controller
                 'methodology_id' => 'funnel.drop_off',
             ], 'advisor-signals'),
             'panelOperations' => $this->panelOperations($user, $clientIds),
+        ];
+    }
+
+    /**
+     * @return array{available: bool, total: int, action_url: string|null, action_label: string, can_review: bool}
+     */
+    private function clientTransferQueue(User $user): array
+    {
+        $canReview = $user->user_type === User::TYPE_SUPER_ADMIN;
+        $canRequestTransfer = in_array($user->user_type, [
+            User::TYPE_ADVISOR,
+            User::TYPE_JUNIOR_ADVISOR,
+        ], true);
+
+        if (! $canReview && ! $canRequestTransfer) {
+            return [
+                'available' => false,
+                'total' => 0,
+                'action_url' => null,
+                'action_label' => 'Client transfers',
+                'can_review' => false,
+            ];
+        }
+
+        $transfers = AdvisorClientTransferRequest::query()
+            ->where('status', AdvisorClientTransferRequest::STATUS_PENDING);
+
+        if (! $canReview) {
+            $transfers->where('requested_by_user_id', $user->getKey());
+        }
+
+        return [
+            'available' => true,
+            'total' => $transfers->count(),
+            'action_url' => $canReview
+                ? route('admin.client-allocations.index', absolute: false)
+                : route('advisor.client-transfers.index', absolute: false),
+            'action_label' => $canReview
+                ? 'Review transfers'
+                : 'View transfer requests',
+            'can_review' => $canReview,
         ];
     }
 
@@ -1410,11 +1453,7 @@ final class StaffDashboardController extends Controller
         }
 
         $count = Message::query()
-            ->whereHas('sender', fn (Builder $query): Builder => $query->whereIn('user_type', [
-                User::TYPE_CLIENT_PRIMARY,
-                User::TYPE_CLIENT_TEAM,
-                User::TYPE_ENTREPRENEUR,
-            ]))
+            ->whereHas('sender', fn (Builder $query): Builder => $query->whereIn('user_type', Message::ADVISOR_PENDING_SENDER_TYPES))
             ->whereHas('thread', fn (Builder $query): Builder => $this->visibleMessageThreads($query, $user, $clientIds))
             ->whereNotExists(function ($query): void {
                 $query
@@ -1435,7 +1474,7 @@ final class StaffDashboardController extends Controller
 
         return [
             'total' => $count,
-            'index_url' => route('advisor.messages.index', absolute: false),
+            'index_url' => route('advisor.messages.index', ['filter' => 'pending'], absolute: false),
         ];
     }
 

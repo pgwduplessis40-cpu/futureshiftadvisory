@@ -27,7 +27,7 @@ storeForClient.url = (args: { client: string | { id: string } } | [client: strin
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -76,7 +76,7 @@ storeForClient.post = (args: { client: string | { id: string } } | [client: stri
             action: storeForClient.url(args, options),
             method: 'post',
         })
-    
+
     storeForClient.form = storeForClientForm
 /**
 * @see \App\Http\Controllers\Admin\SurveyAssignmentController::storeForEntrepreneur
@@ -106,7 +106,7 @@ storeForEntrepreneur.url = (args: { entrepreneurProfile: string | { id: string }
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -155,11 +155,11 @@ storeForEntrepreneur.post = (args: { entrepreneurProfile: string | { id: string 
             action: storeForEntrepreneur.url(args, options),
             method: 'post',
         })
-    
+
     storeForEntrepreneur.form = storeForEntrepreneurForm
 /**
 * @see \App\Http\Controllers\Admin\SurveyAssignmentController::cancel
- * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:57
+ * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:61
  * @route '/advisor/survey-assignments/{surveyAssignment}/cancel'
  */
 export const cancel = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -174,7 +174,7 @@ cancel.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\SurveyAssignmentController::cancel
- * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:57
+ * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:61
  * @route '/advisor/survey-assignments/{surveyAssignment}/cancel'
  */
 cancel.url = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -185,7 +185,7 @@ cancel.url = (args: { surveyAssignment: string | { id: string } } | [surveyAssig
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { surveyAssignment: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     surveyAssignment: args[0],
@@ -207,7 +207,7 @@ cancel.url = (args: { surveyAssignment: string | { id: string } } | [surveyAssig
 
 /**
 * @see \App\Http\Controllers\Admin\SurveyAssignmentController::cancel
- * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:57
+ * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:61
  * @route '/advisor/survey-assignments/{surveyAssignment}/cancel'
  */
 cancel.patch = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -217,7 +217,7 @@ cancel.patch = (args: { surveyAssignment: string | { id: string } } | [surveyAss
 
     /**
 * @see \App\Http\Controllers\Admin\SurveyAssignmentController::cancel
- * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:57
+ * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:61
  * @route '/advisor/survey-assignments/{surveyAssignment}/cancel'
  */
     const cancelForm = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -232,7 +232,7 @@ cancel.patch = (args: { surveyAssignment: string | { id: string } } | [surveyAss
 
             /**
 * @see \App\Http\Controllers\Admin\SurveyAssignmentController::cancel
- * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:57
+ * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:61
  * @route '/advisor/survey-assignments/{surveyAssignment}/cancel'
  */
         cancelForm.patch = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -244,7 +244,7 @@ cancel.patch = (args: { surveyAssignment: string | { id: string } } | [surveyAss
                     }),
             method: 'post',
         })
-    
+
     cancel.form = cancelForm
 const SurveyAssignmentController = { storeForClient, storeForEntrepreneur, cancel }
 

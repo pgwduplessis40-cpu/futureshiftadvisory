@@ -217,7 +217,7 @@ registerClient.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => 
  * @see app/Http/Controllers/CoBrowse/CoBrowseConnectionController.php:52
  * @route '/co-browse/connections/{connection}/pending-prompt'
  */
-export const pendingPrompt = (args: { connection: string | number | { id: string | number } } | [connection: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const pendingPrompt = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: pendingPrompt.url(args, options),
     method: 'post',
 })
@@ -232,7 +232,7 @@ pendingPrompt.definition = {
  * @see app/Http/Controllers/CoBrowse/CoBrowseConnectionController.php:52
  * @route '/co-browse/connections/{connection}/pending-prompt'
  */
-pendingPrompt.url = (args: { connection: string | number | { id: string | number } } | [connection: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+pendingPrompt.url = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { connection: args }
     }
@@ -265,7 +265,7 @@ pendingPrompt.url = (args: { connection: string | number | { id: string | number
  * @see app/Http/Controllers/CoBrowse/CoBrowseConnectionController.php:52
  * @route '/co-browse/connections/{connection}/pending-prompt'
  */
-pendingPrompt.post = (args: { connection: string | number | { id: string | number } } | [connection: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+pendingPrompt.post = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: pendingPrompt.url(args, options),
     method: 'post',
 })
@@ -275,7 +275,7 @@ pendingPrompt.post = (args: { connection: string | number | { id: string | numbe
  * @see app/Http/Controllers/CoBrowse/CoBrowseConnectionController.php:52
  * @route '/co-browse/connections/{connection}/pending-prompt'
  */
-    const pendingPromptForm = (args: { connection: string | number | { id: string | number } } | [connection: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const pendingPromptForm = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: pendingPrompt.url(args, options),
         method: 'post',
     })
@@ -285,7 +285,7 @@ pendingPrompt.post = (args: { connection: string | number | { id: string | numbe
  * @see app/Http/Controllers/CoBrowse/CoBrowseConnectionController.php:52
  * @route '/co-browse/connections/{connection}/pending-prompt'
  */
-        pendingPromptForm.post = (args: { connection: string | number | { id: string | number } } | [connection: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        pendingPromptForm.post = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: pendingPrompt.url(args, options),
             method: 'post',
         })
@@ -296,7 +296,7 @@ pendingPrompt.post = (args: { connection: string | number | { id: string | numbe
  * @see app/Http/Controllers/CoBrowse/CoBrowseConnectionController.php:42
  * @route '/co-browse/connections/{connection}/heartbeat'
  */
-export const heartbeat = (args: { connection: string | number | { id: string | number } } | [connection: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const heartbeat = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: heartbeat.url(args, options),
     method: 'post',
 })
@@ -311,7 +311,7 @@ heartbeat.definition = {
  * @see app/Http/Controllers/CoBrowse/CoBrowseConnectionController.php:42
  * @route '/co-browse/connections/{connection}/heartbeat'
  */
-heartbeat.url = (args: { connection: string | number | { id: string | number } } | [connection: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+heartbeat.url = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { connection: args }
     }
@@ -344,7 +344,7 @@ heartbeat.url = (args: { connection: string | number | { id: string | number } }
  * @see app/Http/Controllers/CoBrowse/CoBrowseConnectionController.php:42
  * @route '/co-browse/connections/{connection}/heartbeat'
  */
-heartbeat.post = (args: { connection: string | number | { id: string | number } } | [connection: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+heartbeat.post = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: heartbeat.url(args, options),
     method: 'post',
 })
@@ -354,7 +354,7 @@ heartbeat.post = (args: { connection: string | number | { id: string | number } 
  * @see app/Http/Controllers/CoBrowse/CoBrowseConnectionController.php:42
  * @route '/co-browse/connections/{connection}/heartbeat'
  */
-    const heartbeatForm = (args: { connection: string | number | { id: string | number } } | [connection: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const heartbeatForm = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: heartbeat.url(args, options),
         method: 'post',
     })
@@ -364,7 +364,7 @@ heartbeat.post = (args: { connection: string | number | { id: string | number } 
  * @see app/Http/Controllers/CoBrowse/CoBrowseConnectionController.php:42
  * @route '/co-browse/connections/{connection}/heartbeat'
  */
-        heartbeatForm.post = (args: { connection: string | number | { id: string | number } } | [connection: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        heartbeatForm.post = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: heartbeat.url(args, options),
             method: 'post',
         })

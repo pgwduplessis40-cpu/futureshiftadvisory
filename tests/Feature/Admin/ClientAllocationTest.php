@@ -110,6 +110,66 @@ final class ClientAllocationTest extends TestCase
         ]);
     }
 
+    public function test_pending_transfer_is_an_action_queue_for_the_super_admin_dashboard(): void
+    {
+        $admin = $this->superAdmin();
+        $requestingAdvisor = $this->advisor('requesting@example.test', 'Requesting Advisor');
+        $targetAdvisor = $this->advisor('receiving@example.test', 'Receiving Advisor');
+        $client = $this->client('Dashboard Transfer Limited', $requestingAdvisor);
+
+        AdvisorClientTransferRequest::query()->create([
+            'client_id' => $client->getKey(),
+            'requested_by_user_id' => $requestingAdvisor->getKey(),
+            'target_advisor_user_id' => $targetAdvisor->getKey(),
+            'reason' => 'The receiving advisor has the required sector experience.',
+            'status' => AdvisorClientTransferRequest::STATUS_PENDING,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/Dashboard')
+                ->where('clientTransferQueue.available', true)
+                ->where('clientTransferQueue.total', 1)
+                ->where('clientTransferQueue.can_review', true)
+                ->where('clientTransferQueue.action_url', route('admin.client-allocations.index', absolute: false)));
+    }
+
+    public function test_requesting_advisor_sees_only_their_pending_transfer_queue(): void
+    {
+        $requestingAdvisor = $this->advisor('requesting@example.test', 'Requesting Advisor');
+        $otherAdvisor = $this->advisor('other@example.test', 'Other Advisor');
+        $targetAdvisor = $this->advisor('receiving@example.test', 'Receiving Advisor');
+        $client = $this->client('Advisor Transfer Limited', $requestingAdvisor);
+        $otherClient = $this->client('Other Transfer Limited', $otherAdvisor);
+
+        AdvisorClientTransferRequest::query()->create([
+            'client_id' => $client->getKey(),
+            'requested_by_user_id' => $requestingAdvisor->getKey(),
+            'target_advisor_user_id' => $targetAdvisor->getKey(),
+            'reason' => 'Sector experience.',
+            'status' => AdvisorClientTransferRequest::STATUS_PENDING,
+        ]);
+        AdvisorClientTransferRequest::query()->create([
+            'client_id' => $otherClient->getKey(),
+            'requested_by_user_id' => $otherAdvisor->getKey(),
+            'target_advisor_user_id' => $targetAdvisor->getKey(),
+            'reason' => 'Capacity review.',
+            'status' => AdvisorClientTransferRequest::STATUS_PENDING,
+        ]);
+
+        $this->actingAsMfa($requestingAdvisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/Dashboard')
+                ->where('clientTransferQueue.available', true)
+                ->where('clientTransferQueue.total', 1)
+                ->where('clientTransferQueue.can_review', false)
+                ->where('clientTransferQueue.action_url', route('advisor.client-transfers.index', absolute: false)));
+    }
+
     public function test_advisor_cannot_request_a_transfer_for_another_advisors_client(): void
     {
         $owner = $this->advisor('owner@example.test', 'Client Owner');

@@ -81,6 +81,7 @@ export default function EntrepreneursShow({
         gamification.enabled,
     );
     const [gamificationPending, setGamificationPending] = useState(false);
+    const [feedbackSurveyPending, setFeedbackSurveyPending] = useState(false);
     const [gateNote, setGateNote] = useState('');
     const [changeRequestNote, setChangeRequestNote] = useState('');
     const [ideaRefreshPending, setIdeaRefreshPending] = useState(false);
@@ -319,6 +320,19 @@ export default function EntrepreneursShow({
                 preserveScroll: true,
                 onError: () => setGamificationEnabled(!nextEnabled),
                 onFinish: () => setGamificationPending(false),
+            },
+        );
+    };
+
+    const sendFeedbackSurvey = () => {
+        setFeedbackSurveyPending(true);
+
+        router.post(
+            entrepreneur.feedback_survey.action_url,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => setFeedbackSurveyPending(false),
             },
         );
     };
@@ -603,42 +617,166 @@ export default function EntrepreneursShow({
                     />
                 </div>
 
-                <section className="space-y-4 rounded-md border bg-background p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                            <h2 className="text-sm font-medium">
-                                Action panel
-                            </h2>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Advisor next steps for this entrepreneur.
-                            </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            <Button asChild size="sm">
-                                <Link href={entrepreneur.messages.url}>
-                                    <MessageSquare
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    Message founder
-                                </Link>
-                            </Button>
-                            {latestAssessment ? (
-                                <Button asChild size="sm" variant="outline">
-                                    <Link href={latestAssessment.url}>
-                                        <ClipboardCheck
+                <div className="grid items-start gap-6 md:grid-cols-2 xl:grid-cols-3">
+                    <section className="space-y-4 rounded-md border bg-background p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h2 className="text-sm font-medium">
+                                    Action panel
+                                </h2>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Advisor next steps for this entrepreneur.
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <Button asChild size="sm">
+                                    <Link href={entrepreneur.messages.url}>
+                                        <MessageSquare
                                             className="size-4"
                                             aria-hidden="true"
                                         />
-                                        View assessment
+                                        Message founder
                                     </Link>
                                 </Button>
-                            ) : null}
-                            {canRunAssessment ? (
                                 <Button
                                     type="button"
                                     size="sm"
                                     variant="outline"
+                                    disabled={feedbackSurveyPending}
+                                    onClick={sendFeedbackSurvey}
+                                >
+                                    <ClipboardCheck
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    {feedbackSurveyPending
+                                        ? 'Sending feedback survey'
+                                        : 'Send feedback survey'}
+                                </Button>
+                                {latestAssessment ? (
+                                    <Button asChild size="sm" variant="outline">
+                                        <Link href={latestAssessment.url}>
+                                            <ClipboardCheck
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            View assessment
+                                        </Link>
+                                    </Button>
+                                ) : null}
+                                {canRunAssessment ? (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                            router.post(
+                                                entrepreneur.latest_plan
+                                                    ?.assess_url ?? '',
+                                                {},
+                                                { preserveScroll: true },
+                                            )
+                                        }
+                                    >
+                                        {latestAssessment ? (
+                                            <RefreshCw
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                        ) : (
+                                            <ClipboardCheck
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                        )}
+                                        {latestAssessment
+                                            ? 'Run reassessment'
+                                            : 'Run assessment'}
+                                    </Button>
+                                ) : null}
+                                {latestAssessment &&
+                                !latestAssessment.finalised_at ? (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                            router.patch(
+                                                latestAssessment.finalise_url,
+                                                {},
+                                                { preserveScroll: true },
+                                            )
+                                        }
+                                    >
+                                        <CheckCircle2
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Finalise report
+                                    </Button>
+                                ) : null}
+                                <Button asChild size="sm" variant="outline">
+                                    <a href="#documents">
+                                        <FileText
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Evidence
+                                    </a>
+                                </Button>
+                            </div>
+                        </div>
+
+                        {latestAssessment &&
+                        !latestAssessmentUsesCurrentRubric ? (
+                            <div className="grid gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 md:grid-cols-[1fr_auto] md:items-center">
+                                <div className="flex gap-3">
+                                    <AlertTriangle
+                                        className="mt-0.5 size-4 shrink-0"
+                                        aria-hidden="true"
+                                    />
+                                    <div>
+                                        <p className="font-medium">
+                                            Latest assessment uses an older
+                                            rubric
+                                        </p>
+                                        <p>
+                                            Round {latestAssessment.round} uses
+                                            {formatRubricVersion(
+                                                latestAssessment
+                                                    .rating_framework.version,
+                                            )}{' '}
+                                            with{' '}
+                                            {
+                                                latestAssessment
+                                                    .rating_framework
+                                                    .criteria_count
+                                            }{' '}
+                                            criteria. The current published
+                                            rubric is{' '}
+                                            {formatRubricVersion(
+                                                latestAssessment
+                                                    .rating_framework
+                                                    .current_version,
+                                            )}{' '}
+                                            with{' '}
+                                            {latestAssessment.rating_framework
+                                                .current_criteria_count ??
+                                                '-'}{' '}
+                                            criteria
+                                            {latestAssessment.rating_framework
+                                                .current_has_budget
+                                                ? ', including Budget'
+                                                : ''}
+                                            .
+                                        </p>
+                                    </div>
+                                </div>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
                                     onClick={() =>
                                         router.post(
                                             entrepreneur.latest_plan
@@ -648,120 +786,16 @@ export default function EntrepreneursShow({
                                         )
                                     }
                                 >
-                                    {latestAssessment ? (
-                                        <RefreshCw
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                    ) : (
-                                        <ClipboardCheck
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                    )}
-                                    {latestAssessment
-                                        ? 'Run reassessment'
-                                        : 'Run assessment'}
-                                </Button>
-                            ) : null}
-                            {latestAssessment &&
-                            !latestAssessment.finalised_at ? (
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() =>
-                                        router.patch(
-                                            latestAssessment.finalise_url,
-                                            {},
-                                            { preserveScroll: true },
-                                        )
-                                    }
-                                >
-                                    <CheckCircle2
+                                    <RefreshCw
                                         className="size-4"
                                         aria-hidden="true"
                                     />
-                                    Finalise report
+                                    Run reassessment
                                 </Button>
-                            ) : null}
-                            <Button asChild size="sm" variant="outline">
-                                <a href="#documents">
-                                    <FileText
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    Evidence
-                                </a>
-                            </Button>
-                        </div>
-                    </div>
-
-                    {latestAssessment && !latestAssessmentUsesCurrentRubric ? (
-                        <div className="grid gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 md:grid-cols-[1fr_auto] md:items-center">
-                            <div className="flex gap-3">
-                                <AlertTriangle
-                                    className="mt-0.5 size-4 shrink-0"
-                                    aria-hidden="true"
-                                />
-                                <div>
-                                    <p className="font-medium">
-                                        Latest assessment uses an older rubric
-                                    </p>
-                                    <p>
-                                        Round {latestAssessment.round} uses
-                                        {formatRubricVersion(
-                                            latestAssessment.rating_framework
-                                                .version,
-                                        )}{' '}
-                                        with{' '}
-                                        {
-                                            latestAssessment.rating_framework
-                                                .criteria_count
-                                        }{' '}
-                                        criteria. The current published rubric
-                                        is{' '}
-                                        {formatRubricVersion(
-                                            latestAssessment.rating_framework
-                                                .current_version,
-                                        )}{' '}
-                                        with{' '}
-                                        {latestAssessment.rating_framework
-                                            .current_criteria_count ?? '-'}{' '}
-                                        criteria
-                                        {latestAssessment.rating_framework
-                                            .current_has_budget
-                                            ? ', including Budget'
-                                            : ''}
-                                        .
-                                    </p>
-                                </div>
                             </div>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                className="border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
-                                onClick={() =>
-                                    router.post(
-                                        entrepreneur.latest_plan?.assess_url ??
-                                            '',
-                                        {},
-                                        { preserveScroll: true },
-                                    )
-                                }
-                            >
-                                <RefreshCw
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
-                                Run reassessment
-                            </Button>
-                        </div>
-                    ) : null}
-                </section>
+                        ) : null}
+                    </section>
 
-                <div className="grid items-start gap-6 lg:grid-cols-3">
                     <section className="space-y-4 self-start rounded-md border bg-background p-4 lg:sticky lg:top-6">
                         <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
@@ -797,27 +831,9 @@ export default function EntrepreneursShow({
                                 )}
                             />
                         </dl>
-                        <Button
-                            asChild
-                            size="sm"
-                            variant={
-                                entrepreneur.readiness.completed
-                                    ? 'outline'
-                                    : 'default'
-                            }
-                            className="w-full justify-start"
-                        >
-                            <Link href={entrepreneur.readiness.action_url}>
-                                <ClipboardCheck
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
-                                {entrepreneur.readiness.action_label}
-                            </Link>
-                        </Button>
                     </section>
 
-                    <section className="space-y-4 rounded-md border bg-background p-4 lg:col-span-2">
+                    <section className="order-1 space-y-4 rounded-md border bg-background p-4 md:col-span-2 xl:col-span-3">
                         <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
                                 <UserRoundCheck

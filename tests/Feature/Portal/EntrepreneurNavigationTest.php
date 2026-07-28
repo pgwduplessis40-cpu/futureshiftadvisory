@@ -16,6 +16,7 @@ use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Fake\FakeAiClient;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use RuntimeException;
@@ -239,6 +240,7 @@ final class EntrepreneurNavigationTest extends TestCase
     {
         $this->seed(RoleSeeder::class);
         $this->app->bind(AiClient::class, FakeAiClient::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
 
         $advisor = User::factory()->withTwoFactor()->create([
             'user_type' => User::TYPE_ADVISOR,
@@ -282,11 +284,11 @@ final class EntrepreneurNavigationTest extends TestCase
         ];
 
         $atLimitPayload = array_map(
-            static fn (string $value): string => str_pad($value, 5000, 'x'),
+            static fn (string $value): string => str_pad($value, 10000, 'x'),
             $payload,
         );
         $tooLongPayload = array_map(
-            static fn (string $value): string => str_pad($value, 5001, 'x'),
+            static fn (string $value): string => str_pad($value, 10001, 'x'),
             $payload,
         );
 

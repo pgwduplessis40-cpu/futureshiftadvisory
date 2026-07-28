@@ -7,14 +7,14 @@ import {
     MessageSquare,
     UserRound,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '@/components/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 type MessageKind = 'client' | 'entrepreneur';
-type FilterKind = 'all' | MessageKind;
+type FilterKind = 'all' | 'pending' | MessageKind;
 
 type ThreadSummary = {
     id: string;
@@ -28,6 +28,7 @@ type ThreadSummary = {
     last_activity_at: string | null;
     messages_count: number;
     unread_count: number;
+    pending: boolean;
     url: string;
 };
 
@@ -35,24 +36,38 @@ type Props = {
     threads: ThreadSummary[];
     counts: {
         all: number;
+        pending: number;
         client: number;
         entrepreneur: number;
     };
+    initial_filter: FilterKind;
 };
 
 const filterLabels: Record<FilterKind, string> = {
     all: 'All',
+    pending: 'Pending',
     client: 'Clients',
     entrepreneur: 'Entrepreneurs',
 };
 
-export default function AdvisorMessagesIndex({ threads, counts }: Props) {
-    const [filter, setFilter] = useState<FilterKind>('all');
+export default function AdvisorMessagesIndex({
+    threads,
+    counts,
+    initial_filter: initialFilter,
+}: Props) {
+    const [filter, setFilter] = useState<FilterKind>(initialFilter);
+
+    useEffect(() => {
+        setFilter(initialFilter);
+    }, [initialFilter]);
+
     const filteredThreads = useMemo(
         () =>
             filter === 'all'
                 ? threads
-                : threads.filter((thread) => thread.kind === filter),
+                : filter === 'pending'
+                  ? threads.filter((thread) => thread.pending)
+                  : threads.filter((thread) => thread.kind === filter),
         [filter, threads],
     );
 
@@ -74,6 +89,7 @@ export default function AdvisorMessagesIndex({ threads, counts }: Props) {
                         {(
                             [
                                 ['all', counts.all],
+                                ['pending', counts.pending],
                                 ['client', counts.client],
                                 ['entrepreneur', counts.entrepreneur],
                             ] as Array<[FilterKind, number]>
@@ -171,6 +187,11 @@ function ThreadRow({ thread }: { thread: ThreadSummary }) {
                         {thread.unread_count > 0 && (
                             <Badge variant="secondary">
                                 {thread.unread_count} unread
+                            </Badge>
+                        )}
+                        {thread.pending && (
+                            <Badge className="border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100 dark:hover:bg-amber-950/20">
+                                Pending
                             </Badge>
                         )}
                     </div>

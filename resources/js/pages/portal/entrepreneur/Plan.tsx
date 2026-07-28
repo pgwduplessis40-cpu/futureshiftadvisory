@@ -100,7 +100,7 @@ type IdeaValidationForm = {
     revenue_model: string;
 };
 
-const IDEA_VALIDATION_FIELD_MAX_LENGTH = 5000;
+const IDEA_VALIDATION_FIELD_MAX_LENGTH = 10000;
 
 type BusinessPlanPayload = {
     id: string;

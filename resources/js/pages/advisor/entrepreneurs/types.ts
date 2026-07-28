@@ -89,7 +89,8 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         score: number | null;
         outcome: string | null;
         assessed_at: string | null;
-        action_label: string;
+    };
+    feedback_survey: {
         action_url: string;
     };
     idea_validation: {

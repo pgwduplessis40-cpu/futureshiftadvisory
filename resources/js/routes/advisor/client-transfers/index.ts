@@ -75,11 +75,11 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientTransferRequestController::store
- * @see app/Http/Controllers/Advisor/ClientTransferRequestController.php:65
+ * @see app/Http/Controllers/Advisor/ClientTransferRequestController.php:66
  * @route '/advisor/client-transfers'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -94,7 +94,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientTransferRequestController::store
- * @see app/Http/Controllers/Advisor/ClientTransferRequestController.php:65
+ * @see app/Http/Controllers/Advisor/ClientTransferRequestController.php:66
  * @route '/advisor/client-transfers'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -103,7 +103,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientTransferRequestController::store
- * @see app/Http/Controllers/Advisor/ClientTransferRequestController.php:65
+ * @see app/Http/Controllers/Advisor/ClientTransferRequestController.php:66
  * @route '/advisor/client-transfers'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -113,7 +113,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Advisor\ClientTransferRequestController::store
- * @see app/Http/Controllers/Advisor/ClientTransferRequestController.php:65
+ * @see app/Http/Controllers/Advisor/ClientTransferRequestController.php:66
  * @route '/advisor/client-transfers'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -123,14 +123,14 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Advisor\ClientTransferRequestController::store
- * @see app/Http/Controllers/Advisor/ClientTransferRequestController.php:65
+ * @see app/Http/Controllers/Advisor/ClientTransferRequestController.php:66
  * @route '/advisor/client-transfers'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 const clientTransfers = {
     index: Object.assign(index, index),
