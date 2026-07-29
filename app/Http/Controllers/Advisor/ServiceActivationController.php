@@ -6,9 +6,9 @@ namespace App\Http\Controllers\Advisor;
 
 use App\Enums\Permission;
 use App\Http\Controllers\Controller;
+use App\Models\Client;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
-use App\Models\Client;
 use App\Models\User;
 use App\Services\ServiceActivations\ServiceActivationManager;
 use Illuminate\Http\RedirectResponse;

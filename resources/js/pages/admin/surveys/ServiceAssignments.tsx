@@ -54,7 +54,8 @@ export default function ServiceSurveyAssignments({
                             Issue service surveys
                         </h1>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Select a completed service and send the client a focused improvement survey.
+                            Select a completed service and send the client a
+                            focused improvement survey.
                         </p>
                     </div>
 
@@ -63,7 +64,9 @@ export default function ServiceSurveyAssignments({
                         <select
                             id="service-survey"
                             value={surveyId}
-                            onChange={(event) => setSurveyId(event.target.value)}
+                            onChange={(event) =>
+                                setSurveyId(event.target.value)
+                            }
                             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                         >
                             {surveys.map((survey) => (
@@ -77,7 +80,8 @@ export default function ServiceSurveyAssignments({
 
                 {surveys.length === 0 && (
                     <div className="border-l-4 border-[var(--fs-gold)] bg-background px-4 py-3 text-sm">
-                        Publish a service improvement survey from Surveys before issuing it to a client.
+                        Publish a service improvement survey from Surveys before
+                        issuing it to a client.
                     </div>
                 )}
 
@@ -85,10 +89,18 @@ export default function ServiceSurveyAssignments({
                     <table className="fsa-responsive-table">
                         <thead className="bg-muted/60 text-left">
                             <tr>
-                                <th className="px-3 py-2 font-medium">Client</th>
-                                <th className="px-3 py-2 font-medium">Service</th>
-                                <th className="px-3 py-2 font-medium">Closed</th>
-                                <th className="px-3 py-2 font-medium">Status</th>
+                                <th className="px-3 py-2 font-medium">
+                                    Client
+                                </th>
+                                <th className="px-3 py-2 font-medium">
+                                    Service
+                                </th>
+                                <th className="px-3 py-2 font-medium">
+                                    Closed
+                                </th>
+                                <th className="px-3 py-2 font-medium">
+                                    Status
+                                </th>
                                 <th className="px-3 py-2 text-right font-medium">
                                     Action
                                 </th>

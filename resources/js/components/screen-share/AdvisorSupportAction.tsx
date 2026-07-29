@@ -43,6 +43,7 @@ export function AdvisorSupportAction({ config, coBrowse = null }: Props) {
 
     function handleOpenChange(nextOpen: boolean): void {
         setOpen(nextOpen);
+
         if (!nextOpen) {
             setExpanded(false);
         }

@@ -36,13 +36,13 @@ import {
 import { useState } from 'react';
 import type { ComponentType, FormEvent, MouseEvent, ReactNode } from 'react';
 import { toast } from 'sonner';
+import type { AdvisorCoBrowseConfig } from '@/components/co-browse/AdvisorCoBrowseAction';
 import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
 import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { NpoHealthPanel } from '@/components/npo/NpoHealthPanel';
 import type { NpoHealthPayload } from '@/components/npo/NpoHealthPanel';
-import type { AdvisorCoBrowseConfig } from '@/components/co-browse/AdvisorCoBrowseAction';
 import { AdvisorSupportAction } from '@/components/screen-share/AdvisorSupportAction';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -976,7 +976,12 @@ type StandardAdvisorySummary = {
     generate_pack_url: string;
 };
 
-export default function ClientsShow({ client, conflictDeclaration, screenShare, coBrowse }: Props) {
+export default function ClientsShow({
+    client,
+    conflictDeclaration,
+    screenShare,
+    coBrowse,
+}: Props) {
     useDrillFocus();
     const [activeTab, setActiveTab] = useState<ClientDetailTab>(() =>
         initialClientDetailTab(),
@@ -1151,7 +1156,10 @@ export default function ClientsShow({ client, conflictDeclaration, screenShare, 
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <AdvisorSupportAction config={screenShare} coBrowse={coBrowse} />
+                        <AdvisorSupportAction
+                            config={screenShare}
+                            coBrowse={coBrowse}
+                        />
                         <Button
                             asChild
                             id="section-messages"

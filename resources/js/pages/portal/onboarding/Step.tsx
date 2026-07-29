@@ -59,7 +59,10 @@ type Props = {
 
 type WebsiteSubmission = {
     url: string | null;
-    status: 'advisor_confirmed' | 'awaiting_advisor_confirmation' | 'not_listed';
+    status:
+        | 'advisor_confirmed'
+        | 'awaiting_advisor_confirmation'
+        | 'not_listed';
 };
 
 type OnboardingForm = {
@@ -683,11 +686,8 @@ function StepContent({
                         <Detail
                             label="Website"
                             value={
-                                summaryValue(
-                                    state,
-                                    'website',
-                                    'website_url',
-                                ) ?? 'No public website listed'
+                                summaryValue(state, 'website', 'website_url') ??
+                                'No public website listed'
                             }
                         />
                         <Detail

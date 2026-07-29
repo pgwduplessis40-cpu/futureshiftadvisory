@@ -1156,7 +1156,10 @@ function GamificationPanel({
     };
 
     return (
-        <section className="space-y-3" data-co-browse-target="entrepreneur.dashboard.journey">
+        <section
+            className="space-y-3"
+            data-co-browse-target="entrepreneur.dashboard.journey"
+        >
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <Trophy className="size-4" aria-hidden="true" />
@@ -1183,7 +1186,10 @@ function GamificationPanel({
                         {journeyLevelLabel(gamification.current_level)}
                     </div>
                 </div>
-                <div className="rounded-md border bg-background p-4" data-co-browse-target="entrepreneur.dashboard.progress">
+                <div
+                    className="rounded-md border bg-background p-4"
+                    data-co-browse-target="entrepreneur.dashboard.progress"
+                >
                     <div className="text-xs text-muted-foreground">
                         Plan completion
                     </div>
@@ -1207,8 +1213,7 @@ function GamificationPanel({
                         {gamification.points?.total ?? 0} points
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                        {gamification.points?.milestone_count ?? 0} verified
-                        {' '}
+                        {gamification.points?.milestone_count ?? 0} verified{' '}
                         milestone
                         {(gamification.points?.milestone_count ?? 0) === 1
                             ? ''

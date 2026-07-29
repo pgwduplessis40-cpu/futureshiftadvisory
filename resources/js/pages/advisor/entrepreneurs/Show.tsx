@@ -21,11 +21,11 @@ import {
 } from 'lucide-react';
 import type { FormEvent, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
+import type { AdvisorCoBrowseConfig } from '@/components/co-browse/AdvisorCoBrowseAction';
 import { FormattedMarkdown } from '@/components/formatted-textarea';
 import InputError from '@/components/input-error';
 import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
 import type { InsightHoverCardRow } from '@/components/insight/InsightHoverCard';
-import type { AdvisorCoBrowseConfig } from '@/components/co-browse/AdvisorCoBrowseAction';
 import { AdvisorSupportAction } from '@/components/screen-share/AdvisorSupportAction';
 import type { AdvisorScreenShareConfig } from '@/components/screen-share/AdvisorSupportAction';
 import { Badge } from '@/components/ui/badge';
@@ -688,7 +688,8 @@ export default function EntrepreneursShow({
                                                 .unavailable_reason ?? undefined
                                         }
                                         disabled={
-                                            !entrepreneur.service_feedback_survey
+                                            !entrepreneur
+                                                .service_feedback_survey
                                                 .action_url ||
                                             serviceFeedbackSurveyPending
                                         }

@@ -16,6 +16,7 @@ use App\Models\Milestone;
 use App\Models\MilestoneAction;
 use App\Models\NpoEngagement;
 use App\Models\ProofOfCompletion;
+use App\Models\PvCalculation;
 use App\Models\User;
 use App\Services\Ai\Verification\DocumentVerifier;
 use App\Services\Audit\AuditWriter;
@@ -52,11 +53,11 @@ final class GoalTracker
 
             $existingCalculationId = $input['pv_target_calculation_id'] ?? null;
             if (is_string($existingCalculationId) && $existingCalculationId !== '') {
-                $pvCalculation = \App\Models\PvCalculation::query()
+                $pvCalculation = PvCalculation::query()
                     ->where('client_id', $client->getKey())
                     ->find($existingCalculationId);
 
-                if (! $pvCalculation instanceof \App\Models\PvCalculation) {
+                if (! $pvCalculation instanceof PvCalculation) {
                     throw ValidationException::withMessages(['pv_target_calculation_id' => 'The PV calculation must belong to this client.']);
                 }
 
@@ -114,9 +115,9 @@ final class GoalTracker
 
         $calculationId = $input['pv_calculation_id'] ?? null;
         $calculation = is_string($calculationId) && $calculationId !== ''
-            ? \App\Models\PvCalculation::query()->where('client_id', $client->getKey())->find($calculationId)
+            ? PvCalculation::query()->where('client_id', $client->getKey())->find($calculationId)
             : null;
-        if (is_string($calculationId) && $calculationId !== '' && ! $calculation instanceof \App\Models\PvCalculation) {
+        if (is_string($calculationId) && $calculationId !== '' && ! $calculation instanceof PvCalculation) {
             throw ValidationException::withMessages(['pv_calculation_id' => 'The PV calculation must belong to this client.']);
         }
 

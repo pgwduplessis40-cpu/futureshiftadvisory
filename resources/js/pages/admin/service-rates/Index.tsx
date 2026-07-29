@@ -667,422 +667,486 @@ export default function ServiceRatesIndex({
                                 onSubmit={submitPackage}
                                 className="grid gap-4"
                             >
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="grid gap-2">
-                                <Label htmlFor="package_service_type">
-                                    Service
-                                </Label>
-                                <select
-                                    id="package_service_type"
-                                    value={packageForm.data.service_type}
-                                    onChange={(event) => {
-                                        const serviceType = event.target
-                                            .value as ServiceRatePackage['service_type'];
-                                        packageForm.setData(
-                                            'service_type',
-                                            serviceType,
-                                        );
-                                        packageForm.setData(
-                                            'package_scope',
-                                            defaultScope(serviceType),
-                                        );
-                                    }}
-                                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                >
-                                    <option value="due_diligence">
-                                        Explore buying a business
-                                    </option>
-                                    <option value="entrepreneur">
-                                        Test new Business Idea
-                                    </option>
-                                    <option value="integration_scoping">
-                                        Systems integration scoping
-                                    </option>
-                                </select>
-                                <InputError
-                                    message={packageForm.errors.service_type}
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="package_billing_model">
-                                    Billing model
-                                </Label>
-                                <select
-                                    id="package_billing_model"
-                                    value={packageForm.data.billing_model}
-                                    onChange={(event) =>
-                                        packageForm.setData(
-                                            'billing_model',
-                                            event.target.value,
-                                        )
-                                    }
-                                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                >
-                                    <option value="fixed_fee">Fixed fee</option>
-                                    <option value="hourly_retainer">
-                                        Hourly retainer
-                                    </option>
-                                    <option value="proposal">Proposal</option>
-                                </select>
-                                <InputError
-                                    message={packageForm.errors.billing_model}
-                                />
-                            </div>
-                        </div>
-
-                        {packageForm.data.service_type === 'due_diligence' ? (
-                            <div className="grid gap-2">
-                                <Label htmlFor="package_scope">
-                                    Buying a business package band
-                                </Label>
-                                <select
-                                    id="package_scope"
-                                    value={packageForm.data.package_scope}
-                                    onChange={(event) =>
-                                        packageForm.setData(
-                                            'package_scope',
-                                            event.target.value,
-                                        )
-                                    }
-                                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                >
-                                    {dueDiligencePackageScopes.map((scope) => (
-                                        <option
-                                            key={scope.value}
-                                            value={scope.value}
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="package_service_type">
+                                            Service
+                                        </Label>
+                                        <select
+                                            id="package_service_type"
+                                            value={
+                                                packageForm.data.service_type
+                                            }
+                                            onChange={(event) => {
+                                                const serviceType = event.target
+                                                    .value as ServiceRatePackage['service_type'];
+                                                packageForm.setData(
+                                                    'service_type',
+                                                    serviceType,
+                                                );
+                                                packageForm.setData(
+                                                    'package_scope',
+                                                    defaultScope(serviceType),
+                                                );
+                                            }}
+                                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                                         >
-                                            {scope.label}
-                                        </option>
-                                    ))}
-                                </select>
-                                <p className="text-xs text-muted-foreground">
-                                    {
-                                        dueDiligencePackageScopes.find(
-                                            (scope) =>
-                                                scope.value ===
-                                                packageForm.data.package_scope,
-                                        )?.description
-                                    }
-                                </p>
-                                <InputError
-                                    message={packageForm.errors.package_scope}
-                                />
-                            </div>
-                        ) : null}
-
-                        {packageForm.data.service_type === 'entrepreneur' ? (
-                            <div className="grid gap-2">
-                                <Label htmlFor="package_scope">
-                                    Entrepreneur package path
-                                </Label>
-                                <select
-                                    id="package_scope"
-                                    value={packageForm.data.package_scope}
-                                    onChange={(event) =>
-                                        packageForm.setData(
-                                            'package_scope',
-                                            event.target.value,
-                                        )
-                                    }
-                                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                >
-                                    {entrepreneurPackageScopes.map((scope) => (
-                                        <option
-                                            key={scope.value}
-                                            value={scope.value}
-                                        >
-                                            {scope.label}
-                                        </option>
-                                    ))}
-                                </select>
-                                <p className="text-xs text-muted-foreground">
-                                    {
-                                        entrepreneurPackageScopes.find(
-                                            (scope) =>
-                                                scope.value ===
-                                                packageForm.data.package_scope,
-                                        )?.description
-                                    }
-                                </p>
-                                <InputError
-                                    message={packageForm.errors.package_scope}
-                                />
-                            </div>
-                        ) : null}
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="package_name">
-                                Internal package name
-                            </Label>
-                            <Input
-                                id="package_name"
-                                value={packageForm.data.package_name}
-                                onChange={(event) =>
-                                    packageForm.setData(
-                                        'package_name',
-                                        event.target.value,
-                                    )
-                                }
-                            />
-                            <InputError
-                                message={packageForm.errors.package_name}
-                            />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="client_label">
-                                Client-facing package label
-                            </Label>
-                            <Input
-                                id="client_label"
-                                value={packageForm.data.client_label}
-                                onChange={(event) =>
-                                    packageForm.setData(
-                                        'client_label',
-                                        event.target.value,
-                                    )
-                                }
-                            />
-                            <InputError
-                                message={packageForm.errors.client_label}
-                            />
-                        </div>
-
-                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="fixed_fee">
-                                    Fixed fee ex GST
-                                </Label>
-                                <Input
-                                    id="fixed_fee"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={packageForm.data.fixed_fee}
-                                    onChange={(event) =>
-                                        packageForm.setData(
-                                            'fixed_fee',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                                <InputError
-                                    message={packageForm.errors.fixed_fee}
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="deposit_percent">
-                                    Card deposit %
-                                </Label>
-                                <Input
-                                    id="deposit_percent"
-                                    type="number"
-                                    min="1"
-                                    max="100"
-                                    step="0.01"
-                                    value={packageForm.data.deposit_percent}
-                                    onChange={(event) =>
-                                        packageForm.setData(
-                                            'deposit_percent',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                                <InputError
-                                    message={packageForm.errors.deposit_percent}
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="hourly_rate">
-                                    Hourly rate ex GST
-                                </Label>
-                                <Input
-                                    id="hourly_rate"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={packageForm.data.hourly_rate}
-                                    onChange={(event) =>
-                                        packageForm.setData(
-                                            'hourly_rate',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                                <InputError
-                                    message={packageForm.errors.hourly_rate}
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="retainer_amount">
-                                    Retainer ex GST
-                                </Label>
-                                <Input
-                                    id="retainer_amount"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={packageForm.data.retainer_amount}
-                                    onChange={(event) =>
-                                        packageForm.setData(
-                                            'retainer_amount',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                                <InputError
-                                    message={packageForm.errors.retainer_amount}
-                                />
-                            </div>
-                        </div>
-
-                        {packageForm.data.billing_model === 'fixed_fee' &&
-                        packageForm.data.fixed_fee !== '' ? (
-                            <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                                <div className="font-medium">Payment split</div>
-                                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                                    <div>
-                                        <span className="text-muted-foreground">
-                                            Card deposit:{' '}
-                                        </span>
-                                        {formatMoney(
-                                            formPaymentSplit(packageForm.data)
-                                                .cardDeposit,
-                                            effectiveCurrency,
-                                        )}
+                                            <option value="due_diligence">
+                                                Explore buying a business
+                                            </option>
+                                            <option value="entrepreneur">
+                                                Test new Business Idea
+                                            </option>
+                                            <option value="integration_scoping">
+                                                Systems integration scoping
+                                            </option>
+                                        </select>
+                                        <InputError
+                                            message={
+                                                packageForm.errors.service_type
+                                            }
+                                        />
                                     </div>
-                                    <div>
-                                        <span className="text-muted-foreground">
-                                            Bank transfer balance:{' '}
-                                        </span>
-                                        {formatMoney(
-                                            formPaymentSplit(packageForm.data)
-                                                .bankTransfer,
-                                            effectiveCurrency,
-                                        )}
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="package_billing_model">
+                                            Billing model
+                                        </Label>
+                                        <select
+                                            id="package_billing_model"
+                                            value={
+                                                packageForm.data.billing_model
+                                            }
+                                            onChange={(event) =>
+                                                packageForm.setData(
+                                                    'billing_model',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                        >
+                                            <option value="fixed_fee">
+                                                Fixed fee
+                                            </option>
+                                            <option value="hourly_retainer">
+                                                Hourly retainer
+                                            </option>
+                                            <option value="proposal">
+                                                Proposal
+                                            </option>
+                                        </select>
+                                        <InputError
+                                            message={
+                                                packageForm.errors.billing_model
+                                            }
+                                        />
                                     </div>
                                 </div>
-                            </div>
-                        ) : null}
 
-                        {packageForm.data.service_type === 'due_diligence' ? (
-                            <div className="grid gap-4 sm:grid-cols-2">
+                                {packageForm.data.service_type ===
+                                'due_diligence' ? (
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="package_scope">
+                                            Buying a business package band
+                                        </Label>
+                                        <select
+                                            id="package_scope"
+                                            value={
+                                                packageForm.data.package_scope
+                                            }
+                                            onChange={(event) =>
+                                                packageForm.setData(
+                                                    'package_scope',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                        >
+                                            {dueDiligencePackageScopes.map(
+                                                (scope) => (
+                                                    <option
+                                                        key={scope.value}
+                                                        value={scope.value}
+                                                    >
+                                                        {scope.label}
+                                                    </option>
+                                                ),
+                                            )}
+                                        </select>
+                                        <p className="text-xs text-muted-foreground">
+                                            {
+                                                dueDiligencePackageScopes.find(
+                                                    (scope) =>
+                                                        scope.value ===
+                                                        packageForm.data
+                                                            .package_scope,
+                                                )?.description
+                                            }
+                                        </p>
+                                        <InputError
+                                            message={
+                                                packageForm.errors.package_scope
+                                            }
+                                        />
+                                    </div>
+                                ) : null}
+
+                                {packageForm.data.service_type ===
+                                'entrepreneur' ? (
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="package_scope">
+                                            Entrepreneur package path
+                                        </Label>
+                                        <select
+                                            id="package_scope"
+                                            value={
+                                                packageForm.data.package_scope
+                                            }
+                                            onChange={(event) =>
+                                                packageForm.setData(
+                                                    'package_scope',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                        >
+                                            {entrepreneurPackageScopes.map(
+                                                (scope) => (
+                                                    <option
+                                                        key={scope.value}
+                                                        value={scope.value}
+                                                    >
+                                                        {scope.label}
+                                                    </option>
+                                                ),
+                                            )}
+                                        </select>
+                                        <p className="text-xs text-muted-foreground">
+                                            {
+                                                entrepreneurPackageScopes.find(
+                                                    (scope) =>
+                                                        scope.value ===
+                                                        packageForm.data
+                                                            .package_scope,
+                                                )?.description
+                                            }
+                                        </p>
+                                        <InputError
+                                            message={
+                                                packageForm.errors.package_scope
+                                            }
+                                        />
+                                    </div>
+                                ) : null}
+
                                 <div className="grid gap-2">
-                                    <Label htmlFor="purchase_price_min">
-                                        Purchase price min
+                                    <Label htmlFor="package_name">
+                                        Internal package name
                                     </Label>
                                     <Input
-                                        id="purchase_price_min"
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={
-                                            packageForm.data.purchase_price_min
-                                        }
+                                        id="package_name"
+                                        value={packageForm.data.package_name}
                                         onChange={(event) =>
                                             packageForm.setData(
-                                                'purchase_price_min',
+                                                'package_name',
                                                 event.target.value,
                                             )
                                         }
                                     />
                                     <InputError
                                         message={
-                                            packageForm.errors
-                                                .purchase_price_min
+                                            packageForm.errors.package_name
                                         }
                                     />
                                 </div>
 
                                 <div className="grid gap-2">
-                                    <Label htmlFor="purchase_price_max">
-                                        Purchase price max
+                                    <Label htmlFor="client_label">
+                                        Client-facing package label
                                     </Label>
                                     <Input
-                                        id="purchase_price_max"
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={
-                                            packageForm.data.purchase_price_max
-                                        }
+                                        id="client_label"
+                                        value={packageForm.data.client_label}
                                         onChange={(event) =>
                                             packageForm.setData(
-                                                'purchase_price_max',
+                                                'client_label',
                                                 event.target.value,
                                             )
                                         }
                                     />
                                     <InputError
                                         message={
-                                            packageForm.errors
-                                                .purchase_price_max
+                                            packageForm.errors.client_label
                                         }
                                     />
                                 </div>
-                            </div>
-                        ) : null}
 
-                        <div className="grid gap-2">
-                            <Label htmlFor="scope_description">
-                                Scope description
-                            </Label>
-                            <textarea
-                                id="scope_description"
-                                rows={5}
-                                value={packageForm.data.scope_description}
-                                onChange={(event) =>
-                                    packageForm.setData(
-                                        'scope_description',
-                                        event.target.value,
-                                    )
-                                }
-                                className="min-h-28 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                            />
-                            <InputError
-                                message={packageForm.errors.scope_description}
-                            />
-                        </div>
+                                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="fixed_fee">
+                                            Fixed fee ex GST
+                                        </Label>
+                                        <Input
+                                            id="fixed_fee"
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={packageForm.data.fixed_fee}
+                                            onChange={(event) =>
+                                                packageForm.setData(
+                                                    'fixed_fee',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                        <InputError
+                                            message={
+                                                packageForm.errors.fixed_fee
+                                            }
+                                        />
+                                    </div>
 
-                        <label className="flex items-center gap-2 text-sm">
-                            <input
-                                type="checkbox"
-                                checked={packageForm.data.is_active}
-                                onChange={(event) =>
-                                    packageForm.setData(
-                                        'is_active',
-                                        event.target.checked,
-                                    )
-                                }
-                            />
-                            Active for advisor selection
-                        </label>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="deposit_percent">
+                                            Card deposit %
+                                        </Label>
+                                        <Input
+                                            id="deposit_percent"
+                                            type="number"
+                                            min="1"
+                                            max="100"
+                                            step="0.01"
+                                            value={
+                                                packageForm.data.deposit_percent
+                                            }
+                                            onChange={(event) =>
+                                                packageForm.setData(
+                                                    'deposit_percent',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                        <InputError
+                                            message={
+                                                packageForm.errors
+                                                    .deposit_percent
+                                            }
+                                        />
+                                    </div>
 
-                        <div className="flex justify-end gap-2">
-                            {editingPackage ? (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={cancelPackageEdit}
-                                >
-                                    <X className="size-4" aria-hidden="true" />
-                                    Cancel
-                                </Button>
-                            ) : null}
-                            <Button
-                                type="submit"
-                                disabled={packageForm.processing}
-                            >
-                                <Save className="size-4" aria-hidden="true" />
-                                {editingPackage
-                                    ? 'Update package'
-                                    : 'Save package'}
-                            </Button>
-                        </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="hourly_rate">
+                                            Hourly rate ex GST
+                                        </Label>
+                                        <Input
+                                            id="hourly_rate"
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={packageForm.data.hourly_rate}
+                                            onChange={(event) =>
+                                                packageForm.setData(
+                                                    'hourly_rate',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                        <InputError
+                                            message={
+                                                packageForm.errors.hourly_rate
+                                            }
+                                        />
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="retainer_amount">
+                                            Retainer ex GST
+                                        </Label>
+                                        <Input
+                                            id="retainer_amount"
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={
+                                                packageForm.data.retainer_amount
+                                            }
+                                            onChange={(event) =>
+                                                packageForm.setData(
+                                                    'retainer_amount',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                        <InputError
+                                            message={
+                                                packageForm.errors
+                                                    .retainer_amount
+                                            }
+                                        />
+                                    </div>
+                                </div>
+
+                                {packageForm.data.billing_model ===
+                                    'fixed_fee' &&
+                                packageForm.data.fixed_fee !== '' ? (
+                                    <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                                        <div className="font-medium">
+                                            Payment split
+                                        </div>
+                                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                            <div>
+                                                <span className="text-muted-foreground">
+                                                    Card deposit:{' '}
+                                                </span>
+                                                {formatMoney(
+                                                    formPaymentSplit(
+                                                        packageForm.data,
+                                                    ).cardDeposit,
+                                                    effectiveCurrency,
+                                                )}
+                                            </div>
+                                            <div>
+                                                <span className="text-muted-foreground">
+                                                    Bank transfer balance:{' '}
+                                                </span>
+                                                {formatMoney(
+                                                    formPaymentSplit(
+                                                        packageForm.data,
+                                                    ).bankTransfer,
+                                                    effectiveCurrency,
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : null}
+
+                                {packageForm.data.service_type ===
+                                'due_diligence' ? (
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="purchase_price_min">
+                                                Purchase price min
+                                            </Label>
+                                            <Input
+                                                id="purchase_price_min"
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={
+                                                    packageForm.data
+                                                        .purchase_price_min
+                                                }
+                                                onChange={(event) =>
+                                                    packageForm.setData(
+                                                        'purchase_price_min',
+                                                        event.target.value,
+                                                    )
+                                                }
+                                            />
+                                            <InputError
+                                                message={
+                                                    packageForm.errors
+                                                        .purchase_price_min
+                                                }
+                                            />
+                                        </div>
+
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="purchase_price_max">
+                                                Purchase price max
+                                            </Label>
+                                            <Input
+                                                id="purchase_price_max"
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={
+                                                    packageForm.data
+                                                        .purchase_price_max
+                                                }
+                                                onChange={(event) =>
+                                                    packageForm.setData(
+                                                        'purchase_price_max',
+                                                        event.target.value,
+                                                    )
+                                                }
+                                            />
+                                            <InputError
+                                                message={
+                                                    packageForm.errors
+                                                        .purchase_price_max
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+                                ) : null}
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="scope_description">
+                                        Scope description
+                                    </Label>
+                                    <textarea
+                                        id="scope_description"
+                                        rows={5}
+                                        value={
+                                            packageForm.data.scope_description
+                                        }
+                                        onChange={(event) =>
+                                            packageForm.setData(
+                                                'scope_description',
+                                                event.target.value,
+                                            )
+                                        }
+                                        className="min-h-28 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                    />
+                                    <InputError
+                                        message={
+                                            packageForm.errors.scope_description
+                                        }
+                                    />
+                                </div>
+
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={packageForm.data.is_active}
+                                        onChange={(event) =>
+                                            packageForm.setData(
+                                                'is_active',
+                                                event.target.checked,
+                                            )
+                                        }
+                                    />
+                                    Active for advisor selection
+                                </label>
+
+                                <div className="flex justify-end gap-2">
+                                    {editingPackage ? (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={cancelPackageEdit}
+                                        >
+                                            <X
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            Cancel
+                                        </Button>
+                                    ) : null}
+                                    <Button
+                                        type="submit"
+                                        disabled={packageForm.processing}
+                                    >
+                                        <Save
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        {editingPackage
+                                            ? 'Update package'
+                                            : 'Save package'}
+                                    </Button>
+                                </div>
                             </form>
                         </CollapsibleContent>
                     </Collapsible>
@@ -1134,161 +1198,165 @@ export default function ServiceRatesIndex({
 
                         <CollapsibleContent className="pt-4">
                             <div className="overflow-hidden rounded-md border">
-                            <table className="fsa-responsive-table table-fixed md:table-fixed">
-                                <thead className="bg-muted/60 text-left">
-                                    <tr>
-                                        <th className="w-[16%] px-3 py-2 font-medium">
-                                            Service
-                                        </th>
-                                        <th className="w-[18%] px-3 py-2 font-medium">
-                                            Package
-                                        </th>
-                                        <th className="w-[16%] px-3 py-2 font-medium">
-                                            Fee
-                                        </th>
-                                        <th className="w-[18%] px-3 py-2 font-medium">
-                                            Purchase band
-                                        </th>
-                                        <th className="w-[22%] px-3 py-2 font-medium">
-                                            Scope
-                                        </th>
-                                        <th className="w-[10%] px-3 py-2 font-medium">
-                                            Actions
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {packages.length === 0 ? (
+                                <table className="fsa-responsive-table table-fixed md:table-fixed">
+                                    <thead className="bg-muted/60 text-left">
                                         <tr>
-                                            <td
-                                                className="px-3 py-3 text-muted-foreground"
-                                                colSpan={6}
-                                            >
-                                                No workspace packages have been
-                                                configured yet.
-                                            </td>
+                                            <th className="w-[16%] px-3 py-2 font-medium">
+                                                Service
+                                            </th>
+                                            <th className="w-[18%] px-3 py-2 font-medium">
+                                                Package
+                                            </th>
+                                            <th className="w-[16%] px-3 py-2 font-medium">
+                                                Fee
+                                            </th>
+                                            <th className="w-[18%] px-3 py-2 font-medium">
+                                                Purchase band
+                                            </th>
+                                            <th className="w-[22%] px-3 py-2 font-medium">
+                                                Scope
+                                            </th>
+                                            <th className="w-[10%] px-3 py-2 font-medium">
+                                                Actions
+                                            </th>
                                         </tr>
-                                    ) : (
-                                        packages.map((ratePackage) => (
-                                            <tr
-                                                key={ratePackage.id}
-                                                className="border-t"
-                                            >
-                                                <td
-                                                    className="px-3 py-3"
-                                                    data-label="Service"
-                                                >
-                                                    {serviceLabel(
-                                                        ratePackage.service_type,
-                                                    )}
-                                                </td>
-                                                <td
-                                                    className="px-3 py-3"
-                                                    data-label="Package"
-                                                >
-                                                    <div className="font-medium">
-                                                        {
-                                                            ratePackage.client_label
-                                                        }
-                                                    </div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {
-                                                            ratePackage.package_name
-                                                        }
-                                                    </div>
-                                                    <div className="mt-2 flex flex-wrap gap-1">
-                                                        {ratePackage.package_scope ? (
-                                                            <Badge variant="outline">
-                                                                {packageScopeLabel(
-                                                                    ratePackage.package_scope,
-                                                                )}
-                                                            </Badge>
-                                                        ) : null}
-                                                        <Badge
-                                                            variant={
-                                                                ratePackage.is_active
-                                                                    ? 'secondary'
-                                                                    : 'outline'
-                                                            }
-                                                        >
-                                                            {packageStatusLabel(
-                                                                ratePackage,
-                                                            )}
-                                                        </Badge>
-                                                    </div>
-                                                </td>
-                                                <td
-                                                    className="px-3 py-3"
-                                                    data-label="Fee"
-                                                >
-                                                    {packageFee(ratePackage)}
-                                                    <PaymentSplitSummary
-                                                        ratePackage={
-                                                            ratePackage
-                                                        }
-                                                    />
-                                                </td>
-                                                <td
-                                                    className="px-3 py-3"
-                                                    data-label="Purchase band"
-                                                >
-                                                    {purchaseBand(ratePackage)}
-                                                </td>
+                                    </thead>
+                                    <tbody>
+                                        {packages.length === 0 ? (
+                                            <tr>
                                                 <td
                                                     className="px-3 py-3 text-muted-foreground"
-                                                    data-label="Scope"
+                                                    colSpan={6}
                                                 >
-                                                    {
-                                                        ratePackage.scope_description
-                                                    }
-                                                </td>
-                                                <td
-                                                    className="px-3 py-3"
-                                                    data-label="Actions"
-                                                >
-                                                    <div className="flex flex-wrap gap-2">
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() =>
-                                                                editPackage(
-                                                                    ratePackage,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Pencil
-                                                                className="size-3.5"
-                                                                aria-hidden="true"
-                                                            />
-                                                            Edit
-                                                        </Button>
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="sm"
-                                                            aria-label={`${packageToggleActionLabel(ratePackage)} ${ratePackage.client_label}`}
-                                                            onClick={() =>
-                                                                togglePackage(
-                                                                    ratePackage,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Power
-                                                                className="size-3.5"
-                                                                aria-hidden="true"
-                                                            />
-                                                            {packageToggleActionLabel(
-                                                                ratePackage,
-                                                            )}
-                                                        </Button>
-                                                    </div>
+                                                    No workspace packages have
+                                                    been configured yet.
                                                 </td>
                                             </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                                        ) : (
+                                            packages.map((ratePackage) => (
+                                                <tr
+                                                    key={ratePackage.id}
+                                                    className="border-t"
+                                                >
+                                                    <td
+                                                        className="px-3 py-3"
+                                                        data-label="Service"
+                                                    >
+                                                        {serviceLabel(
+                                                            ratePackage.service_type,
+                                                        )}
+                                                    </td>
+                                                    <td
+                                                        className="px-3 py-3"
+                                                        data-label="Package"
+                                                    >
+                                                        <div className="font-medium">
+                                                            {
+                                                                ratePackage.client_label
+                                                            }
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {
+                                                                ratePackage.package_name
+                                                            }
+                                                        </div>
+                                                        <div className="mt-2 flex flex-wrap gap-1">
+                                                            {ratePackage.package_scope ? (
+                                                                <Badge variant="outline">
+                                                                    {packageScopeLabel(
+                                                                        ratePackage.package_scope,
+                                                                    )}
+                                                                </Badge>
+                                                            ) : null}
+                                                            <Badge
+                                                                variant={
+                                                                    ratePackage.is_active
+                                                                        ? 'secondary'
+                                                                        : 'outline'
+                                                                }
+                                                            >
+                                                                {packageStatusLabel(
+                                                                    ratePackage,
+                                                                )}
+                                                            </Badge>
+                                                        </div>
+                                                    </td>
+                                                    <td
+                                                        className="px-3 py-3"
+                                                        data-label="Fee"
+                                                    >
+                                                        {packageFee(
+                                                            ratePackage,
+                                                        )}
+                                                        <PaymentSplitSummary
+                                                            ratePackage={
+                                                                ratePackage
+                                                            }
+                                                        />
+                                                    </td>
+                                                    <td
+                                                        className="px-3 py-3"
+                                                        data-label="Purchase band"
+                                                    >
+                                                        {purchaseBand(
+                                                            ratePackage,
+                                                        )}
+                                                    </td>
+                                                    <td
+                                                        className="px-3 py-3 text-muted-foreground"
+                                                        data-label="Scope"
+                                                    >
+                                                        {
+                                                            ratePackage.scope_description
+                                                        }
+                                                    </td>
+                                                    <td
+                                                        className="px-3 py-3"
+                                                        data-label="Actions"
+                                                    >
+                                                        <div className="flex flex-wrap gap-2">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() =>
+                                                                    editPackage(
+                                                                        ratePackage,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Pencil
+                                                                    className="size-3.5"
+                                                                    aria-hidden="true"
+                                                                />
+                                                                Edit
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                aria-label={`${packageToggleActionLabel(ratePackage)} ${ratePackage.client_label}`}
+                                                                onClick={() =>
+                                                                    togglePackage(
+                                                                        ratePackage,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Power
+                                                                    className="size-3.5"
+                                                                    aria-hidden="true"
+                                                                />
+                                                                {packageToggleActionLabel(
+                                                                    ratePackage,
+                                                                )}
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
                         </CollapsibleContent>
                     </Collapsible>
@@ -1359,252 +1427,278 @@ export default function ServiceRatesIndex({
                                 onSubmit={submitIntegrationFeeBand}
                                 className="grid gap-4"
                             >
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="integration_complexity_band">
-                                        Complexity band
-                                    </Label>
-                                    <select
-                                        id="integration_complexity_band"
-                                        value={feeBandForm.data.complexity_band}
-                                        onChange={(event) =>
-                                            updateIntegrationComplexityBand(
-                                                event.target
-                                                    .value as IntegrationFeeBand['complexity_band'],
-                                            )
-                                        }
-                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                    >
-                                        <option value="S">S</option>
-                                        <option value="M">M</option>
-                                        <option value="L">L</option>
-                                        <option value="XL">XL</option>
-                                    </select>
-                                    <InputError
-                                        message={
-                                            feeBandForm.errors.complexity_band
-                                        }
-                                    />
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="integration_complexity_band">
+                                            Complexity band
+                                        </Label>
+                                        <select
+                                            id="integration_complexity_band"
+                                            value={
+                                                feeBandForm.data.complexity_band
+                                            }
+                                            onChange={(event) =>
+                                                updateIntegrationComplexityBand(
+                                                    event.target
+                                                        .value as IntegrationFeeBand['complexity_band'],
+                                                )
+                                            }
+                                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                        >
+                                            <option value="S">S</option>
+                                            <option value="M">M</option>
+                                            <option value="L">L</option>
+                                            <option value="XL">XL</option>
+                                        </select>
+                                        <InputError
+                                            message={
+                                                feeBandForm.errors
+                                                    .complexity_band
+                                            }
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="integration_delivery_mode">
+                                            Delivery mode
+                                        </Label>
+                                        <select
+                                            id="integration_delivery_mode"
+                                            value={
+                                                feeBandForm.data.delivery_mode
+                                            }
+                                            onChange={(event) =>
+                                                feeBandForm.setData(
+                                                    'delivery_mode',
+                                                    event.target
+                                                        .value as IntegrationFeeBand['delivery_mode'],
+                                                )
+                                            }
+                                            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                        >
+                                            <option value="inhouse">
+                                                In-house
+                                            </option>
+                                            <option value="lowcode">
+                                                Low-code
+                                            </option>
+                                            <option value="partner">
+                                                Delivery partner
+                                            </option>
+                                            <option value="mixed">Mixed</option>
+                                        </select>
+                                        <InputError
+                                            message={
+                                                feeBandForm.errors.delivery_mode
+                                            }
+                                        />
+                                    </div>
                                 </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="integration_delivery_mode">
-                                        Delivery mode
-                                    </Label>
-                                    <select
-                                        id="integration_delivery_mode"
-                                        value={feeBandForm.data.delivery_mode}
-                                        onChange={(event) =>
+                                <div className="grid gap-4 sm:grid-cols-3">
+                                    <BandInput
+                                        id="integration_fee_low"
+                                        label="Low ex GST"
+                                        description="Straightforward delivery with known requirements."
+                                        value={feeBandForm.data.fee_low}
+                                        onChange={(value) =>
                                             feeBandForm.setData(
-                                                'delivery_mode',
-                                                event.target
-                                                    .value as IntegrationFeeBand['delivery_mode'],
+                                                'fee_low',
+                                                value,
                                             )
                                         }
-                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                    >
-                                        <option value="inhouse">
-                                            In-house
-                                        </option>
-                                        <option value="lowcode">
-                                            Low-code
-                                        </option>
-                                        <option value="partner">
-                                            Delivery partner
-                                        </option>
-                                        <option value="mixed">Mixed</option>
-                                    </select>
-                                    <InputError
-                                        message={
-                                            feeBandForm.errors.delivery_mode
+                                        error={feeBandForm.errors.fee_low}
+                                    />
+                                    <BandInput
+                                        id="integration_fee_mid"
+                                        label="Mid ex GST"
+                                        description="Expected fee and the default quoted amount."
+                                        value={feeBandForm.data.fee_mid}
+                                        onChange={(value) =>
+                                            feeBandForm.setData(
+                                                'fee_mid',
+                                                value,
+                                            )
                                         }
+                                        error={feeBandForm.errors.fee_mid}
+                                    />
+                                    <BandInput
+                                        id="integration_fee_high"
+                                        label="High ex GST"
+                                        description="Uncertainty or additional effort within the agreed scope."
+                                        value={feeBandForm.data.fee_high}
+                                        onChange={(value) =>
+                                            feeBandForm.setData(
+                                                'fee_high',
+                                                value,
+                                            )
+                                        }
+                                        error={feeBandForm.errors.fee_high}
                                     />
                                 </div>
-                            </div>
-                            <div className="grid gap-4 sm:grid-cols-3">
-                                <BandInput
-                                    id="integration_fee_low"
-                                    label="Low ex GST"
-                                    description="Straightforward delivery with known requirements."
-                                    value={feeBandForm.data.fee_low}
-                                    onChange={(value) =>
-                                        feeBandForm.setData('fee_low', value)
-                                    }
-                                    error={feeBandForm.errors.fee_low}
-                                />
-                                <BandInput
-                                    id="integration_fee_mid"
-                                    label="Mid ex GST"
-                                    description="Expected fee and the default quoted amount."
-                                    value={feeBandForm.data.fee_mid}
-                                    onChange={(value) =>
-                                        feeBandForm.setData('fee_mid', value)
-                                    }
-                                    error={feeBandForm.errors.fee_mid}
-                                />
-                                <BandInput
-                                    id="integration_fee_high"
-                                    label="High ex GST"
-                                    description="Uncertainty or additional effort within the agreed scope."
-                                    value={feeBandForm.data.fee_high}
-                                    onChange={(value) =>
-                                        feeBandForm.setData('fee_high', value)
-                                    }
-                                    error={feeBandForm.errors.fee_high}
-                                />
-                            </div>
-                            <div className="grid gap-4 rounded-md border bg-muted/30 p-4 sm:grid-cols-2">
-                                <BandInput
-                                    id="integration_hosting_monthly_cost"
-                                    label="FSA hosting cost per month ex GST"
-                                    value={feeBandForm.data.hosting_monthly_cost}
-                                    onChange={(value) =>
-                                        feeBandForm.setData(
-                                            'hosting_monthly_cost',
-                                            value,
-                                        )
-                                    }
-                                    error={
-                                        feeBandForm.errors
-                                            .hosting_monthly_cost
-                                    }
-                                />
-                                <BandInput
-                                    id="integration_hosting_markup_percent"
-                                    label="Hosting markup %"
-                                    value={
-                                        feeBandForm.data
-                                            .hosting_markup_percent
-                                    }
-                                    onChange={(value) =>
-                                        feeBandForm.setData(
-                                            'hosting_markup_percent',
-                                            value,
-                                        )
-                                    }
-                                    error={
-                                        feeBandForm.errors
-                                            .hosting_markup_percent
-                                    }
-                                />
-                                <p className="sm:col-span-2 text-sm text-muted-foreground">
-                                    Client charge when FSA hosting is selected:{' '}
-                                    <span className="font-medium text-foreground">
-                                        {formatMoney(
-                                            hostingMonthlyFee(
-                                                feeBandForm.data
-                                                    .hosting_monthly_cost,
-                                                feeBandForm.data
-                                                    .hosting_markup_percent,
-                                            ),
-                                            effectiveCurrency,
-                                        )}
-                                    </span>{' '}
-                                    per month ex GST.
-                                </p>
-                            </div>
-                            <div className="grid gap-2">
-                                <div>
-                                    <Label htmlFor="integration_scope_description">
-                                        Scope
-                                    </Label>
-                                    <p className="mt-1 text-xs text-muted-foreground">
-                                        Client-facing wording for the selected{' '}
-                                        {feeBandForm.data.complexity_band} band.
-                                        It is included in the integration quote
-                                        and proposal.
+                                <div className="grid gap-4 rounded-md border bg-muted/30 p-4 sm:grid-cols-2">
+                                    <BandInput
+                                        id="integration_hosting_monthly_cost"
+                                        label="FSA hosting cost per month ex GST"
+                                        value={
+                                            feeBandForm.data
+                                                .hosting_monthly_cost
+                                        }
+                                        onChange={(value) =>
+                                            feeBandForm.setData(
+                                                'hosting_monthly_cost',
+                                                value,
+                                            )
+                                        }
+                                        error={
+                                            feeBandForm.errors
+                                                .hosting_monthly_cost
+                                        }
+                                    />
+                                    <BandInput
+                                        id="integration_hosting_markup_percent"
+                                        label="Hosting markup %"
+                                        value={
+                                            feeBandForm.data
+                                                .hosting_markup_percent
+                                        }
+                                        onChange={(value) =>
+                                            feeBandForm.setData(
+                                                'hosting_markup_percent',
+                                                value,
+                                            )
+                                        }
+                                        error={
+                                            feeBandForm.errors
+                                                .hosting_markup_percent
+                                        }
+                                    />
+                                    <p className="text-sm text-muted-foreground sm:col-span-2">
+                                        Client charge when FSA hosting is
+                                        selected:{' '}
+                                        <span className="font-medium text-foreground">
+                                            {formatMoney(
+                                                hostingMonthlyFee(
+                                                    feeBandForm.data
+                                                        .hosting_monthly_cost,
+                                                    feeBandForm.data
+                                                        .hosting_markup_percent,
+                                                ),
+                                                effectiveCurrency,
+                                            )}
+                                        </span>{' '}
+                                        per month ex GST.
                                     </p>
                                 </div>
-                                <textarea
-                                    id="integration_scope_description"
-                                    rows={5}
-                                    value={feeBandForm.data.scope_description}
-                                    onChange={(event) =>
-                                        feeBandForm.setData(
-                                            'scope_description',
-                                            event.target.value,
-                                        )
-                                    }
-                                    className="min-h-28 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                />
-                                <InputError
-                                    message={
-                                        feeBandForm.errors.scope_description
-                                    }
-                                />
-                            </div>
-                            <label className="flex items-center gap-2 text-sm">
-                                <input
-                                    type="checkbox"
-                                    checked={feeBandForm.data.is_active}
-                                    onChange={(event) =>
-                                        feeBandForm.setData(
-                                            'is_active',
-                                            event.target.checked,
-                                        )
-                                    }
-                                />
-                                Active for quoting
-                            </label>
-                            <div className="flex justify-end">
-                                <Button
-                                    type="submit"
-                                    disabled={feeBandForm.processing}
-                                >
-                                    <Save
-                                        className="size-4"
-                                        aria-hidden="true"
+                                <div className="grid gap-2">
+                                    <div>
+                                        <Label htmlFor="integration_scope_description">
+                                            Scope
+                                        </Label>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Client-facing wording for the
+                                            selected{' '}
+                                            {feeBandForm.data.complexity_band}{' '}
+                                            band. It is included in the
+                                            integration quote and proposal.
+                                        </p>
+                                    </div>
+                                    <textarea
+                                        id="integration_scope_description"
+                                        rows={5}
+                                        value={
+                                            feeBandForm.data.scope_description
+                                        }
+                                        onChange={(event) =>
+                                            feeBandForm.setData(
+                                                'scope_description',
+                                                event.target.value,
+                                            )
+                                        }
+                                        className="min-h-28 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                                     />
-                                    {editingIntegrationFeeBand
-                                        ? 'Update band'
-                                        : 'Save band'}
-                                </Button>
-                            </div>
+                                    <InputError
+                                        message={
+                                            feeBandForm.errors.scope_description
+                                        }
+                                    />
+                                </div>
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={feeBandForm.data.is_active}
+                                        onChange={(event) =>
+                                            feeBandForm.setData(
+                                                'is_active',
+                                                event.target.checked,
+                                            )
+                                        }
+                                    />
+                                    Active for quoting
+                                </label>
+                                <div className="flex justify-end">
+                                    <Button
+                                        type="submit"
+                                        disabled={feeBandForm.processing}
+                                    >
+                                        <Save
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        {editingIntegrationFeeBand
+                                            ? 'Update band'
+                                            : 'Save band'}
+                                    </Button>
+                                </div>
                             </form>
                             <form
                                 onSubmit={importIntegrationFeeBands}
                                 className="border-t pt-4"
                             >
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                                <div className="grid flex-1 gap-2">
-                                    <Label htmlFor="integration_pricing_file">
-                                        Pricing CSV
-                                    </Label>
-                                    <Input
-                                        id="integration_pricing_file"
-                                        type="file"
-                                        accept=".csv,text/csv"
-                                        onChange={(event) =>
-                                            importForm.setData(
-                                                'pricing_file',
-                                                event.target.files?.[0] ?? null,
-                                            )
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                                    <div className="grid flex-1 gap-2">
+                                        <Label htmlFor="integration_pricing_file">
+                                            Pricing CSV
+                                        </Label>
+                                        <Input
+                                            id="integration_pricing_file"
+                                            type="file"
+                                            accept=".csv,text/csv"
+                                            onChange={(event) =>
+                                                importForm.setData(
+                                                    'pricing_file',
+                                                    event.target.files?.[0] ??
+                                                        null,
+                                                )
+                                            }
+                                        />
+                                        <InputError
+                                            message={
+                                                importForm.errors.pricing_file
+                                            }
+                                        />
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={
+                                            downloadIntegrationFeeBandTemplate
                                         }
-                                    />
-                                    <InputError
-                                        message={importForm.errors.pricing_file}
-                                    />
+                                    >
+                                        Template
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        disabled={
+                                            !importForm.data.pricing_file ||
+                                            importForm.processing
+                                        }
+                                    >
+                                        <Upload
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Import
+                                    </Button>
                                 </div>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={downloadIntegrationFeeBandTemplate}
-                                >
-                                    Template
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    disabled={
-                                        !importForm.data.pricing_file ||
-                                        importForm.processing
-                                    }
-                                >
-                                    <Upload
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    Import
-                                </Button>
-                            </div>
                             </form>
                         </CollapsibleContent>
                     </Collapsible>
@@ -1615,10 +1709,7 @@ export default function ServiceRatesIndex({
                     >
                         <div className="flex flex-wrap items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
-                                <Table2
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
+                                <Table2 className="size-4" aria-hidden="true" />
                                 <h2 className="text-sm font-medium">
                                     Current integration fee bands
                                 </h2>
@@ -1654,188 +1745,197 @@ export default function ServiceRatesIndex({
                         </div>
                         <CollapsibleContent className="pt-4">
                             <p className="text-sm text-muted-foreground">
-                            Low is for a straightforward delivery with known
-                            requirements. Mid is the expected fee and default
-                            quote. High allows for unresolved complexity within
-                            the agreed scope; material scope changes are priced
-                            separately.
+                                Low is for a straightforward delivery with known
+                                requirements. Mid is the expected fee and
+                                default quote. High allows for unresolved
+                                complexity within the agreed scope; material
+                                scope changes are priced separately.
                             </p>
                             <div className="mt-3 overflow-hidden rounded-md border">
-                            <table className="fsa-responsive-table table-fixed md:table-fixed">
-                                <thead className="bg-muted/60 text-left">
-                                    <tr>
-                                        <th className="w-[8%] px-3 py-2 font-medium">
-                                            Band
-                                        </th>
-                                        <th className="w-[32%] px-3 py-2 font-medium">
-                                            Delivery and scope
-                                        </th>
-                                        <th className="w-[13%] px-3 py-2 font-medium">
-                                            <span className="block">Low</span>
-                                            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                                                Straightforward
-                                            </span>
-                                        </th>
-                                        <th className="w-[13%] px-3 py-2 font-medium">
-                                            <span className="block">Mid</span>
-                                            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                                                Expected fee
-                                            </span>
-                                        </th>
-                                        <th className="w-[13%] px-3 py-2 font-medium">
-                                            <span className="block">High</span>
-                                            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
-                                                Complexity allowance
-                                            </span>
-                                        </th>
-                                        <th className="w-[11%] px-3 py-2 font-medium">
-                                            Status
-                                        </th>
-                                        <th className="w-[10%] px-3 py-2 font-medium">
-                                            Actions
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {integrationFeeBands.length === 0 ? (
+                                <table className="fsa-responsive-table table-fixed md:table-fixed">
+                                    <thead className="bg-muted/60 text-left">
                                         <tr>
-                                            <td
-                                                colSpan={7}
-                                                className="px-3 py-3 text-muted-foreground"
-                                            >
-                                                No integration fee bands
-                                                configured.
-                                            </td>
+                                            <th className="w-[8%] px-3 py-2 font-medium">
+                                                Band
+                                            </th>
+                                            <th className="w-[32%] px-3 py-2 font-medium">
+                                                Delivery and scope
+                                            </th>
+                                            <th className="w-[13%] px-3 py-2 font-medium">
+                                                <span className="block">
+                                                    Low
+                                                </span>
+                                                <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                                                    Straightforward
+                                                </span>
+                                            </th>
+                                            <th className="w-[13%] px-3 py-2 font-medium">
+                                                <span className="block">
+                                                    Mid
+                                                </span>
+                                                <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                                                    Expected fee
+                                                </span>
+                                            </th>
+                                            <th className="w-[13%] px-3 py-2 font-medium">
+                                                <span className="block">
+                                                    High
+                                                </span>
+                                                <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                                                    Complexity allowance
+                                                </span>
+                                            </th>
+                                            <th className="w-[11%] px-3 py-2 font-medium">
+                                                Status
+                                            </th>
+                                            <th className="w-[10%] px-3 py-2 font-medium">
+                                                Actions
+                                            </th>
                                         </tr>
-                                    ) : (
-                                        integrationFeeBands.map((band) => (
-                                            <tr
-                                                key={band.id}
-                                                className="border-t"
-                                            >
+                                    </thead>
+                                    <tbody>
+                                        {integrationFeeBands.length === 0 ? (
+                                            <tr>
                                                 <td
-                                                    className="px-3 py-3"
-                                                    data-label="Band"
+                                                    colSpan={7}
+                                                    className="px-3 py-3 text-muted-foreground"
                                                 >
-                                                    <Badge variant="secondary">
-                                                        {band.complexity_band}
-                                                    </Badge>
-                                                </td>
-                                                <td
-                                                    className="px-3 py-3"
-                                                    data-label="Delivery and scope"
-                                                >
-                                                    <div>
-                                                        {band.delivery_mode.replaceAll(
-                                                            '_',
-                                                            ' ',
-                                                        )}
-                                                    </div>
-                                                    {band.scope_description ? (
-                                                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                                                            {
-                                                                band.scope_description
-                                                            }
-                                                        </p>
-                                                    ) : null}
-                                                    {band.hosting_monthly_cost !==
-                                                        null &&
-                                                    band.hosting_markup_percent !==
-                                                        null ? (
-                                                        <p className="mt-2 text-xs text-muted-foreground">
-                                                            FSA hosting: {formatMoney(
-                                                                band.hosting_monthly_cost,
-                                                                band.currency,
-                                                            )}{' '}
-                                                            cost +{' '}
-                                                            {formatPercent(
-                                                                band.hosting_markup_percent,
-                                                            )}{' '}
-                                                            markup ={' '}
-                                                            {formatMoney(
-                                                                hostingMonthlyFee(
-                                                                    String(
-                                                                        band.hosting_monthly_cost,
-                                                                    ),
-                                                                    String(
-                                                                        band.hosting_markup_percent,
-                                                                    ),
-                                                                ),
-                                                                band.currency,
-                                                            )}{' '}
-                                                            per month ex GST
-                                                        </p>
-                                                    ) : null}
-                                                </td>
-                                                <td
-                                                    className="px-3 py-3"
-                                                    data-label="Low"
-                                                >
-                                                    {formatMoney(
-                                                        band.fee_low,
-                                                        band.currency,
-                                                    )}
-                                                </td>
-                                                <td
-                                                    className="px-3 py-3"
-                                                    data-label="Mid"
-                                                >
-                                                    {formatMoney(
-                                                        band.fee_mid,
-                                                        band.currency,
-                                                    )}
-                                                </td>
-                                                <td
-                                                    className="px-3 py-3"
-                                                    data-label="High"
-                                                >
-                                                    {formatMoney(
-                                                        band.fee_high,
-                                                        band.currency,
-                                                    )}
-                                                </td>
-                                                <td
-                                                    className="px-3 py-3"
-                                                    data-label="Status"
-                                                >
-                                                    <Badge
-                                                        variant={
-                                                            band.is_active
-                                                                ? 'secondary'
-                                                                : 'outline'
-                                                        }
-                                                    >
-                                                        {band.is_active
-                                                            ? 'Active'
-                                                            : 'Inactive'}
-                                                    </Badge>
-                                                </td>
-                                                <td
-                                                    className="px-3 py-3"
-                                                    data-label="Actions"
-                                                >
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            editIntegrationFeeBand(
-                                                                band,
-                                                            )
-                                                        }
-                                                    >
-                                                        <Pencil
-                                                            className="size-3.5"
-                                                            aria-hidden="true"
-                                                        />
-                                                        Edit
-                                                    </Button>
+                                                    No integration fee bands
+                                                    configured.
                                                 </td>
                                             </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                                        ) : (
+                                            integrationFeeBands.map((band) => (
+                                                <tr
+                                                    key={band.id}
+                                                    className="border-t"
+                                                >
+                                                    <td
+                                                        className="px-3 py-3"
+                                                        data-label="Band"
+                                                    >
+                                                        <Badge variant="secondary">
+                                                            {
+                                                                band.complexity_band
+                                                            }
+                                                        </Badge>
+                                                    </td>
+                                                    <td
+                                                        className="px-3 py-3"
+                                                        data-label="Delivery and scope"
+                                                    >
+                                                        <div>
+                                                            {band.delivery_mode.replaceAll(
+                                                                '_',
+                                                                ' ',
+                                                            )}
+                                                        </div>
+                                                        {band.scope_description ? (
+                                                            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                                                                {
+                                                                    band.scope_description
+                                                                }
+                                                            </p>
+                                                        ) : null}
+                                                        {band.hosting_monthly_cost !==
+                                                            null &&
+                                                        band.hosting_markup_percent !==
+                                                            null ? (
+                                                            <p className="mt-2 text-xs text-muted-foreground">
+                                                                FSA hosting:{' '}
+                                                                {formatMoney(
+                                                                    band.hosting_monthly_cost,
+                                                                    band.currency,
+                                                                )}{' '}
+                                                                cost +{' '}
+                                                                {formatPercent(
+                                                                    band.hosting_markup_percent,
+                                                                )}{' '}
+                                                                markup ={' '}
+                                                                {formatMoney(
+                                                                    hostingMonthlyFee(
+                                                                        String(
+                                                                            band.hosting_monthly_cost,
+                                                                        ),
+                                                                        String(
+                                                                            band.hosting_markup_percent,
+                                                                        ),
+                                                                    ),
+                                                                    band.currency,
+                                                                )}{' '}
+                                                                per month ex GST
+                                                            </p>
+                                                        ) : null}
+                                                    </td>
+                                                    <td
+                                                        className="px-3 py-3"
+                                                        data-label="Low"
+                                                    >
+                                                        {formatMoney(
+                                                            band.fee_low,
+                                                            band.currency,
+                                                        )}
+                                                    </td>
+                                                    <td
+                                                        className="px-3 py-3"
+                                                        data-label="Mid"
+                                                    >
+                                                        {formatMoney(
+                                                            band.fee_mid,
+                                                            band.currency,
+                                                        )}
+                                                    </td>
+                                                    <td
+                                                        className="px-3 py-3"
+                                                        data-label="High"
+                                                    >
+                                                        {formatMoney(
+                                                            band.fee_high,
+                                                            band.currency,
+                                                        )}
+                                                    </td>
+                                                    <td
+                                                        className="px-3 py-3"
+                                                        data-label="Status"
+                                                    >
+                                                        <Badge
+                                                            variant={
+                                                                band.is_active
+                                                                    ? 'secondary'
+                                                                    : 'outline'
+                                                            }
+                                                        >
+                                                            {band.is_active
+                                                                ? 'Active'
+                                                                : 'Inactive'}
+                                                        </Badge>
+                                                    </td>
+                                                    <td
+                                                        className="px-3 py-3"
+                                                        data-label="Actions"
+                                                    >
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                editIntegrationFeeBand(
+                                                                    band,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Pencil
+                                                                className="size-3.5"
+                                                                aria-hidden="true"
+                                                            />
+                                                            Edit
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
                         </CollapsibleContent>
                     </Collapsible>
@@ -1883,137 +1983,142 @@ export default function ServiceRatesIndex({
 
                     <CollapsibleContent className="pt-4">
                         <div className="overflow-hidden rounded-md border">
-                        <table className="fsa-responsive-table table-fixed md:table-fixed">
-                            <thead className="bg-muted/60 text-left">
-                                <tr>
-                                    <th className="w-[18%] px-3 py-2 font-medium">
-                                        Rate ex GST
-                                    </th>
-                                    <th className="w-[12%] px-3 py-2 font-medium">
-                                        Service discount
-                                    </th>
-                                    <th className="w-[12%] px-3 py-2 font-medium">
-                                        Retainer discount
-                                    </th>
-                                    <th className="w-[15%] px-3 py-2 font-medium">
-                                        Effective
-                                    </th>
-                                    <th className="w-[9%] px-3 py-2 font-medium">
-                                        Status
-                                    </th>
-                                    <th className="w-[12%] px-3 py-2 font-medium">
-                                        Updated by
-                                    </th>
-                                    <th className="w-[14%] px-3 py-2 font-medium">
-                                        Notes
-                                    </th>
-                                    <th className="w-[8%] px-3 py-2 font-medium">
-                                        Actions
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {history.length === 0 ? (
+                            <table className="fsa-responsive-table table-fixed md:table-fixed">
+                                <thead className="bg-muted/60 text-left">
                                     <tr>
-                                        <td
-                                            className="px-3 py-3 text-muted-foreground"
-                                            colSpan={8}
-                                        >
-                                            No service-rate changes yet.
-                                        </td>
+                                        <th className="w-[18%] px-3 py-2 font-medium">
+                                            Rate ex GST
+                                        </th>
+                                        <th className="w-[12%] px-3 py-2 font-medium">
+                                            Service discount
+                                        </th>
+                                        <th className="w-[12%] px-3 py-2 font-medium">
+                                            Retainer discount
+                                        </th>
+                                        <th className="w-[15%] px-3 py-2 font-medium">
+                                            Effective
+                                        </th>
+                                        <th className="w-[9%] px-3 py-2 font-medium">
+                                            Status
+                                        </th>
+                                        <th className="w-[12%] px-3 py-2 font-medium">
+                                            Updated by
+                                        </th>
+                                        <th className="w-[14%] px-3 py-2 font-medium">
+                                            Notes
+                                        </th>
+                                        <th className="w-[8%] px-3 py-2 font-medium">
+                                            Actions
+                                        </th>
                                     </tr>
-                                ) : (
-                                    history.map((rate) => (
-                                        <tr key={rate.id} className="border-t">
+                                </thead>
+                                <tbody>
+                                    {history.length === 0 ? (
+                                        <tr>
                                             <td
-                                                className="px-3 py-3 font-medium"
-                                                data-label="Rate"
+                                                className="px-3 py-3 text-muted-foreground"
+                                                colSpan={8}
                                             >
-                                                {formatMoney(
-                                                    rate.hourly_rate,
-                                                    rate.currency,
-                                                )}
-                                            </td>
-                                            <td
-                                                className="px-3 py-3"
-                                                data-label="Service discount"
-                                            >
-                                                {formatPercent(
-                                                    rate.npo_service_discount_percent,
-                                                )}
-                                            </td>
-                                            <td
-                                                className="px-3 py-3"
-                                                data-label="Retainer discount"
-                                            >
-                                                {formatPercent(
-                                                    rate.npo_retainer_discount_percent,
-                                                )}
-                                            </td>
-                                            <td
-                                                className="px-3 py-3"
-                                                data-label="Effective"
-                                            >
-                                                {formatDate(
-                                                    rate.effective_from,
-                                                )}
-                                            </td>
-                                            <td
-                                                className="px-3 py-3"
-                                                data-label="Status"
-                                            >
-                                                <Badge
-                                                    variant={
-                                                        rate.is_active
-                                                            ? 'secondary'
-                                                            : 'outline'
-                                                    }
-                                                >
-                                                    {rate.free_access_enabled
-                                                        ? 'Free access enabled'
-                                                        : rateStatusLabel(rate)}
-                                                </Badge>
-                                            </td>
-                                            <td
-                                                className="px-3 py-3"
-                                                data-label="Updated by"
-                                            >
-                                                {rate.created_by_name ??
-                                                    'Admin'}
-                                            </td>
-                                            <td
-                                                className="px-3 py-3 break-words text-muted-foreground"
-                                                data-label="Notes"
-                                            >
-                                                {rate.notes ?? ''}
-                                            </td>
-                                            <td
-                                                className="px-3 py-3"
-                                                data-label="Actions"
-                                            >
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    aria-label={`${rateToggleActionLabel(rate)} service rate from ${formatDate(rate.effective_from)}`}
-                                                    onClick={() =>
-                                                        toggleRate(rate)
-                                                    }
-                                                >
-                                                    <Power
-                                                        className="size-3.5"
-                                                        aria-hidden="true"
-                                                    />
-                                                    {rateToggleActionLabel(
-                                                        rate,
-                                                    )}
-                                                </Button>
+                                                No service-rate changes yet.
                                             </td>
                                         </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                                    ) : (
+                                        history.map((rate) => (
+                                            <tr
+                                                key={rate.id}
+                                                className="border-t"
+                                            >
+                                                <td
+                                                    className="px-3 py-3 font-medium"
+                                                    data-label="Rate"
+                                                >
+                                                    {formatMoney(
+                                                        rate.hourly_rate,
+                                                        rate.currency,
+                                                    )}
+                                                </td>
+                                                <td
+                                                    className="px-3 py-3"
+                                                    data-label="Service discount"
+                                                >
+                                                    {formatPercent(
+                                                        rate.npo_service_discount_percent,
+                                                    )}
+                                                </td>
+                                                <td
+                                                    className="px-3 py-3"
+                                                    data-label="Retainer discount"
+                                                >
+                                                    {formatPercent(
+                                                        rate.npo_retainer_discount_percent,
+                                                    )}
+                                                </td>
+                                                <td
+                                                    className="px-3 py-3"
+                                                    data-label="Effective"
+                                                >
+                                                    {formatDate(
+                                                        rate.effective_from,
+                                                    )}
+                                                </td>
+                                                <td
+                                                    className="px-3 py-3"
+                                                    data-label="Status"
+                                                >
+                                                    <Badge
+                                                        variant={
+                                                            rate.is_active
+                                                                ? 'secondary'
+                                                                : 'outline'
+                                                        }
+                                                    >
+                                                        {rate.free_access_enabled
+                                                            ? 'Free access enabled'
+                                                            : rateStatusLabel(
+                                                                  rate,
+                                                              )}
+                                                    </Badge>
+                                                </td>
+                                                <td
+                                                    className="px-3 py-3"
+                                                    data-label="Updated by"
+                                                >
+                                                    {rate.created_by_name ??
+                                                        'Admin'}
+                                                </td>
+                                                <td
+                                                    className="px-3 py-3 break-words text-muted-foreground"
+                                                    data-label="Notes"
+                                                >
+                                                    {rate.notes ?? ''}
+                                                </td>
+                                                <td
+                                                    className="px-3 py-3"
+                                                    data-label="Actions"
+                                                >
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        aria-label={`${rateToggleActionLabel(rate)} service rate from ${formatDate(rate.effective_from)}`}
+                                                        onClick={() =>
+                                                            toggleRate(rate)
+                                                        }
+                                                    >
+                                                        <Power
+                                                            className="size-3.5"
+                                                            aria-hidden="true"
+                                                        />
+                                                        {rateToggleActionLabel(
+                                                            rate,
+                                                        )}
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </CollapsibleContent>
                 </Collapsible>

@@ -174,7 +174,7 @@ function ExplainerContent({
     return (
         <div id={id} className={cn('space-y-3 text-sm', className)}>
             {explanation.title ? (
-                <div className="font-medium leading-none">
+                <div className="leading-none font-medium">
                     {explanation.title}
                 </div>
             ) : null}

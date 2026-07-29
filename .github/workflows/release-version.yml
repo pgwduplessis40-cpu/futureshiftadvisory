@@ -27,7 +27,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           SOURCE_SHA: ${{ github.sha }}
         run: |
-          required_checks=("quality" "ci (8.3)" "ci (8.4)" "ci (8.5)")
+          required_checks=("quality" "ci (8.4)" "ci (8.5)")
 
           for attempt in {1..60}; do
             checks="$(curl --fail --silent --show-error \

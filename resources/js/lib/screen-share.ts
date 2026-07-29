@@ -66,6 +66,7 @@ export async function registerScreenShareConnection(
             })
             .catch((caught: unknown) => {
                 connectionRegistrations.delete(cacheKey);
+
                 throw caught;
             });
         connectionRegistrations.set(cacheKey, registration);
@@ -164,6 +165,7 @@ export async function screenSharePost<T>(
             message?: string;
         } | null;
         const message = payload?.message ?? 'Screen support request failed.';
+
         throw new Error(message + ' (HTTP ' + response.status + ')');
     }
 

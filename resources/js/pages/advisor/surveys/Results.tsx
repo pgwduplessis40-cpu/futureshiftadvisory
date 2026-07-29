@@ -54,8 +54,7 @@ export default function AdvisorSurveyResults({
     surveys,
     results,
 }: Props) {
-    const subjectLabel =
-        subject.type === 'entrepreneur' ? 'founder' : 'client';
+    const subjectLabel = subject.type === 'entrepreneur' ? 'founder' : 'client';
     const form = useForm({
         survey_id: surveys[0]?.id ?? '',
         due_at: '',

@@ -156,9 +156,7 @@ export default function PartnersIndex({
                                             data-label="Referrals"
                                         >
                                             <div className="font-medium">
-                                                {
-                                                    partner.active_referrals_count
-                                                }{' '}
+                                                {partner.active_referrals_count}{' '}
                                                 active
                                             </div>
                                             <div className="text-xs text-muted-foreground">

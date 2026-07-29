@@ -9,13 +9,13 @@ use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\Resilience\ResilientHttp;
 use App\Services\Integration\Windcave\Contracts\WindcaveClient;
-use App\Services\Payments\PaymentAuthorityRequest;
-use App\Services\Payments\PaymentAuthorityToken;
-use App\Services\Payments\PaymentChargeRequest;
-use App\Services\Payments\PaymentChargeResult;
-use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\AmbiguousPaymentOutcome;
 use App\Services\Payments\DefinitivePaymentDecline;
+use App\Services\Payments\PaymentAuthorityRequest;
+use App\Services\Payments\PaymentAuthorityToken;
+use App\Services\Payments\PaymentChargeLookup;
+use App\Services\Payments\PaymentChargeRequest;
+use App\Services\Payments\PaymentChargeResult;
 use App\Services\Payments\PaymentGatewayException;
 use Illuminate\Support\Facades\Config;
 

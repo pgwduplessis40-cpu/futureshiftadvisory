@@ -700,11 +700,13 @@ function CapabilityStrip({
 }) {
     return (
         <div className={cn('flex flex-wrap gap-1.5', !compact && 'mt-1')}>
-            {profile.capabilities.slice(0, compact ? 3 : 5).map((capability) => (
-                <Badge key={capability} variant="outline">
-                    {capability}
-                </Badge>
-            ))}
+            {profile.capabilities
+                .slice(0, compact ? 3 : 5)
+                .map((capability) => (
+                    <Badge key={capability} variant="outline">
+                        {capability}
+                    </Badge>
+                ))}
             {profile.ai_surfaces.slice(0, compact ? 2 : 3).map((surface) => (
                 <Badge key={surface} variant="secondary">
                     {label(surface)}

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
 import { MonitorUp, PhoneOff } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -80,11 +80,12 @@ export function ClientSupport({ config }: Props) {
     const [overSharing, setOverSharing] = useState(false);
     const [advisorName, setAdvisorName] = useState<string | null>(null);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
-    const [isMobile, setIsMobile] = useState(false);
     const [shareError, setShareError] = useState<string | null>(null);
     const peer = useRef<RTCPeerConnection | null>(null);
     const stream = useRef<MediaStream | null>(null);
-    const callTone = useRef<{ context: AudioContext; interval: number } | null>(null);
+    const callTone = useRef<{ context: AudioContext; interval: number } | null>(
+        null,
+    );
     const sessionIdRef = useRef<string | null>(null);
     const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
     const outboundCandidates = useRef<RTCIceCandidateInit[]>([]);
@@ -103,66 +104,100 @@ export function ClientSupport({ config }: Props) {
         let refreshPresenceOnVisibilityChange: (() => void) | null = null;
         void registerScreenShareConnection(config.connection_url, {
             portal_context_token: config.portal_context_token,
-        }).then((next) => {
-            if (!active) {
-                return;
-            }
+        })
+            .then((next) => {
+                if (!active) {
+                    return;
+                }
 
-            setCredentials(next);
-            const pollForPrompt = (): void => {
-                void screenSharePost<PendingPromptResponse>(
-                    replaceConnection(config.prompt_url, next.connection_id),
-                    participant(next),
-                ).then((response) => {
-                    if (active && response.prompt) {
-                        setPrompt(response.prompt);
-                    }
-                }).catch(() => undefined);
-            };
-            pollForPrompt();
-            promptPoll = window.setInterval(pollForPrompt, 3_000);
-            const heartbeat = (): void => {
-                void screenSharePost(
-                    replaceConnection(config.connection_heartbeat_url, next.connection_id),
-                    participant(next),
-                ).catch(() => undefined);
-            };
-            heartbeat();
-            connectionHeartbeat = window.setInterval(heartbeat, config.heartbeat_seconds * 1000);
-            refreshPresenceOnVisibilityChange = (): void => heartbeat();
-            document.addEventListener('visibilitychange', refreshPresenceOnVisibilityChange);
+                setCredentials(next);
+                const pollForPrompt = (): void => {
+                    void screenSharePost<PendingPromptResponse>(
+                        replaceConnection(
+                            config.prompt_url,
+                            next.connection_id,
+                        ),
+                        participant(next),
+                    )
+                        .then((response) => {
+                            if (active && response.prompt) {
+                                setPrompt(response.prompt);
+                            }
+                        })
+                        .catch(() => undefined);
+                };
+                pollForPrompt();
+                promptPoll = window.setInterval(pollForPrompt, 3_000);
+                const heartbeat = (): void => {
+                    void screenSharePost(
+                        replaceConnection(
+                            config.connection_heartbeat_url,
+                            next.connection_id,
+                        ),
+                        participant(next),
+                    ).catch(() => undefined);
+                };
+                heartbeat();
+                connectionHeartbeat = window.setInterval(
+                    heartbeat,
+                    config.heartbeat_seconds * 1000,
+                );
+                refreshPresenceOnVisibilityChange = (): void => heartbeat();
+                document.addEventListener(
+                    'visibilitychange',
+                    refreshPresenceOnVisibilityChange,
+                );
 
-            try {
-                const channel = screenShareEcho(next).private(next.channel);
-                channel.listen('.screen-share.prompt', (event: Prompt) => setPrompt(event));
-                channel.listen('.screen-share.signal', (event: Signal) => {
-                    void handleIncomingSignal(event);
-                });
-                channel.listen('.screen-share.session-updated', (event: { session_id: string; status: string }) => {
-                    if (event.session_id === sessionIdRef.current && event.status === 'ended') {
-                        stop();
-                    }
+                try {
+                    const channel = screenShareEcho(next).private(next.channel);
+                    channel.listen('.screen-share.prompt', (event: Prompt) =>
+                        setPrompt(event),
+                    );
+                    channel.listen('.screen-share.signal', (event: Signal) => {
+                        void handleIncomingSignal(event);
+                    });
+                    channel.listen(
+                        '.screen-share.session-updated',
+                        (event: { session_id: string; status: string }) => {
+                            if (
+                                event.session_id === sessionIdRef.current &&
+                                event.status === 'ended'
+                            ) {
+                                stop();
+                            }
 
-                    if (event.session_id === sessionIdRef.current && event.status !== 'requested') {
-                        setPrompt(null);
-                    }
-                });
-            } catch {
-                // The authenticated polling fallback continues when realtime is unavailable.
-            }
-        }).catch(() => undefined);
+                            if (
+                                event.session_id === sessionIdRef.current &&
+                                event.status !== 'requested'
+                            ) {
+                                setPrompt(null);
+                            }
+                        },
+                    );
+                } catch {
+                    // The authenticated polling fallback continues when realtime is unavailable.
+                }
+            })
+            .catch(() => undefined);
 
         return () => {
             active = false;
+
             if (promptPoll !== null) {
                 window.clearInterval(promptPoll);
             }
+
             if (connectionHeartbeat !== null) {
                 window.clearInterval(connectionHeartbeat);
             }
+
             if (refreshPresenceOnVisibilityChange !== null) {
-                document.removeEventListener('visibilitychange', refreshPresenceOnVisibilityChange);
+                document.removeEventListener(
+                    'visibilitychange',
+                    refreshPresenceOnVisibilityChange,
+                );
             }
+
             stop();
             closeScreenShareEcho();
         };
@@ -187,23 +222,29 @@ export function ClientSupport({ config }: Props) {
                     ...participant(credentials),
                     after_id: lastPolledSignalId.current,
                 },
-            ).then(async ({ signals }) => {
-                for (const signal of signals) {
-                    if (!active) {
-                        return;
-                    }
+            )
+                .then(async ({ signals }) => {
+                    for (const signal of signals) {
+                        if (!active) {
+                            return;
+                        }
 
-                    await handleIncomingSignal({
-                        id: signal.id,
-                        session_id: sessionId,
-                        type: signal.type,
-                        payload: signal.payload,
-                    });
-                    lastPolledSignalId.current = Math.max(lastPolledSignalId.current, signal.id);
-                }
-            }).catch(() => undefined).finally(() => {
-                polling = false;
-            });
+                        await handleIncomingSignal({
+                            id: signal.id,
+                            session_id: sessionId,
+                            type: signal.type,
+                            payload: signal.payload,
+                        });
+                        lastPolledSignalId.current = Math.max(
+                            lastPolledSignalId.current,
+                            signal.id,
+                        );
+                    }
+                })
+                .catch(() => undefined)
+                .finally(() => {
+                    polling = false;
+                });
         };
 
         poll();
@@ -215,9 +256,11 @@ export function ClientSupport({ config }: Props) {
         };
     }, [config, credentials, sessionId]);
 
-    useEffect(() => {
-        setIsMobile(/Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent));
-    }, []);
+    const isMobile =
+        typeof navigator !== 'undefined' &&
+        /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(
+            navigator.userAgent,
+        );
 
     useEffect(() => {
         if (!prompt) {
@@ -226,6 +269,7 @@ export function ClientSupport({ config }: Props) {
 
         let active = true;
         let context: AudioContext | null = null;
+
         try {
             context = new AudioContext();
             const audioContext = context;
@@ -235,24 +279,29 @@ export function ClientSupport({ config }: Props) {
                 playTone(audioContext, 880, start + 0.32);
             };
 
-            void audioContext.resume().then(() => {
-                if (!active) {
-                    void audioContext.close();
-                    return;
-                }
+            void audioContext
+                .resume()
+                .then(() => {
+                    if (!active) {
+                        void audioContext.close();
 
-                playRing();
-                callTone.current = {
-                    context: audioContext,
-                    interval: window.setInterval(playRing, 2_600),
-                };
-            }).catch(() => audioContext.close());
+                        return;
+                    }
+
+                    playRing();
+                    callTone.current = {
+                        context: audioContext,
+                        interval: window.setInterval(playRing, 2_600),
+                    };
+                })
+                .catch(() => audioContext.close());
         } catch {
             // The approval dialog remains visible when the browser blocks audio.
         }
 
         return () => {
             active = false;
+
             if (callTone.current !== null) {
                 window.clearInterval(callTone.current.interval);
                 void callTone.current.context.close();
@@ -273,15 +322,20 @@ export function ClientSupport({ config }: Props) {
             void screenSharePost<SessionStatus>(
                 replaceSession(config.heartbeat_url, sessionId),
                 participant(credentials),
-            ).then((next) => {
-                if (active && next.status === 'ended') {
-                    stop();
-                }
-            }).catch(() => undefined);
+            )
+                .then((next) => {
+                    if (active && next.status === 'ended') {
+                        stop();
+                    }
+                })
+                .catch(() => undefined);
         };
 
         heartbeat();
-        const interval = window.setInterval(heartbeat, config.heartbeat_seconds * 1000);
+        const interval = window.setInterval(
+            heartbeat,
+            config.heartbeat_seconds * 1000,
+        );
 
         return () => {
             active = false;
@@ -291,8 +345,11 @@ export function ClientSupport({ config }: Props) {
 
     useEffect(() => {
         if (!sharing) {
-            setElapsedSeconds(0);
-            return;
+            const reset = window.setTimeout(() => {
+                setElapsedSeconds(0);
+            }, 0);
+
+            return () => window.clearTimeout(reset);
         }
 
         const startedAt = Date.now();
@@ -331,11 +388,14 @@ export function ClientSupport({ config }: Props) {
         let browserPermissionGranted = false;
 
         try {
-            await screenSharePost(replaceSession(config.response_url, nextSessionId), {
-                action: 'approve',
-                ...participant(credentials),
-                nonce: currentPrompt.nonce,
-            });
+            await screenSharePost(
+                replaceSession(config.response_url, nextSessionId),
+                {
+                    action: 'approve',
+                    ...participant(credentials),
+                    nonce: currentPrompt.nonce,
+                },
+            );
             approved = true;
             setSession(nextSessionId);
             setAdvisorName(currentPrompt.advisor_name);
@@ -344,13 +404,18 @@ export function ClientSupport({ config }: Props) {
             stream.current = captured;
             const track = captured.getVideoTracks()[0];
             const displaySurface = track?.getSettings().displaySurface;
-            setOverSharing(displaySurface === 'monitor' || displaySurface === 'window');
+            setOverSharing(
+                displaySurface === 'monitor' || displaySurface === 'window',
+            );
 
-            await screenSharePost(replaceSession(config.browser_permission_url, nextSessionId), {
-                ...participant(credentials),
-                granted: true,
-                display_surface: displaySurface,
-            });
+            await screenSharePost(
+                replaceSession(config.browser_permission_url, nextSessionId),
+                {
+                    ...participant(credentials),
+                    granted: true,
+                    display_surface: displaySurface,
+                },
+            );
             browserPermissionGranted = true;
 
             const ice = await screenSharePost<RTCIceServer[]>(
@@ -361,22 +426,32 @@ export function ClientSupport({ config }: Props) {
             peer.current = connection;
             offerSignaled.current = false;
             outboundCandidates.current = [];
-            captured.getTracks().forEach((mediaTrack) => connection.addTrack(mediaTrack, captured));
+            captured
+                .getTracks()
+                .forEach((mediaTrack) =>
+                    connection.addTrack(mediaTrack, captured),
+                );
             connection.onicecandidate = ({ candidate }) => {
                 if (candidate) {
                     const payload = candidate.toJSON();
+
                     if (!offerSignaled.current) {
                         outboundCandidates.current.push(payload);
 
                         return;
                     }
 
-                    void signal(nextSessionId, 'candidate', payload).catch(() => undefined);
+                    void signal(nextSessionId, 'candidate', payload).catch(
+                        () => undefined,
+                    );
                 }
             };
             connection.onconnectionstatechange = () => {
                 if (connection.connectionState === 'connected') {
-                    void screenSharePost(replaceSession(config.active_url, nextSessionId), participant(credentials));
+                    void screenSharePost(
+                        replaceSession(config.active_url, nextSessionId),
+                        participant(credentials),
+                    );
                     setSharing(true);
                 }
 
@@ -384,36 +459,65 @@ export function ClientSupport({ config }: Props) {
                     void end(nextSessionId, 'connection_lost');
                 }
             };
-            track?.addEventListener('ended', () => void end(nextSessionId, 'client_navigated_away'));
+            track?.addEventListener(
+                'ended',
+                () => void end(nextSessionId, 'client_navigated_away'),
+            );
 
             const offer = await connection.createOffer();
             await connection.setLocalDescription(offer);
             const localDescription = connection.localDescription;
+
             if (!localDescription) {
-                throw new Error('The browser did not prepare a screen-share offer.');
+                throw new Error(
+                    'The browser did not prepare a screen-share offer.',
+                );
             }
 
-            await signal(nextSessionId, 'offer', normalizeScreenShareDescription(localDescription));
+            await signal(
+                nextSessionId,
+                'offer',
+                normalizeScreenShareDescription(localDescription),
+            );
             offerSignaled.current = true;
+
             for (const candidate of outboundCandidates.current.splice(0)) {
-                void signal(nextSessionId, 'candidate', candidate).catch(() => undefined);
+                void signal(nextSessionId, 'candidate', candidate).catch(
+                    () => undefined,
+                );
             }
+
             setPrompt(null);
         } catch (caught) {
             if (approved && !browserPermissionGranted) {
-                await screenSharePost(replaceSession(config.browser_permission_url, nextSessionId), {
-                    ...participant(credentials),
-                    granted: false,
-                }).catch(() => undefined);
+                await screenSharePost(
+                    replaceSession(
+                        config.browser_permission_url,
+                        nextSessionId,
+                    ),
+                    {
+                        ...participant(credentials),
+                        granted: false,
+                    },
+                ).catch(() => undefined);
             } else if (approved) {
-                await screenSharePost(replaceSession(config.end_url, nextSessionId), {
-                    ...participant(credentials),
-                    reason: 'connection_lost',
-                }).catch(() => undefined);
+                await screenSharePost(
+                    replaceSession(config.end_url, nextSessionId),
+                    {
+                        ...participant(credentials),
+                        reason: 'connection_lost',
+                    },
+                ).catch(() => undefined);
             } else {
-                void capture.then((captured) => captured.getTracks().forEach((mediaTrack) => mediaTrack.stop()))
+                void capture
+                    .then((captured) =>
+                        captured
+                            .getTracks()
+                            .forEach((mediaTrack) => mediaTrack.stop()),
+                    )
                     .catch(() => undefined);
             }
+
             setShareError(messageFor(caught));
             stop();
         }
@@ -424,24 +528,34 @@ export function ClientSupport({ config }: Props) {
             return;
         }
 
-        await screenSharePost(replaceSession(config.response_url, prompt.session_id), {
-            action: 'decline',
-            ...participant(credentials),
-            nonce: prompt.nonce,
-        });
+        await screenSharePost(
+            replaceSession(config.response_url, prompt.session_id),
+            {
+                action: 'decline',
+                ...participant(credentials),
+                nonce: prompt.nonce,
+            },
+        );
         setPrompt(null);
     }
 
-    async function signal(nextSessionId: string, type: string, payload: object): Promise<void> {
+    async function signal(
+        nextSessionId: string,
+        type: string,
+        payload: object,
+    ): Promise<void> {
         if (!config || !credentials) {
             return;
         }
 
-        await screenSharePost(replaceSession(config.signal_url, nextSessionId), {
-            ...participant(credentials),
-            type,
-            payload,
-        });
+        await screenSharePost(
+            replaceSession(config.signal_url, nextSessionId),
+            {
+                ...participant(credentials),
+                type,
+                payload,
+            },
+        );
     }
 
     async function handleIncomingSignal(event: Signal): Promise<void> {
@@ -457,8 +571,11 @@ export function ClientSupport({ config }: Props) {
 
         if (event.type === 'answer') {
             await peer.current.setRemoteDescription(
-                normalizeScreenShareDescription(event.payload as RTCSessionDescriptionInit),
+                normalizeScreenShareDescription(
+                    event.payload as RTCSessionDescriptionInit,
+                ),
             );
+
             for (const candidate of pendingCandidates.current.splice(0)) {
                 await addIceCandidate(peer.current, candidate);
             }
@@ -466,6 +583,7 @@ export function ClientSupport({ config }: Props) {
 
         if (event.type === 'candidate') {
             const candidate = event.payload as RTCIceCandidateInit;
+
             if (peer.current.remoteDescription) {
                 await addIceCandidate(peer.current, candidate);
             } else {
@@ -480,11 +598,15 @@ export function ClientSupport({ config }: Props) {
 
     async function end(nextSessionId: string, reason: string): Promise<void> {
         if (config && credentials && nextSessionId) {
-            await screenSharePost(replaceSession(config.end_url, nextSessionId), {
-                ...participant(credentials),
-                reason,
-            }).catch(() => undefined);
+            await screenSharePost(
+                replaceSession(config.end_url, nextSessionId),
+                {
+                    ...participant(credentials),
+                    reason,
+                },
+            ).catch(() => undefined);
         }
+
         stop();
     }
 
@@ -493,6 +615,7 @@ export function ClientSupport({ config }: Props) {
             lastPolledSignalId.current = 0;
             receivedSignalIds.current.clear();
         }
+
         sessionIdRef.current = nextSessionId;
         setSessionId(nextSessionId);
     }
@@ -522,25 +645,41 @@ export function ClientSupport({ config }: Props) {
                     {shareError ? (
                         <>
                             <DialogHeader>
-                                <DialogTitle>Screen support could not start</DialogTitle>
-                                <DialogDescription>{shareError}</DialogDescription>
+                                <DialogTitle>
+                                    Screen support could not start
+                                </DialogTitle>
+                                <DialogDescription>
+                                    {shareError}
+                                </DialogDescription>
                             </DialogHeader>
                             <DialogFooter>
-                                <Button onClick={() => setShareError(null)}>Close</Button>
+                                <Button onClick={() => setShareError(null)}>
+                                    Close
+                                </Button>
                             </DialogFooter>
                         </>
                     ) : (
                         <>
                             <DialogHeader>
-                                <DialogTitle>Screen support request</DialogTitle>
+                                <DialogTitle>
+                                    Screen support request
+                                </DialogTitle>
                                 <DialogDescription>
                                     {isMobile
                                         ? 'Screen support is available from a desktop browser. This request cannot start on this device.'
-                                        : prompt?.advisor_name + ' would like to view ' + prompt?.context.label + '. Your browser will ask you what to share next; choose This Tab where it is available.'}
+                                        : prompt?.advisor_name +
+                                          ' would like to view ' +
+                                          prompt?.context.label +
+                                          '. Your browser will ask you what to share next; choose This Tab where it is available.'}
                                 </DialogDescription>
                             </DialogHeader>
                             <DialogFooter>
-                                <Button variant="outline" onClick={() => void decline()}>Decline</Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => void decline()}
+                                >
+                                    Decline
+                                </Button>
                                 {!isMobile ? (
                                     <Button onClick={() => void approve()}>
                                         <MonitorUp className="size-4" />
@@ -557,12 +696,23 @@ export function ClientSupport({ config }: Props) {
                     <span>
                         {overSharing
                             ? 'You are sharing a window or your entire screen. Switch to this tab where possible.'
-                            : 'Screen sharing with ' + (advisorName ?? 'your advisor') + ' is active (' + formatDuration(elapsedSeconds) + '). Your advisor can view only.'}
-                        {!overSharing && elapsedSeconds >= (config?.warning_at_minutes ?? 0) * 60
+                            : 'Screen sharing with ' +
+                              (advisorName ?? 'your advisor') +
+                              ' is active (' +
+                              formatDuration(elapsedSeconds) +
+                              '). Your advisor can view only.'}
+                        {!overSharing &&
+                        elapsedSeconds >= (config?.warning_at_minutes ?? 0) * 60
                             ? ' Your session is approaching its time limit.'
                             : ''}
                     </span>
-                    <Button variant="outline" size="sm" onClick={() => void end(sessionId, 'completed_client_ended')}>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                            void end(sessionId, 'completed_client_ended')
+                        }
+                    >
                         <PhoneOff className="size-4" />
                         End
                     </Button>
@@ -598,7 +748,11 @@ async function addIceCandidate(
     }
 }
 
-function playTone(context: AudioContext, frequency: number, start: number): void {
+function playTone(
+    context: AudioContext,
+    frequency: number,
+    start: number,
+): void {
     const oscillator = context.createOscillator();
     const gain = context.createGain();
 
@@ -614,7 +768,10 @@ function playTone(context: AudioContext, frequency: number, start: number): void
 }
 
 function messageFor(caught: unknown): string {
-    if (caught instanceof Error && caught.message === 'Screen support relay is unavailable.') {
+    if (
+        caught instanceof Error &&
+        caught.message === 'Screen support relay is unavailable.'
+    ) {
         return 'Screen support is temporarily unavailable. Please ask your advisor to try again shortly.';
     }
 
@@ -628,5 +785,9 @@ function messageFor(caught: unknown): string {
 }
 
 function formatDuration(seconds: number): string {
-    return String(Math.floor(seconds / 60)) + ':' + String(seconds % 60).padStart(2, '0');
+    return (
+        String(Math.floor(seconds / 60)) +
+        ':' +
+        String(seconds % 60).padStart(2, '0')
+    );
 }

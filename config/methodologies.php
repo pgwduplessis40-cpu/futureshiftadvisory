@@ -394,6 +394,31 @@ return [
             'internal_only' => true,
         ],
 
+        'fees.integration' => [
+            'id' => 'fees.integration',
+            'area' => 'Fees',
+            'name' => 'Systems and Integration Efficiency Fee',
+            'summary' => 'Uses the approved integration scope quote range and delivery mode to prepare a fixed implementation fee.',
+            'formula' => 'Fee range = approved integration scope quote range. Mid fee = quoted fee when set, otherwise the range midpoint. The scope must be complete, free of blocking flags, and supported by its required quote-source documents.',
+            'inputs' => [
+                'Approved integration scope',
+                'Computed quote range',
+                'Quoted fee when approved',
+                'Complexity band and delivery mode',
+                'Verified quote-source documents',
+            ],
+            'config_refs' => [],
+            'where_used' => [
+                'advisor.fees.calculator',
+            ],
+            'sources' => [
+                'PLAN-INTEGRATION-EFFICIENCY-SERVICE.md',
+            ],
+            'owning_service' => FeeCalculator::class,
+            'version' => '2026-07-integration-efficiency',
+            'internal_only' => true,
+        ],
+
         'data_quality.questionnaire_completeness' => [
             'id' => 'data_quality.questionnaire_completeness',
             'area' => 'Data quality',

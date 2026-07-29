@@ -13,8 +13,11 @@ use App\Models\ClientTeamMember;
 use App\Models\ConflictDeclaration;
 use App\Models\DdEngagement;
 use App\Models\EntrepreneurProfile;
+use App\Models\IntegrationScope;
 use App\Models\LearningUpdate;
 use App\Models\Message;
+use App\Models\Payment;
+use App\Models\Proposal;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\User;
@@ -92,8 +95,7 @@ final class ServiceActivationManager
         string $serviceType,
         array $intake,
         ?array $pricingPreview = null,
-    ): ServiceActivation
-    {
+    ): ServiceActivation {
         $serviceType = $this->normaliseServiceType($serviceType);
         $this->assertNoBlockingOpenActivation($client, $serviceType);
         $advisor = $this->leadAdvisor($client);
@@ -353,11 +355,11 @@ final class ServiceActivationManager
         return $activation->refresh();
     }
 
-    public function activateIntegrationFromProposalPayment(\App\Models\Proposal $proposal, ?\App\Models\Payment $payment = null): ServiceActivation
+    public function activateIntegrationFromProposalPayment(Proposal $proposal, ?Payment $payment = null): ServiceActivation
     {
         $proposal->loadMissing(['client', 'feeCalculation.integrationScope']);
         $scope = $proposal->feeCalculation?->integrationScope;
-        if ($proposal->feeCalculation?->method !== FeeMethod::Integration || ! $scope instanceof \App\Models\IntegrationScope) {
+        if ($proposal->feeCalculation?->method !== FeeMethod::Integration || ! $scope instanceof IntegrationScope) {
             throw new \InvalidArgumentException('Only an integration proposal can activate the integration delivery service.');
         }
         if ((string) $scope->client_id !== (string) $proposal->client_id) {

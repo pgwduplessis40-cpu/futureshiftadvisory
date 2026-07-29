@@ -116,7 +116,9 @@ export default function PartnerInviteCreate({
                                     }
                                     required
                                 />
-                                <InputError message={form.errors.contact_name} />
+                                <InputError
+                                    message={form.errors.contact_name}
+                                />
                             </div>
 
                             <div className="grid gap-2">
@@ -159,7 +161,9 @@ export default function PartnerInviteCreate({
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                    <InputError message={form.errors.industry} />
+                                    <InputError
+                                        message={form.errors.industry}
+                                    />
                                 </div>
                             ) : (
                                 <div className="grid gap-2">

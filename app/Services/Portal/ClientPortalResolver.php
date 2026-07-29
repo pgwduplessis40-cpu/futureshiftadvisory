@@ -13,8 +13,8 @@ use App\Models\NpoBoardMember;
 use App\Models\User;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Support\RequestContext;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 final class ClientPortalResolver

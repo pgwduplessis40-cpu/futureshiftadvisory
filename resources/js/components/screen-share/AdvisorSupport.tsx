@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
 import { Maximize2, Monitor, PhoneOff } from 'lucide-react';
-import { AdvisorCoBrowseControls, type AdvisorCoBrowseConfig } from '@/components/co-browse/AdvisorCoBrowseAction';
+import { useEffect, useRef, useState } from 'react';
+import { AdvisorCoBrowseControls } from '@/components/co-browse/AdvisorCoBrowseAction';
+import type { AdvisorCoBrowseConfig } from '@/components/co-browse/AdvisorCoBrowseAction';
 import { Button } from '@/components/ui/button';
 import {
     closeScreenShareEcho,
@@ -29,7 +30,11 @@ type Props = {
     onSessionEnded: () => void;
 };
 
-type Credentials = { connection_id: string; connection_secret: string; channel: string };
+type Credentials = {
+    connection_id: string;
+    connection_secret: string;
+    channel: string;
+};
 
 type Signal = {
     id?: number;
@@ -54,14 +59,24 @@ type NegotiationStage =
     | 'apply-answer'
     | 'send-answer';
 
-export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, onSessionEnded }: Props) {
+export function AdvisorSupport({
+    config,
+    coBrowse = null,
+    onConnectionChange,
+    onSessionEnded,
+}: Props) {
     const [credentials, setCredentials] = useState<Credentials | null>(null);
-    const [participant, setParticipant] = useState(config.participants[0]?.id ?? '');
+    const [participant, setParticipant] = useState(
+        config.participants[0]?.id ?? '',
+    );
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [connected, setConnected] = useState(false);
     const [overSharing, setOverSharing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [videoContainer, setVideoContainer] = useState<HTMLDivElement | null>(
+        null,
+    );
     const video = useRef<HTMLVideoElement | null>(null);
     const peer = useRef<RTCPeerConnection | null>(null);
     const sessionIdRef = useRef<string | null>(null);
@@ -79,32 +94,41 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
 
     useEffect(() => {
         let active = true;
-        void registerScreenShareConnection(config.connection_url, {}).then((next) => {
-            if (!active) {
-                return;
-            }
-
-            setCredentials(next);
-            const channel = screenShareEcho(next).private(next.channel);
-            channel.listen('.screen-share.signal', (event: Signal) => {
-                void handleIncomingSignal(event, next);
-            });
-            channel.listen('.screen-share.session-updated', (event: {
-                session_id: string;
-                status: string;
-                display_surface: string | null;
-            }) => {
-                if (event.session_id !== sessionIdRef.current) {
+        void registerScreenShareConnection(config.connection_url, {})
+            .then((next) => {
+                if (!active) {
                     return;
                 }
 
-                setOverSharing(event.display_surface === 'monitor' || event.display_surface === 'window');
-                if (event.status === 'ended') {
-                    stop();
-                    onSessionEnded();
-                }
-            });
-        }).catch(() => setError('Unable to connect screen support.'));
+                setCredentials(next);
+                const channel = screenShareEcho(next).private(next.channel);
+                channel.listen('.screen-share.signal', (event: Signal) => {
+                    void handleIncomingSignal(event, next);
+                });
+                channel.listen(
+                    '.screen-share.session-updated',
+                    (event: {
+                        session_id: string;
+                        status: string;
+                        display_surface: string | null;
+                    }) => {
+                        if (event.session_id !== sessionIdRef.current) {
+                            return;
+                        }
+
+                        setOverSharing(
+                            event.display_surface === 'monitor' ||
+                                event.display_surface === 'window',
+                        );
+
+                        if (event.status === 'ended') {
+                            stop();
+                            onSessionEnded();
+                        }
+                    },
+                );
+            })
+            .catch(() => setError('Unable to connect screen support.'));
 
         return () => {
             active = false;
@@ -134,25 +158,35 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
                     // short-lived session from the start so a stale cursor cannot hide it.
                     after_id: peer.current ? lastPolledSignalId.current : 0,
                 },
-            ).then(async ({ signals }) => {
-                for (const signal of signals) {
-                    if (!active) {
-                        return;
-                    }
+            )
+                .then(async ({ signals }) => {
+                    for (const signal of signals) {
+                        if (!active) {
+                            return;
+                        }
 
-                    const processed = await handleIncomingSignal({
-                        id: signal.id,
-                        session_id: sessionId,
-                        type: signal.type,
-                        payload: signal.payload,
-                    }, credentials);
-                    if (processed) {
-                        lastPolledSignalId.current = Math.max(lastPolledSignalId.current, signal.id);
+                        const processed = await handleIncomingSignal(
+                            {
+                                id: signal.id,
+                                session_id: sessionId,
+                                type: signal.type,
+                                payload: signal.payload,
+                            },
+                            credentials,
+                        );
+
+                        if (processed) {
+                            lastPolledSignalId.current = Math.max(
+                                lastPolledSignalId.current,
+                                signal.id,
+                            );
+                        }
                     }
-                }
-            }).catch(() => undefined).finally(() => {
-                polling = false;
-            });
+                })
+                .catch(() => undefined)
+                .finally(() => {
+                    polling = false;
+                });
         };
 
         poll();
@@ -171,16 +205,30 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
 
         const heartbeat = (): void => {
             void screenSharePost(
-                replaceConnection(config.connection_heartbeat_url, credentials.connection_id),
+                replaceConnection(
+                    config.connection_heartbeat_url,
+                    credentials.connection_id,
+                ),
                 { connection_secret: credentials.connection_secret },
-            ).catch(() => setError('Screen support connection was lost. Please request it again.'));
+            ).catch(() =>
+                setError(
+                    'Screen support connection was lost. Please request it again.',
+                ),
+            );
         };
 
         heartbeat();
-        const interval = window.setInterval(heartbeat, config.heartbeat_seconds * 1000);
+        const interval = window.setInterval(
+            heartbeat,
+            config.heartbeat_seconds * 1000,
+        );
 
         return () => window.clearInterval(interval);
-    }, [config.connection_heartbeat_url, config.heartbeat_seconds, credentials]);
+    }, [
+        config.connection_heartbeat_url,
+        config.heartbeat_seconds,
+        credentials,
+    ]);
 
     useEffect(() => {
         if (!credentials || !sessionId || !connected) {
@@ -200,12 +248,21 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
         }, config.heartbeat_seconds * 1000);
 
         return () => window.clearInterval(interval);
-    }, [config.heartbeat_seconds, config.heartbeat_url, connected, credentials, sessionId]);
+    }, [
+        config.heartbeat_seconds,
+        config.heartbeat_url,
+        connected,
+        credentials,
+        sessionId,
+    ]);
 
     useEffect(() => {
         if (!connected) {
-            setElapsedSeconds(0);
-            return;
+            const reset = window.setTimeout(() => {
+                setElapsedSeconds(0);
+            }, 0);
+
+            return () => window.clearTimeout(reset);
         }
 
         const startedAt = Date.now();
@@ -222,26 +279,40 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
         }
 
         setError(null);
+
         try {
-            const result = await screenSharePost<{ id: string }>(config.request_url, {
-                client_user_id: participant,
-                advisor_connection_id: credentials.connection_id,
-                advisor_connection_secret: credentials.connection_secret,
-            });
+            const result = await screenSharePost<{ id: string }>(
+                config.request_url,
+                {
+                    client_user_id: participant,
+                    advisor_connection_id: credentials.connection_id,
+                    advisor_connection_secret: credentials.connection_secret,
+                },
+            );
             setSession(result.id);
         } catch (caught) {
-            setError(caught instanceof Error ? caught.message : 'Unable to request screen support.');
+            setError(
+                caught instanceof Error
+                    ? caught.message
+                    : 'Unable to request screen support.',
+            );
         }
     }
 
-    async function handleSignal(event: Signal, nextCredentials: Credentials): Promise<void> {
+    async function handleSignal(
+        event: Signal,
+        nextCredentials: Credentials,
+    ): Promise<void> {
         const currentSessionId = sessionIdRef.current;
+
         if (!currentSessionId) {
             return;
         }
 
         if (event.type === 'candidate' && !peer.current) {
-            pendingCandidates.current.push(event.payload as RTCIceCandidateInit);
+            pendingCandidates.current.push(
+                event.payload as RTCIceCandidateInit,
+            );
 
             return;
         }
@@ -250,6 +321,7 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
 
         try {
             let connection = peer.current;
+
             if (!connection) {
                 const ice = await screenSharePost<RTCIceServer[]>(
                     replaceSession(config.ice_servers_url, currentSessionId),
@@ -272,13 +344,19 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
                     }
 
                     const payload = candidate.toJSON();
+
                     if (!answerSignaled.current) {
                         outboundCandidates.current.push(payload);
 
                         return;
                     }
 
-                    void signal(currentSessionId, nextCredentials, 'candidate', payload).catch(() => undefined);
+                    void signal(
+                        currentSessionId,
+                        nextCredentials,
+                        'candidate',
+                        payload,
+                    ).catch(() => undefined);
                 };
                 connection.onconnectionstatechange = () => {
                     if (viewer.connectionState === 'connected') {
@@ -289,6 +367,7 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
                         setConnected(true);
                         setError(null);
                     }
+
                     if (viewer.connectionState === 'failed') {
                         void end();
                     }
@@ -298,15 +377,20 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
             if (event.type === 'offer') {
                 stage = 'apply-offer';
                 await connection.setRemoteDescription(
-                    normalizeScreenShareDescription(event.payload as RTCSessionDescriptionInit),
+                    normalizeScreenShareDescription(
+                        event.payload as RTCSessionDescriptionInit,
+                    ),
                 );
                 stage = 'create-answer';
                 const answer = await connection.createAnswer();
                 stage = 'apply-answer';
                 await connection.setLocalDescription(answer);
                 const localDescription = connection.localDescription;
+
                 if (!localDescription) {
-                    throw new Error('The browser did not prepare a screen-share answer.');
+                    throw new Error(
+                        'The browser did not prepare a screen-share answer.',
+                    );
                 }
 
                 stage = 'send-answer';
@@ -317,14 +401,22 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
                     normalizeScreenShareDescription(localDescription),
                 );
                 answerSignaled.current = true;
+
                 for (const candidate of outboundCandidates.current.splice(0)) {
-                    void signal(currentSessionId, nextCredentials, 'candidate', candidate).catch(() => undefined);
+                    void signal(
+                        currentSessionId,
+                        nextCredentials,
+                        'candidate',
+                        candidate,
+                    ).catch(() => undefined);
                 }
+
                 for (const candidate of pendingCandidates.current.splice(0)) {
                     await addIceCandidate(connection, candidate);
                 }
             } else if (event.type === 'candidate') {
                 const candidate = event.payload as RTCIceCandidateInit;
+
                 if (connection.remoteDescription) {
                     await addIceCandidate(connection, candidate);
                 } else {
@@ -336,7 +428,10 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
         }
     }
 
-    async function handleIncomingSignal(event: Signal, nextCredentials: Credentials): Promise<boolean> {
+    async function handleIncomingSignal(
+        event: Signal,
+        nextCredentials: Credentials,
+    ): Promise<boolean> {
         if (event.session_id !== sessionIdRef.current) {
             return false;
         }
@@ -353,39 +448,47 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
             processingSignalIds.current.add(event.id);
         }
 
-        const operation = signalProcessingQueue.current.then(async (): Promise<boolean> => {
-            if (event.session_id !== sessionIdRef.current) {
-                if (event.id !== undefined) {
-                    processingSignalIds.current.delete(event.id);
+        const operation = signalProcessingQueue.current.then(
+            async (): Promise<boolean> => {
+                if (event.session_id !== sessionIdRef.current) {
+                    if (event.id !== undefined) {
+                        processingSignalIds.current.delete(event.id);
+                    }
+
+                    return false;
                 }
 
-                return false;
-            }
+                try {
+                    await handleSignal(event, nextCredentials);
 
-            try {
-                await handleSignal(event, nextCredentials);
-                if (event.id !== undefined) {
-                    receivedSignalIds.current.add(event.id);
-                }
-                if (event.type === 'offer') {
-                    setError(null);
-                }
+                    if (event.id !== undefined) {
+                        receivedSignalIds.current.add(event.id);
+                    }
 
-                return true;
-            } catch (caught) {
-                if (event.type === 'offer') {
-                    resetPeerForRetry();
-                }
-                setError(messageForNegotiationFailure(caught));
+                    if (event.type === 'offer') {
+                        setError(null);
+                    }
 
-                return false;
-            } finally {
-                if (event.id !== undefined) {
-                    processingSignalIds.current.delete(event.id);
+                    return true;
+                } catch (caught) {
+                    if (event.type === 'offer') {
+                        resetPeerForRetry();
+                    }
+
+                    setError(messageForNegotiationFailure(caught));
+
+                    return false;
+                } finally {
+                    if (event.id !== undefined) {
+                        processingSignalIds.current.delete(event.id);
+                    }
                 }
-            }
-        });
-        signalProcessingQueue.current = operation.then(() => undefined, () => undefined);
+            },
+        );
+        signalProcessingQueue.current = operation.then(
+            () => undefined,
+            () => undefined,
+        );
 
         return operation;
     }
@@ -396,20 +499,27 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
         type: string,
         payload: object,
     ): Promise<void> {
-        await screenSharePost(replaceSession(config.signal_url, currentSessionId), {
-            ...participantPayload(nextCredentials),
-            type,
-            payload,
-        });
+        await screenSharePost(
+            replaceSession(config.signal_url, currentSessionId),
+            {
+                ...participantPayload(nextCredentials),
+                type,
+                payload,
+            },
+        );
     }
 
     async function end(): Promise<void> {
         if (credentials && sessionIdRef.current) {
             await screenSharePost(
                 replaceSession(config.end_url, sessionIdRef.current),
-                { ...participantPayload(credentials), reason: 'completed_advisor_ended' },
+                {
+                    ...participantPayload(credentials),
+                    reason: 'completed_advisor_ended',
+                },
             ).catch(() => undefined);
         }
+
         stop();
         onSessionEnded();
     }
@@ -420,6 +530,7 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
             receivedSignalIds.current.clear();
             processingSignalIds.current.clear();
         }
+
         sessionIdRef.current = nextSessionId;
         setSessionId(nextSessionId);
     }
@@ -427,20 +538,24 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
     function resetPeerForRetry(): void {
         const connection = peer.current;
         peer.current = null;
+
         if (connection) {
             connection.onconnectionstatechange = null;
             connection.onicecandidate = null;
             connection.ontrack = null;
             connection.close();
         }
+
         pendingCandidates.current = [];
         outboundCandidates.current = [];
         answerSignaled.current = false;
         lastPolledSignalId.current = 0;
         receivedSignalIds.current.clear();
+
         if (video.current) {
             video.current.srcObject = null;
         }
+
         setConnected(false);
         setOverSharing(false);
     }
@@ -448,19 +563,23 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
     function stop(): void {
         const connection = peer.current;
         peer.current = null;
+
         if (connection) {
             connection.onconnectionstatechange = null;
             connection.onicecandidate = null;
             connection.ontrack = null;
             connection.close();
         }
+
         pendingCandidates.current = [];
         outboundCandidates.current = [];
         answerSignaled.current = false;
         processingSignalIds.current.clear();
+
         if (video.current) {
             video.current.srcObject = null;
         }
+
         setConnected(false);
         setOverSharing(false);
         setSession(null);
@@ -474,7 +593,9 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
         try {
             await video.current.requestFullscreen();
         } catch {
-            setError('The browser could not open the shared screen in full-screen mode.');
+            setError(
+                'The browser could not open the shared screen in full-screen mode.',
+            );
         }
     }
 
@@ -489,13 +610,24 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
                     <h2 className="text-sm font-semibold">Screen support</h2>
                     <p className="text-sm text-muted-foreground">
                         {connected
-                            ? 'View only. Live for ' + formatDuration(elapsedSeconds) + '.'
+                            ? 'View only. Live for ' +
+                              formatDuration(elapsedSeconds) +
+                              '.'
                             : 'View only. The client chooses the shared screen in their browser.'}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <select className="h-9 rounded-md border bg-background px-3 text-sm" value={participant} onChange={(event) => setParticipant(event.target.value)} disabled={sessionId !== null}>
-                        {config.participants.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    <select
+                        className="h-9 rounded-md border bg-background px-3 text-sm"
+                        value={participant}
+                        onChange={(event) => setParticipant(event.target.value)}
+                        disabled={sessionId !== null}
+                    >
+                        {config.participants.map((item) => (
+                            <option key={item.id} value={item.id}>
+                                {item.name}
+                            </option>
+                        ))}
                     </select>
                     {sessionId ? (
                         <Button
@@ -511,15 +643,46 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
                             <Maximize2 className="size-4" aria-hidden="true" />
                         </Button>
                     ) : null}
-                    {sessionId
-                        ? <Button variant="destructive" size="sm" onClick={() => void end()}><PhoneOff className="size-4" />End</Button>
-                        : <Button size="sm" onClick={() => void request()} disabled={!credentials}><Monitor className="size-4" />Request view</Button>}
+                    {sessionId ? (
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => void end()}
+                        >
+                            <PhoneOff className="size-4" />
+                            End
+                        </Button>
+                    ) : (
+                        <Button
+                            size="sm"
+                            onClick={() => void request()}
+                            disabled={!credentials}
+                        >
+                            <Monitor className="size-4" />
+                            Request view
+                        </Button>
+                    )}
                 </div>
             </div>
-            {error ? <p className="mt-2 text-sm text-destructive">{error}</p> : null}
+            {error ? (
+                <p className="mt-2 text-sm text-destructive">{error}</p>
+            ) : null}
             {sessionId ? (
-                <div className={connected ? 'mt-4 flex min-h-0 flex-1 flex-col' : 'mt-4 shrink-0'}>
-                    <div className={connected ? 'relative min-h-0 flex-1 bg-black' : 'relative aspect-video bg-black'}>
+                <div
+                    className={
+                        connected
+                            ? 'mt-4 flex min-h-0 flex-1 flex-col'
+                            : 'mt-4 shrink-0'
+                    }
+                >
+                    <div
+                        ref={setVideoContainer}
+                        className={
+                            connected
+                                ? 'relative min-h-0 flex-1 bg-black'
+                                : 'relative aspect-video bg-black'
+                        }
+                    >
                         <video
                             ref={video}
                             autoPlay
@@ -540,6 +703,7 @@ export function AdvisorSupport({ config, coBrowse = null, onConnectionChange, on
                         config={coBrowse}
                         participantId={participant}
                         screenShareLive={connected}
+                        videoContainer={videoContainer}
                         videoRef={video}
                     />
                 </div>
@@ -579,7 +743,11 @@ class ScreenShareNegotiationError extends Error {
         readonly stage: NegotiationStage,
         original: unknown,
     ) {
-        super(original instanceof Error ? original.message : 'The browser could not continue.');
+        super(
+            original instanceof Error
+                ? original.message
+                : 'The browser could not continue.',
+        );
         this.name = 'ScreenShareNegotiationError';
     }
 }
@@ -599,9 +767,19 @@ function messageForNegotiationFailure(caught: unknown): string {
     };
     const detail = caught.message ? ' ' + caught.message : '';
 
-    return 'Screen support stopped while ' + labels[caught.stage] + '.' + detail + ' It will retry while the client keeps sharing.';
+    return (
+        'Screen support stopped while ' +
+        labels[caught.stage] +
+        '.' +
+        detail +
+        ' It will retry while the client keeps sharing.'
+    );
 }
 
 function formatDuration(seconds: number): string {
-    return String(Math.floor(seconds / 60)) + ':' + String(seconds % 60).padStart(2, '0');
+    return (
+        String(Math.floor(seconds / 60)) +
+        ':' +
+        String(seconds % 60).padStart(2, '0')
+    );
 }

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Services\Integration\Stripe;
 
 use App\Services\Integration\Stripe\Contracts\StripeClient;
+use App\Services\Payments\DefinitivePaymentDecline;
 use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentAuthorityToken;
+use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
-use App\Services\Payments\PaymentChargeLookup;
-use App\Services\Payments\DefinitivePaymentDecline;
 use App\Services\Payments\PaymentGatewayException;
 use App\Services\Payments\PaymentSetupIntent;
 use Illuminate\Support\Arr;
@@ -19,6 +19,7 @@ final class FakeStripeClient implements StripeClient
 {
     /** @var array<string, PaymentChargeResult> */
     private array $charges = [];
+
     public function createSetupIntent(PaymentAuthorityRequest $request): PaymentSetupIntent
     {
         if ($this->shouldFail($request)) {

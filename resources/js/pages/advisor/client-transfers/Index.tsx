@@ -95,7 +95,9 @@ export default function ClientTransfersIndex({
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="transfer-advisor">Receiving advisor</Label>
+                        <Label htmlFor="transfer-advisor">
+                            Receiving advisor
+                        </Label>
                         <select
                             id="transfer-advisor"
                             value={form.data.target_advisor_id}
@@ -118,7 +120,9 @@ export default function ClientTransfersIndex({
                     </div>
 
                     <div className="grid gap-2 md:col-span-2">
-                        <Label htmlFor="transfer-reason">Reason for transfer</Label>
+                        <Label htmlFor="transfer-reason">
+                            Reason for transfer
+                        </Label>
                         <Textarea
                             id="transfer-reason"
                             value={form.data.reason}
@@ -133,7 +137,11 @@ export default function ClientTransfersIndex({
                     <div className="flex justify-end md:col-span-2">
                         <Button
                             type="submit"
-                            disabled={form.processing || clients.length === 0 || advisors.length === 0}
+                            disabled={
+                                form.processing ||
+                                clients.length === 0 ||
+                                advisors.length === 0
+                            }
                         >
                             <Send className="size-4" aria-hidden="true" />
                             Send request
@@ -143,49 +151,97 @@ export default function ClientTransfersIndex({
 
                 <section className="space-y-3">
                     <div>
-                        <h2 className="text-lg font-semibold">Awaiting review</h2>
+                        <h2 className="text-lg font-semibold">
+                            Awaiting review
+                        </h2>
                         <p className="text-sm text-muted-foreground">
-                            Approved requests transfer the client and record the decision in the audit trail.
+                            Approved requests transfer the client and record the
+                            decision in the audit trail.
                         </p>
                     </div>
                     <div className="overflow-hidden border">
                         <table className="fsa-responsive-table">
                             <thead className="bg-muted/60 text-left">
                                 <tr>
-                                    <th className="px-3 py-2 font-medium">Client</th>
-                                    <th className="px-3 py-2 font-medium">Receiving advisor</th>
-                                    <th className="px-3 py-2 font-medium">Reason</th>
-                                    <th className="px-3 py-2 font-medium">Status</th>
-                                    <th className="px-3 py-2 text-right font-medium">Action</th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Client
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Receiving advisor
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Reason
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Status
+                                    </th>
+                                    <th className="px-3 py-2 text-right font-medium">
+                                        Action
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {pendingRequests.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="px-3 py-4 text-sm text-muted-foreground">
-                                            No transfer requests are awaiting review.
+                                        <td
+                                            colSpan={5}
+                                            className="px-3 py-4 text-sm text-muted-foreground"
+                                        >
+                                            No transfer requests are awaiting
+                                            review.
                                         </td>
                                     </tr>
                                 ) : (
                                     pendingRequests.map((transfer) => (
-                                        <tr key={transfer.id} className="border-t">
-                                            <td className="px-3 py-2" data-label="Client">
+                                        <tr
+                                            key={transfer.id}
+                                            className="border-t"
+                                        >
+                                            <td
+                                                className="px-3 py-2"
+                                                data-label="Client"
+                                            >
                                                 {transfer.client_label}
                                             </td>
-                                            <td className="px-3 py-2" data-label="Receiving advisor">
+                                            <td
+                                                className="px-3 py-2"
+                                                data-label="Receiving advisor"
+                                            >
                                                 {transfer.target_advisor_name}
                                             </td>
-                                            <td className="px-3 py-2" data-label="Reason">
+                                            <td
+                                                className="px-3 py-2"
+                                                data-label="Reason"
+                                            >
                                                 {transfer.reason}
                                             </td>
-                                            <td className="px-3 py-2" data-label="Status">
-                                                <Badge variant="secondary">Pending review</Badge>
+                                            <td
+                                                className="px-3 py-2"
+                                                data-label="Status"
+                                            >
+                                                <Badge variant="secondary">
+                                                    Pending review
+                                                </Badge>
                                             </td>
-                                            <td className="px-3 py-2" data-label="Action">
+                                            <td
+                                                className="px-3 py-2"
+                                                data-label="Action"
+                                            >
                                                 <div className="flex justify-end">
-                                                    <Button asChild size="sm" variant="outline">
-                                                        <Link href={transfer.client_url}>
-                                                            <ArrowUpRight className="size-4" aria-hidden="true" />
+                                                    <Button
+                                                        asChild
+                                                        size="sm"
+                                                        variant="outline"
+                                                    >
+                                                        <Link
+                                                            href={
+                                                                transfer.client_url
+                                                            }
+                                                        >
+                                                            <ArrowUpRight
+                                                                className="size-4"
+                                                                aria-hidden="true"
+                                                            />
                                                             Open client
                                                         </Link>
                                                     </Button>

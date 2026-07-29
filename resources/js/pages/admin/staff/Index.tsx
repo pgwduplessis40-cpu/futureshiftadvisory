@@ -243,7 +243,9 @@ function StaffRow({
         primary_role: user.primary_role,
         session_timeout_minutes: user.session_timeout_minutes ?? 30,
         advisor_client_capacity_limit:
-            user.advisor_client_capacity_limit ?? user.client_capacity?.limit ?? 30,
+            user.advisor_client_capacity_limit ??
+            user.client_capacity?.limit ??
+            30,
         suspended: user.suspended_at !== null,
         suspended_reason: user.suspended_reason ?? '',
     });
@@ -364,7 +366,9 @@ function StaffRow({
                         />
                     </div>
                 ) : (
-                    <span className="text-sm text-muted-foreground">Not applicable</span>
+                    <span className="text-sm text-muted-foreground">
+                        Not applicable
+                    </span>
                 )}
             </td>
             <td className="px-3 py-3" data-label="Status">

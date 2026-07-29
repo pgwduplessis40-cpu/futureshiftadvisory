@@ -71,7 +71,8 @@ export default function SurveysIndex({
                     <div>
                         <h1 className="text-xl font-semibold">Surveys</h1>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Govern general experience and service improvement feedback.
+                            Govern general experience and service improvement
+                            feedback.
                         </p>
                     </div>
 
@@ -89,67 +90,76 @@ export default function SurveysIndex({
                             onSubmit={submit}
                             className="grid gap-3 rounded-md border bg-background p-3 sm:grid-cols-[10rem_1fr_7rem_auto]"
                         >
-                        <div className="grid gap-1">
-                            <Label htmlFor="survey-type">Type</Label>
-                            <select
-                                id="survey-type"
-                                value={form.data.type}
-                                onChange={(event) => {
-                                    const type = event.target
-                                        .value as SurveySummary['type'];
-                                    form.setData({
-                                        ...form.data,
-                                        type,
-                                        key:
-                                            type === 'service_improvement'
-                                                ? 'service_improvement'
-                                                : 'client_experience',
-                                        title:
-                                            type === 'service_improvement'
-                                                ? 'Service improvement survey'
-                                                : 'Client experience survey',
-                                        version: nextVersion(surveys, type),
-                                    });
-                                }}
-                                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-                            >
-                                <option value="general_experience">
-                                    General experience
-                                </option>
-                                <option value="service_improvement">
-                                    Service improvement
-                                </option>
-                            </select>
-                        </div>
-                        <div className="grid gap-1">
-                            <Label htmlFor="survey-title">Title</Label>
-                            <Input
-                                id="survey-title"
-                                value={form.data.title}
-                                onChange={(event) =>
-                                    form.setData('title', event.target.value)
-                                }
-                            />
-                        </div>
-                        <div className="grid gap-1">
-                            <Label htmlFor="survey-version">Version</Label>
-                            <Input
-                                id="survey-version"
-                                value={form.data.version}
-                                onChange={(event) =>
-                                    form.setData('version', event.target.value)
-                                }
-                            />
-                        </div>
-                        <div className="flex items-end">
-                            <Button type="submit" disabled={form.processing}>
-                                <FilePlus
-                                    className="size-4"
-                                    aria-hidden="true"
+                            <div className="grid gap-1">
+                                <Label htmlFor="survey-type">Type</Label>
+                                <select
+                                    id="survey-type"
+                                    value={form.data.type}
+                                    onChange={(event) => {
+                                        const type = event.target
+                                            .value as SurveySummary['type'];
+                                        form.setData({
+                                            ...form.data,
+                                            type,
+                                            key:
+                                                type === 'service_improvement'
+                                                    ? 'service_improvement'
+                                                    : 'client_experience',
+                                            title:
+                                                type === 'service_improvement'
+                                                    ? 'Service improvement survey'
+                                                    : 'Client experience survey',
+                                            version: nextVersion(surveys, type),
+                                        });
+                                    }}
+                                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                                >
+                                    <option value="general_experience">
+                                        General experience
+                                    </option>
+                                    <option value="service_improvement">
+                                        Service improvement
+                                    </option>
+                                </select>
+                            </div>
+                            <div className="grid gap-1">
+                                <Label htmlFor="survey-title">Title</Label>
+                                <Input
+                                    id="survey-title"
+                                    value={form.data.title}
+                                    onChange={(event) =>
+                                        form.setData(
+                                            'title',
+                                            event.target.value,
+                                        )
+                                    }
                                 />
-                                Draft
-                            </Button>
-                        </div>
+                            </div>
+                            <div className="grid gap-1">
+                                <Label htmlFor="survey-version">Version</Label>
+                                <Input
+                                    id="survey-version"
+                                    value={form.data.version}
+                                    onChange={(event) =>
+                                        form.setData(
+                                            'version',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                            </div>
+                            <div className="flex items-end">
+                                <Button
+                                    type="submit"
+                                    disabled={form.processing}
+                                >
+                                    <FilePlus
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Draft
+                                </Button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -164,9 +174,7 @@ export default function SurveysIndex({
                                 <th className="px-3 py-2 font-medium">
                                     Status
                                 </th>
-                                <th className="px-3 py-2 font-medium">
-                                    Type
-                                </th>
+                                <th className="px-3 py-2 font-medium">Type</th>
                                 <th className="px-3 py-2 font-medium">
                                     Questions
                                 </th>
@@ -209,10 +217,7 @@ export default function SurveysIndex({
                                             {survey.status}
                                         </Badge>
                                     </td>
-                                    <td
-                                        className="px-3 py-2"
-                                        data-label="Type"
-                                    >
+                                    <td className="px-3 py-2" data-label="Type">
                                         <Badge variant="outline">
                                             {formatType(survey.type)}
                                         </Badge>

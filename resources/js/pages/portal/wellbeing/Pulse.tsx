@@ -1,10 +1,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, HeartPulse, Trash2 } from 'lucide-react';
 import type { FormEvent } from 'react';
-import {
-    ExplainedSectionHeader,
-    Explainer,
-} from '@/components/explainer';
+import { ExplainedSectionHeader, Explainer } from '@/components/explainer';
 import type { Explanation } from '@/components/explainer';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';

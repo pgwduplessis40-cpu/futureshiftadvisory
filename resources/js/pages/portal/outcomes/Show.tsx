@@ -1,10 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import type { FormEvent, ReactNode } from 'react';
-import {
-    ExplainedSectionHeader,
-    Explainer,
-} from '@/components/explainer';
+import { ExplainedSectionHeader, Explainer } from '@/components/explainer';
 import type { Explanation } from '@/components/explainer';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -265,7 +262,9 @@ export default function OutcomeFollowUpShow({
 
                             <Field
                                 label="Revenue direction"
-                                explanation={outcomeExplanations.revenueDirection}
+                                explanation={
+                                    outcomeExplanations.revenueDirection
+                                }
                             >
                                 <Select
                                     value={form.data.revenue_direction}

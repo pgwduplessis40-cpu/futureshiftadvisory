@@ -441,7 +441,6 @@ final class QuoteSourceExtractor
     }
 
     /**
-     * @param  mixed  $rawRows
      * @return array<int, array<string, mixed>>
      */
     private function normaliseRows(mixed $rawRows): array

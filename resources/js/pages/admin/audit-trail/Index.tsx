@@ -118,77 +118,77 @@ export default function AuditTrailIndex({ events, filters }: Props) {
                         onSubmit={submit}
                         className="grid gap-3 rounded-md border bg-background p-4 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto_auto]"
                     >
-                    <Field label="Search" htmlFor="audit_q">
-                        <Input
-                            id="audit_q"
-                            value={form.q}
-                            onChange={(event) =>
-                                setForm({ ...form, q: event.target.value })
-                            }
-                        />
-                    </Field>
-                    <Field label="Action" htmlFor="audit_action">
-                        <Input
-                            id="audit_action"
-                            value={form.action}
-                            onChange={(event) =>
-                                setForm({
-                                    ...form,
-                                    action: event.target.value,
-                                })
-                            }
-                        />
-                    </Field>
-                    <Field label="Actor" htmlFor="audit_actor">
-                        <Input
-                            id="audit_actor"
-                            value={form.actor}
-                            onChange={(event) =>
-                                setForm({
-                                    ...form,
-                                    actor: event.target.value,
-                                })
-                            }
-                        />
-                    </Field>
-                    <Field label="Subject" htmlFor="audit_subject">
-                        <Input
-                            id="audit_subject"
-                            value={form.subject}
-                            onChange={(event) =>
-                                setForm({
-                                    ...form,
-                                    subject: event.target.value,
-                                })
-                            }
-                        />
-                    </Field>
-                    <Field label="From" htmlFor="audit_date_from">
-                        <Input
-                            id="audit_date_from"
-                            type="date"
-                            value={form.date_from}
-                            onChange={(event) =>
-                                setForm({
-                                    ...form,
-                                    date_from: event.target.value,
-                                })
-                            }
-                        />
-                    </Field>
-                    <Field label="To" htmlFor="audit_date_to">
-                        <Input
-                            id="audit_date_to"
-                            type="date"
-                            value={form.date_to}
-                            onChange={(event) =>
-                                setForm({
-                                    ...form,
-                                    date_to: event.target.value,
-                                })
-                            }
-                        />
-                    </Field>
+                        <Field label="Search" htmlFor="audit_q">
+                            <Input
+                                id="audit_q"
+                                value={form.q}
+                                onChange={(event) =>
+                                    setForm({ ...form, q: event.target.value })
+                                }
+                            />
+                        </Field>
+                        <Field label="Action" htmlFor="audit_action">
+                            <Input
+                                id="audit_action"
+                                value={form.action}
+                                onChange={(event) =>
+                                    setForm({
+                                        ...form,
+                                        action: event.target.value,
+                                    })
+                                }
+                            />
+                        </Field>
+                        <Field label="Actor" htmlFor="audit_actor">
+                            <Input
+                                id="audit_actor"
+                                value={form.actor}
+                                onChange={(event) =>
+                                    setForm({
+                                        ...form,
+                                        actor: event.target.value,
+                                    })
+                                }
+                            />
+                        </Field>
+                        <Field label="Subject" htmlFor="audit_subject">
+                            <Input
+                                id="audit_subject"
+                                value={form.subject}
+                                onChange={(event) =>
+                                    setForm({
+                                        ...form,
+                                        subject: event.target.value,
+                                    })
+                                }
+                            />
+                        </Field>
+                        <Field label="From" htmlFor="audit_date_from">
+                            <Input
+                                id="audit_date_from"
+                                type="date"
+                                value={form.date_from}
+                                onChange={(event) =>
+                                    setForm({
+                                        ...form,
+                                        date_from: event.target.value,
+                                    })
+                                }
+                            />
+                        </Field>
+                        <Field label="To" htmlFor="audit_date_to">
+                            <Input
+                                id="audit_date_to"
+                                type="date"
+                                value={form.date_to}
+                                onChange={(event) =>
+                                    setForm({
+                                        ...form,
+                                        date_to: event.target.value,
+                                    })
+                                }
+                            />
+                        </Field>
 
                         <div className="flex gap-2 lg:col-span-6">
                             <Button type="submit">
@@ -200,7 +200,10 @@ export default function AuditTrailIndex({ events, filters }: Props) {
                                 variant="outline"
                                 onClick={clearFilters}
                             >
-                                <RotateCcw className="size-4" aria-hidden="true" />
+                                <RotateCcw
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
                                 Reset
                             </Button>
                         </div>
@@ -211,42 +214,46 @@ export default function AuditTrailIndex({ events, filters }: Props) {
                     <div className="lg:h-full lg:overflow-auto">
                         <table className="fsa-responsive-table">
                             <thead className="bg-muted text-left lg:sticky lg:top-0 lg:z-10 lg:shadow-sm [&_th]:bg-muted">
-                            <tr>
-                                <th className="px-3 py-2 font-medium">Time</th>
-                                <th className="px-3 py-2 font-medium">
-                                    Action
-                                </th>
-                                <th className="px-3 py-2 font-medium">Actor</th>
-                                <th className="px-3 py-2 font-medium">
-                                    Subject
-                                </th>
-                                <th className="px-3 py-2 font-medium">
-                                    Request
-                                </th>
-                                <th className="px-3 py-2 font-medium">
-                                    Details
-                                </th>
-                            </tr>
+                                <tr>
+                                    <th className="px-3 py-2 font-medium">
+                                        Time
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Action
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Actor
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Subject
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Request
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Details
+                                    </th>
+                                </tr>
                             </thead>
                             <tbody>
-                            {events.data.length > 0 ? (
-                                events.data.map((event) => (
-                                    <AuditEventRow
-                                        key={event.id}
-                                        event={event}
-                                    />
-                                ))
-                            ) : (
-                                <tr>
-                                    <td
-                                        colSpan={6}
-                                        className="px-3 py-10 text-center text-sm text-muted-foreground"
-                                    >
-                                        No audit events match the current
-                                        filters.
-                                    </td>
-                                </tr>
-                            )}
+                                {events.data.length > 0 ? (
+                                    events.data.map((event) => (
+                                        <AuditEventRow
+                                            key={event.id}
+                                            event={event}
+                                        />
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td
+                                            colSpan={6}
+                                            className="px-3 py-10 text-center text-sm text-muted-foreground"
+                                        >
+                                            No audit events match the current
+                                            filters.
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
@@ -400,7 +407,10 @@ function Pagination({
             <p className="text-sm text-muted-foreground">
                 Showing {events.from ?? 0} to {events.to ?? 0} of {events.total}
             </p>
-            <div className="flex items-center gap-2" aria-label="Audit trail pages">
+            <div
+                className="flex items-center gap-2"
+                aria-label="Audit trail pages"
+            >
                 <PageWindowControl
                     href={
                         previousWindowPage
@@ -448,7 +458,9 @@ function PageWindowControl({
     disabled: boolean;
 }) {
     const isPrevious = direction === 'previous';
-    const label = isPrevious ? 'Show previous five pages' : 'Show next five pages';
+    const label = isPrevious
+        ? 'Show previous five pages'
+        : 'Show next five pages';
     const Icon = isPrevious ? ChevronLeft : ChevronRight;
 
     return (

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Advisor;
 
-use App\Enums\ProposalStatus;
 use App\Enums\FeeMethod;
+use App\Enums\ProposalStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Consent;
@@ -14,8 +14,8 @@ use App\Models\FunnelEvent;
 use App\Models\Proposal;
 use App\Models\User;
 use App\Services\Analytics\FunnelTracker;
-use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Audit\AuditWriter;
+use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Proposals\ProposalBuilder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,8 +34,7 @@ final class ProposalController extends Controller
         ProposalBuilder $proposals,
         FunnelTracker $funnels,
         StrategicBudgetService $strategicBudgets,
-    ): RedirectResponse
-    {
+    ): RedirectResponse {
         Gate::authorize('view', $client);
 
         $user = $request->user();

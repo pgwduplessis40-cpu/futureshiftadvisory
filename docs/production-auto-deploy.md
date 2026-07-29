@@ -25,7 +25,7 @@ Add the following **Actions secrets** to the repository:
 | `PRODUCTION_APP_PATH` | `/var/www/futureshiftadvisory` |
 | `PRODUCTION_URL` | `https://futureshiftadvisory.nz` |
 
-Create the repository variable `PRODUCTION_DEPLOY_ENABLED` with value `true` only after every secret is present. Until then, the production deploy job is skipped rather than pretending to have deployed anything. The release cannot proceed unless the existing `quality`, `ci (8.3)`, `ci (8.4)`, and `ci (8.5)` check-runs all pass for the source commit.
+Create the repository variable `PRODUCTION_DEPLOY_ENABLED` with value `true` only after every secret is present. Until then, the production deploy job is skipped rather than pretending to have deployed anything. The release cannot proceed unless the existing `quality`, `ci (8.4)`, and `ci (8.5)` check-runs all pass for the source commit.
 
 The deploy user needs write access to the application checkout and permission to restart the SSR service through `sudo systemctl restart inertia-ssr`. Do not use the VPS root password or place it in GitHub.
 

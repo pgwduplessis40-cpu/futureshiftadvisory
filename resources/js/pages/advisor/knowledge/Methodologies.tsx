@@ -8,10 +8,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import {
-    ExplainedSectionHeader,
-    Explainer,
-} from '@/components/explainer';
+import { ExplainedSectionHeader, Explainer } from '@/components/explainer';
 import type { Explanation } from '@/components/explainer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

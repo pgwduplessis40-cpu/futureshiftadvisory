@@ -125,7 +125,7 @@ export default function NpoBoardDashboard({
                         label="Reports"
                         value={reports.length}
                         helper="Board-visible reports"
-                        className="border-[var(--fs-admiralty)] bg-[var(--fs-admiralty)] text-primary-foreground [&_button]:border-primary-foreground/25 [&_button]:bg-primary-foreground/10 [&_button]:text-primary-foreground [&_button:hover]:bg-primary-foreground/20 [&_.text-muted-foreground]:text-primary-foreground/75"
+                        className="border-[var(--fs-admiralty)] bg-[var(--fs-admiralty)] text-primary-foreground [&_.text-muted-foreground]:text-primary-foreground/75 [&_button]:border-primary-foreground/25 [&_button]:bg-primary-foreground/10 [&_button]:text-primary-foreground [&_button:hover]:bg-primary-foreground/20"
                         explanation={{
                             title: 'Board reports',
                             what: 'The number of reviewed advisory reports currently visible to the NPO board portal.',

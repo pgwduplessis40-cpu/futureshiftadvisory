@@ -268,10 +268,7 @@ export default function AppHealthIndex({
 
                         <div className="grid gap-3 lg:grid-cols-2">
                             {latestRun.results.map((result) => (
-                                <LatestResult
-                                    key={result.id}
-                                    result={result}
-                                />
+                                <LatestResult key={result.id} result={result} />
                             ))}
                         </div>
                     </section>
@@ -378,21 +375,15 @@ export default function AppHealthIndex({
                     <table className="fsa-responsive-table">
                         <thead className="bg-muted text-left [&_th]:bg-muted">
                             <tr>
-                                <th className="px-3 py-2 font-medium">
-                                    Time
-                                </th>
-                                <th className="px-3 py-2 font-medium">
-                                    Check
-                                </th>
+                                <th className="px-3 py-2 font-medium">Time</th>
+                                <th className="px-3 py-2 font-medium">Check</th>
                                 <th className="px-3 py-2 font-medium">
                                     Status
                                 </th>
                                 <th className="px-3 py-2 font-medium">
                                     Request
                                 </th>
-                                <th className="px-3 py-2 font-medium">
-                                    Issue
-                                </th>
+                                <th className="px-3 py-2 font-medium">Issue</th>
                                 <th className="px-3 py-2 font-medium">
                                     Recurrence
                                 </th>
@@ -501,14 +492,14 @@ function ResultRow({ result }: { result: HealthResult }) {
     return (
         <tr className="border-t align-top">
             <td className="px-3 py-3" data-label="Time">
-                <div className="whitespace-nowrap text-sm">
+                <div className="text-sm whitespace-nowrap">
                     {result.created_at_label ?? result.run_started_at_label}
                 </div>
             </td>
             <td className="px-3 py-3" data-label="Check">
                 <div className="max-w-72 space-y-1">
                     <div className="font-medium">{result.name}</div>
-                    <div className="break-all text-xs text-muted-foreground">
+                    <div className="text-xs break-all text-muted-foreground">
                         {result.check_key}
                     </div>
                     <Badge variant="outline">{result.area}</Badge>
@@ -588,7 +579,9 @@ function RecurrenceBadges({ result }: { result: HealthResult }) {
             <Badge variant="outline">
                 {result.consecutive_failures ?? 1} consecutive
             </Badge>
-            <Badge variant="outline">{result.failures_last_7_days ?? 1} / 7d</Badge>
+            <Badge variant="outline">
+                {result.failures_last_7_days ?? 1} / 7d
+            </Badge>
             <Badge variant="outline">
                 {result.failures_last_30_days ?? 1} / 30d
             </Badge>
@@ -698,9 +691,7 @@ function Pagination({
                     Page {results.current_page} of {results.last_page}
                 </Badge>
                 <PageButton
-                    href={
-                        nextPage ? appHealthPageUrl(filters, nextPage) : null
-                    }
+                    href={nextPage ? appHealthPageUrl(filters, nextPage) : null}
                     label="Next page"
                     disabled={!nextPage}
                     icon={

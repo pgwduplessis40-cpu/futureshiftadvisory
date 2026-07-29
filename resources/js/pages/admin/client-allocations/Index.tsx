@@ -75,9 +75,12 @@ export default function ClientAllocationsIndex({
                 <section className="space-y-3">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                         <div>
-                            <h2 className="text-lg font-semibold">Transfer requests</h2>
+                            <h2 className="text-lg font-semibold">
+                                Transfer requests
+                            </h2>
                             <p className="text-sm text-muted-foreground">
-                                Approval moves the client to the requested advisor and preserves the approval record.
+                                Approval moves the client to the requested
+                                advisor and preserves the approval record.
                             </p>
                         </div>
                         <Badge variant="secondary">
@@ -88,24 +91,43 @@ export default function ClientAllocationsIndex({
                         <table className="fsa-responsive-table">
                             <thead className="bg-muted/60 text-left">
                                 <tr>
-                                    <th className="px-3 py-2 font-medium">Client</th>
-                                    <th className="px-3 py-2 font-medium">Requested by</th>
-                                    <th className="px-3 py-2 font-medium">Receiving advisor</th>
-                                    <th className="px-3 py-2 font-medium">Reason</th>
-                                    <th className="px-3 py-2 font-medium">Decision note</th>
-                                    <th className="px-3 py-2 text-right font-medium">Actions</th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Client
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Requested by
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Receiving advisor
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Reason
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Decision note
+                                    </th>
+                                    <th className="px-3 py-2 text-right font-medium">
+                                        Actions
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {pendingRequests.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-3 py-4 text-sm text-muted-foreground">
-                                            No client transfer requests are awaiting review.
+                                        <td
+                                            colSpan={6}
+                                            className="px-3 py-4 text-sm text-muted-foreground"
+                                        >
+                                            No client transfer requests are
+                                            awaiting review.
                                         </td>
                                     </tr>
                                 ) : (
                                     pendingRequests.map((transfer) => (
-                                        <TransferRequestRow key={transfer.id} transfer={transfer} />
+                                        <TransferRequestRow
+                                            key={transfer.id}
+                                            transfer={transfer}
+                                        />
                                     ))
                                 )}
                             </tbody>
@@ -115,34 +137,59 @@ export default function ClientAllocationsIndex({
 
                 <section className="space-y-3">
                     <div>
-                        <h2 className="text-lg font-semibold">Client ownership</h2>
+                        <h2 className="text-lg font-semibold">
+                            Client ownership
+                        </h2>
                         <p className="text-sm text-muted-foreground">
-                            Reassignment replaces the current advisor assignment. Client contacts and engagement records remain unchanged.
+                            Reassignment replaces the current advisor
+                            assignment. Client contacts and engagement records
+                            remain unchanged.
                         </p>
                     </div>
                     <div className="overflow-hidden border">
                         <table className="fsa-responsive-table">
                             <thead className="bg-muted/60 text-left">
                                 <tr>
-                                    <th className="px-3 py-2 font-medium">Client</th>
-                                    <th className="px-3 py-2 font-medium">Engagement</th>
-                                    <th className="px-3 py-2 font-medium">Status</th>
-                                    <th className="px-3 py-2 font-medium">Primary advisor</th>
-                                    <th className="px-3 py-2 font-medium">Advisor team</th>
-                                    <th className="px-3 py-2 font-medium">Assigned advisors</th>
-                                    <th className="px-3 py-2 font-medium">Reassign to</th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Client
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Engagement
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Status
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Primary advisor
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Advisor team
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Assigned advisors
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Reassign to
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {clients.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="px-3 py-4 text-sm text-muted-foreground">
+                                        <td
+                                            colSpan={7}
+                                            className="px-3 py-4 text-sm text-muted-foreground"
+                                        >
                                             No clients are available.
                                         </td>
                                     </tr>
                                 ) : (
                                     clients.map((client) => (
-                                        <ClientAllocationRow key={client.id} client={client} advisors={advisors} />
+                                        <ClientAllocationRow
+                                            key={client.id}
+                                            client={client}
+                                            advisors={advisors}
+                                        />
                                     ))
                                 )}
                             </tbody>
@@ -159,14 +206,24 @@ function TransferRequestRow({ transfer }: { transfer: TransferRequest }) {
 
     return (
         <tr className="border-t align-top">
-            <td className="px-3 py-3" data-label="Client">{transfer.client_label}</td>
-            <td className="px-3 py-3" data-label="Requested by">{transfer.requested_by_name}</td>
-            <td className="px-3 py-3" data-label="Receiving advisor">{transfer.target_advisor_name}</td>
-            <td className="px-3 py-3" data-label="Reason">{transfer.reason}</td>
+            <td className="px-3 py-3" data-label="Client">
+                {transfer.client_label}
+            </td>
+            <td className="px-3 py-3" data-label="Requested by">
+                {transfer.requested_by_name}
+            </td>
+            <td className="px-3 py-3" data-label="Receiving advisor">
+                {transfer.target_advisor_name}
+            </td>
+            <td className="px-3 py-3" data-label="Reason">
+                {transfer.reason}
+            </td>
             <td className="px-3 py-3" data-label="Decision note">
                 <Textarea
                     value={form.data.decision_reason}
-                    onChange={(event) => form.setData('decision_reason', event.target.value)}
+                    onChange={(event) =>
+                        form.setData('decision_reason', event.target.value)
+                    }
                     rows={2}
                     aria-label={`Decision note for ${transfer.client_label ?? 'transfer request'}`}
                 />
@@ -178,7 +235,11 @@ function TransferRequestRow({ transfer }: { transfer: TransferRequest }) {
                         type="button"
                         size="sm"
                         disabled={form.processing}
-                        onClick={() => form.patch(transfer.approve_url, { preserveScroll: true })}
+                        onClick={() =>
+                            form.patch(transfer.approve_url, {
+                                preserveScroll: true,
+                            })
+                        }
                     >
                         <Check className="size-4" aria-hidden="true" />
                         Approve
@@ -188,7 +249,11 @@ function TransferRequestRow({ transfer }: { transfer: TransferRequest }) {
                         size="sm"
                         variant="outline"
                         disabled={form.processing}
-                        onClick={() => form.patch(transfer.reject_url, { preserveScroll: true })}
+                        onClick={() =>
+                            form.patch(transfer.reject_url, {
+                                preserveScroll: true,
+                            })
+                        }
                     >
                         <X className="size-4" aria-hidden="true" />
                         Reject
@@ -217,15 +282,27 @@ function ClientAllocationRow({
         <tr className="border-t align-top">
             <td className="px-3 py-3" data-label="Client">
                 <div className="font-medium">{client.legal_name}</div>
-                {client.trading_name ? <div className="text-xs text-muted-foreground">{client.trading_name}</div> : null}
+                {client.trading_name ? (
+                    <div className="text-xs text-muted-foreground">
+                        {client.trading_name}
+                    </div>
+                ) : null}
             </td>
-            <td className="px-3 py-3" data-label="Engagement">{client.engagement_type}</td>
-            <td className="px-3 py-3" data-label="Status"><Badge variant="outline">{client.status}</Badge></td>
+            <td className="px-3 py-3" data-label="Engagement">
+                {client.engagement_type}
+            </td>
+            <td className="px-3 py-3" data-label="Status">
+                <Badge variant="outline">{client.status}</Badge>
+            </td>
             <td className="px-3 py-3" data-label="Primary advisor">
-                {client.primary_advisor_name ?? <span className="text-muted-foreground">Unassigned</span>}
+                {client.primary_advisor_name ?? (
+                    <span className="text-muted-foreground">Unassigned</span>
+                )}
             </td>
             <td className="px-3 py-3" data-label="Advisor team">
-                {client.advisor_team_name ?? <span className="text-muted-foreground">No team</span>}
+                {client.advisor_team_name ?? (
+                    <span className="text-muted-foreground">No team</span>
+                )}
             </td>
             <td className="px-3 py-3" data-label="Assigned advisors">
                 {client.assignments.length === 0 ? (
@@ -235,7 +312,10 @@ function ClientAllocationRow({
                         {client.assignments.map((assignment, index) => (
                             <div key={`${assignment.advisor_name}-${index}`}>
                                 {assignment.advisor_name ?? 'Unknown advisor'}
-                                <span className="text-muted-foreground"> ({formatRole(assignment.role)})</span>
+                                <span className="text-muted-foreground">
+                                    {' '}
+                                    ({formatRole(assignment.role)})
+                                </span>
                             </div>
                         ))}
                     </div>
@@ -243,31 +323,49 @@ function ClientAllocationRow({
             </td>
             <td className="px-3 py-3" data-label="Reassign to">
                 <form onSubmit={submit} className="grid min-w-56 gap-2">
-                    <Label className="sr-only" htmlFor={`client-allocation-${client.id}-advisor`}>
+                    <Label
+                        className="sr-only"
+                        htmlFor={`client-allocation-${client.id}-advisor`}
+                    >
                         Receiving advisor
                     </Label>
                     <select
                         id={`client-allocation-${client.id}-advisor`}
                         value={form.data.target_advisor_id}
-                        onChange={(event) => form.setData('target_advisor_id', event.target.value)}
+                        onChange={(event) =>
+                            form.setData(
+                                'target_advisor_id',
+                                event.target.value,
+                            )
+                        }
                         className="h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                     >
                         <option value="">Select advisor</option>
                         {advisors.map((advisor) => (
-                            <option key={advisor.id} value={advisor.id} disabled={advisor.capacity.blocked}>
-                                {advisor.name} ({advisor.capacity.remaining} remaining)
+                            <option
+                                key={advisor.id}
+                                value={advisor.id}
+                                disabled={advisor.capacity.blocked}
+                            >
+                                {advisor.name} ({advisor.capacity.remaining}{' '}
+                                remaining)
                             </option>
                         ))}
                     </select>
                     <InputError message={form.errors.target_advisor_id} />
-                    <Label className="sr-only" htmlFor={`client-allocation-${client.id}-reason`}>
+                    <Label
+                        className="sr-only"
+                        htmlFor={`client-allocation-${client.id}-reason`}
+                    >
                         Reassignment reason
                     </Label>
                     <Input
                         id={`client-allocation-${client.id}-reason`}
                         value={form.data.reason}
                         placeholder="Reason for reassignment"
-                        onChange={(event) => form.setData('reason', event.target.value)}
+                        onChange={(event) =>
+                            form.setData('reason', event.target.value)
+                        }
                     />
                     <InputError message={form.errors.reason} />
                     <Button type="submit" size="sm" disabled={form.processing}>

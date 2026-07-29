@@ -1,5 +1,7 @@
-import { Bold, Italic, List, ListOrdered, type LucideIcon } from 'lucide-react';
-import { Fragment, type ReactNode, useRef } from 'react';
+import { Bold, Italic, List, ListOrdered } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { Fragment, useRef } from 'react';
+import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -322,6 +324,7 @@ function parseMarkdownBlocks(value: string): MarkdownBlock[] {
         }
 
         const unorderedMatch = line.match(/^\s*[-*]\s+(.+)$/);
+
         if (unorderedMatch) {
             const items: string[] = [];
 
@@ -344,6 +347,7 @@ function parseMarkdownBlocks(value: string): MarkdownBlock[] {
         }
 
         const orderedMatch = line.match(/^\s*\d+[.)]\s+(.+)$/);
+
         if (orderedMatch) {
             const items: string[] = [];
 

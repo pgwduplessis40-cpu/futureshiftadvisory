@@ -227,8 +227,8 @@ export default function TermsEdit({ version }: Props) {
                         )}
                         {version.source_file?.is_quarantined && (
                             <p className="text-xs text-amber-800">
-                                Source document is locked until malware
-                                scanning completes.
+                                Source document is locked until malware scanning
+                                completes.
                             </p>
                         )}
                         <div className="flex flex-wrap items-center gap-2">

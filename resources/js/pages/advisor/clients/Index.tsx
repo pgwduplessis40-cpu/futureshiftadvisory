@@ -213,15 +213,21 @@ export default function ClientsIndex({
                                                     ?.length ? (
                                                     <div className="space-y-1 text-sm">
                                                         {client.advisor_assignments.map(
-                                                            (assignment, index) => (
-                                                                <div key={`${assignment.advisor_name}-${index}`}>
+                                                            (
+                                                                assignment,
+                                                                index,
+                                                            ) => (
+                                                                <div
+                                                                    key={`${assignment.advisor_name}-${index}`}
+                                                                >
                                                                     <span className="font-medium">
                                                                         {assignment.advisor_name ??
                                                                             'Unknown advisor'}
                                                                     </span>
                                                                     <span className="text-muted-foreground">
                                                                         {' '}
-                                                                        ({formatRole(
+                                                                        (
+                                                                        {formatRole(
                                                                             assignment.role,
                                                                         )}
                                                                         {assignment.team_name

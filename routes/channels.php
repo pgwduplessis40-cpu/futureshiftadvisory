@@ -18,7 +18,7 @@ Broadcast::channel('screen-share.connection.{connection}', function (User $user,
         app(ScreenSharePresence::class)->assertConnection($user, $connection, $secret);
 
         return true;
-    } catch (\Throwable) {
+    } catch (Throwable) {
         return false;
     }
 });
@@ -34,7 +34,7 @@ Broadcast::channel('co-browse.connection.{connection}', function (User $user, st
         app(CoBrowsePresence::class)->assertConnection($user, $connection, $secret);
 
         return true;
-    } catch (\Throwable) {
+    } catch (Throwable) {
         return false;
     }
 });

@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\CalendarController as ActivityCalendarController;
+use App\Http\Controllers\CoBrowse\CoBrowseConnectionController;
+use App\Http\Controllers\CoBrowse\CoBrowseSessionController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\Portal\ClientLeavePeriodController;
 use App\Http\Controllers\Portal\DashboardController as ClientPortalDashboardController;
@@ -25,8 +27,6 @@ use App\Http\Controllers\Portal\StrategicBudgetController;
 use App\Http\Controllers\Portal\StrategicPlanMilestoneController;
 use App\Http\Controllers\Portal\SurveyController;
 use App\Http\Controllers\Portal\WellbeingController;
-use App\Http\Controllers\CoBrowse\CoBrowseConnectionController;
-use App\Http\Controllers\CoBrowse\CoBrowseSessionController;
 use App\Http\Controllers\ScreenShare\EntrepreneurScreenShareController;
 use App\Http\Controllers\ScreenShare\ScreenShareConnectionController;
 use App\Http\Controllers\ScreenShare\ScreenShareSessionController;

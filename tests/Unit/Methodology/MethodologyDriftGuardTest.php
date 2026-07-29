@@ -26,20 +26,44 @@ use App\Services\Dd\Workstreams\DdWorkstreamModule;
 use App\Services\Dd\Workstreams\DdWorkstreamRunner;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
 use App\Services\Entrepreneurs\AdvisoryConversion;
+use App\Services\Entrepreneurs\AssessmentScoring;
 use App\Services\Entrepreneurs\Benchmarking;
+use App\Services\Entrepreneurs\BudgetPackBuilder;
+use App\Services\Entrepreneurs\EntrepreneurBudgetService;
+use App\Services\Entrepreneurs\EntrepreneurGamification;
+use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
+use App\Services\Entrepreneurs\EntrepreneurMilestones;
+use App\Services\Entrepreneurs\EntrepreneurPoints;
+use App\Services\Entrepreneurs\EntrepreneurPromptRegistry;
+use App\Services\Entrepreneurs\EntrepreneurStreak;
+use App\Services\Entrepreneurs\FounderChangeRequestMessage;
 use App\Services\Entrepreneurs\Guidance;
+use App\Services\Entrepreneurs\IdeaViabilityGate;
 use App\Services\Entrepreneurs\LivingPlan;
+use App\Services\Entrepreneurs\PlanAiContext;
 use App\Services\Entrepreneurs\PlanDocuments;
+use App\Services\Entrepreneurs\PlanRequirements;
+use App\Services\Fees\PilotFeeWaiverManager;
+use App\Services\Fees\ProposalPricingTerms;
 use App\Services\Fees\ServiceRateManager;
 use App\Services\Integration\IntegrationHealthBander;
 use App\Services\Panels\Coach\CoachPanel;
+use App\Services\Payments\AmbiguousPaymentOutcome;
+use App\Services\Payments\ApplyProposalPaymentOutcome;
 use App\Services\Payments\AuthorityCapture;
+use App\Services\Payments\BillingAdjustmentAllocator;
+use App\Services\Payments\ClientBillingCode;
+use App\Services\Payments\DefinitivePaymentDecline;
 use App\Services\Payments\Gateway;
+use App\Services\Payments\InstallmentPaymentProcessor;
+use App\Services\Payments\InstallmentScheduleBuilder;
 use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
 use App\Services\Payments\PaymentGatewayException;
+use App\Services\Payments\PaymentSetupIntent;
+use App\Services\Payments\PaymentWebhookReconciler;
 use App\Services\Payments\PaymentWebhookVerifier;
 use App\Services\Payments\ReceiptGenerator;
 use App\Services\Payments\ScheduleBuilder;
@@ -103,30 +127,43 @@ final class MethodologyDriftGuardTest extends TestCase
         DdWorkstreamRunner::class => 'Workstream runner/orchestrator.',
         AdvisorEntrepreneurCapacity::class => 'Capacity gate, not a methodology surface in this track.',
         AdvisoryConversion::class => 'Conversion workflow from entrepreneur to advisory client.',
-        \App\Services\Entrepreneurs\AssessmentScoring::class => 'Shared scoring helper; owned methodology services disclose the scoring formula.',
+        AssessmentScoring::class => 'Shared scoring helper; owned methodology services disclose the scoring formula.',
         Benchmarking::class => 'Privacy-gated cohort report; excluded until a client-safe aggregate methodology is surfaced.',
-        \App\Services\Entrepreneurs\BudgetPackBuilder::class => 'Budget-pack renderer; forecast formula is owned by BudgetCalculator.',
-        \App\Services\Entrepreneurs\EntrepreneurBudgetService::class => 'Budget persistence workflow; forecast formula is owned by BudgetCalculator.',
-        \App\Services\Entrepreneurs\EntrepreneurGamification::class => 'Gamification payload renderer; requirement and milestone rules are not advisor methodology disclosures.',
-        \App\Services\Entrepreneurs\EntrepreneurInviteReconciler::class => 'Invite reconciliation workflow.',
-        \App\Services\Entrepreneurs\EntrepreneurMilestones::class => 'Milestone-award persistence workflow.',
-        \App\Services\Entrepreneurs\EntrepreneurPromptRegistry::class => 'Prompt id registry, not a calculation method.',
-        \App\Services\Entrepreneurs\EntrepreneurStreak::class => 'Gamification streak persistence workflow.',
+        BudgetPackBuilder::class => 'Budget-pack renderer; forecast formula is owned by BudgetCalculator.',
+        EntrepreneurBudgetService::class => 'Budget persistence workflow; forecast formula is owned by BudgetCalculator.',
+        EntrepreneurGamification::class => 'Gamification payload renderer; requirement and milestone rules are not advisor methodology disclosures.',
+        EntrepreneurInviteReconciler::class => 'Invite reconciliation workflow.',
+        EntrepreneurMilestones::class => 'Milestone-award persistence workflow.',
+        EntrepreneurPoints::class => 'Gamification reward allocation is operational engagement logic, not an advisor methodology disclosure.',
+        EntrepreneurPromptRegistry::class => 'Prompt id registry, not a calculation method.',
+        EntrepreneurStreak::class => 'Gamification streak persistence workflow.',
+        FounderChangeRequestMessage::class => 'Founder change-request message workflow.',
         Guidance::class => 'AI guidance workflow; formula-like predictive score is not exposed by the methodology surface yet.',
+        IdeaViabilityGate::class => 'Advisor approval gate over the IdeaValidationService methodology, not a separate methodology.',
         LivingPlan::class => 'Plan section workflow.',
+        PlanAiContext::class => 'AI drafting-context assembler, not a calculation method.',
         \App\Services\Entrepreneurs\PlanBuilder::class => 'Plan scaffolding workflow.',
         PlanDocuments::class => 'Document verification helper.',
-        \App\Services\Entrepreneurs\PlanRequirements::class => 'Static plan requirement checklist; completion is presentation state, not an advisory methodology surface.',
+        PlanRequirements::class => 'Static plan requirement checklist; completion is presentation state, not an advisory methodology surface.',
         CoachPanel::class => 'Coach referral workflow orchestration.',
+        PilotFeeWaiverManager::class => 'Pilot waiver lifecycle workflow; it does not calculate advisory fees.',
+        ProposalPricingTerms::class => 'Proposal pricing-term value object and renderer.',
         AuthorityCapture::class => 'Payment-authority capture workflow.',
+        AmbiguousPaymentOutcome::class => 'Payment-recovery outcome DTO.',
+        ApplyProposalPaymentOutcome::class => 'Payment application outcome DTO.',
+        BillingAdjustmentAllocator::class => 'Ledger-credit allocation workflow, not an advisor methodology disclosure.',
+        ClientBillingCode::class => 'Billing-code formatter.',
+        DefinitivePaymentDecline::class => 'Payment-decline exception type.',
         Gateway::class => 'Gateway adapter.',
+        InstallmentPaymentProcessor::class => 'Direct-debit payment processing workflow.',
+        InstallmentScheduleBuilder::class => 'Installment persistence workflow.',
         PaymentAuthorityRequest::class => 'DTO.',
         PaymentAuthorityToken::class => 'DTO.',
         PaymentChargeRequest::class => 'DTO.',
         PaymentChargeResult::class => 'DTO.',
         PaymentGatewayException::class => 'Exception class.',
-        \App\Services\Payments\PaymentSetupIntent::class => 'DTO returned by payment gateway setup.',
-        \App\Services\Payments\PaymentWebhookReconciler::class => 'Webhook persistence and reconciliation workflow.',
+        PaymentSetupIntent::class => 'DTO returned by payment gateway setup.',
+        PaymentWebhookReconciler::class => 'Webhook persistence and reconciliation workflow.',
         PaymentWebhookVerifier::class => 'Security verification, not methodology disclosure.',
         ReceiptGenerator::class => 'Receipt rendering workflow.',
         ScheduleBuilder::class => 'Payment schedule persistence workflow.',

@@ -910,8 +910,7 @@ export default function AdvisorDashboard({
     const actionQueueCount = actionItems.filter(
         (item) => item.value > 0 && item.priority !== 'neutral',
     ).length;
-    const loadedIntegrationHealth =
-        integrationHealth ?? emptyIntegrationHealth;
+    const loadedIntegrationHealth = integrationHealth ?? emptyIntegrationHealth;
     const loadedEconomicIndicators =
         economicIndicators ?? emptyEconomicIndicators;
     const loadedQuestionnaireOptimisation =
@@ -1092,7 +1091,9 @@ export default function AdvisorDashboard({
                                     title="Panel operations"
                                     description="Track partner hand-offs and governed learning work that supports the advisory team."
                                 >
-                                    <PanelOperations payload={panelOperations} />
+                                    <PanelOperations
+                                        payload={panelOperations}
+                                    />
                                 </DashboardSection>
 
                                 <DashboardSection
@@ -1104,7 +1105,9 @@ export default function AdvisorDashboard({
                                             payload={npoPendingConversions}
                                         />
                                         <NpoFundingPanel payload={npoFunding} />
-                                        <ProspectInbox payload={prospectInbox} />
+                                        <ProspectInbox
+                                            payload={prospectInbox}
+                                        />
                                     </div>
 
                                     <div className="grid gap-4 xl:grid-cols-3">

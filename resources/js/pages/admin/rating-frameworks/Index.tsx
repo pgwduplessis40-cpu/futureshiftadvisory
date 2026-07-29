@@ -1,10 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { FilePenLine, Rocket, ShieldCheck } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import {
-    ExplainedSectionHeader,
-    Explainer,
-} from '@/components/explainer';
+import { ExplainedSectionHeader, Explainer } from '@/components/explainer';
 import type { Explanation } from '@/components/explainer';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';

@@ -54,6 +54,7 @@ final class BillingAdjustmentAllocator
 
                 if ($available <= 0.0) {
                     $adjustment->forceFill(['status' => BillingAdjustment::STATUS_APPLIED, 'applied_at' => now()])->save();
+
                     continue;
                 }
 

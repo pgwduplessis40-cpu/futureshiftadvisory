@@ -18,7 +18,6 @@ use App\Models\PaymentSchedule;
 use App\Models\PaymentWebhookEvent;
 use App\Models\Proposal;
 use App\Models\User;
-use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Integration\Stripe\LiveStripeClient;
 use App\Services\Payments\Gateway;
 use App\Services\Payments\PaymentAuthorityRequest;

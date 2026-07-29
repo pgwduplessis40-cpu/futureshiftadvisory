@@ -201,12 +201,12 @@ export default function Services({
                         day, the same data typed into two systems. When that
                         happens we will say so, show you the numbers, and - if
                         it genuinely pays off - quote and build a custom tool to
-                        take the work off your plate. And if what you need
-                        turns out to be bigger than a small tool, the approach
-                        does not change - we scope it carefully, quote it
-                        honestly, and build it in stages you can see working.
-                        It is not a separate pitch; it is part of helping your
-                        business run better.
+                        take the work off your plate. And if what you need turns
+                        out to be bigger than a small tool, the approach does
+                        not change - we scope it carefully, quote it honestly,
+                        and build it in stages you can see working. It is not a
+                        separate pitch; it is part of helping your business run
+                        better.
                     </p>
                 </Section>
             </div>

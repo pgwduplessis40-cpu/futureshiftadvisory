@@ -7,7 +7,7 @@ import {
     MessageSquare,
     UserRound,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { EmptyState } from '@/components/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -55,11 +55,18 @@ export default function AdvisorMessagesIndex({
     counts,
     initial_filter: initialFilter,
 }: Props) {
-    const [filter, setFilter] = useState<FilterKind>(initialFilter);
+    const [filterState, setFilterState] = useState({
+        initialFilter,
+        selectedFilter: initialFilter,
+    });
+    const filter =
+        filterState.initialFilter === initialFilter
+            ? filterState.selectedFilter
+            : initialFilter;
 
-    useEffect(() => {
-        setFilter(initialFilter);
-    }, [initialFilter]);
+    const selectFilter = (selectedFilter: FilterKind) => {
+        setFilterState({ initialFilter, selectedFilter });
+    };
 
     const filteredThreads = useMemo(
         () =>
@@ -97,7 +104,7 @@ export default function AdvisorMessagesIndex({
                             <button
                                 key={value}
                                 type="button"
-                                onClick={() => setFilter(value)}
+                                onClick={() => selectFilter(value)}
                                 className={cn(
                                     'inline-flex h-8 items-center gap-2 rounded-sm px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
                                     filter === value

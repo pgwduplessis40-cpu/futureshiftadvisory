@@ -1,7 +1,7 @@
+import { Hand, Highlighter, MousePointer2, PhoneOff, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PointerEvent, RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { Hand, Highlighter, MousePointer2, PhoneOff, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     closeCoBrowseEcho,
@@ -10,8 +10,8 @@ import {
     coBrowsePost,
     registerCoBrowseConnection,
     replaceCoBrowsePath,
-    type CoBrowseCredentials,
 } from '@/lib/co-browse';
+import type { CoBrowseCredentials } from '@/lib/co-browse';
 
 export type AdvisorCoBrowseConfig = {
     connection_url: string;
@@ -36,6 +36,7 @@ type Props = {
     config: AdvisorCoBrowseConfig | null;
     participantId: string;
     screenShareLive: boolean;
+    videoContainer: HTMLElement | null;
     videoRef: RefObject<HTMLVideoElement | null>;
 };
 
@@ -43,8 +44,16 @@ type Props = {
  * This is deliberately embedded in Screen Support. Guidance never begins until
  * the client has approved both a screen view and this separate assistance prompt.
  */
-export function AdvisorCoBrowseControls({ config, participantId, screenShareLive, videoRef }: Props) {
-    const [credentials, setCredentials] = useState<CoBrowseCredentials | null>(null);
+export function AdvisorCoBrowseControls({
+    config,
+    participantId,
+    screenShareLive,
+    videoContainer,
+    videoRef,
+}: Props) {
+    const [credentials, setCredentials] = useState<CoBrowseCredentials | null>(
+        null,
+    );
     const [session, setSession] = useState<Session | null>(null);
     const [error, setError] = useState<string | null>(null);
     const sessionRef = useRef<Session | null>(null);
@@ -68,55 +77,85 @@ export function AdvisorCoBrowseControls({ config, participantId, screenShareLive
         let mounted = true;
         let connectionHeartbeat: number | null = null;
 
-        void registerCoBrowseConnection(config.connection_url, {}).then((next) => {
-            if (!mounted) {
-                return;
-            }
+        void registerCoBrowseConnection(config.connection_url, {})
+            .then((next) => {
+                if (!mounted) {
+                    return;
+                }
 
-            credentialsRef.current = next;
-            setCredentials(next);
-            connectionHeartbeat = window.setInterval(() => {
-                void coBrowsePost(
-                    replaceCoBrowsePath(config.connection_heartbeat_url, '__connection__', next.connection_id),
-                    { connection_secret: next.connection_secret },
-                ).catch(() => undefined);
-            }, config.heartbeat_seconds * 1000);
+                credentialsRef.current = next;
+                setCredentials(next);
+                connectionHeartbeat = window.setInterval(() => {
+                    void coBrowsePost(
+                        replaceCoBrowsePath(
+                            config.connection_heartbeat_url,
+                            '__connection__',
+                            next.connection_id,
+                        ),
+                        { connection_secret: next.connection_secret },
+                    ).catch(() => undefined);
+                }, config.heartbeat_seconds * 1000);
 
-            try {
-                const channel = coBrowseEcho(next).private(next.channel);
-                channel.listen('.co-browse.session-updated', (event: { session_id: string; status: string; end_reason: string | null }) => {
-                    const current = sessionRef.current;
-                    if (!current || current.id !== event.session_id) {
-                        return;
-                    }
+                try {
+                    const channel = coBrowseEcho(next).private(next.channel);
+                    channel.listen(
+                        '.co-browse.session-updated',
+                        (event: {
+                            session_id: string;
+                            status: string;
+                            end_reason: string | null;
+                        }) => {
+                            const current = sessionRef.current;
 
-                    setCurrentSession(event.status === 'ended'
-                        ? null
-                        : { ...current, status: event.status, end_reason: event.end_reason });
-                });
-            } catch {
-                // Status polling remains available when realtime delivery is unavailable.
-            }
-        }).catch((caught: unknown) => {
-            if (mounted) {
-                setError(messageFor(caught));
-            }
-        });
+                            if (!current || current.id !== event.session_id) {
+                                return;
+                            }
+
+                            setCurrentSession(
+                                event.status === 'ended'
+                                    ? null
+                                    : {
+                                          ...current,
+                                          status: event.status,
+                                          end_reason: event.end_reason,
+                                      },
+                            );
+                        },
+                    );
+                } catch {
+                    // Status polling remains available when realtime delivery is unavailable.
+                }
+            })
+            .catch((caught: unknown) => {
+                if (mounted) {
+                    setError(messageFor(caught));
+                }
+            });
 
         return () => {
             mounted = false;
+
             if (connectionHeartbeat !== null) {
                 window.clearInterval(connectionHeartbeat);
             }
 
             const current = sessionRef.current;
             const currentCredentials = credentialsRef.current;
+
             if (current && currentCredentials) {
                 void coBrowsePost(
-                    replaceCoBrowsePath(config.end_url, '__session__', current.id),
-                    { ...coBrowseParticipant(currentCredentials), reason: 'completed_advisor_ended' },
+                    replaceCoBrowsePath(
+                        config.end_url,
+                        '__session__',
+                        current.id,
+                    ),
+                    {
+                        ...coBrowseParticipant(currentCredentials),
+                        reason: 'completed_advisor_ended',
+                    },
                 ).catch(() => undefined);
             }
+
             credentialsRef.current = null;
             setCurrentSession(null);
             setCredentials(null);
@@ -132,31 +171,43 @@ export function AdvisorCoBrowseControls({ config, participantId, screenShareLive
         let mounted = true;
         const poll = (): void => {
             void coBrowsePost<Session>(
-                replaceCoBrowsePath(config.status_url, '__session__', session.id),
+                replaceCoBrowsePath(
+                    config.status_url,
+                    '__session__',
+                    session.id,
+                ),
                 coBrowseParticipant(credentials),
-            ).then((next) => {
-                if (!mounted) {
-                    return;
-                }
+            )
+                .then((next) => {
+                    if (!mounted) {
+                        return;
+                    }
 
-                setCurrentSession(next.status === 'ended' ? null : next);
-            }).catch(() => undefined);
+                    setCurrentSession(next.status === 'ended' ? null : next);
+                })
+                .catch(() => undefined);
         };
 
         poll();
         const statusInterval = window.setInterval(poll, 2_000);
-        const heartbeatInterval = session.status === 'active'
-            ? window.setInterval(() => {
-                void coBrowsePost(
-                    replaceCoBrowsePath(config.heartbeat_url, '__session__', session.id),
-                    coBrowseParticipant(credentials),
-                ).catch(() => undefined);
-            }, config.heartbeat_seconds * 1000)
-            : null;
+        const heartbeatInterval =
+            session.status === 'active'
+                ? window.setInterval(() => {
+                      void coBrowsePost(
+                          replaceCoBrowsePath(
+                              config.heartbeat_url,
+                              '__session__',
+                              session.id,
+                          ),
+                          coBrowseParticipant(credentials),
+                      ).catch(() => undefined);
+                  }, config.heartbeat_seconds * 1000)
+                : null;
 
         return () => {
             mounted = false;
             window.clearInterval(statusInterval);
+
             if (heartbeatInterval !== null) {
                 window.clearInterval(heartbeatInterval);
             }
@@ -184,12 +235,16 @@ export function AdvisorCoBrowseControls({ config, participantId, screenShareLive
     async function end(): Promise<void> {
         if (!config || !credentials || !session) {
             setCurrentSession(null);
+
             return;
         }
 
         await coBrowsePost(
             replaceCoBrowsePath(config.end_url, '__session__', session.id),
-            { ...coBrowseParticipant(credentials), reason: 'completed_advisor_ended' },
+            {
+                ...coBrowseParticipant(credentials),
+                reason: 'completed_advisor_ended',
+            },
         ).catch(() => undefined);
         setCurrentSession(null);
     }
@@ -198,15 +253,25 @@ export function AdvisorCoBrowseControls({ config, participantId, screenShareLive
         type: 'pointer' | 'clear_pointer' | 'highlight' | 'clear_highlight',
         payload: Record<string, unknown> = {},
     ): Promise<void> {
-        if (!config || !credentials || !session || session.status !== 'active') {
+        if (
+            !config ||
+            !credentials ||
+            !session ||
+            session.status !== 'active'
+        ) {
             return;
         }
 
         try {
             await coBrowsePost(
-                replaceCoBrowsePath(config.action_url, '__session__', session.id),
+                replaceCoBrowsePath(
+                    config.action_url,
+                    '__session__',
+                    session.id,
+                ),
                 { ...coBrowseParticipant(credentials), type, payload },
             );
+
             if (error !== null) {
                 setError(null);
             }
@@ -223,12 +288,16 @@ export function AdvisorCoBrowseControls({ config, participantId, screenShareLive
         }
 
         const video = videoRef.current;
+
         if (!video || video.videoWidth <= 0 || video.videoHeight <= 0) {
             return;
         }
 
         const bounds = video.getBoundingClientRect();
-        const scale = Math.min(bounds.width / video.videoWidth, bounds.height / video.videoHeight);
+        const scale = Math.min(
+            bounds.width / video.videoWidth,
+            bounds.height / video.videoHeight,
+        );
         const contentWidth = video.videoWidth * scale;
         const contentHeight = video.videoHeight * scale;
         const contentLeft = bounds.left + (bounds.width - contentWidth) / 2;
@@ -248,39 +317,63 @@ export function AdvisorCoBrowseControls({ config, participantId, screenShareLive
         return null;
     }
 
-    const clientName = config.participants.find((participant) => participant.id === participantId)?.name ?? 'the client';
+    const clientName =
+        config.participants.find(
+            (participant) => participant.id === participantId,
+        )?.name ?? 'the client';
     const targets = Object.entries(session?.targets ?? {});
-    const pointerOverlay = session?.status === 'active' && videoRef.current?.parentElement
-        ? createPortal(
-            <div
-                className="absolute inset-0 z-10 cursor-crosshair touch-none"
-                aria-label="Guided assistance pointer overlay"
-                onPointerMove={point}
-                onPointerLeave={() => void send('clear_pointer')}
-            />,
-            videoRef.current.parentElement,
-        )
-        : null;
+    const pointerOverlay =
+        session?.status === 'active' && videoContainer
+            ? createPortal(
+                  <div
+                      className="absolute inset-0 z-10 cursor-crosshair touch-none"
+                      aria-label="Guided assistance pointer overlay"
+                      onPointerMove={point}
+                      onPointerLeave={() => void send('clear_pointer')}
+                  />,
+                  videoContainer,
+              )
+            : null;
 
     return (
         <>
             {pointerOverlay}
-            <section className="mt-3 shrink-0 border-t pt-3" aria-label="Guided assistance">
-                {error ? <p className="mb-2 text-sm text-destructive">{error}</p> : null}
+            <section
+                className="mt-3 shrink-0 border-t pt-3"
+                aria-label="Guided assistance"
+            >
+                {error ? (
+                    <p className="mb-2 text-sm text-destructive">{error}</p>
+                ) : null}
                 {!session ? (
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <p className="text-sm text-muted-foreground">
-                            Request separate approval to point and highlight within Future Shift Advisory. No mouse or keyboard control is available.
+                            Request separate approval to point and highlight
+                            within Future Shift Advisory. No mouse or keyboard
+                            control is available.
                         </p>
-                        <Button type="button" size="sm" disabled={!credentials || !participantId} onClick={() => void request()}>
+                        <Button
+                            type="button"
+                            size="sm"
+                            disabled={!credentials || !participantId}
+                            onClick={() => void request()}
+                        >
                             <Hand className="size-4" />
                             Request guidance approval
                         </Button>
                     </div>
                 ) : session.status === 'requested' ? (
                     <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                        <span>Waiting for {clientName} to approve guided assistance.</span>
-                        <Button type="button" variant="destructive" size="sm" onClick={() => void end()}>
+                        <span>
+                            Waiting for {clientName} to approve guided
+                            assistance.
+                        </span>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => void end()}
+                        >
                             <X className="size-4" />
                             Cancel guidance
                         </Button>
@@ -288,13 +381,26 @@ export function AdvisorCoBrowseControls({ config, participantId, screenShareLive
                 ) : (
                     <div className="grid gap-3">
                         <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                            <span className="font-medium">Guided assistance is active. Move over the shared screen to point.</span>
+                            <span className="font-medium">
+                                Guided assistance is active. Move over the
+                                shared screen to point.
+                            </span>
                             <div className="flex flex-wrap gap-2">
-                                <Button type="button" size="sm" variant="outline" onClick={() => void send('clear_pointer')}>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => void send('clear_pointer')}
+                                >
                                     <MousePointer2 className="size-4" />
                                     Clear pointer
                                 </Button>
-                                <Button type="button" size="sm" variant="destructive" onClick={() => void end()}>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => void end()}
+                                >
                                     <PhoneOff className="size-4" />
                                     End guidance
                                 </Button>
@@ -303,12 +409,25 @@ export function AdvisorCoBrowseControls({ config, participantId, screenShareLive
                         {targets.length > 0 ? (
                             <div className="flex flex-wrap gap-2">
                                 {targets.map(([target, label]) => (
-                                    <Button key={target} type="button" size="sm" variant="outline" onClick={() => void send('highlight', { target })}>
+                                    <Button
+                                        key={target}
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                            void send('highlight', { target })
+                                        }
+                                    >
                                         <Highlighter className="size-4" />
                                         Highlight {label}
                                     </Button>
                                 ))}
-                                <Button type="button" size="sm" variant="outline" onClick={() => void send('clear_highlight')}>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => void send('clear_highlight')}
+                                >
                                     Clear highlight
                                 </Button>
                             </div>
@@ -321,5 +440,7 @@ export function AdvisorCoBrowseControls({ config, participantId, screenShareLive
 }
 
 function messageFor(caught: unknown): string {
-    return caught instanceof Error ? caught.message : 'Guided assistance could not be started. Please try again.';
+    return caught instanceof Error
+        ? caught.message
+        : 'Guided assistance could not be started. Please try again.';
 }

@@ -10,6 +10,7 @@ use App\Models\Milestone;
 use App\Models\MilestoneAction;
 use App\Models\StrategicPlanMilestone;
 use DateTimeInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -215,10 +216,10 @@ final class ClientAvailabilityCalendar
     /**
      * @template TModel of \Illuminate\Database\Eloquent\Model
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<TModel>  $query
-     * @return \Illuminate\Database\Eloquent\Builder<TModel>
+     * @param  Builder<TModel>  $query
+     * @return Builder<TModel>
      */
-    private function conflictingQuery(\Illuminate\Database\Eloquent\Builder $query, ?ClientLeavePeriod $leave): \Illuminate\Database\Eloquent\Builder
+    private function conflictingQuery(Builder $query, ?ClientLeavePeriod $leave): Builder
     {
         if ($leave instanceof ClientLeavePeriod) {
             return $query

@@ -83,7 +83,10 @@ export default function IntegrationScopeShow({ scope, urls }: Props) {
     const quoteRange = computed.quote_range;
     const quoteScopeDescription =
         typeof quoteRange === 'object' && quoteRange !== null
-            ? String((quoteRange as Record<string, unknown>).scope_description ?? '')
+            ? String(
+                  (quoteRange as Record<string, unknown>).scope_description ??
+                      '',
+              )
             : '';
     const hosting = objectValue(computed.hosting);
     const hostingMonthlyFee = numericValue(hosting?.monthly_fee);
@@ -99,7 +102,9 @@ export default function IntegrationScopeShow({ scope, urls }: Props) {
     const latestCalculation = scope.fee_calculations[0] ?? null;
 
     function preparePlan() {
-        if (planFiles.length === 0) return;
+        if (planFiles.length === 0) {
+            return;
+        }
 
         const form = new FormData();
         form.append('description', description);
@@ -112,7 +117,10 @@ export default function IntegrationScopeShow({ scope, urls }: Props) {
             onSuccess: () => {
                 setDescription('');
                 setPlanFiles([]);
-                if (fileInput.current) fileInput.current.value = '';
+
+                if (fileInput.current) {
+                    fileInput.current.value = '';
+                }
             },
         });
     }
@@ -120,6 +128,7 @@ export default function IntegrationScopeShow({ scope, urls }: Props) {
     function toggleRow(extractionId: string, rowId: string) {
         setSelectedRows((current) => {
             const selected = current[extractionId] ?? [];
+
             return {
                 ...current,
                 [extractionId]: selected.includes(rowId)
@@ -217,9 +226,9 @@ export default function IntegrationScopeShow({ scope, urls }: Props) {
                                 External implementation plan
                             </h2>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                Add the client&apos;s existing app or integration
-                                plan before confirming the scope used for this
-                                quote.
+                                Add the client&apos;s existing app or
+                                integration plan before confirming the scope
+                                used for this quote.
                             </p>
                         </div>
                         <Badge variant="outline">
@@ -239,7 +248,7 @@ export default function IntegrationScopeShow({ scope, urls }: Props) {
                                     setDescription(event.target.value)
                                 }
                                 placeholder="Add any scope notes that need to be read with the uploaded plan."
-                                className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                                className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
                             />
                             <input
                                 ref={fileInput}
@@ -272,10 +281,7 @@ export default function IntegrationScopeShow({ scope, urls }: Props) {
                                 variant="outline"
                                 onClick={() => fileInput.current?.click()}
                             >
-                                <FileUp
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
+                                <FileUp className="size-4" aria-hidden="true" />
                                 Select plan
                             </Button>
                             <Button
@@ -311,7 +317,8 @@ export default function IntegrationScopeShow({ scope, urls }: Props) {
                                 const pendingRows = extraction.rows.filter(
                                     (row) => row.review_status === 'pending',
                                 );
-                                const selected = selectedRows[extraction.id] ?? [];
+                                const selected =
+                                    selectedRows[extraction.id] ?? [];
 
                                 return (
                                     <article
@@ -322,7 +329,8 @@ export default function IntegrationScopeShow({ scope, urls }: Props) {
                                             <div className="min-w-0">
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <h3 className="text-sm font-medium">
-                                                        Implementation-plan review
+                                                        Implementation-plan
+                                                        review
                                                     </h3>
                                                     <StatusBadge
                                                         status={
@@ -345,7 +353,9 @@ export default function IntegrationScopeShow({ scope, urls }: Props) {
                                                                     rel="noreferrer"
                                                                     className="underline underline-offset-2"
                                                                 >
-                                                                    {document.filename}{' '}
+                                                                    {
+                                                                        document.filename
+                                                                    }{' '}
                                                                     /{' '}
                                                                     {document.verification_outcome ??
                                                                         'verification pending'}
@@ -364,8 +374,7 @@ export default function IntegrationScopeShow({ scope, urls }: Props) {
                                                             extraction.retry_url,
                                                             {},
                                                             {
-                                                                preserveScroll:
-                                                                    true,
+                                                                preserveScroll: true,
                                                             },
                                                         )
                                                     }
@@ -385,7 +394,9 @@ export default function IntegrationScopeShow({ scope, urls }: Props) {
                                                     className="mt-0.5 size-4 shrink-0"
                                                     aria-hidden="true"
                                                 />
-                                                <p>{extraction.blocked_reason}</p>
+                                                <p>
+                                                    {extraction.blocked_reason}
+                                                </p>
                                             </div>
                                         ) : null}
 
@@ -422,7 +433,9 @@ export default function IntegrationScopeShow({ scope, urls }: Props) {
                                                         <span className="min-w-0 flex-1">
                                                             <span className="flex flex-wrap items-center gap-2">
                                                                 <span className="text-sm font-medium">
-                                                                    {rowLabel(row)}
+                                                                    {rowLabel(
+                                                                        row,
+                                                                    )}
                                                                 </span>
                                                                 <Badge variant="outline">
                                                                     {row.type}
@@ -437,7 +450,9 @@ export default function IntegrationScopeShow({ scope, urls }: Props) {
                                                                 {row.claim}
                                                             </span>
                                                             <span className="mt-1 block text-xs text-muted-foreground">
-                                                                {row.source_reference}
+                                                                {
+                                                                    row.source_reference
+                                                                }
                                                             </span>
                                                         </span>
                                                     </label>
@@ -451,14 +466,18 @@ export default function IntegrationScopeShow({ scope, urls }: Props) {
                                                     type="button"
                                                     size="sm"
                                                     variant="outline"
-                                                    disabled={selected.length === 0}
+                                                    disabled={
+                                                        selected.length === 0
+                                                    }
                                                     onClick={() =>
                                                         router.post(
                                                             extraction.reject_url,
-                                                            { row_ids: selected },
                                                             {
-                                                                preserveScroll:
-                                                                    true,
+                                                                row_ids:
+                                                                    selected,
+                                                            },
+                                                            {
+                                                                preserveScroll: true,
                                                             },
                                                         )
                                                     }
@@ -468,14 +487,18 @@ export default function IntegrationScopeShow({ scope, urls }: Props) {
                                                 <Button
                                                     type="button"
                                                     size="sm"
-                                                    disabled={selected.length === 0}
+                                                    disabled={
+                                                        selected.length === 0
+                                                    }
                                                     onClick={() =>
                                                         router.post(
                                                             extraction.confirm_url,
-                                                            { row_ids: selected },
                                                             {
-                                                                preserveScroll:
-                                                                    true,
+                                                                row_ids:
+                                                                    selected,
+                                                            },
+                                                            {
+                                                                preserveScroll: true,
                                                             },
                                                         )
                                                     }
@@ -769,8 +792,13 @@ function ReviewBadge({ status }: { status: QuoteSourceRow['review_status'] }) {
 }
 
 function rowLabel(row: QuoteSourceRow): string {
-    if (row.type === 'system') return String(row.name ?? 'System');
-    if (row.type === 'task') return String(row.description ?? 'Duplicate-entry task');
+    if (row.type === 'system') {
+        return String(row.name ?? 'System');
+    }
+
+    if (row.type === 'task') {
+        return String(row.description ?? 'Duplicate-entry task');
+    }
 
     return `${String(row.from_system ?? 'System')} to ${String(row.to_system ?? 'system')}`;
 }
@@ -879,8 +907,12 @@ function money(value: unknown): string {
         : '-';
 }
 function range(value: unknown): string {
-    if (!value || typeof value !== 'object') return '-';
+    if (!value || typeof value !== 'object') {
+        return '-';
+    }
+
     const range = value as { low?: number; high?: number };
+
     return typeof range.low === 'number' && typeof range.high === 'number'
         ? `${money(range.low)} - ${money(range.high)}`
         : '-';

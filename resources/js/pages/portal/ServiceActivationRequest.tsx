@@ -1,16 +1,8 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import type { InertiaFormProps } from '@inertiajs/react';
-import {
-    ArrowLeft,
-    BriefcaseBusiness,
-    Lightbulb,
-    Send,
-} from 'lucide-react';
+import { ArrowLeft, BriefcaseBusiness, Lightbulb, Send } from 'lucide-react';
 import type { FormEvent } from 'react';
-import {
-    ExplainedSectionHeader,
-    Explainer,
-} from '@/components/explainer';
+import { ExplainedSectionHeader, Explainer } from '@/components/explainer';
 import type { Explanation } from '@/components/explainer';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -198,10 +190,7 @@ export default function ServiceActivationRequest({
                                 id="service_timing"
                                 value={form.data.timing}
                                 onChange={(event) =>
-                                    form.setData(
-                                        'timing',
-                                        event.target.value,
-                                    )
+                                    form.setData('timing', event.target.value)
                                 }
                                 placeholder="Now, next month, after funding, still exploring"
                             />
@@ -223,7 +212,7 @@ export default function ServiceActivationRequest({
                                 }
                                 rows={5}
                                 className={cn(
-                                    'min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
+                                    'min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
                                     'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
                                 )}
                             />
@@ -407,7 +396,7 @@ function EntrepreneurFields({
                     }
                     rows={4}
                     className={cn(
-                        'min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
+                        'min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
                         'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
                     )}
                 />
@@ -539,8 +528,8 @@ function PricingTransparencyPanel({
                         <p className="rounded-md border border-emerald-200 bg-background p-2 text-sm">
                             Fees are currently inactive for this service. The
                             nominal package fee is{' '}
-                            {packageToShow.free_access_mode.nominal_fixed_fee !==
-                                null &&
+                            {packageToShow.free_access_mode
+                                .nominal_fixed_fee !== null &&
                             packageToShow.free_access_mode.nominal_fixed_fee !==
                                 undefined
                                 ? formatMoney(
@@ -622,10 +611,7 @@ function PricingFact({ label, value }: { label: string; value: string }) {
     );
 }
 
-function selectPricingPackage(
-    askingPrice: string,
-    packages: ServicePackage[],
-) {
+function selectPricingPackage(askingPrice: string, packages: ServicePackage[]) {
     const price = parseMoneyInput(askingPrice);
 
     if (price === null) {

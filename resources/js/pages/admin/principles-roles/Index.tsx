@@ -90,9 +90,7 @@ export default function PrinciplesRolesIndex({
                         className="space-y-4 rounded-md border bg-background p-4"
                     >
                         <div className="grid gap-2">
-                            <Label htmlFor="principles_text">
-                                Principles
-                            </Label>
+                            <Label htmlFor="principles_text">Principles</Label>
                             <textarea
                                 id="principles_text"
                                 value={form.data.principles_text}
@@ -105,9 +103,7 @@ export default function PrinciplesRolesIndex({
                                 rows={14}
                                 className={textareaClassName}
                             />
-                            <InputError
-                                message={form.errors.principles_text}
-                            />
+                            <InputError message={form.errors.principles_text} />
                         </div>
 
                         <div className="grid gap-2">
@@ -266,6 +262,6 @@ function formatDate(value: string | null): string {
 }
 
 const textareaClassName = cn(
-    'min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
+    'min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
     'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
 );

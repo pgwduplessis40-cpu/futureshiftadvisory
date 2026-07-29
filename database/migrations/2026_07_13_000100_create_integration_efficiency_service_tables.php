@@ -144,7 +144,7 @@ return new class extends Migration
         });
 
         if (DB::connection()->getDriverName() === 'pgsql') {
-            DB::statement("CREATE UNIQUE INDEX payments_legacy_schedule_attempt_unique ON payments (payment_schedule_id, attempt) WHERE payment_installment_id IS NULL");
+            DB::statement('CREATE UNIQUE INDEX payments_legacy_schedule_attempt_unique ON payments (payment_schedule_id, attempt) WHERE payment_installment_id IS NULL');
             DB::statement("CREATE UNIQUE INDEX payments_installment_active_or_succeeded_unique ON payments (payment_installment_id) WHERE payment_installment_id IS NOT NULL AND status IN ('pending', 'retrying', 'succeeded')");
             DB::statement("CREATE UNIQUE INDEX service_activations_open_type_unique ON service_activations (client_id, service_type) WHERE status NOT IN ('cancelled', 'closed', 'rejected')");
             $this->installTenantLinkGuards();

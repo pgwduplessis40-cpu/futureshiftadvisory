@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Payments;
 
 use App\Models\ClientTeamMember;
-use App\Models\PaymentAuthority;
 use App\Models\Payment;
+use App\Models\PaymentAuthority;
 use App\Models\User;
 use App\Notifications\PaymentGatewayFailureNotification;
 use App\Services\Audit\AuditWriter;

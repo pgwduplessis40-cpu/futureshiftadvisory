@@ -1,7 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Minus } from 'lucide-react';
-import { useId   } from 'react';
-import type {ComponentType, ReactNode} from 'react';
+import { useId } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 type Trend = 'up' | 'down' | 'flat';

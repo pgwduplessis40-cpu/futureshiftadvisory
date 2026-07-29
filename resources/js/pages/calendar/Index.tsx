@@ -731,7 +731,10 @@ function MonthCalendar({
 function ActivityRow({ event }: { event: ActivityEvent }) {
     return (
         <article
-            className={cn('rounded-md border bg-background p-4', eventClasses(event))}
+            className={cn(
+                'rounded-md border bg-background p-4',
+                eventClasses(event),
+            )}
         >
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 space-y-2">

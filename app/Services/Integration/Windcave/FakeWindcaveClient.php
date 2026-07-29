@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Services\Integration\Windcave;
 
 use App\Services\Integration\Windcave\Contracts\WindcaveClient;
+use App\Services\Payments\DefinitivePaymentDecline;
 use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentAuthorityToken;
+use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
-use App\Services\Payments\PaymentChargeLookup;
-use App\Services\Payments\DefinitivePaymentDecline;
 use App\Services\Payments\PaymentGatewayException;
 use Illuminate\Support\Arr;
 
@@ -18,6 +18,7 @@ final class FakeWindcaveClient implements WindcaveClient
 {
     /** @var array<string, PaymentChargeResult> */
     private array $charges = [];
+
     public function captureAuthority(PaymentAuthorityRequest $request): PaymentAuthorityToken
     {
         if ($this->shouldFail($request)) {

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\Http\Controllers\AdvisorApi\ClientController as AdvisorApiClientController;
 use App\Http\Controllers\AdvisorApi\WriteController as AdvisorApiWriteController;
-use App\Http\Controllers\DeploymentController;
 use App\Http\Controllers\DdGuestUploadController;
+use App\Http\Controllers\DeploymentController;
 use App\Http\Controllers\MobileApi\ClientController as MobileApiClientController;
 use App\Http\Controllers\MobileApi\MeController as MobileApiMeController;
 use App\Http\Controllers\MobileApi\VoiceSessionController as MobileApiVoiceSessionController;

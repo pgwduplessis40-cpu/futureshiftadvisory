@@ -23,7 +23,6 @@ import type { ComponentType, MouseEvent, ReactNode } from 'react';
 import { ClientCoBrowse } from '@/components/co-browse/ClientCoBrowse';
 import type { ClientCoBrowseConfig } from '@/components/co-browse/ClientCoBrowse';
 import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
-import { ClientSupport } from '@/components/screen-share/ClientSupport';
 import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
@@ -33,6 +32,7 @@ import { InspirationCard } from '@/components/inspiration/InspirationCard';
 import type { InspirationPost } from '@/components/inspiration/InspirationCard';
 import { NpoHealthPanel } from '@/components/npo/NpoHealthPanel';
 import type { NpoHealthPayload } from '@/components/npo/NpoHealthPanel';
+import { ClientSupport } from '@/components/screen-share/ClientSupport';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -820,7 +820,10 @@ export default function PortalDashboard({
             <ClientSupport config={screenShare} />
             <ClientCoBrowse config={coBrowse} />
 
-            <main className="flex-1 space-y-6" data-co-browse-target="client.dashboard.workspace">
+            <main
+                className="flex-1 space-y-6"
+                data-co-browse-target="client.dashboard.workspace"
+            >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">
@@ -905,7 +908,10 @@ export default function PortalDashboard({
                                         icon={FileText}
                                         label="Advisory journey"
                                         value={`${standardAdvisory.momentum.percent}% complete`}
-                                        explanation={standardAdvisory.momentum.next_action}
+                                        explanation={
+                                            standardAdvisory.momentum
+                                                .next_action
+                                        }
                                         href={standardAdvisoryActionUrl}
                                         actionLabel={
                                             standardAdvisoryActionLabel

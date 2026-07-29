@@ -763,9 +763,7 @@ function WeekCalendar({
                                 </div>
                                 <Badge
                                     variant={
-                                        itemCount > 0
-                                            ? 'secondary'
-                                            : 'outline'
+                                        itemCount > 0 ? 'secondary' : 'outline'
                                     }
                                 >
                                     {itemCount}

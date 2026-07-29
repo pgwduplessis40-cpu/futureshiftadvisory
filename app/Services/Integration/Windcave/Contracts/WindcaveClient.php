@@ -6,9 +6,9 @@ namespace App\Services\Integration\Windcave\Contracts;
 
 use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentAuthorityToken;
+use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
-use App\Services\Payments\PaymentChargeLookup;
 
 interface WindcaveClient
 {

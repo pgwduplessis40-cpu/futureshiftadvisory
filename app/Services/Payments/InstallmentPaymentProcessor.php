@@ -143,6 +143,7 @@ final class InstallmentPaymentProcessor
     public function escalateExpiredConfirmations(?CarbonInterface $now = null, int $limit = 50): int
     {
         $now ??= now();
+
         return PaymentInstallment::query()
             ->where('status', PaymentInstallment::STATUS_AWAITING_GATEWAY_CONFIRMATION)
             ->where('confirmation_deadline', '<=', $now)

@@ -168,7 +168,8 @@ export default function ProposalSignoff({ proposal, signoff }: Props) {
                             <span aria-hidden="true">/</span>
                             <span>
                                 {proposal.fee_label}:{' '}
-                                {formatCurrency(proposal.suggested_mid ?? 0)} ex GST
+                                {formatCurrency(proposal.suggested_mid ?? 0)} ex
+                                GST
                             </span>
                             {proposal.hosting_monthly_fee > 0 ? (
                                 <span>

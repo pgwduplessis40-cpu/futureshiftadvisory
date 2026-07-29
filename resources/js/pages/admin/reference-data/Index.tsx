@@ -2,10 +2,7 @@ import { Head, useForm } from '@inertiajs/react';
 import { Clock3, DatabaseZap, Send, Upload } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import {
-    ExplainedSectionHeader,
-    Explainer,
-} from '@/components/explainer';
+import { ExplainedSectionHeader, Explainer } from '@/components/explainer';
 import type { Explanation } from '@/components/explainer';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';

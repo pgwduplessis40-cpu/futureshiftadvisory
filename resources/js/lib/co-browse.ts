@@ -64,6 +64,7 @@ export async function registerCoBrowseConnection(
             })
             .catch((caught: unknown) => {
                 connectionRegistrations.delete(cacheKey);
+
                 throw caught;
             });
         connectionRegistrations.set(cacheKey, registration);
@@ -126,6 +127,7 @@ export async function coBrowsePost<T>(
             payload.message.trim() !== ''
                 ? payload.message
                 : 'Guided assistance request failed.';
+
         throw new Error(message + ' (HTTP ' + response.status + ')');
     }
 

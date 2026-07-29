@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 final class PvWaterfallBuilder implements ProvidesMethodology
 {
     private const MAX_RECOMMENDATION_STEPS = 8;
+
     private const MODELLED_UPSIDE_RANGE_PERCENT = 0.15;
 
     public static function methodologyIds(): array
