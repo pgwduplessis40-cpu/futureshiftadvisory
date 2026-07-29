@@ -75,4 +75,8 @@ jobs:
         run: npm run build
 
       - name: Tests
-        run: ./vendor/bin/phpunit
+        run: ./vendor/bin/phpunit --log-junit storage/logs/phpunit.xml
+
+      - name: Report PHPUnit failures
+        if: failure()
+        run: php scripts/report-phpunit-failures.php storage/logs/phpunit.xml
