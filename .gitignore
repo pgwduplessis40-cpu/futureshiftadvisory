@@ -26,6 +26,7 @@ Homestead.json
 /public/build
 /bootstrap/ssr
 /storage/pail
+/storage/app/deployment.json
 .env.backup
 .env.production
 .phpactor.json

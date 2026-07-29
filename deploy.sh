@@ -25,6 +25,8 @@ cd "$APP_DIR"
 SSR_SERVICE="${SSR_SERVICE:-inertia-ssr}"
 SITE_URL="${SITE_URL:-https://futureshiftadvisory.nz}"
 RUN_MIGRATIONS="${RUN_MIGRATIONS:-yes}"
+EXPECTED_COMMIT="${DEPLOY_EXPECTED_COMMIT:-}"
+EXPECTED_VERSION="${DEPLOY_EXPECTED_VERSION:-}"
 
 log() { printf '\n\033[1;36m==> %s\033[0m\n' "$1"; }
 
@@ -41,8 +43,80 @@ require_clean_checkout() {
         echo "ERROR: deployment checkout is dirty ${stage}."
         echo "Deploy from a clean Git checkout so every release is traceable and reproducible."
         git status --short
+
+        if git status --porcelain -- deploy.sh | grep -q '^.[MADRCU] deploy\.sh$'; then
+            echo "deploy.sh diff summary:"
+            git diff --summary -- deploy.sh || true
+            echo "deploy.sh diff ignoring line endings:"
+            git diff --ignore-space-at-eol -- deploy.sh || true
+            echo "deploy.sh diff size:"
+            git diff --numstat -- deploy.sh || true
+        fi
+
         exit 1
     fi
+}
+
+verify_expected_release() {
+    local deployed_commit deployed_version
+
+    deployed_commit="$(git rev-parse HEAD)"
+    deployed_version="$(tr -d '\r\n' < VERSION)"
+
+    if [ -n "$EXPECTED_COMMIT" ] && [ "$deployed_commit" != "$EXPECTED_COMMIT" ]; then
+        echo "ERROR: expected commit ${EXPECTED_COMMIT}, checked out ${deployed_commit}." >&2
+        exit 1
+    fi
+
+    if [ -n "$EXPECTED_VERSION" ] && [ "$deployed_version" != "$EXPECTED_VERSION" ]; then
+        echo "ERROR: expected version ${EXPECTED_VERSION}, checked out ${deployed_version}." >&2
+        exit 1
+    fi
+}
+
+record_deployment_identity() {
+    local version commit deployed_at client_manifest ssr_manifest metadata_path metadata_tmp
+
+    version="$(tr -d '\r\n' < VERSION)"
+    commit="$(git rev-parse HEAD)"
+    deployed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    client_manifest="public/build/manifest.json"
+    ssr_manifest="bootstrap/ssr/ssr-manifest.json"
+    metadata_path="$APP_DIR/storage/app/deployment.json"
+    metadata_tmp="${metadata_path}.tmp.$$"
+
+    [ -f "$client_manifest" ] || { echo "ERROR: client manifest is missing." >&2; exit 1; }
+    [ -f "$ssr_manifest" ] || { echo "ERROR: SSR manifest is missing." >&2; exit 1; }
+
+    mkdir -p "$(dirname "$metadata_path")"
+    printf '{\n  "version": "%s",\n  "commit": "%s",\n  "deployed_at": "%s",\n  "client_manifest_sha256": "%s",\n  "ssr_manifest_sha256": "%s"\n}\n' \
+        "$version" \
+        "$commit" \
+        "$deployed_at" \
+        "$(sha256sum "$client_manifest" | awk '{print $1}')" \
+        "$(sha256sum "$ssr_manifest" | awk '{print $1}')" \
+        > "$metadata_tmp"
+    mv "$metadata_tmp" "$metadata_path"
+}
+
+verify_live_deployment_identity() {
+    local commit version payload
+
+    commit="$(git rev-parse HEAD)"
+    version="$(tr -d '\r\n' < VERSION)"
+    payload="$(curl -fsS --max-time 20 "$SITE_URL/api/deployment")" || {
+        echo "ERROR: live deployment identity endpoint did not return successfully." >&2
+        exit 1
+    }
+
+    case "$payload" in
+        *"\"status\":\"verified\""*"\"version\":\"${version}\""*"\"commit\":\"${commit}\""*) ;;
+        *)
+            echo "ERROR: live deployment identity does not match the checked-out release." >&2
+            echo "$payload" >&2
+            exit 1
+            ;;
+    esac
 }
 
 log "Checking deployment checkout"
@@ -56,6 +130,7 @@ GIT_REMOTE="${GIT_REMOTE:-origin}"
 GIT_BRANCH="${GIT_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
 git fetch "$GIT_REMOTE" "$GIT_BRANCH"
 git merge --ff-only FETCH_HEAD
+verify_expected_release
 
 log "Installing PHP dependencies"
 composer install --no-dev --optimize-autoloader --no-interaction
@@ -117,6 +192,12 @@ for attempt in 1 2 3 4 5; do
 done
 
 if [ "$ssr_ok" = "yes" ]; then
+    log "Recording deployed release"
+    record_deployment_identity
+
+    log "Verifying deployed release"
+    verify_live_deployment_identity
+
     echo "OK - pages are server-rendered and visible to crawlers."
 else
     echo "WARNING: ${SITE_URL} is NOT server-rendered."

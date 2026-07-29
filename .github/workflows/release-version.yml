@@ -17,6 +17,10 @@ jobs:
     if: ${{ !contains(github.event.head_commit.message, '[skip release]') }}
     runs-on: ubuntu-latest
 
+    outputs:
+      commit: ${{ steps.release.outputs.commit }}
+      version: ${{ steps.version.outputs.version }}
+
     steps:
       - uses: actions/checkout@v6
         with:
@@ -39,6 +43,7 @@ jobs:
           echo "version=$next_version" >> "$GITHUB_OUTPUT"
 
       - name: Commit release version
+        id: release
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
@@ -47,3 +52,59 @@ jobs:
           git add VERSION
           git commit -m "chore(release): v${VERSION} [skip release]"
           git push origin HEAD:main
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  deploy-production:
+    needs: bump-patch-version
+    if: ${{ vars.PRODUCTION_DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 25
+
+    steps:
+      - name: Configure deployment SSH access
+        env:
+          DEPLOY_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          DEPLOY_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+          DEPLOY_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
+          DEPLOY_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+        run: |
+          for value in DEPLOY_HOST DEPLOY_PORT DEPLOY_PRIVATE_KEY DEPLOY_KNOWN_HOSTS DEPLOY_USER; do
+            if [ -z "${!value}" ]; then
+              echo "Missing production deployment secret: ${value}" >&2
+              exit 1
+            fi
+          done
+
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy the released commit
+        env:
+          DEPLOY_COMMIT: ${{ needs.bump-patch-version.outputs.commit }}
+          DEPLOY_PATH: ${{ secrets.PRODUCTION_APP_PATH }}
+          DEPLOY_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          DEPLOY_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+          DEPLOY_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          DEPLOY_VERSION: ${{ needs.bump-patch-version.outputs.version }}
+        run: |
+          test -n "$DEPLOY_PATH" || { echo "Missing production deployment secret: DEPLOY_PATH" >&2; exit 1; }
+          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "cd '$DEPLOY_PATH' && DEPLOY_EXPECTED_COMMIT='$DEPLOY_COMMIT' DEPLOY_EXPECTED_VERSION='$DEPLOY_VERSION' ./deploy.sh"
+
+      - name: Verify the live release identity
+        env:
+          DEPLOY_COMMIT: ${{ needs.bump-patch-version.outputs.commit }}
+          DEPLOY_URL: ${{ secrets.PRODUCTION_URL }}
+          DEPLOY_VERSION: ${{ needs.bump-patch-version.outputs.version }}
+        run: |
+          test -n "$DEPLOY_URL" || { echo "Missing production deployment secret: PRODUCTION_URL" >&2; exit 1; }
+          payload="$(curl --fail --silent --show-error --retry 5 --retry-delay 3 "$DEPLOY_URL/api/deployment")"
+          echo "$payload" | jq -e \
+            --arg commit "$DEPLOY_COMMIT" \
+            --arg version "$DEPLOY_VERSION" \
+            '.status == "verified" and .commit == $commit and .version == $version and (.client_manifest_sha256 | length == 64) and (.ssr_manifest_sha256 | length == 64)'
