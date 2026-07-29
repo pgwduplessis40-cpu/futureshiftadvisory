@@ -12,6 +12,7 @@ import SettingsLayout from '@/layouts/settings/layout';
 import { registerPortalOffline } from '@/lib/portal-offline';
 import { ensurePwaInstallListeners } from '@/lib/pwa-install';
 import { registerTargetHighlighting } from '@/lib/target-highlight';
+import buildVersion from '../../VERSION?raw';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Future Shift Advisory';
 
@@ -56,6 +57,7 @@ void createInertiaApp({
 }).then(() => {
     if (typeof document !== 'undefined') {
         document.getElementById('app-launch-skeleton')?.remove();
+        document.documentElement.dataset.buildVersion = buildVersion.trim();
     }
 });
 

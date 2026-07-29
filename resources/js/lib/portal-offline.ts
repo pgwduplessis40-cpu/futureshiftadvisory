@@ -62,8 +62,9 @@ export function registerPortalOffline(): void {
 
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker
-            .register('/sw.js')
+            .register('/sw.js', { updateViaCache: 'none' })
             .then((registration) => {
+                void registration.update();
                 void registerBackgroundSync(registration);
             })
             .catch(() => null);

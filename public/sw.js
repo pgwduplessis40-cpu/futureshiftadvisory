@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fsa-portal-shell-v4';
+const CACHE_NAME = 'fsa-portal-shell-v5';
 const BUILD_MANIFEST_URL = '/build/manifest.json';
 const SHELL_URLS = [
     '/offline.html',
@@ -75,20 +75,16 @@ self.addEventListener('fetch', (event) => {
         url.pathname === '/apple-touch-icon.png'
     ) {
         event.respondWith(
-            caches.match(request).then((cached) => {
-                const network = fetch(request)
-                    .then((response) => {
-                        const copy = response.clone();
-                        caches
-                            .open(CACHE_NAME)
-                            .then((cache) => cache.put(request, copy));
+            fetch(request)
+                .then((response) => {
+                    const copy = response.clone();
+                    void caches
+                        .open(CACHE_NAME)
+                        .then((cache) => cache.put(request, copy));
 
-                        return response;
-                    })
-                    .catch(() => cached);
-
-                return cached || network;
-            }),
+                    return response;
+                })
+                .catch(() => caches.match(request).then((cached) => cached || Response.error())),
         );
     }
 });
