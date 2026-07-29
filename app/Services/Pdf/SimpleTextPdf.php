@@ -43,7 +43,13 @@ final class SimpleTextPdf
         }
 
         if ($current !== []) {
-            $pages[] = $current;
+            foreach ($current as $line) {
+                if ($line['text'] !== '') {
+                    $pages[] = $current;
+
+                    break;
+                }
+            }
         }
 
         return $this->pdf($pages === [] ? [[]] : $pages);
