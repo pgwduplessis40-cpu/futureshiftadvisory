@@ -699,8 +699,8 @@ export default function EntrepreneursShow({
                                             aria-hidden="true"
                                         />
                                         {serviceFeedbackSurveyPending
-                                            ? 'Sending service survey'
-                                            : 'Send service feedback survey'}
+                                            ? `Sending ${entrepreneur.service_feedback_survey.service_label ?? 'service'} survey`
+                                            : `Send ${entrepreneur.service_feedback_survey.service_label ?? 'service'} feedback survey`}
                                     </Button>
                                 ) : null}
                                 {latestAssessment ? (

@@ -36,6 +36,7 @@ use App\Services\Entrepreneurs\FounderChangeRequestMessage;
 use App\Services\Entrepreneurs\IdeaViabilityGate;
 use App\Services\ScreenShare\ScreenShareAuthorizer;
 use App\Services\Security\InviteIssuer;
+use App\Services\Surveys\SurveyActivationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -59,6 +60,7 @@ final class EntrepreneurController extends Controller
         private readonly FounderChangeRequestMessage $changeRequestMessages,
         private readonly IdeaViabilityGate $ideaViabilityGate,
         private readonly ScreenShareAuthorizer $screenShareAuthorizer,
+        private readonly SurveyActivationService $surveyActivations,
     ) {}
 
     public function index(Request $request): Response
@@ -508,7 +510,7 @@ final class EntrepreneurController extends Controller
     }
 
     /**
-     * @return array{action_url:string|null,unavailable_reason:string|null}|null
+     * @return array{action_url:string|null,service_label:string|null,unavailable_reason:string|null}|null
      */
     private function serviceFeedbackSurvey(User $viewer, EntrepreneurProfile $profile): ?array
     {
@@ -516,12 +518,19 @@ final class EntrepreneurController extends Controller
             return null;
         }
 
-        if (! in_array($profile->currentStage(), [EntrepreneurStage::ADVISORY_READY, EntrepreneurStage::LAUNCHED], true)) {
+        $serviceSnapshot = $this->surveyActivations->completedEntrepreneurServiceSnapshot($profile);
+
+        if ($serviceSnapshot === null) {
             return [
                 'action_url' => null,
-                'unavailable_reason' => 'Service feedback is available once the entrepreneur is advisory ready or launched.',
+                'service_label' => null,
+                'unavailable_reason' => 'Service feedback is available after an Idea Validation gate is approved or once the entrepreneur is advisory ready or launched.',
             ];
         }
+
+        $serviceLabel = is_string($serviceSnapshot['service_label'] ?? null)
+            ? $serviceSnapshot['service_label']
+            : 'Service';
 
         $hasOpenServiceSurvey = SurveyAssignment::query()
             ->where('entrepreneur_profile_id', $profile->getKey())
@@ -534,6 +543,7 @@ final class EntrepreneurController extends Controller
         if ($hasOpenServiceSurvey) {
             return [
                 'action_url' => null,
+                'service_label' => $serviceLabel,
                 'unavailable_reason' => 'A service feedback survey is already awaiting a response.',
             ];
         }
@@ -547,6 +557,7 @@ final class EntrepreneurController extends Controller
             'action_url' => $hasPublishedServiceSurvey
                 ? route('admin.service-surveys.entrepreneurs.store', $profile, absolute: false)
                 : null,
+            'service_label' => $serviceLabel,
             'unavailable_reason' => $hasPublishedServiceSurvey
                 ? null
                 : 'Publish a service improvement survey before sending it.',

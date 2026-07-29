@@ -95,6 +95,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
     };
     service_feedback_survey: {
         action_url: string | null;
+        service_label: string | null;
         unavailable_reason: string | null;
     } | null;
     idea_validation: {

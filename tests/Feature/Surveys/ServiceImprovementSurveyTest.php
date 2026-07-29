@@ -12,6 +12,7 @@ use App\Enums\SurveyStatus;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\EntrepreneurProfile;
+use App\Models\IdeaValidation;
 use App\Models\LearningUpdate;
 use App\Models\ServiceActivation;
 use App\Models\Survey;
@@ -165,6 +166,72 @@ final class ServiceImprovementSurveyTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('portal/entrepreneur/surveys/Show')
                 ->where('assignment.service.service_label', 'Entrepreneur advisory service'));
+    }
+
+    public function test_super_admin_can_issue_an_idea_validation_service_survey_after_builder_gate_approval(): void
+    {
+        $admin = $this->superAdmin('idea-validation-service-survey-admin@example.test');
+        $entrepreneurUser = User::factory()->withTwoFactor()->create([
+            'email' => 'idea-validation-service-survey@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneurUser->assignRole(User::TYPE_ENTREPRENEUR);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneurUser->getKey(),
+            'assigned_advisor_id' => $admin->getKey(),
+            'name' => 'Idea Validation Service Survey',
+            'email' => $entrepreneurUser->email,
+            'stage' => EntrepreneurStage::BUILDING_PHASE_1,
+            'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'intended_package_scope' => 'entrepreneur_combo',
+        ]);
+        $ideaValidation = IdeaValidation::query()->create([
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'evaluated_by_user_id' => $entrepreneurUser->getKey(),
+            'problem' => 'Local owners need a clear way to validate viable business ideas.',
+            'target_customer' => 'New founders testing service businesses in their communities.',
+            'solution' => 'A structured idea validation process with advisor feedback and evidence checks.',
+            'value_proposition' => 'Founders gain confidence and a clear next step before investing in a business plan.',
+            'demand_signal' => 'Interviews and paid pilots demonstrate demand for the planned service.',
+            'revenue_model' => 'Fixed-fee validation workshops followed by a paid business plan package.',
+            'ai_evaluation' => ['summary' => 'Approved for builder access.'],
+            'viability_alerts' => [],
+            'evaluated_at' => now()->subDay(),
+            'advisor_gate_passed_at' => now()->subHour(),
+            'advisor_gate_passed_by_user_id' => $admin->getKey(),
+            'advisor_gate_note' => 'The validation evidence is complete and the founder may begin planning.',
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/entrepreneurs/Show')
+                ->where(
+                    'entrepreneur.service_feedback_survey.action_url',
+                    route('admin.service-surveys.entrepreneurs.store', $profile, absolute: false),
+                )
+                ->where('entrepreneur.service_feedback_survey.service_label', 'Idea Validation'));
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.service-surveys.entrepreneurs.store', $profile))
+            ->assertRedirect();
+
+        $assignment = SurveyAssignment::query()->with('survey.questions')->sole();
+
+        $this->assertSame($profile->id, $assignment->entrepreneur_profile_id);
+        $this->assertSame('idea_validation', $assignment->service_snapshot['source']);
+        $this->assertSame($ideaValidation->id, $assignment->service_snapshot['idea_validation_id']);
+        $this->assertSame('Idea Validation', $assignment->service_snapshot['service_label']);
+        $this->assertSame($ideaValidation->advisor_gate_passed_at?->toIso8601String(), $assignment->service_snapshot['completed_at']);
+
+        $this->actingAsMfa($entrepreneurUser)
+            ->get(route('portal.entrepreneur.surveys.show', $assignment))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('portal/entrepreneur/surveys/Show')
+                ->where('assignment.service.service_label', 'Idea Validation'));
     }
 
     public function test_non_admin_cannot_issue_service_survey(): void

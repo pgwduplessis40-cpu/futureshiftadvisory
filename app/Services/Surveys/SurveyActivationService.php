@@ -12,6 +12,7 @@ use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\EntrepreneurProfile;
+use App\Models\IdeaValidation;
 use App\Models\PlanAssessment;
 use App\Models\Report;
 use App\Models\ServiceActivation;
@@ -61,9 +62,11 @@ final class SurveyActivationService
         $this->ensurePublished($survey);
         $this->ensureType($survey, SurveyType::ServiceImprovement);
 
-        if (! in_array($profile->currentStage()->value, ['advisory_ready', 'launched'], true)) {
+        $serviceSnapshot = $this->completedEntrepreneurServiceSnapshot($profile);
+
+        if ($serviceSnapshot === null) {
             throw ValidationException::withMessages([
-                'entrepreneur_profile' => 'A service survey can only be issued once this entrepreneur is advisory ready or launched.',
+                'entrepreneur_profile' => 'A service survey can be issued after an Idea Validation gate is approved or once this entrepreneur is advisory ready or launched.',
             ]);
         }
 
@@ -85,17 +88,47 @@ final class SurveyActivationService
             'client_id' => null,
             'entrepreneur_profile_id' => $profile->getKey(),
             'service_activation_id' => null,
-            'service_snapshot' => [
-                'source' => 'entrepreneur_profile',
-                'service_label' => 'Entrepreneur advisory service',
-                'package_label' => ServiceRatePackage::packageScopeLabel(
-                    ServiceRatePackage::normaliseEntrepreneurScope(
-                        (string) ($profile->intended_package_scope ?? ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO),
-                    ),
-                ),
-                'completed_at' => $profile->updated_at?->toIso8601String(),
-            ],
+            'service_snapshot' => $serviceSnapshot,
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function completedEntrepreneurServiceSnapshot(EntrepreneurProfile $profile): ?array
+    {
+        $packageLabel = ServiceRatePackage::packageScopeLabel(
+            ServiceRatePackage::normaliseEntrepreneurScope(
+                (string) ($profile->intended_package_scope ?? ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO),
+            ),
+        );
+
+        $ideaValidation = IdeaValidation::query()
+            ->where('entrepreneur_profile_id', $profile->getKey())
+            ->whereNotNull('advisor_gate_passed_at')
+            ->latest('advisor_gate_passed_at')
+            ->first();
+
+        if ($ideaValidation instanceof IdeaValidation) {
+            return [
+                'source' => 'idea_validation',
+                'idea_validation_id' => (string) $ideaValidation->getKey(),
+                'service_label' => 'Idea Validation',
+                'package_label' => $packageLabel,
+                'completed_at' => $ideaValidation->advisor_gate_passed_at?->toIso8601String(),
+            ];
+        }
+
+        if (! in_array($profile->currentStage()->value, ['advisory_ready', 'launched'], true)) {
+            return null;
+        }
+
+        return [
+            'source' => 'entrepreneur_profile',
+            'service_label' => 'Entrepreneur advisory service',
+            'package_label' => $packageLabel,
+            'completed_at' => $profile->updated_at?->toIso8601String(),
+        ];
     }
 
     public function activateForService(ServiceActivation $serviceActivation, Survey $survey, User $actor, ?CarbonInterface $dueAt = null): SurveyAssignment
