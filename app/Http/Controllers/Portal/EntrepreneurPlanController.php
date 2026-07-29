@@ -35,6 +35,7 @@ use App\Services\Entrepreneurs\PlanRequirements;
 use App\Services\Entrepreneurs\Readiness;
 use App\Services\Messaging\MessageThreadService;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Pdf\SimpleTextPdf;
 use App\Services\Plans\PlanBuilder as SharedPlanBuilder;
 use App\Services\Reports\BrandedReportLayout;
 use Illuminate\Http\JsonResponse;
@@ -47,6 +48,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Throwable;
 
 final class EntrepreneurPlanController extends Controller
 {
@@ -78,6 +80,7 @@ final class EntrepreneurPlanController extends Controller
         private readonly PlanDocuments $documents,
         private readonly MessageThreadService $messages,
         private readonly PdfRenderer $pdf,
+        private readonly SimpleTextPdf $fallbackPdf,
         private readonly BrandedReportLayout $layout,
         private readonly BudgetPackBuilder $budgetPack,
         private readonly AuditWriter $audit,
@@ -141,7 +144,14 @@ final class EntrepreneurPlanController extends Controller
             ? $this->planPayload($plan)['phases']
             : $this->templatePreviewPhases();
 
-        $pdf = $this->pdf->render($this->previewHtml($profile, $plan, $phases));
+        $html = $this->previewHtml($profile, $plan, $phases);
+
+        try {
+            $pdf = $this->pdf->render($html);
+        } catch (Throwable $exception) {
+            report($exception);
+            $pdf = $this->fallbackPreviewPdf($profile, $plan, $phases);
+        }
         $filename = Str::slug($profile->name ?: 'entrepreneur-business-plan').'-preview.pdf';
 
         return response($pdf, 200, [
@@ -1280,6 +1290,41 @@ final class EntrepreneurPlanController extends Controller
             '<div class="body">%s</div><p class="note">Evidence: %s.</p>',
             $this->markdownBodyHtml((string) ($section['body'] ?? '')),
             $this->escape($docs),
+        );
+    }
+
+    /**
+     * Return a readable PDF when the browser-based renderer is unavailable.
+     * The normal browser-rendered version remains the preferred document.
+     *
+     * @param  array<int, array<string, mixed>>  $phases
+     */
+    private function fallbackPreviewPdf(EntrepreneurProfile $profile, ?BusinessPlan $plan, array $phases): string
+    {
+        $paragraphs = [
+            'Browser-formatted PDF generation was temporarily unavailable. This fallback preserves the current plan content.',
+            'Plan status: '.$this->formatLabel($plan?->status ?? 'not started'),
+            'Stage: '.$this->formatLabel($profile->currentStageValue()),
+        ];
+
+        foreach ($phases as $phase) {
+            $paragraphs[] = (string) ($phase['title'] ?? 'Plan phase');
+
+            foreach ((array) ($phase['requirements'] ?? []) as $requirement) {
+                $section = collect((array) ($phase['sections'] ?? []))
+                    ->first(fn (array $candidate): bool => (string) ($candidate['requirement_key'] ?? '') === (string) ($requirement['key'] ?? ''));
+                $status = (bool) ($requirement['complete'] ?? false) ? 'Complete' : 'Pending';
+                $body = is_array($section)
+                    ? trim(strip_tags($this->markdownBodyHtml((string) ($section['body'] ?? ''))))
+                    : 'Pending input: '.(string) ($requirement['description'] ?? '');
+
+                $paragraphs[] = sprintf('%s (%s): %s', (string) ($requirement['title'] ?? 'Requirement'), $status, $body);
+            }
+        }
+
+        return $this->fallbackPdf->render(
+            'Business plan preview - '.($profile->name ?: 'Entrepreneur'),
+            $paragraphs,
         );
     }
 

@@ -21,6 +21,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use InvalidArgumentException;
+use RuntimeException;
 use Tests\Concerns\MakesIdeaReviewEligible;
 use Tests\TestCase;
 
@@ -187,6 +188,28 @@ final class PlanBuilderTest extends TestCase
         $this->assertStringContainsString('<em>supplier dependency</em>', $renderer->html);
         $this->assertStringContainsString('<li>Validate weekend demand</li>', $renderer->html);
         $this->assertStringNotContainsString('<script>', $renderer->html);
+    }
+
+    public function test_business_plan_preview_returns_a_fallback_pdf_when_the_browser_renderer_fails(): void
+    {
+        [$advisor, $profile] = $this->profile('fallback-preview-founder@example.test');
+        $this->openIdeaGate($profile, $advisor);
+        app(PlanBuilder::class)->start($profile, $advisor);
+
+        $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
+        {
+            public function render(string $html): string
+            {
+                throw new RuntimeException('Chromium is unavailable.');
+            }
+        });
+
+        $response = $this->actingAsMfa($profile->user()->firstOrFail())
+            ->get(route('portal.entrepreneur.plan.preview'))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+
+        $this->assertStringStartsWith('%PDF-1.4', $response->getContent());
     }
 
     public function test_entrepreneur_plan_tables_are_profile_scoped_by_rls(): void
