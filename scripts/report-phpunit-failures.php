@@ -13,7 +13,7 @@ if ($path === '' || ! is_file($path)) {
 $document = new DOMDocument;
 
 if (! @$document->load($path)) {
-    fwrite(STDOUT, "::warning title=PHPUnit report unreadable::The JUnit report could not be parsed.\n");
+    reportConsoleOutput($path);
 
     exit(0);
 }
@@ -49,4 +49,21 @@ function escape(string $value): string
 function truncate(string $value): string
 {
     return mb_strimwidth($value, 0, 1500, '...');
+}
+
+function reportConsoleOutput(string $junitPath): void
+{
+    $consolePath = dirname($junitPath).DIRECTORY_SEPARATOR.'phpunit-console.log';
+
+    if (! is_file($consolePath)) {
+        fwrite(STDOUT, "::warning title=PHPUnit report unreadable::The JUnit report could not be parsed and no console output was captured.\n");
+
+        return;
+    }
+
+    $output = (string) file_get_contents($consolePath);
+    $output = preg_replace('/\x1B\[[0-?]*[ -\/]*[@-~]/', '', $output) ?? $output;
+    $tail = trim(mb_strimwidth($output, max(0, mb_strlen($output) - 5000), 5000));
+
+    fwrite(STDOUT, '::error title=PHPUnit console output::'.escape(truncate($tail))."\n");
 }
