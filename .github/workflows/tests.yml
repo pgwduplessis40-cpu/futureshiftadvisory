@@ -58,14 +58,11 @@ jobs:
       - name: Install Node Dependencies
         run: npm i
 
-      - name: Copy Environment File
-        run: cp .env.example .env
+      - name: Copy Testing Environment File
+        run: cp .env.testing .env
 
       - name: Install Dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts
-
-      - name: Generate Application Key
-        run: php artisan key:generate
 
       - name: Discover Laravel packages
         run: php artisan package:discover --ansi
