@@ -8,14 +8,70 @@ on:
 
 permissions:
   contents: write
+  checks: read
 
 concurrency:
   group: release-version-main
   cancel-in-progress: false
 
 jobs:
+  wait-for-ci:
+    if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip release]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Require successful source checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          required_checks=("quality" "ci (8.3)" "ci (8.4)" "ci (8.5)")
+
+          for attempt in {1..60}; do
+            checks="$(curl --fail --silent --show-error \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "${GITHUB_API_URL}/repos/${REPOSITORY}/commits/${SOURCE_SHA}/check-runs?per_page=100")"
+            pending=no
+
+            for check_name in "${required_checks[@]}"; do
+              status="$(jq -r --arg name "$check_name" '
+                [.check_runs[] | select(.name == $name)]
+                | if length == 0 then "" else (sort_by(.started_at) | .[-1].status) end
+              ' <<< "$checks")"
+              conclusion="$(jq -r --arg name "$check_name" '
+                [.check_runs[] | select(.name == $name)]
+                | if length == 0 then "" else (sort_by(.started_at) | .[-1].conclusion) end
+              ' <<< "$checks")"
+
+              if [ "$status" != "completed" ]; then
+                echo "Waiting for ${check_name} (${status:-not started})."
+                pending=yes
+                continue
+              fi
+
+              if [ "$conclusion" != "success" ]; then
+                echo "ERROR: ${check_name} concluded ${conclusion:-without a result}." >&2
+                exit 1
+              fi
+            done
+
+            if [ "$pending" = "no" ]; then
+              echo "All required source checks passed for ${SOURCE_SHA}."
+              exit 0
+            fi
+
+            sleep 10
+          done
+
+          echo "ERROR: timed out waiting for required source checks." >&2
+          exit 1
+
   bump-patch-version:
-    if: ${{ !contains(github.event.head_commit.message, '[skip release]') }}
+    needs: wait-for-ci
+    if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip release]') }}
     runs-on: ubuntu-latest
 
     outputs:
