@@ -30,6 +30,7 @@ use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Entrepreneurs\Guidance;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBuilder;
+use App\Services\Entrepreneurs\PlanAiContext;
 use App\Services\Entrepreneurs\PlanDocuments;
 use App\Services\Entrepreneurs\PlanRequirements;
 use App\Services\Entrepreneurs\Readiness;
@@ -336,7 +337,7 @@ final class EntrepreneurPlanController extends Controller
             'phase_key' => ['required', 'string', Rule::in(array_keys(PlanRequirements::definitions()))],
             'requirement_key' => ['required', 'string', 'max:100'],
             'title' => ['nullable', 'string', 'max:180'],
-            'body' => ['required', 'string', 'min:80', 'max:8000'],
+            'body' => ['required', 'string', 'min:80', 'max:'.PlanAiContext::PLAN_SECTION_BODY_MAX_LENGTH],
             'attached_document_ids' => ['array'],
             'attached_document_ids.*' => ['string', 'uuid'],
         ]);
@@ -508,7 +509,7 @@ final class EntrepreneurPlanController extends Controller
         $validated = $request->validate([
             'phase_key' => ['required', 'string', Rule::in(array_keys(PlanRequirements::definitions()))],
             'requirement_key' => ['required', 'string', 'max:100'],
-            'body' => ['nullable', 'string', 'max:8000'],
+            'body' => ['nullable', 'string', 'max:'.PlanAiContext::PLAN_SECTION_BODY_MAX_LENGTH],
         ]);
         $phaseKey = (string) $validated['phase_key'];
         $requirement = [

@@ -34,6 +34,7 @@ final class IdeaValidationService implements ProvidesMethodology
         private readonly MessageThreadService $messages,
         private readonly IdeaViabilityGate $viabilityGate,
         private readonly FounderChangeRequestMessage $changeRequestMessages,
+        private readonly PlanAiContext $contexts,
     ) {}
 
     /**
@@ -292,13 +293,13 @@ final class IdeaValidationService implements ProvidesMethodology
         $evidenceLoop = $this->validationEvidenceLoop($payload);
         $prompt = new PromptEnvelope(
             id: EntrepreneurPromptRegistry::IDEA_VALIDATION,
-            version: '2026-05-23',
+            version: '2026-07-30',
             task: 'Evaluate entrepreneur concept viability against prior plan patterns without overstating certainty.',
             body: 'Assess problem, customer, solution, value proposition, demand, and revenue model. Return practical risks and cite past plan pattern context.',
             input: [
                 'profile_id' => $profile->getKey(),
                 'concept_summary' => $profile->concept_summary,
-                'idea' => $payload,
+                'idea' => $this->contexts->ideaValidationPromptInput($payload),
                 'past_plan_pattern' => $pastPattern,
                 'validation_evidence_loop' => $evidenceLoop,
             ],

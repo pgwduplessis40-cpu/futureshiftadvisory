@@ -15,13 +15,13 @@ use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 final class Guidance
 {
     public function __construct(
         private readonly AiClient $ai,
         private readonly AuditWriter $audit,
+        private readonly PlanAiContext $contexts,
     ) {}
 
     /**
@@ -45,7 +45,7 @@ final class Guidance
                 'section' => [
                     'phase' => $section->phase?->key,
                     'title' => $section->title,
-                    'body' => $section->body,
+                    'body' => $this->contexts->guidanceSection($section),
                 ],
                 'gaps' => $gaps,
                 'resources' => $resources->pluck('title')->all(),
@@ -121,20 +121,15 @@ final class Guidance
         string $currentDraft,
         User $actor,
     ): array {
-        $plan->loadMissing('phases.sections');
         $industry = $this->industry($plan);
         $gaps = $this->requirementGapTags($requirement, $currentDraft);
         $resources = $this->recommendResources($industry, 'startup', $gaps);
-        $existingSections = $plan->sections
-            ->sortBy('created_at')
-            ->take(8)
-            ->map(fn (PlanSection $section): array => [
-                'title' => $section->title,
-                'body_excerpt' => Str::limit($section->body, 600, ''),
-                'requirement_key' => data_get($section->metadata, 'requirement_key'),
-            ])
-            ->values()
-            ->all();
+        $context = $this->contexts->requirementAssistance(
+            plan: $plan,
+            requirement: $requirement,
+            ideaValidation: $ideaValidation,
+            currentDraft: $currentDraft,
+        );
         $sourceReferences = [
             'business_plan:'.$plan->getKey(),
             'entrepreneur_profile:'.$profile->getKey(),
@@ -143,7 +138,7 @@ final class Guidance
         ];
         $prompt = new PromptEnvelope(
             id: EntrepreneurPromptRegistry::PLAN_REQUIREMENT_ASSIST,
-            version: '2026-06-24',
+            version: '2026-07-30',
             task: 'Draft founder-facing business plan requirement assistance.',
             body: 'Create concise editable business plan wording for the selected requirement. Use only supplied idea validation, current draft, existing plan sections, and NZ resource context. Mark assumptions clearly and avoid unsupported claims.',
             input: [
@@ -159,16 +154,9 @@ final class Guidance
                     'title' => $requirement['title'] ?? null,
                     'description' => $requirement['description'] ?? null,
                 ],
-                'idea_validation' => $ideaValidation instanceof IdeaValidation ? [
-                    'problem' => $ideaValidation->problem,
-                    'target_customer' => $ideaValidation->target_customer,
-                    'solution' => $ideaValidation->solution,
-                    'value_proposition' => $ideaValidation->value_proposition,
-                    'demand_signal' => $ideaValidation->demand_signal,
-                    'revenue_model' => $ideaValidation->revenue_model,
-                ] : null,
-                'current_draft' => Str::limit($currentDraft, 2500, ''),
-                'existing_sections' => $existingSections,
+                'idea_validation' => $context['idea_validation'],
+                'current_draft' => $context['current_draft'],
+                'existing_sections' => $context['existing_sections'],
                 'detected_gaps' => $gaps,
                 'resources' => $resources->pluck('title')->all(),
             ],
@@ -179,7 +167,7 @@ final class Guidance
             sourceReferences: $sourceReferences,
         );
         $response = $this->ai->summarise($prompt);
-        $fallback = $this->fallbackRequirementDraft($profile, $requirement, $ideaValidation, $currentDraft);
+        $fallback = $this->fallbackRequirementDraft($profile, $requirement, $context['idea_validation'], $currentDraft);
         $aiText = trim($response->text);
         $draft = $aiText !== '' && ! str_contains(strtolower($aiText), 'ai unavailable')
             ? $aiText
@@ -339,21 +327,21 @@ final class Guidance
     private function fallbackRequirementDraft(
         EntrepreneurProfile $profile,
         array $requirement,
-        ?IdeaValidation $ideaValidation,
+        ?array $ideaValidation,
         string $currentDraft,
     ): string {
         $title = (string) ($requirement['title'] ?? 'Business plan requirement');
         $description = (string) ($requirement['description'] ?? 'Complete this requirement with clear business context.');
         $concept = trim((string) ($profile->concept_summary ?: $profile->name));
         $existingDraft = trim($currentDraft);
-        $ideaLines = $ideaValidation instanceof IdeaValidation
+        $ideaLines = is_array($ideaValidation)
             ? [
-                'Problem: '.$ideaValidation->problem,
-                'Target customer: '.$ideaValidation->target_customer,
-                'Solution: '.$ideaValidation->solution,
-                'Value proposition: '.$ideaValidation->value_proposition,
-                'Demand evidence: '.$ideaValidation->demand_signal,
-                'Revenue model: '.$ideaValidation->revenue_model,
+                'Problem: '.($ideaValidation['problem'] ?? ''),
+                'Target customer: '.($ideaValidation['target_customer'] ?? ''),
+                'Solution: '.($ideaValidation['solution'] ?? ''),
+                'Value proposition: '.($ideaValidation['value_proposition'] ?? ''),
+                'Demand evidence: '.($ideaValidation['demand_signal'] ?? ''),
+                'Revenue model: '.($ideaValidation['revenue_model'] ?? ''),
             ]
             : ['Idea validation detail has not been captured yet; add the customer problem, solution, demand evidence, and revenue logic before relying on this section.'];
 

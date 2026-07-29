@@ -105,7 +105,7 @@ type IdeaValidationForm = {
 };
 
 const IDEA_VALIDATION_FIELD_MAX_LENGTH = 10000;
-const PLAN_SECTION_BODY_MAX_LENGTH = 8000;
+const PLAN_SECTION_BODY_MAX_LENGTH = 25000;
 
 type BusinessPlanPayload = {
     id: string;

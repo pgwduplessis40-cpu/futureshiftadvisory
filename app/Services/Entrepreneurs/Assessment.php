@@ -18,6 +18,7 @@ use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
 use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 final class Assessment implements ProvidesMethodology
@@ -35,6 +36,7 @@ final class Assessment implements ProvidesMethodology
         private readonly AiClient $ai,
         private readonly AuditWriter $audit,
         private readonly EntrepreneurMilestones $milestones,
+        private readonly PlanAiContext $contexts,
     ) {}
 
     public function firstPass(BusinessPlan $plan, User $actor): PlanAssessment
@@ -47,9 +49,16 @@ final class Assessment implements ProvidesMethodology
         }
 
         $framework = $this->frameworks->published();
-        $sectionsText = trim($plan->sections->pluck('body')->implode("\n")."\n".$this->budgetAssessmentText($plan->budgetRunway));
         $aiScores = $framework->criteria
-            ->map(fn (RatingCriterion $criterion): array => $this->scoreCriterion($criterion, $plan, $sectionsText))
+            ->map(fn (RatingCriterion $criterion): array => $this->scoreCriterion(
+                criterion: $criterion,
+                plan: $plan,
+                planContext: $this->contexts->criterionAssessment(
+                    plan: $plan,
+                    criterion: $criterion,
+                    budgetSummary: $this->budgetAssessmentText($plan->budgetRunway),
+                ),
+            ))
             ->values()
             ->all();
         $documentSupport = $this->documentSupport($plan);
@@ -175,13 +184,16 @@ final class Assessment implements ProvidesMethodology
         return $assessment->refresh();
     }
 
-    private function scoreCriterion(RatingCriterion $criterion, BusinessPlan $plan, string $sectionsText): array
+    /**
+     * @param  array{relevant_sections:array<int, array{title:string,body_excerpt:string,requirement_key:string|null}>,supporting_section_summaries:array<int, array{title:string,body_excerpt:string,requirement_key:string|null}>,budget_summary:string}  $planContext
+     */
+    private function scoreCriterion(RatingCriterion $criterion, BusinessPlan $plan, array $planContext): array
     {
         $prompt = new PromptEnvelope(
             id: EntrepreneurPromptRegistry::PLAN_SCORE_CRITERION,
-            version: '2026-05-23',
+            version: '2026-07-30',
             task: 'Score one entrepreneur business-plan criterion honestly against the current rating framework.',
-            body: 'Return JSON only. Set metadata.score to an honest integer from 0 to 100 and set text to the rationale. Do not flatter weak evidence.',
+            body: 'Return JSON only. Set metadata.score to an honest integer from 0 to 100 and set text to the rationale. Score only the supplied, criterion-relevant evidence. Do not flatter weak evidence.',
             input: [
                 'business_plan_id' => $plan->getKey(),
                 'criterion' => [
@@ -189,7 +201,7 @@ final class Assessment implements ProvidesMethodology
                     'name' => $criterion->name,
                     'descriptors' => $criterion->descriptors,
                 ],
-                'sections_text' => $sectionsText,
+                'plan_context' => $planContext,
             ],
             dataQualitySummary: [
                 'level' => 'draft_plan',
@@ -197,7 +209,7 @@ final class Assessment implements ProvidesMethodology
             sourceReferences: ['business_plan:'.$plan->getKey(), 'rating_criterion:'.$criterion->getKey()],
         );
         $response = $this->ai->scoreCriterion($prompt);
-        $fallbackScore = $this->heuristicScore($criterion, $plan, $sectionsText);
+        $fallbackScore = $this->heuristicScore($criterion, $plan, $this->contexts->assessmentText($planContext));
         $aiScore = $this->scoreFromResponse($response);
         $score = $aiScore ?? $fallbackScore;
         $scoreSource = $aiScore === null ? 'deterministic_fallback' : 'ai_assessment';
@@ -224,6 +236,7 @@ final class Assessment implements ProvidesMethodology
                 'fallback_score' => $fallbackScore,
                 'score_source' => $scoreSource,
                 'uncertainty' => $response->uncertainty->value,
+                'context_characters' => Str::length($this->contexts->assessmentText($planContext)),
             ],
         ];
     }
