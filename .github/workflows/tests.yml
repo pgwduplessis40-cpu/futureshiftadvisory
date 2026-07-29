@@ -68,9 +68,7 @@ jobs:
         run: php artisan package:discover --ansi
 
       - name: Prepare test database
-        run: |
-          php artisan migrate:fresh --env=testing --force
-          php artisan db:seed --env=testing --class=TestingSeedDataSeeder --force
+        run: php artisan migrate:fresh --env=testing --force
 
       - name: Build Assets
         run: npm run build
