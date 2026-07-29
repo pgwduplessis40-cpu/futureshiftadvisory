@@ -34,6 +34,20 @@ if [ "$(id -u)" -ne 0 ]; then
     SUDO="sudo"
 fi
 
+require_clean_checkout() {
+    local stage="$1"
+
+    if [ -n "$(git status --porcelain)" ]; then
+        echo "ERROR: deployment checkout is dirty ${stage}."
+        echo "Deploy from a clean Git checkout so every release is traceable and reproducible."
+        git status --short
+        exit 1
+    fi
+}
+
+log "Checking deployment checkout"
+require_clean_checkout "before pulling code"
+
 log "Pulling latest code"
 # Name the remote and branch explicitly. A bare `git pull --ff-only` fails with
 # "Cannot fast-forward to multiple branches" when the checked-out branch has no
@@ -52,6 +66,11 @@ log "Building client + SSR bundles"
 # Must be build:ssr - plain `npm run build` omits bootstrap/ssr/app.js,
 # which leaves the SSR process with nothing to render.
 npm run build:ssr
+
+log "Checking build output"
+# Vite/Wayfinder may regenerate tracked route helpers. Treat that as a release
+# defect, not a server-only change that will make the next deploy unpredictable.
+require_clean_checkout "after building"
 
 if [ "$RUN_MIGRATIONS" = "yes" ]; then
     log "Running migrations"
