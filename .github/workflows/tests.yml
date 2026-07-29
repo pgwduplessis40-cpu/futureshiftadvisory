@@ -19,6 +19,20 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: futureshift_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test!@#456
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d futureshift_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     strategy:
       fail-fast: false
       matrix:
@@ -34,6 +48,7 @@ jobs:
           php-version: ${{ matrix.php-version }}
           tools: composer:v2
           coverage: xdebug
+          extensions: pdo_pgsql, pgsql
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -47,10 +62,18 @@ jobs:
         run: cp .env.example .env
 
       - name: Install Dependencies
-        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts
 
       - name: Generate Application Key
         run: php artisan key:generate
+
+      - name: Discover Laravel packages
+        run: php artisan package:discover --ansi
+
+      - name: Prepare test database
+        run: |
+          php artisan migrate:fresh --env=testing --force
+          php artisan db:seed --env=testing --class=TestingSeedDataSeeder --force
 
       - name: Build Assets
         run: npm run build
