@@ -49,12 +49,13 @@ log "Checking deployment checkout"
 require_clean_checkout "before pulling code"
 
 log "Pulling latest code"
-# Name the remote and branch explicitly. A bare `git pull --ff-only` fails with
-# "Cannot fast-forward to multiple branches" when the checked-out branch has no
-# single configured upstream, because every fetched branch becomes a candidate.
+# Do not use `git pull`: a server can have more than one branch.*.merge value,
+# which makes pull attempt to fast-forward multiple branches despite a branch
+# argument. FETCH_HEAD always represents this one explicit fetch.
 GIT_REMOTE="${GIT_REMOTE:-origin}"
 GIT_BRANCH="${GIT_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
-git pull --ff-only "$GIT_REMOTE" "$GIT_BRANCH"
+git fetch "$GIT_REMOTE" "$GIT_BRANCH"
+git merge --ff-only FETCH_HEAD
 
 log "Installing PHP dependencies"
 composer install --no-dev --optimize-autoloader --no-interaction
