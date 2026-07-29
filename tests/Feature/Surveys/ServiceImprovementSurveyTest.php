@@ -234,6 +234,73 @@ final class ServiceImprovementSurveyTest extends TestCase
                 ->where('assignment.service.service_label', 'Idea Validation'));
     }
 
+    public function test_super_admin_with_multiple_roles_can_issue_a_service_survey_to_an_assigned_entrepreneur(): void
+    {
+        $manager = User::factory()->superAdmin()->withTwoFactor()->create([
+            'email' => 'multi-role-service-survey-admin@example.test',
+        ]);
+        $manager->assignRole(User::TYPE_ADVISOR);
+        $manager->assignRole(User::TYPE_SUPER_ADMIN);
+
+        $entrepreneurUser = User::factory()->withTwoFactor()->create([
+            'email' => 'multi-role-service-survey-entrepreneur@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneurUser->assignRole(User::TYPE_ENTREPRENEUR);
+
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneurUser->getKey(),
+            'assigned_advisor_id' => $manager->getKey(),
+            'name' => 'Multi-role Service Survey Entrepreneur',
+            'email' => $entrepreneurUser->email,
+            'stage' => EntrepreneurStage::ADVISORY_READY,
+            'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'intended_package_scope' => 'entrepreneur_combo',
+        ]);
+
+        $this->actingAsMfa($manager)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where(
+                    'entrepreneur.service_feedback_survey.action_url',
+                    route('admin.service-surveys.entrepreneurs.store', $profile, absolute: false),
+                ));
+
+        $this->actingAsMfa($manager)
+            ->post(route('admin.service-surveys.entrepreneurs.store', $profile))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('survey_assignments', [
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'activated_by_user_id' => $manager->getKey(),
+        ]);
+    }
+
+    public function test_advisor_cannot_issue_an_entrepreneur_service_survey(): void
+    {
+        $advisor = User::factory()->withTwoFactor()->create([
+            'email' => 'unprivileged-service-survey-advisor@example.test',
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $advisor->assignRole(User::TYPE_ADVISOR);
+
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => 'Restricted Service Survey Entrepreneur',
+            'email' => 'restricted-service-survey-entrepreneur@example.test',
+            'stage' => EntrepreneurStage::ADVISORY_READY,
+            'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'intended_package_scope' => 'entrepreneur_combo',
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->post(route('admin.service-surveys.entrepreneurs.store', $profile))
+            ->assertForbidden();
+    }
+
     public function test_non_admin_cannot_issue_service_survey(): void
     {
         [, $client] = $this->clientUserWithClient('service-survey-advisor-client@example.test');

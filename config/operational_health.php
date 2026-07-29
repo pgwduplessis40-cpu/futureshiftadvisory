@@ -8,12 +8,13 @@ return [
     | Operational Health Checks
     |--------------------------------------------------------------------------
     |
-    | Keep this disabled by default in production until the synthetic monitor
-    | accounts and alert channels have been deliberately configured there.
+    | This can be suspended per environment while maintenance is in progress.
     |
     */
 
-    'enabled' => env('OPERATIONAL_HEALTH_CHECKS_ENABLED', env('APP_ENV', 'production') !== 'production'),
+    'enabled' => env('OPERATIONAL_HEALTH_CHECKS_ENABLED', true),
+
+    'timezone' => env('OPERATIONAL_HEALTH_TIMEZONE', 'Pacific/Auckland'),
 
     'weekday_cron' => env('OPERATIONAL_HEALTH_WEEKDAY_CRON', '30 7-17 * * 1-5'),
 

@@ -39,7 +39,6 @@ final class PilotFeeWaiverController extends Controller
             'clients' => Client::query()
                 ->with('pilotFeeWaiverApprovedBy:id,name')
                 ->orderBy('legal_name')
-                ->limit(250)
                 ->get()
                 ->map(fn (Client $client): array => $this->clientPayload($client))
                 ->values(),

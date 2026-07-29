@@ -11,7 +11,9 @@ use App\Models\User;
 use App\Services\Security\StepUpEvaluator;
 use App\Support\ReleaseVersion;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 
 final class OperationalHealthCheckTest extends TestCase
@@ -23,6 +25,27 @@ final class OperationalHealthCheckTest extends TestCase
         parent::setUp();
 
         $this->seed(RoleSeeder::class);
+    }
+
+    public function test_health_checks_are_scheduled_in_new_zealand_business_hours(): void
+    {
+        config()->set('operational_health.enabled', true);
+        config()->set('operational_health.timezone', 'Pacific/Auckland');
+        config()->set('operational_health.weekday_cron', '30 7-17 * * 1-5');
+        config()->set('operational_health.weekend_cron', '30 7 * * 0,6');
+
+        Artisan::call('schedule:list');
+
+        $events = collect(app(Schedule::class)->events());
+        $weekday = $events->firstWhere('description', 'fsa-operational-health-check-weekday');
+        $weekend = $events->firstWhere('description', 'fsa-operational-health-check-weekend');
+
+        $this->assertNotNull($weekday);
+        $this->assertNotNull($weekend);
+        $this->assertSame('30 7-17 * * 1-5', $weekday->expression);
+        $this->assertSame('30 7 * * 0,6', $weekend->expression);
+        $this->assertSame('Pacific/Auckland', $weekday->timezone);
+        $this->assertSame('Pacific/Auckland', $weekend->timezone);
     }
 
     public function test_command_records_specific_findings_and_skips_missing_monitor_fixtures(): void

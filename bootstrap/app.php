@@ -133,11 +133,13 @@ return Application::configure(basePath: dirname(__DIR__))
         if ((bool) config('operational_health.enabled', false)) {
             $schedule->command(RunOperationalHealthChecks::class)
                 ->cron((string) config('operational_health.weekday_cron', '30 7-17 * * 1-5'))
+                ->timezone((string) config('operational_health.timezone', 'Pacific/Auckland'))
                 ->name('fsa-operational-health-check-weekday')
                 ->withoutOverlapping();
 
             $schedule->command(RunOperationalHealthChecks::class)
                 ->cron((string) config('operational_health.weekend_cron', '30 7 * * 0,6'))
+                ->timezone((string) config('operational_health.timezone', 'Pacific/Auckland'))
                 ->name('fsa-operational-health-check-weekend')
                 ->withoutOverlapping();
         }

@@ -106,6 +106,27 @@ final class PilotFeeWaiverManagementTest extends TestCase
                 ->where('clients.1.legal_name', 'New Waiver Client Limited'));
     }
 
+    public function test_index_includes_every_client_not_just_the_first_250(): void
+    {
+        $admin = User::factory()->superAdmin()->withTwoFactor()->create();
+        $admin->assignRole(User::TYPE_SUPER_ADMIN);
+
+        foreach (range(1, 251) as $number) {
+            Client::query()->create([
+                'engagement_type' => EngagementType::STANDARD_ADVISORY,
+                'legal_name' => sprintf('Pilot Client %03d Limited', $number),
+                'data_quality' => Client::DATA_QUALITY_LOW,
+            ]);
+        }
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.pilot-fee-waivers.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->has('clients', 251)
+                ->where('clients.250.legal_name', 'Pilot Client 251 Limited'));
+    }
+
     public function test_closed_program_rejects_a_new_client_waiver(): void
     {
         $admin = User::factory()->superAdmin()->withTwoFactor()->create();

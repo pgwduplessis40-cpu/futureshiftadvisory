@@ -514,7 +514,7 @@ final class EntrepreneurController extends Controller
      */
     private function serviceFeedbackSurvey(User $viewer, EntrepreneurProfile $profile): ?array
     {
-        if ($viewer->fsaRole() !== User::TYPE_SUPER_ADMIN) {
+        if (! $viewer->hasRole(User::TYPE_SUPER_ADMIN)) {
             return null;
         }
 
