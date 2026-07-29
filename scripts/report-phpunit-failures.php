@@ -10,7 +10,7 @@ if ($path === '' || ! is_file($path)) {
     exit(0);
 }
 
-$document = new DOMDocument();
+$document = new DOMDocument;
 
 if (! @$document->load($path)) {
     fwrite(STDOUT, "::warning title=PHPUnit report unreadable::The JUnit report could not be parsed.\n");
