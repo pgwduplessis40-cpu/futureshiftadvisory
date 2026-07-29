@@ -25,6 +25,7 @@ use App\Console\Commands\RunDdLearning;
 use App\Console\Commands\RunFeedbackLearningLayer;
 use App\Console\Commands\RunFinancialMonitoring;
 use App\Console\Commands\RunFunnelAnalyticsLayer;
+use App\Console\Commands\RunOperationalHealthChecks;
 use App\Console\Commands\RunPlanQualityBenchmarks;
 use App\Console\Commands\RunQuestionnaireOptimisationLayer;
 use App\Console\Commands\RunRatingPredictiveValidity;
@@ -128,6 +129,18 @@ return Application::configure(basePath: dirname(__DIR__))
             ->dailyAt('07:05')
             ->name('fsa-reference-data-freshness')
             ->withoutOverlapping();
+
+        if ((bool) config('operational_health.enabled', false)) {
+            $schedule->command(RunOperationalHealthChecks::class)
+                ->cron((string) config('operational_health.weekday_cron', '30 7-17 * * 1-5'))
+                ->name('fsa-operational-health-check-weekday')
+                ->withoutOverlapping();
+
+            $schedule->command(RunOperationalHealthChecks::class)
+                ->cron((string) config('operational_health.weekend_cron', '30 7 * * 0,6'))
+                ->name('fsa-operational-health-check-weekend')
+                ->withoutOverlapping();
+        }
 
         $schedule->command(RunFeedbackLearningLayer::class)
             ->dailyAt('03:00')

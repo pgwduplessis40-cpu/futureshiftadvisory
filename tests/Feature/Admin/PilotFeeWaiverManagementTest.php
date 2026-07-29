@@ -39,6 +39,7 @@ final class PilotFeeWaiverManagementTest extends TestCase
         $this->actingAsMfa($admin)
             ->get(route('admin.pilot-fee-waivers.index'))
             ->assertOk()
+            ->assertHeader('Cache-Control', 'max-age=0, no-store, private')
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('admin/pilot-fee-waivers/Index')
                 ->where('program.status', PilotFeeWaiverProgram::STATUS_CLOSED)

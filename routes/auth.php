@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\IntegrationHealthController;
 use App\Http\Controllers\Admin\InvitationController;
 use App\Http\Controllers\Admin\LearningUpdateController;
 use App\Http\Controllers\Admin\MicrosoftGraphMailOAuthController;
+use App\Http\Controllers\Admin\OperationalHealthController;
 use App\Http\Controllers\Admin\PanelMemberController;
 use App\Http\Controllers\Admin\PartnerAgreementController;
 use App\Http\Controllers\Admin\PilotFeeWaiverController;
@@ -150,6 +151,16 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
                 ->name('integration-health.index');
             Route::post('integration-health/refresh', [IntegrationHealthController::class, 'refresh'])
                 ->name('integration-health.refresh');
+        });
+
+    Route::prefix('admin')
+        ->name('admin.')
+        ->middleware(['mfa', 'permission:'.Permission::OPERATIONAL_HEALTH_VIEW->value])
+        ->group(function (): void {
+            Route::get('app-health', [OperationalHealthController::class, 'index'])
+                ->name('app-health.index');
+            Route::post('app-health/run', [OperationalHealthController::class, 'run'])
+                ->name('app-health.run');
         });
 
     Route::prefix('admin')

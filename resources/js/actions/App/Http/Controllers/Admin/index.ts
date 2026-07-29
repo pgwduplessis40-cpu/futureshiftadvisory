@@ -11,6 +11,7 @@ import PrinciplesRolesController from './PrinciplesRolesController'
 import ServiceRateController from './ServiceRateController'
 import RatingFrameworkController from './RatingFrameworkController'
 import IntegrationHealthController from './IntegrationHealthController'
+import OperationalHealthController from './OperationalHealthController'
 import AuditTrailController from './AuditTrailController'
 import IntegrationCredentialController from './IntegrationCredentialController'
 import ProjectSettingsController from './ProjectSettingsController'
@@ -36,6 +37,7 @@ PrinciplesRolesController: Object.assign(PrinciplesRolesController, PrinciplesRo
 ServiceRateController: Object.assign(ServiceRateController, ServiceRateController),
 RatingFrameworkController: Object.assign(RatingFrameworkController, RatingFrameworkController),
 IntegrationHealthController: Object.assign(IntegrationHealthController, IntegrationHealthController),
+OperationalHealthController: Object.assign(OperationalHealthController, OperationalHealthController),
 AuditTrailController: Object.assign(AuditTrailController, AuditTrailController),
 IntegrationCredentialController: Object.assign(IntegrationCredentialController, IntegrationCredentialController),
 ProjectSettingsController: Object.assign(ProjectSettingsController, ProjectSettingsController),

@@ -239,6 +239,35 @@ type IntegrationHealthPayload = {
     }>;
 };
 
+type OperationalHealthPayload = {
+    summary: {
+        status: 'passed' | 'warning' | 'failed' | null;
+        total: number;
+        passed: number;
+        warning: number;
+        failed: number;
+    };
+    index_url: string | null;
+    latest_run: {
+        id: string;
+        started_at: string | null;
+        finished_at: string | null;
+        environment: string;
+        release_version: string | null;
+    } | null;
+    latest_issue: {
+        id: string;
+        status: 'failed' | 'warning' | 'skipped';
+        check_key: string;
+        name: string;
+        area: string;
+        actual_status: number | null;
+        issue_summary: string | null;
+        consecutive_failures: number | null;
+        failures_last_7_days: number | null;
+    } | null;
+};
+
 type EconomicIndicatorsPayload = {
     summary: {
         indicators: number;
@@ -808,6 +837,7 @@ type Props = {
     strategicPlanDeployments: StrategicPlanDeploymentsPayload;
     pendingTermsReacceptance: PendingTermsPayload;
     prospectInbox: ProspectInboxPayload;
+    operationalHealth: OperationalHealthPayload;
     integrationHealth?: IntegrationHealthPayload;
     economicIndicators?: EconomicIndicatorsPayload;
     pvWaterfall: PvWaterfallPayload;
@@ -837,6 +867,7 @@ export default function AdvisorDashboard({
     strategicPlanDeployments,
     pendingTermsReacceptance,
     prospectInbox,
+    operationalHealth,
     integrationHealth,
     economicIndicators,
     pvWaterfall,
@@ -867,6 +898,7 @@ export default function AdvisorDashboard({
         proposalStatus,
         paymentStatus,
         feeStatus,
+        operationalHealth,
         pvWaterfall,
         practiceHealth,
         npoPendingConversions,
@@ -1408,6 +1440,7 @@ function buildActionSummaryItems({
     proposalStatus,
     paymentStatus,
     feeStatus,
+    operationalHealth,
     pvWaterfall,
     practiceHealth,
     npoPendingConversions,
@@ -1427,6 +1460,7 @@ function buildActionSummaryItems({
     | 'proposalStatus'
     | 'paymentStatus'
     | 'feeStatus'
+    | 'operationalHealth'
     | 'pvWaterfall'
     | 'practiceHealth'
     | 'npoPendingConversions'
@@ -1449,6 +1483,33 @@ function buildActionSummaryItems({
         referenceDataTasks.summary.due_soon;
     const brokerApprovalActionCount = panelOperations.approvals.summary.broker;
     const coachApprovalActionCount = panelOperations.approvals.summary.coach;
+    const operationalHealthActionCount =
+        operationalHealth.summary.failed + operationalHealth.summary.warning;
+    const operationalHealthAction =
+        operationalHealth.index_url && operationalHealthActionCount > 0
+            ? {
+                  key: 'app-checks',
+                  label: 'App checks',
+                  value: operationalHealthActionCount,
+                  statusLabel:
+                      operationalHealth.summary.failed > 0
+                          ? 'Errors'
+                          : 'Warnings',
+                  href: operationalHealth.index_url,
+                  targetId: 'advisor-command-centre',
+                  tab: 'priorities' as const,
+                  priority:
+                      operationalHealth.summary.failed > 0
+                          ? ('critical' as const)
+                          : ('warning' as const),
+                  explanation:
+                      'App checks are daily synthetic route and preview checks for HTTP 500, 403, unexpected redirects, and document-preview failures.',
+                  nextStep:
+                      operationalHealth.latest_issue?.issue_summary ??
+                      'Open App checks to review the latest operational finding and recurrence history.',
+                  icon: <Activity className="size-4" aria-hidden="true" />,
+              }
+            : null;
     const clientTransferAction =
         clientTransferQueue.available && clientTransferQueue.action_url
             ? {
@@ -1500,6 +1561,7 @@ function buildActionSummaryItems({
             : null;
 
     return [
+        ...(operationalHealthAction ? [operationalHealthAction] : []),
         {
             key: 'cash-flow-risks',
             label: 'Cash flow risks',

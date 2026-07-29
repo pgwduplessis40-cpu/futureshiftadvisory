@@ -42,6 +42,7 @@ enum Permission: string
     case BOARD_MANAGE = 'board.manage';
     case REPORTS_VIEW = 'reports.view';
     case INTEGRATION_HEALTH_VIEW = 'integration_health.view';
+    case OPERATIONAL_HEALTH_VIEW = 'operational_health.view';
     case REPORTS_PUBLISH = 'reports.publish';
     case PROPOSALS_RELEASE = 'proposals.release';
     case PAYMENTS_MANAGE = 'payments.manage';

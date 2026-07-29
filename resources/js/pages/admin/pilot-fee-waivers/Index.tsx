@@ -51,8 +51,10 @@ export default function PilotFeeWaiversIndex({
     }
 
     const refreshClients = useCallback(() => {
-        router.reload({
-            only: ['clients'],
+        router.visit(window.location.href, {
+            replace: true,
+            preserveScroll: true,
+            preserveState: false,
             onStart: () => setRefreshingClients(true),
             onFinish: () => setRefreshingClients(false),
         });

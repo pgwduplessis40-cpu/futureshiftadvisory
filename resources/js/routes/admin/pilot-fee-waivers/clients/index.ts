@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::update
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:63
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:67
  * @route '/admin/pilot-fee-waivers/clients/{client}'
  */
 export const update = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -16,7 +16,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::update
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:63
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:67
  * @route '/admin/pilot-fee-waivers/clients/{client}'
  */
 update.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ update.url = (args: { client: string | { id: string } } | [client: string | { id
 
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::update
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:63
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:67
  * @route '/admin/pilot-fee-waivers/clients/{client}'
  */
 update.patch = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -59,7 +59,7 @@ update.patch = (args: { client: string | { id: string } } | [client: string | { 
 
     /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::update
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:63
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:67
  * @route '/admin/pilot-fee-waivers/clients/{client}'
  */
     const updateForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -74,7 +74,7 @@ update.patch = (args: { client: string | { id: string } } | [client: string | { 
 
             /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::update
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:63
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:67
  * @route '/admin/pilot-fee-waivers/clients/{client}'
  */
         updateForm.patch = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

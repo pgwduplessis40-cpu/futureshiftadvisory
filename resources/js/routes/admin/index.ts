@@ -12,6 +12,7 @@ import principlesRoles from './principles-roles'
 import serviceRates from './service-rates'
 import ratingFrameworks from './rating-frameworks'
 import integrationHealth from './integration-health'
+import appHealth from './app-health'
 import auditTrail from './audit-trail'
 import integrationCredentials from './integration-credentials'
 import projectSettings from './project-settings'
@@ -37,6 +38,7 @@ principlesRoles: Object.assign(principlesRoles, principlesRoles),
 serviceRates: Object.assign(serviceRates, serviceRates),
 ratingFrameworks: Object.assign(ratingFrameworks, ratingFrameworks),
 integrationHealth: Object.assign(integrationHealth, integrationHealth),
+appHealth: Object.assign(appHealth, appHealth),
 auditTrail: Object.assign(auditTrail, auditTrail),
 integrationCredentials: Object.assign(integrationCredentials, integrationCredentials),
 projectSettings: Object.assign(projectSettings, projectSettings),

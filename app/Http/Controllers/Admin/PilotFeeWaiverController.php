@@ -15,7 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
-use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response;
 
 final class PilotFeeWaiverController extends Controller
 {
@@ -24,11 +24,11 @@ final class PilotFeeWaiverController extends Controller
         private readonly AuditWriter $audit,
     ) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $program = $this->waivers->currentProgram();
 
-        return Inertia::render('admin/pilot-fee-waivers/Index', [
+        $response = Inertia::render('admin/pilot-fee-waivers/Index', [
             'program' => [
                 'status' => $program->status,
                 'updated_at' => $program->updated_at?->toIso8601String(),
@@ -43,7 +43,11 @@ final class PilotFeeWaiverController extends Controller
                 ->get()
                 ->map(fn (Client $client): array => $this->clientPayload($client))
                 ->values(),
-        ]);
+        ])->toResponse($request);
+
+        $response->headers->set('Cache-Control', 'private, no-store, max-age=0');
+
+        return $response;
     }
 
     public function updateProgram(Request $request): RedirectResponse

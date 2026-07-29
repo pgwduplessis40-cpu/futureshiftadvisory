@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    Activity,
     ArrowRightLeft,
     BadgeDollarSign,
     Bell,
@@ -175,6 +176,12 @@ const apiHealthNavItem: NavItem = {
     title: 'API Health',
     href: '/admin/integration-health',
     icon: PlugZap,
+};
+
+const appHealthNavItem: NavItem = {
+    title: 'App Checks',
+    href: '/admin/app-health',
+    icon: Activity,
 };
 
 const integrationCredentialsNavItem: NavItem = {
@@ -368,6 +375,7 @@ const superAdminCommunicationNavItems: NavItem[] = [
 const superAdminAdministrationNavItems: NavItem[] = [
     knowledgeNavItem,
     templatesNavItem,
+    appHealthNavItem,
     apiHealthNavItem,
     integrationCredentialsNavItem,
     projectSettingsNavItem,

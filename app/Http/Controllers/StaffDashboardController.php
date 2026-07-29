@@ -23,6 +23,8 @@ use App\Models\IntegrationHealthSample;
 use App\Models\LearningUpdate;
 use App\Models\Message;
 use App\Models\MessageThread;
+use App\Models\OperationalHealthCheckResult;
+use App\Models\OperationalHealthCheckRun;
 use App\Models\PanelAgreement;
 use App\Models\PanelMember;
 use App\Models\Proposal;
@@ -702,6 +704,7 @@ final class StaffDashboardController extends Controller
             'strategicPlanDeployments' => $this->strategicPlanDeployments($clientIds),
             'pendingTermsReacceptance' => $this->pendingTermsReacceptance($clientIds, $termsGate),
             'prospectInbox' => $this->prospectInbox(),
+            'operationalHealth' => $this->operationalHealth($user),
             'integrationHealth' => Inertia::defer(fn (): array => $this->integrationHealth($user), 'advisor-signals'),
             'economicIndicators' => Inertia::defer(fn (): array => $this->economicIndicators($clientIds, $economicExposure), 'advisor-signals'),
             'paymentStatus' => $paymentStatus->forClientIds($clientIds),
@@ -2044,6 +2047,91 @@ final class StaffDashboardController extends Controller
                     'window_end' => $sample->window_end?->toIso8601String(),
                 ])
                 ->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function operationalHealth(User $user): array
+    {
+        if (! $this->canViewOperationalHealth($user)) {
+            return $this->emptyOperationalHealth();
+        }
+
+        if (! Schema::hasTable('operational_health_check_runs') || ! Schema::hasTable('operational_health_check_results')) {
+            return $this->emptyOperationalHealth();
+        }
+
+        $latestRun = OperationalHealthCheckRun::query()
+            ->with(['results' => fn ($query) => $query->orderByRaw(
+                "CASE status WHEN 'failed' THEN 0 WHEN 'warning' THEN 1 WHEN 'skipped' THEN 2 ELSE 3 END",
+            )->latest()])
+            ->latest('started_at')
+            ->first();
+
+        if (! $latestRun instanceof OperationalHealthCheckRun) {
+            return $this->emptyOperationalHealth();
+        }
+
+        $latestIssue = $latestRun->results
+            ->first(fn (OperationalHealthCheckResult $result): bool => $result->needsAttention());
+
+        return [
+            'summary' => [
+                'status' => $latestRun->status,
+                'total' => $latestRun->total_checks,
+                'passed' => $latestRun->passed_checks,
+                'warning' => $latestRun->warning_checks + $latestRun->skipped_checks,
+                'failed' => $latestRun->failed_checks,
+            ],
+            'index_url' => route('admin.app-health.index', absolute: false),
+            'latest_run' => [
+                'id' => $latestRun->id,
+                'started_at' => $latestRun->started_at?->toIso8601String(),
+                'finished_at' => $latestRun->finished_at?->toIso8601String(),
+                'environment' => $latestRun->environment,
+                'release_version' => $latestRun->release_version,
+            ],
+            'latest_issue' => $latestIssue instanceof OperationalHealthCheckResult
+                ? [
+                    'id' => $latestIssue->id,
+                    'status' => $latestIssue->status,
+                    'check_key' => $latestIssue->check_key,
+                    'name' => $latestIssue->name,
+                    'area' => $latestIssue->area,
+                    'actual_status' => $latestIssue->actual_status,
+                    'issue_summary' => $latestIssue->issue_summary,
+                    'consecutive_failures' => $latestIssue->consecutive_failures,
+                    'failures_last_7_days' => $latestIssue->failures_last_7_days,
+                ]
+                : null,
+        ];
+    }
+
+    private function canViewOperationalHealth(User $user): bool
+    {
+        return $user->fsaRole() === User::TYPE_SUPER_ADMIN
+            || $user->user_type === User::TYPE_SUPER_ADMIN
+            || $user->can(Permission::OPERATIONAL_HEALTH_VIEW->value);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function emptyOperationalHealth(): array
+    {
+        return [
+            'summary' => [
+                'status' => null,
+                'total' => 0,
+                'passed' => 0,
+                'warning' => 0,
+                'failed' => 0,
+            ],
+            'index_url' => null,
+            'latest_run' => null,
+            'latest_issue' => null,
         ];
     }
 
