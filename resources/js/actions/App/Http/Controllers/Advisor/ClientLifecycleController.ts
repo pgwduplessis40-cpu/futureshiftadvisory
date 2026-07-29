@@ -27,7 +27,7 @@ update.url = (args: { client: string | { id: string } } | [client: string | { id
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -86,7 +86,7 @@ update.patch = (args: { client: string | { id: string } } | [client: string | { 
                     }),
             method: 'post',
         })
-    
+
     update.form = updateForm
 const ClientLifecycleController = { update }
 

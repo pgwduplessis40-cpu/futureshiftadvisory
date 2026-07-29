@@ -76,7 +76,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 const calendar = {
     index: Object.assign(index, index),

@@ -7,12 +7,15 @@ namespace App\Services\Surveys;
 use App\Enums\ReportType;
 use App\Enums\SurveyAssignmentStatus;
 use App\Enums\SurveyStatus;
+use App\Enums\SurveyType;
 use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\EntrepreneurProfile;
 use App\Models\PlanAssessment;
 use App\Models\Report;
+use App\Models\ServiceActivation;
+use App\Models\ServiceRatePackage;
 use App\Models\Survey;
 use App\Models\SurveyAssignment;
 use App\Models\User;
@@ -32,6 +35,7 @@ final class SurveyActivationService
     public function activateForClient(Client $client, Survey $survey, User $actor, ?CarbonInterface $dueAt = null): SurveyAssignment
     {
         $this->ensurePublished($survey);
+        $this->ensureType($survey, SurveyType::GeneralExperience);
         $snapshot = $this->clientDeliverables($client);
 
         return $this->createAssignment($survey, $actor, $snapshot, $dueAt, [
@@ -43,11 +47,106 @@ final class SurveyActivationService
     public function activateForEntrepreneur(EntrepreneurProfile $profile, Survey $survey, User $actor, ?CarbonInterface $dueAt = null): SurveyAssignment
     {
         $this->ensurePublished($survey);
+        $this->ensureType($survey, SurveyType::GeneralExperience);
         $snapshot = $this->entrepreneurDeliverables($profile);
 
         return $this->createAssignment($survey, $actor, $snapshot, $dueAt, [
             'client_id' => null,
             'entrepreneur_profile_id' => $profile->getKey(),
+        ]);
+    }
+
+    public function activateForEntrepreneurService(EntrepreneurProfile $profile, Survey $survey, User $actor, ?CarbonInterface $dueAt = null): SurveyAssignment
+    {
+        $this->ensurePublished($survey);
+        $this->ensureType($survey, SurveyType::ServiceImprovement);
+
+        if (! in_array($profile->currentStage()->value, ['advisory_ready', 'launched'], true)) {
+            throw ValidationException::withMessages([
+                'entrepreneur_profile' => 'A service survey can only be issued once this entrepreneur is advisory ready or launched.',
+            ]);
+        }
+
+        $hasOpenSurvey = SurveyAssignment::query()
+            ->where('entrepreneur_profile_id', $profile->getKey())
+            ->whereNull('service_activation_id')
+            ->whereNotNull('service_snapshot')
+            ->whereIn('status', SurveyAssignmentStatus::activeValues())
+            ->whereHas('survey', fn ($query) => $query->where('type', SurveyType::ServiceImprovement->value))
+            ->exists();
+
+        if ($hasOpenSurvey) {
+            throw ValidationException::withMessages([
+                'entrepreneur_profile' => 'This entrepreneur already has an open service survey.',
+            ]);
+        }
+
+        return $this->createAssignment($survey, $actor, [], $dueAt, [
+            'client_id' => null,
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'service_activation_id' => null,
+            'service_snapshot' => [
+                'source' => 'entrepreneur_profile',
+                'service_label' => 'Entrepreneur advisory service',
+                'package_label' => ServiceRatePackage::packageScopeLabel(
+                    ServiceRatePackage::normaliseEntrepreneurScope(
+                        (string) ($profile->intended_package_scope ?? ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO),
+                    ),
+                ),
+                'completed_at' => $profile->updated_at?->toIso8601String(),
+            ],
+        ]);
+    }
+
+    public function activateForService(ServiceActivation $serviceActivation, Survey $survey, User $actor, ?CarbonInterface $dueAt = null): SurveyAssignment
+    {
+        $this->ensurePublished($survey);
+        $this->ensureType($survey, SurveyType::ServiceImprovement);
+
+        if ($serviceActivation->status !== ServiceActivation::STATUS_CLOSED) {
+            throw ValidationException::withMessages([
+                'service_activation' => 'A service survey can only be issued after the service is closed.',
+            ]);
+        }
+
+        $serviceActivation->loadMissing(['client', 'package']);
+        $client = $serviceActivation->client;
+
+        if (! $client instanceof Client) {
+            throw ValidationException::withMessages([
+                'service_activation' => 'The closed service must have a client before a survey can be issued.',
+            ]);
+        }
+
+        $hasOpenSurvey = SurveyAssignment::query()
+            ->where('service_activation_id', $serviceActivation->getKey())
+            ->whereIn('status', SurveyAssignmentStatus::activeValues())
+            ->exists();
+
+        if ($hasOpenSurvey) {
+            throw ValidationException::withMessages([
+                'service_activation' => 'This service already has an open survey.',
+            ]);
+        }
+
+        $packageSnapshot = is_array($serviceActivation->selected_package_snapshot)
+            ? $serviceActivation->selected_package_snapshot
+            : [];
+        $packageLabel = data_get($packageSnapshot, 'client_label')
+            ?? data_get($packageSnapshot, 'package_name')
+            ?? $serviceActivation->package?->package_name;
+
+        return $this->createAssignment($survey, $actor, [], $dueAt, [
+            'client_id' => $client->getKey(),
+            'entrepreneur_profile_id' => null,
+            'service_activation_id' => $serviceActivation->getKey(),
+            'service_snapshot' => [
+                'service_activation_id' => (string) $serviceActivation->getKey(),
+                'service_type' => $serviceActivation->service_type,
+                'service_label' => $serviceActivation->clientLabel(),
+                'package_label' => is_string($packageLabel) ? $packageLabel : null,
+                'closed_at' => $serviceActivation->closed_at?->toIso8601String(),
+            ],
         ]);
     }
 
@@ -85,7 +184,7 @@ final class SurveyActivationService
 
     /**
      * @param  array<int, array<string, mixed>>  $snapshot
-     * @param  array{client_id:string|null,entrepreneur_profile_id:string|null}  $subject
+     * @param  array{client_id:string|null,entrepreneur_profile_id:string|null,service_activation_id?:string|null,service_snapshot?:array<string, mixed>|null}  $subject
      */
     private function createAssignment(Survey $survey, User $actor, array $snapshot, ?CarbonInterface $dueAt, array $subject): SurveyAssignment
     {
@@ -99,6 +198,8 @@ final class SurveyActivationService
                 'activated_at' => now(),
                 'due_at' => $dueAt,
                 'deliverable_snapshot' => $snapshot,
+                'service_activation_id' => $subject['service_activation_id'] ?? null,
+                'service_snapshot' => $subject['service_snapshot'] ?? null,
             ]);
 
             $this->audit->record('survey_assignment.activated', subject: $assignment, actor: $actor, after: [
@@ -107,6 +208,7 @@ final class SurveyActivationService
                 'client_id' => $subject['client_id'],
                 'entrepreneur_profile_id' => $subject['entrepreneur_profile_id'],
                 'deliverable_count' => count($snapshot),
+                'service_activation_id' => $subject['service_activation_id'] ?? null,
                 'due_at' => $dueAt?->toIso8601String(),
             ]);
 
@@ -119,6 +221,15 @@ final class SurveyActivationService
         if ($survey->status !== SurveyStatus::Published) {
             throw ValidationException::withMessages([
                 'survey_id' => 'Only published surveys can be activated.',
+            ]);
+        }
+    }
+
+    private function ensureType(Survey $survey, SurveyType $type): void
+    {
+        if ($survey->type !== $type) {
+            throw ValidationException::withMessages([
+                'survey_id' => sprintf('This action requires a %s survey.', $type->label()),
             ]);
         }
     }

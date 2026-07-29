@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\QuestionnaireController;
 use App\Http\Controllers\Admin\RatingFrameworkController;
 use App\Http\Controllers\Admin\ReferenceDataController;
 use App\Http\Controllers\Admin\ServiceRateController;
+use App\Http\Controllers\Admin\ServiceSurveyController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\SurveyController;
 use App\Http\Controllers\Admin\TermsController;
@@ -91,6 +92,10 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
 
             Route::get('surveys', [SurveyController::class, 'index'])->name('surveys.index');
             Route::post('surveys', [SurveyController::class, 'store'])->name('surveys.store');
+            Route::get('service-surveys', [ServiceSurveyController::class, 'index'])->name('service-surveys.index');
+            Route::post('service-surveys/{serviceActivation}', [ServiceSurveyController::class, 'store'])->name('service-surveys.store');
+            Route::post('service-surveys/entrepreneurs/{entrepreneurProfile}', [ServiceSurveyController::class, 'storeForEntrepreneur'])
+                ->name('service-surveys.entrepreneurs.store');
             Route::get('surveys/{survey}', [SurveyController::class, 'show'])->name('surveys.show');
             Route::get('surveys/{survey}/edit', [SurveyController::class, 'edit'])->name('surveys.edit');
             Route::put('surveys/{survey}', [SurveyController::class, 'update'])->name('surveys.update');

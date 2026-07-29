@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::image
@@ -105,7 +105,7 @@ image.url = (args: { boardPost: string | { id: string } } | [boardPost: string |
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { boardPost: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     boardPost: args[0],
@@ -177,7 +177,7 @@ image.head = (args: { boardPost: string | { id: string } } | [boardPost: string 
                     }),
             method: 'get',
         })
-    
+
     image.form = imageForm
 const inspirationBoard = {
     index: Object.assign(index, index),

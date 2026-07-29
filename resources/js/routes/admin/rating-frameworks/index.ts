@@ -76,7 +76,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\RatingFrameworkController::publish
@@ -106,7 +106,7 @@ publish.url = (args: { ratingFramework: string | { id: string } } | [ratingFrame
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { ratingFramework: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     ratingFramework: args[0],
@@ -155,7 +155,7 @@ publish.post = (args: { ratingFramework: string | { id: string } } | [ratingFram
             action: publish.url(args, options),
             method: 'post',
         })
-    
+
     publish.form = publishForm
 const ratingFrameworks = {
     index: Object.assign(index, index),

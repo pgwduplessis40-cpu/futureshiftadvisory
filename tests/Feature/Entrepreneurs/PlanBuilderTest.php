@@ -14,6 +14,7 @@ use App\Services\Ai\Fake\FakeAiClient;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBuilder;
 use App\Services\Entrepreneurs\PlanRequirements;
+use App\Services\Pdf\PdfRenderer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -147,6 +148,45 @@ final class PlanBuilderTest extends TestCase
         $this->assertTrue((bool) data_get($section->metadata, 'dependency_warning.blocked'));
         $this->assertSame(['strategy'], data_get($section->metadata, 'dependency_warning.missing_dependencies'));
         $this->assertSame(5, $plan->refresh()->current_phase);
+    }
+
+    public function test_business_plan_preview_renders_markdown_formatting_safely(): void
+    {
+        [$advisor, $profile] = $this->profile('markdown-preview-founder@example.test');
+        $this->openIdeaGate($profile, $advisor);
+        $plan = app(PlanBuilder::class)->start($profile, $advisor);
+        $renderer = new class implements PdfRenderer
+        {
+            public string $html = '';
+
+            public function render(string $html): string
+            {
+                $this->html = $html;
+
+                return "%PDF-1.4\n".strip_tags($html);
+            }
+        };
+
+        $this->app->instance(PdfRenderer::class, $renderer);
+
+        app(PlanBuilder::class)->upsertSection(
+            plan: $plan,
+            phaseKey: 'market',
+            key: 'industry-context',
+            title: 'Market demand',
+            body: "Launch risks include **cash timing** and *supplier dependency*.\n- Validate weekend demand\n- Confirm lead times\n<script>alert('x')</script>",
+            actor: $advisor,
+            metadata: ['requirement_key' => 'industry-context'],
+        );
+
+        $this->actingAsMfa($profile->user()->firstOrFail())
+            ->get(route('portal.entrepreneur.plan.preview'))
+            ->assertOk();
+
+        $this->assertStringContainsString('<strong>cash timing</strong>', $renderer->html);
+        $this->assertStringContainsString('<em>supplier dependency</em>', $renderer->html);
+        $this->assertStringContainsString('<li>Validate weekend demand</li>', $renderer->html);
+        $this->assertStringNotContainsString('<script>', $renderer->html);
     }
 
     public function test_entrepreneur_plan_tables_are_profile_scoped_by_rls(): void

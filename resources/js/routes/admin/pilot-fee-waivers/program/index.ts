@@ -62,7 +62,7 @@ update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
                     }),
             method: 'post',
         })
-    
+
     update.form = updateForm
 const program = {
     update: Object.assign(update, update),

@@ -27,7 +27,7 @@ cancel.url = (args: { rotationSchedule: string | { id: string } } | [rotationSch
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { rotationSchedule: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     rotationSchedule: args[0],
@@ -86,7 +86,7 @@ cancel.delete = (args: { rotationSchedule: string | { id: string } } | [rotation
                     }),
             method: 'post',
         })
-    
+
     cancel.form = cancelForm
 const scheduleRotation = {
     cancel: Object.assign(cancel, cancel),

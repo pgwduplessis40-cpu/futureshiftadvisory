@@ -93,6 +93,10 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
     feedback_survey: {
         action_url: string;
     };
+    service_feedback_survey: {
+        action_url: string | null;
+        unavailable_reason: string | null;
+    } | null;
     idea_validation: {
         id: string;
         revision_number: number;

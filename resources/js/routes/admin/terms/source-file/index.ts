@@ -27,7 +27,7 @@ store.url = (args: { termsVersion: string | { id: string } } | [termsVersion: st
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { termsVersion: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     termsVersion: args[0],
@@ -76,7 +76,7 @@ store.post = (args: { termsVersion: string | { id: string } } | [termsVersion: s
             action: store.url(args, options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Admin\TermsController::download
@@ -106,7 +106,7 @@ download.url = (args: { termsVersion: string | { id: string } } | [termsVersion:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { termsVersion: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     termsVersion: args[0],
@@ -178,7 +178,7 @@ download.head = (args: { termsVersion: string | { id: string } } | [termsVersion
                     }),
             method: 'get',
         })
-    
+
     download.form = downloadForm
 const sourceFile = {
     store: Object.assign(store, store),

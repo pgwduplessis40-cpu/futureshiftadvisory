@@ -183,6 +183,7 @@ final class IdeaValidationTest extends TestCase
     {
         Notification::fake();
         [$advisor, $profile] = $this->profile('changes-requested@example.test');
+        $profile->forceFill(['name' => 'Christo Louw'])->save();
         $validation = $this->completedIdeaReview(app(IdeaValidationService::class)->evaluate($profile, $this->strongPayload(), $advisor));
 
         $updated = app(IdeaValidationService::class)->requestChanges(
@@ -216,8 +217,8 @@ final class IdeaValidationTest extends TestCase
             ->first();
 
         $this->assertInstanceOf(MessageThread::class, $thread);
-        $this->assertStringContainsString(
-            'Please run one more customer experiment',
+        $this->assertSame(
+            "Dear Christo,\n\nThank you for submitting your idea validation. I am not ready to approve the business plan builder gate yet.\n\nPlease run one more customer experiment and resubmit the validation evidence.\n\nPlease update the idea validation and resubmit it for review.",
             (string) $thread->messages()->first()?->body,
         );
         Notification::assertSentTo($profile->user, NewMessageNotification::class);

@@ -75,7 +75,7 @@ brokers.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     brokers.form = brokersForm
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::createBroker
@@ -153,7 +153,7 @@ createBroker.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     createBroker.form = createBrokerForm
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::storeBroker
@@ -208,7 +208,7 @@ storeBroker.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: storeBroker.url(options),
             method: 'post',
         })
-    
+
     storeBroker.form = storeBrokerForm
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::coaches
@@ -286,7 +286,7 @@ coaches.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     coaches.form = coachesForm
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::createCoach
@@ -364,7 +364,7 @@ createCoach.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     createCoach.form = createCoachForm
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::storeCoach
@@ -419,7 +419,7 @@ storeCoach.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: storeCoach.url(options),
             method: 'post',
         })
-    
+
     storeCoach.form = storeCoachForm
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::resendInvite
@@ -449,7 +449,7 @@ resendInvite.url = (args: { panelMember: string | { id: string } } | [panelMembe
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { panelMember: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     panelMember: args[0],
@@ -498,7 +498,7 @@ resendInvite.post = (args: { panelMember: string | { id: string } } | [panelMemb
             action: resendInvite.url(args, options),
             method: 'post',
         })
-    
+
     resendInvite.form = resendInviteForm
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::cancelInvite
@@ -528,7 +528,7 @@ cancelInvite.url = (args: { panelMember: string | { id: string } } | [panelMembe
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { panelMember: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     panelMember: args[0],
@@ -587,7 +587,7 @@ cancelInvite.delete = (args: { panelMember: string | { id: string } } | [panelMe
                     }),
             method: 'post',
         })
-    
+
     cancelInvite.form = cancelInviteForm
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::show
@@ -617,7 +617,7 @@ show.url = (args: { panelMember: string | { id: string } } | [panelMember: strin
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { panelMember: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     panelMember: args[0],
@@ -689,7 +689,7 @@ show.head = (args: { panelMember: string | { id: string } } | [panelMember: stri
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 const PartnerPanelController = { brokers, createBroker, storeBroker, coaches, createCoach, storeCoach, resendInvite, cancelInvite, show }
 

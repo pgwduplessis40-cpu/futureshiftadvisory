@@ -27,7 +27,7 @@ requestFromNps.url = (args: { client: string | { id: string } } | [client: strin
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -76,7 +76,7 @@ requestFromNps.post = (args: { client: string | { id: string } } | [client: stri
             action: requestFromNps.url(args, options),
             method: 'post',
         })
-    
+
     requestFromNps.form = requestFromNpsForm
 /**
 * @see \App\Http\Controllers\Advisor\TestimonialController::index
@@ -154,7 +154,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\TestimonialController::capture
@@ -184,7 +184,7 @@ capture.url = (args: { testimonial: string | { id: string } } | [testimonial: st
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { testimonial: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     testimonial: args[0],
@@ -243,7 +243,7 @@ capture.patch = (args: { testimonial: string | { id: string } } | [testimonial: 
                     }),
             method: 'post',
         })
-    
+
     capture.form = captureForm
 const TestimonialController = { requestFromNps, index, capture }
 

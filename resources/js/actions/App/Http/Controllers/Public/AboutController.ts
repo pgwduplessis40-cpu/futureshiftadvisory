@@ -75,6 +75,6 @@ AboutController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> =>
                     }),
             method: 'get',
         })
-    
+
     AboutController.form = AboutControllerForm
 export default AboutController

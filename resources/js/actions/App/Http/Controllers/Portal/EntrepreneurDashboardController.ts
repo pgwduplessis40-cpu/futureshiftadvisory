@@ -75,6 +75,6 @@ EntrepreneurDashboardController.head = (options?: RouteQueryOptions): RouteDefin
                     }),
             method: 'get',
         })
-    
+
     EntrepreneurDashboardController.form = EntrepreneurDashboardControllerForm
 export default EntrepreneurDashboardController

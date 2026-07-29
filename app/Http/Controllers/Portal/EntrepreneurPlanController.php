@@ -1278,9 +1278,17 @@ final class EntrepreneurPlanController extends Controller
 
         return sprintf(
             '<div class="body">%s</div><p class="note">Evidence: %s.</p>',
-            nl2br($this->escape((string) ($section['body'] ?? ''))),
+            $this->markdownBodyHtml((string) ($section['body'] ?? '')),
             $this->escape($docs),
         );
+    }
+
+    private function markdownBodyHtml(string $body): string
+    {
+        return Str::markdown($body, [
+            'html_input' => 'strip',
+            'allow_unsafe_links' => false,
+        ]);
     }
 
     private function formatLabel(string $value): string

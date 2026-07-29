@@ -27,7 +27,7 @@ stage.url = (args: { referral: string | { id: string } } | [referral: string | {
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { referral: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     referral: args[0],
@@ -86,7 +86,7 @@ stage.patch = (args: { referral: string | { id: string } } | [referral: string |
                     }),
             method: 'post',
         })
-    
+
     stage.form = stageForm
 const referrals = {
     stage: Object.assign(stage, stage),

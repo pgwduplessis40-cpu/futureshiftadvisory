@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Surveys;
 
+use App\Enums\SurveyType;
 use App\Models\Client;
 use App\Models\EntrepreneurProfile;
 use App\Models\SurveyAssignment;
@@ -15,22 +16,22 @@ final class SurveyResultAggregator
     /**
      * @return array<string, mixed>
      */
-    public function forClient(Client $client): array
+    public function forClient(Client $client, SurveyType $type = SurveyType::GeneralExperience): array
     {
         return $this->payload(
-            SurveyAssignment::query()->where('client_id', $client->getKey()),
-            SurveyResponse::query()->where('client_id', $client->getKey()),
+            SurveyAssignment::query()->where('client_id', $client->getKey())->whereHas('survey', fn (Builder $query) => $query->where('type', $type->value)),
+            SurveyResponse::query()->where('client_id', $client->getKey())->whereHas('survey', fn (Builder $query) => $query->where('type', $type->value)),
         );
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function forEntrepreneur(EntrepreneurProfile $profile): array
+    public function forEntrepreneur(EntrepreneurProfile $profile, SurveyType $type = SurveyType::GeneralExperience): array
     {
         return $this->payload(
-            SurveyAssignment::query()->where('entrepreneur_profile_id', $profile->getKey()),
-            SurveyResponse::query()->where('entrepreneur_profile_id', $profile->getKey()),
+            SurveyAssignment::query()->where('entrepreneur_profile_id', $profile->getKey())->whereHas('survey', fn (Builder $query) => $query->where('type', $type->value)),
+            SurveyResponse::query()->where('entrepreneur_profile_id', $profile->getKey())->whereHas('survey', fn (Builder $query) => $query->where('type', $type->value)),
         );
     }
 

@@ -15,6 +15,7 @@ use App\Enums\NpoSocialEnterpriseType;
 use App\Enums\NpoTiritiMode;
 use App\Enums\QuestionnaireSet;
 use App\Enums\ReportType;
+use App\Enums\SurveyStatus;
 use App\Models\BillingAdjustment;
 use App\Models\BusinessPlan;
 use App\Models\Client;
@@ -55,6 +56,7 @@ use App\Services\Learning\LayerCadenceRegistry;
 use App\Services\Proposals\ProposalBuilder;
 use App\Services\Proposals\SignedProposalEvidenceRenderer;
 use App\Services\Storage\KeyEnvelope;
+use App\Services\Surveys\SurveyLibrary;
 use App\Support\RequestContext;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Query\Builder;
@@ -110,6 +112,7 @@ final class TestingSeedDataSeeder extends Seeder
 
         DB::transaction(function (): void {
             $this->seedUsers();
+            $this->seedSurveys();
             $this->seedProposalTemplate();
             $this->seedProspectIntake();
             $this->seedClients();
@@ -223,6 +226,24 @@ final class TestingSeedDataSeeder extends Seeder
                     'user_agent' => 'FutureShift testing seed data',
                 ]);
             }
+        }
+    }
+
+    private function seedSurveys(): void
+    {
+        $admin = $this->users['admin'];
+        $library = app(SurveyLibrary::class);
+
+        foreach ([
+            $library->ensureDefault($admin),
+            $library->ensureServiceImprovement($admin),
+        ] as $survey) {
+            $survey->forceFill([
+                'status' => SurveyStatus::Published->value,
+                'published_at' => $this->now,
+                'published_by_user_id' => $admin->getKey(),
+                'archived_at' => null,
+            ])->save();
         }
     }
 

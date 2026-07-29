@@ -24,7 +24,7 @@ callback.url = (args: { provider: string | number } | [provider: string | number
         args = { provider: args }
     }
 
-    
+
     if (Array.isArray(args)) {
         args = {
                     provider: args[0],
@@ -94,7 +94,7 @@ callback.head = (args: { provider: string | number } | [provider: string | numbe
                     }),
             method: 'get',
         })
-    
+
     callback.form = callbackForm
 const accounting = {
     callback: Object.assign(callback, callback),

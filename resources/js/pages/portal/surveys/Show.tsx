@@ -34,7 +34,7 @@ type AnchorAnswer = {
 };
 
 type FormAnswer = {
-    value?: number | boolean | null;
+    value?: number | boolean | string | null;
     anchors?: AnchorAnswer[];
 };
 
@@ -46,6 +46,11 @@ type Assignment = {
     is_open: boolean;
     due_at: string | null;
     deliverables: Deliverable[];
+    service: {
+        service_label?: string;
+        package_label?: string | null;
+        closed_at?: string | null;
+    } | null;
     questions: Question[];
 };
 
@@ -72,7 +77,7 @@ export default function PortalSurveyShow({
         form.post(storeUrl, { preserveScroll: true });
     };
 
-    const setFlat = (questionId: string, value: number | boolean) => {
+    const setFlat = (questionId: string, value: number | boolean | string) => {
         form.setData('answers', {
             ...form.data.answers,
             [questionId]: {
@@ -136,6 +141,19 @@ export default function PortalSurveyShow({
                     portal, and it will never be held against you in any shape
                     or form.
                 </div>
+
+                {assignment.service?.service_label && (
+                    <div className="border-l-4 border-[var(--fs-teal)] bg-background px-4 py-3 text-sm">
+                        <div className="font-medium text-foreground">
+                            {assignment.service.service_label}
+                        </div>
+                        {assignment.service.package_label && (
+                            <div className="mt-1 text-muted-foreground">
+                                {assignment.service.package_label}
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 <form onSubmit={submit} className="space-y-4">
                     {assignment.questions.map((question) => (
@@ -215,6 +233,25 @@ export default function PortalSurveyShow({
                                         }
                                     />
                                 </div>
+                            )}
+
+                            {question.type === 'text' && (
+                                <textarea
+                                    value={
+                                        (form.data.answers[question.id]
+                                            ?.value as string | undefined) ?? ''
+                                    }
+                                    disabled={!assignment.is_open}
+                                    maxLength={4000}
+                                    rows={5}
+                                    onChange={(event) =>
+                                        setFlat(
+                                            question.id,
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="mt-4 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
+                                />
                             )}
 
                             {question.type === 'anchored_matrix' && (

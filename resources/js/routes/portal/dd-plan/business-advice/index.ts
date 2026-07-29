@@ -52,7 +52,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 const businessAdvice = {
     store: Object.assign(store, store),

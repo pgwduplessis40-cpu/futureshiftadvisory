@@ -89,6 +89,7 @@ final class SurveyController extends Controller
             'due_at' => $assignment->due_at?->toIso8601String(),
             'completed_at' => $assignment->completed_at?->toIso8601String(),
             'deliverables' => $assignment->deliverable_snapshot ?? [],
+            'service' => $assignment->service_snapshot,
             'url' => route('portal.surveys.show', $assignment, absolute: false),
             'response' => $assignment->response ? [
                 'overall_score' => $assignment->response->overall_score,

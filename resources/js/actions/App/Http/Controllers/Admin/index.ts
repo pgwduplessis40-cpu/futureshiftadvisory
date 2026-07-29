@@ -4,6 +4,7 @@ import ClientAllocationController from './ClientAllocationController'
 import PilotFeeWaiverController from './PilotFeeWaiverController'
 import QuestionnaireController from './QuestionnaireController'
 import SurveyController from './SurveyController'
+import ServiceSurveyController from './ServiceSurveyController'
 import TermsController from './TermsController'
 import PartnerAgreementController from './PartnerAgreementController'
 import PrinciplesRolesController from './PrinciplesRolesController'
@@ -28,6 +29,7 @@ ClientAllocationController: Object.assign(ClientAllocationController, ClientAllo
 PilotFeeWaiverController: Object.assign(PilotFeeWaiverController, PilotFeeWaiverController),
 QuestionnaireController: Object.assign(QuestionnaireController, QuestionnaireController),
 SurveyController: Object.assign(SurveyController, SurveyController),
+ServiceSurveyController: Object.assign(ServiceSurveyController, ServiceSurveyController),
 TermsController: Object.assign(TermsController, TermsController),
 PartnerAgreementController: Object.assign(PartnerAgreementController, PartnerAgreementController),
 PrinciplesRolesController: Object.assign(PrinciplesRolesController, PrinciplesRolesController),

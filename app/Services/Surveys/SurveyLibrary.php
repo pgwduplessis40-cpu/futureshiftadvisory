@@ -6,6 +6,7 @@ namespace App\Services\Surveys;
 
 use App\Enums\SurveyQuestionType;
 use App\Enums\SurveyStatus;
+use App\Enums\SurveyType;
 use App\Models\Survey;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,8 @@ final class SurveyLibrary
 {
     public const CLIENT_EXPERIENCE_KEY = 'client_experience';
 
+    public const SERVICE_IMPROVEMENT_KEY = 'service_improvement';
+
     public const DEFAULT_VERSION = '1.0';
 
     public function ensureDefault(?User $creator = null): Survey
@@ -21,6 +24,7 @@ final class SurveyLibrary
         $survey = Survey::query()
             ->where('key', self::CLIENT_EXPERIENCE_KEY)
             ->where('version', self::DEFAULT_VERSION)
+            ->where('type', SurveyType::GeneralExperience->value)
             ->first();
 
         if ($survey instanceof Survey) {
@@ -31,6 +35,7 @@ final class SurveyLibrary
             $survey = Survey::query()->create([
                 'key' => self::CLIENT_EXPERIENCE_KEY,
                 'version' => self::DEFAULT_VERSION,
+                'type' => SurveyType::GeneralExperience->value,
                 'title' => 'Client experience survey',
                 'description' => 'Structured feedback on delivered advice and supporting material.',
                 'status' => SurveyStatus::Draft->value,
@@ -86,6 +91,119 @@ final class SurveyLibrary
                     ...$question,
                     'required' => true,
                 ]);
+            }
+
+            return $survey->load('questions');
+        });
+    }
+
+    public function ensureServiceImprovement(?User $creator = null): Survey
+    {
+        $survey = Survey::query()
+            ->where('key', self::SERVICE_IMPROVEMENT_KEY)
+            ->where('version', self::DEFAULT_VERSION)
+            ->where('type', SurveyType::ServiceImprovement->value)
+            ->first();
+
+        if ($survey instanceof Survey) {
+            return $survey->load('questions');
+        }
+
+        return DB::transaction(function () use ($creator): Survey {
+            $survey = Survey::query()->create([
+                'key' => self::SERVICE_IMPROVEMENT_KEY,
+                'version' => self::DEFAULT_VERSION,
+                'type' => SurveyType::ServiceImprovement->value,
+                'title' => 'Service improvement survey',
+                'description' => 'Feedback on a completed Future Shift Advisory service to guide continuous improvement.',
+                'status' => SurveyStatus::Draft->value,
+                'settings' => [
+                    'allow_free_text' => true,
+                    'service_activation_required' => true,
+                ],
+                'created_by_user_id' => $creator?->getKey(),
+            ]);
+
+            $questions = [
+                [
+                    'order' => 1,
+                    'type' => SurveyQuestionType::Likert->value,
+                    'key' => 'service_fit',
+                    'prompt' => 'How well did this service meet the need you engaged us for?',
+                    'help_text' => null,
+                    'options' => $this->likertOptions(),
+                    'required' => true,
+                ],
+                [
+                    'order' => 2,
+                    'type' => SurveyQuestionType::Likert->value,
+                    'key' => 'practical_value',
+                    'prompt' => 'How useful was the advice or output in helping you move forward?',
+                    'help_text' => null,
+                    'options' => $this->likertOptions(),
+                    'required' => true,
+                ],
+                [
+                    'order' => 3,
+                    'type' => SurveyQuestionType::Likert->value,
+                    'key' => 'process_clarity',
+                    'prompt' => 'How clear were the process, expectations, and next steps?',
+                    'help_text' => null,
+                    'options' => $this->likertOptions(),
+                    'required' => true,
+                ],
+                [
+                    'order' => 4,
+                    'type' => SurveyQuestionType::Likert->value,
+                    'key' => 'timeliness',
+                    'prompt' => 'How well did the timing of the service work for you?',
+                    'help_text' => null,
+                    'options' => $this->likertOptions(),
+                    'required' => true,
+                ],
+                [
+                    'order' => 5,
+                    'type' => SurveyQuestionType::Text->value,
+                    'key' => 'most_valuable',
+                    'prompt' => 'What was the most valuable part of this service?',
+                    'help_text' => null,
+                    'options' => null,
+                    'required' => false,
+                ],
+                [
+                    'order' => 6,
+                    'type' => SurveyQuestionType::Text->value,
+                    'key' => 'improve_next_time',
+                    'prompt' => 'What is the one thing we should improve next time?',
+                    'help_text' => 'Please be as specific as you can.',
+                    'options' => null,
+                    'required' => true,
+                ],
+                [
+                    'order' => 7,
+                    'type' => SurveyQuestionType::Text->value,
+                    'key' => 'missing_or_unclear',
+                    'prompt' => 'Was anything missing, unclear, or harder than it needed to be?',
+                    'help_text' => null,
+                    'options' => null,
+                    'required' => false,
+                ],
+                [
+                    'order' => 8,
+                    'type' => SurveyQuestionType::Nps->value,
+                    'key' => 'recommend_service',
+                    'prompt' => 'How likely are you to recommend this service to another business?',
+                    'help_text' => null,
+                    'options' => [
+                        'min' => 0,
+                        'max' => 10,
+                    ],
+                    'required' => true,
+                ],
+            ];
+
+            foreach ($questions as $question) {
+                $survey->questions()->create($question);
             }
 
             return $survey->load('questions');

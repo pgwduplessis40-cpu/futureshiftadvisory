@@ -77,7 +77,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 const pilotFeeWaivers = {
     index: Object.assign(index, index),

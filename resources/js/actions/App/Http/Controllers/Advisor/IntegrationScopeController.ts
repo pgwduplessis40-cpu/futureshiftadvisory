@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::show
@@ -105,7 +105,7 @@ show.url = (args: { integrationScope: string | { id: string } } | [integrationSc
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { integrationScope: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     integrationScope: args[0],
@@ -177,7 +177,7 @@ show.head = (args: { integrationScope: string | { id: string } } | [integrationS
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::store
@@ -207,7 +207,7 @@ store.url = (args: { client: string | { id: string } } | [client: string | { id:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -256,7 +256,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
             action: store.url(args, options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::update
@@ -286,7 +286,7 @@ update.url = (args: { integrationScope: string | { id: string } } | [integration
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { integrationScope: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     integrationScope: args[0],
@@ -345,7 +345,7 @@ update.patch = (args: { integrationScope: string | { id: string } } | [integrati
                     }),
             method: 'post',
         })
-    
+
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::recalculate
@@ -375,7 +375,7 @@ recalculate.url = (args: { integrationScope: string | { id: string } } | [integr
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { integrationScope: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     integrationScope: args[0],
@@ -424,7 +424,7 @@ recalculate.post = (args: { integrationScope: string | { id: string } } | [integ
             action: recalculate.url(args, options),
             method: 'post',
         })
-    
+
     recalculate.form = recalculateForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::createFeeCalculation
@@ -454,7 +454,7 @@ createFeeCalculation.url = (args: { integrationScope: string | { id: string } } 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { integrationScope: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     integrationScope: args[0],
@@ -503,7 +503,7 @@ createFeeCalculation.post = (args: { integrationScope: string | { id: string } }
             action: createFeeCalculation.url(args, options),
             method: 'post',
         })
-    
+
     createFeeCalculation.form = createFeeCalculationForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::extractQuoteSources
@@ -533,7 +533,7 @@ extractQuoteSources.url = (args: { integrationScope: string | { id: string } } |
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { integrationScope: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     integrationScope: args[0],
@@ -582,7 +582,7 @@ extractQuoteSources.post = (args: { integrationScope: string | { id: string } } 
             action: extractQuoteSources.url(args, options),
             method: 'post',
         })
-    
+
     extractQuoteSources.form = extractQuoteSourcesForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::retryQuoteSourceExtraction
@@ -658,7 +658,7 @@ retryQuoteSourceExtraction.post = (args: { integrationScope: string | { id: stri
             action: retryQuoteSourceExtraction.url(args, options),
             method: 'post',
         })
-    
+
     retryQuoteSourceExtraction.form = retryQuoteSourceExtractionForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::confirmQuoteSourceRows
@@ -734,7 +734,7 @@ confirmQuoteSourceRows.post = (args: { integrationScope: string | { id: string }
             action: confirmQuoteSourceRows.url(args, options),
             method: 'post',
         })
-    
+
     confirmQuoteSourceRows.form = confirmQuoteSourceRowsForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::rejectQuoteSourceRows
@@ -810,7 +810,7 @@ rejectQuoteSourceRows.post = (args: { integrationScope: string | { id: string },
             action: rejectQuoteSourceRows.url(args, options),
             method: 'post',
         })
-    
+
     rejectQuoteSourceRows.form = rejectQuoteSourceRowsForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::showQuoteSourceDocument
@@ -907,7 +907,7 @@ showQuoteSourceDocument.head = (args: { integrationScope: string | { id: string 
                     }),
             method: 'get',
         })
-    
+
     showQuoteSourceDocument.form = showQuoteSourceDocumentForm
 const IntegrationScopeController = { index, show, store, update, recalculate, createFeeCalculation, extractQuoteSources, retryQuoteSourceExtraction, confirmQuoteSourceRows, rejectQuoteSourceRows, showQuoteSourceDocument }
 

@@ -22,6 +22,7 @@ final class SurveyAssignment extends Model
         'due_at' => 'datetime',
         'completed_at' => 'datetime',
         'deliverable_snapshot' => 'array',
+        'service_snapshot' => 'array',
     ];
 
     /**
@@ -46,6 +47,14 @@ final class SurveyAssignment extends Model
     public function entrepreneurProfile(): BelongsTo
     {
         return $this->belongsTo(EntrepreneurProfile::class);
+    }
+
+    /**
+     * @return BelongsTo<ServiceActivation, SurveyAssignment>
+     */
+    public function serviceActivation(): BelongsTo
+    {
+        return $this->belongsTo(ServiceActivation::class);
     }
 
     /**

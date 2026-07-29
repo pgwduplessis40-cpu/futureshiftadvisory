@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class ServiceActivation extends Model
 {
@@ -127,6 +128,14 @@ final class ServiceActivation extends Model
     public function messageThread(): BelongsTo
     {
         return $this->belongsTo(MessageThread::class, 'client_message_thread_id');
+    }
+
+    /**
+     * @return HasMany<SurveyAssignment>
+     */
+    public function surveyAssignments(): HasMany
+    {
+        return $this->hasMany(SurveyAssignment::class);
     }
 
     /**

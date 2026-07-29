@@ -27,7 +27,7 @@ index.url = (args: { client: string | { id: string } } | [client: string | { id:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -99,7 +99,7 @@ index.head = (args: { client: string | { id: string } } | [client: string | { id
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientMessageController::store
@@ -129,7 +129,7 @@ store.url = (args: { client: string | { id: string } } | [client: string | { id:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -178,7 +178,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
             action: store.url(args, options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientMessageController::show
@@ -277,7 +277,7 @@ show.head = (args: { client: string | { id: string }, messageThread: string | { 
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientMessageController::reply
@@ -353,7 +353,7 @@ reply.post = (args: { client: string | { id: string }, messageThread: string | {
             action: reply.url(args, options),
             method: 'post',
         })
-    
+
     reply.form = replyForm
 const ClientMessageController = { index, store, show, reply }
 

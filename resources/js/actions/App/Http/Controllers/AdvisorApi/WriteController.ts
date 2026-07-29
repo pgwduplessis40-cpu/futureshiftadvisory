@@ -27,7 +27,7 @@ meetingNote.url = (args: { client: string | { id: string } } | [client: string |
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -76,7 +76,7 @@ meetingNote.post = (args: { client: string | { id: string } } | [client: string 
             action: meetingNote.url(args, options),
             method: 'post',
         })
-    
+
     meetingNote.form = meetingNoteForm
 /**
 * @see \App\Http\Controllers\AdvisorApi\WriteController::action
@@ -106,7 +106,7 @@ action.url = (args: { client: string | { id: string } } | [client: string | { id
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -155,7 +155,7 @@ action.post = (args: { client: string | { id: string } } | [client: string | { i
             action: action.url(args, options),
             method: 'post',
         })
-    
+
     action.form = actionForm
 const WriteController = { meetingNote, action }
 

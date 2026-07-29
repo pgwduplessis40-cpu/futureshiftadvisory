@@ -52,7 +52,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::update
@@ -82,7 +82,7 @@ update.url = (args: { meeting: string | { id: string } } | [meeting: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { meeting: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     meeting: args[0],
@@ -141,7 +141,7 @@ update.patch = (args: { meeting: string | { id: string } } | [meeting: string | 
                     }),
             method: 'post',
         })
-    
+
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::cancel
@@ -171,7 +171,7 @@ cancel.url = (args: { meeting: string | { id: string } } | [meeting: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { meeting: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     meeting: args[0],
@@ -230,7 +230,7 @@ cancel.delete = (args: { meeting: string | { id: string } } | [meeting: string |
                     }),
             method: 'post',
         })
-    
+
     cancel.form = cancelForm
 const meetings = {
     store: Object.assign(store, store),

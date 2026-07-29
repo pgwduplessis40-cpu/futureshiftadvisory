@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\SurveyAssignmentController::store
- * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:40
+ * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:41
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/survey-assignments'
  */
 export const store = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\SurveyAssignmentController::store
- * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:40
+ * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:41
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/survey-assignments'
  */
 store.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -27,7 +27,7 @@ store.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepren
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -49,7 +49,7 @@ store.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepren
 
 /**
 * @see \App\Http\Controllers\Admin\SurveyAssignmentController::store
- * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:40
+ * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:41
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/survey-assignments'
  */
 store.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ store.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
 
     /**
 * @see \App\Http\Controllers\Admin\SurveyAssignmentController::store
- * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:40
+ * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:41
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/survey-assignments'
  */
     const storeForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,14 +69,14 @@ store.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
 
             /**
 * @see \App\Http\Controllers\Admin\SurveyAssignmentController::store
- * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:40
+ * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:41
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/survey-assignments'
  */
         storeForm.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(args, options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 const surveyAssignments = {
     store: Object.assign(store, store),

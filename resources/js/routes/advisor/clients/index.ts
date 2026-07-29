@@ -368,7 +368,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:19
  * @route '/advisor/clients/{client}/surveys'
  */
 export const surveys = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -383,7 +383,7 @@ surveys.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:19
  * @route '/advisor/clients/{client}/surveys'
  */
 surveys.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -416,7 +416,7 @@ surveys.url = (args: { client: string | { id: string } } | [client: string | { i
 
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:19
  * @route '/advisor/clients/{client}/surveys'
  */
 surveys.get = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -425,7 +425,7 @@ surveys.get = (args: { client: string | { id: string } } | [client: string | { i
 })
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:19
  * @route '/advisor/clients/{client}/surveys'
  */
 surveys.head = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -435,7 +435,7 @@ surveys.head = (args: { client: string | { id: string } } | [client: string | { 
 
     /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:19
  * @route '/advisor/clients/{client}/surveys'
  */
     const surveysForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -445,7 +445,7 @@ surveys.head = (args: { client: string | { id: string } } | [client: string | { 
 
             /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:19
  * @route '/advisor/clients/{client}/surveys'
  */
         surveysForm.get = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -454,7 +454,7 @@ surveys.head = (args: { client: string | { id: string } } | [client: string | { 
         })
             /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:19
  * @route '/advisor/clients/{client}/surveys'
  */
         surveysForm.head = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

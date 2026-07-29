@@ -76,7 +76,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::create
@@ -154,7 +154,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     create.form = createForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::store
@@ -209,7 +209,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::show
@@ -239,7 +239,7 @@ show.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntry: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntry: args[0],
@@ -311,7 +311,7 @@ show.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::edit
@@ -341,7 +341,7 @@ edit.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntry: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntry: args[0],
@@ -413,7 +413,7 @@ edit.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry
                     }),
             method: 'get',
         })
-    
+
     edit.form = editForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::update
@@ -443,7 +443,7 @@ update.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntr
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntry: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntry: args[0],
@@ -502,7 +502,7 @@ update.patch = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEn
                     }),
             method: 'post',
         })
-    
+
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::destroy
@@ -532,7 +532,7 @@ destroy.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEnt
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntry: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntry: args[0],
@@ -591,7 +591,7 @@ destroy.delete = (args: { knowledgeEntry: string | { id: string } } | [knowledge
                     }),
             method: 'post',
         })
-    
+
     destroy.form = destroyForm
 const knowledge = {
     index: Object.assign(index, index),

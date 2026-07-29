@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\SurveyType;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\EntrepreneurProfile;
@@ -78,11 +79,15 @@ final class SurveyAssignmentController extends Controller
         ]);
 
         if (isset($validated['survey_id'])) {
-            return Survey::query()->whereKey($validated['survey_id'])->firstOrFail();
+            return Survey::query()
+                ->whereKey($validated['survey_id'])
+                ->where('type', SurveyType::GeneralExperience->value)
+                ->firstOrFail();
         }
 
         $survey = Survey::query()
             ->published()
+            ->where('type', SurveyType::GeneralExperience->value)
             ->latest('published_at')
             ->first();
 

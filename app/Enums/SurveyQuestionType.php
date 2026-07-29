@@ -10,6 +10,7 @@ enum SurveyQuestionType: string
     case Nps = 'nps';
     case Boolean = 'boolean';
     case AnchoredMatrix = 'anchored_matrix';
+    case Text = 'text';
 
     /**
      * @return array<int, string>

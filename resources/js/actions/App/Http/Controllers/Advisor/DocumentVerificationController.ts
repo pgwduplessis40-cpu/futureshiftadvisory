@@ -27,7 +27,7 @@ update.url = (args: { documentVerification: string | { id: string } } | [documen
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { documentVerification: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     documentVerification: args[0],
@@ -86,7 +86,7 @@ update.patch = (args: { documentVerification: string | { id: string } } | [docum
                     }),
             method: 'post',
         })
-    
+
     update.form = updateForm
 const DocumentVerificationController = { update }
 

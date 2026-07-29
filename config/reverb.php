@@ -12,7 +12,11 @@ return [
             'path' => env('REVERB_SERVER_PATH', ''),
             'hostname' => env('REVERB_HOST'),
             'options' => [
-                'tls' => [],
+                'tls' => env('REVERB_SERVER_TLS_CERT') ? [
+                    'local_cert' => env('REVERB_SERVER_TLS_CERT'),
+                    'local_pk' => env('REVERB_SERVER_TLS_KEY'),
+                    'verify_peer' => filter_var(env('REVERB_SERVER_TLS_VERIFY_PEER', true), FILTER_VALIDATE_BOOL),
+                ] : [],
             ],
             'max_request_size' => env('REVERB_MAX_REQUEST_SIZE', 10_000),
             'scaling' => [

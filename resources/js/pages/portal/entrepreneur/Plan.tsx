@@ -28,6 +28,10 @@ import type {
 } from 'react';
 import { BudgetCashChart } from '@/components/budget-cash-chart';
 import FileDropzone from '@/components/file-dropzone';
+import {
+    FormattedMarkdown,
+    FormattedTextarea,
+} from '@/components/formatted-textarea';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -101,6 +105,7 @@ type IdeaValidationForm = {
 };
 
 const IDEA_VALIDATION_FIELD_MAX_LENGTH = 10000;
+const PLAN_SECTION_BODY_MAX_LENGTH = 8000;
 
 type BusinessPlanPayload = {
     id: string;
@@ -1454,55 +1459,58 @@ export default function EntrepreneurPlan({
                                                 />
                                             </div>
                                         ) : null}
-                                        {ideaFields.map((field) => (
-                                            <label
-                                                key={field.key}
-                                                className="grid gap-1 text-sm"
-                                            >
-                                                <span className="flex items-center justify-between gap-3">
-                                                    <span>{field.label}</span>
-                                                    <span className="shrink-0 text-xs font-normal text-muted-foreground tabular-nums">
-                                                        {
-                                                            ideaForm.data[
-                                                                field.key as keyof IdeaValidationForm
-                                                            ].length
+                                        {ideaFields.map((field) => {
+                                            const fieldValue =
+                                                ideaForm.data[field.key];
+                                            const fieldId = `idea-validation-${field.key}`;
+
+                                            return (
+                                                <div
+                                                    key={field.key}
+                                                    className="grid gap-1 text-sm"
+                                                >
+                                                    <span className="flex items-center justify-between gap-3">
+                                                        <label
+                                                            htmlFor={fieldId}
+                                                        >
+                                                            {field.label}
+                                                        </label>
+                                                        <span className="shrink-0 text-xs font-normal text-muted-foreground tabular-nums">
+                                                            {fieldValue.length}
+                                                            {' / '}
+                                                            {
+                                                                IDEA_VALIDATION_FIELD_MAX_LENGTH
+                                                            }
+                                                        </span>
+                                                    </span>
+                                                    <FormattedTextarea
+                                                        id={fieldId}
+                                                        value={fieldValue}
+                                                        onChange={(value) =>
+                                                            ideaForm.setData(
+                                                                field.key,
+                                                                value,
+                                                            )
                                                         }
-                                                        {' / '}
-                                                        {
+                                                        maxLength={
                                                             IDEA_VALIDATION_FIELD_MAX_LENGTH
                                                         }
-                                                    </span>
-                                                </span>
-                                                <textarea
-                                                    value={
-                                                        ideaForm.data[
-                                                            field.key as keyof IdeaValidationForm
-                                                        ]
-                                                    }
-                                                    onChange={(event) =>
-                                                        ideaForm.setData(
-                                                            field.key as keyof IdeaValidationForm,
-                                                            event.target.value,
-                                                        )
-                                                    }
-                                                    maxLength={
-                                                        IDEA_VALIDATION_FIELD_MAX_LENGTH
-                                                    }
-                                                    rows={4}
-                                                    className="rounded-md border bg-background px-3 py-2 text-sm"
-                                                    placeholder={
-                                                        field.placeholder
-                                                    }
-                                                />
-                                                <InputError
-                                                    message={
-                                                        ideaForm.errors[
-                                                            field.key as keyof IdeaValidationForm
-                                                        ]
-                                                    }
-                                                />
-                                            </label>
-                                        ))}
+                                                        rows={4}
+                                                        placeholder={
+                                                            field.placeholder
+                                                        }
+                                                        ariaLabel={field.label}
+                                                    />
+                                                    <InputError
+                                                        message={
+                                                            ideaForm.errors[
+                                                                field.key
+                                                            ]
+                                                        }
+                                                    />
+                                                </div>
+                                            );
+                                        })}
                                         <div className="lg:col-span-2">
                                             <Button
                                                 type="submit"
@@ -1785,21 +1793,34 @@ export default function EntrepreneurPlan({
                                                             className="h-9 rounded-md border bg-background px-3 text-sm"
                                                         />
                                                     </label>
-                                                    <label className="grid gap-1 text-sm">
-                                                        <span>Plan detail</span>
-                                                        <textarea
+                                                    <div className="grid gap-1 text-sm">
+                                                        <span className="flex items-center justify-between gap-3">
+                                                            <label htmlFor="entrepreneur-plan-section-body">
+                                                                Plan detail
+                                                            </label>
+                                                            <span className="shrink-0 text-xs font-normal text-muted-foreground tabular-nums">
+                                                                {
+                                                                    sectionBody.length
+                                                                }
+                                                                {' / '}
+                                                                {
+                                                                    PLAN_SECTION_BODY_MAX_LENGTH
+                                                                }
+                                                            </span>
+                                                        </span>
+                                                        <FormattedTextarea
+                                                            id="entrepreneur-plan-section-body"
                                                             value={sectionBody}
-                                                            onChange={(event) =>
-                                                                setSectionBody(
-                                                                    event.target
-                                                                        .value,
-                                                                )
+                                                            onChange={
+                                                                setSectionBody
                                                             }
                                                             rows={8}
-                                                            className="rounded-md border bg-background px-3 py-2 text-sm"
+                                                            maxLength={
+                                                                PLAN_SECTION_BODY_MAX_LENGTH
+                                                            }
                                                             placeholder="Add the context, evidence, assumptions, decisions, and risks your advisor should rely on."
                                                         />
-                                                    </label>
+                                                    </div>
                                                     <FileDropzone
                                                         key={supportingKey}
                                                         id="entrepreneur-plan-support"
@@ -4664,9 +4685,10 @@ function IdeaValidationSnapshot({
                         <div className="text-xs font-medium text-muted-foreground">
                             {field.label}
                         </div>
-                        <p className="mt-1 text-sm whitespace-pre-line">
-                            {field.value || '-'}
-                        </p>
+                        <FormattedMarkdown
+                            value={field.value}
+                            className="mt-1"
+                        />
                     </div>
                 ))}
             </div>
@@ -4755,7 +4777,9 @@ function VersionDetail({ label, value }: { label: string; value: string }) {
             <dt className="text-xs font-medium text-muted-foreground">
                 {label}
             </dt>
-            <dd className="mt-1 whitespace-pre-line">{value || '-'}</dd>
+            <dd className="mt-1">
+                <FormattedMarkdown value={value} />
+            </dd>
         </div>
     );
 }

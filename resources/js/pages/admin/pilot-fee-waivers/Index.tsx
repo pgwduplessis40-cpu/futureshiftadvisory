@@ -1,5 +1,6 @@
-import { Head, useForm } from '@inertiajs/react';
-import { Check, Save, ShieldCheck } from 'lucide-react';
+import { Head, router, useForm } from '@inertiajs/react';
+import { Check, RefreshCw, Save, ShieldCheck } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
@@ -42,11 +43,39 @@ export default function PilotFeeWaiversIndex({
     clients,
 }: Props) {
     const programForm = useForm({ status: program.status });
+    const [refreshingClients, setRefreshingClients] = useState(false);
 
     function saveProgram(event: FormEvent) {
         event.preventDefault();
         programForm.patch(program.update_url, { preserveScroll: true });
     }
+
+    const refreshClients = useCallback(() => {
+        router.reload({
+            only: ['clients'],
+            onStart: () => setRefreshingClients(true),
+            onFinish: () => setRefreshingClients(false),
+        });
+    }, []);
+
+    useEffect(() => {
+        const refreshVisiblePage = () => {
+            if (document.visibilityState === 'visible') {
+                refreshClients();
+            }
+        };
+
+        window.addEventListener('focus', refreshVisiblePage);
+        document.addEventListener('visibilitychange', refreshVisiblePage);
+
+        return () => {
+            window.removeEventListener('focus', refreshVisiblePage);
+            document.removeEventListener(
+                'visibilitychange',
+                refreshVisiblePage,
+            );
+        };
+    }, [refreshClients]);
 
     return (
         <>
@@ -63,13 +92,23 @@ export default function PilotFeeWaiversIndex({
                 <section className="grid gap-4 border p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                     <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
-                            <h2 className="text-base font-semibold">Pilot programme</h2>
-                            <Badge variant={program.status === 'open' ? 'secondary' : 'outline'}>
+                            <h2 className="text-base font-semibold">
+                                Pilot programme
+                            </h2>
+                            <Badge
+                                variant={
+                                    program.status === 'open'
+                                        ? 'secondary'
+                                        : 'outline'
+                                }
+                            >
                                 {statusLabel(program.status)}
                             </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                            Open permits new client waivers. Closed and suspended leave existing proposal terms unchanged, but stop new waived proposals.
+                            Open permits new client waivers. Closed and
+                            suspended leave existing proposal terms unchanged,
+                            but stop new waived proposals.
                         </p>
                         {program.updated_at ? (
                             <p className="text-xs text-muted-foreground">
@@ -115,26 +154,72 @@ export default function PilotFeeWaiversIndex({
                 <section className="space-y-3">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                         <div>
-                            <h2 className="text-lg font-semibold">Client waivers</h2>
+                            <h2 className="text-lg font-semibold">
+                                Client waivers
+                            </h2>
                             <p className="text-sm text-muted-foreground">
-                                Assign an expiry and an auditable reason to every pilot client. Only an open programme applies a waiver to newly generated proposals.
+                                Assign an expiry and an auditable reason to
+                                every pilot client. Only an open programme
+                                applies a waiver to newly generated proposals.
                             </p>
                         </div>
-                        <Badge variant="outline">
-                            {clients.filter((client) => client.active_for_new_proposals).length} active
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline">
+                                {clients.length} clients
+                            </Badge>
+                            <Badge variant="outline">
+                                {
+                                    clients.filter(
+                                        (client) =>
+                                            client.active_for_new_proposals,
+                                    ).length
+                                }{' '}
+                                active
+                            </Badge>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={refreshingClients}
+                                onClick={refreshClients}
+                            >
+                                <RefreshCw
+                                    className={
+                                        refreshingClients
+                                            ? 'size-4 animate-spin'
+                                            : 'size-4'
+                                    }
+                                    aria-hidden="true"
+                                />
+                                Refresh clients
+                            </Button>
+                        </div>
                     </div>
                     <div className="overflow-x-auto border">
-                        <table className="min-w-[1100px] w-full text-left text-sm">
+                        <table className="w-full min-w-[1100px] text-left text-sm">
                             <thead className="bg-muted/60">
                                 <tr>
-                                    <th className="px-3 py-2 font-medium">Client</th>
-                                    <th className="px-3 py-2 font-medium">Pilot</th>
-                                    <th className="px-3 py-2 font-medium">Starts</th>
-                                    <th className="px-3 py-2 font-medium">Review by</th>
-                                    <th className="px-3 py-2 font-medium">Approval reason</th>
-                                    <th className="px-3 py-2 font-medium">Status</th>
-                                    <th className="px-3 py-2 text-right font-medium">Save</th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Client
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Pilot
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Starts
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Review by
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Approval reason
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Status
+                                    </th>
+                                    <th className="px-3 py-2 text-right font-medium">
+                                        Save
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -204,7 +289,10 @@ function PilotClientRow({ client }: { client: PilotClient }) {
                 <InputError message={form.errors.starts_at} />
             </td>
             <td className="px-3 py-3">
-                <Label className="sr-only" htmlFor={`pilot-expiry-${client.id}`}>
+                <Label
+                    className="sr-only"
+                    htmlFor={`pilot-expiry-${client.id}`}
+                >
                     Pilot review date
                 </Label>
                 <Input
@@ -219,7 +307,10 @@ function PilotClientRow({ client }: { client: PilotClient }) {
                 <InputError message={form.errors.expires_at} />
             </td>
             <td className="px-3 py-3">
-                <Label className="sr-only" htmlFor={`pilot-reason-${client.id}`}>
+                <Label
+                    className="sr-only"
+                    htmlFor={`pilot-reason-${client.id}`}
+                >
                     Pilot approval reason
                 </Label>
                 <Input

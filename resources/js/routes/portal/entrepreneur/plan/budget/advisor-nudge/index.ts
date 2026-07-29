@@ -52,7 +52,7 @@ dismiss.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: dismiss.url(options),
             method: 'post',
         })
-    
+
     dismiss.form = dismissForm
 const advisorNudge = {
     dismiss: Object.assign(dismiss, dismiss),

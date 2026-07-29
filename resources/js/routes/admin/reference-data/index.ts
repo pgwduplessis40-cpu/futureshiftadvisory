@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::store
@@ -130,7 +130,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::evidence
@@ -160,7 +160,7 @@ evidence.url = (args: { document: string | { id: string } } | [document: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { document: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     document: args[0],
@@ -232,7 +232,7 @@ evidence.head = (args: { document: string | { id: string } } | [document: string
                     }),
             method: 'get',
         })
-    
+
     evidence.form = evidenceForm
 const referenceData = {
     index: Object.assign(index, index),

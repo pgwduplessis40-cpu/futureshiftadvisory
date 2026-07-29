@@ -509,7 +509,7 @@ final class AddEntrepreneurTest extends TestCase
                 ->where('entrepreneur.idea_validation.target_customer', "SME's")
                 ->where(
                     'entrepreneur.idea_validation.proposed_change_request',
-                    "Thank you for the work you have put into this idea validation.\n\nYour idea shows promise, but more evidence and a more repeatable commercial model are needed before it can move into business-plan development.\n\nBefore resubmitting, please:\n1. Build a sustainable revenue model: show how the offer can create income beyond your own billable days, including package pricing, delivery costs, monthly capacity, and recurring follow-on support.\n\nPlease update the idea validation with this information and resubmit it for review.",
+                    "Dear Deferred,\n\nThank you for the work you have put into this idea validation.\n\nYour idea shows promise, but more evidence and a more repeatable commercial model are needed before it can move into business-plan development.\n\nBefore resubmitting, please:\n1. Build a sustainable revenue model: show how the offer can create income beyond your own billable days, including package pricing, delivery costs, monthly capacity, and recurring follow-on support.\n\nPlease update the idea validation with this information and resubmit it for review.",
                 )
                 ->where('entrepreneur.idea_validation.refresh_url', route('advisor.entrepreneurs.idea-validations.refresh', [$profile, $validation], absolute: false))
                 ->where('entrepreneur.idea_validation.request_changes_url', route('advisor.entrepreneurs.idea-validations.request-changes', [$profile, $validation], absolute: false))

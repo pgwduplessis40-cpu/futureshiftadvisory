@@ -94,7 +94,7 @@ show.head = (args: { integrationScope: string | { id: string }, document: string
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 const quoteSourceDocuments = {
     show: Object.assign(show, show),

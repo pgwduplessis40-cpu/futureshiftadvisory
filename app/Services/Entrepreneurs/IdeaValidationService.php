@@ -33,6 +33,7 @@ final class IdeaValidationService implements ProvidesMethodology
         private readonly EntrepreneurMilestones $milestones,
         private readonly MessageThreadService $messages,
         private readonly IdeaViabilityGate $viabilityGate,
+        private readonly FounderChangeRequestMessage $changeRequestMessages,
     ) {}
 
     /**
@@ -440,7 +441,7 @@ final class IdeaValidationService implements ProvidesMethodology
                 $updated->entrepreneurProfile,
                 $advisor,
                 'Idea validation changes requested',
-                $this->changeRequestMessage($feedback),
+                $this->changeRequestMessages->fromAdvisorFeedback($updated->entrepreneurProfile, $feedback),
             );
         }
 
@@ -492,15 +493,6 @@ final class IdeaValidationService implements ProvidesMethodology
                 $field => 'This idea validation was recalled by the founder and is no longer available for advisor action.',
             ]);
         }
-    }
-
-    private function changeRequestMessage(string $feedback): string
-    {
-        return implode("\n\n", [
-            'Thanks for submitting your idea validation. I am not ready to approve the business plan builder gate yet.',
-            $feedback,
-            'Please update the idea validation and resubmit it for review.',
-        ]);
     }
 
     public function planBuilderUnlocked(EntrepreneurProfile $profile): bool

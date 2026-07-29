@@ -96,7 +96,7 @@ show.head = (args: { entrepreneurProfile: string | { id: string }, document: str
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 const EntrepreneurDocumentController = { show }
 

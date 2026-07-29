@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\SurveyStatus;
+use App\Enums\SurveyType;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -18,6 +19,7 @@ final class Survey extends Model
 
     protected $casts = [
         'status' => SurveyStatus::class,
+        'type' => SurveyType::class,
         'published_at' => 'datetime',
         'archived_at' => 'datetime',
         'settings' => 'array',

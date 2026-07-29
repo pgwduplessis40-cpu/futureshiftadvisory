@@ -52,7 +52,7 @@ acknowledge.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: acknowledge.url(options),
             method: 'post',
         })
-    
+
     acknowledge.form = acknowledgeForm
 const flags = {
     acknowledge: Object.assign(acknowledge, acknowledge),

@@ -83,7 +83,7 @@ gateIdea.patch = (args: { entrepreneurProfile: string | { id: string }, ideaVali
                     }),
             method: 'post',
         })
-    
+
     gateIdea.form = gateIdeaForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::requestIdeaChanges
@@ -169,7 +169,7 @@ requestIdeaChanges.patch = (args: { entrepreneurProfile: string | { id: string }
                     }),
             method: 'post',
         })
-    
+
     requestIdeaChanges.form = requestIdeaChangesForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::refreshIdea
@@ -245,7 +245,7 @@ refreshIdea.post = (args: { entrepreneurProfile: string | { id: string }, ideaVa
             action: refreshIdea.url(args, options),
             method: 'post',
         })
-    
+
     refreshIdea.form = refreshIdeaForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::assess
@@ -321,7 +321,7 @@ assess.post = (args: { entrepreneurProfile: string | { id: string }, businessPla
             action: assess.url(args, options),
             method: 'post',
         })
-    
+
     assess.form = assessForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::finalise
@@ -407,7 +407,7 @@ finalise.patch = (args: { entrepreneurProfile: string | { id: string }, planAsse
                     }),
             method: 'post',
         })
-    
+
     finalise.form = finaliseForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
@@ -437,7 +437,7 @@ convert.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepr
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -486,7 +486,7 @@ convert.post = (args: { entrepreneurProfile: string | { id: string } } | [entrep
             action: convert.url(args, options),
             method: 'post',
         })
-    
+
     convert.form = convertForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::setGamification
@@ -516,7 +516,7 @@ setGamification.url = (args: { entrepreneurProfile: string | { id: string } } | 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -575,7 +575,7 @@ setGamification.patch = (args: { entrepreneurProfile: string | { id: string } } 
                     }),
             method: 'post',
         })
-    
+
     setGamification.form = setGamificationForm
 const EntrepreneurActionController = { gateIdea, requestIdeaChanges, refreshIdea, assess, finalise, convert, setGamification }
 

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\SurveyQuestionType;
 use App\Enums\SurveyStatus;
+use App\Enums\SurveyType;
 use App\Http\Controllers\Controller;
 use App\Models\Survey;
 use App\Models\SurveyQuestion;
@@ -30,10 +31,14 @@ final class SurveyController extends Controller
     {
         Gate::authorize('viewAny', Survey::class);
 
-        if (! Survey::query()->exists()) {
-            $user = $request->user();
-            $library->ensureDefault($user instanceof User ? $user : null);
+        $user = $request->user();
+        $creator = $user instanceof User ? $user : null;
+
+        if (! Survey::query()->where('type', SurveyType::GeneralExperience->value)->exists()) {
+            $library->ensureDefault($creator);
         }
+
+        $library->ensureServiceImprovement($creator);
 
         return Inertia::render('admin/surveys/Index', [
             'surveys' => Survey::query()
@@ -44,6 +49,7 @@ final class SurveyController extends Controller
                     'id' => $survey->id,
                     'key' => $survey->key,
                     'version' => $survey->version,
+                    'type' => $survey->type?->value,
                     'title' => $survey->title,
                     'description' => $survey->description,
                     'status' => $survey->status?->value,
@@ -59,6 +65,7 @@ final class SurveyController extends Controller
                 ])
                 ->values(),
             'storeUrl' => route('admin.surveys.store', absolute: false),
+            'serviceAssignmentsUrl' => route('admin.service-surveys.index', absolute: false),
         ]);
     }
 
@@ -72,6 +79,7 @@ final class SurveyController extends Controller
         $validated = $request->validate([
             'key' => ['required', 'string', 'max:120'],
             'version' => ['required', 'string', 'max:40'],
+            'type' => ['required', Rule::enum(SurveyType::class)],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
         ]);
@@ -227,7 +235,7 @@ final class SurveyController extends Controller
         Gate::authorize('viewAny', Survey::class);
 
         $responses = SurveyResponse::query()
-            ->with(['submittedBy', 'client', 'entrepreneurProfile'])
+            ->with(['submittedBy', 'client', 'entrepreneurProfile', 'assignment', 'answers.question'])
             ->where('survey_id', $survey->getKey())
             ->latest('submitted_at')
             ->limit(100)
@@ -251,6 +259,15 @@ final class SurveyController extends Controller
                     'submitted_at' => $response->submitted_at?->toIso8601String(),
                     'overall_score' => $response->overall_score,
                     'nps_score' => $response->nps_score,
+                    'service' => $response->assignment?->service_snapshot,
+                    'comments' => $response->answers
+                        ->filter(fn ($answer): bool => $answer->question?->type === SurveyQuestionType::Text)
+                        ->map(fn ($answer): array => [
+                            'question' => $answer->question?->prompt ?? 'Feedback',
+                            'value' => is_string(data_get($answer->value, 'value')) ? data_get($answer->value, 'value') : '',
+                        ])
+                        ->filter(fn (array $comment): bool => $comment['value'] !== '')
+                        ->values(),
                 ])
                 ->values(),
             'indexUrl' => route('admin.surveys.index', absolute: false),
@@ -266,6 +283,7 @@ final class SurveyController extends Controller
             'id' => $survey->id,
             'key' => $survey->key,
             'version' => $survey->version,
+            'type' => $survey->type?->value,
             'title' => $survey->title,
             'description' => $survey->description,
             'status' => $survey->status?->value,

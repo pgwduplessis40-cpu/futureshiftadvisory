@@ -27,7 +27,7 @@ update.url = (args: { npoEngagement: string | { id: string } } | [npoEngagement:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { npoEngagement: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     npoEngagement: args[0],
@@ -86,7 +86,7 @@ update.patch = (args: { npoEngagement: string | { id: string } } | [npoEngagemen
                     }),
             method: 'post',
         })
-    
+
     update.form = updateForm
 const configuration = {
     update: Object.assign(update, update),

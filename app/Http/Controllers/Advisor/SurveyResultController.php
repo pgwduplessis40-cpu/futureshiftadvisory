@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Advisor;
 
+use App\Enums\SurveyType;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\EntrepreneurProfile;
@@ -28,6 +29,7 @@ final class SurveyResultController extends Controller
             ],
             'surveys' => Survey::query()
                 ->published()
+                ->where('type', SurveyType::GeneralExperience->value)
                 ->latest('published_at')
                 ->get(['id', 'title', 'version'])
                 ->map(fn (Survey $survey): array => $survey->only(['id', 'title', 'version']))
@@ -49,6 +51,7 @@ final class SurveyResultController extends Controller
             ],
             'surveys' => Survey::query()
                 ->published()
+                ->where('type', SurveyType::GeneralExperience->value)
                 ->latest('published_at')
                 ->get(['id', 'title', 'version'])
                 ->map(fn (Survey $survey): array => $survey->only(['id', 'title', 'version']))

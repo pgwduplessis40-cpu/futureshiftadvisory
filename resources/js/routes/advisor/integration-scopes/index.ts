@@ -78,7 +78,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::show
@@ -108,7 +108,7 @@ show.url = (args: { integrationScope: string | { id: string } } | [integrationSc
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { integrationScope: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     integrationScope: args[0],
@@ -180,7 +180,7 @@ show.head = (args: { integrationScope: string | { id: string } } | [integrationS
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::update
@@ -210,7 +210,7 @@ update.url = (args: { integrationScope: string | { id: string } } | [integration
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { integrationScope: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     integrationScope: args[0],
@@ -269,7 +269,7 @@ update.patch = (args: { integrationScope: string | { id: string } } | [integrati
                     }),
             method: 'post',
         })
-    
+
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::recalculate
@@ -299,7 +299,7 @@ recalculate.url = (args: { integrationScope: string | { id: string } } | [integr
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { integrationScope: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     integrationScope: args[0],
@@ -348,7 +348,7 @@ recalculate.post = (args: { integrationScope: string | { id: string } } | [integ
             action: recalculate.url(args, options),
             method: 'post',
         })
-    
+
     recalculate.form = recalculateForm
 const integrationScopes = {
     index: Object.assign(index, index),

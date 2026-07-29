@@ -5,6 +5,7 @@ import clientTransfers from './client-transfers'
 import pilotFeeWaivers from './pilot-fee-waivers'
 import questionnaires from './questionnaires'
 import surveys from './surveys'
+import serviceSurveys from './service-surveys'
 import terms from './terms'
 import partnerAgreement from './partner-agreement'
 import principlesRoles from './principles-roles'
@@ -29,6 +30,7 @@ clientTransfers: Object.assign(clientTransfers, clientTransfers),
 pilotFeeWaivers: Object.assign(pilotFeeWaivers, pilotFeeWaivers),
 questionnaires: Object.assign(questionnaires, questionnaires),
 surveys: Object.assign(surveys, surveys),
+serviceSurveys: Object.assign(serviceSurveys, serviceSurveys),
 terms: Object.assign(terms, terms),
 partnerAgreement: Object.assign(partnerAgreement, partnerAgreement),
 principlesRoles: Object.assign(principlesRoles, principlesRoles),

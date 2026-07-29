@@ -74,6 +74,37 @@ final class PilotFeeWaiverManagementTest extends TestCase
         ]);
     }
 
+    public function test_index_reflects_clients_created_after_an_earlier_load(): void
+    {
+        $admin = User::factory()->superAdmin()->withTwoFactor()->create();
+        $admin->assignRole(User::TYPE_SUPER_ADMIN);
+        Client::query()->create([
+            'engagement_type' => EngagementType::STANDARD_ADVISORY,
+            'legal_name' => 'First Waiver Client Limited',
+            'data_quality' => Client::DATA_QUALITY_LOW,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.pilot-fee-waivers.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->has('clients', 1)
+                ->where('clients.0.legal_name', 'First Waiver Client Limited'));
+
+        Client::query()->create([
+            'engagement_type' => EngagementType::STANDARD_ADVISORY,
+            'legal_name' => 'New Waiver Client Limited',
+            'data_quality' => Client::DATA_QUALITY_LOW,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.pilot-fee-waivers.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->has('clients', 2)
+                ->where('clients.1.legal_name', 'New Waiver Client Limited'));
+    }
+
     public function test_closed_program_rejects_a_new_client_waiver(): void
     {
         $admin = User::factory()->superAdmin()->withTwoFactor()->create();

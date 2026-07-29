@@ -11,12 +11,22 @@ type ResponsePayload = {
     submitted_at: string | null;
     overall_score: number | null;
     nps_score: number | null;
+    service: {
+        service_label?: string;
+        package_label?: string | null;
+        closed_at?: string | null;
+    } | null;
+    comments: Array<{
+        question: string;
+        value: string;
+    }>;
 };
 
 type Props = {
     survey: {
         title: string;
         version: string;
+        type: string;
     };
     summary: {
         responses: number;
@@ -80,6 +90,9 @@ export default function SurveyResults({
                                 </th>
                                 <th className="px-3 py-2 font-medium">Score</th>
                                 <th className="px-3 py-2 font-medium">NPS</th>
+                                <th className="px-3 py-2 font-medium">
+                                    Learning feedback
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -95,6 +108,14 @@ export default function SurveyResults({
                                         <div className="text-sm text-muted-foreground">
                                             {response.submitted_by}
                                         </div>
+                                        {response.service?.service_label && (
+                                            <div className="mt-1 text-sm text-muted-foreground">
+                                                {response.service.service_label}
+                                                {response.service.package_label
+                                                    ? ` - ${response.service.package_label}`
+                                                    : ''}
+                                            </div>
+                                        )}
                                     </td>
                                     <td
                                         className="px-3 py-2"
@@ -110,6 +131,37 @@ export default function SurveyResults({
                                     </td>
                                     <td className="px-3 py-2" data-label="NPS">
                                         {formatScore(response.nps_score)}
+                                    </td>
+                                    <td
+                                        className="max-w-md px-3 py-2 align-top"
+                                        data-label="Learning feedback"
+                                    >
+                                        {response.comments.length > 0 ? (
+                                            <div className="space-y-2 text-sm">
+                                                {response.comments.map(
+                                                    (comment) => (
+                                                        <div
+                                                            key={
+                                                                comment.question
+                                                            }
+                                                        >
+                                                            <div className="font-medium">
+                                                                {
+                                                                    comment.question
+                                                                }
+                                                            </div>
+                                                            <p className="whitespace-pre-wrap text-muted-foreground">
+                                                                {comment.value}
+                                                            </p>
+                                                        </div>
+                                                    ),
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <span className="text-sm text-muted-foreground">
+                                                No written feedback
+                                            </span>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

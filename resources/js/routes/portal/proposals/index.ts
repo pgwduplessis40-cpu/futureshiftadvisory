@@ -28,7 +28,7 @@ show.url = (args: { proposal: string | { id: string } } | [proposal: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -100,7 +100,7 @@ show.head = (args: { proposal: string | { id: string } } | [proposal: string | {
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
@@ -130,7 +130,7 @@ download.url = (args: { proposal: string | { id: string } } | [proposal: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -202,7 +202,7 @@ download.head = (args: { proposal: string | { id: string } } | [proposal: string
                     }),
             method: 'get',
         })
-    
+
     download.form = downloadForm
 const proposals = {
     show: Object.assign(show, show),

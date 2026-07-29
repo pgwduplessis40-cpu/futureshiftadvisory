@@ -1,5 +1,13 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Archive, BarChart3, Eye, FilePlus, Pencil, Send } from 'lucide-react';
+import {
+    Archive,
+    BarChart3,
+    ClipboardList,
+    Eye,
+    FilePlus,
+    Pencil,
+    Send,
+} from 'lucide-react';
 import type { FormEvent, ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +23,7 @@ type SurveySummary = {
     id: string;
     key: string;
     version: string;
+    type: 'general_experience' | 'service_improvement';
     title: string;
     description: string | null;
     status: string;
@@ -32,12 +41,18 @@ type SurveySummary = {
 type Props = {
     surveys: SurveySummary[];
     storeUrl: string;
+    serviceAssignmentsUrl: string;
 };
 
-export default function SurveysIndex({ surveys, storeUrl }: Props) {
+export default function SurveysIndex({
+    surveys,
+    storeUrl,
+    serviceAssignmentsUrl,
+}: Props) {
     const form = useForm({
         key: 'client_experience',
         version: nextVersion(surveys),
+        type: 'general_experience' as SurveySummary['type'],
         title: 'Client experience survey',
         description: '',
     });
@@ -56,14 +71,56 @@ export default function SurveysIndex({ surveys, storeUrl }: Props) {
                     <div>
                         <h1 className="text-xl font-semibold">Surveys</h1>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Author and govern client experience surveys.
+                            Govern general experience and service improvement feedback.
                         </p>
                     </div>
 
-                    <form
-                        onSubmit={submit}
-                        className="grid gap-3 rounded-md border bg-background p-3 sm:grid-cols-[1fr_7rem_auto]"
-                    >
+                    <div className="flex flex-col gap-3 sm:items-end">
+                        <Button asChild variant="outline">
+                            <Link href={serviceAssignmentsUrl}>
+                                <ClipboardList
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Issue service survey
+                            </Link>
+                        </Button>
+                        <form
+                            onSubmit={submit}
+                            className="grid gap-3 rounded-md border bg-background p-3 sm:grid-cols-[10rem_1fr_7rem_auto]"
+                        >
+                        <div className="grid gap-1">
+                            <Label htmlFor="survey-type">Type</Label>
+                            <select
+                                id="survey-type"
+                                value={form.data.type}
+                                onChange={(event) => {
+                                    const type = event.target
+                                        .value as SurveySummary['type'];
+                                    form.setData({
+                                        ...form.data,
+                                        type,
+                                        key:
+                                            type === 'service_improvement'
+                                                ? 'service_improvement'
+                                                : 'client_experience',
+                                        title:
+                                            type === 'service_improvement'
+                                                ? 'Service improvement survey'
+                                                : 'Client experience survey',
+                                        version: nextVersion(surveys, type),
+                                    });
+                                }}
+                                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                            >
+                                <option value="general_experience">
+                                    General experience
+                                </option>
+                                <option value="service_improvement">
+                                    Service improvement
+                                </option>
+                            </select>
+                        </div>
                         <div className="grid gap-1">
                             <Label htmlFor="survey-title">Title</Label>
                             <Input
@@ -93,7 +150,8 @@ export default function SurveysIndex({ surveys, storeUrl }: Props) {
                                 Draft
                             </Button>
                         </div>
-                    </form>
+                        </form>
+                    </div>
                 </div>
 
                 <div className="overflow-hidden rounded-md border">
@@ -105,6 +163,9 @@ export default function SurveysIndex({ surveys, storeUrl }: Props) {
                                 </th>
                                 <th className="px-3 py-2 font-medium">
                                     Status
+                                </th>
+                                <th className="px-3 py-2 font-medium">
+                                    Type
                                 </th>
                                 <th className="px-3 py-2 font-medium">
                                     Questions
@@ -146,6 +207,14 @@ export default function SurveysIndex({ surveys, storeUrl }: Props) {
                                             }
                                         >
                                             {survey.status}
+                                        </Badge>
+                                    </td>
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Type"
+                                    >
+                                        <Badge variant="outline">
+                                            {formatType(survey.type)}
                                         </Badge>
                                     </td>
                                     <td
@@ -290,8 +359,12 @@ export default function SurveysIndex({ surveys, storeUrl }: Props) {
     );
 }
 
-function nextVersion(surveys: SurveySummary[]) {
+function nextVersion(
+    surveys: SurveySummary[],
+    type: SurveySummary['type'] = 'general_experience',
+) {
     const versions = surveys
+        .filter((survey) => survey.type === type)
         .map((survey) => Number.parseFloat(survey.version))
         .filter(Number.isFinite);
 
@@ -300,6 +373,12 @@ function nextVersion(surveys: SurveySummary[]) {
     }
 
     return (Math.max(...versions) + 0.1).toFixed(1);
+}
+
+function formatType(type: SurveySummary['type']) {
+    return type === 'service_improvement'
+        ? 'Service improvement'
+        : 'General experience';
 }
 
 function ActionTooltip({

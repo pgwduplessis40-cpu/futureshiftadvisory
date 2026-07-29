@@ -24,7 +24,7 @@ BulkCommunicationOpenController.url = (args: { token: string | number } | [token
         args = { token: args }
     }
 
-    
+
     if (Array.isArray(args)) {
         args = {
                     token: args[0],
@@ -94,6 +94,6 @@ BulkCommunicationOpenController.head = (args: { token: string | number } | [toke
                     }),
             method: 'get',
         })
-    
+
     BulkCommunicationOpenController.form = BulkCommunicationOpenControllerForm
 export default BulkCommunicationOpenController

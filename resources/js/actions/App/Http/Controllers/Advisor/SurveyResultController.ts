@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::client
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:19
  * @route '/advisor/clients/{client}/surveys'
  */
 export const client = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ client.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::client
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:19
  * @route '/advisor/clients/{client}/surveys'
  */
 client.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -27,7 +27,7 @@ client.url = (args: { client: string | { id: string } } | [client: string | { id
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -49,7 +49,7 @@ client.url = (args: { client: string | { id: string } } | [client: string | { id
 
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::client
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:19
  * @route '/advisor/clients/{client}/surveys'
  */
 client.get = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -58,7 +58,7 @@ client.get = (args: { client: string | { id: string } } | [client: string | { id
 })
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::client
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:19
  * @route '/advisor/clients/{client}/surveys'
  */
 client.head = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -68,7 +68,7 @@ client.head = (args: { client: string | { id: string } } | [client: string | { i
 
     /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::client
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:19
  * @route '/advisor/clients/{client}/surveys'
  */
     const clientForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -78,7 +78,7 @@ client.head = (args: { client: string | { id: string } } | [client: string | { i
 
             /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::client
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:19
  * @route '/advisor/clients/{client}/surveys'
  */
         clientForm.get = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -87,7 +87,7 @@ client.head = (args: { client: string | { id: string } } | [client: string | { i
         })
             /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::client
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:19
  * @route '/advisor/clients/{client}/surveys'
  */
         clientForm.head = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -99,11 +99,11 @@ client.head = (args: { client: string | { id: string } } | [client: string | { i
                     }),
             method: 'get',
         })
-    
+
     client.form = clientForm
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::entrepreneur
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:39
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:41
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/surveys'
  */
 export const entrepreneur = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -118,7 +118,7 @@ entrepreneur.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::entrepreneur
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:39
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:41
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/surveys'
  */
 entrepreneur.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -129,7 +129,7 @@ entrepreneur.url = (args: { entrepreneurProfile: string | { id: string } } | [en
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -151,7 +151,7 @@ entrepreneur.url = (args: { entrepreneurProfile: string | { id: string } } | [en
 
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::entrepreneur
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:39
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:41
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/surveys'
  */
 entrepreneur.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -160,7 +160,7 @@ entrepreneur.get = (args: { entrepreneurProfile: string | { id: string } } | [en
 })
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::entrepreneur
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:39
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:41
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/surveys'
  */
 entrepreneur.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -170,7 +170,7 @@ entrepreneur.head = (args: { entrepreneurProfile: string | { id: string } } | [e
 
     /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::entrepreneur
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:39
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:41
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/surveys'
  */
     const entrepreneurForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -180,7 +180,7 @@ entrepreneur.head = (args: { entrepreneurProfile: string | { id: string } } | [e
 
             /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::entrepreneur
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:39
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:41
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/surveys'
  */
         entrepreneurForm.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -189,7 +189,7 @@ entrepreneur.head = (args: { entrepreneurProfile: string | { id: string } } | [e
         })
             /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::entrepreneur
- * @see app/Http/Controllers/Advisor/SurveyResultController.php:39
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:41
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/surveys'
  */
         entrepreneurForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -201,7 +201,7 @@ entrepreneur.head = (args: { entrepreneurProfile: string | { id: string } } | [e
                     }),
             method: 'get',
         })
-    
+
     entrepreneur.form = entrepreneurForm
 const SurveyResultController = { client, entrepreneur }
 

@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Advisor;
 
 use App\Enums\EntrepreneurStage;
 use App\Enums\ReportType;
+use App\Enums\SurveyAssignmentStatus;
+use App\Enums\SurveyType;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\BuildsEntrepreneurAssessmentPayload;
 use App\Models\AdvisoryReadinessSignal;
@@ -24,10 +26,13 @@ use App\Models\ReadinessAssessment;
 use App\Models\Report;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
+use App\Models\Survey;
+use App\Models\SurveyAssignment;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
+use App\Services\Entrepreneurs\FounderChangeRequestMessage;
 use App\Services\Entrepreneurs\IdeaViabilityGate;
 use App\Services\ScreenShare\ScreenShareAuthorizer;
 use App\Services\Security\InviteIssuer;
@@ -51,6 +56,7 @@ final class EntrepreneurController extends Controller
         private readonly AuditWriter $auditWriter,
         private readonly InviteIssuer $inviteIssuer,
         private readonly EntrepreneurGamification $gamification,
+        private readonly FounderChangeRequestMessage $changeRequestMessages,
         private readonly IdeaViabilityGate $ideaViabilityGate,
         private readonly ScreenShareAuthorizer $screenShareAuthorizer,
     ) {}
@@ -415,6 +421,7 @@ final class EntrepreneurController extends Controller
                 'feedback_survey' => [
                     'action_url' => route('advisor.entrepreneurs.survey-assignments.store', $entrepreneurProfile, absolute: false),
                 ],
+                'service_feedback_survey' => $this->serviceFeedbackSurvey($viewer, $entrepreneurProfile),
                 'idea_validation' => $this->ideaValidationSummary($entrepreneurProfile),
                 'advisory_readiness' => $this->advisoryReadinessSummary($entrepreneurProfile),
                 'reports' => $this->reportSummary($entrepreneurProfile),
@@ -498,6 +505,52 @@ final class EntrepreneurController extends Controller
         abort_unless($user instanceof User, 403);
 
         return $user;
+    }
+
+    /**
+     * @return array{action_url:string|null,unavailable_reason:string|null}|null
+     */
+    private function serviceFeedbackSurvey(User $viewer, EntrepreneurProfile $profile): ?array
+    {
+        if ($viewer->fsaRole() !== User::TYPE_SUPER_ADMIN) {
+            return null;
+        }
+
+        if (! in_array($profile->currentStage(), [EntrepreneurStage::ADVISORY_READY, EntrepreneurStage::LAUNCHED], true)) {
+            return [
+                'action_url' => null,
+                'unavailable_reason' => 'Service feedback is available once the entrepreneur is advisory ready or launched.',
+            ];
+        }
+
+        $hasOpenServiceSurvey = SurveyAssignment::query()
+            ->where('entrepreneur_profile_id', $profile->getKey())
+            ->whereNull('service_activation_id')
+            ->whereNotNull('service_snapshot')
+            ->whereIn('status', SurveyAssignmentStatus::activeValues())
+            ->whereHas('survey', fn (Builder $query) => $query->where('type', SurveyType::ServiceImprovement->value))
+            ->exists();
+
+        if ($hasOpenServiceSurvey) {
+            return [
+                'action_url' => null,
+                'unavailable_reason' => 'A service feedback survey is already awaiting a response.',
+            ];
+        }
+
+        $hasPublishedServiceSurvey = Survey::query()
+            ->published()
+            ->where('type', SurveyType::ServiceImprovement->value)
+            ->exists();
+
+        return [
+            'action_url' => $hasPublishedServiceSurvey
+                ? route('admin.service-surveys.entrepreneurs.store', $profile, absolute: false)
+                : null,
+            'unavailable_reason' => $hasPublishedServiceSurvey
+                ? null
+                : 'Publish a service improvement survey before sending it.',
+        ];
     }
 
     private function canResendInvite(EntrepreneurProfile $profile): bool
@@ -720,7 +773,7 @@ final class EntrepreneurController extends Controller
             'revenue_model' => $validation->revenue_model,
             'viability_alerts' => $validation->viability_alerts ?? [],
             'viability_gate' => $viabilityGate,
-            'proposed_change_request' => $this->proposedChangeRequest($validation),
+            'proposed_change_request' => $this->proposedChangeRequest($profile, $validation),
             'uncertainty' => data_get($evaluation, 'uncertainty'),
             'past_plan_pattern' => data_get($evaluation, 'past_plan_pattern', []),
             'evaluated_at' => $validation->evaluated_at?->toIso8601String(),
@@ -768,7 +821,7 @@ final class EntrepreneurController extends Controller
         return $gate;
     }
 
-    private function proposedChangeRequest(IdeaValidation $validation): string
+    private function proposedChangeRequest(EntrepreneurProfile $profile, IdeaValidation $validation): string
     {
         $evaluation = $validation->ai_evaluation ?? [];
         $findings = collect((array) data_get($evaluation, 'metadata.findings', []))
@@ -800,7 +853,7 @@ final class EntrepreneurController extends Controller
             ->map(fn (string $action, int $index): string => ($index + 1).'. '.$action)
             ->implode("\n");
 
-        return implode("\n\n", [
+        return $this->changeRequestMessages->build($profile, [
             'Thank you for the work you have put into this idea validation.',
             'Your idea shows promise, but more evidence and a more repeatable commercial model are needed before it can move into business-plan development.',
             "Before resubmitting, please:\n{$actions}",

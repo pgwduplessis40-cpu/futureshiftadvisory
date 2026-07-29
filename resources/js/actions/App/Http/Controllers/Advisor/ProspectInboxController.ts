@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\ProspectInboxController::triage
@@ -105,7 +105,7 @@ triage.url = (args: { prospectLead: number | { id: number } } | [prospectLead: n
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { prospectLead: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     prospectLead: args[0],
@@ -164,7 +164,7 @@ triage.patch = (args: { prospectLead: number | { id: number } } | [prospectLead:
                     }),
             method: 'post',
         })
-    
+
     triage.form = triageForm
 const ProspectInboxController = { index, triage }
 

@@ -75,6 +75,6 @@ ServicesController.head = (options?: RouteQueryOptions): RouteDefinition<'head'>
                     }),
             method: 'get',
         })
-    
+
     ServicesController.form = ServicesControllerForm
 export default ServicesController

@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateProgram
@@ -140,7 +140,7 @@ updateProgram.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> =>
                     }),
             method: 'post',
         })
-    
+
     updateProgram.form = updateProgramForm
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateClient
@@ -170,7 +170,7 @@ updateClient.url = (args: { client: string | { id: string } } | [client: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -229,7 +229,7 @@ updateClient.patch = (args: { client: string | { id: string } } | [client: strin
                     }),
             method: 'post',
         })
-    
+
     updateClient.form = updateClientForm
 const PilotFeeWaiverController = { index, updateProgram, updateClient }
 

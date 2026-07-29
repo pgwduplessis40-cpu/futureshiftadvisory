@@ -27,7 +27,7 @@ review.url = (args: { learningUpdateImplementation: string | { id: string } } | 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { learningUpdateImplementation: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     learningUpdateImplementation: args[0],
@@ -86,7 +86,7 @@ review.patch = (args: { learningUpdateImplementation: string | { id: string } } 
                     }),
             method: 'post',
         })
-    
+
     review.form = reviewForm
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::rollback
@@ -116,7 +116,7 @@ rollback.url = (args: { learningUpdateImplementation: string | { id: string } } 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { learningUpdateImplementation: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     learningUpdateImplementation: args[0],
@@ -175,7 +175,7 @@ rollback.patch = (args: { learningUpdateImplementation: string | { id: string } 
                     }),
             method: 'post',
         })
-    
+
     rollback.form = rollbackForm
 const learningUpdateImplementations = {
     review: Object.assign(review, review),

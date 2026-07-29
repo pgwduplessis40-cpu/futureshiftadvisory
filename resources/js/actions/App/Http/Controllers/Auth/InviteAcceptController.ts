@@ -24,7 +24,7 @@ show.url = (args: { token: string | number } | [token: string | number ] | strin
         args = { token: args }
     }
 
-    
+
     if (Array.isArray(args)) {
         args = {
                     token: args[0],
@@ -94,7 +94,7 @@ show.head = (args: { token: string | number } | [token: string | number ] | stri
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Auth\InviteAcceptController::store
@@ -121,7 +121,7 @@ store.url = (args: { token: string | number } | [token: string | number ] | stri
         args = { token: args }
     }
 
-    
+
     if (Array.isArray(args)) {
         args = {
                     token: args[0],
@@ -168,7 +168,7 @@ store.post = (args: { token: string | number } | [token: string | number ] | str
             action: store.url(args, options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 const InviteAcceptController = { show, store }
 

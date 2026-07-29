@@ -27,7 +27,7 @@ show.url = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollowU
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { outcomeFollowUp: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     outcomeFollowUp: args[0],
@@ -99,7 +99,7 @@ show.head = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollow
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\OutcomeFollowUpController::submit
@@ -129,7 +129,7 @@ submit.url = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollo
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { outcomeFollowUp: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     outcomeFollowUp: args[0],
@@ -178,7 +178,7 @@ submit.post = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFoll
             action: submit.url(args, options),
             method: 'post',
         })
-    
+
     submit.form = submitForm
 const outcomeFollowUps = {
     show: Object.assign(show, show),

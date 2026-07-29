@@ -75,7 +75,7 @@ edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     edit.form = editForm
 /**
 * @see \App\Http\Controllers\Settings\CommunicationController::update
@@ -140,7 +140,7 @@ update.put = (options?: RouteQueryOptions): RouteDefinition<'put'> => ({
                     }),
             method: 'post',
         })
-    
+
     update.form = updateForm
 const CommunicationController = { edit, update }
 

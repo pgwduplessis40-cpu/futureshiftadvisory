@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import type { FormEvent, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
+import { FormattedMarkdown } from '@/components/formatted-textarea';
 import InputError from '@/components/input-error';
 import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
 import type { InsightHoverCardRow } from '@/components/insight/InsightHoverCard';
@@ -82,6 +83,8 @@ export default function EntrepreneursShow({
     );
     const [gamificationPending, setGamificationPending] = useState(false);
     const [feedbackSurveyPending, setFeedbackSurveyPending] = useState(false);
+    const [serviceFeedbackSurveyPending, setServiceFeedbackSurveyPending] =
+        useState(false);
     const [gateNote, setGateNote] = useState('');
     const [changeRequestNote, setChangeRequestNote] = useState('');
     const [ideaRefreshPending, setIdeaRefreshPending] = useState(false);
@@ -337,6 +340,25 @@ export default function EntrepreneursShow({
         );
     };
 
+    const sendServiceFeedbackSurvey = () => {
+        const actionUrl = entrepreneur.service_feedback_survey?.action_url;
+
+        if (!actionUrl) {
+            return;
+        }
+
+        setServiceFeedbackSurveyPending(true);
+
+        router.post(
+            actionUrl,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => setServiceFeedbackSurveyPending(false),
+            },
+        );
+    };
+
     const refreshIdeaValidation = () => {
         if (!ideaValidation?.refresh_url) {
             return;
@@ -402,7 +424,10 @@ export default function EntrepreneursShow({
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <AdvisorSupportAction config={screenShare} coBrowse={coBrowse} />
+                        <AdvisorSupportAction
+                            config={screenShare}
+                            coBrowse={coBrowse}
+                        />
                         <Button asChild size="sm">
                             <Link href={entrepreneur.messages.url}>
                                 <MessageSquare
@@ -650,9 +675,34 @@ export default function EntrepreneursShow({
                                         aria-hidden="true"
                                     />
                                     {feedbackSurveyPending
-                                        ? 'Sending feedback survey'
-                                        : 'Send feedback survey'}
+                                        ? 'Sending general survey'
+                                        : 'Send general feedback survey'}
                                 </Button>
+                                {entrepreneur.service_feedback_survey ? (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        title={
+                                            entrepreneur.service_feedback_survey
+                                                .unavailable_reason ?? undefined
+                                        }
+                                        disabled={
+                                            !entrepreneur.service_feedback_survey
+                                                .action_url ||
+                                            serviceFeedbackSurveyPending
+                                        }
+                                        onClick={sendServiceFeedbackSurvey}
+                                    >
+                                        <ClipboardCheck
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        {serviceFeedbackSurveyPending
+                                            ? 'Sending service survey'
+                                            : 'Send service feedback survey'}
+                                    </Button>
+                                ) : null}
                                 {latestAssessment ? (
                                     <Button asChild size="sm" variant="outline">
                                         <Link href={latestAssessment.url}>
@@ -796,7 +846,7 @@ export default function EntrepreneursShow({
                         ) : null}
                     </section>
 
-                    <section className="space-y-4 self-start rounded-md border bg-background p-4 lg:sticky lg:top-6">
+                    <section className="space-y-4 self-start rounded-md border bg-background p-4">
                         <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
                                 <ClipboardCheck
@@ -1002,7 +1052,7 @@ export default function EntrepreneursShow({
 
                                 <dl className="grid gap-3 text-sm">
                                     {submittedIdeaFields.map((field) => (
-                                        <Detail
+                                        <MarkdownDetail
                                             key={field.label}
                                             label={field.label}
                                             value={field.value}
@@ -1066,19 +1116,39 @@ export default function EntrepreneursShow({
                                 ) : null}
 
                                 {canDecideIdeaGate ? (
-                                    <div className="grid gap-4 border-t pt-4 lg:grid-cols-2">
-                                        <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                                    <div
+                                        className={cn(
+                                            'grid gap-4 border-t pt-4 lg:grid-cols-2',
+                                            ideaGateCanBeApproved &&
+                                                'lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]',
+                                        )}
+                                    >
+                                        <div
+                                            className={cn(
+                                                'order-2 space-y-3 rounded-md border p-3 text-sm',
+                                                ideaGateCanBeApproved
+                                                    ? 'bg-background text-foreground'
+                                                    : 'order-1 border-amber-200 bg-amber-50 text-amber-950',
+                                            )}
+                                        >
                                             <div>
                                                 <p className="font-medium">
                                                     Request changes
                                                 </p>
-                                                <p className="mt-1">
-                                                    Keeps the founder in Idea
-                                                    Validation and reopens the
-                                                    form for resubmission.
+                                                <p
+                                                    className={cn(
+                                                        'mt-1',
+                                                        ideaGateCanBeApproved &&
+                                                            'text-muted-foreground',
+                                                    )}
+                                                >
+                                                    {ideaGateCanBeApproved
+                                                        ? 'Use this only if you still need the founder to strengthen the validation before approval.'
+                                                        : 'Keeps the founder in Idea Validation and reopens the form for resubmission.'}
                                                 </p>
                                             </div>
-                                            {proposedChangeRequest ? (
+                                            {proposedChangeRequest &&
+                                            !ideaGateCanBeApproved ? (
                                                 <div className="border-y border-amber-200 py-3">
                                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                                         <p className="font-medium">
@@ -1131,7 +1201,11 @@ export default function EntrepreneursShow({
                                                         .length < 10
                                                 }
                                                 onClick={requestIdeaChanges}
-                                                className="border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
+                                                className={cn(
+                                                    ideaGateCanBeApproved
+                                                        ? 'border-border bg-white text-foreground hover:bg-muted'
+                                                        : 'border-amber-300 bg-white text-amber-950 hover:bg-amber-100',
+                                                )}
                                             >
                                                 <MessageSquare
                                                     className="size-4"
@@ -1141,19 +1215,40 @@ export default function EntrepreneursShow({
                                             </Button>
                                         </div>
 
-                                        <div className="space-y-3 rounded-md border bg-muted/20 p-3 text-sm">
+                                        <div
+                                            className={cn(
+                                                'order-1 space-y-3 rounded-md border p-3 text-sm',
+                                                ideaGateCanBeApproved
+                                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-950'
+                                                    : 'order-2 bg-muted/20',
+                                            )}
+                                        >
                                             <div>
                                                 <p className="font-medium">
                                                     Approve builder gate
                                                 </p>
-                                                <p className="mt-1 text-muted-foreground">
-                                                    Opens the business plan
-                                                    builder and records your
-                                                    gate note for audit.
+                                                <p
+                                                    className={cn(
+                                                        'mt-1',
+                                                        ideaGateCanBeApproved
+                                                            ? 'text-emerald-900'
+                                                            : 'text-muted-foreground',
+                                                    )}
+                                                >
+                                                    {ideaGateCanBeApproved
+                                                        ? 'Idea validation is green and eligible for the business plan builder.'
+                                                        : 'Opens the business plan builder and records your gate note for audit.'}
                                                 </p>
                                             </div>
                                             <label className="grid gap-1">
-                                                <span>Idea gate note</span>
+                                                <span
+                                                    className={cn(
+                                                        ideaGateCanBeApproved &&
+                                                            'text-emerald-950',
+                                                    )}
+                                                >
+                                                    Idea gate note
+                                                </span>
                                                 <textarea
                                                     value={gateNote}
                                                     onChange={(event) =>
@@ -1162,7 +1257,11 @@ export default function EntrepreneursShow({
                                                         )
                                                     }
                                                     rows={4}
-                                                    className="rounded-md border bg-background px-3 py-2 text-sm"
+                                                    className={cn(
+                                                        'rounded-md border bg-background px-3 py-2 text-sm text-foreground',
+                                                        ideaGateCanBeApproved &&
+                                                            'border-emerald-300 bg-white focus-visible:border-emerald-500 focus-visible:ring-emerald-500',
+                                                    )}
                                                     placeholder="Record why the idea is ready to enter the business plan builder."
                                                 />
                                             </label>
@@ -2109,6 +2208,23 @@ function Detail({
         <div className="grid grid-cols-[140px_minmax(0,1fr)] gap-3">
             <dt className="text-muted-foreground">{label}</dt>
             <dd className="min-w-0 break-words">{value || '-'}</dd>
+        </div>
+    );
+}
+
+function MarkdownDetail({
+    label,
+    value,
+}: {
+    label: string;
+    value: string | null | undefined;
+}) {
+    return (
+        <div className="grid grid-cols-[140px_minmax(0,1fr)] gap-3">
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="min-w-0 break-words">
+                <FormattedMarkdown value={value} />
+            </dd>
         </div>
     );
 }

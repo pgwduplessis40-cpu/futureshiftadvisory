@@ -83,7 +83,7 @@ disable.patch = (args: { entrepreneurProfile: string | { id: string }, messageTh
                     }),
             method: 'post',
         })
-    
+
     disable.form = disableForm
 const gamification = {
     disable: Object.assign(disable, disable),

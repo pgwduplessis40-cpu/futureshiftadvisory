@@ -188,6 +188,7 @@ final class SurveyResponseRecorder
             SurveyQuestionType::Likert => $this->boundedNumber($raw, 1, 5, "answers.{$questionId}.value", $errors, 20.0),
             SurveyQuestionType::Nps => $this->boundedNumber($raw, 0, 10, "answers.{$questionId}.value", $errors, 10.0),
             SurveyQuestionType::Boolean => $this->booleanValue($raw),
+            SurveyQuestionType::Text => $this->textValue($raw, "answers.{$questionId}.value", $errors),
             default => [null, null, null],
         };
 
@@ -329,6 +330,35 @@ final class SurveyResponseRecorder
         }
 
         return [null, null, null];
+    }
+
+    /**
+     * @param  array<string, string>  $errors
+     * @return array{0:string|null,1:null,2:null}
+     */
+    private function textValue(mixed $raw, string $field, array &$errors): array
+    {
+        if (! is_string($raw)) {
+            $errors[$field] = 'Enter written feedback.';
+
+            return [null, null, null];
+        }
+
+        $value = trim($raw);
+
+        if ($value === '') {
+            $errors[$field] = 'Enter written feedback.';
+
+            return [null, null, null];
+        }
+
+        if (mb_strlen($value) > 4000) {
+            $errors[$field] = 'Written feedback may not exceed 4,000 characters.';
+
+            return [null, null, null];
+        }
+
+        return [$value, null, null];
     }
 
     /**
