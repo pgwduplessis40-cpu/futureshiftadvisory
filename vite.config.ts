@@ -6,6 +6,8 @@ import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
 import { defineConfig } from 'vite';
 
+const shouldGenerateWayfinder = process.env.WAYFINDER_GENERATE !== 'false';
+
 export default defineConfig({
     plugins: [
         laravel({
@@ -24,9 +26,13 @@ export default defineConfig({
             },
         }),
         tailwindcss(),
-        wayfinder({
-            formVariants: true,
-        }),
+        ...(shouldGenerateWayfinder
+            ? [
+                  wayfinder({
+                      formVariants: true,
+                  }),
+              ]
+            : []),
     ],
     build: {
         rollupOptions: {

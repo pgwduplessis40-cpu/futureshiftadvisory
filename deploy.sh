@@ -66,7 +66,10 @@ npm ci
 log "Building client + SSR bundles"
 # Must be build:ssr - plain `npm run build` omits bootstrap/ssr/app.js,
 # which leaves the SSR process with nothing to render.
-npm run build:ssr
+# Generated Wayfinder helpers are committed with the application source. Build
+# them locally when routes/controllers change, but never rewrite or normalize
+# them in the production checkout.
+WAYFINDER_GENERATE=false npm run build:ssr:production
 
 log "Checking build output"
 # Vite/Wayfinder may regenerate tracked route helpers. Treat that as a release
