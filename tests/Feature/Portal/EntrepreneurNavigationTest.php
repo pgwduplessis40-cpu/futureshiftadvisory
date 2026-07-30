@@ -368,8 +368,7 @@ final class EntrepreneurNavigationTest extends TestCase
 
         $resubmittedValidation = IdeaValidation::query()
             ->where('entrepreneur_profile_id', $profile->getKey())
-            ->latest('evaluated_at')
-            ->latest()
+            ->orderByDesc('revision_number')
             ->firstOrFail();
 
         $this->assertNotSame($validation->id, $resubmittedValidation->id);
@@ -410,8 +409,7 @@ final class EntrepreneurNavigationTest extends TestCase
 
         $latestValidation = IdeaValidation::query()
             ->where('entrepreneur_profile_id', $profile->getKey())
-            ->latest('evaluated_at')
-            ->latest()
+            ->orderByDesc('revision_number')
             ->firstOrFail();
 
         $this->assertNotSame($resubmittedValidation->id, $latestValidation->id);
@@ -526,7 +524,7 @@ final class EntrepreneurNavigationTest extends TestCase
         $this->assertSame((string) $advisor->getKey(), (string) $activation->advisor_id);
         $this->assertSame('Kauri Kitchens Group Limited', $activation->intake['target_name']);
         $this->assertSame('matched_package', $activation->metadata['pre_request_pricing']['status']);
-        $this->assertSame(8500.0, $activation->metadata['pre_request_pricing']['package']['fixed_fee']);
+        $this->assertSame(8500, $activation->metadata['pre_request_pricing']['package']['fixed_fee']);
         $this->assertSame((string) $package->getKey(), (string) $activation->metadata['pre_request_pricing']['package']['id']);
     }
 

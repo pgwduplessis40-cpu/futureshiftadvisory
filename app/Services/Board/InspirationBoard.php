@@ -41,6 +41,7 @@ final class InspirationBoard
                     ->orWhere('featured_at', '<=', now());
             })
             ->orderByDesc('pinned')
+            ->orderByRaw('featured_at is null')
             ->orderByDesc('featured_at')
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')

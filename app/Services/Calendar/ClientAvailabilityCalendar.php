@@ -57,7 +57,7 @@ final class ClientAvailabilityCalendar
             $holiday = $this->publicHolidays->holidayOn($next, $regions);
 
             if ($holiday !== null) {
-                $next->addDay();
+                $next = $next->addDay();
 
                 continue;
             }
@@ -65,7 +65,7 @@ final class ClientAvailabilityCalendar
             $leave = $this->leavePeriodOn($client, $next);
 
             if ($leave instanceof ClientLeavePeriod) {
-                $next = $leave->ends_on->copy()->addDay()->startOfDay();
+                $next = $this->carbon($leave->ends_on)->addDay()->startOfDay();
 
                 continue;
             }
@@ -105,8 +105,8 @@ final class ClientAvailabilityCalendar
             ->get()
             ->flatMap(function (ClientLeavePeriod $leave) use ($startDate, $endDate): array {
                 $events = [];
-                $cursor = $leave->starts_on->copy()->max($startDate)->startOfDay();
-                $last = $leave->ends_on->copy()->min($endDate)->startOfDay();
+                $cursor = $this->carbon($leave->starts_on)->max($startDate)->startOfDay();
+                $last = $this->carbon($leave->ends_on)->min($endDate)->startOfDay();
                 $range = $this->periodLabel($leave);
 
                 while ($cursor->lte($last)) {
@@ -121,7 +121,7 @@ final class ClientAvailabilityCalendar
                         'href' => null,
                         'all_day' => true,
                     ];
-                    $cursor->addDay();
+                    $cursor = $cursor->addDay();
                 }
 
                 return $events;
@@ -255,7 +255,7 @@ final class ClientAvailabilityCalendar
         }
 
         if ($value instanceof DateTimeInterface) {
-            return Carbon::instance($value);
+            return Carbon::parse($value->format(DateTimeInterface::ATOM));
         }
 
         return Carbon::parse((string) $value);

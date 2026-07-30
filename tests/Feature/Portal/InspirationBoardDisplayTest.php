@@ -15,6 +15,7 @@ use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -130,7 +131,14 @@ final class InspirationBoardDisplayTest extends TestCase
         $this->assertContains($featured?->id, [$first->id, $second->id]);
         $this->assertSame(BoardPost::FEATURE_SOURCE_FALLBACK, $featured?->featured_source);
         $this->assertNull($board->selectWeeklyFallbackQuote($mondayMorning->addMinute()));
-        $this->assertSame($featured?->id, $board->featured()?->id);
+
+        Carbon::setTestNow($mondayMorning);
+
+        try {
+            $this->assertSame($featured?->id, $board->featured()?->id);
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_weekly_fallback_does_not_override_an_active_rotation(): void

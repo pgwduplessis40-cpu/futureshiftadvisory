@@ -105,7 +105,7 @@ final class ClientLeavePeriodTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('leavePeriods.0.title', 'Annual leave')
-                ->where('events', fn (array $events): bool => collect($events)
+                ->where('events', fn ($events): bool => collect($events)
                     ->contains(fn (array $event): bool => $event['kind'] === 'leave'
                         && $event['title'] === 'Annual leave')
                     && collect($events)->contains(fn (array $event): bool => $event['title'] === 'Goal milestone: Client evidence pack')

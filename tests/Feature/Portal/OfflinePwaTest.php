@@ -36,7 +36,7 @@ final class OfflinePwaTest extends TestCase
 
         $html = view('app', [
             'appearance' => 'light',
-            'page' => ['component' => 'home'],
+            'page' => ['component' => 'public/home'],
         ])->render();
 
         $this->assertStringContainsString(

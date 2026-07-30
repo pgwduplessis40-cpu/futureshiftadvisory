@@ -114,13 +114,15 @@ final class ApprovalFlow
         });
     }
 
-    public function assertImplementationAllowed(LearningUpdate $update): void
+    public function assertImplementationAllowed(LearningUpdate $update, ?CarbonInterface $at = null): void
     {
+        $at ??= now();
+
         if ($update->status !== LearningUpdate::STATUS_APPROVED) {
             throw new RuntimeException('Learning update implementation requires explicit approval.');
         }
 
-        if (! $update->effective_date instanceof CarbonInterface || $update->effective_date->isFuture()) {
+        if (! $update->effective_date instanceof CarbonInterface || $update->effective_date->greaterThan($at)) {
             if ($this->isPlainApprovedManualReferenceDataUpdate($update)) {
                 return;
             }
@@ -235,7 +237,7 @@ final class ApprovalFlow
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $this->assertImplementationAllowed($locked);
+            $this->assertImplementationAllowed($locked, $at);
 
             $existing = $locked->implementations
                 ->first(fn (LearningUpdateImplementation $implementation): bool => $implementation->rolled_back_at === null);

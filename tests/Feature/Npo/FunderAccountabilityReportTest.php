@@ -25,6 +25,7 @@ use App\Services\Ai\Fake\FakeAiClient;
 use App\Services\Goals\GoalTracker;
 use App\Services\Learning\LayerCadenceRegistry;
 use App\Services\Npo\FunderRegistry;
+use App\Services\Pdf\PdfRenderer;
 use App\Services\Reports\ReportComposer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -43,6 +44,13 @@ final class FunderAccountabilityReportTest extends TestCase
 
         $this->seed(RoleSeeder::class);
         $this->app->bind(AiClient::class, FakeAiClient::class);
+        $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
+        {
+            public function render(string $html): string
+            {
+                return "%PDF-1.4\n".strip_tags($html);
+            }
+        });
         app(RequestContext::class)->apply('system', []);
     }
 

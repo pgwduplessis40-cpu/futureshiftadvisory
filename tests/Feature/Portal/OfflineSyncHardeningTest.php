@@ -10,6 +10,7 @@ use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\Document;
 use App\Models\PortalOfflineSyncRecord;
+use App\Models\TermsEnforcement;
 use App\Models\TermsVersion;
 use App\Models\User;
 use App\Services\Integration\VirusScanner\Contracts\FileScanner;
@@ -202,6 +203,10 @@ final class OfflineSyncHardeningTest extends TestCase
             'material' => true,
             'published_at' => now(),
             'notice_period_days' => 30,
+        ]);
+        TermsEnforcement::query()->create([
+            'scope' => TermsEnforcement::SCOPE_PLATFORM,
+            'activated_at' => now()->subMinute(),
         ]);
 
         $this->actingAsMfa($user)

@@ -70,6 +70,6 @@ final class AnthropicUsageTrackingTest extends TestCase
         Http::assertSent(fn (Request $request): bool => data_get($request->data(), 'output_config.format.type') === 'json_schema'
             && data_get($request->data(), 'output_config.format.schema.properties.metadata.additionalProperties') === false
             && data_get($request->data(), 'output_config.format.schema.properties.bias_signals.items.additionalProperties') === false
-            && data_get($request->data(), 'system') === 'Return the requested assessment as structured JSON only. Do not include prose outside the JSON object.');
+            && data_get($request->data(), 'system') === 'Return the requested assessment as structured JSON only. Do not include prose outside the JSON object. Keep the assessment concise and return no more than five findings.');
     }
 }
