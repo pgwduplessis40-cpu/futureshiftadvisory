@@ -79,10 +79,12 @@ jobs:
         run: |
           set -o pipefail
           php_binary="$(command -v php)"
+          mkdir -p .ci-php
+          printf 'max_execution_time=0\nmemory_limit=1024M\n' > .ci-php/zz-ci-test.ini
           mkdir -p .ci-bin
           printf '#!/usr/bin/env bash\nexec %q -d max_execution_time=0 -d memory_limit=1024M "$@"\n' "$php_binary" > .ci-bin/php
           chmod +x .ci-bin/php
-          PATH="$PWD/.ci-bin:$PATH" "$php_binary" -d max_execution_time=0 -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --log-junit storage/logs/phpunit.xml 2>&1 | tee storage/logs/phpunit-console.log
+          PHP_INI_SCAN_DIR=":$PWD/.ci-php" PATH="$PWD/.ci-bin:$PATH" "$php_binary" -d max_execution_time=0 -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --log-junit storage/logs/phpunit.xml 2>&1 | tee storage/logs/phpunit-console.log
 
       - name: Report PHPUnit failures
         if: failure()
