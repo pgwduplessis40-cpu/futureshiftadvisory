@@ -1,4 +1,6 @@
-const CACHE_NAME = 'fsa-portal-shell-v5';
+const CACHE_PREFIX = 'fsa-portal-shell-';
+const RELEASE_VERSION = @json($releaseVersion);
+const CACHE_NAME = `${CACHE_PREFIX}${RELEASE_VERSION}`;
 const BUILD_MANIFEST_URL = '/build/manifest.json';
 const SHELL_URLS = [
     '/offline.html',
@@ -31,7 +33,7 @@ self.addEventListener('activate', (event) => {
                 .then((keys) =>
                     Promise.all(
                         keys
-                            .filter((key) => key !== CACHE_NAME)
+                            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
                             .map((key) => caches.delete(key)),
                     ),
                 ),

@@ -5,7 +5,7 @@ Pushing to `main` does not deploy code by itself. Once this workflow is configur
 1. GitHub waits for `quality` and every PHP test-matrix check on the source commit. Any failed, cancelled, missing, or timed-out check stops the release.
 2. GitHub increments `VERSION` and commits the release marker.
 3. GitHub connects to the VPS with the dedicated deployment account.
-4. `deploy.sh` checks out that exact commit, builds the client and SSR bundles, runs migrations, restarts SSR, and verifies SSR.
+4. `deploy.sh` checks out that exact commit, builds the client and SSR bundles, runs migrations, restarts PHP-FPM and SSR, and verifies SSR.
 5. The script writes `storage/app/deployment.json` only after those checks pass.
 6. GitHub requests `https://futureshiftadvisory.nz/api/deployment` and fails the workflow unless its commit and version match the release.
 
@@ -27,7 +27,7 @@ Add the following **Actions secrets** to the repository:
 
 Create the repository variable `PRODUCTION_DEPLOY_ENABLED` with value `true` only after every secret is present. Until then, the production deploy job is skipped rather than pretending to have deployed anything. The release cannot proceed unless the existing `quality`, `ci (8.4)`, and `ci (8.5)` check-runs all pass for the source commit.
 
-The deploy user needs write access to the application checkout and permission to restart the SSR service through `sudo systemctl restart inertia-ssr`. Do not use the VPS root password or place it in GitHub.
+The deploy user needs write access to the application checkout and permission to restart the PHP-FPM and SSR services through `sudo systemctl restart php-fpm` and `sudo systemctl restart inertia-ssr`. Do not use the VPS root password or place it in GitHub.
 
 ## Confirming a release
 

@@ -13,6 +13,7 @@ use App\Http\Controllers\PanelAgreementController;
 use App\Http\Controllers\PanelApplicationController;
 use App\Http\Controllers\ScreenShare\ScreenShareConnectionController;
 use App\Http\Controllers\ScreenShare\ScreenShareSessionController;
+use App\Http\Controllers\ServiceWorkerController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -24,6 +25,9 @@ require __DIR__.'/public.php';
 require __DIR__.'/auth.php';
 require __DIR__.'/advisor.php';
 require __DIR__.'/portal.php';
+
+Route::get('sw.js', ServiceWorkerController::class)
+    ->name('service-worker');
 
 Route::get('communications/open/{token}.gif', BulkCommunicationOpenController::class)
     ->where('token', '[A-Za-z0-9]+')

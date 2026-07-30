@@ -114,10 +114,14 @@ Options (environment variables):
 |---|---|---|
 | `RUN_MIGRATIONS` | `yes` | `RUN_MIGRATIONS=no ./deploy.sh` to skip `migrate --force` |
 | `SITE_URL` | `https://futureshiftadvisory.nz` | URL used for the post-deploy SSR check |
+| `PHP_FPM_SERVICE` | `php-fpm` | systemd unit name to restart before public verification |
 | `SSR_SERVICE` | `inertia-ssr` | systemd unit name to restart |
 
 The script runs: pull → composer install → npm ci → **`npm run build:ssr`** →
 migrations → cache refresh → **restart the SSR daemon** → verify SSR output.
+
+The release also restarts PHP-FPM before SSR so cached PHP bytecode cannot keep
+web requests on a previous release.
 
 Deploying by hand is possible but easy to get wrong: pulling alone updates PHP
 instantly while the SSR process keeps serving the previous JavaScript bundle,

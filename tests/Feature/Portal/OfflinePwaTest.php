@@ -23,7 +23,6 @@ final class OfflinePwaTest extends TestCase
         $this->assertContains('/icons/fsa-pwa-512.png', array_column($manifest['icons'], 'src'));
         $this->assertContains('/icons/fsa-pwa-maskable-512.png', array_column($manifest['icons'], 'src'));
 
-        $this->assertFileExists(public_path('sw.js'));
         $this->assertFileExists(public_path('offline.html'));
         $this->assertFileExists(public_path('icons/fsa-pwa-192.png'));
         $this->assertFileExists(public_path('icons/fsa-pwa-512.png'));
@@ -48,15 +47,24 @@ final class OfflinePwaTest extends TestCase
 
     public function test_service_worker_handles_portal_fallback_and_sync_messages(): void
     {
-        $serviceWorker = file_get_contents(public_path('sw.js'));
+        $response = $this->get('/sw.js');
 
-        $this->assertIsString($serviceWorker);
-        $this->assertStringContainsString("url.pathname.startsWith('/portal')", $serviceWorker);
-        $this->assertStringContainsString("url.pathname === '/dashboard'", $serviceWorker);
-        $this->assertStringContainsString("caches.match('/offline.html')", $serviceWorker);
-        $this->assertStringContainsString("'portal-offline-sync'", $serviceWorker);
-        $this->assertStringContainsString('PORTAL_OFFLINE_SYNC', $serviceWorker);
-        $this->assertStringContainsString('/icons/fsa-pwa-192.png', $serviceWorker);
+        $response
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/javascript; charset=utf-8')
+            ->assertHeader('Service-Worker-Allowed', '/')
+            ->assertSee("const CACHE_PREFIX = 'fsa-portal-shell-';", false)
+            ->assertSee('const RELEASE_VERSION = ', false)
+            ->assertSee("url.pathname.startsWith('/portal')", false)
+            ->assertSee("url.pathname === '/dashboard'", false)
+            ->assertSee("caches.match('/offline.html')", false)
+            ->assertSee("'portal-offline-sync'", false)
+            ->assertSee('PORTAL_OFFLINE_SYNC', false)
+            ->assertSee('/icons/fsa-pwa-192.png', false);
+
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('must-revalidate', (string) $response->headers->get('Cache-Control'));
+        $this->assertFileDoesNotExist(public_path('sw.js'));
     }
 
     public function test_offline_queue_uses_encrypted_indexeddb_storage_and_dedupe_keys(): void

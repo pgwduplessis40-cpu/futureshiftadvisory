@@ -23,6 +23,7 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$APP_DIR"
 
 SSR_SERVICE="${SSR_SERVICE:-inertia-ssr}"
+PHP_FPM_SERVICE="${PHP_FPM_SERVICE:-php-fpm}"
 SITE_URL="${SITE_URL:-https://futureshiftadvisory.nz}"
 RUN_MIGRATIONS="${RUN_MIGRATIONS:-yes}"
 EXPECTED_COMMIT="${DEPLOY_EXPECTED_COMMIT:-}"
@@ -162,6 +163,18 @@ log "Refreshing caches"
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
+
+log "Restarting PHP-FPM"
+# PHP-FPM may retain PHP bytecode even after the release checkout and Laravel
+# caches have changed. Restart it before validating the public site so every
+# web request runs the released application code.
+if systemctl cat "$PHP_FPM_SERVICE" >/dev/null 2>&1; then
+    $SUDO systemctl restart "$PHP_FPM_SERVICE"
+    echo "Restarted ${PHP_FPM_SERVICE}."
+else
+    echo "ERROR: PHP-FPM systemd unit '${PHP_FPM_SERVICE}' was not found." >&2
+    exit 1
+fi
 
 log "Restarting SSR process"
 # Detect the unit with `systemctl cat`, which needs no pipeline. Piping into
