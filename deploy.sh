@@ -58,6 +58,18 @@ require_clean_checkout() {
     fi
 }
 
+restore_generated_wayfinder_checkout() {
+    local generated_paths=(resources/js/actions resources/js/routes)
+
+    if [ -z "$(git status --porcelain -- "${generated_paths[@]}")" ]; then
+        return
+    fi
+
+    echo "Resetting generated Wayfinder checkout drift."
+    git restore --worktree --source=HEAD -- "${generated_paths[@]}"
+    git clean -fd -- "${generated_paths[@]}"
+}
+
 verify_expected_release() {
     local deployed_commit deployed_version
 
@@ -121,6 +133,7 @@ verify_live_deployment_identity() {
 }
 
 log "Checking deployment checkout"
+restore_generated_wayfinder_checkout
 require_clean_checkout "before pulling code"
 
 log "Pulling latest code"

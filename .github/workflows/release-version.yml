@@ -172,10 +172,11 @@ jobs:
           DEPLOY_VERSION: ${{ needs.bump-patch-version.outputs.version }}
         run: |
           test -n "$DEPLOY_PATH" || { echo "Missing production deployment secret: DEPLOY_PATH" >&2; exit 1; }
-          # Restore the tracked mode if an older VPS checkout retained a manual chmod.
-          # deploy.sh still rejects every content or non-mode working-tree change.
+          # An older deploy can leave generated Wayfinder helpers dirty before
+          # the checkout has pulled the self-healing deploy script. Reset only
+          # those generated directories; deploy.sh still rejects all other dirt.
           ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "cd '$DEPLOY_PATH' && chmod 755 deploy.sh && DEPLOY_EXPECTED_COMMIT='$DEPLOY_COMMIT' DEPLOY_EXPECTED_VERSION='$DEPLOY_VERSION' bash ./deploy.sh"
+            "cd '$DEPLOY_PATH' && git restore --worktree --source=HEAD -- resources/js/actions resources/js/routes && git clean -fd -- resources/js/actions resources/js/routes && chmod 755 deploy.sh && DEPLOY_EXPECTED_COMMIT='$DEPLOY_COMMIT' DEPLOY_EXPECTED_VERSION='$DEPLOY_VERSION' bash ./deploy.sh"
 
       - name: Verify the live release identity
         env:
