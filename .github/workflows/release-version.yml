@@ -28,6 +28,22 @@ jobs:
           SOURCE_SHA: ${{ github.sha }}
         run: |
           required_checks=("quality" "ci (8.4)" "ci (8.5)")
+          source_commit="$(curl --fail --silent --show-error --retry 5 --retry-delay 3 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${GITHUB_API_URL}/repos/${REPOSITORY}/commits/${SOURCE_SHA}")"
+          check_sha="$SOURCE_SHA"
+
+          if [[ "$(jq -r '.commit.message' <<< "$source_commit")" == *"[skip release]"* ]]; then
+            check_sha="$(jq -r '.parents[0].sha // empty' <<< "$source_commit")"
+
+            if [ -z "$check_sha" ]; then
+              echo "Unable to resolve the source commit for the release-version bump." >&2
+              exit 1
+            fi
+
+            echo "Using source commit ${check_sha} for checks behind automated version bump ${SOURCE_SHA}."
+          fi
 
           for attempt in {1..180}; do
             if ! checks="$(curl --fail --silent --show-error \
@@ -35,7 +51,7 @@ jobs:
               --max-time 30 \
               -H "Authorization: Bearer ${GH_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
-              "${GITHUB_API_URL}/repos/${REPOSITORY}/commits/${SOURCE_SHA}/check-runs?per_page=100")"; then
+              "${GITHUB_API_URL}/repos/${REPOSITORY}/commits/${check_sha}/check-runs?per_page=100")"; then
               echo "Unable to read source checks on attempt ${attempt}; retrying."
               sleep 10
               continue
