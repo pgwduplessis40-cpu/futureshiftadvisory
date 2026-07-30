@@ -81,7 +81,7 @@ final class InspirationBoardManagementTest extends TestCase
     public function test_super_admin_can_edit_quote_details_and_schedule(): void
     {
         $admin = $this->superAdmin();
-        $scheduledAt = now(InspirationBoard::ROTATION_TIMEZONE)->addDays(5)->setSecond(0);
+        $scheduledAt = now(InspirationBoard::ROTATION_TIMEZONE)->addDays(5)->setSecond(0)->setMicrosecond(0);
 
         $post = BoardPost::query()->create([
             'type' => BoardPost::TYPE_QUOTE,
@@ -115,7 +115,7 @@ final class InspirationBoardManagementTest extends TestCase
     public function test_super_admin_can_schedule_selected_published_quotes_with_custom_day_cadence(): void
     {
         $admin = $this->superAdmin();
-        $startAt = now(InspirationBoard::ROTATION_TIMEZONE)->addDay()->setSecond(0);
+        $startAt = now(InspirationBoard::ROTATION_TIMEZONE)->addDay()->setSecond(0)->setMicrosecond(0);
 
         $first = BoardPost::query()->create([
             'type' => BoardPost::TYPE_QUOTE,

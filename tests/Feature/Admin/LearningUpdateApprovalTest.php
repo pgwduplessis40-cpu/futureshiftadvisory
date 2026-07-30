@@ -13,6 +13,7 @@ use App\Services\Learning\ApprovalFlow;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Inertia\Testing\AssertableInertia as Assert;
 use RuntimeException;
 use Tests\TestCase;
@@ -42,13 +43,13 @@ final class LearningUpdateApprovalTest extends TestCase
                 ->where('cards.0.magnitude', 'medium')
                 ->where('cards.0.confidence', 0.82)
                 ->where('cards.0.evidence.samples', 9)
-                ->where('cards.0.capability_profile', fn (array $profile): bool => in_array('Finance', $profile['capabilities'] ?? [], true)
-                    && in_array('decision-toolkit', $profile['capabilities'] ?? [], true)
-                    && in_array('analysis_modules', $profile['ai_surfaces'] ?? [], true)
-                    && data_get($profile, 'governance.automatic_application') === false
-                    && data_get($profile, 'advice_quality.methodology_review_required') === true
-                    && data_get($profile, 'advice_quality.calculation_validation_required') === true
-                    && data_get($profile, 'advice_quality.truthfulness_review_required') === true),
+                ->where('cards.0.capability_profile', fn (Collection $profile): bool => collect($profile->get('capabilities', []))->contains('Finance')
+                    && collect($profile->get('capabilities', []))->contains('decision-toolkit')
+                    && collect($profile->get('ai_surfaces', []))->contains('analysis_modules')
+                    && data_get($profile->all(), 'governance.automatic_application') === false
+                    && data_get($profile->all(), 'advice_quality.methodology_review_required') === true
+                    && data_get($profile->all(), 'advice_quality.calculation_validation_required') === true
+                    && data_get($profile->all(), 'advice_quality.truthfulness_review_required') === true),
             );
     }
 

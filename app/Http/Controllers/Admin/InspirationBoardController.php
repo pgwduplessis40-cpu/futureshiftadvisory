@@ -118,7 +118,7 @@ final class InspirationBoardController extends Controller
         try {
             $this->board->createRotation(
                 (string) ($validated['name'] ?? ''),
-                CarbonImmutable::parse((string) $validated['start_at'], InspirationBoard::ROTATION_TIMEZONE),
+                CarbonImmutable::parse((string) $validated['start_at'], InspirationBoard::ROTATION_TIMEZONE)->utc(),
                 (int) $validated['cadence_days'],
                 $validated['post_ids'],
                 $this->actor($request),
@@ -244,6 +244,6 @@ final class InspirationBoardController extends Controller
             return null;
         }
 
-        return CarbonImmutable::parse($value, InspirationBoard::ROTATION_TIMEZONE);
+        return CarbonImmutable::parse($value, InspirationBoard::ROTATION_TIMEZONE)->utc();
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Admin;
 
 use App\Models\ProjectSetting;
+use App\Models\User;
 use App\Services\Settings\ProjectSettings;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -33,7 +34,7 @@ final class PartnerAgreementManagementTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('admin/project-settings/Index')
-                ->has('groups', 4)
+                ->has('groups', 5)
             );
 
         $this->actingAsMfa($admin)
@@ -77,5 +78,13 @@ final class PartnerAgreementManagementTest extends TestCase
         $this->assertNull(ProjectSetting::query()
             ->where('setting_key', 'panels.agreements.broker_terms')
             ->first());
+    }
+
+    private function superAdmin(): User
+    {
+        $user = User::factory()->superAdmin()->withTwoFactor()->create();
+        $user->assignRole(User::TYPE_SUPER_ADMIN);
+
+        return $user;
     }
 }
