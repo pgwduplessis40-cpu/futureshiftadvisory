@@ -234,6 +234,71 @@ final class ServiceImprovementSurveyTest extends TestCase
                 ->where('assignment.service.service_label', 'Idea Validation'));
     }
 
+    public function test_super_admin_can_issue_an_idea_validation_service_survey_when_the_default_template_is_unpublished(): void
+    {
+        $this->survey->forceFill([
+            'status' => SurveyStatus::Draft->value,
+            'published_at' => null,
+            'published_by_user_id' => null,
+        ])->save();
+
+        $admin = $this->superAdmin('idea-validation-unpublished-survey-admin@example.test');
+        $entrepreneurUser = User::factory()->withTwoFactor()->create([
+            'email' => 'idea-validation-unpublished-survey@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneurUser->assignRole(User::TYPE_ENTREPRENEUR);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneurUser->getKey(),
+            'assigned_advisor_id' => $admin->getKey(),
+            'name' => 'Idea Validation Unpublished Survey',
+            'email' => $entrepreneurUser->email,
+            'stage' => EntrepreneurStage::BUILDING_PHASE_1,
+            'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'intended_package_scope' => 'entrepreneur_combo',
+        ]);
+        $ideaValidation = IdeaValidation::query()->create([
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'evaluated_by_user_id' => $entrepreneurUser->getKey(),
+            'problem' => 'Founders need a clear way to validate ideas.',
+            'target_customer' => 'Early stage founders.',
+            'solution' => 'A structured idea validation process.',
+            'value_proposition' => 'A clear decision before planning investment.',
+            'demand_signal' => 'Paid discovery calls show demand.',
+            'revenue_model' => 'Fixed fee validation workshops.',
+            'ai_evaluation' => ['summary' => 'Approved for builder access.'],
+            'viability_alerts' => [],
+            'evaluated_at' => now()->subDay(),
+            'advisor_gate_passed_at' => now()->subHour(),
+            'advisor_gate_passed_by_user_id' => $admin->getKey(),
+            'advisor_gate_note' => 'The validation evidence is complete.',
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where(
+                    'entrepreneur.service_feedback_survey.action_url',
+                    route('admin.service-surveys.entrepreneurs.store', $profile, absolute: false),
+                )
+                ->where('entrepreneur.service_feedback_survey.unavailable_reason', null)
+                ->where('entrepreneur.service_feedback_survey.service_label', 'Idea Validation'));
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.service-surveys.entrepreneurs.store', $profile))
+            ->assertRedirect();
+
+        $assignment = SurveyAssignment::query()->with('survey')->sole();
+
+        $this->assertSame($profile->id, $assignment->entrepreneur_profile_id);
+        $this->assertSame('idea_validation', $assignment->service_snapshot['source']);
+        $this->assertSame($ideaValidation->id, $assignment->service_snapshot['idea_validation_id']);
+        $this->assertSame(SurveyStatus::Published, $assignment->survey->status);
+        $this->assertNotNull($assignment->survey->published_at);
+    }
+
     public function test_super_admin_with_multiple_roles_can_issue_a_service_survey_to_an_assigned_entrepreneur(): void
     {
         $manager = User::factory()->superAdmin()->withTwoFactor()->create([

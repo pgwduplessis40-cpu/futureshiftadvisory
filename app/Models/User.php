@@ -196,10 +196,18 @@ class User extends Authenticatable
 
     public function fsaRole(): string
     {
+        if ($this->user_type === self::TYPE_SUPER_ADMIN || $this->primary_role === self::TYPE_SUPER_ADMIN) {
+            return self::TYPE_SUPER_ADMIN;
+        }
+
         if (
             Schema::hasTable(config('permission.table_names.roles', 'roles'))
             && Schema::hasTable(config('permission.table_names.model_has_roles', 'model_has_roles'))
         ) {
+            if ($this->hasRole(self::TYPE_SUPER_ADMIN)) {
+                return self::TYPE_SUPER_ADMIN;
+            }
+
             $role = $this->getRoleNames()->first();
 
             if (is_string($role) && $role !== '') {

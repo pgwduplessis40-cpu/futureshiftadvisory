@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:213
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:224
  * @route '/portal/entrepreneur/idea-validation'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:213
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:224
  * @route '/portal/entrepreneur/idea-validation'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:213
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:224
  * @route '/portal/entrepreneur/idea-validation'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:213
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:224
  * @route '/portal/entrepreneur/idea-validation'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,7 +45,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:213
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:224
  * @route '/portal/entrepreneur/idea-validation'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -56,7 +56,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::recall
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:235
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:246
  * @route '/portal/entrepreneur/idea-validation/recall'
  */
 export const recall = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -71,7 +71,7 @@ recall.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::recall
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:235
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:246
  * @route '/portal/entrepreneur/idea-validation/recall'
  */
 recall.url = (options?: RouteQueryOptions) => {
@@ -80,7 +80,7 @@ recall.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::recall
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:235
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:246
  * @route '/portal/entrepreneur/idea-validation/recall'
  */
 recall.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -90,7 +90,7 @@ recall.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::recall
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:235
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:246
  * @route '/portal/entrepreneur/idea-validation/recall'
  */
     const recallForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -100,7 +100,7 @@ recall.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::recall
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:235
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:246
  * @route '/portal/entrepreneur/idea-validation/recall'
  */
         recallForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -111,7 +111,7 @@ recall.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     recall.form = recallForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::restore
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:251
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:262
  * @route '/portal/entrepreneur/idea-validation/{ideaValidation}/restore'
  */
 export const restore = (args: { ideaValidation: string | { id: string } } | [ideaValidation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -126,7 +126,7 @@ restore.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::restore
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:251
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:262
  * @route '/portal/entrepreneur/idea-validation/{ideaValidation}/restore'
  */
 restore.url = (args: { ideaValidation: string | { id: string } } | [ideaValidation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -159,7 +159,7 @@ restore.url = (args: { ideaValidation: string | { id: string } } | [ideaValidati
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::restore
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:251
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:262
  * @route '/portal/entrepreneur/idea-validation/{ideaValidation}/restore'
  */
 restore.post = (args: { ideaValidation: string | { id: string } } | [ideaValidation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -169,7 +169,7 @@ restore.post = (args: { ideaValidation: string | { id: string } } | [ideaValidat
 
     /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::restore
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:251
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:262
  * @route '/portal/entrepreneur/idea-validation/{ideaValidation}/restore'
  */
     const restoreForm = (args: { ideaValidation: string | { id: string } } | [ideaValidation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -179,7 +179,7 @@ restore.post = (args: { ideaValidation: string | { id: string } } | [ideaValidat
 
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::restore
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:251
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:262
  * @route '/portal/entrepreneur/idea-validation/{ideaValidation}/restore'
  */
         restoreForm.post = (args: { ideaValidation: string | { id: string } } | [ideaValidation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

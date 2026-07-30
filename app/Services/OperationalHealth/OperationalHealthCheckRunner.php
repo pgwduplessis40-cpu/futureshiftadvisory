@@ -44,7 +44,7 @@ final class OperationalHealthCheckRunner
             'started_at' => $startedAt,
             'metadata' => [
                 'php_version' => PHP_VERSION,
-                'timezone' => (string) config('app.timezone'),
+                'timezone' => (string) config('operational_health.timezone', 'Pacific/Auckland'),
                 'runner' => self::class,
             ],
         ]);

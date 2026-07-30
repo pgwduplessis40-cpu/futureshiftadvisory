@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\OperationalHealthController::index
- * @see app/Http/Controllers/Admin/OperationalHealthController.php:21
+ * @see app/Http/Controllers/Admin/OperationalHealthController.php:24
  * @route '/admin/app-health'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\OperationalHealthController::index
- * @see app/Http/Controllers/Admin/OperationalHealthController.php:21
+ * @see app/Http/Controllers/Admin/OperationalHealthController.php:24
  * @route '/admin/app-health'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\OperationalHealthController::index
- * @see app/Http/Controllers/Admin/OperationalHealthController.php:21
+ * @see app/Http/Controllers/Admin/OperationalHealthController.php:24
  * @route '/admin/app-health'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Admin\OperationalHealthController::index
- * @see app/Http/Controllers/Admin/OperationalHealthController.php:21
+ * @see app/Http/Controllers/Admin/OperationalHealthController.php:24
  * @route '/admin/app-health'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\OperationalHealthController::index
- * @see app/Http/Controllers/Admin/OperationalHealthController.php:21
+ * @see app/Http/Controllers/Admin/OperationalHealthController.php:24
  * @route '/admin/app-health'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\OperationalHealthController::index
- * @see app/Http/Controllers/Admin/OperationalHealthController.php:21
+ * @see app/Http/Controllers/Admin/OperationalHealthController.php:24
  * @route '/admin/app-health'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Admin\OperationalHealthController::index
- * @see app/Http/Controllers/Admin/OperationalHealthController.php:21
+ * @see app/Http/Controllers/Admin/OperationalHealthController.php:24
  * @route '/admin/app-health'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\OperationalHealthController::run
- * @see app/Http/Controllers/Admin/OperationalHealthController.php:66
+ * @see app/Http/Controllers/Admin/OperationalHealthController.php:69
  * @route '/admin/app-health/run'
  */
 export const run = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -94,7 +94,7 @@ run.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\OperationalHealthController::run
- * @see app/Http/Controllers/Admin/OperationalHealthController.php:66
+ * @see app/Http/Controllers/Admin/OperationalHealthController.php:69
  * @route '/admin/app-health/run'
  */
 run.url = (options?: RouteQueryOptions) => {
@@ -103,7 +103,7 @@ run.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\OperationalHealthController::run
- * @see app/Http/Controllers/Admin/OperationalHealthController.php:66
+ * @see app/Http/Controllers/Admin/OperationalHealthController.php:69
  * @route '/admin/app-health/run'
  */
 run.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -113,7 +113,7 @@ run.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\OperationalHealthController::run
- * @see app/Http/Controllers/Admin/OperationalHealthController.php:66
+ * @see app/Http/Controllers/Admin/OperationalHealthController.php:69
  * @route '/admin/app-health/run'
  */
     const runForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -123,7 +123,7 @@ run.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\OperationalHealthController::run
- * @see app/Http/Controllers/Admin/OperationalHealthController.php:66
+ * @see app/Http/Controllers/Admin/OperationalHealthController.php:69
  * @route '/admin/app-health/run'
  */
         runForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

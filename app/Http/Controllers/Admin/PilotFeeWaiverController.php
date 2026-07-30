@@ -10,6 +10,7 @@ use App\Models\PilotFeeWaiverProgram;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Fees\PilotFeeWaiverManager;
+use App\Support\RequestContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -22,11 +23,18 @@ final class PilotFeeWaiverController extends Controller
     public function __construct(
         private readonly PilotFeeWaiverManager $waivers,
         private readonly AuditWriter $audit,
+        private readonly RequestContext $context,
     ) {}
 
     public function index(Request $request): Response
     {
         $program = $this->waivers->currentProgram();
+        $clients = $this->context->withSystemContext(
+            fn () => Client::query()
+                ->with('pilotFeeWaiverApprovedBy:id,name')
+                ->orderBy('legal_name')
+                ->get()
+        );
 
         $response = Inertia::render('admin/pilot-fee-waivers/Index', [
             'program' => [
@@ -36,10 +44,7 @@ final class PilotFeeWaiverController extends Controller
                 'update_url' => route('admin.pilot-fee-waivers.program.update', absolute: false),
             ],
             'statuses' => PilotFeeWaiverProgram::statuses(),
-            'clients' => Client::query()
-                ->with('pilotFeeWaiverApprovedBy:id,name')
-                ->orderBy('legal_name')
-                ->get()
+            'clients' => $clients
                 ->map(fn (Client $client): array => $this->clientPayload($client))
                 ->values(),
         ])->toResponse($request);

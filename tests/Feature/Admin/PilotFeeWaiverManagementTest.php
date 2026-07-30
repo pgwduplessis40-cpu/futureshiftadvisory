@@ -127,6 +127,34 @@ final class PilotFeeWaiverManagementTest extends TestCase
                 ->where('clients.250.legal_name', 'Pilot Client 251 Limited'));
     }
 
+    public function test_super_admin_scope_is_used_even_when_the_staff_role_assignment_is_out_of_sync(): void
+    {
+        $admin = User::factory()->superAdmin()->withTwoFactor()->create();
+        $admin->syncRoles([User::TYPE_ADVISOR]);
+
+        Client::query()->create([
+            'engagement_type' => EngagementType::STANDARD_ADVISORY,
+            'legal_name' => 'Visible Pilot Client A Limited',
+            'data_quality' => Client::DATA_QUALITY_LOW,
+        ]);
+        Client::query()->create([
+            'engagement_type' => EngagementType::DUE_DILIGENCE,
+            'legal_name' => 'Visible Pilot Client B Limited',
+            'data_quality' => Client::DATA_QUALITY_LOW,
+        ]);
+
+        $this->assertSame(User::TYPE_SUPER_ADMIN, $admin->fsaRole());
+        $this->assertSame(User::TYPE_SUPER_ADMIN, app(RequestContext::class)->resolveRole($admin));
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.pilot-fee-waivers.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->has('clients', 2)
+                ->where('clients.0.legal_name', 'Visible Pilot Client A Limited')
+                ->where('clients.1.legal_name', 'Visible Pilot Client B Limited'));
+    }
+
     public function test_closed_program_rejects_a_new_client_waiver(): void
     {
         $admin = User::factory()->superAdmin()->withTwoFactor()->create();

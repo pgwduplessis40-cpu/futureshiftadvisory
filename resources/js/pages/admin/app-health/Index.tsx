@@ -102,6 +102,16 @@ type Props = {
         failed_checks: number;
         skipped_checks: number;
         latest_issue: HealthResult | null;
+        schedule: {
+            timezone: string;
+            today_label: string;
+            run_times: string[];
+            expected_runs_today: number;
+            due_runs_today: number;
+            completed_runs_today: number;
+            completed_due_runs_today: number;
+            next_run_at_label: string | null;
+        };
     };
     latestRun: HealthRun | null;
     recurringIssues: HealthResult[];
@@ -120,6 +130,9 @@ export default function AppHealthIndex({
 }: Props) {
     const [form, setForm] = useState<Filters>(filters);
     const [running, setRunning] = useState(false);
+    const scheduleBehind =
+        summary.schedule.completed_due_runs_today <
+        summary.schedule.due_runs_today;
 
     function submit(event: FormEvent) {
         event.preventDefault();
@@ -164,7 +177,7 @@ export default function AppHealthIndex({
                     eyebrow="Operations"
                     icon={Activity}
                     title="App checks"
-                    description="Daily synthetic checks for app routes, document previews, and portal access."
+                    description="Scheduled synthetic checks for app routes, document previews, and portal access."
                     actions={
                         <Button
                             type="button"
@@ -178,11 +191,16 @@ export default function AppHealthIndex({
                     }
                 />
 
-                <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+                <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-7">
                     <Metric
                         label="Latest"
                         value={statusLabel(summary.latest_status)}
                         status={summary.latest_status}
+                    />
+                    <Metric
+                        label="Today"
+                        value={`${summary.schedule.completed_runs_today}/${summary.schedule.expected_runs_today}`}
+                        status={scheduleBehind ? 'warning' : null}
                     />
                     <Metric label="Checks" value={summary.total_checks} />
                     <Metric
@@ -246,6 +264,7 @@ export default function AppHealthIndex({
                                 </h2>
                                 <p className="text-sm text-muted-foreground">
                                     {latestRun.started_at_label ?? 'Unknown'} /{' '}
+                                    {summary.schedule.timezone} /{' '}
                                     {latestRun.environment}
                                     {latestRun.release_version
                                         ? ` / ${latestRun.release_version}`

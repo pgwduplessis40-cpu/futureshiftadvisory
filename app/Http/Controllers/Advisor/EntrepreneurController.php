@@ -26,7 +26,6 @@ use App\Models\ReadinessAssessment;
 use App\Models\Report;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
-use App\Models\Survey;
 use App\Models\SurveyAssignment;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
@@ -548,19 +547,10 @@ final class EntrepreneurController extends Controller
             ];
         }
 
-        $hasPublishedServiceSurvey = Survey::query()
-            ->published()
-            ->where('type', SurveyType::ServiceImprovement->value)
-            ->exists();
-
         return [
-            'action_url' => $hasPublishedServiceSurvey
-                ? route('admin.service-surveys.entrepreneurs.store', $profile, absolute: false)
-                : null,
+            'action_url' => route('admin.service-surveys.entrepreneurs.store', $profile, absolute: false),
             'service_label' => $serviceLabel,
-            'unavailable_reason' => $hasPublishedServiceSurvey
-                ? null
-                : 'Publish a service improvement survey before sending it.',
+            'unavailable_reason' => null,
         ];
     }
 

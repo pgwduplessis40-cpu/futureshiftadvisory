@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\OperationalHealthCheckResult;
 use App\Models\OperationalHealthCheckRun;
+use App\Services\OperationalHealth\OperationalHealthSchedule;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -18,6 +19,8 @@ use Inertia\Response;
 
 final class OperationalHealthController extends Controller
 {
+    public function __construct(private readonly OperationalHealthSchedule $schedule) {}
+
     public function index(Request $request): Response
     {
         $filters = $request->validate([
@@ -101,11 +104,11 @@ final class OperationalHealthController extends Controller
         }
 
         if ($this->filled($filters, 'date_from')) {
-            $query->where('created_at', '>=', Carbon::parse((string) $filters['date_from'])->startOfDay());
+            $query->where('created_at', '>=', Carbon::parse((string) $filters['date_from'], $this->schedule->timezone())->startOfDay());
         }
 
         if ($this->filled($filters, 'date_to')) {
-            $query->where('created_at', '<=', Carbon::parse((string) $filters['date_to'])->endOfDay());
+            $query->where('created_at', '<=', Carbon::parse((string) $filters['date_to'], $this->schedule->timezone())->endOfDay());
         }
 
         return $query;
@@ -146,6 +149,37 @@ final class OperationalHealthController extends Controller
             'latest_issue' => $latestIssue instanceof OperationalHealthCheckResult
                 ? $this->resultPayload($latestIssue)
                 : null,
+            'schedule' => $this->scheduleSummary(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function scheduleSummary(): array
+    {
+        $timezone = $this->schedule->timezone();
+        $today = Carbon::now($timezone);
+        $startOfDay = $today->copy()->startOfDay()->utc();
+        $endOfDay = $today->copy()->endOfDay()->utc();
+        $nowUtc = $today->copy()->utc();
+        $runTimes = $this->schedule->timesFor($today);
+        $dueRunTimes = $this->schedule->dueTimesFor($today);
+        $nextRunAt = $this->schedule->nextRunAfter($today);
+
+        return [
+            'timezone' => $timezone,
+            'today_label' => $today->format('d M Y'),
+            'run_times' => $runTimes,
+            'expected_runs_today' => count($runTimes),
+            'due_runs_today' => count($dueRunTimes),
+            'completed_runs_today' => OperationalHealthCheckRun::query()
+                ->whereBetween('started_at', [$startOfDay, $endOfDay])
+                ->count(),
+            'completed_due_runs_today' => OperationalHealthCheckRun::query()
+                ->whereBetween('started_at', [$startOfDay, $nowUtc])
+                ->count(),
+            'next_run_at_label' => $this->dateLabel($nextRunAt),
         ];
     }
 
@@ -247,7 +281,7 @@ final class OperationalHealthController extends Controller
 
     private function dateLabel(?CarbonInterface $date): ?string
     {
-        return $date?->copy()->timezone(config('app.timezone'))->format('d M Y, g:i A');
+        return $date?->copy()->timezone($this->schedule->timezone())->format('d M Y, g:i A');
     }
 
     /**

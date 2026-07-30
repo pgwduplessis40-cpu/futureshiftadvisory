@@ -13,6 +13,7 @@ use App\Support\ReleaseVersion;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 
@@ -31,21 +32,27 @@ final class OperationalHealthCheckTest extends TestCase
     {
         config()->set('operational_health.enabled', true);
         config()->set('operational_health.timezone', 'Pacific/Auckland');
-        config()->set('operational_health.weekday_cron', '30 7-17 * * 1-5');
-        config()->set('operational_health.weekend_cron', '30 7 * * 0,6');
+        config()->set('operational_health.weekday_times', ['09:30', '13:30', '17:30']);
+        config()->set('operational_health.weekend_times', ['09:30']);
 
         Artisan::call('schedule:list');
 
         $events = collect(app(Schedule::class)->events());
-        $weekday = $events->firstWhere('description', 'fsa-operational-health-check-weekday');
-        $weekend = $events->firstWhere('description', 'fsa-operational-health-check-weekend');
+        $weekday = $events
+            ->filter(fn ($event): bool => str_starts_with((string) $event->description, 'fsa-operational-health-check-weekday-'))
+            ->unique('description')
+            ->values();
+        $weekend = $events
+            ->filter(fn ($event): bool => str_starts_with((string) $event->description, 'fsa-operational-health-check-weekend-'))
+            ->unique('description')
+            ->values();
 
-        $this->assertNotNull($weekday);
-        $this->assertNotNull($weekend);
-        $this->assertSame('30 7-17 * * 1-5', $weekday->expression);
-        $this->assertSame('30 7 * * 0,6', $weekend->expression);
-        $this->assertSame('Pacific/Auckland', $weekday->timezone);
-        $this->assertSame('Pacific/Auckland', $weekend->timezone);
+        $this->assertCount(3, $weekday);
+        $this->assertCount(1, $weekend);
+        $this->assertSame(['30 9 * * 1-5', '30 13 * * 1-5', '30 17 * * 1-5'], $weekday->pluck('expression')->all());
+        $this->assertSame('30 9 * * 6,0', $weekend->first()->expression);
+        $this->assertSame(['Pacific/Auckland'], $weekday->pluck('timezone')->unique()->values()->all());
+        $this->assertSame('Pacific/Auckland', $weekend->first()->timezone);
     }
 
     public function test_command_records_specific_findings_and_skips_missing_monitor_fixtures(): void
@@ -117,6 +124,39 @@ final class OperationalHealthCheckTest extends TestCase
             ->assertJsonPath('props.recurringIssues.0.id', $second->id)
             ->assertJsonPath('props.recurringIssues.0.failures_last_7_days', 2)
             ->assertJsonPath('props.results.data.0.issue_summary', 'Entrepreneur business plan preview returned HTTP 500; expected 200.');
+    }
+
+    public function test_admin_page_reports_run_dates_and_today_counts_in_the_operational_timezone(): void
+    {
+        config()->set('operational_health.timezone', 'Pacific/Auckland');
+        config()->set('operational_health.weekday_times', ['09:30', '13:30', '17:30']);
+        config()->set('operational_health.weekend_times', ['09:30']);
+
+        Carbon::setTestNow(Carbon::parse('2026-07-31 18:00:00', 'Pacific/Auckland'));
+
+        try {
+            $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'app-health-timezone-admin@example.test');
+            $this->healthRun(OperationalHealthCheckRun::STATUS_PASSED, [
+                'started_at' => Carbon::parse('2026-07-30 21:30:00', 'UTC'),
+                'finished_at' => Carbon::parse('2026-07-30 21:31:00', 'UTC'),
+                'total_checks' => 3,
+                'passed_checks' => 3,
+                'failed_checks' => 0,
+            ]);
+
+            $this->actingAsMfa($admin)
+                ->withHeaders($this->inertiaHeaders())
+                ->get(route('admin.app-health.index'))
+                ->assertOk()
+                ->assertJsonPath('props.summary.latest_started_at_label', '31 Jul 2026, 9:30 AM')
+                ->assertJsonPath('props.summary.schedule.today_label', '31 Jul 2026')
+                ->assertJsonPath('props.summary.schedule.timezone', 'Pacific/Auckland')
+                ->assertJsonPath('props.summary.schedule.expected_runs_today', 3)
+                ->assertJsonPath('props.summary.schedule.due_runs_today', 3)
+                ->assertJsonPath('props.summary.schedule.completed_runs_today', 1);
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_client_users_cannot_view_operational_health_page(): void
@@ -236,7 +276,7 @@ final class OperationalHealthCheckTest extends TestCase
             : $releaseVersion;
     }
 
-    private function healthRun(string $status): OperationalHealthCheckRun
+    private function healthRun(string $status, array $overrides = []): OperationalHealthCheckRun
     {
         /** @var OperationalHealthCheckRun $run */
         $run = OperationalHealthCheckRun::query()->create([
@@ -252,6 +292,7 @@ final class OperationalHealthCheckTest extends TestCase
             'skipped_checks' => 0,
             'started_at' => now(),
             'finished_at' => now(),
+            ...$overrides,
         ]);
 
         return $run;

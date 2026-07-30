@@ -53,6 +53,7 @@ use App\Http\Middleware\RequireFreshStepUp;
 use App\Http\Middleware\RequireMfa;
 use App\Jobs\DispatchDailyDigest;
 use App\Jobs\DispatchWeeklyDigest;
+use App\Services\OperationalHealth\OperationalHealthSchedule;
 use App\Services\Portal\PortalOfflineSync;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
@@ -131,17 +132,25 @@ return Application::configure(basePath: dirname(__DIR__))
             ->withoutOverlapping();
 
         if ((bool) config('operational_health.enabled', false)) {
-            $schedule->command(RunOperationalHealthChecks::class)
-                ->cron((string) config('operational_health.weekday_cron', '30 7-17 * * 1-5'))
-                ->timezone((string) config('operational_health.timezone', 'Pacific/Auckland'))
-                ->name('fsa-operational-health-check-weekday')
-                ->withoutOverlapping();
+            $operationalHealthSchedule = new OperationalHealthSchedule;
 
-            $schedule->command(RunOperationalHealthChecks::class)
-                ->cron((string) config('operational_health.weekend_cron', '30 7 * * 0,6'))
-                ->timezone((string) config('operational_health.timezone', 'Pacific/Auckland'))
-                ->name('fsa-operational-health-check-weekend')
-                ->withoutOverlapping();
+            foreach ($operationalHealthSchedule->weekdayTimes() as $time) {
+                $schedule->command(RunOperationalHealthChecks::class)
+                    ->weekdays()
+                    ->dailyAt($time)
+                    ->timezone($operationalHealthSchedule->timezone())
+                    ->name('fsa-operational-health-check-weekday-'.str_replace(':', '', $time))
+                    ->withoutOverlapping();
+            }
+
+            foreach ($operationalHealthSchedule->weekendTimes() as $time) {
+                $schedule->command(RunOperationalHealthChecks::class)
+                    ->weekends()
+                    ->dailyAt($time)
+                    ->timezone($operationalHealthSchedule->timezone())
+                    ->name('fsa-operational-health-check-weekend-'.str_replace(':', '', $time))
+                    ->withoutOverlapping();
+            }
         }
 
         $schedule->command(RunFeedbackLearningLayer::class)

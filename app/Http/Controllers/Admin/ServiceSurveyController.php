@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\SurveyAssignmentStatus;
+use App\Enums\SurveyStatus;
 use App\Enums\SurveyType;
 use App\Http\Controllers\Controller;
 use App\Models\EntrepreneurProfile;
@@ -19,7 +20,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -116,6 +116,7 @@ final class ServiceSurveyController extends Controller
         Request $request,
         EntrepreneurProfile $entrepreneurProfile,
         SurveyActivationService $activation,
+        SurveyLibrary $library,
     ): RedirectResponse {
         Gate::authorize('view', $entrepreneurProfile);
 
@@ -129,9 +130,13 @@ final class ServiceSurveyController extends Controller
             ->first();
 
         if (! $survey instanceof Survey) {
-            throw ValidationException::withMessages([
-                'survey' => 'Publish a service improvement survey before issuing it.',
-            ]);
+            $survey = $library->ensureServiceImprovement($user);
+
+            $survey->forceFill([
+                'status' => SurveyStatus::Published->value,
+                'published_at' => now(),
+                'published_by_user_id' => $user->getKey(),
+            ])->save();
         }
 
         $assignment = $activation->activateForEntrepreneurService($entrepreneurProfile, $survey, $user);

@@ -1,3 +1,4 @@
+import DeploymentController from './DeploymentController'
 import DdGuestUploadController from './DdGuestUploadController'
 import Webhook from './Webhook'
 import AdvisorApi from './AdvisorApi'
@@ -11,6 +12,7 @@ import CoBrowse from './CoBrowse'
 import Portal from './Portal'
 import CalendarController from './CalendarController'
 import DocumentController from './DocumentController'
+import ServiceWorkerController from './ServiceWorkerController'
 import BulkCommunicationOpenController from './BulkCommunicationOpenController'
 import DashboardController from './DashboardController'
 import NotificationController from './NotificationController'
@@ -20,7 +22,8 @@ import PanelApplicationController from './PanelApplicationController'
 import PanelAgreementController from './PanelAgreementController'
 import Settings from './Settings'
 const Controllers = {
-    DdGuestUploadController: Object.assign(DdGuestUploadController, DdGuestUploadController),
+    DeploymentController: Object.assign(DeploymentController, DeploymentController),
+DdGuestUploadController: Object.assign(DdGuestUploadController, DdGuestUploadController),
 Webhook: Object.assign(Webhook, Webhook),
 AdvisorApi: Object.assign(AdvisorApi, AdvisorApi),
 MobileApi: Object.assign(MobileApi, MobileApi),
@@ -33,6 +36,7 @@ CoBrowse: Object.assign(CoBrowse, CoBrowse),
 Portal: Object.assign(Portal, Portal),
 CalendarController: Object.assign(CalendarController, CalendarController),
 DocumentController: Object.assign(DocumentController, DocumentController),
+ServiceWorkerController: Object.assign(ServiceWorkerController, ServiceWorkerController),
 BulkCommunicationOpenController: Object.assign(BulkCommunicationOpenController, BulkCommunicationOpenController),
 DashboardController: Object.assign(DashboardController, DashboardController),
 NotificationController: Object.assign(NotificationController, NotificationController),

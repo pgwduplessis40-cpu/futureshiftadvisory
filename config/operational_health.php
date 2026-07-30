@@ -16,9 +16,9 @@ return [
 
     'timezone' => env('OPERATIONAL_HEALTH_TIMEZONE', 'Pacific/Auckland'),
 
-    'weekday_cron' => env('OPERATIONAL_HEALTH_WEEKDAY_CRON', '30 7-17 * * 1-5'),
+    'weekday_times' => explode(',', (string) env('OPERATIONAL_HEALTH_WEEKDAY_TIMES', '09:30,13:30,17:30')),
 
-    'weekend_cron' => env('OPERATIONAL_HEALTH_WEEKEND_CRON', '30 7 * * 0,6'),
+    'weekend_times' => explode(',', (string) env('OPERATIONAL_HEALTH_WEEKEND_TIMES', '09:30')),
 
     'retention_days' => (int) env('OPERATIONAL_HEALTH_RETENTION_DAYS', 90),
 

@@ -211,6 +211,84 @@ home.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     home.form = homeForm
 /**
+* @see \App\Http\Controllers\ServiceWorkerController::__invoke
+ * @see app/Http/Controllers/ServiceWorkerController.php:14
+ * @route '/sw.js'
+ */
+export const serviceWorker = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: serviceWorker.url(options),
+    method: 'get',
+})
+
+serviceWorker.definition = {
+    methods: ["get","head"],
+    url: '/sw.js',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \App\Http\Controllers\ServiceWorkerController::__invoke
+ * @see app/Http/Controllers/ServiceWorkerController.php:14
+ * @route '/sw.js'
+ */
+serviceWorker.url = (options?: RouteQueryOptions) => {
+    return serviceWorker.definition.url + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\ServiceWorkerController::__invoke
+ * @see app/Http/Controllers/ServiceWorkerController.php:14
+ * @route '/sw.js'
+ */
+serviceWorker.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: serviceWorker.url(options),
+    method: 'get',
+})
+/**
+* @see \App\Http\Controllers\ServiceWorkerController::__invoke
+ * @see app/Http/Controllers/ServiceWorkerController.php:14
+ * @route '/sw.js'
+ */
+serviceWorker.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: serviceWorker.url(options),
+    method: 'head',
+})
+
+    /**
+* @see \App\Http\Controllers\ServiceWorkerController::__invoke
+ * @see app/Http/Controllers/ServiceWorkerController.php:14
+ * @route '/sw.js'
+ */
+    const serviceWorkerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: serviceWorker.url(options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\ServiceWorkerController::__invoke
+ * @see app/Http/Controllers/ServiceWorkerController.php:14
+ * @route '/sw.js'
+ */
+        serviceWorkerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: serviceWorker.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\ServiceWorkerController::__invoke
+ * @see app/Http/Controllers/ServiceWorkerController.php:14
+ * @route '/sw.js'
+ */
+        serviceWorkerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: serviceWorker.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+
+    serviceWorker.form = serviceWorkerForm
+/**
 * @see \App\Http\Controllers\DashboardController::__invoke
  * @see app/Http/Controllers/DashboardController.php:16
  * @route '/dashboard'
