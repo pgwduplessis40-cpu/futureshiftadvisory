@@ -173,7 +173,7 @@ jobs:
         run: |
           test -n "$DEPLOY_PATH" || { echo "Missing production deployment secret: DEPLOY_PATH" >&2; exit 1; }
           ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "cd '$DEPLOY_PATH' && DEPLOY_EXPECTED_COMMIT='$DEPLOY_COMMIT' DEPLOY_EXPECTED_VERSION='$DEPLOY_VERSION' ./deploy.sh"
+            "cd '$DEPLOY_PATH' && DEPLOY_EXPECTED_COMMIT='$DEPLOY_COMMIT' DEPLOY_EXPECTED_VERSION='$DEPLOY_VERSION' bash ./deploy.sh"
 
       - name: Verify the live release identity
         env:
