@@ -30,10 +30,16 @@ jobs:
           required_checks=("quality" "ci (8.4)" "ci (8.5)")
 
           for attempt in {1..180}; do
-            checks="$(curl --fail --silent --show-error \
+            if ! checks="$(curl --fail --silent --show-error \
+              --connect-timeout 10 \
+              --max-time 30 \
               -H "Authorization: Bearer ${GH_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
-              "${GITHUB_API_URL}/repos/${REPOSITORY}/commits/${SOURCE_SHA}/check-runs?per_page=100")"
+              "${GITHUB_API_URL}/repos/${REPOSITORY}/commits/${SOURCE_SHA}/check-runs?per_page=100")"; then
+              echo "Unable to read source checks on attempt ${attempt}; retrying."
+              sleep 10
+              continue
+            fi
             pending=no
 
             for check_name in "${required_checks[@]}"; do
