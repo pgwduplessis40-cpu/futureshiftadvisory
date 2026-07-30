@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Pdf;
 
+use Closure;
 use Spatie\Browsershot\Browsershot;
 
 final class BrowsershotRenderer implements PdfRenderer
@@ -12,8 +13,6 @@ final class BrowsershotRenderer implements PdfRenderer
     {
         [$html, $footer] = $this->extractPdfFooter($html);
         $timeout = max(1, (int) config('services.browsershot.timeout_seconds', 60));
-
-        @set_time_limit($timeout + 10);
 
         $shot = Browsershot::html($html)
             ->format('A4')
@@ -44,7 +43,22 @@ final class BrowsershotRenderer implements PdfRenderer
                 ->footerHtml($footer);
         }
 
-        return $shot->pdf();
+        return $this->withExecutionTimeLimit($timeout + 10, $shot->pdf(...));
+    }
+
+    private function withExecutionTimeLimit(int $seconds, Closure $callback): string
+    {
+        $previousLimit = ini_get('max_execution_time');
+
+        @set_time_limit($seconds);
+
+        try {
+            return $callback();
+        } finally {
+            if ($previousLimit !== false) {
+                @ini_set('max_execution_time', $previousLimit);
+            }
+        }
     }
 
     /**
