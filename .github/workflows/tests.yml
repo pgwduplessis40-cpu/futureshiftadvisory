@@ -78,7 +78,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          ./vendor/bin/phpunit --log-junit storage/logs/phpunit.xml 2>&1 | tee storage/logs/phpunit-console.log
+          php -d max_execution_time=0 -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --log-junit storage/logs/phpunit.xml 2>&1 | tee storage/logs/phpunit-console.log
 
       - name: Report PHPUnit failures
         if: failure()
