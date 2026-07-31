@@ -226,7 +226,7 @@ final class CalendarController extends Controller
      */
     private function clientQuery(?array $clientIds): Builder
     {
-        $query = Client::query();
+        $query = Client::query()->withoutOperationalHealthFixtures();
 
         if (is_array($clientIds)) {
             $clientIds === []

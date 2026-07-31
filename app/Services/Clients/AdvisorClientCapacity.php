@@ -8,6 +8,7 @@ use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
 use App\Models\OffboardingRecord;
 use App\Models\User;
+use App\Support\OperationalHealthFixtures;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -26,6 +27,10 @@ final class AdvisorClientCapacity
             ->where('client_team.role', 'lead_advisor')
             ->where('clients.status', '!=', ClientStatus::OFFBOARDED->value)
             ->where('clients.engagement_type', '!=', EngagementType::ENTREPRENEUR_MODULE->value)
+            ->whereRaw(
+                "COALESCE(clients.registry_sources->>'source', '') <> ?",
+                [OperationalHealthFixtures::CLIENT_SOURCE],
+            )
             ->whereNotExists(function ($query): void {
                 $query->selectRaw('1')
                     ->from('offboarding_records')

@@ -331,6 +331,7 @@ final class KnowledgeController extends Controller
     private function clientOptions(): array
     {
         return Client::query()
+            ->withoutOperationalHealthFixtures()
             ->orderBy('legal_name')
             ->get()
             ->map(fn (Client $client): array => [

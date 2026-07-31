@@ -40,13 +40,16 @@ final class IntegrationScopeController extends Controller
             ? null
             : $user->accessibleClientIds();
 
-        $clientQuery = Client::query()->orderBy('legal_name');
+        $clientQuery = Client::query()
+            ->withoutOperationalHealthFixtures()
+            ->orderBy('legal_name');
         if ($clientIds !== null) {
             $clientQuery->whereIn('id', $clientIds);
         }
 
         $scopeQuery = IntegrationScope::query()
             ->with('client')
+            ->whereHas('client', fn ($query) => $query->withoutOperationalHealthFixtures())
             ->latest();
 
         if ($clientIds !== null) {

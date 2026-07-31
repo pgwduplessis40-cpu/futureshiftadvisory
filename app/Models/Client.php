@@ -6,6 +6,8 @@ namespace App\Models;
 
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
+use App\Support\OperationalHealthFixtures;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -41,6 +43,19 @@ final class Client extends Model
         'pilot_fee_waiver_expires_at' => 'datetime',
         'pilot_fee_waiver_approved_at' => 'datetime',
     ];
+
+    /**
+     * @param  Builder<Client>  $query
+     * @return Builder<Client>
+     */
+    public function scopeWithoutOperationalHealthFixtures(Builder $query): Builder
+    {
+        return $query->where(static function (Builder $query): void {
+            $query
+                ->whereNull('registry_sources->source')
+                ->orWhere('registry_sources->source', '!=', OperationalHealthFixtures::CLIENT_SOURCE);
+        });
+    }
 
     /**
      * @return BelongsTo<User, Client>

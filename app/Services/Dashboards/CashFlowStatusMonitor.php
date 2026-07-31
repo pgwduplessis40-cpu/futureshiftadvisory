@@ -114,7 +114,9 @@ final class CashFlowStatusMonitor implements ProvidesMethodology
      */
     private function clients(?array $clientIds): Collection
     {
-        $query = Client::query()->orderBy('legal_name');
+        $query = Client::query()
+            ->withoutOperationalHealthFixtures()
+            ->orderBy('legal_name');
 
         if (is_array($clientIds)) {
             $query->whereIn('id', $clientIds);

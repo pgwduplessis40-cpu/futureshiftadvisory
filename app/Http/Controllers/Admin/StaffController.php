@@ -28,6 +28,7 @@ final class StaffController extends Controller
     {
         $staffTypes = $this->staffUserTypes();
         $staff = User::query()
+            ->withoutOperationalHealthFixtures()
             ->whereIn('user_type', $staffTypes)
             ->orderBy('user_type')
             ->orderBy('name')

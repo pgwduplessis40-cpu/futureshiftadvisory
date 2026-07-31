@@ -22,6 +22,7 @@ final class AdvisorEntrepreneurCapacity
             max(0, (int) config('entrepreneurs.capacity.warning_threshold', 24)),
         );
         $activeCount = EntrepreneurProfile::query()
+            ->withoutOperationalHealthFixtures()
             ->where('assigned_advisor_id', $advisor->getKey())
             ->whereIn('stage', EntrepreneurStage::activeCapacityValues())
             ->count();

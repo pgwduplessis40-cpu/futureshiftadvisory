@@ -41,6 +41,7 @@ final class BulkCommunicationController extends Controller
                 ])
                 ->values(),
             'clients' => Client::query()
+                ->withoutOperationalHealthFixtures()
                 ->whereHas('teamMembers.user', fn ($query) => $query->whereIn('user_type', [
                     User::TYPE_CLIENT_PRIMARY,
                     User::TYPE_CLIENT_TEAM,

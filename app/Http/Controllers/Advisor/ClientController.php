@@ -101,7 +101,9 @@ final class ClientController extends Controller
         $clientIds = $isAdvisor
             ? $user->accessibleClientIds()
             : null;
-        $query = Client::query()->latest();
+        $query = Client::query()
+            ->withoutOperationalHealthFixtures()
+            ->latest();
 
         if ($showAdvisorAssignments) {
             $query->with([

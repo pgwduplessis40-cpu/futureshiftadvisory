@@ -20,6 +20,7 @@ final class ClientController extends Controller
 
         return [
             'clients' => Client::query()
+                ->withoutOperationalHealthFixtures()
                 ->whereIn('id', $user->accessibleClientIds())
                 ->orderBy('legal_name')
                 ->get()

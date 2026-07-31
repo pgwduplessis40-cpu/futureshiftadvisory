@@ -788,6 +788,47 @@ final class AddEntrepreneurTest extends TestCase
             );
     }
 
+    public function test_quarantined_document_is_not_presented_as_an_openable_advisor_link(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+        $entrepreneur = User::factory()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => 'Quarantined Upload Founder',
+            'email' => $entrepreneur->email,
+            'stage' => EntrepreneurStage::BUILDING_PHASE_1,
+        ]);
+        Storage::fake('secure_local');
+        Storage::disk('secure_local')->put('documents/quarantined.docx', 'unsafe until scanned');
+        $document = Document::query()->create([
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'category' => Document::CATEGORY_PLAN_ATTACHMENT,
+            'original_filename' => 'quarantined.docx',
+            'stored_path' => 'documents/quarantined.docx',
+            'byte_size' => 20,
+            'mime_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'sha256' => hash('sha256', 'unsafe until scanned'),
+            'uploaded_by_user_id' => $entrepreneur->getKey(),
+            'scanner_result' => Document::SCANNER_ERROR,
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('entrepreneur.documents.0.scanner_result', Document::SCANNER_ERROR)
+                ->where('entrepreneur.documents.0.url', null));
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.documents.show', [$profile, $document]))
+            ->assertNotFound();
+    }
+
     private function advisor(): User
     {
         $advisor = User::factory()->withTwoFactor()->create([

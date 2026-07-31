@@ -27,7 +27,7 @@ final class GenerateMonthlyIndustryBriefings extends Command
             : now()->startOfMonth();
         $generated = 0;
 
-        foreach (Client::query()->orderBy('legal_name')->cursor() as $client) {
+        foreach (Client::query()->withoutOperationalHealthFixtures()->orderBy('legal_name')->cursor() as $client) {
             $briefing = $briefings->generate($client, $period);
             if ($briefing->wasRecentlyCreated) {
                 $generated++;

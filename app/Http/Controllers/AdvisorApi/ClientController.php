@@ -18,6 +18,7 @@ final class ClientController extends Controller
         $this->authorizeScope($apiClient, AdvisorApiClient::SCOPE_READ_CLIENTS);
 
         $clients = Client::query()
+            ->withoutOperationalHealthFixtures()
             ->whereIn('id', $apiClient->advisor->accessibleClientIds())
             ->orderBy('legal_name')
             ->limit(100)

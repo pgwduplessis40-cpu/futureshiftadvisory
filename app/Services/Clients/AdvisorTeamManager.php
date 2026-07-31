@@ -12,6 +12,7 @@ use App\Models\ClientTeamMember;
 use App\Models\OffboardingRecord;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Support\OperationalHealthFixtures;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -240,6 +241,10 @@ final class AdvisorTeamManager
             ->join('clients', 'clients.id', '=', 'client_team.client_id')
             ->where('client_team.advisor_team_id', $team->id)
             ->where('clients.status', '!=', ClientStatus::OFFBOARDED->value)
+            ->whereRaw(
+                "COALESCE(clients.registry_sources->>'source', '') <> ?",
+                [OperationalHealthFixtures::CLIENT_SOURCE],
+            )
             ->whereNotExists(function ($query): void {
                 $query->selectRaw('1')
                     ->from('offboarding_records')

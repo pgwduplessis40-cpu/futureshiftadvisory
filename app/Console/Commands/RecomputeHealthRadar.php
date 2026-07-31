@@ -24,7 +24,9 @@ final class RecomputeHealthRadar extends Command
         $context->apply('system', []);
 
         $clientId = $this->argument('client');
-        $query = Client::query()->orderBy('id');
+        $query = Client::query()
+            ->withoutOperationalHealthFixtures()
+            ->orderBy('id');
 
         if (is_string($clientId) && $clientId !== '') {
             $query->whereKey($clientId);

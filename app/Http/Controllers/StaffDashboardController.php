@@ -1698,7 +1698,7 @@ final class StaffDashboardController extends Controller
      */
     private function scopedClientQuery(?array $clientIds): Builder
     {
-        $query = Client::query();
+        $query = Client::query()->withoutOperationalHealthFixtures();
 
         if (is_array($clientIds)) {
             if ($clientIds === []) {

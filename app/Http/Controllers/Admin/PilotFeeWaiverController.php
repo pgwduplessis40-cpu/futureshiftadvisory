@@ -33,10 +33,12 @@ final class PilotFeeWaiverController extends Controller
         [$clients, $entrepreneurs] = $this->context->withSystemContext(
             fn (): array => [
                 Client::query()
+                    ->withoutOperationalHealthFixtures()
                     ->with('pilotFeeWaiverApprovedBy:id,name')
                     ->orderBy('legal_name')
                     ->get(),
                 EntrepreneurProfile::query()
+                    ->withoutOperationalHealthFixtures()
                     ->with('pilotFeeWaiverApprovedBy:id,name')
                     ->orderBy('name')
                     ->get(),

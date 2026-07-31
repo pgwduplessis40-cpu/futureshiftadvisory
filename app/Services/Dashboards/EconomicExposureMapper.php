@@ -154,7 +154,7 @@ final class EconomicExposureMapper implements ProvidesMethodology
      */
     private function baseClientQuery(?array $clientIds): Builder
     {
-        $query = Client::query();
+        $query = Client::query()->withoutOperationalHealthFixtures();
 
         if (is_array($clientIds)) {
             if ($clientIds === []) {

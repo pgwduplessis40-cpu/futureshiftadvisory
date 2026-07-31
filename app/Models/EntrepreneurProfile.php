@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\EntrepreneurStage;
+use App\Support\OperationalHealthFixtures;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +28,19 @@ final class EntrepreneurProfile extends Model
         'pilot_fee_waiver_expires_at' => 'datetime',
         'pilot_fee_waiver_approved_at' => 'datetime',
     ];
+
+    /**
+     * @param  Builder<EntrepreneurProfile>  $query
+     * @return Builder<EntrepreneurProfile>
+     */
+    public function scopeWithoutOperationalHealthFixtures(Builder $query): Builder
+    {
+        $emails = OperationalHealthFixtures::userEmails();
+
+        return $emails === []
+            ? $query
+            : $query->whereNotIn('email', $emails);
+    }
 
     public function currentStage(): EntrepreneurStage
     {

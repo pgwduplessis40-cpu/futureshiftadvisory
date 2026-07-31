@@ -27,6 +27,7 @@ final class SendWellbeingCheckinPrompts extends Command
         $sent = 0;
 
         Client::query()
+            ->withoutOperationalHealthFixtures()
             ->with(['teamMembers.user'])
             ->whereHas('teamMembers', function ($query): void {
                 $query->whereHas('user', function ($userQuery): void {

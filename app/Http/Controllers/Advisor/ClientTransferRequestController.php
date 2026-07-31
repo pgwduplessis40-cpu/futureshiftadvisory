@@ -27,6 +27,7 @@ final class ClientTransferRequestController extends Controller
 
         return Inertia::render('advisor/client-transfers/Index', [
             'clients' => Client::query()
+                ->withoutOperationalHealthFixtures()
                 ->whereIn('id', $clientIds)
                 ->orderBy('legal_name')
                 ->get(['id', 'legal_name', 'trading_name', 'engagement_type'])
@@ -73,6 +74,7 @@ final class ClientTransferRequestController extends Controller
         ]);
 
         $client = Client::query()
+            ->withoutOperationalHealthFixtures()
             ->whereIn('id', $advisor->accessibleClientIds())
             ->findOrFail($validated['client_id']);
         $targetAdvisor = User::query()
@@ -133,6 +135,7 @@ final class ClientTransferRequestController extends Controller
     private function transferTargets(User $advisor): array
     {
         return User::query()
+            ->withoutOperationalHealthFixtures()
             ->where('user_type', User::TYPE_ADVISOR)
             ->whereNull('suspended_at')
             ->whereKeyNot($advisor->getKey())

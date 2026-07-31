@@ -607,6 +607,7 @@ final class EntrepreneurController extends Controller
     private function visibleProfiles(User $user): Builder
     {
         $query = EntrepreneurProfile::query()
+            ->withoutOperationalHealthFixtures()
             ->with(['assignedAdvisor', 'inviteToken', 'user']);
 
         if ($user->fsaRole() === User::TYPE_SUPER_ADMIN) {
@@ -1032,7 +1033,9 @@ final class EntrepreneurController extends Controller
                 'scanner_result' => $document->scanner_result,
                 'uploaded_at' => $document->created_at?->toIso8601String(),
                 'uploaded_by_name' => $document->uploadedBy?->name,
-                'url' => route('advisor.entrepreneurs.documents.show', [$profile, $document], absolute: false),
+                'url' => $document->isVisibleToClients()
+                    ? route('advisor.entrepreneurs.documents.show', [$profile, $document], absolute: false)
+                    : null,
             ])
             ->values()
             ->all();

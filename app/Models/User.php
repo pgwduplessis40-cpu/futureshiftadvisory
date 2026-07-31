@@ -7,9 +7,11 @@ use App\Enums\ClientStatus;
 use App\Notifications\Auth\PasswordResetLinkNotification;
 use App\Services\Audit\AuditWriter;
 use App\Services\Integration\IntegrationActivationResolver;
+use App\Support\OperationalHealthFixtures;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -88,6 +90,19 @@ class User extends Authenticatable
             'suspended_at' => 'datetime',
             'deactivation_requested_at' => 'datetime',
         ];
+    }
+
+    /**
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeWithoutOperationalHealthFixtures(Builder $query): Builder
+    {
+        $emails = OperationalHealthFixtures::userEmails();
+
+        return $emails === []
+            ? $query
+            : $query->whereNotIn('email', $emails);
     }
 
     /**

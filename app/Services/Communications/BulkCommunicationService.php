@@ -243,6 +243,7 @@ final class BulkCommunicationService
     private function audienceClients(BulkCommunication $communication): EloquentCollection
     {
         $query = Client::query()
+            ->withoutOperationalHealthFixtures()
             ->with(['teamMembers.user.communicationPreference', 'primaryContact.communicationPreference'])
             ->orderBy('legal_name');
 

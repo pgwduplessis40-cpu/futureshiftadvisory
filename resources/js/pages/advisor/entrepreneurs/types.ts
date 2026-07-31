@@ -213,7 +213,7 @@ export type EntrepreneurDocument = {
     scanner_result: string;
     uploaded_at: string | null;
     uploaded_by_name: string | null;
-    url: string;
+    url: string | null;
 };
 
 export type EntrepreneurMessageSummary = {

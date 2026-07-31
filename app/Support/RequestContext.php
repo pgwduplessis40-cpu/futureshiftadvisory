@@ -67,7 +67,9 @@ final class RequestContext
 
         if (method_exists($user, 'accessibleClientIds')) {
             /** @var array<int, string> $ids */
-            $ids = (array) $user->accessibleClientIds();
+            $ids = $this->withSystemContext(
+                static fn (): array => (array) $user->accessibleClientIds(),
+            );
 
             return array_values(array_map('strval', $ids));
         }

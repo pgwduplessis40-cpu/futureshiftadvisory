@@ -2231,6 +2231,48 @@ function MarkdownDetail({
 }
 
 function DocumentRow({ document }: { document: EntrepreneurDocument }) {
+    const documentUrl =
+        document.scanner_result === 'clean'
+            ? (document.url ?? undefined)
+            : undefined;
+    const canOpen = documentUrl !== undefined;
+    const content = (
+        <>
+            <div className="min-w-0">
+                <div className="truncate font-medium">
+                    {document.original_filename}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                    {categoryLabel(document.category)}
+                </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                <Badge
+                    variant={
+                        document.scanner_result === 'infected'
+                            ? 'destructive'
+                            : document.scanner_result === 'clean'
+                              ? 'secondary'
+                              : 'outline'
+                    }
+                >
+                    {scannerLabel(document.scanner_result)}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                    {formatDate(document.uploaded_at)}
+                </span>
+                {canOpen ? (
+                    <ArrowUpRight className="size-4" aria-hidden="true" />
+                ) : (
+                    <AlertTriangle
+                        className="size-4 text-amber-700"
+                        aria-hidden="true"
+                    />
+                )}
+            </div>
+        </>
+    );
+
     return (
         <InsightHoverCard
             title={document.original_filename}
@@ -2250,43 +2292,29 @@ function DocumentRow({ document }: { document: EntrepreneurDocument }) {
                     value: document.uploaded_by_name ?? '-',
                 },
             ]}
-            drillHref={document.url}
+            drillHref={documentUrl}
             drillLabel="Open document"
             drillNewWindow
-            footer="Advisor document access opens the stored evidence file when the scan state allows it."
+            footer={
+                canOpen
+                    ? 'Advisor document access opens the stored evidence file.'
+                    : 'This upload is quarantined because scanning did not complete. Ask the founder to upload the original file again.'
+            }
         >
-            <a
-                href={document.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="grid gap-2 p-3 text-sm transition-colors outline-none hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:grid-cols-[minmax(0,1fr)_auto]"
-            >
-                <div className="min-w-0">
-                    <div className="truncate font-medium">
-                        {document.original_filename}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                        {categoryLabel(document.category)}
-                    </div>
+            {canOpen ? (
+                <a
+                    href={documentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="grid gap-2 p-3 text-sm transition-colors outline-none hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:grid-cols-[minmax(0,1fr)_auto]"
+                >
+                    {content}
+                </a>
+            ) : (
+                <div className="grid gap-2 p-3 text-sm sm:grid-cols-[minmax(0,1fr)_auto]">
+                    {content}
                 </div>
-                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                    <Badge
-                        variant={
-                            document.scanner_result === 'infected'
-                                ? 'destructive'
-                                : document.scanner_result === 'clean'
-                                  ? 'secondary'
-                                  : 'outline'
-                        }
-                    >
-                        {scannerLabel(document.scanner_result)}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                        {formatDate(document.uploaded_at)}
-                    </span>
-                    <ArrowUpRight className="size-4" aria-hidden="true" />
-                </div>
-            </a>
+            )}
         </InsightHoverCard>
     );
 }

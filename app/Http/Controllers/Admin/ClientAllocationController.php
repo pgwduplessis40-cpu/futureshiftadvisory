@@ -26,6 +26,7 @@ final class ClientAllocationController extends Controller
     {
         return Inertia::render('admin/client-allocations/Index', [
             'clients' => Client::query()
+                ->withoutOperationalHealthFixtures()
                 ->with([
                     'teamMembers' => fn ($query) => $query
                         ->whereIn('role', ['lead_advisor', 'advisor'])
@@ -37,6 +38,7 @@ final class ClientAllocationController extends Controller
                 ->map(fn (Client $client): array => $this->clientPayload($client))
                 ->values(),
             'advisors' => User::query()
+                ->withoutOperationalHealthFixtures()
                 ->whereIn('user_type', [User::TYPE_ADVISOR, User::TYPE_JUNIOR_ADVISOR])
                 ->whereNull('suspended_at')
                 ->orderBy('name')
