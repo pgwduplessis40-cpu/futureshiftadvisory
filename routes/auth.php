@@ -83,6 +83,9 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::patch('pilot-fee-waivers/clients/{client}', [PilotFeeWaiverController::class, 'updateClient'])
                 ->middleware('require.fresh-step-up')
                 ->name('pilot-fee-waivers.clients.update');
+            Route::patch('pilot-fee-waivers/entrepreneurs/{entrepreneurProfile}', [PilotFeeWaiverController::class, 'updateEntrepreneur'])
+                ->middleware('require.fresh-step-up')
+                ->name('pilot-fee-waivers.entrepreneurs.update');
 
             Route::get('questionnaires', [QuestionnaireController::class, 'index'])->name('questionnaires.index');
             Route::post('questionnaires', [QuestionnaireController::class, 'store'])->name('questionnaires.store');

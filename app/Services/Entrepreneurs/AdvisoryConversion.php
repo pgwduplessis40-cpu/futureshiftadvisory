@@ -50,9 +50,16 @@ final class AdvisoryConversion
                 'created_by_user_id' => $actor->getKey(),
                 'primary_contact_user_id' => $profile->user_id,
                 'engagement_type_locked_at' => now(),
+                'pilot_fee_waiver_enabled' => (bool) $profile->pilot_fee_waiver_enabled,
+                'pilot_fee_waiver_starts_at' => $profile->pilot_fee_waiver_starts_at,
+                'pilot_fee_waiver_expires_at' => $profile->pilot_fee_waiver_expires_at,
+                'pilot_fee_waiver_reason' => $profile->pilot_fee_waiver_reason,
+                'pilot_fee_waiver_approved_by_user_id' => $profile->pilot_fee_waiver_approved_by_user_id,
+                'pilot_fee_waiver_approved_at' => $profile->pilot_fee_waiver_approved_at,
             ]);
 
             $this->attachTeam($client, $actor, $profile->user);
+            $profile->forceFill(['client_id' => $client->getKey()])->save();
 
             if ($sourcePlan instanceof BusinessPlan) {
                 $sourcePlan->forceFill([

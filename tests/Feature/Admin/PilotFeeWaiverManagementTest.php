@@ -6,6 +6,7 @@ namespace Tests\Feature\Admin;
 
 use App\Enums\EngagementType;
 use App\Models\Client;
+use App\Models\EntrepreneurProfile;
 use App\Models\PilotFeeWaiverProgram;
 use App\Models\User;
 use App\Support\RequestContext;
@@ -125,6 +126,90 @@ final class PilotFeeWaiverManagementTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->has('clients', 251)
                 ->where('clients.250.legal_name', 'Pilot Client 251 Limited'));
+    }
+
+    public function test_index_includes_unconverted_entrepreneurs_without_duplicating_linked_clients(): void
+    {
+        $admin = User::factory()->superAdmin()->withTwoFactor()->create();
+        $admin->assignRole(User::TYPE_SUPER_ADMIN);
+        $client = Client::query()->create([
+            'engagement_type' => EngagementType::STANDARD_ADVISORY,
+            'legal_name' => 'Linked Advisory Client Limited',
+            'data_quality' => Client::DATA_QUALITY_LOW,
+        ]);
+        EntrepreneurProfile::query()->create([
+            'client_id' => $client->getKey(),
+            'assigned_advisor_id' => $admin->getKey(),
+            'name' => 'Linked Advisory Client Limited',
+            'email' => 'linked-founder@example.test',
+        ]);
+        $legacyProfile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $admin->getKey(),
+            'name' => 'Legacy Converted Founder',
+            'email' => 'legacy-converted@example.test',
+        ]);
+        $legacyClient = Client::query()->create([
+            'engagement_type' => EngagementType::STANDARD_ADVISORY,
+            'legal_name' => 'Legacy Converted Founder',
+            'data_quality' => Client::DATA_QUALITY_LOW,
+            'registry_sources' => [
+                'source' => 'entrepreneur',
+                'entrepreneur_profile_id' => $legacyProfile->getKey(),
+            ],
+        ]);
+        $unconverted = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $admin->getKey(),
+            'name' => 'Idea Validation Founder',
+            'email' => 'idea-founder@example.test',
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.pilot-fee-waivers.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->has('clients', 3)
+                ->where('clients.0.id', $unconverted->getKey())
+                ->where('clients.0.subject_type', 'entrepreneur')
+                ->where('clients.0.legal_name', 'Idea Validation Founder')
+                ->where('clients.1.id', $legacyClient->getKey())
+                ->where('clients.1.subject_type', 'client')
+                ->where('clients.2.id', $client->getKey())
+                ->where('clients.2.subject_type', 'client'));
+    }
+
+    public function test_super_admin_can_assign_a_waiver_to_an_unconverted_entrepreneur(): void
+    {
+        $admin = User::factory()->superAdmin()->withTwoFactor()->create();
+        $admin->assignRole(User::TYPE_SUPER_ADMIN);
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $admin->getKey(),
+            'name' => 'Pilot Founder',
+            'email' => 'pilot-founder@example.test',
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->patch(route('admin.pilot-fee-waivers.program.update'), [
+                'status' => PilotFeeWaiverProgram::STATUS_OPEN,
+            ])
+            ->assertRedirect(route('admin.pilot-fee-waivers.index', absolute: false));
+
+        $this->actingAsMfa($admin)
+            ->patch(route('admin.pilot-fee-waivers.entrepreneurs.update', $profile), [
+                'enabled' => true,
+                'starts_at' => now()->toDateString(),
+                'expires_at' => now()->addMonth()->toDateString(),
+                'reason' => 'Included in the founder pilot.',
+            ])
+            ->assertRedirect(route('admin.pilot-fee-waivers.index', absolute: false));
+
+        $profile->refresh();
+        $this->assertTrue($profile->pilot_fee_waiver_enabled);
+        $this->assertSame('Included in the founder pilot.', $profile->pilot_fee_waiver_reason);
+        $this->assertSame($admin->getKey(), $profile->pilot_fee_waiver_approved_by_user_id);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.pilot_fee_waiver.updated',
+            'subject_id' => $profile->getKey(),
+        ]);
     }
 
     public function test_super_admin_scope_is_used_even_when_the_staff_role_assignment_is_out_of_sync(): void

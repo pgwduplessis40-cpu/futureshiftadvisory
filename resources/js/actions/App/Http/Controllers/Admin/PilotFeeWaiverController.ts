@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:29
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
  * @route '/admin/pilot-fee-waivers'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:29
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
  * @route '/admin/pilot-fee-waivers'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:29
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
  * @route '/admin/pilot-fee-waivers'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:29
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
  * @route '/admin/pilot-fee-waivers'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:29
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
  * @route '/admin/pilot-fee-waivers'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:29
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
  * @route '/admin/pilot-fee-waivers'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:29
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
  * @route '/admin/pilot-fee-waivers'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateProgram
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:57
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:81
  * @route '/admin/pilot-fee-waivers/program'
  */
 export const updateProgram = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -94,7 +94,7 @@ updateProgram.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateProgram
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:57
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:81
  * @route '/admin/pilot-fee-waivers/program'
  */
 updateProgram.url = (options?: RouteQueryOptions) => {
@@ -103,7 +103,7 @@ updateProgram.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateProgram
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:57
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:81
  * @route '/admin/pilot-fee-waivers/program'
  */
 updateProgram.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -113,7 +113,7 @@ updateProgram.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> =>
 
     /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateProgram
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:57
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:81
  * @route '/admin/pilot-fee-waivers/program'
  */
     const updateProgramForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -128,7 +128,7 @@ updateProgram.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> =>
 
             /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateProgram
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:57
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:81
  * @route '/admin/pilot-fee-waivers/program'
  */
         updateProgramForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -144,7 +144,7 @@ updateProgram.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> =>
     updateProgram.form = updateProgramForm
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateClient
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:71
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:95
  * @route '/admin/pilot-fee-waivers/clients/{client}'
  */
 export const updateClient = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -159,7 +159,7 @@ updateClient.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateClient
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:71
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:95
  * @route '/admin/pilot-fee-waivers/clients/{client}'
  */
 updateClient.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -192,7 +192,7 @@ updateClient.url = (args: { client: string | { id: string } } | [client: string 
 
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateClient
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:71
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:95
  * @route '/admin/pilot-fee-waivers/clients/{client}'
  */
 updateClient.patch = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -202,7 +202,7 @@ updateClient.patch = (args: { client: string | { id: string } } | [client: strin
 
     /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateClient
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:71
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:95
  * @route '/admin/pilot-fee-waivers/clients/{client}'
  */
     const updateClientForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -217,7 +217,7 @@ updateClient.patch = (args: { client: string | { id: string } } | [client: strin
 
             /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateClient
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:71
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:95
  * @route '/admin/pilot-fee-waivers/clients/{client}'
  */
         updateClientForm.patch = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -231,6 +231,95 @@ updateClient.patch = (args: { client: string | { id: string } } | [client: strin
         })
 
     updateClient.form = updateClientForm
-const PilotFeeWaiverController = { index, updateProgram, updateClient }
+/**
+* @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateEntrepreneur
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:108
+ * @route '/admin/pilot-fee-waivers/entrepreneurs/{entrepreneurProfile}'
+ */
+export const updateEntrepreneur = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: updateEntrepreneur.url(args, options),
+    method: 'patch',
+})
+
+updateEntrepreneur.definition = {
+    methods: ["patch"],
+    url: '/admin/pilot-fee-waivers/entrepreneurs/{entrepreneurProfile}',
+} satisfies RouteDefinition<["patch"]>
+
+/**
+* @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateEntrepreneur
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:108
+ * @route '/admin/pilot-fee-waivers/entrepreneurs/{entrepreneurProfile}'
+ */
+updateEntrepreneur.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { entrepreneurProfile: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { entrepreneurProfile: args.id }
+        }
+
+    if (Array.isArray(args)) {
+        args = {
+                    entrepreneurProfile: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
+                ? args.entrepreneurProfile.id
+                : args.entrepreneurProfile,
+                }
+
+    return updateEntrepreneur.definition.url
+            .replace('{entrepreneurProfile}', parsedArgs.entrepreneurProfile.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateEntrepreneur
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:108
+ * @route '/admin/pilot-fee-waivers/entrepreneurs/{entrepreneurProfile}'
+ */
+updateEntrepreneur.patch = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: updateEntrepreneur.url(args, options),
+    method: 'patch',
+})
+
+    /**
+* @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateEntrepreneur
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:108
+ * @route '/admin/pilot-fee-waivers/entrepreneurs/{entrepreneurProfile}'
+ */
+    const updateEntrepreneurForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: updateEntrepreneur.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateEntrepreneur
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:108
+ * @route '/admin/pilot-fee-waivers/entrepreneurs/{entrepreneurProfile}'
+ */
+        updateEntrepreneurForm.patch = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: updateEntrepreneur.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+
+    updateEntrepreneur.form = updateEntrepreneurForm
+const PilotFeeWaiverController = { index, updateProgram, updateClient, updateEntrepreneur }
 
 export default PilotFeeWaiverController

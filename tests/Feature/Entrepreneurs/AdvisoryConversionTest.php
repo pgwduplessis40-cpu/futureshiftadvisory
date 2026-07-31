@@ -36,6 +36,14 @@ final class AdvisoryConversionTest extends TestCase
     public function test_conversion_prepopulates_standard_advisory_client_from_entrepreneur_data(): void
     {
         [$advisor, $profile, $plan] = $this->entrepreneurPlan('convert-founder@example.test');
+        $profile->forceFill([
+            'pilot_fee_waiver_enabled' => true,
+            'pilot_fee_waiver_starts_at' => now()->subDay(),
+            'pilot_fee_waiver_expires_at' => now()->addMonth(),
+            'pilot_fee_waiver_reason' => 'Founder pilot conversion.',
+            'pilot_fee_waiver_approved_by_user_id' => $advisor->getKey(),
+            'pilot_fee_waiver_approved_at' => now(),
+        ])->save();
 
         $client = app(AdvisoryConversion::class)->convert($profile, $advisor, $plan);
 
@@ -47,6 +55,10 @@ final class AdvisoryConversionTest extends TestCase
         $this->assertSame($plan->id, $client->registry_sources['business_plan_id']);
         $this->assertSame('Retail', data_get($client->registry_sources, 'founding_advisory_payload.industry'));
         $this->assertSame($client->id, $plan->refresh()->client_id);
+        $this->assertSame($client->id, $profile->refresh()->client_id);
+        $this->assertTrue($client->pilot_fee_waiver_enabled);
+        $this->assertSame('Founder pilot conversion.', $client->pilot_fee_waiver_reason);
+        $this->assertSame($advisor->getKey(), $client->pilot_fee_waiver_approved_by_user_id);
         $this->assertDatabaseHas('client_team', [
             'client_id' => $client->id,
             'user_id' => $advisor->id,

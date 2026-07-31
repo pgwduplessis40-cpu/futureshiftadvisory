@@ -21,6 +21,10 @@ final class EntrepreneurProfile extends Model
         'gamification_on' => 'boolean',
         'current_streak' => 'integer',
         'last_active_at' => 'datetime',
+        'pilot_fee_waiver_enabled' => 'boolean',
+        'pilot_fee_waiver_starts_at' => 'datetime',
+        'pilot_fee_waiver_expires_at' => 'datetime',
+        'pilot_fee_waiver_approved_at' => 'datetime',
     ];
 
     public function currentStage(): EntrepreneurStage
@@ -73,6 +77,14 @@ final class EntrepreneurProfile extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+
+    /**
+     * @return BelongsTo<User, EntrepreneurProfile>
+     */
+    public function pilotFeeWaiverApprovedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'pilot_fee_waiver_approved_by_user_id');
     }
 
     /**

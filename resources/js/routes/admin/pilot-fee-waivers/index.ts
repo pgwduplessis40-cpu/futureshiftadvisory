@@ -1,9 +1,10 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../wayfinder'
 import program from './program'
 import clients from './clients'
+import entrepreneurs from './entrepreneurs'
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:29
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
  * @route '/admin/pilot-fee-waivers'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -18,7 +19,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:29
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
  * @route '/admin/pilot-fee-waivers'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -27,7 +28,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:29
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
  * @route '/admin/pilot-fee-waivers'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -36,7 +37,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:29
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
  * @route '/admin/pilot-fee-waivers'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -46,7 +47,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:29
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
  * @route '/admin/pilot-fee-waivers'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -56,7 +57,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:29
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
  * @route '/admin/pilot-fee-waivers'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +66,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:29
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
  * @route '/admin/pilot-fee-waivers'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -83,6 +84,7 @@ const pilotFeeWaivers = {
     index: Object.assign(index, index),
 program: Object.assign(program, program),
 clients: Object.assign(clients, clients),
+entrepreneurs: Object.assign(entrepreneurs, entrepreneurs),
 }
 
 export default pilotFeeWaivers

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::update
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:57
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:81
  * @route '/admin/pilot-fee-waivers/program'
  */
 export const update = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -16,7 +16,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::update
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:57
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:81
  * @route '/admin/pilot-fee-waivers/program'
  */
 update.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ update.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::update
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:57
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:81
  * @route '/admin/pilot-fee-waivers/program'
  */
 update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -35,7 +35,7 @@ update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::update
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:57
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:81
  * @route '/admin/pilot-fee-waivers/program'
  */
     const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -50,7 +50,7 @@ update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::update
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:57
+ * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:81
  * @route '/admin/pilot-fee-waivers/program'
  */
         updateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

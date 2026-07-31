@@ -17,6 +17,8 @@ type Program = {
 };
 
 type PilotClient = {
+    key: string;
+    subject_type: 'client' | 'entrepreneur';
     id: string;
     legal_name: string;
     trading_name: string | null;
@@ -227,7 +229,7 @@ export default function PilotFeeWaiversIndex({
                             <tbody>
                                 {clients.map((client) => (
                                     <PilotClientRow
-                                        key={client.id}
+                                        key={client.key}
                                         client={client}
                                     />
                                 ))}
@@ -241,6 +243,7 @@ export default function PilotFeeWaiversIndex({
 }
 
 function PilotClientRow({ client }: { client: PilotClient }) {
+    const fieldId = `${client.subject_type}-${client.id}`;
     const form = useForm({
         enabled: client.enabled,
         starts_at: dateInputValue(client.starts_at),
@@ -276,11 +279,11 @@ function PilotClientRow({ client }: { client: PilotClient }) {
                 <InputError message={form.errors.enabled} />
             </td>
             <td className="px-3 py-3">
-                <Label className="sr-only" htmlFor={`pilot-start-${client.id}`}>
+                <Label className="sr-only" htmlFor={`pilot-start-${fieldId}`}>
                     Pilot start date
                 </Label>
                 <Input
-                    id={`pilot-start-${client.id}`}
+                    id={`pilot-start-${fieldId}`}
                     type="date"
                     value={form.data.starts_at}
                     onChange={(event) =>
@@ -291,14 +294,11 @@ function PilotClientRow({ client }: { client: PilotClient }) {
                 <InputError message={form.errors.starts_at} />
             </td>
             <td className="px-3 py-3">
-                <Label
-                    className="sr-only"
-                    htmlFor={`pilot-expiry-${client.id}`}
-                >
+                <Label className="sr-only" htmlFor={`pilot-expiry-${fieldId}`}>
                     Pilot review date
                 </Label>
                 <Input
-                    id={`pilot-expiry-${client.id}`}
+                    id={`pilot-expiry-${fieldId}`}
                     type="date"
                     value={form.data.expires_at}
                     onChange={(event) =>
@@ -309,14 +309,11 @@ function PilotClientRow({ client }: { client: PilotClient }) {
                 <InputError message={form.errors.expires_at} />
             </td>
             <td className="px-3 py-3">
-                <Label
-                    className="sr-only"
-                    htmlFor={`pilot-reason-${client.id}`}
-                >
+                <Label className="sr-only" htmlFor={`pilot-reason-${fieldId}`}>
                     Pilot approval reason
                 </Label>
                 <Input
-                    id={`pilot-reason-${client.id}`}
+                    id={`pilot-reason-${fieldId}`}
                     value={form.data.reason}
                     onChange={(event) =>
                         form.setData('reason', event.target.value)

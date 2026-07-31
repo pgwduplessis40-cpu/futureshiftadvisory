@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Fees;
 
 use App\Models\Client;
+use App\Models\EntrepreneurProfile;
 use App\Models\PilotFeeWaiverProgram;
 use App\Models\User;
 use Carbon\CarbonInterface;
@@ -42,19 +43,19 @@ final class PilotFeeWaiverManager
     /**
      * @return array{eligible:bool, program_status:string, starts_at:?string, expires_at:?string}
      */
-    public function eligibility(Client $client, ?CarbonInterface $at = null): array
+    public function eligibility(Client|EntrepreneurProfile $subject, ?CarbonInterface $at = null): array
     {
         $at ??= now();
         $program = $this->currentProgram();
-        $startsAt = $client->pilot_fee_waiver_starts_at;
-        $expiresAt = $client->pilot_fee_waiver_expires_at;
+        $startsAt = $subject->pilot_fee_waiver_starts_at;
+        $expiresAt = $subject->pilot_fee_waiver_expires_at;
 
         $starts = ! $startsAt instanceof CarbonInterface || $startsAt->lessThanOrEqualTo($at);
         $expires = $expiresAt instanceof CarbonInterface && $expiresAt->greaterThanOrEqualTo($at);
 
         return [
             'eligible' => $program->allowsNewWaivers()
-                && (bool) $client->pilot_fee_waiver_enabled
+                && (bool) $subject->pilot_fee_waiver_enabled
                 && $starts
                 && $expires,
             'program_status' => (string) $program->status,
@@ -68,9 +69,35 @@ final class PilotFeeWaiverManager
      */
     public function updateClient(Client $client, array $attributes, User $actor): Client
     {
+        $this->updateSubject($client, $attributes, $actor);
+
+        return $client->refresh();
+    }
+
+    /**
+     * @param  array{enabled:bool, starts_at:?string, expires_at:?string, reason:?string}  $attributes
+     */
+    public function updateEntrepreneur(
+        EntrepreneurProfile $profile,
+        array $attributes,
+        User $actor,
+    ): EntrepreneurProfile {
+        $this->updateSubject($profile, $attributes, $actor);
+
+        return $profile->refresh();
+    }
+
+    /**
+     * @param  array{enabled:bool, starts_at:?string, expires_at:?string, reason:?string}  $attributes
+     */
+    private function updateSubject(
+        Client|EntrepreneurProfile $subject,
+        array $attributes,
+        User $actor,
+    ): void {
         $enabled = $attributes['enabled'];
 
-        $client->forceFill([
+        $subject->forceFill([
             'pilot_fee_waiver_enabled' => $enabled,
             'pilot_fee_waiver_starts_at' => $enabled && filled($attributes['starts_at'])
                 ? Carbon::parse($attributes['starts_at'])
@@ -82,7 +109,5 @@ final class PilotFeeWaiverManager
             'pilot_fee_waiver_approved_by_user_id' => $enabled ? $actor->getKey() : null,
             'pilot_fee_waiver_approved_at' => $enabled ? now() : null,
         ])->save();
-
-        return $client->refresh();
     }
 }
