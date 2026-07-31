@@ -133,9 +133,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
         if ((bool) config('operational_health.enabled', false)) {
             $operationalHealthSchedule = new OperationalHealthSchedule;
+            $operationalHealthCommandOptions = (bool) config('operational_health.ensure_fixtures', true)
+                ? ['--ensure-fixtures' => true]
+                : [];
 
             foreach ($operationalHealthSchedule->weekdayTimes() as $time) {
-                $schedule->command(RunOperationalHealthChecks::class)
+                $schedule->command(RunOperationalHealthChecks::class, $operationalHealthCommandOptions)
                     ->weekdays()
                     ->dailyAt($time)
                     ->timezone($operationalHealthSchedule->timezone())
@@ -144,7 +147,7 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             foreach ($operationalHealthSchedule->weekendTimes() as $time) {
-                $schedule->command(RunOperationalHealthChecks::class)
+                $schedule->command(RunOperationalHealthChecks::class, $operationalHealthCommandOptions)
                     ->weekends()
                     ->dailyAt($time)
                     ->timezone($operationalHealthSchedule->timezone())

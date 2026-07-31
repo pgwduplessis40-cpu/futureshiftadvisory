@@ -5,9 +5,15 @@ declare(strict_types=1);
 namespace Tests\Feature\OperationalHealth;
 
 use App\Console\Commands\RunOperationalHealthChecks;
+use App\Enums\ClientStatus;
+use App\Enums\EngagementType;
+use App\Models\Client;
+use App\Models\ClientTeamMember;
 use App\Models\OperationalHealthCheckResult;
 use App\Models\OperationalHealthCheckRun;
 use App\Models\User;
+use App\Services\OperationalHealth\OperationalHealthSchedule;
+use App\Services\Pdf\PdfRenderer;
 use App\Services\Security\StepUpEvaluator;
 use App\Support\ReleaseVersion;
 use Database\Seeders\RoleSeeder;
@@ -15,6 +21,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 final class OperationalHealthCheckTest extends TestCase
@@ -28,12 +35,12 @@ final class OperationalHealthCheckTest extends TestCase
         $this->seed(RoleSeeder::class);
     }
 
-    public function test_health_checks_are_scheduled_in_new_zealand_business_hours(): void
+    public function test_health_checks_are_scheduled_hourly_in_new_zealand_timezone(): void
     {
         config()->set('operational_health.enabled', true);
         config()->set('operational_health.timezone', 'Pacific/Auckland');
-        config()->set('operational_health.weekday_times', ['09:30', '13:30', '17:30']);
-        config()->set('operational_health.weekend_times', ['09:30']);
+        config()->set('operational_health.weekday_times', null);
+        config()->set('operational_health.weekend_times', null);
 
         Artisan::call('schedule:list');
 
@@ -47,16 +54,23 @@ final class OperationalHealthCheckTest extends TestCase
             ->unique('description')
             ->values();
 
-        $this->assertCount(3, $weekday);
-        $this->assertCount(1, $weekend);
-        $this->assertSame(['30 9 * * 1-5', '30 13 * * 1-5', '30 17 * * 1-5'], $weekday->pluck('expression')->all());
-        $this->assertSame('30 9 * * 6,0', $weekend->first()->expression);
+        $this->assertCount(24, $weekday);
+        $this->assertCount(24, $weekend);
+        $this->assertSame(OperationalHealthSchedule::DEFAULT_WEEKDAY_TIMES, $weekday->map(
+            fn ($event): string => substr((string) $event->description, -4, 2).':00',
+        )->all());
+        $this->assertSame('0 0 * * 1-5', $weekday->first()->expression);
+        $this->assertSame('0 23 * * 1-5', $weekday->last()->expression);
+        $this->assertSame('0 0 * * 6,0', $weekend->first()->expression);
+        $this->assertSame('0 23 * * 6,0', $weekend->last()->expression);
         $this->assertSame(['Pacific/Auckland'], $weekday->pluck('timezone')->unique()->values()->all());
         $this->assertSame('Pacific/Auckland', $weekend->first()->timezone);
     }
 
     public function test_command_records_specific_findings_and_skips_missing_monitor_fixtures(): void
     {
+        config()->set('operational_health.ensure_fixtures', false);
+
         $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'ops-monitor-admin@example.test');
 
         $this->artisan(RunOperationalHealthChecks::class)
@@ -95,6 +109,102 @@ final class OperationalHealthCheckTest extends TestCase
         $this->assertSame(1, $skipped->consecutive_failures);
     }
 
+    public function test_seeded_monitor_fixtures_let_recurring_workflow_checks_run(): void
+    {
+        Storage::fake('secure_local');
+
+        $this->fakePdfRenderer();
+
+        $this->assertArrayHasKey('fsa:seed-operational-health-fixtures', Artisan::all());
+
+        $this->artisan('fsa:seed-operational-health-fixtures')
+            ->assertSuccessful();
+
+        $this->artisan(RunOperationalHealthChecks::class)
+            ->assertSuccessful();
+
+        /** @var OperationalHealthCheckRun $run */
+        $run = OperationalHealthCheckRun::query()->latest()->firstOrFail();
+
+        $this->assertSame(OperationalHealthCheckRun::STATUS_PASSED, $run->status);
+        $this->assertSame(0, $run->failed_checks);
+        $this->assertSame(0, $run->skipped_checks);
+
+        foreach ([
+            'portal.dashboard',
+            'portal.business_plan_budget.document',
+            'portal.business_plan_budget.pdf',
+            'portal.dd_plan.preview',
+            'portal.entrepreneur.plan.preview',
+            'portal.documents.show',
+            'advisor.templates.preview',
+        ] as $checkKey) {
+            $this->assertDatabaseHas('operational_health_check_results', [
+                'run_id' => $run->id,
+                'check_key' => $checkKey,
+                'status' => OperationalHealthCheckResult::STATUS_PASSED,
+            ]);
+        }
+    }
+
+    public function test_client_monitor_selection_ignores_suspended_configured_client_assignments(): void
+    {
+        config()->set('operational_health.ensure_fixtures', false);
+        config()->set('operational_health.users.client_email', 'configured-suspended-client@example.test');
+
+        $this->fakePdfRenderer();
+
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'active-client-monitor-admin@example.test');
+        $configuredUser = $this->userWithRole(User::TYPE_CLIENT_PRIMARY, 'configured-suspended-client@example.test');
+        $fallbackUser = $this->userWithRole(User::TYPE_CLIENT_PRIMARY, 'fallback-active-client@example.test');
+        $suspendedClient = $this->clientFixture(
+            'Suspended monitor fixture',
+            EngagementType::STANDARD_ADVISORY,
+            ClientStatus::SUSPENDED,
+            $configuredUser,
+            $admin,
+        );
+        $activeClient = $this->clientFixture(
+            'Active monitor fixture',
+            EngagementType::STANDARD_ADVISORY,
+            ClientStatus::ACTIVE,
+            $fallbackUser,
+            $admin,
+        );
+
+        ClientTeamMember::query()->create([
+            'client_id' => $suspendedClient->getKey(),
+            'user_id' => $configuredUser->getKey(),
+            'role' => 'primary_contact',
+            'granted_modules' => ['portal', EngagementType::STANDARD_ADVISORY->value],
+        ]);
+        ClientTeamMember::query()->create([
+            'client_id' => $activeClient->getKey(),
+            'user_id' => $fallbackUser->getKey(),
+            'role' => 'primary_contact',
+            'granted_modules' => ['portal', EngagementType::STANDARD_ADVISORY->value],
+        ]);
+
+        $this->artisan(RunOperationalHealthChecks::class)
+            ->assertSuccessful();
+
+        /** @var OperationalHealthCheckRun $run */
+        $run = OperationalHealthCheckRun::query()->latest()->firstOrFail();
+
+        foreach ([
+            'portal.dashboard',
+            'portal.business_plan_budget.document',
+            'portal.business_plan_budget.pdf',
+        ] as $checkKey) {
+            $this->assertDatabaseHas('operational_health_check_results', [
+                'run_id' => $run->id,
+                'check_key' => $checkKey,
+                'status' => OperationalHealthCheckResult::STATUS_PASSED,
+                'actor_user_id' => $fallbackUser->getKey(),
+            ]);
+        }
+    }
+
     public function test_admin_page_shows_latest_specific_issue_and_recurring_fingerprints(): void
     {
         $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'app-health-admin@example.test');
@@ -129,8 +239,8 @@ final class OperationalHealthCheckTest extends TestCase
     public function test_admin_page_reports_run_dates_and_today_counts_in_the_operational_timezone(): void
     {
         config()->set('operational_health.timezone', 'Pacific/Auckland');
-        config()->set('operational_health.weekday_times', ['09:30', '13:30', '17:30']);
-        config()->set('operational_health.weekend_times', ['09:30']);
+        config()->set('operational_health.weekday_times', null);
+        config()->set('operational_health.weekend_times', null);
 
         Carbon::setTestNow(Carbon::parse('2026-07-31 18:00:00', 'Pacific/Auckland'));
 
@@ -151,8 +261,8 @@ final class OperationalHealthCheckTest extends TestCase
                 ->assertJsonPath('props.summary.latest_started_at_label', '31 Jul 2026, 9:30 AM')
                 ->assertJsonPath('props.summary.schedule.today_label', '31 Jul 2026')
                 ->assertJsonPath('props.summary.schedule.timezone', 'Pacific/Auckland')
-                ->assertJsonPath('props.summary.schedule.expected_runs_today', 3)
-                ->assertJsonPath('props.summary.schedule.due_runs_today', 3)
+                ->assertJsonPath('props.summary.schedule.expected_runs_today', 24)
+                ->assertJsonPath('props.summary.schedule.due_runs_today', 19)
                 ->assertJsonPath('props.summary.schedule.completed_runs_today', 1);
         } finally {
             Carbon::setTestNow();
@@ -170,6 +280,10 @@ final class OperationalHealthCheckTest extends TestCase
 
     public function test_run_now_preserves_the_administrator_session(): void
     {
+        Storage::fake('secure_local');
+
+        $this->fakePdfRenderer();
+
         $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'run-now-app-health@example.test');
         $browserIp = '203.0.113.10';
         $browserUserAgent = 'FutureShift test browser';
@@ -198,6 +312,13 @@ final class OperationalHealthCheckTest extends TestCase
             'status' => OperationalHealthCheckResult::STATUS_PASSED,
         ]);
 
+        /** @var OperationalHealthCheckRun $run */
+        $run = OperationalHealthCheckRun::query()->latest()->firstOrFail();
+
+        $this->assertSame(OperationalHealthCheckRun::STATUS_PASSED, $run->status);
+        $this->assertSame(0, $run->failed_checks);
+        $this->assertSame(0, $run->skipped_checks);
+
         $this->withHeaders($this->inertiaHeaders())
             ->get(route('admin.app-health.index'))
             ->assertOk();
@@ -223,6 +344,46 @@ final class OperationalHealthCheckTest extends TestCase
             ->assertJsonPath('props.operationalHealth.index_url', route('admin.app-health.index', absolute: false))
             ->assertJsonPath('props.operationalHealth.latest_issue.issue_summary', 'Entrepreneur business plan preview returned HTTP 500; expected 200.')
             ->assertJsonPath('props.operationalHealth.latest_issue.consecutive_failures', 3);
+    }
+
+    private function fakePdfRenderer(): void
+    {
+        $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
+        {
+            public function render(string $html): string
+            {
+                return "%PDF-1.4\n".strip_tags($html);
+            }
+        });
+    }
+
+    private function clientFixture(
+        string $legalName,
+        EngagementType $engagementType,
+        ClientStatus $status,
+        User $primaryContact,
+        User $createdBy,
+    ): Client {
+        /** @var Client $client */
+        $client = Client::query()->create([
+            'legal_name' => $legalName,
+            'trading_name' => $legalName,
+            'engagement_type' => $engagementType->value,
+            'status' => $status->value,
+            'entity_type' => 'company',
+            'address' => ['country' => 'NZ'],
+            'gst_registered' => false,
+            'directors' => [],
+            'filing_status' => 'monitor_fixture',
+            'data_quality' => Client::DATA_QUALITY_LOW,
+            'registry_sources' => [
+                'source' => 'operational_health_test',
+            ],
+            'primary_contact_user_id' => $primaryContact->getKey(),
+            'created_by_user_id' => $createdBy->getKey(),
+        ]);
+
+        return $client;
     }
 
     private function userWithRole(string $role, string $email): User

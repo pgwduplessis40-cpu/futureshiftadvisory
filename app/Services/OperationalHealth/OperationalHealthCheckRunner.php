@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\OperationalHealth;
 
+use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
 use App\Models\Document;
 use App\Models\OperationalHealthCheckResult;
@@ -65,7 +66,7 @@ final class OperationalHealthCheckRunner
     {
         $superAdmin = $this->superAdminUser();
         $clientUser = $this->clientPortalUser();
-        $ddUser = $this->clientPortalUser(EngagementType::DUE_DILIGENCE);
+        $ddUser = $this->clientPortalUser(EngagementType::DUE_DILIGENCE, 'dd_client_email');
         $entrepreneurUser = $this->entrepreneurUser();
         $document = $this->clientDocumentCandidate();
         $documentUser = $document instanceof Document && is_string($document->client_id)
@@ -682,14 +683,14 @@ final class OperationalHealthCheckRunner
             ->first();
     }
 
-    private function clientPortalUser(?EngagementType $engagementType = null): ?User
+    private function clientPortalUser(?EngagementType $engagementType = null, string $configuredKey = 'client_email'): ?User
     {
-        $configured = $this->configuredUser('client_email');
+        $configured = $this->configuredUser($configuredKey);
         if ($configured instanceof User && $this->userHasClientAssignment($configured, $engagementType)) {
             return $configured;
         }
 
-        if (! Schema::hasTable('client_team')) {
+        if (! $this->hasClientPortalTables()) {
             return null;
         }
 
@@ -700,15 +701,7 @@ final class OperationalHealthCheckRunner
                     ->from('client_team')
                     ->whereColumn('client_team.user_id', 'users.id');
 
-                if ($engagementType instanceof EngagementType) {
-                    $query->join('clients', 'clients.id', '=', 'client_team.client_id')
-                        ->where('clients.engagement_type', $engagementType->value)
-                        ->whereExists(function ($inner): void {
-                            $inner->selectRaw('1')
-                                ->from('dd_engagements')
-                                ->whereColumn('dd_engagements.client_id', 'clients.id');
-                        });
-                }
+                $this->constrainPortalClientAssignment($query, $engagementType);
             })
             ->oldest('id')
             ->first();
@@ -739,16 +732,57 @@ final class OperationalHealthCheckRunner
 
     private function userHasClientAssignment(User $user, ?EngagementType $engagementType = null): bool
     {
-        if (! Schema::hasTable('client_team')) {
+        if (! $this->hasClientPortalTables()) {
             return false;
         }
 
         $query = DB::table('client_team')
             ->where('client_team.user_id', $user->getKey());
 
-        if ($engagementType instanceof EngagementType) {
-            $query->join('clients', 'clients.id', '=', 'client_team.client_id')
-                ->where('clients.engagement_type', $engagementType->value);
+        $this->constrainPortalClientAssignment($query, $engagementType);
+
+        return $query->exists();
+    }
+
+    private function hasClientPortalTables(): bool
+    {
+        return Schema::hasTable('client_team') && Schema::hasTable('clients');
+    }
+
+    private function constrainPortalClientAssignment(mixed $query, ?EngagementType $engagementType = null): void
+    {
+        $query->join('clients', 'clients.id', '=', 'client_team.client_id');
+
+        if (Schema::hasColumn('clients', 'status')) {
+            $query->where('clients.status', '!=', ClientStatus::SUSPENDED->value);
+        }
+
+        if (! $engagementType instanceof EngagementType) {
+            return;
+        }
+
+        $query->where('clients.engagement_type', $engagementType->value);
+
+        if (! Schema::hasTable('dd_engagements')) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->whereExists(function ($inner): void {
+            $inner->selectRaw('1')
+                ->from('dd_engagements')
+                ->whereColumn('dd_engagements.client_id', 'clients.id');
+        });
+    }
+
+    private function clientIsAvailableForPortal(string $clientId): bool
+    {
+        $query = DB::table('clients')
+            ->where('id', $clientId);
+
+        if (Schema::hasColumn('clients', 'status')) {
+            $query->where('status', '!=', ClientStatus::SUSPENDED->value);
         }
 
         return $query->exists();
@@ -756,7 +790,7 @@ final class OperationalHealthCheckRunner
 
     private function clientPortalUserForClient(string $clientId): ?User
     {
-        if (! Schema::hasTable('client_team')) {
+        if (! $this->hasClientPortalTables() || ! $this->clientIsAvailableForPortal($clientId)) {
             return null;
         }
 

@@ -7,17 +7,26 @@ namespace App\Console\Commands;
 use App\Models\OperationalHealthCheckResult;
 use App\Models\OperationalHealthCheckRun;
 use App\Services\OperationalHealth\OperationalHealthCheckRunner;
+use Database\Seeders\OperationalHealthFixtureSeeder;
 use Illuminate\Console\Command;
 
 final class RunOperationalHealthChecks extends Command
 {
     protected $signature = 'fsa:operational-health-check
+                            {--ensure-fixtures : Provision idempotent monitor fixtures before running checks.}
                             {--fail-on-warning : Return a non-zero exit code when checks are skipped or warning.}';
 
-    protected $description = 'Run daily synthetic application checks and record operational health findings.';
+    protected $description = 'Run synthetic application checks and record operational health findings.';
 
     public function handle(OperationalHealthCheckRunner $runner): int
     {
+        if ((bool) config('operational_health.ensure_fixtures', true) || (bool) $this->option('ensure-fixtures')) {
+            $this->callSilent('db:seed', [
+                '--class' => OperationalHealthFixtureSeeder::class,
+                '--force' => true,
+            ]);
+        }
+
         $run = $runner->run();
 
         $this->info(sprintf(

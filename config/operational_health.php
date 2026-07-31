@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Services\OperationalHealth\OperationalHealthSchedule;
+
 return [
     /*
     |--------------------------------------------------------------------------
@@ -16,15 +18,27 @@ return [
 
     'timezone' => env('OPERATIONAL_HEALTH_TIMEZONE', 'Pacific/Auckland'),
 
-    'weekday_times' => explode(',', (string) env('OPERATIONAL_HEALTH_WEEKDAY_TIMES', '09:30,13:30,17:30')),
+    'weekday_times' => explode(',', (string) env(
+        'OPERATIONAL_HEALTH_WEEKDAY_TIMES',
+        implode(',', OperationalHealthSchedule::DEFAULT_WEEKDAY_TIMES),
+    )),
 
-    'weekend_times' => explode(',', (string) env('OPERATIONAL_HEALTH_WEEKEND_TIMES', '09:30')),
+    'weekend_times' => explode(',', (string) env(
+        'OPERATIONAL_HEALTH_WEEKEND_TIMES',
+        implode(',', OperationalHealthSchedule::DEFAULT_WEEKEND_TIMES),
+    )),
 
     'retention_days' => (int) env('OPERATIONAL_HEALTH_RETENTION_DAYS', 90),
 
+    'ensure_fixtures' => env('OPERATIONAL_HEALTH_ENSURE_FIXTURES', true),
+
     'users' => [
-        'super_admin_email' => env('OPERATIONAL_HEALTH_SUPER_ADMIN_EMAIL'),
-        'client_email' => env('OPERATIONAL_HEALTH_CLIENT_EMAIL'),
-        'entrepreneur_email' => env('OPERATIONAL_HEALTH_ENTREPRENEUR_EMAIL'),
+        'super_admin_email' => env('OPERATIONAL_HEALTH_SUPER_ADMIN_EMAIL', 'operational-health-admin@futureshiftadvisory.test'),
+        'client_email' => env('OPERATIONAL_HEALTH_CLIENT_EMAIL', 'operational-health-client@futureshiftadvisory.test'),
+        'dd_client_email' => env(
+            'OPERATIONAL_HEALTH_DD_CLIENT_EMAIL',
+            env('OPERATIONAL_HEALTH_CLIENT_EMAIL', 'operational-health-dd-client@futureshiftadvisory.test'),
+        ),
+        'entrepreneur_email' => env('OPERATIONAL_HEALTH_ENTREPRENEUR_EMAIL', 'operational-health-entrepreneur@futureshiftadvisory.test'),
     ],
 ];
