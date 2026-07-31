@@ -316,6 +316,41 @@ final class AddClientTest extends TestCase
                 ->where('client.invitation.resend_url', route('advisor.clients.invite.resend', $client, absolute: false)));
     }
 
+    public function test_expired_unaccepted_client_invite_can_still_be_cancelled(): void
+    {
+        Mail::fake();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.clients.invite.store'), [
+                'email' => 'expired.pending.owner@example.com',
+                'engagement_type' => EngagementType::STANDARD_ADVISORY->value,
+                'return_to' => route('advisor.clients.index', absolute: false),
+            ])
+            ->assertRedirect(route('advisor.clients.index', absolute: false));
+
+        $client = Client::query()->firstOrFail();
+        $invite = InviteToken::query()->firstOrFail();
+        $invite->forceFill(['expires_at' => now()->subMinute()])->save();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.show', $client))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('client.account_status', 'awaiting_activation')
+                ->where('client.invitation.resend_url', route('advisor.clients.invite.resend', $client, absolute: false))
+                ->where('client.invitation.cancel_url', route('advisor.clients.invite.cancel', $client, absolute: false)));
+
+        $this->actingAsMfa($advisor)
+            ->delete(route('advisor.clients.invite.cancel', $client))
+            ->assertRedirect(route('advisor.clients.show', $client))
+            ->assertSessionHas('status', 'client-invite-cancelled');
+
+        $this->assertNotNull($client->refresh()->registry_sources['invite_cancelled_at'] ?? null);
+        $this->assertDatabaseHas('audit_events', ['action' => 'client.invite_cancelled']);
+    }
+
     public function test_client_portal_reconciles_an_accepted_replacement_invite_with_its_workspace(): void
     {
         $this->seed(RoleSeeder::class);

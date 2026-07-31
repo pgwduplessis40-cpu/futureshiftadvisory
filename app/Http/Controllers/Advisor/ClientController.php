@@ -1196,7 +1196,6 @@ final class ClientController extends Controller
 
         return $this->canResendClientInvite($client, $invite)
             && $invite instanceof InviteToken
-            && $invite->isUsable()
             && ! isset($registrySources['invite_cancelled_at']);
     }
 
