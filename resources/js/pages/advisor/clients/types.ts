@@ -7,6 +7,8 @@ export type ClientSummary = {
     is_npo: boolean;
     status: string;
     status_label: string;
+    account_status: string;
+    account_status_label: string;
     nzbn: string | null;
     legal_name: string;
     trading_name: string | null;

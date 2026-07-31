@@ -158,6 +158,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('clients/invite', [ClientController::class, 'storeInvite'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.invite.store');
+        Route::post('clients/{client}/invite/resend', [ClientController::class, 'resendInvite'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.invite.resend');
+        Route::delete('clients/{client}/invite', [ClientController::class, 'cancelInvite'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.invite.cancel');
         Route::post('clients/lookup-nzbn', [ClientController::class, 'lookupNzbn'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.lookup-nzbn');

@@ -181,13 +181,13 @@ export default function ClientsIndex({
                                         >
                                             <Badge
                                                 variant={
-                                                    client.status ===
+                                                    client.account_status ===
                                                     'suspended'
                                                         ? 'destructive'
                                                         : 'outline'
                                                 }
                                             >
-                                                {client.status_label}
+                                                {client.account_status_label}
                                             </Badge>
                                         </td>
                                         <td

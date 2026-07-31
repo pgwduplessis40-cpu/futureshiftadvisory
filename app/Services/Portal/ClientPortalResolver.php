@@ -11,6 +11,7 @@ use App\Models\ClientTeamMember;
 use App\Models\EntrepreneurProfile;
 use App\Models\NpoBoardMember;
 use App\Models\User;
+use App\Services\Clients\ClientInviteReconciler;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Support\RequestContext;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 final class ClientPortalResolver
 {
     public function __construct(
+        private readonly ClientInviteReconciler $clientInvites,
         private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
         private readonly RequestContext $context,
     ) {}
@@ -39,6 +41,12 @@ final class ClientPortalResolver
         abort_unless(in_array($user->user_type, [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM], true), 403);
 
         $clientIds = $user->accessibleClientIds();
+        if ($clientIds === []) {
+            $this->clientInvites->reconcile($user);
+            $clientIds = $user->accessibleClientIds();
+            $this->context->apply($user->fsaRole(), $clientIds, (string) $user->getKey());
+        }
+
         abort_if($clientIds === [], 403, 'No client portal is assigned to this account yet.');
 
         $selectedClientId = $request->query('client');

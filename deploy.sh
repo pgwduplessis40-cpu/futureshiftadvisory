@@ -70,6 +70,27 @@ restore_generated_wayfinder_checkout() {
     git clean -fd -- "${generated_paths[@]}"
 }
 
+clear_orphaned_git_index_lock() {
+    local lock_path="$APP_DIR/.git/index.lock"
+
+    if [ ! -e "$lock_path" ]; then
+        return
+    fi
+
+    if ! command -v pgrep >/dev/null 2>&1; then
+        echo "ERROR: .git/index.lock exists and pgrep is unavailable, so lock ownership cannot be checked." >&2
+        exit 1
+    fi
+
+    if pgrep -x git >/dev/null 2>&1; then
+        echo "ERROR: .git/index.lock exists while a Git process is running; refusing to remove it." >&2
+        exit 1
+    fi
+
+    echo "Removing orphaned .git/index.lock left by an earlier Git process."
+    rm -f -- "$lock_path"
+}
+
 verify_expected_release() {
     local deployed_commit deployed_version
 
@@ -133,6 +154,7 @@ verify_live_deployment_identity() {
 }
 
 log "Checking deployment checkout"
+clear_orphaned_git_index_lock
 restore_generated_wayfinder_checkout
 require_clean_checkout "before pulling code"
 

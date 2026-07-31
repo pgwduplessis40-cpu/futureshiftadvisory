@@ -176,7 +176,7 @@ jobs:
           # the checkout has pulled the self-healing deploy script. Reset only
           # those generated directories; deploy.sh still rejects all other dirt.
           ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "cd '$DEPLOY_PATH' && git restore --worktree --source=HEAD -- resources/js/actions resources/js/routes && git clean -fd -- resources/js/actions resources/js/routes && chmod 755 deploy.sh && DEPLOY_EXPECTED_COMMIT='$DEPLOY_COMMIT' DEPLOY_EXPECTED_VERSION='$DEPLOY_VERSION' bash ./deploy.sh"
+            "cd '$DEPLOY_PATH' && if [ -e .git/index.lock ]; then command -v pgrep >/dev/null 2>&1 || { echo 'Cannot verify stale Git lock ownership because pgrep is unavailable.' >&2; exit 1; }; if pgrep -x git >/dev/null 2>&1; then echo 'A Git process is running; refusing to remove .git/index.lock.' >&2; exit 1; fi; echo 'Removing orphaned .git/index.lock.'; rm -f -- .git/index.lock; fi && git restore --worktree --source=HEAD -- resources/js/actions resources/js/routes && git clean -fd -- resources/js/actions resources/js/routes && chmod 755 deploy.sh && DEPLOY_EXPECTED_COMMIT='$DEPLOY_COMMIT' DEPLOY_EXPECTED_VERSION='$DEPLOY_VERSION' bash ./deploy.sh"
 
       - name: Verify the live release identity
         env:

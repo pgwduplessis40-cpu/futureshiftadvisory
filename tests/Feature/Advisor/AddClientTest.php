@@ -248,6 +248,186 @@ final class AddClientTest extends TestCase
         $this->assertDatabaseHas('audit_events', ['action' => 'invite.accepted']);
     }
 
+    public function test_pending_client_invite_is_labelled_awaiting_activation_and_can_be_resent_or_cancelled(): void
+    {
+        Mail::fake();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.clients.invite.store'), [
+                'email' => 'pending.owner@example.com',
+                'engagement_type' => EngagementType::STANDARD_ADVISORY->value,
+                'return_to' => route('advisor.clients.index', absolute: false),
+            ])
+            ->assertRedirect(route('advisor.clients.index', absolute: false));
+
+        $client = Client::query()->firstOrFail();
+        $originalInvite = InviteToken::query()->firstOrFail();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('clients.0.id', $client->id)
+                ->where('clients.0.status', 'active')
+                ->where('clients.0.account_status', 'awaiting_activation')
+                ->where('clients.0.account_status_label', 'Awaiting activation'));
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.show', $client))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('client.invitation.status', 'awaiting_activation')
+                ->where('client.invitation.email', 'pending.owner@example.com')
+                ->where('client.invitation.resend_url', route('advisor.clients.invite.resend', $client, absolute: false))
+                ->where('client.invitation.cancel_url', route('advisor.clients.invite.cancel', $client, absolute: false)));
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.clients.invite.resend', $client))
+            ->assertRedirect(route('advisor.clients.show', $client))
+            ->assertSessionHas('status', 'client-invite-resent');
+
+        $resentInvite = InviteToken::query()
+            ->whereKeyNot($originalInvite->getKey())
+            ->firstOrFail();
+
+        $this->assertTrue($originalInvite->refresh()->isExpired());
+        $this->assertSame((string) $resentInvite->getKey(), (string) $client->refresh()->registry_sources['invite_token_id']);
+        $this->assertDatabaseHas('audit_events', ['action' => 'client.invite_resent']);
+        Mail::assertSent(InvitationMail::class, 2);
+
+        $this->actingAsMfa($advisor)
+            ->delete(route('advisor.clients.invite.cancel', $client))
+            ->assertRedirect(route('advisor.clients.show', $client))
+            ->assertSessionHas('status', 'client-invite-cancelled');
+
+        $this->assertTrue($resentInvite->refresh()->isExpired());
+        $this->assertNotNull($client->refresh()->registry_sources['invite_cancelled_at'] ?? null);
+        $this->assertDatabaseHas('audit_events', ['action' => 'client.invite_cancelled']);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.show', $client))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('client.account_status', 'invite_cancelled')
+                ->where('client.account_status_label', 'Invite cancelled')
+                ->where('client.invitation.cancel_url', null)
+                ->where('client.invitation.resend_url', route('advisor.clients.invite.resend', $client, absolute: false)));
+    }
+
+    public function test_client_portal_reconciles_an_accepted_replacement_invite_with_its_workspace(): void
+    {
+        $this->seed(RoleSeeder::class);
+        app(RequestContext::class)->apply('system', []);
+        $advisor = $this->advisor();
+        $user = User::factory()->withTwoFactor()->create([
+            'name' => 'Jim',
+            'email' => 'jim@example.com',
+            'user_type' => User::TYPE_CLIENT_PRIMARY,
+            'primary_role' => User::TYPE_CLIENT_PRIMARY,
+            'email_verified_at' => now(),
+        ]);
+        $user->assignRole(User::TYPE_CLIENT_PRIMARY);
+
+        $expiredInvite = InviteToken::query()->create([
+            'email' => $user->email,
+            'target_role' => User::TYPE_CLIENT_PRIMARY,
+            'target_user_type' => User::TYPE_CLIENT_PRIMARY,
+            'token_hash' => InviteToken::hashToken('expired-client-invite'),
+            'expires_at' => now()->subHour(),
+            'issued_by_user_id' => $advisor->getKey(),
+        ]);
+        $acceptedInvite = InviteToken::query()->create([
+            'email' => $user->email,
+            'target_role' => User::TYPE_CLIENT_PRIMARY,
+            'target_user_type' => User::TYPE_CLIENT_PRIMARY,
+            'token_hash' => InviteToken::hashToken('accepted-replacement-client-invite'),
+            'expires_at' => now()->addHour(),
+            'accepted_at' => now(),
+            'accepted_by_user_id' => $user->getKey(),
+            'issued_by_user_id' => $advisor->getKey(),
+        ]);
+        $client = Client::query()->create([
+            'engagement_type' => EngagementType::STANDARD_ADVISORY->value,
+            'legal_name' => 'Invited client - '.$user->email,
+            'data_quality' => Client::DATA_QUALITY_INSUFFICIENT,
+            'registry_sources' => [
+                'source' => 'advisor_client_invite',
+                'invite_token_id' => $expiredInvite->getKey(),
+                'invite_email' => $user->email,
+            ],
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+        ClientTeamMember::query()->create([
+            'client_id' => $client->getKey(),
+            'user_id' => $advisor->getKey(),
+            'role' => 'lead_advisor',
+            'granted_modules' => [EngagementType::STANDARD_ADVISORY->value],
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('clients.0.id', $client->getKey())
+                ->where('clients.0.account_status', 'active')
+                ->where('clients.0.account_status_label', 'Active'));
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.dashboard'))
+            ->assertOk();
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.messages.index'))
+            ->assertOk();
+
+        $client->refresh();
+        $this->assertSame((string) $user->getKey(), (string) $client->primary_contact_user_id);
+        $this->assertSame('Jim', $client->legal_name);
+        $this->assertSame((string) $acceptedInvite->getKey(), (string) $client->registry_sources['invite_token_id']);
+        $this->assertContains((string) $client->getKey(), $user->accessibleClientIds());
+        $this->assertDatabaseHas('client_team', [
+            'client_id' => $client->getKey(),
+            'user_id' => $user->getKey(),
+            'role' => 'primary_contact',
+        ]);
+        $this->assertDatabaseHas('audit_events', ['action' => 'client.invite_reconciled']);
+    }
+
+    public function test_client_portal_repairs_missing_team_membership_for_an_explicit_primary_contact(): void
+    {
+        $this->seed(RoleSeeder::class);
+        app(RequestContext::class)->apply('system', []);
+        $user = User::factory()->withTwoFactor()->create([
+            'name' => 'Jim',
+            'email' => 'jim.primary@example.com',
+            'user_type' => User::TYPE_CLIENT_PRIMARY,
+            'primary_role' => User::TYPE_CLIENT_PRIMARY,
+            'email_verified_at' => now(),
+        ]);
+        $user->assignRole(User::TYPE_CLIENT_PRIMARY);
+        $client = Client::query()->create([
+            'engagement_type' => EngagementType::STANDARD_ADVISORY->value,
+            'legal_name' => 'Jim',
+            'data_quality' => Client::DATA_QUALITY_INSUFFICIENT,
+            'primary_contact_user_id' => $user->getKey(),
+            'created_by_user_id' => $user->getKey(),
+        ]);
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.dashboard'))
+            ->assertOk();
+
+        $this->assertContains((string) $client->getKey(), $user->accessibleClientIds());
+        $this->assertDatabaseHas('client_team', [
+            'client_id' => $client->getKey(),
+            'user_id' => $user->getKey(),
+            'role' => 'primary_contact',
+        ]);
+        $this->assertDatabaseHas('audit_events', ['action' => 'client.primary_contact_reconciled']);
+    }
+
     public function test_npo_client_invite_prepares_governance_review_workspace(): void
     {
         Mail::fake();

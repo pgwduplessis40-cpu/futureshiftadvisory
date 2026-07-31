@@ -21,6 +21,7 @@ import {
     PencilLine,
     PlusCircle,
     PlugZap,
+    RefreshCw,
     RotateCcw,
     Send,
     Settings2,
@@ -32,6 +33,7 @@ import {
     Undo2,
     Unplug,
     Upload,
+    XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 import type { ComponentType, FormEvent, MouseEvent, ReactNode } from 'react';
@@ -112,6 +114,15 @@ type ClientDetail = ClientSummary & {
     strategic_budget: StrategicBudgetSummary;
     strategic_plan: StrategicPlanSummary | null;
     proposal_budget_guard: ProposalBudgetGuard;
+    invitation: {
+        email: string;
+        status: string;
+        status_label: string;
+        accepted_at: string | null;
+        expires_at: string | null;
+        resend_url: string | null;
+        cancel_url: string | null;
+    } | null;
 };
 
 type ConflictDeclaration = {
@@ -928,10 +939,7 @@ type StandardAdvisorySummary = {
             label: string;
             description: string;
             status:
-                | 'complete'
-                | 'in_progress'
-                | 'waiting_advisor'
-                | 'not_required';
+                'complete' | 'in_progress' | 'waiting_advisor' | 'not_required';
             owner: 'client' | 'advisor';
         }>;
     };
@@ -1008,6 +1016,30 @@ export default function ClientsShow({
                     ...data,
                 })),
         });
+    };
+
+    const resendInvite = () => {
+        if (!client.invitation?.resend_url) {
+            return;
+        }
+
+        router.post(client.invitation.resend_url, {}, { preserveScroll: true });
+    };
+
+    const cancelInvite = () => {
+        if (!client.invitation?.cancel_url) {
+            return;
+        }
+
+        if (
+            !window.confirm(
+                `Cancel the pending invite for ${client.invitation.email}? The current invite link will stop working.`,
+            )
+        ) {
+            return;
+        }
+
+        router.delete(client.invitation.cancel_url, { preserveScroll: true });
     };
 
     const recomputeHealthRadar = () => {
@@ -1150,12 +1182,42 @@ export default function ClientsShow({
                         </h1>
                         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                             <span>{client.engagement_type_label}</span>
+                            <Badge variant="outline">
+                                {client.account_status_label}
+                            </Badge>
                             {client.is_npo && (
                                 <Badge variant="secondary">NPO</Badge>
                             )}
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                        {client.invitation?.resend_url ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={resendInvite}
+                            >
+                                <RefreshCw
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Resend invite
+                            </Button>
+                        ) : null}
+                        {client.invitation?.cancel_url ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="destructive"
+                                onClick={cancelInvite}
+                            >
+                                <XCircle
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Cancel invite
+                            </Button>
+                        ) : null}
                         <AdvisorSupportAction
                             config={screenShare}
                             coBrowse={coBrowse}
@@ -1413,11 +1475,13 @@ export default function ClientsShow({
                                     label="NZBN"
                                     value={client.nzbn ?? '-'}
                                 />
-                                <Metric label="Lifecycle">
+                                <Metric label="Account">
                                     <Badge
-                                        variant={statusVariant(client.status)}
+                                        variant={statusVariant(
+                                            client.account_status,
+                                        )}
                                     >
-                                        {client.status_label}
+                                        {client.account_status_label}
                                     </Badge>
                                 </Metric>
                                 <Metric label="Data quality">

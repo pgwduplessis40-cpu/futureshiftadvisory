@@ -6,13 +6,12 @@ namespace App\Http\Controllers\Auth;
 
 use App\Enums\EntrepreneurStage;
 use App\Http\Controllers\Controller;
-use App\Models\Client;
-use App\Models\ClientTeamMember;
 use App\Models\EntrepreneurProfile;
 use App\Models\InviteToken;
 use App\Models\PanelMember;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Clients\ClientInviteReconciler;
 use App\Services\Security\MfaChallenger;
 use App\Support\RequestContext;
 use Illuminate\Contracts\Encryption\DecryptException;
@@ -32,6 +31,7 @@ final class InviteAcceptController extends Controller
 {
     public function __construct(
         private readonly AuditWriter $auditWriter,
+        private readonly ClientInviteReconciler $clientInvites,
         private readonly RequestContext $requestContext,
     ) {}
 
@@ -125,7 +125,7 @@ final class InviteAcceptController extends Controller
                 $invite->markAccepted($user);
                 $profile = $this->linkEntrepreneurProfile($invite, $user);
                 $panelMember = $this->linkPanelMember($invite, $user);
-                $client = $this->linkClientWorkspace($invite, $user);
+                $client = $this->clientInvites->reconcile($user, $invite);
 
                 $this->auditWriter->record(
                     action: 'invite.accepted',
@@ -285,66 +285,6 @@ final class InviteAcceptController extends Controller
         );
 
         return $profile;
-    }
-
-    private function linkClientWorkspace(InviteToken $invite, User $user): ?Client
-    {
-        if (! in_array($invite->target_user_type, [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM], true)) {
-            return null;
-        }
-
-        $client = Client::query()
-            ->where('registry_sources->source', 'advisor_client_invite')
-            ->where('registry_sources->invite_token_id', $invite->getKey())
-            ->latest()
-            ->first();
-
-        if (! $client instanceof Client) {
-            return null;
-        }
-
-        if ($client->primary_contact_user_id !== null && (string) $client->primary_contact_user_id !== (string) $user->getKey()) {
-            return $client;
-        }
-
-        $registrySources = is_array($client->registry_sources) ? $client->registry_sources : [];
-        $updates = [
-            'primary_contact_user_id' => $user->getKey(),
-            'registry_sources' => [
-                ...$registrySources,
-                'accepted_by_user_id' => $user->getKey(),
-                'accepted_at' => now()->toIso8601String(),
-            ],
-        ];
-
-        if (str_starts_with((string) $client->legal_name, 'Invited client -') && trim((string) $user->name) !== '') {
-            $updates['legal_name'] = $user->name;
-        }
-
-        $client->forceFill($updates)->save();
-
-        $engagement = $client->engagement_type instanceof \BackedEnum
-            ? (string) $client->engagement_type->value
-            : (string) $client->engagement_type;
-
-        ClientTeamMember::query()->updateOrCreate(
-            [
-                'client_id' => $client->getKey(),
-                'user_id' => $user->getKey(),
-            ],
-            [
-                'role' => 'primary_contact',
-                'granted_modules' => array_values(array_filter(['portal', $engagement])),
-            ],
-        );
-
-        $this->auditWriter->record('client.invite_accepted', subject: $client, actor: $user, after: [
-            'client_id' => $client->getKey(),
-            'invite_token_id' => $invite->getKey(),
-            'primary_contact_user_id' => $user->getKey(),
-        ]);
-
-        return $client->refresh();
     }
 
     private function linkPanelMember(InviteToken $invite, User $user): ?PanelMember
