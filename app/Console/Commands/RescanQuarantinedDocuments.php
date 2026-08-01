@@ -72,11 +72,24 @@ final class RescanQuarantinedDocuments extends Command
 
             if ($result === null || ! $result->isError()) {
                 foreach ($duplicates as $duplicate) {
-                    if (
-                        (string) $duplicate->getKey() !== (string) $canonical->getKey()
-                        && $rescanner->discardDuplicate($duplicate, $canonical)
-                    ) {
+                    if ((string) $duplicate->getKey() === (string) $canonical->getKey()) {
+                        continue;
+                    }
+
+                    if ($rescanner->discardDuplicate($duplicate, $canonical)) {
                         $duplicatesRemoved++;
+
+                        continue;
+                    }
+
+                    $preservedResult = $rescanner->rescan($duplicate);
+
+                    if ($preservedResult->isClean()) {
+                        $clean++;
+                    } elseif ($preservedResult->isInfected()) {
+                        $infected++;
+                    } elseif ($preservedResult->isError()) {
+                        $errors++;
                     }
                 }
             }

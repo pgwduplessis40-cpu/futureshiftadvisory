@@ -9,6 +9,7 @@ use App\Models\Document;
 use App\Services\Audit\AuditWriter;
 use App\Services\Integration\VirusScanner\Contracts\FileScanner;
 use App\Services\Integration\VirusScanner\ScanResult;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
@@ -16,6 +17,18 @@ use Throwable;
 final class QuarantinedDocumentRescanner
 {
     private const EICAR_TEST_SIGNATURE = 'X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*';
+
+    /** @var array<string, string> */
+    private const DOCUMENT_REFERENCE_COLUMNS = [
+        'document_verifications' => 'document_id',
+        'proof_of_completion' => 'document_id',
+        'dd_data_room_items' => 'document_id',
+        'voice_notes' => 'document_id',
+        'document_expiry_reminders' => 'document_id',
+        'board_posts' => 'image_document_id',
+        'reference_data_entries' => 'evidence_document_id',
+        'quote_source_extraction_documents' => 'document_id',
+    ];
 
     public function __construct(
         private readonly FileScanner $scanner,
@@ -94,32 +107,51 @@ final class QuarantinedDocumentRescanner
     {
         if (
             $duplicate->scanner_result !== Document::SCANNER_ERROR
-            || $duplicate->verifications()->exists()
+            || $this->isReferenced($duplicate)
         ) {
             return false;
         }
 
         $storedPath = $duplicate->stored_path;
 
-        DB::transaction(function () use ($duplicate, $canonical): void {
-            $this->auditWriter->record(
-                action: 'document.quarantine_duplicate_removed',
-                subject: $duplicate,
-                before: [
-                    'scanner_result' => $duplicate->scanner_result,
-                    'sha256' => $duplicate->sha256,
-                ],
-                after: [
-                    'canonical_document_id' => $canonical->getKey(),
-                ],
-            );
+        try {
+            DB::transaction(function () use ($duplicate, $canonical): void {
+                $this->auditWriter->record(
+                    action: 'document.quarantine_duplicate_removed',
+                    subject: $duplicate,
+                    before: [
+                        'scanner_result' => $duplicate->scanner_result,
+                        'sha256' => $duplicate->sha256,
+                    ],
+                    after: [
+                        'canonical_document_id' => $canonical->getKey(),
+                    ],
+                );
 
-            $duplicate->delete();
-        });
+                $duplicate->delete();
+            });
+        } catch (QueryException $exception) {
+            if ((string) $exception->getCode() === '23503') {
+                return false;
+            }
+
+            throw $exception;
+        }
 
         Storage::disk('secure_local')->delete($storedPath);
 
         return true;
+    }
+
+    private function isReferenced(Document $document): bool
+    {
+        foreach (self::DOCUMENT_REFERENCE_COLUMNS as $table => $column) {
+            if (DB::table($table)->where($column, $document->getKey())->exists()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function recordError(Document $document, ScanResult $result): ScanResult

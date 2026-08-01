@@ -6,6 +6,8 @@ namespace Tests\Unit\Storage;
 
 use App\Jobs\VerifyDocumentJob;
 use App\Models\Document;
+use App\Models\LearningUpdate;
+use App\Models\ReferenceDataEntry;
 use App\Models\User;
 use App\Services\Integration\VirusScanner\Contracts\FileScanner;
 use App\Services\Integration\VirusScanner\NoopScanner;
@@ -258,6 +260,33 @@ final class SecureFileWriterTest extends TestCase
             'scanner_result' => Document::SCANNER_ERROR,
             'scanner_payload' => $document->scanner_payload,
         ]);
+        $referencedPath = 'quarantine/reference_data_evidence/'.Str::uuid().'.docx';
+        Storage::disk('secure_local')->put($referencedPath, 'Recover this document.');
+        $referenced = Document::query()->create([
+            'category' => $document->category,
+            'original_filename' => $document->original_filename,
+            'stored_path' => $referencedPath,
+            'byte_size' => $document->byte_size,
+            'mime_type' => $document->mime_type,
+            'sha256' => $document->sha256,
+            'uploaded_by_user_id' => $document->uploaded_by_user_id,
+            'scanner_result' => Document::SCANNER_ERROR,
+            'scanner_payload' => $document->scanner_payload,
+        ]);
+        $learningUpdate = LearningUpdate::query()->create([
+            'layer_id' => 1,
+            'source' => ['type' => 'test'],
+            'summary' => 'Test reference data evidence.',
+        ]);
+        $referenceEntry = ReferenceDataEntry::query()->create([
+            'dataset' => ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR,
+            'payload' => ['indicator' => 'ocr', 'value' => 2.25],
+            'as_at' => now()->toDateString(),
+            'source' => 'test',
+            'entered_by_user_id' => $document->uploaded_by_user_id,
+            'learning_update_id' => $learningUpdate->getKey(),
+            'evidence_document_id' => $referenced->getKey(),
+        ]);
 
         $this->app->instance(FileScanner::class, new class implements FileScanner
         {
@@ -279,6 +308,12 @@ final class SecureFileWriterTest extends TestCase
         $this->assertSame(Document::SCANNER_CLEAN, $document->refresh()->scanner_result);
         $this->assertDatabaseMissing('documents', ['id' => $duplicate->getKey()]);
         Storage::disk('secure_local')->assertMissing($duplicatePath);
+        $this->assertSame(Document::SCANNER_CLEAN, $referenced->refresh()->scanner_result);
+        $this->assertDatabaseHas('reference_data_entries', [
+            'id' => $referenceEntry->getKey(),
+            'evidence_document_id' => $referenced->getKey(),
+        ]);
+        Storage::disk('secure_local')->assertExists($referencedPath);
         Queue::assertPushed(VerifyDocumentJob::class);
         $this->assertDatabaseHas('audit_events', [
             'action' => 'document.scan_recovered',
@@ -287,6 +322,10 @@ final class SecureFileWriterTest extends TestCase
         $this->assertDatabaseHas('audit_events', [
             'action' => 'document.quarantine_duplicate_removed',
             'subject_id' => $duplicate->getKey(),
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'document.scan_recovered',
+            'subject_id' => $referenced->getKey(),
         ]);
     }
 
