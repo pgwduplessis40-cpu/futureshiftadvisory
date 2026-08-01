@@ -204,7 +204,6 @@ configure_scheduler_cron() {
 }
 
 ensure_malware_scanner() {
-    local service
     local configured_service="${CLAMAV_SERVICE:-}"
     local wait_seconds="${CLAMAV_START_TIMEOUT_SECONDS:-180}"
 
@@ -227,6 +226,8 @@ ensure_malware_scanner() {
         echo "Starting ClamAV service '${target_service}'."
         if ! $SUDO systemctl enable --now "$target_service"; then
             echo "ERROR: ClamAV service '${target_service}' could not be enabled and started." >&2
+            $SUDO systemctl status "$target_service" --no-pager --full || true
+            $SUDO journalctl -u "$target_service" -n 40 --no-pager || true
             return 1
         fi
 
@@ -241,7 +242,106 @@ ensure_malware_scanner() {
         done
 
         echo "ERROR: ClamAV service '${target_service}' did not become ready within ${wait_seconds} seconds." >&2
+        $SUDO systemctl status "$target_service" --no-pager --full || true
+        $SUDO journalctl -u "$target_service" -n 40 --no-pager || true
         return 1
+    }
+
+    configure_clamav_daemon() {
+        local clamd_config="/etc/clamd.d/scan.conf"
+        local freshclam_config
+        local updated_config
+
+        if [ -f "$clamd_config" ]; then
+            log "Configuring Enterprise Linux ClamAV daemon"
+            updated_config="$(mktemp)"
+
+            awk '
+                /^# BEGIN FUTURESHIFT CLAMD$/ { skip = 1; next }
+                /^# END FUTURESHIFT CLAMD$/ { skip = 0; next }
+                skip { next }
+                /^[[:space:]]*Example[[:space:]]*$/ { next }
+                /^[[:space:]]*TCPSocket[[:space:]]+/ { next }
+                /^[[:space:]]*TCPAddr[[:space:]]+/ { next }
+                { print }
+            ' "$clamd_config" > "$updated_config"
+
+            printf '%s\n' \
+                '# BEGIN FUTURESHIFT CLAMD' \
+                'TCPSocket 3310' \
+                'TCPAddr 127.0.0.1' \
+                '# END FUTURESHIFT CLAMD' \
+                >> "$updated_config"
+
+            if ! $SUDO install -m 0644 "$updated_config" "$clamd_config"; then
+                rm -f -- "$updated_config"
+                echo "ERROR: ${clamd_config} could not be configured." >&2
+                return 1
+            fi
+
+            rm -f -- "$updated_config"
+        fi
+
+        for freshclam_config in /etc/freshclam.conf /etc/clamav/freshclam.conf; do
+            [ -f "$freshclam_config" ] || continue
+
+            if ! $SUDO sed -i -E 's/^[[:space:]]*Example[[:space:]]*$/# Example/' "$freshclam_config"; then
+                echo "ERROR: ${freshclam_config} could not be activated." >&2
+                return 1
+            fi
+        done
+    }
+
+    clamav_signatures_ready() {
+        local database
+
+        for database in /var/lib/clamav/*.cvd /var/lib/clamav/*.cld; do
+            if [ -s "$database" ]; then
+                return 0
+            fi
+        done
+
+        return 1
+    }
+
+    ensure_clamav_signatures() {
+        local elapsed=0
+
+        if ! command -v freshclam >/dev/null 2>&1; then
+            return 0
+        fi
+
+        while [ "$elapsed" -lt 20 ]; do
+            if clamav_signatures_ready; then
+                return 0
+            fi
+
+            sleep 2
+            elapsed=$((elapsed + 2))
+        done
+
+        log "Downloading initial ClamAV signatures"
+
+        if systemctl cat clamav-freshclam >/dev/null 2>&1; then
+            $SUDO systemctl stop clamav-freshclam || true
+        fi
+
+        if ! $SUDO freshclam --stdout && ! clamav_signatures_ready; then
+            echo "ERROR: ClamAV signatures could not be downloaded." >&2
+            return 1
+        fi
+
+        if systemctl cat clamav-freshclam >/dev/null 2>&1; then
+            if ! $SUDO systemctl enable --now clamav-freshclam; then
+                echo "ERROR: clamav-freshclam could not be enabled and started." >&2
+                return 1
+            fi
+        fi
+
+        if ! clamav_signatures_ready; then
+            echo "ERROR: ClamAV signature database is still missing after freshclam completed." >&2
+            return 1
+        fi
     }
 
     install_clamav_daemon() {
@@ -277,14 +377,27 @@ ensure_malware_scanner() {
             return 1
         fi
 
-        if systemctl cat clamav-freshclam >/dev/null 2>&1; then
-            if ! $SUDO systemctl enable --now clamav-freshclam; then
-                echo "ERROR: clamav-freshclam could not be enabled and started." >&2
-                return 1
-            fi
-        fi
-
         return 0
+    }
+
+    prepare_clamav_daemon() {
+        configure_clamav_daemon && ensure_clamav_signatures
+    }
+
+    start_available_clamav_service() {
+        local available_service
+
+        for available_service in "$configured_service" clamav-daemon clamd@scan clamd; do
+            [ -n "$available_service" ] || continue
+
+            if systemctl cat "$available_service" >/dev/null 2>&1; then
+                if start_clamav_service "$available_service"; then
+                    return 0
+                fi
+            fi
+        done
+
+        return 1
     }
 
     if php artisan fsa:rescan-quarantined-documents --probe --limit=1; then
@@ -292,14 +405,11 @@ ensure_malware_scanner() {
     fi
 
     log "Starting local ClamAV daemon"
+    prepare_clamav_daemon
 
-    for service in "$configured_service" clamav-daemon clamd@scan clamd; do
-        [ -n "$service" ] || continue
-
-        if systemctl cat "$service" >/dev/null 2>&1; then
-            start_clamav_service "$service" && return
-        fi
-    done
+    if start_available_clamav_service; then
+        return
+    fi
 
     install_clamav_daemon || {
         echo "ERROR: ClamAV could not be installed automatically." >&2
@@ -307,13 +417,11 @@ ensure_malware_scanner() {
         exit 1
     }
 
-    for service in "$configured_service" clamav-daemon clamd@scan clamd; do
-        [ -n "$service" ] || continue
+    prepare_clamav_daemon
 
-        if systemctl cat "$service" >/dev/null 2>&1; then
-            start_clamav_service "$service" && return
-        fi
-    done
+    if start_available_clamav_service; then
+        return
+    fi
 
     echo "ERROR: no reachable ClamAV endpoint or local daemon service was found." >&2
     echo "Install clamav-daemon or configure CLAMAV_SOCKET/CLAMAV_HOST and CLAMAV_PORT." >&2
