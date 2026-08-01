@@ -13,7 +13,7 @@ use App\Models\User;
 use App\Services\Budgets\StrategicBudgetExcelExporter;
 use App\Services\Budgets\StrategicBudgetPdfDocument;
 use App\Services\Budgets\StrategicBudgetService;
-use App\Services\Pdf\PdfRenderer;
+use App\Services\Pdf\ResilientPdfPreviewRenderer;
 use App\Services\Portal\ClientPortalResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,7 +30,7 @@ final class StrategicBudgetController extends Controller
         private readonly StrategicBudgetService $budgets,
         private readonly StrategicBudgetExcelExporter $exporter,
         private readonly StrategicBudgetPdfDocument $pdfDocument,
-        private readonly PdfRenderer $pdf,
+        private readonly ResilientPdfPreviewRenderer $pdf,
     ) {}
 
     public function show(Request $request): Response
@@ -67,7 +67,10 @@ final class StrategicBudgetController extends Controller
         $client = $this->clients->resolveFor($request);
         $budget = $this->budgets->ensureForClient($client, $this->latestDueDiligencePlan($client));
         $payload = $this->budgets->portalPayload($budget);
-        $contents = $this->pdf->render($this->pdfDocument->html($client, $payload));
+        $contents = $this->pdf->render(
+            $this->pdfDocument->html($client, $payload),
+            'Business plan and budget - '.($client->trading_name ?: $client->legal_name),
+        );
         $filename = Str::slug($client->trading_name ?: $client->legal_name).'-'.Str::slug((string) ($payload['label'] ?? 'plan-budget')).'.pdf';
 
         return response($contents, 200, [

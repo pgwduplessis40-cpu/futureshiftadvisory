@@ -24,8 +24,11 @@ cd "$APP_DIR"
 
 SSR_SERVICE="${SSR_SERVICE:-inertia-ssr}"
 PHP_FPM_SERVICE="${PHP_FPM_SERVICE:-php-fpm}"
+SCHEDULER_SERVICE="${SCHEDULER_SERVICE:-futureshift-scheduler}"
+SCHEDULER_TIMER="${SCHEDULER_TIMER:-${SCHEDULER_SERVICE}.timer}"
 SITE_URL="${SITE_URL:-https://futureshiftadvisory.nz}"
 RUN_MIGRATIONS="${RUN_MIGRATIONS:-yes}"
+CONFIGURE_SCHEDULER="${CONFIGURE_SCHEDULER:-yes}"
 EXPECTED_COMMIT="${DEPLOY_EXPECTED_COMMIT:-}"
 EXPECTED_VERSION="${DEPLOY_EXPECTED_VERSION:-}"
 
@@ -153,6 +156,60 @@ verify_live_deployment_identity() {
     esac
 }
 
+configure_scheduler_timer() {
+    local php_binary deploy_user deploy_group service_path timer_path
+
+    if [ "$CONFIGURE_SCHEDULER" != "yes" ]; then
+        echo "Skipping scheduler timer setup (CONFIGURE_SCHEDULER=$CONFIGURE_SCHEDULER)."
+        return
+    fi
+
+    command -v systemctl >/dev/null 2>&1 || {
+        echo "ERROR: systemctl is required to keep Laravel's scheduler running." >&2
+        exit 1
+    }
+
+    php_binary="$(command -v php)"
+    deploy_user="$(id -un)"
+    deploy_group="$(id -gn)"
+    service_path="/etc/systemd/system/${SCHEDULER_SERVICE}.service"
+    timer_path="/etc/systemd/system/${SCHEDULER_TIMER}"
+
+    printf '%s\n' \
+        '[Unit]' \
+        'Description=Future Shift Advisory Laravel scheduler' \
+        'After=network.target' \
+        '' \
+        '[Service]' \
+        'Type=oneshot' \
+        "User=${deploy_user}" \
+        "Group=${deploy_group}" \
+        "WorkingDirectory=${APP_DIR}" \
+        "ExecStart=${php_binary} artisan schedule:run --no-interaction" \
+        | $SUDO tee "$service_path" >/dev/null
+
+    printf '%s\n' \
+        '[Unit]' \
+        'Description=Run the Future Shift Advisory Laravel scheduler every minute' \
+        '' \
+        '[Timer]' \
+        'OnCalendar=*-*-* *:*:00' \
+        'Persistent=true' \
+        'AccuracySec=1s' \
+        "Unit=${SCHEDULER_SERVICE}.service" \
+        '' \
+        '[Install]' \
+        'WantedBy=timers.target' \
+        | $SUDO tee "$timer_path" >/dev/null
+
+    $SUDO systemctl daemon-reload
+    $SUDO systemctl enable --now "$SCHEDULER_TIMER"
+    $SUDO systemctl restart "$SCHEDULER_TIMER"
+    $SUDO systemctl is-enabled --quiet "$SCHEDULER_TIMER"
+    $SUDO systemctl is-active --quiet "$SCHEDULER_TIMER"
+    echo "Scheduler timer ${SCHEDULER_TIMER} is enabled and active."
+}
+
 log "Checking deployment checkout"
 clear_orphaned_git_index_lock
 restore_generated_wayfinder_checkout
@@ -198,6 +255,12 @@ log "Refreshing caches"
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
+
+log "Configuring Laravel scheduler"
+configure_scheduler_timer
+
+log "Running authenticated operational health checks"
+php artisan fsa:operational-health-check --ensure-fixtures
 
 log "Restarting PHP-FPM"
 # PHP-FPM may retain PHP bytecode even after the release checkout and Laravel

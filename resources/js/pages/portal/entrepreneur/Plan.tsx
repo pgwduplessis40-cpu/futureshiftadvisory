@@ -2731,7 +2731,7 @@ function BudgetEditor({
                 </div>
             ) : (
                 <div className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-[220px_220px_minmax(0,1fr)]">
+                    <div className="grid gap-4 sm:grid-cols-2">
                         <label className="grid gap-1 text-sm">
                             <span>Expected runway months</span>
                             <input
@@ -2767,10 +2767,12 @@ function BudgetEditor({
                                 <option value="5">5 years</option>
                             </select>
                         </label>
-                        <BudgetAssumptionsEditor
-                            assumptions={form.assumptions}
-                            onFormChange={onFormChange}
-                        />
+                        <div className="min-w-0 sm:col-span-2">
+                            <BudgetAssumptionsEditor
+                                assumptions={form.assumptions}
+                                onFormChange={onFormChange}
+                            />
+                        </div>
                     </div>
 
                     <div className="grid gap-4">
@@ -2997,12 +2999,8 @@ function BudgetRowsEditor({
                     <div
                         key={index}
                         className={cn(
-                            'grid gap-2',
-                            revenue
-                                ? 'md:grid-cols-[minmax(0,1.2fr)_repeat(7,minmax(72px,0.5fr))_120px_auto]'
-                                : timed
-                                  ? 'md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(92px,0.6fr))_120px_auto]'
-                                  : 'md:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(92px,0.6fr))_120px_auto]',
+                            'grid gap-3 sm:grid-cols-2 lg:grid-cols-4',
+                            revenue && 'xl:grid-cols-5',
                         )}
                     >
                         <BudgetInput
@@ -3207,9 +3205,9 @@ function BudgetAssumptionsEditor({
     ];
 
     return (
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
             {fields.map((field) => (
-                <label key={field.key} className="grid gap-1 text-xs">
+                <label key={field.key} className="grid min-w-0 gap-1 text-xs">
                     <span className="text-muted-foreground">{field.label}</span>
                     <input
                         type="number"
@@ -3230,7 +3228,7 @@ function BudgetAssumptionsEditor({
                                 },
                             }))
                         }
-                        className="h-9 rounded-md border bg-background px-2 text-sm"
+                        className="h-9 min-w-0 rounded-md border bg-background px-2 text-sm"
                     />
                     <span className="text-[11px] leading-snug text-muted-foreground">
                         {field.helper}
@@ -3283,7 +3281,7 @@ function FutureCostsEditor({
                 {rows.map((row, index) => (
                     <div
                         key={index}
-                        className="grid gap-2 md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(84px,0.5fr))_120px_120px_auto]"
+                        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
                     >
                         <BudgetInput
                             label="Item"
@@ -3417,7 +3415,7 @@ function FundingScenariosEditor({
                 {rows.map((row, index) => (
                     <div
                         key={index}
-                        className="grid gap-2 md:grid-cols-[minmax(0,1.2fr)_130px_repeat(5,minmax(76px,0.5fr))_120px_auto]"
+                        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
                     >
                         <BudgetInput
                             label="Scenario"

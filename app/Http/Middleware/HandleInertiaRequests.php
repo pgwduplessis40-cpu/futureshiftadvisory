@@ -69,9 +69,10 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
-            'aiNotice' => fn () => $request->user()
-                ? $this->aiNotice()
-                : null,
+            'aiNotice' => fn () => $request->user() instanceof User
+                && $this->canViewAdvisorAiNotice($request->user())
+                    ? $this->aiNotice()
+                    : null,
             'notificationSummary' => fn () => $request->user() instanceof User
                 ? app(NotificationCenter::class)->summary($request->user())
                 : null,
@@ -113,6 +114,16 @@ class HandleInertiaRequests extends Middleware
         }
 
         return $latest;
+    }
+
+    private function canViewAdvisorAiNotice(User $user): bool
+    {
+        return in_array($user->fsaRole(), [
+            User::TYPE_SUPER_ADMIN,
+            User::TYPE_ADVISOR,
+            User::TYPE_JUNIOR_ADVISOR,
+            User::TYPE_ENTREPRENEUR_MENTOR,
+        ], true);
     }
 
     /**

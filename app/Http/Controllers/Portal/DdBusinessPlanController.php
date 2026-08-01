@@ -26,7 +26,7 @@ use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Dd\PlanBuilder as DdPlanBuilder;
 use App\Services\Dd\PostAcquisition;
 use App\Services\Entrepreneurs\Guidance as EntrepreneurGuidance;
-use App\Services\Pdf\PdfRenderer;
+use App\Services\Pdf\ResilientPdfPreviewRenderer;
 use App\Services\Plans\PlanBuilder as SharedPlanBuilder;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Reports\BrandedReportLayout;
@@ -50,7 +50,7 @@ final class DdBusinessPlanController extends Controller
         private readonly SharedPlanBuilder $plans,
         private readonly EntrepreneurGuidance $guidance,
         private readonly PostAcquisition $postAcquisition,
-        private readonly PdfRenderer $pdf,
+        private readonly ResilientPdfPreviewRenderer $pdf,
         private readonly BrandedReportLayout $layout,
         private readonly RequestContext $requestContext,
         private readonly StrategicBudgetService $strategicBudgets,
@@ -109,7 +109,10 @@ final class DdBusinessPlanController extends Controller
             ? $this->planPayload($plan)['phases']
             : $this->templatePreviewPhases();
 
-        $pdf = $this->pdf->render($this->previewHtml($client, $engagement, $plan, $readiness, $phases));
+        $pdf = $this->pdf->render(
+            $this->previewHtml($client, $engagement, $plan, $readiness, $phases),
+            'Acquisition plan preview - '.($engagement->target_name ?: $client->trading_name ?: $client->legal_name),
+        );
         $filename = Str::slug($engagement->target_name ?: 'acquisition-plan').'-business-plan-preview.pdf';
 
         return response($pdf, 200, [
