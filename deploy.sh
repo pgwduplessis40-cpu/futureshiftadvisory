@@ -24,8 +24,6 @@ cd "$APP_DIR"
 
 SSR_SERVICE="${SSR_SERVICE:-inertia-ssr}"
 PHP_FPM_SERVICE="${PHP_FPM_SERVICE:-php-fpm}"
-SCHEDULER_SERVICE="${SCHEDULER_SERVICE:-futureshift-scheduler}"
-SCHEDULER_TIMER="${SCHEDULER_TIMER:-${SCHEDULER_SERVICE}.timer}"
 SITE_URL="${SITE_URL:-https://futureshiftadvisory.nz}"
 RUN_MIGRATIONS="${RUN_MIGRATIONS:-yes}"
 CONFIGURE_SCHEDULER="${CONFIGURE_SCHEDULER:-yes}"
@@ -156,58 +154,53 @@ verify_live_deployment_identity() {
     esac
 }
 
-configure_scheduler_timer() {
-    local php_binary deploy_user deploy_group service_path timer_path
+configure_scheduler_cron() {
+    local php_binary scheduler_line current_crontab updated_crontab
 
     if [ "$CONFIGURE_SCHEDULER" != "yes" ]; then
-        echo "Skipping scheduler timer setup (CONFIGURE_SCHEDULER=$CONFIGURE_SCHEDULER)."
+        echo "Skipping scheduler cron setup (CONFIGURE_SCHEDULER=$CONFIGURE_SCHEDULER)."
         return
     fi
 
-    command -v systemctl >/dev/null 2>&1 || {
-        echo "ERROR: systemctl is required to keep Laravel's scheduler running." >&2
+    command -v crontab >/dev/null 2>&1 || {
+        echo "ERROR: crontab is required to keep Laravel's scheduler running." >&2
         exit 1
     }
 
     php_binary="$(command -v php)"
-    deploy_user="$(id -un)"
-    deploy_group="$(id -gn)"
-    service_path="/etc/systemd/system/${SCHEDULER_SERVICE}.service"
-    timer_path="/etc/systemd/system/${SCHEDULER_TIMER}"
+    scheduler_line="* * * * * cd '${APP_DIR}' && '${php_binary}' artisan schedule:run --no-interaction >/dev/null 2>&1"
+    current_crontab="$(mktemp)"
+    updated_crontab="$(mktemp)"
+
+    if ! crontab -l > "$current_crontab" 2>/dev/null; then
+        : > "$current_crontab"
+    fi
+
+    awk '
+        /^# BEGIN FUTURESHIFT SCHEDULER$/ { skip = 1; next }
+        /^# END FUTURESHIFT SCHEDULER$/ { skip = 0; next }
+        ! skip { print }
+    ' "$current_crontab" > "$updated_crontab"
 
     printf '%s\n' \
-        '[Unit]' \
-        'Description=Future Shift Advisory Laravel scheduler' \
-        'After=network.target' \
-        '' \
-        '[Service]' \
-        'Type=oneshot' \
-        "User=${deploy_user}" \
-        "Group=${deploy_group}" \
-        "WorkingDirectory=${APP_DIR}" \
-        "ExecStart=${php_binary} artisan schedule:run --no-interaction" \
-        | $SUDO tee "$service_path" >/dev/null
+        '# BEGIN FUTURESHIFT SCHEDULER' \
+        "$scheduler_line" \
+        '# END FUTURESHIFT SCHEDULER' \
+        >> "$updated_crontab"
 
-    printf '%s\n' \
-        '[Unit]' \
-        'Description=Run the Future Shift Advisory Laravel scheduler every minute' \
-        '' \
-        '[Timer]' \
-        'OnCalendar=*-*-* *:*:00' \
-        'Persistent=true' \
-        'AccuracySec=1s' \
-        "Unit=${SCHEDULER_SERVICE}.service" \
-        '' \
-        '[Install]' \
-        'WantedBy=timers.target' \
-        | $SUDO tee "$timer_path" >/dev/null
+    crontab "$updated_crontab"
+    rm -f -- "$current_crontab" "$updated_crontab"
 
-    $SUDO systemctl daemon-reload
-    $SUDO systemctl enable --now "$SCHEDULER_TIMER"
-    $SUDO systemctl restart "$SCHEDULER_TIMER"
-    $SUDO systemctl is-enabled --quiet "$SCHEDULER_TIMER"
-    $SUDO systemctl is-active --quiet "$SCHEDULER_TIMER"
-    echo "Scheduler timer ${SCHEDULER_TIMER} is enabled and active."
+    case "$(crontab -l)" in
+        *"$scheduler_line"*) ;;
+        *)
+            echo "ERROR: Laravel scheduler cron entry could not be verified." >&2
+            exit 1
+            ;;
+    esac
+
+    php artisan schedule:run --no-interaction
+    echo "Laravel scheduler cron entry is installed and verified."
 }
 
 log "Checking deployment checkout"
@@ -257,7 +250,7 @@ php artisan route:cache
 php artisan view:cache
 
 log "Configuring Laravel scheduler"
-configure_scheduler_timer
+configure_scheduler_cron
 
 log "Running authenticated operational health checks"
 php artisan fsa:operational-health-check --ensure-fixtures
