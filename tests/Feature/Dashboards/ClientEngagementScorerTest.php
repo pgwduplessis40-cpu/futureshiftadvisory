@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature\Dashboards;
 
 use App\Enums\EngagementType;
+use App\Enums\EntrepreneurStage;
 use App\Enums\QuestionnaireQuestionType;
 use App\Enums\QuestionnaireSet;
+use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentVerification;
+use App\Models\EntrepreneurProfile;
 use App\Models\Goal;
 use App\Models\MessageThread;
 use App\Models\Milestone;
@@ -18,9 +21,13 @@ use App\Models\QuestionnaireAnswer;
 use App\Models\QuestionnaireQuestion;
 use App\Models\QuestionnaireResponse;
 use App\Models\QuestionnaireSection;
+use App\Models\ServiceActivation;
+use App\Models\User;
 use App\Services\Dashboards\ClientEngagementScorer;
 use App\Services\DataQuality\DataQualityScorer;
 use App\Services\DataQuality\DataQualitySignal;
+use App\Services\Entrepreneurs\PlanRequirements;
+use App\Services\Plans\PlanBuilder;
 use App\Support\RequestContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -115,6 +122,83 @@ final class ClientEngagementScorerTest extends TestCase
         ], $score['display']);
         $this->assertSame('questionnaire_pct', $score['weakest_component']);
         $this->assertSame('questionnaire', $score['focus_section']);
+    }
+
+    public function test_linked_entrepreneur_plan_progress_and_activity_drive_engagement(): void
+    {
+        $client = $this->client();
+        $advisor = User::factory()->create();
+        $founder = User::factory()->create();
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $founder->getKey(),
+            'client_id' => $client->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => 'Active Founder',
+            'email' => 'active-founder@example.test',
+            'stage' => EntrepreneurStage::BUILDING_PHASE_1,
+            'gamification_on' => true,
+        ]);
+        ServiceActivation::query()->create([
+            'client_id' => $client->getKey(),
+            'requested_by_user_id' => $founder->getKey(),
+            'advisor_id' => $advisor->getKey(),
+            'service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'client_label' => 'Test new Business Idea',
+            'status' => ServiceActivation::STATUS_ACTIVE,
+            'related_entrepreneur_profile_id' => $profile->getKey(),
+            'accepted_at' => now(),
+        ]);
+        $plans = app(PlanBuilder::class);
+        $plan = $plans->createOrUpdateForEntrepreneur($profile, [
+            'title' => 'Active founder plan',
+            'status' => BusinessPlan::STATUS_BUILDING,
+            'current_phase' => 5,
+        ], $founder);
+
+        foreach (PlanRequirements::definitions() as $phaseKey => $definition) {
+            foreach ($definition['requirements'] as $requirement) {
+                if (($requirement['type'] ?? null) === 'budget') {
+                    continue;
+                }
+
+                $plans->upsertSection(
+                    plan: $plan,
+                    phaseKey: $phaseKey,
+                    key: 'founder-'.$phaseKey.'-'.$requirement['key'],
+                    title: $requirement['title'],
+                    body: 'Completed founder plan requirement.',
+                    sourceType: BusinessPlan::SOURCE_ENTREPRENEUR,
+                    metadata: ['requirement_key' => $requirement['key']],
+                );
+            }
+        }
+
+        $inactiveFounder = User::factory()->create();
+        $inactiveProfile = EntrepreneurProfile::query()->create([
+            'user_id' => $inactiveFounder->getKey(),
+            'client_id' => $client->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => 'Inactive Founder Workspace',
+            'email' => 'inactive-founder@example.test',
+            'stage' => EntrepreneurStage::BUILDING_PHASE_1,
+            'gamification_on' => true,
+        ]);
+        $inactivePlan = $plans->createOrUpdateForEntrepreneur($inactiveProfile, [
+            'title' => 'Empty inactive entrepreneur plan',
+            'status' => BusinessPlan::STATUS_BUILDING,
+            'current_phase' => 1,
+        ], $inactiveFounder);
+        $inactivePlan->forceFill(['updated_at' => now()->addMinute()])->save();
+
+        $score = app(ClientEngagementScorer::class)->score($client);
+
+        $this->assertSame('entrepreneur_plan', $score['scoring_mode']);
+        $this->assertSame(93, $score['scores']['plan_progress_pct']);
+        $this->assertSame(100, $score['scores']['activity_recency_pct']);
+        $this->assertSame(95, $score['score']);
+        $this->assertSame('green', $score['level']);
+        $this->assertSame(0, $score['display']['last_activity_days']);
+        $this->assertSame('goals', $score['focus_section']);
     }
 
     /**

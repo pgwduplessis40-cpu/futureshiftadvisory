@@ -42,6 +42,10 @@ final class DashboardPhaseTwoPanelsTest extends TestCase
         $proposal = $this->releasedProposal($client, now()->addDays(7));
         $this->releasedProposal($otherClient, now()->addDays(5));
         $learningUpdate = $this->questionnaireCandidate();
+        $this->questionnaireCandidate(
+            status: LearningUpdate::STATUS_APPROVED,
+            summary: 'Approved learning update must not remain in the action queue.',
+        );
         $brokerReferral = $this->panelReferral($client, PanelMember::TYPE_BROKER, Referral::STAGE_BROKER_REFERRAL_SENT);
         $this->panelReferral($otherClient, PanelMember::TYPE_BROKER, Referral::STAGE_BROKER_REFERRAL_SENT);
         $coachReferral = $this->panelReferral($client, PanelMember::TYPE_COACH, Referral::STAGE_COACH_ACCEPTED);
@@ -82,6 +86,7 @@ final class DashboardPhaseTwoPanelsTest extends TestCase
                     ->where('questionnaireOptimisation.summary.detected_candidates', 1)
                     ->where('questionnaireOptimisation.items.0.questionnaire_title', 'Standard Advisory'))
                 ->where('panelOperations.learning.queue_url', route('admin.learning-updates.index', absolute: false))
+                ->has('panelOperations.learning.items', 1)
                 ->where('panelOperations.learning.items.0.id', $learningUpdate->id));
     }
 
@@ -147,8 +152,10 @@ final class DashboardPhaseTwoPanelsTest extends TestCase
         ]);
     }
 
-    private function questionnaireCandidate(): LearningUpdate
-    {
+    private function questionnaireCandidate(
+        string $status = LearningUpdate::STATUS_DETECTED,
+        string $summary = 'Questionnaire question has a high blank-response rate.',
+    ): LearningUpdate {
         return LearningUpdate::query()->create([
             'layer_id' => QuestionnaireOptimisationLayer::LAYER_ID,
             'source' => [
@@ -156,7 +163,7 @@ final class DashboardPhaseTwoPanelsTest extends TestCase
                 'questionnaire_title' => 'Standard Advisory',
                 'question_prompt' => 'Which answer was hard to complete?',
             ],
-            'summary' => 'Questionnaire question has a high blank-response rate.',
+            'summary' => $summary,
             'proposed_change' => [
                 'action' => 'review_questionnaire_question',
                 'automatic_application' => false,
@@ -166,7 +173,7 @@ final class DashboardPhaseTwoPanelsTest extends TestCase
             'magnitude' => 'low',
             'confidence' => 0.72,
             'evidence' => ['blank_rate' => 0.67],
-            'status' => LearningUpdate::STATUS_DETECTED,
+            'status' => $status,
         ]);
     }
 

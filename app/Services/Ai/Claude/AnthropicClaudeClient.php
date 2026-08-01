@@ -370,7 +370,7 @@ final class AnthropicClaudeClient implements AiClient, QuoteSourceExtractionClie
 
         return [
             'type' => 'object',
-            'properties' => [],
+            'properties' => (object) [],
             'additionalProperties' => false,
         ];
     }

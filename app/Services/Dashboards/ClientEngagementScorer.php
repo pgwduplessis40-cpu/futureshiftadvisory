@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services\Dashboards;
 
+use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentVerification;
 use App\Models\MessageThread;
 use App\Models\Milestone;
 use App\Models\QuestionnaireResponse;
+use App\Models\ServiceActivation;
 use App\Services\DataQuality\QuestionnaireCompletenessCalculator;
+use App\Services\Entrepreneurs\PlanRequirements;
 use App\Support\Methodology\ProvidesMethodology;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -32,6 +35,14 @@ final class ClientEngagementScorer implements ProvidesMethodology
         'documents_pct' => 'documents',
         'milestones_on_track_pct' => 'goals',
         'comms_recency_pct' => 'messages',
+        'plan_progress_pct' => 'goals',
+        'activity_recency_pct' => 'messages',
+    ];
+
+    private const PLAN_SCORE_KEYS = [
+        'plan_progress_pct',
+        'milestones_on_track_pct',
+        'activity_recency_pct',
     ];
 
     public static function methodologyIds(): array
@@ -91,10 +102,12 @@ final class ClientEngagementScorer implements ProvidesMethodology
             ->select('client_id', DB::raw('max(last_activity_at) as last_activity_at'))
             ->groupBy('client_id')
             ->pluck('last_activity_at', 'client_id');
+        $entrepreneurPlansByClient = $this->entrepreneurPlansByClient($clientIds);
 
         return $clientCollection
             ->mapWithKeys(function (Client $client) use (
                 $documentsByClient,
+                $entrepreneurPlansByClient,
                 $latestMessageByClient,
                 $milestonesByClient,
                 $responsesByClient,
@@ -103,7 +116,20 @@ final class ClientEngagementScorer implements ProvidesMethodology
                 $clientId = (string) $client->getKey();
                 $milestoneScore = $this->milestoneScore($this->group($milestonesByClient, $clientId));
                 $commsScore = $this->commsScore($latestMessageByClient->get($clientId));
-                $scores = [
+                $plan = $entrepreneurPlansByClient->get($clientId);
+                $planCompletion = $plan instanceof BusinessPlan
+                    ? PlanRequirements::completion($plan)
+                    : null;
+                $latestPlanActivity = $plan instanceof BusinessPlan
+                    ? $this->latestPlanActivity($plan)
+                    : null;
+                $planActivityScore = $this->commsScore($latestPlanActivity);
+                $activityScore = max($commsScore['score'], $planActivityScore['score']);
+                $latestActivityDays = collect([
+                    $commsScore['last_comms_days'],
+                    $planActivityScore['last_comms_days'],
+                ])->filter(fn (mixed $days): bool => is_int($days))->min();
+                $standardScores = [
                     'questionnaire_pct' => $this->questionnaires
                         ->calculate($this->group($responsesByClient, $clientId))
                         ->score,
@@ -114,19 +140,44 @@ final class ClientEngagementScorer implements ProvidesMethodology
                     'milestones_on_track_pct' => $milestoneScore['score'],
                     'comms_recency_pct' => $commsScore['score'],
                 ];
-                $weakestComponent = $this->weakestComponent($scores);
-                $score = $this->compositeScore($scores);
+                $scoringMode = $plan instanceof BusinessPlan ? 'entrepreneur_plan' : 'standard_advisory';
+                $scoreComponents = $plan instanceof BusinessPlan
+                    ? [
+                        'plan_progress_pct' => (int) $planCompletion['percent'],
+                        'milestones_on_track_pct' => $milestoneScore['score'],
+                        'activity_recency_pct' => $activityScore,
+                    ]
+                    : $standardScores;
+                $scores = $plan instanceof BusinessPlan
+                    ? [...$standardScores, ...$scoreComponents]
+                    : $standardScores;
+                $scoreKeys = $plan instanceof BusinessPlan ? self::PLAN_SCORE_KEYS : self::SCORE_KEYS;
+                $weakestComponent = $this->weakestComponent($scoreComponents, $scoreKeys);
+                $score = $plan instanceof BusinessPlan
+                    ? $this->weightedScore(
+                        $scoreComponents,
+                        config('dashboards.engagement.entrepreneur_plan_weights', []),
+                        self::PLAN_SCORE_KEYS,
+                    )
+                    : $this->compositeScore($standardScores);
+                $display = [
+                    'overdue_count' => $milestoneScore['overdue_count'],
+                    'blocked_count' => $milestoneScore['blocked_count'],
+                    'last_comms_days' => $commsScore['last_comms_days'],
+                ];
+
+                if ($plan instanceof BusinessPlan) {
+                    $display['last_activity_days'] = $latestActivityDays;
+                    $display['last_plan_activity_at'] = $latestPlanActivity?->toIso8601String();
+                }
 
                 return [
                     $clientId => [
+                        'scoring_mode' => $scoringMode,
                         'level' => $this->levelFor($score),
                         'score' => $score,
                         'scores' => $scores,
-                        'display' => [
-                            'overdue_count' => $milestoneScore['overdue_count'],
-                            'blocked_count' => $milestoneScore['blocked_count'],
-                            'last_comms_days' => $commsScore['last_comms_days'],
-                        ],
+                        'display' => $display,
                         'weakest_component' => $weakestComponent,
                         'focus_section' => self::FOCUS_BY_COMPONENT[$weakestComponent],
                     ],
@@ -225,10 +276,19 @@ final class ClientEngagementScorer implements ProvidesMethodology
      */
     private function compositeScore(array $scores): int
     {
-        $weights = config('dashboards.engagement.weights', []);
+        return $this->weightedScore($scores, config('dashboards.engagement.weights', []), self::SCORE_KEYS);
+    }
+
+    /**
+     * @param  array<string, int>  $scores
+     * @param  array<string, mixed>  $weights
+     * @param  array<int, string>  $keys
+     */
+    private function weightedScore(array $scores, array $weights, array $keys): int
+    {
         $weighted = 0.0;
 
-        foreach (self::SCORE_KEYS as $key) {
+        foreach ($keys as $key) {
             $weighted += ($scores[$key] ?? 0) * (float) ($weights[$key] ?? 0);
         }
 
@@ -237,18 +297,68 @@ final class ClientEngagementScorer implements ProvidesMethodology
 
     /**
      * @param  array<string, int>  $scores
+     * @param  array<int, string>  $keys
      */
-    private function weakestComponent(array $scores): string
+    private function weakestComponent(array $scores, array $keys): string
     {
-        $weakest = self::SCORE_KEYS[0];
+        $weakest = $keys[0];
 
-        foreach (self::SCORE_KEYS as $key) {
+        foreach ($keys as $key) {
             if (($scores[$key] ?? 0) < ($scores[$weakest] ?? 0)) {
                 $weakest = $key;
             }
         }
 
         return $weakest;
+    }
+
+    /**
+     * @param  array<int, string>  $clientIds
+     * @return Collection<string, BusinessPlan>
+     */
+    private function entrepreneurPlansByClient(array $clientIds): Collection
+    {
+        $profileIdsByClient = ServiceActivation::query()
+            ->whereIn('client_id', $clientIds)
+            ->where('service_type', ServiceActivation::SERVICE_ENTREPRENEUR)
+            ->where('status', ServiceActivation::STATUS_ACTIVE)
+            ->whereNotNull('related_entrepreneur_profile_id')
+            ->get(['client_id', 'related_entrepreneur_profile_id', 'accepted_at'])
+            ->sortByDesc('accepted_at')
+            ->unique('client_id')
+            ->mapWithKeys(fn (ServiceActivation $activation): array => [
+                (string) $activation->client_id => (string) $activation->related_entrepreneur_profile_id,
+            ]);
+
+        if ($profileIdsByClient->isEmpty()) {
+            return collect();
+        }
+
+        $clientIdsByProfile = $profileIdsByClient->flip();
+
+        return BusinessPlan::query()
+            ->where('source_type', BusinessPlan::SOURCE_ENTREPRENEUR)
+            ->whereIn('entrepreneur_profile_id', $profileIdsByClient->values()->all())
+            ->with(['sections', 'budgetRunway'])
+            ->get()
+            ->sortByDesc(fn (BusinessPlan $plan): int => $this->latestPlanActivity($plan)?->getTimestamp() ?? 0)
+            ->groupBy(fn (BusinessPlan $plan): string => (string) $clientIdsByProfile->get((string) $plan->entrepreneur_profile_id, ''))
+            ->reject(fn (Collection $plans, string $clientId): bool => $clientId === '')
+            ->map(fn (Collection $plans): BusinessPlan => $plans->first());
+    }
+
+    private function latestPlanActivity(BusinessPlan $plan): ?CarbonInterface
+    {
+        $plan->loadMissing('sections', 'budgetRunway');
+
+        return collect([
+            $plan->updated_at,
+            $plan->budgetRunway?->updated_at,
+            ...$plan->sections->pluck('updated_at')->all(),
+        ])
+            ->filter(fn (mixed $value): bool => $value instanceof CarbonInterface)
+            ->sortByDesc(fn (CarbonInterface $value): int => $value->getTimestamp())
+            ->first();
     }
 
     private function levelFor(int $score): string

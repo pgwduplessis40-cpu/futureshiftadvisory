@@ -19,6 +19,7 @@ use App\Models\AnalysisFinding;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\DdEngagement;
+use App\Models\EntrepreneurProfile;
 use App\Models\FeeCalculation;
 use App\Models\FinancialSnapshot;
 use App\Models\GovernanceReviewFinding;
@@ -505,8 +506,18 @@ final class ClientController extends Controller
         StandardAdvisoryWorkflow $standardAdvisory,
         StrategicBudgetService $strategicBudgets,
         StrategicPlanService $strategicPlans,
-    ): Response {
+    ): Response|RedirectResponse {
         Gate::authorize('view', $client);
+        $entrepreneurProfile = $this->activeEntrepreneurWorkspace($client);
+
+        if (
+            $entrepreneurProfile instanceof EntrepreneurProfile
+            && ! $request->boolean('client_workspace')
+            && ! $request->hasAny(['focus', 'highlight'])
+        ) {
+            return to_route('advisor.entrepreneurs.show', $entrepreneurProfile);
+        }
+
         $dataQuality = $this->dataQuality->score($client);
         $user = $request->user();
         $strategicBudget = $strategicBudgets->ensureForClient($client);
@@ -610,6 +621,21 @@ final class ClientController extends Controller
                 ->first()
                 ?->only(['id', 'declaration', 'declared_at']),
         ]);
+    }
+
+    private function activeEntrepreneurWorkspace(Client $client): ?EntrepreneurProfile
+    {
+        $profileId = ServiceActivation::query()
+            ->where('client_id', $client->getKey())
+            ->where('service_type', ServiceActivation::SERVICE_ENTREPRENEUR)
+            ->where('status', ServiceActivation::STATUS_ACTIVE)
+            ->whereNotNull('related_entrepreneur_profile_id')
+            ->latest('accepted_at')
+            ->value('related_entrepreneur_profile_id');
+
+        return is_string($profileId)
+            ? EntrepreneurProfile::query()->find($profileId)
+            : null;
     }
 
     /**

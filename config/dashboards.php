@@ -10,6 +10,11 @@ return [
             'milestones_on_track_pct' => (float) env('DASHBOARD_ENGAGEMENT_MILESTONES_WEIGHT', 0.25),
             'comms_recency_pct' => (float) env('DASHBOARD_ENGAGEMENT_COMMS_WEIGHT', 0.15),
         ],
+        'entrepreneur_plan_weights' => [
+            'plan_progress_pct' => (float) env('DASHBOARD_ENGAGEMENT_PLAN_PROGRESS_WEIGHT', 0.70),
+            'milestones_on_track_pct' => (float) env('DASHBOARD_ENGAGEMENT_PLAN_MILESTONES_WEIGHT', 0.15),
+            'activity_recency_pct' => (float) env('DASHBOARD_ENGAGEMENT_PLAN_ACTIVITY_WEIGHT', 0.15),
+        ],
         'thresholds' => [
             'green' => (int) env('DASHBOARD_ENGAGEMENT_GREEN_MIN', 75),
             'amber' => (int) env('DASHBOARD_ENGAGEMENT_AMBER_MIN', 50),

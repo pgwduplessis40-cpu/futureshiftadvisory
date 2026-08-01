@@ -5,6 +5,7 @@ import {
     ArrowUpRight,
     Banknote,
     CheckCircle2,
+    ChevronDown,
     ClipboardCheck,
     Copy,
     FileText,
@@ -90,6 +91,7 @@ export default function EntrepreneursShow({
     const [ideaRefreshPending, setIdeaRefreshPending] = useState(false);
     const [copiedInviteEmail, setCopiedInviteEmail] = useState(false);
     const [editingInvite, setEditingInvite] = useState(false);
+    const [ideaValidationOpen, setIdeaValidationOpen] = useState(true);
     const inviteForm = useForm<InviteDetailsForm>({
         name: entrepreneur.name,
         email: entrepreneur.email,
@@ -437,6 +439,19 @@ export default function EntrepreneursShow({
                                 Messages
                             </Link>
                         </Button>
+                        {entrepreneur.client_actions ? (
+                            <Button asChild size="sm" variant="outline">
+                                <Link
+                                    href={entrepreneur.client_actions.email_url}
+                                >
+                                    <Mail
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Email
+                                </Link>
+                            </Button>
+                        ) : null}
                         {entrepreneur.conversion.available ? (
                             <Button
                                 type="button"
@@ -499,6 +514,21 @@ export default function EntrepreneursShow({
                                 Surveys
                             </Link>
                         </Button>
+                        {entrepreneur.client_actions ? (
+                            <Button asChild size="sm" variant="outline">
+                                <Link
+                                    href={
+                                        entrepreneur.client_actions.offboard_url
+                                    }
+                                >
+                                    <XCircle
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Offboard
+                                </Link>
+                            </Button>
+                        ) : null}
                         <Button asChild size="sm" variant="ghost">
                             <Link href="/advisor/entrepreneurs">
                                 <ArrowLeft
@@ -939,10 +969,36 @@ export default function EntrepreneursShow({
                                         {ideaViabilityGate.label}
                                     </Badge>
                                 ) : null}
+                                <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="outline"
+                                    aria-label="Toggle idea validation details"
+                                    aria-expanded={ideaValidationOpen}
+                                    title="Toggle idea validation details"
+                                    onClick={() =>
+                                        setIdeaValidationOpen(
+                                            (isOpen) => !isOpen,
+                                        )
+                                    }
+                                >
+                                    <ChevronDown
+                                        className={cn(
+                                            'size-4 transition-transform',
+                                            ideaValidationOpen && 'rotate-180',
+                                        )}
+                                        aria-hidden="true"
+                                    />
+                                </Button>
                             </div>
                         </div>
                         {ideaValidation ? (
-                            <div className="space-y-5">
+                            <div
+                                className={cn(
+                                    'space-y-5',
+                                    !ideaValidationOpen && 'hidden',
+                                )}
+                            >
                                 {ideaValidation.ai_deferred && !ideaRecalled ? (
                                     <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
                                         <p>
@@ -1312,7 +1368,12 @@ export default function EntrepreneursShow({
                                 ) : null}
                             </div>
                         ) : (
-                            <p className="text-sm text-muted-foreground">
+                            <p
+                                className={cn(
+                                    'text-sm text-muted-foreground',
+                                    !ideaValidationOpen && 'hidden',
+                                )}
+                            >
                                 No idea validation submitted yet.
                             </p>
                         )}

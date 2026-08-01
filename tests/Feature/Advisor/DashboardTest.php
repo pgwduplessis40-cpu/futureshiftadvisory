@@ -17,6 +17,7 @@ use App\Models\IdeaValidation;
 use App\Models\IntegrationHealthSample;
 use App\Models\ProspectLead;
 use App\Models\RedFlag;
+use App\Models\ServiceActivation;
 use App\Models\ServiceRateSetting;
 use App\Models\TermsAcceptance;
 use App\Models\TermsEnforcement;
@@ -230,6 +231,54 @@ final class DashboardTest extends TestCase
         $this->actingAsMfa($clientUser)
             ->get(route('dashboard'))
             ->assertRedirect(route('portal.dashboard', absolute: false));
+    }
+
+    public function test_active_entrepreneur_client_uses_one_canonical_advisor_workspace(): void
+    {
+        $advisor = $this->advisor('canonical-workspace@example.test');
+        $client = $this->clientFor($advisor, 'Canonical Workspace Limited');
+        $profile = $this->entrepreneurProfileFor(
+            $advisor,
+            'Canonical Founder',
+            'canonical-founder@example.test',
+        );
+        $profile->forceFill(['client_id' => $client->getKey()])->save();
+
+        ServiceActivation::query()->create([
+            'client_id' => $client->getKey(),
+            'requested_by_user_id' => $profile->user_id,
+            'advisor_id' => $advisor->getKey(),
+            'service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'client_label' => 'Test new Business Idea',
+            'status' => ServiceActivation::STATUS_ACTIVE,
+            'related_entrepreneur_profile_id' => $profile->getKey(),
+            'accepted_at' => now(),
+        ]);
+
+        $showUrl = route('advisor.entrepreneurs.show', $profile, absolute: false);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('clientsHealth.clients.0.show_url', $showUrl)
+                ->where('clientsHealth.clients.0.engagement.drill_url', $showUrl));
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.show', $client))
+            ->assertRedirect($showUrl);
+
+        $this->actingAsMfa($advisor)
+            ->get($showUrl)
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/entrepreneurs/Show')
+                ->where(
+                    'entrepreneur.client_actions.email_url',
+                    route('advisor.clients.compose', $client, absolute: false),
+                )
+                ->where(
+                    'entrepreneur.client_actions.offboard_url',
+                    route('advisor.clients.offboarding.create', $client, absolute: false),
+                ));
     }
 
     private function advisor(string $email): User

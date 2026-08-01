@@ -30,6 +30,10 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
     created_at: string | null;
     documents: EntrepreneurDocument[];
     messages: EntrepreneurMessageSummary;
+    client_actions: {
+        email_url: string;
+        offboard_url: string;
+    } | null;
     gamification: EntrepreneurGamificationPayload;
     latest_plan: {
         id: string;

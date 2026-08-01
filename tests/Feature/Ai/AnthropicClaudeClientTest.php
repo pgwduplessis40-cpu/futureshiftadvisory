@@ -124,6 +124,36 @@ final class AnthropicClaudeClientTest extends TestCase
         });
     }
 
+    public function test_summarise_request_encodes_empty_metadata_properties_as_json_object(): void
+    {
+        Http::fake(fn () => Http::response([
+            'content' => [
+                [
+                    'type' => 'text',
+                    'text' => json_encode([
+                        'text' => 'Structured summary.',
+                        'attributions' => [],
+                        'uncertainty' => 'low',
+                        'metadata' => [],
+                    ], JSON_THROW_ON_ERROR),
+                ],
+            ],
+            'usage' => [
+                'input_tokens' => 100,
+                'output_tokens' => 50,
+            ],
+        ]));
+
+        app(AnthropicClaudeClient::class)->summarise($this->prompt());
+
+        Http::assertSent(function (Request $request): bool {
+            $payload = json_decode($request->body());
+            $properties = data_get($payload, 'output_config.format.schema.properties.metadata.properties');
+
+            return is_object($properties) && (array) $properties === [];
+        });
+    }
+
     public function test_wrapped_json_text_response_is_still_parsed(): void
     {
         Http::fake(fn () => Http::response([

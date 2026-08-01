@@ -25,6 +25,7 @@ import {
 import { useState } from 'react';
 import type React from 'react';
 import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
+import type { InsightHoverCardRow } from '@/components/insight/InsightHoverCard';
 import {
     PvSummaryBadges,
     WaterfallChart,
@@ -49,9 +50,12 @@ type EngagementScoreKey =
     | 'questionnaire_pct'
     | 'documents_pct'
     | 'milestones_on_track_pct'
-    | 'comms_recency_pct';
+    | 'comms_recency_pct'
+    | 'plan_progress_pct'
+    | 'activity_recency_pct';
 
 type EngagementScore = {
+    scoring_mode: 'standard_advisory' | 'entrepreneur_plan';
     level: HealthLevel;
     score: number;
     scores: {
@@ -59,11 +63,15 @@ type EngagementScore = {
         documents_pct: number;
         milestones_on_track_pct: number;
         comms_recency_pct: number;
+        plan_progress_pct?: number;
+        activity_recency_pct?: number;
     };
     display: {
         overdue_count: number;
         blocked_count: number;
         last_comms_days: number | null;
+        last_activity_days?: number | null;
+        last_plan_activity_at?: string | null;
     };
     weakest_component: EngagementScoreKey;
     focus_section: string;
@@ -694,8 +702,6 @@ type LearningQueuePayload = {
     summary: {
         detected: number;
         staged: number;
-        approved: number;
-        implemented: number;
     };
     queue_url: string | null;
     items: Array<{
@@ -3242,35 +3248,61 @@ function MyClientsHealth({ payload }: { payload: ClientsHealthPayload }) {
 }
 
 function EngagementBadge({ engagement }: { engagement: EngagementScore }) {
+    const rows: InsightHoverCardRow[] =
+        engagement.scoring_mode === 'entrepreneur_plan'
+            ? [
+                  {
+                      label: 'Business plan',
+                      value: `${engagement.scores.plan_progress_pct ?? 0}%`,
+                  },
+                  {
+                      label: 'Activity',
+                      value:
+                          engagement.display.last_activity_days == null
+                              ? 'Never'
+                              : `${engagement.display.last_activity_days} days`,
+                  },
+                  {
+                      label: 'Milestones',
+                      value: `${engagement.scores.milestones_on_track_pct}% (${engagement.display.overdue_count} overdue / ${engagement.display.blocked_count} blocked)`,
+                      tone:
+                          engagement.display.overdue_count > 0 ||
+                          engagement.display.blocked_count > 0
+                              ? 'negative'
+                              : 'default',
+                  },
+              ]
+            : [
+                  {
+                      label: 'Questionnaire',
+                      value: `${engagement.scores.questionnaire_pct}%`,
+                  },
+                  {
+                      label: 'Documents',
+                      value: `${engagement.scores.documents_pct}%`,
+                  },
+                  {
+                      label: 'Milestones',
+                      value: `${engagement.scores.milestones_on_track_pct}% (${engagement.display.overdue_count} overdue / ${engagement.display.blocked_count} blocked)`,
+                      tone:
+                          engagement.display.overdue_count > 0 ||
+                          engagement.display.blocked_count > 0
+                              ? 'negative'
+                              : 'default',
+                  },
+                  {
+                      label: 'Last comms',
+                      value:
+                          engagement.display.last_comms_days === null
+                              ? 'Never'
+                              : `${engagement.display.last_comms_days} days`,
+                  },
+              ];
+
     return (
         <InsightHoverCard
             title={`${engagement.score}% engagement`}
-            rows={[
-                {
-                    label: 'Questionnaire',
-                    value: `${engagement.scores.questionnaire_pct}%`,
-                },
-                {
-                    label: 'Documents',
-                    value: `${engagement.scores.documents_pct}%`,
-                },
-                {
-                    label: 'Milestones',
-                    value: `${engagement.scores.milestones_on_track_pct}% (${engagement.display.overdue_count} overdue / ${engagement.display.blocked_count} blocked)`,
-                    tone:
-                        engagement.display.overdue_count > 0 ||
-                        engagement.display.blocked_count > 0
-                            ? 'negative'
-                            : 'default',
-                },
-                {
-                    label: 'Last comms',
-                    value:
-                        engagement.display.last_comms_days === null
-                            ? 'Never'
-                            : `${engagement.display.last_comms_days} days`,
-                },
-            ]}
+            rows={rows}
             drillHref={engagement.drill_url}
             drillAriaLabel={`Open ${engagementLabel(engagement.level)} engagement section`}
         >
@@ -4460,7 +4492,7 @@ function LearningQueuePanel({ payload }: { payload: LearningQueuePayload }) {
                         <h2 className="text-sm font-medium">Learning queue</h2>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                        Governed model, questionnaire, and methodology updates.
+                        Governed updates awaiting review or approval.
                     </p>
                 </div>
                 {payload.queue_url && (
@@ -4470,22 +4502,14 @@ function LearningQueuePanel({ payload }: { payload: LearningQueuePayload }) {
                 )}
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-4">
+            <div className="grid gap-2 sm:grid-cols-2">
                 <PortfolioMetric
-                    label="Detected"
+                    label="Awaiting review"
                     value={payload.summary.detected.toString()}
                 />
                 <PortfolioMetric
-                    label="Staged"
+                    label="Awaiting approval"
                     value={payload.summary.staged.toString()}
-                />
-                <PortfolioMetric
-                    label="Approved"
-                    value={payload.summary.approved.toString()}
-                />
-                <PortfolioMetric
-                    label="Live"
-                    value={payload.summary.implemented.toString()}
                 />
             </div>
 

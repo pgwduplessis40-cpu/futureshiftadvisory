@@ -34,6 +34,7 @@ use App\Models\Referral;
 use App\Models\ReferralMessage;
 use App\Models\ReverseReferral;
 use App\Models\Scenario;
+use App\Models\ServiceActivation;
 use App\Models\StrategicBudget;
 use App\Models\StrategicPlan;
 use App\Models\TermsVersion;
@@ -1275,8 +1276,6 @@ final class StaffDashboardController extends Controller
                 'summary' => [
                     'detected' => 0,
                     'staged' => 0,
-                    'approved' => 0,
-                    'implemented' => 0,
                 ],
                 'queue_url' => null,
                 'items' => [],
@@ -1286,8 +1285,6 @@ final class StaffDashboardController extends Controller
         $activeStatuses = [
             LearningUpdate::STATUS_DETECTED,
             LearningUpdate::STATUS_STAGED,
-            LearningUpdate::STATUS_APPROVED,
-            LearningUpdate::STATUS_DEFERRED,
         ];
         $stageCounts = LearningUpdate::query()
             ->select('status', DB::raw('count(*) as aggregate'))
@@ -1303,8 +1300,6 @@ final class StaffDashboardController extends Controller
             'summary' => [
                 'detected' => (int) ($stageCounts[LearningUpdate::STATUS_DETECTED] ?? 0),
                 'staged' => (int) ($stageCounts[LearningUpdate::STATUS_STAGED] ?? 0),
-                'approved' => (int) ($stageCounts[LearningUpdate::STATUS_APPROVED] ?? 0),
-                'implemented' => (int) ($stageCounts[LearningUpdate::STATUS_IMPLEMENTED] ?? 0),
             ],
             'queue_url' => $queueUrl,
             'items' => LearningUpdate::query()
@@ -1457,7 +1452,26 @@ final class StaffDashboardController extends Controller
 
         $count = Message::query()
             ->whereHas('sender', fn (Builder $query): Builder => $query->whereIn('user_type', Message::ADVISOR_PENDING_SENDER_TYPES))
-            ->whereHas('thread', fn (Builder $query): Builder => $this->visibleMessageThreads($query, $user, $clientIds))
+            ->whereHas('thread', function (Builder $query) use ($user, $clientIds): void {
+                $this->visibleMessageThreads($query, $user, $clientIds)
+                    ->whereDoesntHave(
+                        'serviceActivation',
+                        fn (Builder $activationQuery): Builder => $activationQuery
+                            ->where('status', '!=', ServiceActivation::STATUS_REQUESTED),
+                    );
+            })
+            ->whereExists(function ($query) use ($user): void {
+                $query
+                    ->selectRaw('1')
+                    ->from('message_thread_participants as pending_participants')
+                    ->whereColumn('pending_participants.thread_id', 'messages.thread_id')
+                    ->where('pending_participants.user_id', $user->getKey())
+                    ->where(function ($readQuery): void {
+                        $readQuery
+                            ->whereNull('pending_participants.last_read_at')
+                            ->orWhereColumn('pending_participants.last_read_at', '<', 'messages.sent_at');
+                    });
+            })
             ->whereNotExists(function ($query): void {
                 $query
                     ->selectRaw('1')
@@ -1636,6 +1650,13 @@ final class StaffDashboardController extends Controller
         $query = $this->scopedClientQuery($clientIds);
         $totalClientWorkspaces = (clone $query)->count();
         $clients = $query
+            ->with([
+                'serviceActivations' => fn ($activationQuery) => $activationQuery
+                    ->where('service_type', ServiceActivation::SERVICE_ENTREPRENEUR)
+                    ->where('status', ServiceActivation::STATUS_ACTIVE)
+                    ->whereNotNull('related_entrepreneur_profile_id')
+                    ->with('entrepreneurProfile'),
+            ])
             ->orderBy('legal_name')
             ->limit(20)
             ->get();
@@ -1817,6 +1838,42 @@ final class StaffDashboardController extends Controller
         $status = $client->status instanceof ClientStatus
             ? $client->status
             : ClientStatus::from((string) ($client->status ?? ClientStatus::ACTIVE->value));
+        $entrepreneurProfile = $client->serviceActivations
+            ->first()
+            ?->entrepreneurProfile;
+        $showUrl = $entrepreneurProfile instanceof EntrepreneurProfile
+            ? route('advisor.entrepreneurs.show', $entrepreneurProfile, absolute: false)
+            : route('advisor.clients.show', $client, absolute: false);
+        $planActivityAt = data_get($engagement, 'display.last_plan_activity_at');
+
+        if (is_string($planActivityAt) && trim($planActivityAt) !== '') {
+            $planActivity = Carbon::parse($planActivityAt);
+            if (! $latestActivity instanceof Carbon || $planActivity->gt($latestActivity)) {
+                $latestActivity = $planActivity;
+            }
+        }
+        $cashFlowPayload = $cashFlow ?? [
+            'client_id' => (string) $client->getKey(),
+            'client_name' => $client->legal_name,
+            'client_url' => $showUrl,
+            'status' => 'unknown',
+            'status_label' => 'Unknown',
+            'tone' => 'muted',
+            'reason' => 'No cash-flow actuals or budget forecast are available yet.',
+            'source' => 'Financial data required',
+            'latest_operating_cash_flow' => null,
+            'latest_period_end' => null,
+            'runway_months' => null,
+            'runway_open_ended' => false,
+            'cash_flow_positive_year' => null,
+            'alert_headline' => null,
+            'detail_url' => $showUrl.'#section-accounting',
+        ];
+
+        if ($entrepreneurProfile instanceof EntrepreneurProfile) {
+            $cashFlowPayload['client_url'] = $showUrl;
+            $cashFlowPayload['detail_url'] = $showUrl;
+        }
 
         return [
             'id' => $client->id,
@@ -1830,31 +1887,17 @@ final class StaffDashboardController extends Controller
             'engagement' => [
                 ...$engagement,
                 'methodology_id' => 'engagement.score',
-                'drill_url' => route('advisor.clients.show', [
-                    'client' => $client,
-                    'focus' => $engagement['focus_section'],
-                ], absolute: false),
+                'drill_url' => $entrepreneurProfile instanceof EntrepreneurProfile
+                    ? $showUrl
+                    : route('advisor.clients.show', [
+                        'client' => $client,
+                        'focus' => $engagement['focus_section'],
+                    ], absolute: false),
             ],
-            'cash_flow' => $cashFlow ?? [
-                'client_id' => (string) $client->getKey(),
-                'client_name' => $client->legal_name,
-                'client_url' => route('advisor.clients.show', $client, absolute: false),
-                'status' => 'unknown',
-                'status_label' => 'Unknown',
-                'tone' => 'muted',
-                'reason' => 'No cash-flow actuals or budget forecast are available yet.',
-                'source' => 'Financial data required',
-                'latest_operating_cash_flow' => null,
-                'latest_period_end' => null,
-                'runway_months' => null,
-                'runway_open_ended' => false,
-                'cash_flow_positive_year' => null,
-                'alert_headline' => null,
-                'detail_url' => route('advisor.clients.show', $client, absolute: false).'#section-accounting',
-            ],
+            'cash_flow' => $cashFlowPayload,
             'open_document_flags_count' => $openDocumentFlags,
             'last_activity_at' => $latestActivity?->toIso8601String(),
-            'show_url' => route('advisor.clients.show', $client, absolute: false),
+            'show_url' => $showUrl,
         ];
     }
 

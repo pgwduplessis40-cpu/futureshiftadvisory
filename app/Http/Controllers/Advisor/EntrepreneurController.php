@@ -429,6 +429,12 @@ final class EntrepreneurController extends Controller
                 'conversion' => $this->conversionSummary($entrepreneurProfile, $latestPlan),
                 'documents' => $this->latestDocuments($entrepreneurProfile),
                 'messages' => $this->messageSummary($entrepreneurProfile, $viewer),
+                'client_actions' => $entrepreneurProfile->client_id !== null
+                    ? [
+                        'email_url' => route('advisor.clients.compose', $entrepreneurProfile->client_id, absolute: false),
+                        'offboard_url' => route('advisor.clients.offboarding.create', $entrepreneurProfile->client_id, absolute: false),
+                    ]
+                    : null,
                 'gamification' => [
                     ...$this->gamification->payload($entrepreneurProfile, $latestPlan instanceof BusinessPlan ? $latestPlan : null),
                     'enabled' => (bool) $entrepreneurProfile->gamification_on,

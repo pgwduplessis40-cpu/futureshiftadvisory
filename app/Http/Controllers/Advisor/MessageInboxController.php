@@ -83,7 +83,7 @@ final class MessageInboxController extends Controller
 
         $query = MessageThread::query()
             ->whereNotNull('client_id')
-            ->with('client')
+            ->with(['client', 'serviceActivation'])
             ->withCount('messages')
             ->orderByDesc('last_activity_at')
             ->orderByDesc('created_at');
@@ -201,7 +201,8 @@ final class MessageInboxController extends Controller
     {
         $latestMessage = $latestMessages->get((string) $thread->getKey());
         $activityAt = $thread->last_activity_at ?? $latestMessage?->sent_at ?? $thread->created_at;
-        $pending = $latestMessage?->needsAdvisorAttention() ?? false;
+        $unreadCount = $unreadCounts[(string) $thread->getKey()] ?? 0;
+        $pending = $unreadCount > 0 && $thread->needsAdvisorAttention($latestMessage);
 
         if ($thread->client_id !== null && $thread->client !== null) {
             return [
@@ -215,7 +216,7 @@ final class MessageInboxController extends Controller
                 'latest_excerpt' => $latestMessage instanceof Message ? Str::limit($latestMessage->body, 180) : null,
                 'last_activity_at' => $activityAt?->toIso8601String(),
                 'messages_count' => (int) ($thread->messages_count ?? 0),
-                'unread_count' => $unreadCounts[(string) $thread->getKey()] ?? 0,
+                'unread_count' => $unreadCount,
                 'pending' => $pending,
                 'url' => route('advisor.clients.messages.show', [$thread->client, $thread], absolute: false),
             ];
@@ -234,7 +235,7 @@ final class MessageInboxController extends Controller
                 'latest_excerpt' => $latestMessage instanceof Message ? Str::limit($latestMessage->body, 180) : null,
                 'last_activity_at' => $activityAt?->toIso8601String(),
                 'messages_count' => (int) ($thread->messages_count ?? 0),
-                'unread_count' => $unreadCounts[(string) $thread->getKey()] ?? 0,
+                'unread_count' => $unreadCount,
                 'pending' => $pending,
                 'url' => route('advisor.entrepreneurs.messages.show', [$profile, $thread], absolute: false),
             ];

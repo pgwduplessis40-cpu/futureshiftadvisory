@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 final class MessageThread extends Model
 {
@@ -57,5 +58,25 @@ final class MessageThread extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class, 'thread_id');
+    }
+
+    /**
+     * @return HasOne<ServiceActivation, MessageThread>
+     */
+    public function serviceActivation(): HasOne
+    {
+        return $this->hasOne(ServiceActivation::class, 'client_message_thread_id');
+    }
+
+    public function needsAdvisorAttention(?Message $latestMessage): bool
+    {
+        if (! $latestMessage instanceof Message || ! $latestMessage->needsAdvisorAttention()) {
+            return false;
+        }
+
+        $activation = $this->serviceActivation;
+
+        return ! $activation instanceof ServiceActivation
+            || $activation->status === ServiceActivation::STATUS_REQUESTED;
     }
 }
