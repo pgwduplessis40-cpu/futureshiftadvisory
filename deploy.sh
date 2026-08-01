@@ -35,7 +35,7 @@ log() { printf '\n\033[1;36m==> %s\033[0m\n' "$1"; }
 # Only reach for sudo when not already running as root.
 SUDO=""
 if [ "$(id -u)" -ne 0 ]; then
-    SUDO="sudo"
+    SUDO="sudo -n"
 fi
 
 require_clean_checkout() {
@@ -206,6 +206,86 @@ configure_scheduler_cron() {
 ensure_malware_scanner() {
     local service
     local configured_service="${CLAMAV_SERVICE:-}"
+    local wait_seconds="${CLAMAV_START_TIMEOUT_SECONDS:-180}"
+
+    case "$wait_seconds" in
+        ''|*[!0-9]*)
+            echo "ERROR: CLAMAV_START_TIMEOUT_SECONDS must be a positive integer." >&2
+            exit 1
+            ;;
+    esac
+
+    if [ "$wait_seconds" -lt 1 ]; then
+        echo "ERROR: CLAMAV_START_TIMEOUT_SECONDS must be at least 1." >&2
+        exit 1
+    fi
+
+    start_clamav_service() {
+        local target_service="$1"
+        local elapsed=0
+
+        echo "Starting ClamAV service '${target_service}'."
+        if ! $SUDO systemctl enable --now "$target_service"; then
+            echo "ERROR: ClamAV service '${target_service}' could not be enabled and started." >&2
+            return 1
+        fi
+
+        while [ "$elapsed" -lt "$wait_seconds" ]; do
+            if php artisan fsa:rescan-quarantined-documents --probe --limit=1; then
+                echo "ClamAV service '${target_service}' is ready."
+                return 0
+            fi
+
+            sleep 2
+            elapsed=$((elapsed + 2))
+        done
+
+        echo "ERROR: ClamAV service '${target_service}' did not become ready within ${wait_seconds} seconds." >&2
+        return 1
+    }
+
+    install_clamav_daemon() {
+        if [ "${INSTALL_CLAMAV:-yes}" != "yes" ]; then
+            echo "Automatic ClamAV installation is disabled (INSTALL_CLAMAV=${INSTALL_CLAMAV:-})." >&2
+            return 1
+        fi
+
+        log "Installing ClamAV daemon"
+
+        if command -v apt-get >/dev/null 2>&1; then
+            if ! $SUDO apt-get -o Acquire::Retries=3 -o DPkg::Lock::Timeout=120 update; then
+                echo "ERROR: apt package indexes could not be refreshed." >&2
+                return 1
+            fi
+
+            if ! $SUDO env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=120 install -y clamav-daemon clamav-freshclam; then
+                echo "ERROR: apt could not install clamav-daemon and clamav-freshclam." >&2
+                return 1
+            fi
+        elif command -v dnf >/dev/null 2>&1; then
+            if ! $SUDO dnf install -y clamav clamd clamav-update; then
+                echo "ERROR: dnf could not install ClamAV." >&2
+                return 1
+            fi
+        elif command -v yum >/dev/null 2>&1; then
+            if ! $SUDO yum install -y clamav clamd clamav-update; then
+                echo "ERROR: yum could not install ClamAV." >&2
+                return 1
+            fi
+        else
+            echo "ERROR: no supported package manager was found for automatic ClamAV installation." >&2
+            return 1
+        fi
+
+        if systemctl cat clamav-freshclam >/dev/null 2>&1; then
+            if ! $SUDO systemctl enable --now clamav-freshclam; then
+                echo "ERROR: clamav-freshclam could not be enabled and started." >&2
+                return 1
+            fi
+        fi
+
+        return 0
+    }
 
     if php artisan fsa:rescan-quarantined-documents --probe --limit=1; then
         return
@@ -217,19 +297,21 @@ ensure_malware_scanner() {
         [ -n "$service" ] || continue
 
         if systemctl cat "$service" >/dev/null 2>&1; then
-            $SUDO systemctl restart "$service"
+            start_clamav_service "$service" && return
+        fi
+    done
 
-            for _ in $(seq 1 30); do
-                if php artisan fsa:rescan-quarantined-documents --probe --limit=1; then
-                    echo "ClamAV service '${service}' is ready."
-                    return
-                fi
+    install_clamav_daemon || {
+        echo "ERROR: ClamAV could not be installed automatically." >&2
+        echo "Install clamav-daemon or configure CLAMAV_SOCKET/CLAMAV_HOST and CLAMAV_PORT." >&2
+        exit 1
+    }
 
-                sleep 2
-            done
+    for service in "$configured_service" clamav-daemon clamd@scan clamd; do
+        [ -n "$service" ] || continue
 
-            echo "ERROR: ClamAV service '${service}' started but did not become ready." >&2
-            exit 1
+        if systemctl cat "$service" >/dev/null 2>&1; then
+            start_clamav_service "$service" && return
         fi
     done
 

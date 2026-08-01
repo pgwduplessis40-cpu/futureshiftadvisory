@@ -116,6 +116,9 @@ Options (environment variables):
 | `SITE_URL` | `https://futureshiftadvisory.nz` | URL used for the post-deploy SSR check |
 | `PHP_FPM_SERVICE` | `php-fpm` | systemd unit name to restart before public verification |
 | `SSR_SERVICE` | `inertia-ssr` | systemd unit name to restart |
+| `INSTALL_CLAMAV` | `yes` | Install the ClamAV daemon when no configured or local service exists |
+| `CLAMAV_SERVICE` | auto-detected | Override the ClamAV systemd unit name |
+| `CLAMAV_START_TIMEOUT_SECONDS` | `180` | Maximum wait for ClamAV signatures and daemon readiness |
 
 The script runs: pull → composer install → npm ci → **`npm run build:ssr`** →
 migrations → cache refresh → **restart the SSR daemon** → verify SSR output.
