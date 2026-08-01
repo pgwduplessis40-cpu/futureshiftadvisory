@@ -211,6 +211,7 @@ export type EntrepreneurDocument = {
     original_filename: string;
     category: string;
     scanner_result: string;
+    scanner_message: string | null;
     uploaded_at: string | null;
     uploaded_by_name: string | null;
     url: string | null;

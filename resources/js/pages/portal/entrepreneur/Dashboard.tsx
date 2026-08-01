@@ -36,8 +36,9 @@ type UploadedDocument = {
     original_filename: string;
     category: string;
     scanner_result: string;
+    scanner_message: string | null;
     uploaded_at: string | null;
-    url: string;
+    url: string | null;
 };
 
 type AssessmentLink = {
@@ -856,9 +857,12 @@ export default function EntrepreneurDashboard({
                                                     </div>
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         <Badge variant="outline">
-                                                            {formatLabel(
-                                                                document.scanner_result,
-                                                            )}
+                                                            {document.scanner_result ===
+                                                            'error'
+                                                                ? 'Scan unavailable'
+                                                                : formatLabel(
+                                                                      document.scanner_result,
+                                                                  )}
                                                         </Badge>
                                                         <span className="text-xs text-muted-foreground">
                                                             {formatDate(
@@ -874,7 +878,8 @@ export default function EntrepreneurDashboard({
                                                             >
                                                                 <a
                                                                     href={
-                                                                        document.url
+                                                                        document.url ??
+                                                                        undefined
                                                                     }
                                                                     target="_blank"
                                                                     rel="noreferrer"

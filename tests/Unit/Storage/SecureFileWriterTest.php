@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Storage;
 
+use App\Jobs\VerifyDocumentJob;
 use App\Models\Document;
 use App\Models\User;
 use App\Services\Integration\VirusScanner\Contracts\FileScanner;
@@ -18,6 +19,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -189,6 +191,103 @@ final class SecureFileWriterTest extends TestCase
         $this->assertSame(Document::SCANNER_ERROR, $document->scanner_result);
         $this->assertStringStartsWith('quarantine/contract/', $document->stored_path);
         $this->assertFalse($document->isVisibleToClients());
+    }
+
+    public function test_repeated_upload_reuses_and_recovers_the_existing_quarantined_document(): void
+    {
+        $user = User::factory()->create();
+        $clientId = (string) Str::uuid();
+        $contents = 'The same business plan attachment.';
+
+        $this->bindScanner(ScanResult::error('daemon offline', ['engine' => 'fake-clamav']));
+
+        $first = app(SecureFileWriter::class)->write(
+            uploadedFile: UploadedFile::fake()->createWithContent('business-plan.docx', $contents),
+            owner: $user,
+            category: Document::CATEGORY_PLAN_ATTACHMENT,
+            clientId: $clientId,
+        );
+        $repeated = app(SecureFileWriter::class)->write(
+            uploadedFile: UploadedFile::fake()->createWithContent('business-plan.docx', $contents),
+            owner: $user,
+            category: Document::CATEGORY_PLAN_ATTACHMENT,
+            clientId: $clientId,
+        );
+
+        $this->assertSame($first->getKey(), $repeated->getKey());
+        $this->assertSame(1, Document::query()->count());
+
+        $this->bindScanner(ScanResult::clean(['engine' => 'fake-clamav']));
+
+        $recovered = app(SecureFileWriter::class)->write(
+            uploadedFile: UploadedFile::fake()->createWithContent('business-plan.docx', $contents),
+            owner: $user,
+            category: Document::CATEGORY_PLAN_ATTACHMENT,
+            clientId: $clientId,
+        );
+
+        $this->assertSame($first->getKey(), $recovered->getKey());
+        $this->assertSame(Document::SCANNER_CLEAN, $recovered->scanner_result);
+        $this->assertSame(1, Document::query()->count());
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'document.scan_recovered',
+            'subject_id' => $first->getKey(),
+        ]);
+    }
+
+    public function test_rescan_command_probes_scanner_and_recovers_quarantined_document(): void
+    {
+        Queue::fake();
+        $this->bindScanner(ScanResult::error('daemon offline', ['engine' => 'fake-clamav']));
+
+        $document = app(SecureFileWriter::class)->write(
+            uploadedFile: UploadedFile::fake()->createWithContent('business-plan.docx', 'Recover this document.'),
+            owner: User::factory()->create(),
+            category: Document::CATEGORY_PLAN_ATTACHMENT,
+        );
+        $duplicatePath = 'quarantine/plan_attachment/'.Str::uuid().'.docx';
+        Storage::disk('secure_local')->put($duplicatePath, 'Recover this document.');
+        $duplicate = Document::query()->create([
+            'category' => $document->category,
+            'original_filename' => $document->original_filename,
+            'stored_path' => $duplicatePath,
+            'byte_size' => $document->byte_size,
+            'mime_type' => $document->mime_type,
+            'sha256' => $document->sha256,
+            'uploaded_by_user_id' => $document->uploaded_by_user_id,
+            'scanner_result' => Document::SCANNER_ERROR,
+            'scanner_payload' => $document->scanner_payload,
+        ]);
+
+        $this->app->instance(FileScanner::class, new class implements FileScanner
+        {
+            public function scan(mixed $stream): ScanResult
+            {
+                $contents = stream_get_contents($stream);
+
+                return is_string($contents) && str_contains($contents, 'EICAR-STANDARD-ANTIVIRUS-TEST-FILE')
+                    ? ScanResult::infected('Eicar-Test-Signature', ['engine' => 'fake-clamav'])
+                    : ScanResult::clean(['engine' => 'fake-clamav']);
+            }
+        });
+
+        $this->artisan('fsa:rescan-quarantined-documents', [
+            '--probe' => true,
+            '--fail-on-error' => true,
+        ])->assertSuccessful();
+
+        $this->assertSame(Document::SCANNER_CLEAN, $document->refresh()->scanner_result);
+        $this->assertDatabaseMissing('documents', ['id' => $duplicate->getKey()]);
+        Storage::disk('secure_local')->assertMissing($duplicatePath);
+        Queue::assertPushed(VerifyDocumentJob::class);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'document.scan_recovered',
+            'subject_id' => $document->getKey(),
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'document.quarantine_duplicate_removed',
+            'subject_id' => $duplicate->getKey(),
+        ]);
     }
 
     private function bindScanner(ScanResult $result): void

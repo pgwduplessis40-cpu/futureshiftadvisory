@@ -65,6 +65,13 @@ final class OperationalHealthCheckTest extends TestCase
         $this->assertSame('0 23 * * 6,0', $weekend->last()->expression);
         $this->assertSame(['Pacific/Auckland'], $weekday->pluck('timezone')->unique()->values()->all());
         $this->assertSame('Pacific/Auckland', $weekend->first()->timezone);
+
+        $quarantineRecovery = $events
+            ->first(fn ($event): bool => $event->description === 'fsa-rescan-quarantined-documents');
+
+        $this->assertNotNull($quarantineRecovery);
+        $this->assertSame('*/10 * * * *', $quarantineRecovery->expression);
+        $this->assertStringContainsString('fsa:rescan-quarantined-documents', $quarantineRecovery->command);
     }
 
     public function test_command_records_specific_findings_and_skips_missing_monitor_fixtures(): void

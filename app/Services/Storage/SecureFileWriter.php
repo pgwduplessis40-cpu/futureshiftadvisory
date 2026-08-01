@@ -62,6 +62,43 @@ final class SecureFileWriter
             throw new SecureFileStorageException('Uploaded file could not be read for persistence.');
         }
 
+        $normalisedCategory = $this->normaliseCategory($category);
+        $sha256 = hash('sha256', $contents);
+        $existing = $this->existingDocument(
+            owner: $owner,
+            category: $normalisedCategory,
+            sha256: $sha256,
+            clientId: $clientId,
+            entrepreneurProfileId: $entrepreneurProfileId,
+            npoEngagementId: $npoEngagementId,
+        );
+
+        if ($existing instanceof Document) {
+            if ($scanResult->isClean() && $existing->scanner_result !== Document::SCANNER_CLEAN) {
+                $before = [
+                    'scanner_result' => $existing->scanner_result,
+                    'scanner_payload' => $existing->scanner_payload,
+                ];
+
+                $existing->forceFill([
+                    'scanner_result' => Document::SCANNER_CLEAN,
+                    'scanner_payload' => $scanResult->toPayload(),
+                ])->save();
+
+                $this->auditWriter->record(
+                    action: 'document.scan_recovered',
+                    subject: $existing,
+                    before: $before,
+                    after: [
+                        'scanner_result' => $existing->scanner_result,
+                        'scanner_payload' => $existing->scanner_payload,
+                    ],
+                );
+            }
+
+            return $existing->refresh();
+        }
+
         $written = Storage::disk('secure_local')->put($storedPath, $contents);
         if ($written !== true) {
             throw new SecureFileStorageException('Secure disk rejected the encrypted write.');
@@ -71,12 +108,12 @@ final class SecureFileWriter
             'client_id' => $clientId,
             'entrepreneur_profile_id' => $entrepreneurProfileId,
             'npo_engagement_id' => $npoEngagementId,
-            'category' => $this->normaliseCategory($category),
+            'category' => $normalisedCategory,
             'original_filename' => $uploadedFile->getClientOriginalName(),
             'stored_path' => $storedPath,
             'byte_size' => strlen($contents),
             'mime_type' => $uploadedFile->getClientMimeType() ?: $uploadedFile->getMimeType(),
-            'sha256' => hash('sha256', $contents),
+            'sha256' => $sha256,
             'uploaded_by_user_id' => $owner?->getAuthIdentifier(),
             'scanner_result' => $scanResult->isError() ? Document::SCANNER_ERROR : Document::SCANNER_CLEAN,
             'scanner_payload' => $scanResult->toPayload(),
@@ -106,6 +143,46 @@ final class SecureFileWriter
         );
 
         return $document;
+    }
+
+    private function existingDocument(
+        ?Authenticatable $owner,
+        string $category,
+        string $sha256,
+        ?string $clientId,
+        ?string $entrepreneurProfileId,
+        ?string $npoEngagementId,
+    ): ?Document {
+        $query = Document::query()
+            ->where('category', $category)
+            ->where('sha256', $sha256)
+            ->whereIn('scanner_result', [
+                Document::SCANNER_PENDING,
+                Document::SCANNER_CLEAN,
+                Document::SCANNER_ERROR,
+            ]);
+
+        foreach ([
+            'client_id' => $clientId,
+            'entrepreneur_profile_id' => $entrepreneurProfileId,
+            'npo_engagement_id' => $npoEngagementId,
+        ] as $column => $value) {
+            $value === null
+                ? $query->whereNull($column)
+                : $query->where($column, $value);
+        }
+
+        if ($clientId === null && $entrepreneurProfileId === null && $npoEngagementId === null) {
+            $ownerId = $owner?->getAuthIdentifier();
+            $ownerId === null
+                ? $query->whereNull('uploaded_by_user_id')
+                : $query->where('uploaded_by_user_id', $ownerId);
+        }
+
+        return $query
+            ->orderByRaw("CASE WHEN scanner_result = 'clean' THEN 0 ELSE 1 END")
+            ->oldest()
+            ->first();
     }
 
     private function scan(string $path): ScanResult

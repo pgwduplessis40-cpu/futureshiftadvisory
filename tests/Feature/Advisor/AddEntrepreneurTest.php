@@ -815,13 +815,31 @@ final class AddEntrepreneurTest extends TestCase
             'sha256' => hash('sha256', 'unsafe until scanned'),
             'uploaded_by_user_id' => $entrepreneur->getKey(),
             'scanner_result' => Document::SCANNER_ERROR,
+            'scanner_payload' => [
+                'result' => 'error',
+                'message' => 'ClamAV daemon unavailable.',
+            ],
+        ]);
+        Document::query()->create([
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'category' => Document::CATEGORY_PLAN_ATTACHMENT,
+            'original_filename' => 'quarantined.docx',
+            'stored_path' => 'documents/quarantined-duplicate.docx',
+            'byte_size' => 20,
+            'mime_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'sha256' => $document->sha256,
+            'uploaded_by_user_id' => $entrepreneur->getKey(),
+            'scanner_result' => Document::SCANNER_ERROR,
+            'scanner_payload' => $document->scanner_payload,
         ]);
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.entrepreneurs.show', $profile))
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
+                ->has('entrepreneur.documents', 1)
                 ->where('entrepreneur.documents.0.scanner_result', Document::SCANNER_ERROR)
+                ->where('entrepreneur.documents.0.scanner_message', 'ClamAV daemon unavailable.')
                 ->where('entrepreneur.documents.0.url', null));
 
         $this->actingAsMfa($advisor)

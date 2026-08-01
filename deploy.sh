@@ -252,6 +252,9 @@ php artisan view:cache
 log "Configuring Laravel scheduler"
 configure_scheduler_cron
 
+log "Verifying malware scanner and recovering quarantined documents"
+php artisan fsa:rescan-quarantined-documents --probe --limit=1000
+
 log "Running authenticated operational health checks"
 php artisan fsa:operational-health-check --ensure-fixtures
 

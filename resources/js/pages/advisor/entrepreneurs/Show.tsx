@@ -2256,7 +2256,9 @@ function DocumentRow({ document }: { document: EntrepreneurDocument }) {
                               : 'outline'
                     }
                 >
-                    {scannerLabel(document.scanner_result)}
+                    {document.scanner_result === 'error'
+                        ? 'Scan unavailable'
+                        : scannerLabel(document.scanner_result)}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
                     {formatDate(document.uploaded_at)}
@@ -2280,7 +2282,10 @@ function DocumentRow({ document }: { document: EntrepreneurDocument }) {
                 { label: 'Category', value: categoryLabel(document.category) },
                 {
                     label: 'Scan',
-                    value: scannerLabel(document.scanner_result),
+                    value:
+                        document.scanner_result === 'error'
+                            ? 'Scan unavailable'
+                            : scannerLabel(document.scanner_result),
                     tone:
                         document.scanner_result === 'clean'
                             ? 'positive'
@@ -2298,7 +2303,7 @@ function DocumentRow({ document }: { document: EntrepreneurDocument }) {
             footer={
                 canOpen
                     ? 'Advisor document access opens the stored evidence file.'
-                    : 'This upload is quarantined because scanning did not complete. Ask the founder to upload the original file again.'
+                    : `${document.scanner_message ?? 'Malware scanning did not complete.'} The original upload is retained securely and will be retried automatically; the founder does not need to upload it again.`
             }
         >
             {canOpen ? (

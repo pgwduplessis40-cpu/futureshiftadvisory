@@ -5,7 +5,8 @@ declare(strict_types=1);
 $appEnv = env('APP_ENV', 'production');
 
 return [
-    'live' => env('FEATURE_VIRUS_SCAN_LIVE', false),
+    'live' => $appEnv === 'production'
+        || (bool) env('FEATURE_VIRUS_SCAN_LIVE', false),
 
     'allow_noop' => in_array($appEnv, ['local', 'testing'], true)
         && (bool) env('VIRUS_SCAN_ALLOW_NOOP', true),

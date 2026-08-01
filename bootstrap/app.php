@@ -14,6 +14,7 @@ use App\Console\Commands\ProcessScheduledPayments;
 use App\Console\Commands\RefreshEconomicIndicators;
 use App\Console\Commands\RefreshIndustryWacc;
 use App\Console\Commands\RefreshValuationMultiples;
+use App\Console\Commands\RescanQuarantinedDocuments;
 use App\Console\Commands\ReverifyBrokerFspRegistrations;
 use App\Console\Commands\RunActiveLayerEngine;
 use App\Console\Commands\RunBiasCalibration;
@@ -124,6 +125,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(AlertStuckRedIntegrations::class)
             ->everyFiveMinutes()
             ->name('fsa-integration-health-stuck-red-alerts')
+            ->withoutOverlapping();
+
+        $schedule->command(RescanQuarantinedDocuments::class, ['--probe' => true])
+            ->everyTenMinutes()
+            ->name('fsa-rescan-quarantined-documents')
             ->withoutOverlapping();
 
         $schedule->command(CheckReferenceDataFreshness::class)

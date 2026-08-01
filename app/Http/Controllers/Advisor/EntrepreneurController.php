@@ -1024,13 +1024,23 @@ final class EntrepreneurController extends Controller
             ->with('uploadedBy')
             ->where('entrepreneur_profile_id', $profile->getKey())
             ->latest()
-            ->limit(6)
             ->get()
+            ->groupBy(fn (Document $document): string => implode('|', [
+                $document->category,
+                $document->sha256 ?: $document->getKey(),
+            ]))
+            ->map(fn ($duplicates): Document => $duplicates->firstWhere(
+                'scanner_result',
+                Document::SCANNER_CLEAN,
+            ) ?? $duplicates->first())
+            ->sortByDesc('created_at')
+            ->take(6)
             ->map(fn (Document $document): array => [
                 'id' => $document->id,
                 'original_filename' => $document->original_filename,
                 'category' => $document->category,
                 'scanner_result' => $document->scanner_result,
+                'scanner_message' => data_get($document->scanner_payload, 'message'),
                 'uploaded_at' => $document->created_at?->toIso8601String(),
                 'uploaded_by_name' => $document->uploadedBy?->name,
                 'url' => $document->isVisibleToClients()
