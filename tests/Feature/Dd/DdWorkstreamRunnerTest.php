@@ -66,7 +66,9 @@ final class DdWorkstreamRunnerTest extends TestCase
             $this->assertSame(AnalysisRun::STATUS_COMPLETED, $record->analysisRun?->status);
             $this->assertSame(AnalysisModuleEnum::DdWorkstream, $record->analysisRun?->module);
 
-            $finding = $record->analysisRun?->findings()->first();
+            $finding = $record->analysisRun?->findings()
+                ->where('body', 'like', '%double-weighted%')
+                ->first();
             $this->assertInstanceOf(AnalysisFinding::class, $finding);
             $this->assertSame(AnalysisFinding::DOCUMENT_SUPPORT_VERIFIED, $finding->document_support);
             $this->assertNotSame([], $finding->attributions);
