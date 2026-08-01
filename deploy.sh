@@ -203,6 +203,41 @@ configure_scheduler_cron() {
     echo "Laravel scheduler cron entry is installed and verified."
 }
 
+ensure_malware_scanner() {
+    local service
+    local configured_service="${CLAMAV_SERVICE:-}"
+
+    if php artisan fsa:rescan-quarantined-documents --probe --limit=1; then
+        return
+    fi
+
+    log "Starting local ClamAV daemon"
+
+    for service in "$configured_service" clamav-daemon clamd@scan clamd; do
+        [ -n "$service" ] || continue
+
+        if systemctl cat "$service" >/dev/null 2>&1; then
+            $SUDO systemctl restart "$service"
+
+            for _ in $(seq 1 30); do
+                if php artisan fsa:rescan-quarantined-documents --probe --limit=1; then
+                    echo "ClamAV service '${service}' is ready."
+                    return
+                fi
+
+                sleep 2
+            done
+
+            echo "ERROR: ClamAV service '${service}' started but did not become ready." >&2
+            exit 1
+        fi
+    done
+
+    echo "ERROR: no reachable ClamAV endpoint or local daemon service was found." >&2
+    echo "Install clamav-daemon or configure CLAMAV_SOCKET/CLAMAV_HOST and CLAMAV_PORT." >&2
+    exit 1
+}
+
 log "Checking deployment checkout"
 clear_orphaned_git_index_lock
 restore_generated_wayfinder_checkout
@@ -253,6 +288,7 @@ log "Configuring Laravel scheduler"
 configure_scheduler_cron
 
 log "Verifying malware scanner and recovering quarantined documents"
+ensure_malware_scanner
 php artisan fsa:rescan-quarantined-documents --probe --limit=1000
 
 log "Running authenticated operational health checks"

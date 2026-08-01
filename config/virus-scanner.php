@@ -16,6 +16,7 @@ return [
         && (bool) env('VIRUS_SCAN_FAIL_OPEN_ON_ERROR', $appEnv === 'local'),
 
     'clamav' => [
+        'socket' => env('CLAMAV_SOCKET', '/var/run/clamav/clamd.ctl'),
         'host' => env('CLAMAV_HOST', '127.0.0.1'),
         'port' => (int) env('CLAMAV_PORT', 3310),
         'timeout_seconds' => (float) env('CLAMAV_TIMEOUT_SECONDS', 2),

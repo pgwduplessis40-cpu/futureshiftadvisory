@@ -17,22 +17,15 @@ final class ClamAvScanner implements FileScanner
             ]);
         }
 
-        $host = (string) Config::get('virus-scanner.clamav.host', '127.0.0.1');
-        $port = (int) Config::get('virus-scanner.clamav.port', 3310);
         $timeout = (float) Config::get('virus-scanner.clamav.timeout_seconds', 2);
         $chunkSize = max(1024, (int) Config::get('virus-scanner.clamav.chunk_size', 8192));
 
-        $errno = 0;
-        $errstr = '';
-        $socket = @fsockopen($host, $port, $errno, $errstr, $timeout);
+        [$socket, $endpoint, $connectionErrors] = $this->connect($timeout);
 
         if (! is_resource($socket)) {
             return ScanResult::error('ClamAV daemon unavailable.', [
                 'engine' => 'clamav',
-                'host' => $host,
-                'port' => $port,
-                'errno' => $errno,
-                'error' => $errstr,
+                'connection_errors' => $connectionErrors,
             ]);
         }
 
@@ -86,6 +79,7 @@ final class ClamAvScanner implements FileScanner
             if (str_contains($response, 'FOUND')) {
                 return ScanResult::infected($this->signatureFromResponse($response), [
                     'engine' => 'clamav',
+                    'endpoint' => $endpoint,
                     'response' => $response,
                 ]);
             }
@@ -93,17 +87,71 @@ final class ClamAvScanner implements FileScanner
             if (str_contains($response, 'OK')) {
                 return ScanResult::clean([
                     'engine' => 'clamav',
+                    'endpoint' => $endpoint,
                     'response' => $response,
                 ]);
             }
 
             return ScanResult::error('ClamAV returned an unrecognised scan response.', [
                 'engine' => 'clamav',
+                'endpoint' => $endpoint,
                 'response' => $response,
             ]);
         } finally {
             fclose($socket);
         }
+    }
+
+    /**
+     * @return array{0: mixed, 1: ?string, 2: array<int, array<string, mixed>>}
+     */
+    private function connect(float $timeout): array
+    {
+        $endpoints = [];
+        $socketPath = trim((string) Config::get('virus-scanner.clamav.socket', ''));
+
+        if ($socketPath !== '') {
+            $endpoints[] = [
+                'name' => 'unix',
+                'address' => 'unix://'.$socketPath,
+            ];
+        }
+
+        $host = trim((string) Config::get('virus-scanner.clamav.host', '127.0.0.1'));
+        $port = (int) Config::get('virus-scanner.clamav.port', 3310);
+
+        if ($host !== '' && $port > 0) {
+            $endpoints[] = [
+                'name' => 'tcp',
+                'address' => sprintf('tcp://%s:%d', $host, $port),
+            ];
+        }
+
+        $errors = [];
+
+        foreach ($endpoints as $endpoint) {
+            $errno = 0;
+            $errstr = '';
+            $socket = @stream_socket_client(
+                $endpoint['address'],
+                $errno,
+                $errstr,
+                $timeout,
+                STREAM_CLIENT_CONNECT,
+            );
+
+            if (is_resource($socket)) {
+                return [$socket, $endpoint['name'], $errors];
+            }
+
+            $errors[] = [
+                'endpoint' => $endpoint['name'],
+                'errno' => $errno,
+                'error' => $errstr,
+            ];
+        }
+
+        return [null, null, $errors];
     }
 
     /**

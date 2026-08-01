@@ -31,7 +31,7 @@ executables, and external Office relationships.
 `FileScanner` has three implementations:
 
 - `NoopScanner` for local/dev and test-safe operation only when `VIRUS_SCAN_ALLOW_NOOP=true`. It returns `clean`, including for the EICAR test fixture.
-- `ClamAvScanner` for production-style live mode. It talks to a ClamAV daemon via the INSTREAM TCP protocol when `FEATURE_VIRUS_SCAN_LIVE=true`.
+- `ClamAvScanner` for production-style live mode. It talks to a ClamAV daemon via the INSTREAM protocol, preferring `CLAMAV_SOCKET` and falling back to `CLAMAV_HOST`/`CLAMAV_PORT`.
 - `UnavailableScanner` for fail-closed operation when live scanning is disabled and no-op scanning is not allowed. It returns `error`, which quarantines uploads rather than marking them clean.
 
 If ClamAV cannot connect or returns an unknown response, the scan result is `error`.

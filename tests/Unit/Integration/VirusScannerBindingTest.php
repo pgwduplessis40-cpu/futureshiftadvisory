@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Integration;
 
 use App\Services\Integration\IntegrationActivationResolver;
+use App\Services\Integration\VirusScanner\ClamAvScanner;
 use App\Services\Integration\VirusScanner\Contracts\FileScanner;
 use App\Services\Integration\VirusScanner\NoopScanner;
 use App\Services\Integration\VirusScanner\UnavailableScanner;
@@ -75,5 +76,28 @@ final class VirusScannerBindingTest extends TestCase
 
         $this->assertTrue($resolver->readiness('virus_scanner'));
         $this->assertFalse($resolver->isLive('virus_scanner'));
+    }
+
+    public function test_clamav_scanner_falls_back_from_unix_socket_to_tcp_and_fails_closed(): void
+    {
+        Config::set('virus-scanner.clamav.socket', storage_path('missing-clamd.sock'));
+        Config::set('virus-scanner.clamav.host', '127.0.0.1');
+        Config::set('virus-scanner.clamav.port', 1);
+        Config::set('virus-scanner.clamav.timeout_seconds', 0.05);
+
+        $stream = fopen('php://temp', 'r+b');
+        $this->assertIsResource($stream);
+        fwrite($stream, 'safe test content');
+        rewind($stream);
+
+        $result = app(ClamAvScanner::class)->scan($stream);
+        fclose($stream);
+
+        $this->assertTrue($result->isError());
+        $this->assertSame('ClamAV daemon unavailable.', $result->message);
+        $this->assertSame(
+            ['unix', 'tcp'],
+            array_column($result->payload['connection_errors'], 'endpoint'),
+        );
     }
 }
