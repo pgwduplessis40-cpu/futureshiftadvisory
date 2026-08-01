@@ -8,11 +8,12 @@ use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentVerification;
+use App\Models\EntrepreneurProfile;
 use App\Models\MessageThread;
 use App\Models\Milestone;
 use App\Models\QuestionnaireResponse;
-use App\Models\ServiceActivation;
 use App\Services\DataQuality\QuestionnaireCompletenessCalculator;
+use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
 use App\Services\Entrepreneurs\PlanRequirements;
 use App\Support\Methodology\ProvidesMethodology;
 use Carbon\CarbonInterface;
@@ -50,7 +51,10 @@ final class ClientEngagementScorer implements ProvidesMethodology
         return ['engagement.score'];
     }
 
-    public function __construct(private readonly QuestionnaireCompletenessCalculator $questionnaires) {}
+    public function __construct(
+        private readonly QuestionnaireCompletenessCalculator $questionnaires,
+        private readonly CanonicalEntrepreneurWorkspace $entrepreneurWorkspaces,
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -102,7 +106,7 @@ final class ClientEngagementScorer implements ProvidesMethodology
             ->select('client_id', DB::raw('max(last_activity_at) as last_activity_at'))
             ->groupBy('client_id')
             ->pluck('last_activity_at', 'client_id');
-        $entrepreneurPlansByClient = $this->entrepreneurPlansByClient($clientIds);
+        $entrepreneurPlansByClient = $this->entrepreneurPlansByClient($clientCollection);
 
         return $clientCollection
             ->mapWithKeys(function (Client $client) use (
@@ -313,22 +317,13 @@ final class ClientEngagementScorer implements ProvidesMethodology
     }
 
     /**
-     * @param  array<int, string>  $clientIds
+     * @param  iterable<int, Client>  $clients
      * @return Collection<string, BusinessPlan>
      */
-    private function entrepreneurPlansByClient(array $clientIds): Collection
+    private function entrepreneurPlansByClient(iterable $clients): Collection
     {
-        $profileIdsByClient = ServiceActivation::query()
-            ->whereIn('client_id', $clientIds)
-            ->where('service_type', ServiceActivation::SERVICE_ENTREPRENEUR)
-            ->where('status', ServiceActivation::STATUS_ACTIVE)
-            ->whereNotNull('related_entrepreneur_profile_id')
-            ->get(['client_id', 'related_entrepreneur_profile_id', 'accepted_at'])
-            ->sortByDesc('accepted_at')
-            ->unique('client_id')
-            ->mapWithKeys(fn (ServiceActivation $activation): array => [
-                (string) $activation->client_id => (string) $activation->related_entrepreneur_profile_id,
-            ]);
+        $profileIdsByClient = $this->entrepreneurWorkspaces->forClients($clients)
+            ->map(fn (EntrepreneurProfile $profile): string => (string) $profile->getKey());
 
         if ($profileIdsByClient->isEmpty()) {
             return collect();

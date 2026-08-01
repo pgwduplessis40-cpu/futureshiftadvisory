@@ -3,20 +3,14 @@
 namespace App\Http\Middleware;
 
 use App\Enums\ClientStatus;
-use App\Models\AiUsageEvent;
 use App\Models\Client;
 use App\Models\User;
-use App\Services\Ai\AdvisorAiNotice;
-use App\Services\Ai\AiProviderManager;
 use App\Services\Notifications\NotificationCenter;
 use App\Services\Portal\OnboardingWizard;
 use App\Services\ServiceActivations\ServiceActivationNavigation;
 use App\Support\ReleaseVersion;
-use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
-use Throwable;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -69,10 +63,6 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
-            'aiNotice' => fn () => $request->user() instanceof User
-                && $this->canViewAdvisorAiNotice($request->user())
-                    ? $this->aiNotice()
-                    : null,
             'notificationSummary' => fn () => $request->user() instanceof User
                 ? app(NotificationCenter::class)->summary($request->user())
                 : null,
@@ -83,73 +73,6 @@ class HandleInertiaRequests extends Middleware
             'portalServices' => fn () => $this->portalServices($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function aiNotice(): ?array
-    {
-        $notice = app(AdvisorAiNotice::class);
-        $latest = $notice->latest();
-
-        if ($latest === null) {
-            return null;
-        }
-
-        if ($this->noticeSupersededBySuccessfulAiResponse($latest)) {
-            $notice->clear();
-
-            return null;
-        }
-
-        $reason = (string) ($latest['reason'] ?? '');
-        if (
-            str_contains($reason, 'not active or its credentials are missing')
-            && app(AiProviderManager::class)->activeProviderIsLive()
-        ) {
-            $notice->clear();
-
-            return null;
-        }
-
-        return $latest;
-    }
-
-    private function canViewAdvisorAiNotice(User $user): bool
-    {
-        return in_array($user->fsaRole(), [
-            User::TYPE_SUPER_ADMIN,
-            User::TYPE_ADVISOR,
-            User::TYPE_JUNIOR_ADVISOR,
-            User::TYPE_ENTREPRENEUR_MENTOR,
-        ], true);
-    }
-
-    /**
-     * @param  array<string, mixed>  $notice
-     */
-    private function noticeSupersededBySuccessfulAiResponse(array $notice): bool
-    {
-        if (! Schema::hasTable('ai_usage_events')) {
-            return false;
-        }
-
-        $recordedAt = data_get($notice, 'recorded_at');
-        if (! is_string($recordedAt) || trim($recordedAt) === '') {
-            return false;
-        }
-
-        try {
-            $recordedAt = CarbonImmutable::parse($recordedAt);
-        } catch (Throwable) {
-            return false;
-        }
-
-        return AiUsageEvent::query()
-            ->where('provider', app(AiProviderManager::class)->activeProviderKey())
-            ->where('occurred_at', '>=', $recordedAt)
-            ->exists();
     }
 
     private function portalClientModel(Request $request): ?Client

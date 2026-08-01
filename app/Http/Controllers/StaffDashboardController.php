@@ -39,12 +39,14 @@ use App\Models\StrategicBudget;
 use App\Models\StrategicPlan;
 use App\Models\TermsVersion;
 use App\Models\User;
+use App\Services\Ai\AdvisorAiNotice;
 use App\Services\Analytics\FunnelTracker;
 use App\Services\Dashboards\CashFlowStatusMonitor;
 use App\Services\Dashboards\ClientEngagementScorer;
 use App\Services\Dashboards\EconomicExposureMapper;
 use App\Services\Dashboards\PaymentStatusReport;
 use App\Services\EconomicData\EconomicIndicatorRefresher;
+use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Fees\ServiceRateManager;
 use App\Services\Npo\GovernanceReviewConversion;
@@ -89,6 +91,8 @@ final class StaffDashboardController extends Controller
         ReferenceDataFreshness $referenceDataFreshness,
         EntrepreneurInviteReconciler $entrepreneurInvites,
         ServiceRateManager $serviceRates,
+        CanonicalEntrepreneurWorkspace $entrepreneurWorkspaces,
+        AdvisorAiNotice $aiNotice,
     ): Response|RedirectResponse {
         $user = $request->user();
 
@@ -111,7 +115,7 @@ final class StaffDashboardController extends Controller
         }
 
         if ($user instanceof User && $this->usesAdvisorDashboard($user)) {
-            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $cashFlowStatus, $economicExposure, $paymentStatus, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals, $npoConversion, $npoFunders, $referenceDataFreshness, $serviceRates));
+            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $cashFlowStatus, $economicExposure, $paymentStatus, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals, $npoConversion, $npoFunders, $referenceDataFreshness, $serviceRates, $entrepreneurWorkspaces, $aiNotice));
         }
 
         if ($user instanceof User && $user->user_type === User::TYPE_BROKER) {
@@ -682,6 +686,8 @@ final class StaffDashboardController extends Controller
         NpoFunderMonitor $npoFunders,
         ReferenceDataFreshness $referenceDataFreshness,
         ServiceRateManager $serviceRates,
+        CanonicalEntrepreneurWorkspace $entrepreneurWorkspaces,
+        AdvisorAiNotice $aiNotice,
     ): array {
         $clientIds = $this->visibleClientIds($user);
         $pvWaterfall = $pvWaterfalls->forClients($clientIds);
@@ -695,6 +701,7 @@ final class StaffDashboardController extends Controller
                     ->whereIn('stage', EntrepreneurStage::activeCapacityValues())
                     ->count(),
                 $cashFlowStatusPayload['by_client'] ?? [],
+                $entrepreneurWorkspaces,
             ),
             'cashFlowStatus' => $cashFlowStatusPayload,
             'redFlags' => $this->redFlags($clientIds),
@@ -706,6 +713,7 @@ final class StaffDashboardController extends Controller
             'pendingTermsReacceptance' => $this->pendingTermsReacceptance($clientIds, $termsGate),
             'prospectInbox' => $this->prospectInbox(),
             'operationalHealth' => $this->operationalHealth($user),
+            'aiOperationalAlert' => $this->aiOperationalAlert($user, $aiNotice),
             'integrationHealth' => Inertia::defer(fn (): array => $this->integrationHealth($user), 'advisor-signals'),
             'economicIndicators' => Inertia::defer(fn (): array => $this->economicIndicators($clientIds, $economicExposure), 'advisor-signals'),
             'paymentStatus' => $paymentStatus->forClientIds($clientIds),
@@ -734,6 +742,39 @@ final class StaffDashboardController extends Controller
                 'methodology_id' => 'funnel.drop_off',
             ], 'advisor-signals'),
             'panelOperations' => $this->panelOperations($user, $clientIds),
+        ];
+    }
+
+    /**
+     * @return array{available:bool,total:int,reason:string|null,action_url:string|null}
+     */
+    private function aiOperationalAlert(User $user, AdvisorAiNotice $aiNotice): array
+    {
+        if (! $user->can(Permission::INTEGRATION_HEALTH_VIEW->value)) {
+            return [
+                'available' => false,
+                'total' => 0,
+                'reason' => null,
+                'action_url' => null,
+            ];
+        }
+
+        $notice = $aiNotice->actionable();
+
+        if ($notice === null) {
+            return [
+                'available' => true,
+                'total' => 0,
+                'reason' => null,
+                'action_url' => route('admin.integration-health.index', absolute: false),
+            ];
+        }
+
+        return [
+            'available' => true,
+            'total' => 1,
+            'reason' => trim((string) ($notice['reason'] ?? 'AI provider needs attention.')),
+            'action_url' => route('admin.integration-health.index', absolute: false),
         ];
     }
 
@@ -1644,19 +1685,13 @@ final class StaffDashboardController extends Controller
     private function clientsHealth(
         ?array $clientIds,
         ClientEngagementScorer $engagementScorer,
-        int $entrepreneurWorkspaces = 0,
-        array $cashFlowByClient = [],
+        int $entrepreneurWorkspaces,
+        array $cashFlowByClient,
+        CanonicalEntrepreneurWorkspace $canonicalWorkspaces,
     ): array {
         $query = $this->scopedClientQuery($clientIds);
         $totalClientWorkspaces = (clone $query)->count();
         $clients = $query
-            ->with([
-                'serviceActivations' => fn ($activationQuery) => $activationQuery
-                    ->where('service_type', ServiceActivation::SERVICE_ENTREPRENEUR)
-                    ->where('status', ServiceActivation::STATUS_ACTIVE)
-                    ->whereNotNull('related_entrepreneur_profile_id')
-                    ->with('entrepreneurProfile'),
-            ])
             ->orderBy('legal_name')
             ->limit(20)
             ->get();
@@ -1671,6 +1706,7 @@ final class StaffDashboardController extends Controller
         $latestDocumentActivity = $this->latestDocumentActivity($idsForActivity);
         $latestMessageActivity = $this->latestMessageActivity($idsForActivity);
         $engagementScores = $engagementScorer->scoreMany($clients);
+        $canonicalProfilesByClient = $canonicalWorkspaces->forClients($clients);
         $engagementCounts = collect($engagementScores)->countBy('level');
 
         $green = (int) ($engagementCounts['green'] ?? 0);
@@ -1693,7 +1729,7 @@ final class StaffDashboardController extends Controller
                 'needs_attention' => max($red, $cashFlowAttention),
             ],
             'clients' => $clients
-                ->map(function (Client $client) use ($engagementScores, $flagCounts, $latestDocumentActivity, $latestMessageActivity, $cashFlowByClient): array {
+                ->map(function (Client $client) use ($canonicalProfilesByClient, $engagementScores, $flagCounts, $latestDocumentActivity, $latestMessageActivity, $cashFlowByClient): array {
                     $clientId = (string) $client->getKey();
 
                     return $this->clientSummary(
@@ -1706,6 +1742,7 @@ final class StaffDashboardController extends Controller
                             $latestMessageActivity[$clientId] ?? null,
                         ),
                         is_array($cashFlowByClient[$clientId] ?? null) ? $cashFlowByClient[$clientId] : null,
+                        $canonicalProfilesByClient->get($clientId),
                     );
                 })
                 ->values()
@@ -1830,17 +1867,20 @@ final class StaffDashboardController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function clientSummary(Client $client, array $engagement, int $openDocumentFlags, ?Carbon $latestActivity, ?array $cashFlow): array
-    {
+    private function clientSummary(
+        Client $client,
+        array $engagement,
+        int $openDocumentFlags,
+        ?Carbon $latestActivity,
+        ?array $cashFlow,
+        ?EntrepreneurProfile $entrepreneurProfile = null,
+    ): array {
         $engagementType = $client->engagement_type instanceof EngagementType
             ? $client->engagement_type
             : EngagementType::from((string) $client->engagement_type);
         $status = $client->status instanceof ClientStatus
             ? $client->status
             : ClientStatus::from((string) ($client->status ?? ClientStatus::ACTIVE->value));
-        $entrepreneurProfile = $client->serviceActivations
-            ->first()
-            ?->entrepreneurProfile;
         $showUrl = $entrepreneurProfile instanceof EntrepreneurProfile
             ? route('advisor.entrepreneurs.show', $entrepreneurProfile, absolute: false)
             : route('advisor.clients.show', $client, absolute: false);

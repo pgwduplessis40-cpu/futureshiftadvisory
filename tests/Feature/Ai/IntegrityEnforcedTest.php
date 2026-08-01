@@ -51,7 +51,7 @@ final class IntegrityEnforcedTest extends TestCase
             ->once();
     }
 
-    public function test_degraded_ai_notice_is_shared_with_advisor_inertia_pages(): void
+    public function test_degraded_ai_notice_is_not_shared_with_inertia_pages(): void
     {
         Cache::put(AdvisorAiNotice::CACHE_KEY, [
             'message' => FakeAiClient::DEGRADED_TEXT,
@@ -69,43 +69,8 @@ final class IntegrityEnforcedTest extends TestCase
         ]));
 
         $shared = app(HandleInertiaRequests::class)->share($request);
-        $notice = $shared['aiNotice'];
 
-        $this->assertIsCallable($notice);
-        $this->assertSame(FakeAiClient::DEGRADED_TEXT, $notice()['message']);
-    }
-
-    public function test_degraded_ai_notice_is_not_shared_with_client_facing_roles(): void
-    {
-        Cache::put(AdvisorAiNotice::CACHE_KEY, [
-            'message' => FakeAiClient::DEGRADED_TEXT,
-            'reason' => 'Anthropic API key is not configured.',
-            'prompt_id' => 'summarise.smoke',
-            'recorded_at' => now()->toIso8601String(),
-        ], now()->addMinute());
-
-        foreach ([
-            User::TYPE_CLIENT_PRIMARY,
-            User::TYPE_CLIENT_TEAM,
-            User::TYPE_ENTREPRENEUR,
-            User::TYPE_BROKER,
-            User::TYPE_COACH,
-            User::TYPE_NPO_BOARD_MEMBER,
-        ] as $role) {
-            $request = Request::create('/portal');
-            $request->setUserResolver(fn () => new User([
-                'name' => 'Portal user',
-                'email' => $role.'@example.test',
-                'user_type' => $role,
-                'primary_role' => $role,
-            ]));
-
-            $shared = app(HandleInertiaRequests::class)->share($request);
-            $notice = $shared['aiNotice'];
-
-            $this->assertIsCallable($notice);
-            $this->assertNull($notice(), "The advisor AI notice was shared with {$role}.");
-        }
+        $this->assertArrayNotHasKey('aiNotice', $shared);
     }
 
     public function test_degraded_ai_notice_clears_after_later_successful_ai_usage(): void
@@ -127,19 +92,7 @@ final class IntegrityEnforcedTest extends TestCase
             'occurred_at' => now()->subMinute(),
         ]);
 
-        $request = Request::create('/advisor/entrepreneurs/example');
-        $request->setUserResolver(fn () => new User([
-            'name' => 'Advisor',
-            'email' => 'advisor@example.test',
-            'user_type' => User::TYPE_ADVISOR,
-            'primary_role' => User::TYPE_ADVISOR,
-        ]));
-
-        $shared = app(HandleInertiaRequests::class)->share($request);
-        $notice = $shared['aiNotice'];
-
-        $this->assertIsCallable($notice);
-        $this->assertNull($notice());
+        $this->assertNull(app(AdvisorAiNotice::class)->actionable());
         $this->assertNull(Cache::get(AdvisorAiNotice::CACHE_KEY));
     }
 

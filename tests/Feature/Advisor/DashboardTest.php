@@ -23,9 +23,11 @@ use App\Models\TermsAcceptance;
 use App\Models\TermsEnforcement;
 use App\Models\TermsVersion;
 use App\Models\User;
+use App\Services\Ai\AdvisorAiNotice;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -243,15 +245,28 @@ final class DashboardTest extends TestCase
             'canonical-founder@example.test',
         );
         $profile->forceFill(['client_id' => $client->getKey()])->save();
+        BusinessPlan::query()->create([
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'title' => 'Canonical founder plan',
+            'source_type' => BusinessPlan::SOURCE_ENTREPRENEUR,
+            'status' => BusinessPlan::STATUS_BUILDING,
+            'current_phase' => 5,
+            'created_by_user_id' => $profile->user_id,
+        ]);
+        $duplicate = $this->entrepreneurProfileFor(
+            $advisor,
+            'Empty duplicate workspace',
+            'canonical-empty-duplicate@example.test',
+        );
 
         ServiceActivation::query()->create([
             'client_id' => $client->getKey(),
-            'requested_by_user_id' => $profile->user_id,
+            'requested_by_user_id' => $duplicate->user_id,
             'advisor_id' => $advisor->getKey(),
             'service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
             'client_label' => 'Test new Business Idea',
             'status' => ServiceActivation::STATUS_ACTIVE,
-            'related_entrepreneur_profile_id' => $profile->getKey(),
+            'related_entrepreneur_profile_id' => $duplicate->getKey(),
             'accepted_at' => now(),
         ]);
 
@@ -279,6 +294,31 @@ final class DashboardTest extends TestCase
                     'entrepreneur.client_actions.offboard_url',
                     route('advisor.clients.offboarding.create', $client, absolute: false),
                 ));
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $duplicate))
+            ->assertRedirect($showUrl);
+    }
+
+    public function test_advisor_dashboard_surfaces_ai_provider_failure_as_an_action(): void
+    {
+        $advisor = $this->advisor('ai-provider-action@example.test');
+        $advisor->givePermissionTo(Permission::INTEGRATION_HEALTH_VIEW->value);
+        Cache::put(AdvisorAiNotice::CACHE_KEY, [
+            'message' => 'AI analysis deferred.',
+            'reason' => 'Anthropic API request failed with status 400.',
+            'prompt_id' => 'entrepreneur.idea_validation',
+            'recorded_at' => now()->toIso8601String(),
+        ], now()->addMinute());
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('aiOperationalAlert.available', true)
+                ->where('aiOperationalAlert.total', 1)
+                ->where('aiOperationalAlert.reason', 'Anthropic API request failed with status 400.')
+                ->where('aiOperationalAlert.action_url', route('admin.integration-health.index', absolute: false)));
     }
 
     private function advisor(string $email): User

@@ -5,6 +5,7 @@ import {
     ArrowRightLeft,
     Banknote,
     BarChart3,
+    BrainCircuit,
     CheckCircle2,
     Clock,
     CreditCard,
@@ -274,6 +275,13 @@ type OperationalHealthPayload = {
         consecutive_failures: number | null;
         failures_last_7_days: number | null;
     } | null;
+};
+
+type AiOperationalAlertPayload = {
+    available: boolean;
+    total: number;
+    reason: string | null;
+    action_url: string | null;
 };
 
 type EconomicIndicatorsPayload = {
@@ -844,6 +852,7 @@ type Props = {
     pendingTermsReacceptance: PendingTermsPayload;
     prospectInbox: ProspectInboxPayload;
     operationalHealth: OperationalHealthPayload;
+    aiOperationalAlert: AiOperationalAlertPayload;
     integrationHealth?: IntegrationHealthPayload;
     economicIndicators?: EconomicIndicatorsPayload;
     pvWaterfall: PvWaterfallPayload;
@@ -874,6 +883,7 @@ export default function AdvisorDashboard({
     pendingTermsReacceptance,
     prospectInbox,
     operationalHealth,
+    aiOperationalAlert,
     integrationHealth,
     economicIndicators,
     pvWaterfall,
@@ -905,6 +915,7 @@ export default function AdvisorDashboard({
         paymentStatus,
         feeStatus,
         operationalHealth,
+        aiOperationalAlert,
         pvWaterfall,
         practiceHealth,
         npoPendingConversions,
@@ -1450,6 +1461,7 @@ function buildActionSummaryItems({
     paymentStatus,
     feeStatus,
     operationalHealth,
+    aiOperationalAlert,
     pvWaterfall,
     practiceHealth,
     npoPendingConversions,
@@ -1470,6 +1482,7 @@ function buildActionSummaryItems({
     | 'paymentStatus'
     | 'feeStatus'
     | 'operationalHealth'
+    | 'aiOperationalAlert'
     | 'pvWaterfall'
     | 'practiceHealth'
     | 'npoPendingConversions'
@@ -1494,6 +1507,27 @@ function buildActionSummaryItems({
     const coachApprovalActionCount = panelOperations.approvals.summary.coach;
     const operationalHealthActionCount =
         operationalHealth.summary.failed + operationalHealth.summary.warning;
+    const aiOperationalAction =
+        aiOperationalAlert.available &&
+        aiOperationalAlert.action_url &&
+        aiOperationalAlert.total > 0
+            ? {
+                  key: 'ai-provider-health',
+                  label: 'AI provider',
+                  value: aiOperationalAlert.total,
+                  statusLabel: 'Attention',
+                  href: aiOperationalAlert.action_url,
+                  targetId: 'advisor-command-centre',
+                  tab: 'priorities' as const,
+                  priority: 'critical' as const,
+                  explanation:
+                      'An AI provider failure needs administrator attention. Client and founder work stays available while the provider issue is investigated.',
+                  nextStep:
+                      aiOperationalAlert.reason ??
+                      'Open API health to review the provider failure and current usage costs.',
+                  icon: <BrainCircuit className="size-4" aria-hidden="true" />,
+              }
+            : null;
     const operationalHealthAction =
         operationalHealth.index_url && operationalHealthActionCount > 0
             ? {
@@ -1570,6 +1604,7 @@ function buildActionSummaryItems({
             : null;
 
     return [
+        ...(aiOperationalAction ? [aiOperationalAction] : []),
         ...(operationalHealthAction ? [operationalHealthAction] : []),
         {
             key: 'cash-flow-risks',

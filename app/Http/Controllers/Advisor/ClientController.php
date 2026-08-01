@@ -45,6 +45,7 @@ use App\Services\Dashboards\PaymentStatusReport;
 use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdOnboarding;
+use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
 use App\Services\Fees\ProposalPricingTerms;
 use App\Services\Goals\GoalTracker;
 use App\Services\Integration\IntegrationActivationResolver;
@@ -83,6 +84,7 @@ final class ClientController extends Controller
         private readonly IntegrationActivationResolver $integrations,
         private readonly ProposalBrief $proposalBriefs,
         private readonly ProposalPricingTerms $pricing,
+        private readonly CanonicalEntrepreneurWorkspace $entrepreneurWorkspaces,
     ) {}
 
     public function index(Request $request, EconomicExposureMapper $economicExposure): Response
@@ -625,17 +627,7 @@ final class ClientController extends Controller
 
     private function activeEntrepreneurWorkspace(Client $client): ?EntrepreneurProfile
     {
-        $profileId = ServiceActivation::query()
-            ->where('client_id', $client->getKey())
-            ->where('service_type', ServiceActivation::SERVICE_ENTREPRENEUR)
-            ->where('status', ServiceActivation::STATUS_ACTIVE)
-            ->whereNotNull('related_entrepreneur_profile_id')
-            ->latest('accepted_at')
-            ->value('related_entrepreneur_profile_id');
-
-        return is_string($profileId)
-            ? EntrepreneurProfile::query()->find($profileId)
-            : null;
+        return $this->entrepreneurWorkspaces->forClient($client);
     }
 
     /**

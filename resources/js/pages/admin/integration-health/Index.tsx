@@ -72,6 +72,11 @@ type AiProviderAttemptsPeriod = {
 type AiUsage = {
     today: AiUsagePeriod;
     month: AiUsagePeriod;
+    previous_month: AiUsagePeriod;
+    periods: {
+        month_label: string;
+        previous_month_label: string;
+    };
     budget: {
         monthly_budget_usd: number | null;
         remaining_usd: number | null;
@@ -84,6 +89,7 @@ type AiUsage = {
         nzd_rate: number | null;
         today_estimated_cost_nzd: number | null;
         month_estimated_cost_nzd: number | null;
+        previous_month_estimated_cost_nzd: number | null;
     };
     official: {
         configured: boolean;
@@ -258,7 +264,7 @@ export default function IntegrationHealthIndex({
                         </Badge>
                     </div>
 
-                    <div className="grid gap-3 md:grid-cols-4">
+                    <div className="grid gap-3 md:grid-cols-5">
                         <Metric
                             label="Today"
                             value={formatCurrency(
@@ -267,11 +273,18 @@ export default function IntegrationHealthIndex({
                             explanation={`${formatNumber(aiUsage.today.total_tokens)} tokens across ${aiUsage.today.requests} AI calls today.`}
                         />
                         <Metric
-                            label="Month to date"
+                            label={`Month to date (${aiUsage.periods.month_label})`}
                             value={formatCurrency(
                                 aiUsage.month.estimated_cost_usd,
                             )}
                             explanation={`${formatNumber(aiUsage.month.total_tokens)} tokens across ${aiUsage.month.requests} AI calls this month.`}
+                        />
+                        <Metric
+                            label={`Previous month (${aiUsage.periods.previous_month_label})`}
+                            value={formatCurrency(
+                                aiUsage.previous_month.estimated_cost_usd,
+                            )}
+                            explanation={`${formatNumber(aiUsage.previous_month.total_tokens)} tokens across ${aiUsage.previous_month.requests} completed AI calls last month.`}
                         />
                         <Metric
                             label="Budget"
@@ -314,7 +327,8 @@ export default function IntegrationHealthIndex({
                                                 colSpan={4}
                                             >
                                                 No completed AI responses
-                                                recorded this month.
+                                                recorded in{' '}
+                                                {aiUsage.periods.month_label}.
                                             </td>
                                         </tr>
                                     ) : (
@@ -386,6 +400,22 @@ export default function IntegrationHealthIndex({
                                         : formatCurrency(
                                               aiUsage.currency
                                                   .month_estimated_cost_nzd,
+                                              'NZD',
+                                          )}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-muted-foreground">
+                                    Previous month estimate
+                                </span>
+                                <span className="font-medium">
+                                    {aiUsage.currency
+                                        .previous_month_estimated_cost_nzd ===
+                                    null
+                                        ? 'Set rate'
+                                        : formatCurrency(
+                                              aiUsage.currency
+                                                  .previous_month_estimated_cost_nzd,
                                               'NZD',
                                           )}
                                 </span>

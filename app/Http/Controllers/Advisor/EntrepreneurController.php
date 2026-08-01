@@ -30,6 +30,7 @@ use App\Models\SurveyAssignment;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
+use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\Entrepreneurs\FounderChangeRequestMessage;
 use App\Services\Entrepreneurs\IdeaViabilityGate;
@@ -58,6 +59,7 @@ final class EntrepreneurController extends Controller
         private readonly EntrepreneurGamification $gamification,
         private readonly FounderChangeRequestMessage $changeRequestMessages,
         private readonly IdeaViabilityGate $ideaViabilityGate,
+        private readonly CanonicalEntrepreneurWorkspace $entrepreneurWorkspaces,
         private readonly ScreenShareAuthorizer $screenShareAuthorizer,
         private readonly SurveyActivationService $surveyActivations,
     ) {}
@@ -374,9 +376,17 @@ final class EntrepreneurController extends Controller
             ->with('status', 'entrepreneur-invite-cancelled');
     }
 
-    public function show(Request $request, EntrepreneurProfile $entrepreneurProfile): Response
+    public function show(Request $request, EntrepreneurProfile $entrepreneurProfile): Response|RedirectResponse
     {
         Gate::authorize('view', $entrepreneurProfile);
+        $canonicalProfile = $this->entrepreneurWorkspaces->forProfile($entrepreneurProfile);
+
+        if (! $canonicalProfile->is($entrepreneurProfile)) {
+            Gate::authorize('view', $canonicalProfile);
+
+            return to_route('advisor.entrepreneurs.show', $canonicalProfile);
+        }
+
         $viewer = $this->actor($request);
 
         $entrepreneurProfile->loadMissing([

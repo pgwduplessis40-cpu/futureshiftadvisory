@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Ai;
 
+use App\Models\AiUsageEvent;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 final class AdvisorAiNotice
@@ -55,5 +58,63 @@ final class AdvisorAiNotice
         $payload = Cache::get(self::CACHE_KEY);
 
         return is_array($payload) ? $payload : null;
+    }
+
+    /**
+     * Return only an unresolved provider failure suitable for staff action.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function actionable(): ?array
+    {
+        $latest = $this->latest();
+
+        if ($latest === null) {
+            return null;
+        }
+
+        if ($this->supersededBySuccessfulAiResponse($latest)) {
+            $this->clear();
+
+            return null;
+        }
+
+        $reason = (string) ($latest['reason'] ?? '');
+        if (
+            str_contains($reason, 'not active or its credentials are missing')
+            && app(AiProviderManager::class)->activeProviderIsLive()
+        ) {
+            $this->clear();
+
+            return null;
+        }
+
+        return $latest;
+    }
+
+    /**
+     * @param  array<string, mixed>  $notice
+     */
+    private function supersededBySuccessfulAiResponse(array $notice): bool
+    {
+        if (! Schema::hasTable('ai_usage_events')) {
+            return false;
+        }
+
+        $recordedAt = data_get($notice, 'recorded_at');
+        if (! is_string($recordedAt) || trim($recordedAt) === '') {
+            return false;
+        }
+
+        try {
+            $recordedAt = CarbonImmutable::parse($recordedAt);
+        } catch (Throwable) {
+            return false;
+        }
+
+        return AiUsageEvent::query()
+            ->where('provider', app(AiProviderManager::class)->activeProviderKey())
+            ->where('occurred_at', '>=', $recordedAt)
+            ->exists();
     }
 }

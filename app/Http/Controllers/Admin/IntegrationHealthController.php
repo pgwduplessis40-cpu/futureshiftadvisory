@@ -136,21 +136,31 @@ final class IntegrationHealthController extends Controller
     private function aiUsagePayload(): array
     {
         $now = now();
+        $monthStart = $now->copy()->startOfMonth();
+        $previousMonthStart = $monthStart->copy()->subMonthNoOverflow()->startOfMonth();
+        $previousMonthEnd = $monthStart->copy()->subSecond();
         $today = $this->usagePeriod($now->copy()->startOfDay(), $now);
-        $month = $this->usagePeriod($now->copy()->startOfMonth(), $now);
+        $month = $this->usagePeriod($monthStart, $now);
+        $previousMonth = $this->usagePeriod($previousMonthStart, $previousMonthEnd);
         $budgetUsd = config('ai.costs.monthly_budget_usd');
         $usdToNzdRate = config('ai.costs.usd_to_nzd_rate');
 
         return [
             'today' => $today,
             'month' => $month,
+            'previous_month' => $previousMonth,
+            'periods' => [
+                'month_label' => $monthStart->format('F Y'),
+                'previous_month_label' => $previousMonthStart->format('F Y'),
+            ],
             'budget' => $this->budgetPayload($month['estimated_cost_usd'], is_numeric($budgetUsd) ? (float) $budgetUsd : null),
-            'breakdown' => $this->modelBreakdown($now->copy()->startOfMonth(), $now),
+            'breakdown' => $this->modelBreakdown($monthStart, $now),
             'currency' => [
                 'base' => 'USD',
                 'nzd_rate' => is_numeric($usdToNzdRate) ? (float) $usdToNzdRate : null,
                 'today_estimated_cost_nzd' => $this->toNzd($today['estimated_cost_usd']),
                 'month_estimated_cost_nzd' => $this->toNzd($month['estimated_cost_usd']),
+                'previous_month_estimated_cost_nzd' => $this->toNzd($previousMonth['estimated_cost_usd']),
             ],
             'official' => $this->anthropicOfficialCostPayload($now),
             'provider_attempts' => [
