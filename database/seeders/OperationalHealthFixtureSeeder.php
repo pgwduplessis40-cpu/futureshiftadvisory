@@ -18,6 +18,7 @@ use App\Models\Template;
 use App\Models\TermsAcceptance;
 use App\Models\TermsVersion;
 use App\Models\User;
+use App\Support\RequestContext;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -28,61 +29,63 @@ use Spatie\Permission\Models\Role;
 
 final class OperationalHealthFixtureSeeder extends Seeder
 {
-    public function run(): void
+    public function run(RequestContext $requestContext): void
     {
-        DB::transaction(function (): void {
-            $admin = $this->monitorUser('super_admin_email', User::TYPE_SUPER_ADMIN, 'Operational Health Admin');
-            $clientUser = $this->monitorUser('client_email', User::TYPE_CLIENT_PRIMARY, 'Operational Health Client');
-            $ddUser = $this->monitorUser('dd_client_email', User::TYPE_CLIENT_PRIMARY, 'Operational Health DD Client');
-            $entrepreneurUser = $this->monitorUser('entrepreneur_email', User::TYPE_ENTREPRENEUR, 'Operational Health Entrepreneur');
+        $requestContext->withSystemContext(function (): void {
+            DB::transaction(function (): void {
+                $admin = $this->monitorUser('super_admin_email', User::TYPE_SUPER_ADMIN, 'Operational Health Admin');
+                $clientUser = $this->monitorUser('client_email', User::TYPE_CLIENT_PRIMARY, 'Operational Health Client');
+                $ddUser = $this->monitorUser('dd_client_email', User::TYPE_CLIENT_PRIMARY, 'Operational Health DD Client');
+                $entrepreneurUser = $this->monitorUser('entrepreneur_email', User::TYPE_ENTREPRENEUR, 'Operational Health Entrepreneur');
 
-            foreach ([$admin, $clientUser, $ddUser, $entrepreneurUser] as $user) {
-                $this->acceptLatestTerms($user);
-            }
+                foreach ([$admin, $clientUser, $ddUser, $entrepreneurUser] as $user) {
+                    $this->acceptLatestTerms($user);
+                }
 
-            $standardClient = $this->client(
-                legalName: 'Operational Health Standard Advisory Fixture',
-                tradingName: 'Operational Health Standard',
-                engagementType: EngagementType::STANDARD_ADVISORY,
-                primaryContact: $clientUser,
-                admin: $admin,
-            );
-            $this->attachToClient($standardClient, $clientUser, 'primary_contact', [
-                'portal',
-                EngagementType::STANDARD_ADVISORY->value,
-            ]);
-            $this->attachToClient($standardClient, $admin, 'lead_advisor', [
-                'portal',
-                EngagementType::STANDARD_ADVISORY->value,
-            ]);
-            $this->document(
-                path: 'operational-health/client-documents/client-portal-fixture.pdf',
-                originalName: 'operational-health-client-document.pdf',
-                label: 'Operational health client portal document',
-                category: Document::CATEGORY_FINANCIAL_STATEMENT,
-                uploader: $clientUser,
-                client: $standardClient,
-            );
+                $standardClient = $this->client(
+                    legalName: 'Operational Health Standard Advisory Fixture',
+                    tradingName: 'Operational Health Standard',
+                    engagementType: EngagementType::STANDARD_ADVISORY,
+                    primaryContact: $clientUser,
+                    admin: $admin,
+                );
+                $this->attachToClient($standardClient, $clientUser, 'primary_contact', [
+                    'portal',
+                    EngagementType::STANDARD_ADVISORY->value,
+                ]);
+                $this->attachToClient($standardClient, $admin, 'lead_advisor', [
+                    'portal',
+                    EngagementType::STANDARD_ADVISORY->value,
+                ]);
+                $this->document(
+                    path: 'operational-health/client-documents/client-portal-fixture.pdf',
+                    originalName: 'operational-health-client-document.pdf',
+                    label: 'Operational health client portal document',
+                    category: Document::CATEGORY_FINANCIAL_STATEMENT,
+                    uploader: $clientUser,
+                    client: $standardClient,
+                );
 
-            $ddClient = $this->client(
-                legalName: 'Operational Health Due Diligence Fixture',
-                tradingName: 'Operational Health DD',
-                engagementType: EngagementType::DUE_DILIGENCE,
-                primaryContact: $ddUser,
-                admin: $admin,
-            );
-            $this->attachToClient($ddClient, $ddUser, 'primary_contact', [
-                'portal',
-                EngagementType::DUE_DILIGENCE->value,
-            ]);
-            $this->attachToClient($ddClient, $admin, 'lead_advisor', [
-                'portal',
-                EngagementType::DUE_DILIGENCE->value,
-            ]);
-            $this->ddEngagement($ddClient, $admin);
+                $ddClient = $this->client(
+                    legalName: 'Operational Health Due Diligence Fixture',
+                    tradingName: 'Operational Health DD',
+                    engagementType: EngagementType::DUE_DILIGENCE,
+                    primaryContact: $ddUser,
+                    admin: $admin,
+                );
+                $this->attachToClient($ddClient, $ddUser, 'primary_contact', [
+                    'portal',
+                    EngagementType::DUE_DILIGENCE->value,
+                ]);
+                $this->attachToClient($ddClient, $admin, 'lead_advisor', [
+                    'portal',
+                    EngagementType::DUE_DILIGENCE->value,
+                ]);
+                $this->ddEngagement($ddClient, $admin);
 
-            $this->entrepreneurProfile($entrepreneurUser, $admin);
-            $this->template($admin);
+                $this->entrepreneurProfile($entrepreneurUser, $admin);
+                $this->template($admin);
+            });
         });
     }
 
