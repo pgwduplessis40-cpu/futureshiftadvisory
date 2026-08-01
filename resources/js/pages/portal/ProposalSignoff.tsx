@@ -889,9 +889,7 @@ function AuthorityFields({
                 }),
             });
             const payload = (await response.json().catch(() => null)) as
-                | StripeSetupIntentPayload
-                | StripeErrorPayload
-                | null;
+                StripeSetupIntentPayload | StripeErrorPayload | null;
 
             if (!response.ok) {
                 throw new Error(stripeSetupErrorMessage(payload));

@@ -188,10 +188,10 @@ export default function PortalSurveyShow({
                             {question.type !== 'likert' &&
                                 question.type !== 'nps' &&
                                 question.help_text && (
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                    {question.help_text}
-                                </p>
-                            )}
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        {question.help_text}
+                                    </p>
+                                )}
 
                             {question.type === 'likert' && (
                                 <RatingQuestion
@@ -524,7 +524,12 @@ function scaleOptions(question: Question): ScaleOption[] {
 
         return {
             value,
-            label: value === min ? minLabel : value === max ? maxLabel : String(value),
+            label:
+                value === min
+                    ? minLabel
+                    : value === max
+                      ? maxLabel
+                      : String(value),
         };
     });
 }

@@ -148,12 +148,18 @@ export default function SurveyResults({
                                                             }
                                                         >
                                                             <div className="font-medium">
-                                                                {comment.question}
-                                                                {comment.score !== null &&
+                                                                {
+                                                                    comment.question
+                                                                }
+                                                                {comment.score !==
+                                                                    null &&
                                                                     comment.scale_max !==
                                                                         null && (
                                                                         <span className="ml-2 font-normal text-muted-foreground">
-                                                                            {comment.score}/
+                                                                            {
+                                                                                comment.score
+                                                                            }
+                                                                            /
                                                                             {
                                                                                 comment.scale_max
                                                                             }
@@ -169,7 +175,8 @@ export default function SurveyResults({
                                             </div>
                                         ) : (
                                             <span className="text-sm text-muted-foreground">
-                                                No written feedback or rating explanations
+                                                No written feedback or rating
+                                                explanations
                                             </span>
                                         )}
                                     </td>
