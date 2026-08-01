@@ -172,15 +172,14 @@ jobs:
           DEPLOY_VERSION: ${{ needs.bump-patch-version.outputs.version }}
         run: |
           test -n "$DEPLOY_PATH" || { echo "Missing production deployment secret: DEPLOY_PATH" >&2; exit 1; }
-          # An older deploy can leave generated Wayfinder helpers dirty before
-          # the checkout has pulled the self-healing deploy script. Reset only
-          # those generated directories, fast-forward to the exact released
-          # commit, and only then execute that release's deploy.sh. This makes
-          # deployment-script fixes effective in the release that contains them.
+          # An older deploy can leave its own script or generated Wayfinder
+          # helpers dirty before the checkout has pulled the self-healing deploy
+          # script. Reset only those deployment-managed paths, fast-forward to
+          # the exact released commit, and then execute that release's deploy.sh.
           deploy_log="$RUNNER_TEMP/production-deploy.log"
           set +e
           ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "cd '$DEPLOY_PATH' && if [ -e .git/index.lock ]; then command -v pgrep >/dev/null 2>&1 || { echo 'Cannot verify stale Git lock ownership because pgrep is unavailable.' >&2; exit 1; }; if pgrep -x git >/dev/null 2>&1; then echo 'A Git process is running; refusing to remove .git/index.lock.' >&2; exit 1; fi; echo 'Removing orphaned .git/index.lock.'; rm -f -- .git/index.lock; fi && git restore --worktree --source=HEAD -- resources/js/actions resources/js/routes && git clean -fd -- resources/js/actions resources/js/routes && if [ -n \"\$(git status --porcelain)\" ]; then echo 'Deployment checkout is dirty before release bootstrap.' >&2; git status --short; exit 1; fi && git fetch origin main && git merge --ff-only '$DEPLOY_COMMIT' && test \"\$(git rev-parse HEAD)\" = '$DEPLOY_COMMIT' && chmod 755 deploy.sh && DEPLOY_EXPECTED_COMMIT='$DEPLOY_COMMIT' DEPLOY_EXPECTED_VERSION='$DEPLOY_VERSION' bash ./deploy.sh" \
+            "cd '$DEPLOY_PATH' && if [ -e .git/index.lock ]; then command -v pgrep >/dev/null 2>&1 || { echo 'Cannot verify stale Git lock ownership because pgrep is unavailable.' >&2; exit 1; }; if pgrep -x git >/dev/null 2>&1; then echo 'A Git process is running; refusing to remove .git/index.lock.' >&2; exit 1; fi; echo 'Removing orphaned .git/index.lock.'; rm -f -- .git/index.lock; fi && git restore --worktree --source=HEAD -- deploy.sh resources/js/actions resources/js/routes && git clean -fd -- resources/js/actions resources/js/routes && if [ -n \"\$(git status --porcelain)\" ]; then echo 'Deployment checkout is dirty before release bootstrap.' >&2; git status --short; exit 1; fi && git fetch origin main && git merge --ff-only '$DEPLOY_COMMIT' && test \"\$(git rev-parse HEAD)\" = '$DEPLOY_COMMIT' && chmod 755 deploy.sh && DEPLOY_EXPECTED_COMMIT='$DEPLOY_COMMIT' DEPLOY_EXPECTED_VERSION='$DEPLOY_VERSION' bash ./deploy.sh" \
             2>&1 | tee "$deploy_log"
           deploy_exit="${PIPESTATUS[0]}"
           set -e
