@@ -192,12 +192,26 @@ final class SurveyResponseRecorder
             default => [null, null, null],
         };
 
+        $comment = match ($question->type) {
+            SurveyQuestionType::Likert, SurveyQuestionType::Nps => $this->optionalComment(
+                is_array($entry) ? ($entry['comment'] ?? null) : null,
+                "answers.{$questionId}.comment",
+                $errors,
+            ),
+            default => null,
+        };
+
+        $answerValue = $value === null ? null : ['value' => $value];
+        if ($comment !== null && $answerValue !== null) {
+            $answerValue['comment'] = $comment;
+        }
+
         return [
             'question_id' => $questionId,
             'question_type' => $question->type->value,
             'anchor_ref' => null,
             'answer_key' => null,
-            'value' => $value === null ? null : ['value' => $value],
+            'value' => $answerValue,
             'numeric_value' => $numeric,
             'normalised_score' => $normalisedScore,
         ];
@@ -359,6 +373,35 @@ final class SurveyResponseRecorder
         }
 
         return [$value, null, null];
+    }
+
+    /**
+     * @param  array<string, string>  $errors
+     */
+    private function optionalComment(mixed $raw, string $field, array &$errors): ?string
+    {
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        if (! is_string($raw)) {
+            $errors[$field] = 'Enter a written explanation.';
+
+            return null;
+        }
+
+        $value = trim($raw);
+        if ($value === '') {
+            return null;
+        }
+
+        if (mb_strlen($value) > 2000) {
+            $errors[$field] = 'Your explanation may not exceed 2,000 characters.';
+
+            return null;
+        }
+
+        return $value;
     }
 
     /**

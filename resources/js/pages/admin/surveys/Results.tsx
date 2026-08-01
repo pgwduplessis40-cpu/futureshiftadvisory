@@ -19,6 +19,8 @@ type ResponsePayload = {
     comments: Array<{
         question: string;
         value: string;
+        score: number | null;
+        scale_max: number | null;
     }>;
 };
 
@@ -146,9 +148,17 @@ export default function SurveyResults({
                                                             }
                                                         >
                                                             <div className="font-medium">
-                                                                {
-                                                                    comment.question
-                                                                }
+                                                                {comment.question}
+                                                                {comment.score !== null &&
+                                                                    comment.scale_max !==
+                                                                        null && (
+                                                                        <span className="ml-2 font-normal text-muted-foreground">
+                                                                            {comment.score}/
+                                                                            {
+                                                                                comment.scale_max
+                                                                            }
+                                                                        </span>
+                                                                    )}
                                                             </div>
                                                             <p className="whitespace-pre-wrap text-muted-foreground">
                                                                 {comment.value}
@@ -159,7 +169,7 @@ export default function SurveyResults({
                                             </div>
                                         ) : (
                                             <span className="text-sm text-muted-foreground">
-                                                No written feedback
+                                                No written feedback or rating explanations
                                             </span>
                                         )}
                                     </td>

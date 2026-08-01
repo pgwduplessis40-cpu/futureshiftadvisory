@@ -78,6 +78,7 @@ final class ClientExperienceSurveyTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('portal/surveys/Show')
                 ->where('assignment.id', $assignment->id)
+                ->where('assignment.questions.0.options.0.label', 'Very poor')
                 ->has('assignment.deliverables', 1));
 
         $this->actingAsMfa($clientUser)
@@ -182,7 +183,7 @@ final class ClientExperienceSurveyTest extends TestCase
         $this->assertDatabaseCount('survey_responses', 1);
     }
 
-    public function test_advisor_results_surface_assignments_and_scores(): void
+    public function test_advisor_results_surface_assignments_scores_and_rating_explanations(): void
     {
         [$clientUser, $client] = $this->clientUserWithClient('results-client@example.test');
         $admin = $this->superAdmin('results-admin@example.test');
@@ -195,9 +196,14 @@ final class ClientExperienceSurveyTest extends TestCase
 
         $assignment = SurveyAssignment::query()->sole();
 
+        $answers = $this->answersFor($assignment);
+        $overallQuestion = $assignment->survey->questions->firstWhere('key', 'overall_experience');
+        $this->assertInstanceOf(SurveyQuestion::class, $overallQuestion);
+        $answers[$overallQuestion->id]['comment'] = 'The report was useful, but a worked example would make the next step clearer.';
+
         $this->actingAsMfa($clientUser)
             ->post(route('portal.surveys.submit', $assignment), [
-                'answers' => $this->answersFor($assignment),
+                'answers' => $answers,
             ]);
 
         $this->actingAsMfa($admin)
@@ -208,7 +214,9 @@ final class ClientExperienceSurveyTest extends TestCase
                 ->where('subject.name', $client->legal_name)
                 ->where('results.summary.assignments', 1)
                 ->where('results.summary.completed', 1)
-                ->where('results.items.0.response.nps_score', 8));
+                ->where('results.items.0.response.nps_score', 8)
+                ->where('results.items.0.response.feedback.0.score', 4)
+                ->where('results.items.0.response.feedback.0.value', 'The report was useful, but a worked example would make the next step clearer.'));
     }
 
     public function test_client_portal_dashboard_surfaces_pending_survey_click_through(): void

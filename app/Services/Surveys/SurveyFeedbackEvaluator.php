@@ -28,8 +28,12 @@ final class SurveyFeedbackEvaluator
             ->filter(fn ($answer): bool => $answer->question?->type === SurveyQuestionType::Text)
             ->filter(fn ($answer): bool => is_string(data_get($answer->value, 'value')) && trim((string) data_get($answer->value, 'value')) !== '')
             ->count();
+        $ratingComments = $response->answers
+            ->filter(fn ($answer): bool => in_array($answer->question?->type, [SurveyQuestionType::Likert, SurveyQuestionType::Nps], true))
+            ->filter(fn ($answer): bool => is_string(data_get($answer->value, 'comment')) && trim((string) data_get($answer->value, 'comment')) !== '')
+            ->count();
 
-        if (! $lowOverall && ! $lowNps && $negativeAnchors === 0 && (! $isServiceImprovement || $writtenFeedback === 0)) {
+        if (! $lowOverall && ! $lowNps && $negativeAnchors === 0 && $writtenFeedback === 0 && $ratingComments === 0) {
             return null;
         }
 
@@ -66,7 +70,7 @@ final class SurveyFeedbackEvaluator
             ],
             'summary' => $isServiceImprovement
                 ? 'Service improvement survey feedback is ready for review before changing the delivered service.'
-                : 'Client experience survey feedback indicates follow-up may be needed on a delivered advisory item.',
+                : 'Client experience survey feedback is ready for review.',
             'proposed_change' => [
                 'action' => $isServiceImprovement ? 'review_service_improvement_feedback' : 'review_client_experience_feedback',
                 'automatic_application' => false,
@@ -86,6 +90,7 @@ final class SurveyFeedbackEvaluator
                 'nps_score' => $response->nps_score,
                 'negative_anchor_count' => $negativeAnchors,
                 'written_feedback_count' => $writtenFeedback,
+                'rating_comment_count' => $ratingComments,
                 'answer_count' => $response->answers->count(),
             ],
             'status' => LearningUpdate::STATUS_DETECTED,

@@ -27,6 +27,12 @@ type AssignmentItem = {
         overall_score: number | null;
         nps_score: number | null;
         submitted_at: string | null;
+        feedback: Array<{
+            question: string;
+            score: number | null;
+            scale_max: number;
+            value: string;
+        }>;
     } | null;
 };
 
@@ -188,6 +194,9 @@ export default function AdvisorSurveyResults({
                                     <th className="px-3 py-2 font-medium">
                                         NPS
                                     </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Rating feedback
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -232,6 +241,49 @@ export default function AdvisorSurveyResults({
                                         >
                                             {formatScore(
                                                 item.response?.nps_score,
+                                            )}
+                                        </td>
+                                        <td
+                                            className="max-w-md px-3 py-2 align-top"
+                                            data-label="Rating feedback"
+                                        >
+                                            {item.response?.feedback.length ? (
+                                                <div className="space-y-2 text-sm">
+                                                    {item.response.feedback.map(
+                                                        (feedback) => (
+                                                            <div
+                                                                key={`${feedback.question}:${feedback.score}`}
+                                                            >
+                                                                <div className="font-medium">
+                                                                    {
+                                                                        feedback.question
+                                                                    }
+                                                                    {feedback.score !==
+                                                                        null && (
+                                                                        <span className="ml-2 font-normal text-muted-foreground">
+                                                                            {
+                                                                                feedback.score
+                                                                            }
+                                                                            /
+                                                                            {
+                                                                                feedback.scale_max
+                                                                            }
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <p className="whitespace-pre-wrap text-muted-foreground">
+                                                                    {
+                                                                        feedback.value
+                                                                    }
+                                                                </p>
+                                                            </div>
+                                                        ),
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="text-sm text-muted-foreground">
+                                                    No rating explanation
+                                                </span>
                                             )}
                                         </td>
                                     </tr>

@@ -261,10 +261,14 @@ final class SurveyController extends Controller
                     'nps_score' => $response->nps_score,
                     'service' => $response->assignment?->service_snapshot,
                     'comments' => $response->answers
-                        ->filter(fn ($answer): bool => $answer->question?->type === SurveyQuestionType::Text)
+                        ->filter(fn ($answer): bool => $answer->question?->type === SurveyQuestionType::Text || is_string(data_get($answer->value, 'comment')))
                         ->map(fn ($answer): array => [
                             'question' => $answer->question?->prompt ?? 'Feedback',
-                            'value' => is_string(data_get($answer->value, 'value')) ? data_get($answer->value, 'value') : '',
+                            'value' => $answer->question?->type === SurveyQuestionType::Text
+                                ? (is_string(data_get($answer->value, 'value')) ? data_get($answer->value, 'value') : '')
+                                : (is_string(data_get($answer->value, 'comment')) ? data_get($answer->value, 'comment') : ''),
+                            'score' => $answer->question?->type === SurveyQuestionType::Text ? null : $answer->numeric_value,
+                            'scale_max' => $answer->question?->type === SurveyQuestionType::Nps ? 10 : 5,
                         ])
                         ->filter(fn (array $comment): bool => $comment['value'] !== '')
                         ->values(),

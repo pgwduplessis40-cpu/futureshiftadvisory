@@ -35,6 +35,7 @@ type AnchorAnswer = {
 
 type FormAnswer = {
     value?: number | boolean | string | null;
+    comment?: string;
     anchors?: AnchorAnswer[];
 };
 
@@ -60,8 +61,18 @@ type Props = {
     indexUrl: string;
 };
 
-const likert = [1, 2, 3, 4, 5];
-const nps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+type ScaleOption = {
+    value: number;
+    label: string;
+};
+
+const defaultLikertOptions: ScaleOption[] = [
+    { value: 1, label: 'Very poor' },
+    { value: 2, label: 'Poor' },
+    { value: 3, label: 'Acceptable' },
+    { value: 4, label: 'Good' },
+    { value: 5, label: 'Excellent' },
+];
 
 export default function PortalSurveyShow({
     assignment,
@@ -83,6 +94,16 @@ export default function PortalSurveyShow({
             [questionId]: {
                 ...form.data.answers[questionId],
                 value,
+            },
+        });
+    };
+
+    const setComment = (questionId: string, comment: string) => {
+        form.setData('answers', {
+            ...form.data.answers,
+            [questionId]: {
+                ...form.data.answers[questionId],
+                comment,
             },
         });
     };
@@ -164,48 +185,40 @@ export default function PortalSurveyShow({
                             <h2 className="text-sm font-medium">
                                 {question.prompt}
                             </h2>
-                            {question.help_text && (
+                            {question.type !== 'likert' &&
+                                question.type !== 'nps' &&
+                                question.help_text && (
                                 <p className="mt-1 text-sm text-muted-foreground">
                                     {question.help_text}
                                 </p>
                             )}
 
                             {question.type === 'likert' && (
-                                <div className="mt-4 grid grid-cols-5 gap-2">
-                                    {likert.map((value) => (
-                                        <ScaleButton
-                                            key={value}
-                                            active={
-                                                form.data.answers[question.id]
-                                                    ?.value === value
-                                            }
-                                            disabled={!assignment.is_open}
-                                            label={String(value)}
-                                            onClick={() =>
-                                                setFlat(question.id, value)
-                                            }
-                                        />
-                                    ))}
-                                </div>
+                                <RatingQuestion
+                                    question={question}
+                                    answer={form.data.answers[question.id]}
+                                    disabled={!assignment.is_open}
+                                    onSelect={(value) =>
+                                        setFlat(question.id, value)
+                                    }
+                                    onComment={(comment) =>
+                                        setComment(question.id, comment)
+                                    }
+                                />
                             )}
 
                             {question.type === 'nps' && (
-                                <div className="mt-4 grid grid-cols-6 gap-2 sm:grid-cols-11">
-                                    {nps.map((value) => (
-                                        <ScaleButton
-                                            key={value}
-                                            active={
-                                                form.data.answers[question.id]
-                                                    ?.value === value
-                                            }
-                                            disabled={!assignment.is_open}
-                                            label={String(value)}
-                                            onClick={() =>
-                                                setFlat(question.id, value)
-                                            }
-                                        />
-                                    ))}
-                                </div>
+                                <RatingQuestion
+                                    question={question}
+                                    answer={form.data.answers[question.id]}
+                                    disabled={!assignment.is_open}
+                                    onSelect={(value) =>
+                                        setFlat(question.id, value)
+                                    }
+                                    onComment={(comment) =>
+                                        setComment(question.id, comment)
+                                    }
+                                />
                             )}
 
                             {question.type === 'boolean' && (
@@ -350,6 +363,16 @@ export default function PortalSurveyShow({
                                     ] as string | undefined
                                 }
                             />
+                            {(question.type === 'likert' ||
+                                question.type === 'nps') && (
+                                <InputError
+                                    message={
+                                        form.errors[
+                                            `answers.${question.id}.comment` as keyof typeof form.errors
+                                        ] as string | undefined
+                                    }
+                                />
+                            )}
                         </section>
                     ))}
 
@@ -376,6 +399,171 @@ export default function PortalSurveyShow({
         </>
     );
 }
+
+function RatingQuestion({
+    question,
+    answer,
+    disabled,
+    onSelect,
+    onComment,
+}: {
+    question: Question;
+    answer: FormAnswer | undefined;
+    disabled: boolean;
+    onSelect: (value: number) => void;
+    onComment: (comment: string) => void;
+}) {
+    const options = scaleOptions(question);
+    const value = typeof answer?.value === 'number' ? answer.value : null;
+    const selected = options.find((option) => option.value === value) ?? null;
+    const isLikert = question.type === 'likert';
+    const first = options.at(0);
+    const last = options.at(-1);
+
+    return (
+        <div className="mt-4 space-y-3">
+            <p className="text-sm text-muted-foreground">
+                {ratingGuidance(question)}
+            </p>
+            <div
+                className={cn(
+                    'grid gap-2',
+                    isLikert ? 'grid-cols-5' : 'grid-cols-6 sm:grid-cols-11',
+                )}
+                role="group"
+                aria-label={question.prompt}
+            >
+                {options.map((option) => (
+                    <ScaleButton
+                        key={option.value}
+                        active={value === option.value}
+                        disabled={disabled}
+                        label={String(option.value)}
+                        onClick={() => onSelect(option.value)}
+                    />
+                ))}
+            </div>
+            {first && last && (
+                <div className="flex justify-between gap-4 text-xs text-muted-foreground">
+                    <span>
+                        {first.value} - {first.label}
+                    </span>
+                    <span className="text-right">
+                        {last.value} - {last.label}
+                    </span>
+                </div>
+            )}
+            {selected && (
+                <div className="space-y-2 border-l-2 border-[var(--fs-teal)] pl-3">
+                    <p className="text-sm text-muted-foreground">
+                        You selected {selected.value} - {selected.label}.
+                    </p>
+                    <label
+                        htmlFor={`rating-comment-${question.id}`}
+                        className="text-sm font-medium"
+                    >
+                        What would help us understand this rating?{' '}
+                        <span className="font-normal text-muted-foreground">
+                            Optional
+                        </span>
+                    </label>
+                    <textarea
+                        id={`rating-comment-${question.id}`}
+                        value={answer?.comment ?? ''}
+                        disabled={disabled}
+                        maxLength={2000}
+                        rows={3}
+                        placeholder="Add the detail that gives this score its context."
+                        onChange={(event) => onComment(event.target.value)}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
+                    />
+                </div>
+            )}
+        </div>
+    );
+}
+
+function scaleOptions(question: Question): ScaleOption[] {
+    if (question.type === 'likert') {
+        const options = Array.isArray(question.options)
+            ? question.options
+                  .map((option): ScaleOption | null => {
+                      if (
+                          !option ||
+                          typeof option !== 'object' ||
+                          !('value' in option) ||
+                          !('label' in option) ||
+                          typeof option.value !== 'number' ||
+                          typeof option.label !== 'string'
+                      ) {
+                          return null;
+                      }
+
+                      return { value: option.value, label: option.label };
+                  })
+                  .filter((option): option is ScaleOption => option !== null)
+            : [];
+
+        return options.length > 0 ? options : defaultLikertOptions;
+    }
+
+    const settings = isRecord(question.options) ? question.options : {};
+    const min = typeof settings.min === 'number' ? settings.min : 0;
+    const max = typeof settings.max === 'number' ? settings.max : 10;
+    const minLabel =
+        typeof settings.min_label === 'string'
+            ? settings.min_label
+            : 'Not at all likely';
+    const maxLabel =
+        typeof settings.max_label === 'string'
+            ? settings.max_label
+            : 'Extremely likely';
+
+    return Array.from({ length: max - min + 1 }, (_, index) => {
+        const value = min + index;
+
+        return {
+            value,
+            label: value === min ? minLabel : value === max ? maxLabel : String(value),
+        };
+    });
+}
+
+function ratingGuidance(question: Question): string {
+    if (question.help_text) {
+        return question.help_text;
+    }
+
+    return (
+        ratingQuestionGuidance[question.key] ??
+        (question.type === 'nps'
+            ? 'Rate how likely you would be to recommend this experience, then add context for the score you choose.'
+            : 'Use 1 for very poor and 5 for excellent. Add context for the score you choose.')
+    );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+const ratingQuestionGuidance: Record<string, string> = {
+    overall_experience:
+        'Consider the full experience of receiving the advice and supporting material. Use 1 for very poor and 5 for excellent.',
+    recommendation:
+        'Consider whether you would recommend Future Shift Advisory based on this experience. Zero means not at all likely; 10 means extremely likely.',
+    objectives_met:
+        'Rate how well the work addressed the objective agreed for this engagement. Use 1 for very poor and 5 for excellent.',
+    service_fit:
+        'Rate how well this completed service addressed the need you engaged us for. Use 1 for very poor and 5 for excellent.',
+    practical_value:
+        'Rate how useful the advice or output has been in helping you take the next practical step. Use 1 for very poor and 5 for excellent.',
+    process_clarity:
+        'Rate the clarity of the process, expectations, and next steps throughout the service. Use 1 for very poor and 5 for excellent.',
+    timeliness:
+        'Rate whether the timing and pace of the service worked for you. Use 1 for very poor and 5 for excellent.',
+    recommend_service:
+        'Consider whether you would recommend this specific service to another business. Zero means not at all likely; 10 means extremely likely.',
+};
 
 function initialAnswers(assignment: Assignment): Record<string, FormAnswer> {
     return Object.fromEntries(

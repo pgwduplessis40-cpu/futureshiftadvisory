@@ -43,7 +43,7 @@ final class SurveyResultAggregator
     private function payload(Builder $assignments, Builder $responses): array
     {
         $items = $assignments
-            ->with(['survey', 'response'])
+            ->with(['survey', 'response.answers.question'])
             ->latest('activated_at')
             ->limit(50)
             ->get()
@@ -60,6 +60,16 @@ final class SurveyResultAggregator
                     'overall_score' => $assignment->response->overall_score,
                     'nps_score' => $assignment->response->nps_score,
                     'submitted_at' => $assignment->response->submitted_at?->toIso8601String(),
+                    'feedback' => $assignment->response->answers
+                        ->filter(fn ($answer): bool => is_string(data_get($answer->value, 'comment')) && trim((string) data_get($answer->value, 'comment')) !== '')
+                        ->map(fn ($answer): array => [
+                            'question' => $answer->question?->prompt ?? 'Rating feedback',
+                            'score' => $answer->numeric_value,
+                            'scale_max' => $answer->question?->type?->value === 'nps' ? 10 : 5,
+                            'value' => (string) data_get($answer->value, 'comment'),
+                        ])
+                        ->values()
+                        ->all(),
                 ] : null,
             ])
             ->values()

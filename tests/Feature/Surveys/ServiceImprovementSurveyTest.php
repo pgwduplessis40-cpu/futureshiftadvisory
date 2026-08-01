@@ -79,9 +79,17 @@ final class ServiceImprovementSurveyTest extends TestCase
                 ->component('portal/surveys/Show')
                 ->where('assignment.service.service_label', 'Explore buying a business'));
 
+        $answers = $this->answersFor($assignment);
+        $serviceFitQuestion = $assignment->survey->questions->firstWhere('key', 'service_fit');
+        $this->assertInstanceOf(SurveyQuestion::class, $serviceFitQuestion);
+        $answers[$serviceFitQuestion->id] = [
+            'value' => 3,
+            'comment' => 'The advice was useful, but more time to apply it between sessions would improve the fit.',
+        ];
+
         $this->actingAsMfa($clientUser)
             ->post(route('portal.surveys.submit', $assignment), [
-                'answers' => $this->answersFor($assignment),
+                'answers' => $answers,
             ])
             ->assertRedirect(route('portal.surveys.index', absolute: false));
 
@@ -90,6 +98,8 @@ final class ServiceImprovementSurveyTest extends TestCase
         $this->assertSame(SurveyAssignmentStatus::Completed, $assignment->refresh()->status);
         $this->assertSame('Reduce the time between our workshop and the written follow-up.', $response->answers
             ->firstWhere('question.key', 'improve_next_time')?->value['value']);
+        $this->assertSame('The advice was useful, but more time to apply it between sessions would improve the fit.', $response->answers
+            ->firstWhere('question.key', 'service_fit')?->value['comment']);
         $this->assertDatabaseHas('learning_updates', [
             'layer_id' => LayerCadenceRegistry::LAYER_SERVICE_ACTIVATION,
             'status' => LearningUpdate::STATUS_DETECTED,
