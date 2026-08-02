@@ -19,6 +19,8 @@ final class SurveyLibrary
 
     public const DEFAULT_VERSION = '1.0';
 
+    public const SERVICE_IMPROVEMENT_VERSION = '1.1';
+
     public function ensureDefault(?User $creator = null): Survey
     {
         $survey = Survey::query()
@@ -103,7 +105,7 @@ final class SurveyLibrary
     {
         $survey = Survey::query()
             ->where('key', self::SERVICE_IMPROVEMENT_KEY)
-            ->where('version', self::DEFAULT_VERSION)
+            ->where('version', self::SERVICE_IMPROVEMENT_VERSION)
             ->where('type', SurveyType::ServiceImprovement->value)
             ->first();
 
@@ -114,16 +116,18 @@ final class SurveyLibrary
         return DB::transaction(function () use ($creator): Survey {
             $survey = Survey::query()->create([
                 'key' => self::SERVICE_IMPROVEMENT_KEY,
-                'version' => self::DEFAULT_VERSION,
+                'version' => self::SERVICE_IMPROVEMENT_VERSION,
                 'type' => SurveyType::ServiceImprovement->value,
                 'title' => 'Service improvement survey',
                 'description' => 'Feedback on a completed Future Shift Advisory service to guide continuous improvement.',
-                'status' => SurveyStatus::Draft->value,
+                'status' => SurveyStatus::Published->value,
                 'settings' => [
                     'allow_free_text' => true,
                     'service_activation_required' => true,
                 ],
                 'created_by_user_id' => $creator?->getKey(),
+                'published_by_user_id' => $creator?->getKey(),
+                'published_at' => now(),
             ]);
 
             $questions = [
@@ -209,6 +213,17 @@ final class SurveyLibrary
             foreach ($questions as $question) {
                 $survey->questions()->create($question);
             }
+
+            Survey::query()
+                ->where('key', self::SERVICE_IMPROVEMENT_KEY)
+                ->where('version', self::DEFAULT_VERSION)
+                ->where('type', SurveyType::ServiceImprovement->value)
+                ->where('status', SurveyStatus::Published->value)
+                ->update([
+                    'status' => SurveyStatus::Archived->value,
+                    'archived_at' => now(),
+                    'updated_at' => now(),
+                ]);
 
             return $survey->load('questions');
         });

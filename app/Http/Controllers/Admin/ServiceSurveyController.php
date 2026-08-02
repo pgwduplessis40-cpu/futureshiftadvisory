@@ -123,6 +123,8 @@ final class ServiceSurveyController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 403);
 
+        $library->ensureServiceImprovement($user);
+
         $survey = Survey::query()
             ->published()
             ->where('type', SurveyType::ServiceImprovement->value)

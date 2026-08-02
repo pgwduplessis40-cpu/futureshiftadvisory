@@ -15,7 +15,9 @@ use App\Models\DocumentVerification;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
 use App\Models\IntegrationHealthSample;
+use App\Models\PlanAssessment;
 use App\Models\ProspectLead;
+use App\Models\RatingFramework;
 use App\Models\RedFlag;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRateSetting;
@@ -25,6 +27,7 @@ use App\Models\TermsVersion;
 use App\Models\User;
 use App\Services\Ai\AdvisorAiNotice;
 use App\Support\RequestContext;
+use Database\Seeders\RatingFrameworkSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -188,6 +191,14 @@ final class DashboardTest extends TestCase
             'current_phase' => 1,
             'created_by_user_id' => $profile->user_id,
         ]);
+        $this->seed(RatingFrameworkSeeder::class);
+        $assessment = PlanAssessment::query()->create([
+            'business_plan_id' => $plan->getKey(),
+            'rating_framework_id' => RatingFramework::query()->firstOrFail()->getKey(),
+            'round' => 1,
+            'ai_scores' => [],
+            'overall_grade' => 'needs_work',
+        ]);
 
         $this->actingAsMfa($advisor)
             ->get(route('dashboard'))
@@ -209,7 +220,9 @@ final class DashboardTest extends TestCase
                 ->where('entrepreneurReviews.items.1.type', 'business_plan')
                 ->where('entrepreneurReviews.items.1.label', 'Business plan')
                 ->where('entrepreneurReviews.items.1.entrepreneur_name', 'Wessel Du Plessis')
-                ->where('entrepreneurReviews.items.1.action_label', 'Finalise review')
+                ->where('entrepreneurReviews.items.1.status', 'Assessment ready for feedback')
+                ->where('entrepreneurReviews.items.1.action_label', 'Review assessment')
+                ->where('entrepreneurReviews.items.1.detail_url', route('advisor.entrepreneurs.assessments.show', [$profile, $assessment], absolute: false))
                 ->has('entrepreneurReviews.items', 2));
     }
 

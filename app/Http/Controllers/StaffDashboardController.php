@@ -27,6 +27,7 @@ use App\Models\OperationalHealthCheckResult;
 use App\Models\OperationalHealthCheckRun;
 use App\Models\PanelAgreement;
 use App\Models\PanelMember;
+use App\Models\PlanAssessment;
 use App\Models\Proposal;
 use App\Models\ProspectLead;
 use App\Models\RedFlag;
@@ -848,7 +849,10 @@ final class StaffDashboardController extends Controller
                 fn (Builder $query): Builder => $this->visibleEntrepreneurQuery($query, $user),
             );
         $planQuery = BusinessPlan::query()
-            ->with('entrepreneurProfile')
+            ->with([
+                'entrepreneurProfile',
+                'assessments' => fn ($query) => $query->latest('round')->latest(),
+            ])
             ->where('source_type', BusinessPlan::SOURCE_ENTREPRENEUR)
             ->whereIn('status', [
                 BusinessPlan::STATUS_SUBMITTED,
@@ -932,6 +936,8 @@ final class StaffDashboardController extends Controller
     private function entrepreneurPlanReviewItem(BusinessPlan $plan): array
     {
         $profile = $plan->entrepreneurProfile;
+        $assessment = $plan->assessments->first();
+        $assessmentReady = $assessment instanceof PlanAssessment;
 
         return [
             'id' => $plan->id,
@@ -940,16 +946,18 @@ final class StaffDashboardController extends Controller
             'entrepreneur_id' => $profile?->id,
             'entrepreneur_name' => $profile?->name ?? 'Entrepreneur',
             'entrepreneur_email' => $profile?->email,
-            'status' => $plan->status === BusinessPlan::STATUS_SUBMITTED
-                ? 'Submitted for assessment'
-                : 'Assessment in progress',
+            'status' => $assessmentReady
+                ? 'Assessment ready for feedback'
+                : 'Submitted for assessment',
             'submitted_at' => $plan->submitted_at?->toIso8601String() ?? $plan->updated_at?->toIso8601String(),
-            'detail_url' => $profile instanceof EntrepreneurProfile
-                ? route('advisor.entrepreneurs.show', $profile, absolute: false)
-                : null,
-            'action_label' => $plan->status === BusinessPlan::STATUS_SUBMITTED
-                ? 'Run assessment'
-                : 'Finalise review',
+            'detail_url' => $profile instanceof EntrepreneurProfile && $assessmentReady
+                ? route('advisor.entrepreneurs.assessments.show', [$profile, $assessment], absolute: false)
+                : ($profile instanceof EntrepreneurProfile
+                    ? route('advisor.entrepreneurs.show', $profile, absolute: false)
+                    : null),
+            'action_label' => $assessmentReady
+                ? 'Review assessment'
+                : 'Run assessment',
         ];
     }
 

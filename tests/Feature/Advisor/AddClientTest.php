@@ -164,8 +164,9 @@ final class AddClientTest extends TestCase
                 ->where('defaults.return_to', route('advisor.clients.index', ['engagement_type' => EngagementType::NPO->value], absolute: false))
                 ->where('engagementTypes.0.value', EngagementType::STANDARD_ADVISORY->value)
                 ->where('engagementTypes.1.value', EngagementType::DUE_DILIGENCE->value)
-                ->where('engagementTypes.2.value', EngagementType::NPO->value)
-                ->has('engagementTypes', 3));
+                ->where('engagementTypes.2.value', EngagementType::POST_ACQUISITION_ADVISORY->value)
+                ->where('engagementTypes.3.value', EngagementType::NPO->value)
+                ->has('engagementTypes', 4));
     }
 
     public function test_advisor_can_invite_due_diligence_client_from_filtered_path(): void
@@ -194,6 +195,42 @@ final class AddClientTest extends TestCase
         $client = Client::query()->firstOrFail();
         $this->assertSame(EngagementType::DUE_DILIGENCE, $client->engagement_type);
         $this->assertSame('buyer.client@example.com', $client->registry_sources['invite_email']);
+        $this->assertSame((string) $invite->getKey(), (string) $client->registry_sources['invite_token_id']);
+        $this->assertDatabaseHas('client_team', [
+            'client_id' => $client->id,
+            'user_id' => $advisor->id,
+            'role' => 'lead_advisor',
+        ]);
+        $this->assertDatabaseHas('audit_events', ['action' => 'client.invite_issued']);
+        Mail::assertSent(InvitationMail::class, 1);
+    }
+
+    public function test_advisor_can_invite_post_acquisition_advisory_client(): void
+    {
+        Mail::fake();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+        $returnTo = route('advisor.clients.index', ['engagement_type' => EngagementType::POST_ACQUISITION_ADVISORY->value], absolute: false);
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.clients.invite.store'), [
+                'email' => 'settled.buyer@example.com',
+                'engagement_type' => EngagementType::POST_ACQUISITION_ADVISORY->value,
+                'return_to' => $returnTo,
+            ])
+            ->assertRedirect($returnTo)
+            ->assertSessionHas('status', 'client-invited');
+
+        $invite = InviteToken::query()->firstOrFail();
+        $client = Client::query()->firstOrFail();
+
+        $this->assertSame('settled.buyer@example.com', $invite->email);
+        $this->assertSame(User::TYPE_CLIENT_PRIMARY, $invite->target_user_type);
+        $this->assertSame(User::TYPE_CLIENT_PRIMARY, $invite->target_role);
+        $this->assertNull($invite->intended_service_type);
+        $this->assertSame(EngagementType::POST_ACQUISITION_ADVISORY, $client->engagement_type);
+        $this->assertSame(EngagementType::POST_ACQUISITION_ADVISORY->value, $client->registry_sources['invite_engagement_type']);
+        $this->assertSame('settled.buyer@example.com', $client->registry_sources['invite_email']);
         $this->assertSame((string) $invite->getKey(), (string) $client->registry_sources['invite_token_id']);
         $this->assertDatabaseHas('client_team', [
             'client_id' => $client->id,

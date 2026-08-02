@@ -120,6 +120,43 @@ final class ServiceImprovementSurveyTest extends TestCase
         $this->assertDatabaseCount('survey_assignments', 0);
     }
 
+    public function test_builtin_service_survey_upgrade_publishes_v1_1_and_preserves_the_v1_0_template(): void
+    {
+        $this->survey->delete();
+
+        $legacy = Survey::query()->create([
+            'key' => SurveyLibrary::SERVICE_IMPROVEMENT_KEY,
+            'version' => SurveyLibrary::DEFAULT_VERSION,
+            'type' => 'service_improvement',
+            'title' => 'Service improvement survey',
+            'status' => SurveyStatus::Published->value,
+        ]);
+        $legacy->questions()->create([
+            'order' => 1,
+            'type' => 'likert',
+            'key' => 'service_fit',
+            'prompt' => 'How well did this service meet the need you engaged us for?',
+            'help_text' => null,
+            'options' => [
+                ['value' => 1, 'label' => 'Very poor'],
+                ['value' => 5, 'label' => 'Excellent'],
+            ],
+            'required' => true,
+        ]);
+
+        $updated = app(SurveyLibrary::class)->ensureServiceImprovement($this->superAdmin('service-survey-upgrade@example.test'));
+
+        $this->assertSame(SurveyLibrary::SERVICE_IMPROVEMENT_VERSION, $updated->version);
+        $this->assertSame(SurveyStatus::Published, $updated->status);
+        $this->assertNotNull($updated->published_at);
+        $this->assertSame(
+            'Consider how well this completed service addressed the need you engaged us for.',
+            $updated->questions->firstWhere('key', 'service_fit')?->help_text,
+        );
+        $this->assertSame(SurveyStatus::Archived, $legacy->refresh()->status);
+        $this->assertNull($legacy->questions()->firstOrFail()->help_text);
+    }
+
     public function test_super_admin_can_issue_service_survey_to_an_advisory_ready_entrepreneur(): void
     {
         $admin = $this->superAdmin('entrepreneur-service-survey-admin@example.test');
@@ -156,6 +193,7 @@ final class ServiceImprovementSurveyTest extends TestCase
         $assignment = SurveyAssignment::query()->with('survey.questions')->sole();
 
         $this->assertNull($assignment->client_id);
+        $this->assertSame(SurveyLibrary::SERVICE_IMPROVEMENT_VERSION, $assignment->survey->version);
         $this->assertSame($profile->id, $assignment->entrepreneur_profile_id);
         $this->assertNull($assignment->service_activation_id);
         $this->assertSame('entrepreneur_profile', $assignment->service_snapshot['source']);

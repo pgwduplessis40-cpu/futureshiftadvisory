@@ -1037,6 +1037,7 @@ final class ClientController extends Controller
         return [
             EngagementType::STANDARD_ADVISORY,
             EngagementType::DUE_DILIGENCE,
+            EngagementType::POST_ACQUISITION_ADVISORY,
             EngagementType::NPO,
         ];
     }

@@ -35,7 +35,7 @@ final class OperationalHealthCheckTest extends TestCase
         $this->seed(RoleSeeder::class);
     }
 
-    public function test_health_checks_are_scheduled_hourly_in_new_zealand_timezone(): void
+    public function test_health_checks_are_scheduled_hourly_during_business_hours_in_new_zealand_timezone(): void
     {
         config()->set('operational_health.enabled', true);
         config()->set('operational_health.timezone', 'Pacific/Auckland');
@@ -54,15 +54,17 @@ final class OperationalHealthCheckTest extends TestCase
             ->unique('description')
             ->values();
 
-        $this->assertCount(24, $weekday);
-        $this->assertCount(24, $weekend);
+        $this->assertCount(10, $weekday);
+        $this->assertCount(1, $weekend);
         $this->assertSame(OperationalHealthSchedule::DEFAULT_WEEKDAY_TIMES, $weekday->map(
-            fn ($event): string => substr((string) $event->description, -4, 2).':00',
+            fn ($event): string => $this->timeFromOperationalHealthEventName((string) $event->description),
         )->all());
-        $this->assertSame('0 0 * * 1-5', $weekday->first()->expression);
-        $this->assertSame('0 23 * * 1-5', $weekday->last()->expression);
-        $this->assertSame('0 0 * * 6,0', $weekend->first()->expression);
-        $this->assertSame('0 23 * * 6,0', $weekend->last()->expression);
+        $this->assertSame(OperationalHealthSchedule::DEFAULT_WEEKEND_TIMES, $weekend->map(
+            fn ($event): string => $this->timeFromOperationalHealthEventName((string) $event->description),
+        )->all());
+        $this->assertSame('30 7 * * 1-5', $weekday->first()->expression);
+        $this->assertSame('30 16 * * 1-5', $weekday->last()->expression);
+        $this->assertSame('30 7 * * 6,0', $weekend->first()->expression);
         $this->assertSame(['Pacific/Auckland'], $weekday->pluck('timezone')->unique()->values()->all());
         $this->assertSame('Pacific/Auckland', $weekend->first()->timezone);
 
@@ -268,8 +270,8 @@ final class OperationalHealthCheckTest extends TestCase
                 ->assertJsonPath('props.summary.latest_started_at_label', '31 Jul 2026, 9:30 AM')
                 ->assertJsonPath('props.summary.schedule.today_label', '31 Jul 2026')
                 ->assertJsonPath('props.summary.schedule.timezone', 'Pacific/Auckland')
-                ->assertJsonPath('props.summary.schedule.expected_runs_today', 24)
-                ->assertJsonPath('props.summary.schedule.due_runs_today', 19)
+                ->assertJsonPath('props.summary.schedule.expected_runs_today', 10)
+                ->assertJsonPath('props.summary.schedule.due_runs_today', 10)
                 ->assertJsonPath('props.summary.schedule.completed_runs_today', 1);
         } finally {
             Carbon::setTestNow();
@@ -442,6 +444,15 @@ final class OperationalHealthCheckTest extends TestCase
         return $assetVersion !== null
             ? $releaseVersion.'-'.$assetVersion
             : $releaseVersion;
+    }
+
+    private function timeFromOperationalHealthEventName(string $description): string
+    {
+        preg_match('/-(\d{2})(\d{2})$/', $description, $matches);
+
+        $this->assertNotEmpty($matches, "Operational health event name [{$description}] should end with HHMM.");
+
+        return $matches[1].':'.$matches[2];
     }
 
     private function healthRun(string $status, array $overrides = []): OperationalHealthCheckRun
