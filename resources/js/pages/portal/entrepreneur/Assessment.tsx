@@ -25,6 +25,14 @@ type Criterion = {
     rationale: string;
 };
 
+type RevisionPriority = {
+    title: string;
+    score: number;
+    what_is_missing: string;
+    what_to_add_or_change: string;
+    where_in_plan: string;
+};
+
 type Assessment = {
     id: string;
     round: number;
@@ -75,6 +83,9 @@ type Props = {
     advisorFeedback?: {
         feedback: string;
         proposed_reply: string;
+        priorities: RevisionPriority[];
+        suggested_feedback: string;
+        suggested_reply: string;
         sent_at: string | null;
         action_url: string;
     } | null;
@@ -293,9 +304,103 @@ export default function EntrepreneurAssessment({
                             )}
                         </div>
 
+                        {advisorFeedback.priorities.length > 0 ? (
+                            <div className="space-y-3">
+                                <div className="space-y-1">
+                                    <h3 className="text-sm font-medium">
+                                        Revision priorities
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Three focused updates for the next
+                                        revision.
+                                    </p>
+                                </div>
+                                <div className="divide-y rounded-md border">
+                                    {advisorFeedback.priorities.map(
+                                        (priority, index) => (
+                                            <article
+                                                key={`${priority.title}-${index}`}
+                                                className="grid gap-3 p-3 text-sm lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,0.8fr)]"
+                                            >
+                                                <div className="space-y-1">
+                                                    <h4 className="font-medium">
+                                                        {index + 1}.{' '}
+                                                        {priority.title}
+                                                    </h4>
+                                                    <Badge variant="outline">
+                                                        {priority.score.toFixed(
+                                                            0,
+                                                        )}
+                                                        /100
+                                                    </Badge>
+                                                    <p className="text-xs font-medium text-muted-foreground">
+                                                        What is missing
+                                                    </p>
+                                                    <p className="text-muted-foreground">
+                                                        {
+                                                            priority.what_is_missing
+                                                        }
+                                                    </p>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <p className="text-xs font-medium text-muted-foreground">
+                                                        What to add/change
+                                                    </p>
+                                                    <p className="text-muted-foreground">
+                                                        {
+                                                            priority.what_to_add_or_change
+                                                        }
+                                                    </p>
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <p className="text-xs font-medium text-muted-foreground">
+                                                        Where in the plan
+                                                    </p>
+                                                    <p className="text-muted-foreground">
+                                                        {priority.where_in_plan}
+                                                    </p>
+                                                </div>
+                                            </article>
+                                        ),
+                                    )}
+                                </div>
+                            </div>
+                        ) : null}
+
+                        <div className="flex flex-wrap justify-end gap-2">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={feedbackPending}
+                                onClick={() =>
+                                    updateAdvisorFeedbackDraft(
+                                        advisorFeedback.suggested_feedback,
+                                        proposedReply,
+                                    )
+                                }
+                            >
+                                Use suggested feedback
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={feedbackPending}
+                                onClick={() =>
+                                    updateAdvisorFeedbackDraft(
+                                        feedback,
+                                        advisorFeedback.suggested_reply,
+                                    )
+                                }
+                            >
+                                Use suggested reply
+                            </Button>
+                        </div>
+
                         <div className="grid gap-4 lg:grid-cols-2">
                             <label className="grid gap-2 text-sm font-medium">
-                                Assessment feedback
+                                Advisor assessment summary
                                 <Textarea
                                     value={feedback}
                                     onChange={(event) =>

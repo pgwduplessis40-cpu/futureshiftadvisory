@@ -155,12 +155,20 @@ final class AssessmentTest extends TestCase
         $feedbacks = app(AssessmentFeedback::class);
 
         $feedback = $feedbacks->draft($assessment);
-        $reply = $feedbacks->proposedReply($plan->entrepreneurProfile()->firstOrFail(), $feedback);
+        $priorities = $feedbacks->priorities($assessment);
+        $reply = $feedbacks->proposedReply($plan->entrepreneurProfile()->firstOrFail(), $assessment);
 
-        $this->assertStringContainsString('The current score is', $feedback);
-        $this->assertStringContainsString('The most useful priorities', $feedback);
+        $this->assertCount(3, $priorities);
+        $this->assertArrayHasKey('what_is_missing', $priorities[0]);
+        $this->assertArrayHasKey('what_to_add_or_change', $priorities[0]);
+        $this->assertArrayHasKey('where_in_plan', $priorities[0]);
+        $this->assertStringContainsString('Assessment completed:', $feedback);
+        $this->assertStringContainsString('What to add/change:', $feedback);
+        $this->assertStringContainsString('Where in the plan:', $feedback);
         $this->assertStringContainsString('Dear Assessment,', $reply);
-        $this->assertStringContainsString($feedback, $reply);
+        $this->assertStringContainsString('You have made real progress', $reply);
+        $this->assertStringContainsString('What is missing:', $reply);
+        $this->assertStringNotContainsString('Assessment completed:', $reply);
     }
 
     public function test_advisor_can_save_and_send_assessment_feedback_to_the_founder(): void

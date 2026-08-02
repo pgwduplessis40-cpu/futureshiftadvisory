@@ -39,13 +39,16 @@ final class EntrepreneurAssessmentController extends Controller
         if (! is_array($notes)) {
             $notes = [];
         }
+        $priorities = $this->feedbacks->priorities($planAssessment);
+        $suggestedFeedback = $this->feedbacks->draft($planAssessment);
+        $suggestedReply = $this->feedbacks->proposedReply($profile, $planAssessment);
         $feedback = trim((string) ($notes['advisor_feedback'] ?? $notes['overall_visible'] ?? ''));
-        if ($feedback === '') {
-            $feedback = $this->feedbacks->draft($planAssessment);
+        if ($feedback === '' || $this->feedbacks->isLegacyFeedback($feedback)) {
+            $feedback = $suggestedFeedback;
         }
         $proposedReply = trim((string) ($notes['proposed_reply'] ?? ''));
-        if ($proposedReply === '') {
-            $proposedReply = $this->feedbacks->proposedReply($profile, $feedback);
+        if ($proposedReply === '' || $this->feedbacks->isLegacyReply($proposedReply)) {
+            $proposedReply = $suggestedReply;
         }
 
         return Inertia::render('portal/entrepreneur/Assessment', [
@@ -63,6 +66,9 @@ final class EntrepreneurAssessmentController extends Controller
             'advisorFeedback' => [
                 'feedback' => $feedback,
                 'proposed_reply' => $proposedReply,
+                'priorities' => $priorities,
+                'suggested_feedback' => $suggestedFeedback,
+                'suggested_reply' => $suggestedReply,
                 'sent_at' => $notes['feedback_sent_at'] ?? null,
                 'action_url' => route('advisor.entrepreneurs.assessments.feedback.update', [$profile, $planAssessment], absolute: false),
             ],

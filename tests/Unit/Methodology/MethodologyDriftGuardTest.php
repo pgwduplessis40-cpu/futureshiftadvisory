@@ -26,6 +26,7 @@ use App\Services\Dd\Workstreams\DdWorkstreamModule;
 use App\Services\Dd\Workstreams\DdWorkstreamRunner;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
 use App\Services\Entrepreneurs\AdvisoryConversion;
+use App\Services\Entrepreneurs\AssessmentFeedback;
 use App\Services\Entrepreneurs\AssessmentScoring;
 use App\Services\Entrepreneurs\Benchmarking;
 use App\Services\Entrepreneurs\BudgetPackBuilder;
@@ -128,6 +129,7 @@ final class MethodologyDriftGuardTest extends TestCase
         DdWorkstreamRunner::class => 'Workstream runner/orchestrator.',
         AdvisorEntrepreneurCapacity::class => 'Capacity gate, not a methodology surface in this track.',
         AdvisoryConversion::class => 'Conversion workflow from entrepreneur to advisory client.',
+        AssessmentFeedback::class => 'Advisor and founder assessment-feedback drafting workflow, not a methodology calculation.',
         AssessmentScoring::class => 'Shared scoring helper; owned methodology services disclose the scoring formula.',
         Benchmarking::class => 'Privacy-gated cohort report; excluded until a client-safe aggregate methodology is surfaced.',
         BudgetPackBuilder::class => 'Budget-pack renderer; forecast formula is owned by BudgetCalculator.',
