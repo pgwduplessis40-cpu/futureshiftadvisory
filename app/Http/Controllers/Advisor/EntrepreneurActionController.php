@@ -20,6 +20,7 @@ use App\Services\Entrepreneurs\Assessment;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Entrepreneurs\EntrepreneurStreak;
 use App\Services\Entrepreneurs\IdeaValidationService;
+use App\Services\Messaging\MessageThreadService;
 use App\Services\Reports\ReportComposer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -132,6 +133,46 @@ final class EntrepreneurActionController extends Controller
         return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)
             ->with('status', 'entrepreneur-assessment-finalised')
             ->with('entrepreneur_assessment_report_id', $report->getKey());
+    }
+
+    public function updateAssessmentFeedback(
+        Request $request,
+        EntrepreneurProfile $entrepreneurProfile,
+        PlanAssessment $planAssessment,
+        Assessment $assessments,
+        MessageThreadService $messages,
+    ): RedirectResponse {
+        Gate::authorize('view', $entrepreneurProfile);
+        $this->assertAssessmentBelongsToProfile($planAssessment, $entrepreneurProfile);
+        $advisor = $this->advisor($request);
+        $validated = $request->validate([
+            'feedback' => ['required', 'string', 'min:10', 'max:4000'],
+            'proposed_reply' => ['required', 'string', 'min:10', 'max:4000'],
+            'send_to_founder' => ['required', 'boolean'],
+        ]);
+        $sendToFounder = (bool) $validated['send_to_founder'];
+
+        $assessment = $assessments->saveAdvisorFeedback(
+            assessment: $planAssessment,
+            feedback: (string) $validated['feedback'],
+            proposedReply: (string) $validated['proposed_reply'],
+            sentToFounder: $sendToFounder,
+            advisor: $advisor,
+        );
+
+        if ($sendToFounder) {
+            $messages->startEntrepreneurThread(
+                profile: $entrepreneurProfile,
+                sender: $advisor,
+                subject: 'Business plan assessment feedback',
+                body: (string) $validated['proposed_reply'],
+            );
+        }
+
+        return to_route('advisor.entrepreneurs.assessments.show', [$entrepreneurProfile, $assessment])
+            ->with('status', $sendToFounder
+                ? 'entrepreneur-assessment-feedback-sent'
+                : 'entrepreneur-assessment-feedback-saved');
     }
 
     public function convert(

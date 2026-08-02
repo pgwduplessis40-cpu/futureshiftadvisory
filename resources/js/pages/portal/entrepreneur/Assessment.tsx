@@ -5,10 +5,15 @@ import {
     ClipboardCheck,
     FileText,
     RefreshCw,
+    Save,
     Scale,
+    Send,
 } from 'lucide-react';
+import { useState } from 'react';
+import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 
 type Criterion = {
     number: number;
@@ -67,6 +72,12 @@ type Props = {
     backUrl: string;
     backLabel?: string;
     reassessUrl?: string | null;
+    advisorFeedback?: {
+        feedback: string;
+        proposed_reply: string;
+        sent_at: string | null;
+        action_url: string;
+    } | null;
 };
 
 export default function EntrepreneurAssessment({
@@ -75,9 +86,79 @@ export default function EntrepreneurAssessment({
     backUrl,
     backLabel = 'Dashboard',
     reassessUrl = null,
+    advisorFeedback = null,
 }: Props) {
     const framework = assessment.rating_framework;
     const usesOldRubric = framework.is_current === false;
+    const advisorFeedbackStateKey = [
+        assessment.id,
+        advisorFeedback?.feedback,
+        advisorFeedback?.proposed_reply,
+        advisorFeedback?.sent_at,
+    ].join(':');
+    const [advisorFeedbackDraft, setAdvisorFeedbackDraft] = useState<{
+        key: string;
+        feedback: string;
+        proposedReply: string;
+    } | null>(null);
+    const [feedbackPending, setFeedbackPending] = useState(false);
+    const [feedbackErrors, setFeedbackErrors] = useState<
+        Record<string, string | undefined>
+    >({});
+    const feedback =
+        advisorFeedbackDraft?.key === advisorFeedbackStateKey
+            ? advisorFeedbackDraft.feedback
+            : (advisorFeedback?.feedback ?? '');
+    const proposedReply =
+        advisorFeedbackDraft?.key === advisorFeedbackStateKey
+            ? advisorFeedbackDraft.proposedReply
+            : (advisorFeedback?.proposed_reply ?? '');
+
+    const updateAdvisorFeedbackDraft = (
+        nextFeedback: string,
+        nextProposedReply: string,
+    ) => {
+        setAdvisorFeedbackDraft({
+            key: advisorFeedbackStateKey,
+            feedback: nextFeedback,
+            proposedReply: nextProposedReply,
+        });
+    };
+
+    const submitAdvisorFeedback = (sendToFounder: boolean) => {
+        if (!advisorFeedback || feedbackPending) {
+            return;
+        }
+
+        router.patch(
+            advisorFeedback.action_url,
+            {
+                feedback,
+                proposed_reply: proposedReply,
+                send_to_founder: sendToFounder,
+            },
+            {
+                preserveScroll: true,
+                onStart: () => {
+                    setFeedbackPending(true);
+                    setFeedbackErrors({});
+                },
+                onError: (errors) => {
+                    setFeedbackErrors({
+                        feedback:
+                            typeof errors.feedback === 'string'
+                                ? errors.feedback
+                                : undefined,
+                        proposed_reply:
+                            typeof errors.proposed_reply === 'string'
+                                ? errors.proposed_reply
+                                : undefined,
+                    });
+                },
+                onFinish: () => setFeedbackPending(false),
+            },
+        );
+    };
 
     return (
         <>
@@ -191,6 +272,100 @@ export default function EntrepreneurAssessment({
                     </p>
                 </section>
 
+                {advisorFeedback ? (
+                    <section className="space-y-4 rounded-md border bg-background p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <ClipboardCheck
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <h2 className="text-sm font-medium">
+                                    Advisor feedback
+                                </h2>
+                            </div>
+                            {advisorFeedback.sent_at ? (
+                                <Badge variant="secondary">
+                                    Sent {formatDate(advisorFeedback.sent_at)}
+                                </Badge>
+                            ) : (
+                                <Badge variant="outline">Draft</Badge>
+                            )}
+                        </div>
+
+                        <div className="grid gap-4 lg:grid-cols-2">
+                            <label className="grid gap-2 text-sm font-medium">
+                                Assessment feedback
+                                <Textarea
+                                    value={feedback}
+                                    onChange={(event) =>
+                                        updateAdvisorFeedbackDraft(
+                                            event.target.value,
+                                            proposedReply,
+                                        )
+                                    }
+                                    rows={12}
+                                    aria-invalid={Boolean(
+                                        feedbackErrors.feedback,
+                                    )}
+                                />
+                                <InputError message={feedbackErrors.feedback} />
+                            </label>
+
+                            <label className="grid gap-2 text-sm font-medium">
+                                Proposed reply to founder
+                                <Textarea
+                                    value={proposedReply}
+                                    onChange={(event) =>
+                                        updateAdvisorFeedbackDraft(
+                                            feedback,
+                                            event.target.value,
+                                        )
+                                    }
+                                    rows={12}
+                                    aria-invalid={Boolean(
+                                        feedbackErrors.proposed_reply,
+                                    )}
+                                />
+                                <InputError
+                                    message={feedbackErrors.proposed_reply}
+                                />
+                            </label>
+                        </div>
+
+                        <div className="flex flex-wrap justify-end gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={
+                                    feedbackPending ||
+                                    feedback.trim().length < 10
+                                }
+                                onClick={() => submitAdvisorFeedback(false)}
+                            >
+                                <Save className="size-4" aria-hidden="true" />
+                                {feedbackPending
+                                    ? 'Saving feedback'
+                                    : 'Save feedback'}
+                            </Button>
+                            <Button
+                                type="button"
+                                disabled={
+                                    feedbackPending ||
+                                    feedback.trim().length < 10 ||
+                                    proposedReply.trim().length < 10
+                                }
+                                onClick={() => submitAdvisorFeedback(true)}
+                            >
+                                <Send className="size-4" aria-hidden="true" />
+                                {feedbackPending
+                                    ? 'Sending reply'
+                                    : 'Send reply to founder'}
+                            </Button>
+                        </div>
+                    </section>
+                ) : null}
+
                 <section className="space-y-4 rounded-md border bg-background p-4">
                     <div className="flex items-center gap-2">
                         <FileText className="size-4" aria-hidden="true" />
@@ -216,7 +391,7 @@ export default function EntrepreneurAssessment({
                     </p>
                 </section>
 
-                {assessment.mentor_notes.overall_visible ? (
+                {!advisorFeedback && assessment.mentor_notes.overall_visible ? (
                     <section className="space-y-4 rounded-md border bg-background p-4">
                         <div className="flex items-center gap-2">
                             <ClipboardCheck

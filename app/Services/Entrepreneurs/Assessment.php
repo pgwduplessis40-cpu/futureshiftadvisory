@@ -133,8 +133,14 @@ final class Assessment implements ProvidesMethodology
         string $privateAdvisory,
         User $advisor,
     ): PlanAssessment {
+        $notes = $assessment->mentor_notes;
+        if (! is_array($notes)) {
+            $notes = [];
+        }
+
         $assessment->forceFill([
             'mentor_notes' => [
+                ...$notes,
                 'section_notes' => $sectionNotes,
                 'overall_visible' => $overallVisible,
                 'private_advisory' => $privateAdvisory,
@@ -145,13 +151,67 @@ final class Assessment implements ProvidesMethodology
         return $assessment->refresh();
     }
 
+    public function saveAdvisorFeedback(
+        PlanAssessment $assessment,
+        string $feedback,
+        string $proposedReply,
+        bool $sentToFounder,
+        User $advisor,
+    ): PlanAssessment {
+        $notes = $assessment->mentor_notes;
+        if (! is_array($notes)) {
+            $notes = [];
+        }
+
+        $notes['advisor_feedback'] = trim($feedback);
+        $notes['proposed_reply'] = trim($proposedReply);
+        $notes['updated_by_user_id'] = $advisor->getKey();
+        $notes['updated_at'] = now()->toIso8601String();
+
+        if ($sentToFounder) {
+            $notes['overall_visible'] = trim($feedback);
+            $notes['feedback_sent_at'] = now()->toIso8601String();
+            $notes['feedback_sent_by_user_id'] = $advisor->getKey();
+        }
+
+        $assessment->forceFill([
+            'mentor_notes' => $notes,
+        ])->save();
+
+        $this->audit->record(
+            $sentToFounder
+                ? 'entrepreneur.plan_assessment_feedback_sent'
+                : 'entrepreneur.plan_assessment_feedback_saved',
+            subject: $assessment,
+            actor: $advisor,
+            after: [
+                'business_plan_id' => $assessment->business_plan_id,
+                'round' => $assessment->round,
+            ],
+        );
+
+        return $assessment->refresh();
+    }
+
     /**
      * @return array<string, mixed>
      */
     public function entrepreneurVisibleNotes(PlanAssessment $assessment): array
     {
         $notes = $assessment->mentor_notes ?? [];
-        unset($notes['private_advisory']);
+        if (! is_array($notes)) {
+            return [];
+        }
+
+        unset(
+            $notes['private_advisory'],
+            $notes['advisor_feedback'],
+            $notes['proposed_reply'],
+            $notes['feedback_sent_at'],
+            $notes['feedback_sent_by_user_id'],
+            $notes['updated_by_user_id'],
+            $notes['updated_at'],
+        );
 
         return $notes;
     }

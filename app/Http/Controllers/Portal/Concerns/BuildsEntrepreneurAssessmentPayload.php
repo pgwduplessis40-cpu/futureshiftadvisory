@@ -75,7 +75,15 @@ trait BuildsEntrepreneurAssessmentPayload
             return [];
         }
 
-        unset($notes['private_advisory']);
+        unset(
+            $notes['private_advisory'],
+            $notes['advisor_feedback'],
+            $notes['proposed_reply'],
+            $notes['feedback_sent_at'],
+            $notes['feedback_sent_by_user_id'],
+            $notes['updated_by_user_id'],
+            $notes['updated_at'],
+        );
 
         return $notes;
     }

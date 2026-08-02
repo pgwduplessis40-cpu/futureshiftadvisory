@@ -446,6 +446,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/assessments', [EntrepreneurActionController::class, 'assess'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.plans.assessments.store');
+        Route::patch('entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/feedback', [EntrepreneurActionController::class, 'updateAssessmentFeedback'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.assessments.feedback.update');
         Route::patch('entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/finalise', [EntrepreneurActionController::class, 'finalise'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.assessments.finalise');

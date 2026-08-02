@@ -16,6 +16,7 @@ use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Ai\Fake\FakeAiClient;
 use App\Services\Entrepreneurs\Assessment;
+use App\Services\Entrepreneurs\AssessmentFeedback;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBuilder;
 use App\Support\RequestContext;
@@ -145,6 +146,85 @@ final class AssessmentTest extends TestCase
         $this->assertSame('Good progress; tighten the evidence.', $visible['overall_visible']);
         $this->assertArrayNotHasKey('private_advisory', $visible);
         $this->assertSame('Founder confidence is fragile; handle directly.', data_get($withNotes->mentor_notes, 'private_advisory'));
+    }
+
+    public function test_assessment_feedback_draft_uses_the_actual_scored_priorities(): void
+    {
+        [$advisor, $plan] = $this->plan('assessment-feedback-draft@example.test');
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $feedbacks = app(AssessmentFeedback::class);
+
+        $feedback = $feedbacks->draft($assessment);
+        $reply = $feedbacks->proposedReply($plan->entrepreneurProfile()->firstOrFail(), $feedback);
+
+        $this->assertStringContainsString('The current score is', $feedback);
+        $this->assertStringContainsString('The most useful priorities', $feedback);
+        $this->assertStringContainsString('Dear Assessment,', $reply);
+        $this->assertStringContainsString($feedback, $reply);
+    }
+
+    public function test_advisor_can_save_and_send_assessment_feedback_to_the_founder(): void
+    {
+        [$advisor, $plan] = $this->plan('assessment-feedback-founder@example.test');
+        $profile = $plan->entrepreneurProfile()->firstOrFail();
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $feedback = 'Strengthen the financial assumptions and add customer evidence before the next assessment.';
+        $proposedReply = "Dear Assessment,\n\nThank you for the work on your plan. Please strengthen the financial assumptions and add customer evidence before the next assessment.";
+
+        $response = $this->actingAsMfa($advisor)
+            ->patch(route('advisor.entrepreneurs.assessments.feedback.update', [$profile, $assessment]), [
+                'feedback' => $feedback,
+                'proposed_reply' => $proposedReply,
+                'send_to_founder' => true,
+            ]);
+
+        $response->assertRedirect(route('advisor.entrepreneurs.assessments.show', [$profile, $assessment], absolute: false));
+
+        $notes = $assessment->refresh()->mentor_notes;
+        $this->assertSame($feedback, data_get($notes, 'advisor_feedback'));
+        $this->assertSame($feedback, data_get($notes, 'overall_visible'));
+        $this->assertSame($proposedReply, data_get($notes, 'proposed_reply'));
+        $this->assertNotNull(data_get($notes, 'feedback_sent_at'));
+        $this->assertDatabaseHas('message_threads', [
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'subject' => 'Business plan assessment feedback',
+        ]);
+        $this->assertDatabaseHas('messages', [
+            'body' => $proposedReply,
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.plan_assessment_feedback_sent',
+            'subject_id' => $assessment->getKey(),
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.assessments.show', [$profile, $assessment]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('portal/entrepreneur/Assessment')
+                ->where('advisorFeedback.feedback', $feedback)
+                ->where('advisorFeedback.proposed_reply', $proposedReply)
+            );
+    }
+
+    public function test_saved_assessment_feedback_stays_private_until_it_is_sent(): void
+    {
+        [$advisor, $plan] = $this->plan('assessment-feedback-draft-founder@example.test');
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+
+        $saved = app(Assessment::class)->saveAdvisorFeedback(
+            assessment: $assessment,
+            feedback: 'Keep this assessment feedback private until the advisor is ready to send it.',
+            proposedReply: 'Dear Assessment, this is a private draft.',
+            sentToFounder: false,
+            advisor: $advisor,
+        );
+
+        $visible = app(Assessment::class)->entrepreneurVisibleNotes($saved);
+
+        $this->assertArrayNotHasKey('advisor_feedback', $visible);
+        $this->assertArrayNotHasKey('proposed_reply', $visible);
+        $this->assertArrayNotHasKey('overall_visible', $visible);
     }
 
     public function test_criteria_are_hidden_until_assessment_is_finalised(): void

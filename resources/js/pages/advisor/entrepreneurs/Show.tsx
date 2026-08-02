@@ -76,6 +76,23 @@ type InviteDetailsForm = {
     concept_summary: string;
 };
 
+function shouldOpenIdeaValidation(
+    ideaValidation: EntrepreneurDetail['idea_validation'],
+): boolean {
+    if (!ideaValidation) {
+        return true;
+    }
+
+    if (
+        ideaValidation.advisor_gate_status === 'changes_requested' ||
+        ideaValidation.advisor_gate_status === 'recalled'
+    ) {
+        return true;
+    }
+
+    return ideaValidation.viability_gate.status !== 'green';
+}
+
 export default function EntrepreneursShow({
     entrepreneur,
     serviceOptions,
@@ -103,7 +120,8 @@ export default function EntrepreneursShow({
     const [ideaRefreshPending, setIdeaRefreshPending] = useState(false);
     const [copiedInviteEmail, setCopiedInviteEmail] = useState(false);
     const [editingInvite, setEditingInvite] = useState(false);
-    const [ideaValidationOpen, setIdeaValidationOpen] = useState(true);
+    const [ideaValidationOpenOverride, setIdeaValidationOpenOverride] =
+        useState<{ key: string; open: boolean } | null>(null);
     const [activeTab, setActiveTab] = useState<EntrepreneurDetailTab>(() =>
         initialEntrepreneurDetailTab(),
     );
@@ -238,6 +256,20 @@ export default function EntrepreneursShow({
                     approval_available: false,
                 }
               : rawIdeaViabilityGate;
+
+    const ideaValidationStateKey = [
+        entrepreneur.id,
+        ideaValidation?.id,
+        ideaValidation?.revision_number,
+        ideaGateStatus,
+        ideaViabilityGate?.status,
+    ].join(':');
+    const ideaValidationOpen =
+        ideaValidationOpenOverride?.key === ideaValidationStateKey
+            ? ideaValidationOpenOverride.open
+            : shouldOpenIdeaValidation(entrepreneur.idea_validation) &&
+              ideaViabilityGate?.status !== 'green';
+
     const ideaGateCanBeApproved =
         ideaGateStatus !== 'changes_requested' &&
         ideaGateStatus !== 'recalled' &&
@@ -1114,9 +1146,10 @@ export default function EntrepreneursShow({
                                     aria-expanded={ideaValidationOpen}
                                     title="Toggle idea validation details"
                                     onClick={() =>
-                                        setIdeaValidationOpen(
-                                            (isOpen) => !isOpen,
-                                        )
+                                        setIdeaValidationOpenOverride({
+                                            key: ideaValidationStateKey,
+                                            open: !ideaValidationOpen,
+                                        })
                                     }
                                 >
                                     <ChevronDown

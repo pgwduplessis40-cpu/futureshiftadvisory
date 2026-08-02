@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\BuildsEntrepreneurAssessmentPayload;
 use App\Models\EntrepreneurProfile;
 use App\Models\PlanAssessment;
+use App\Services\Entrepreneurs\AssessmentFeedback;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -15,6 +16,8 @@ use Inertia\Response;
 final class EntrepreneurAssessmentController extends Controller
 {
     use BuildsEntrepreneurAssessmentPayload;
+
+    public function __construct(private readonly AssessmentFeedback $feedbacks) {}
 
     public function show(EntrepreneurProfile $entrepreneurProfile, PlanAssessment $planAssessment): Response
     {
@@ -32,6 +35,18 @@ final class EntrepreneurAssessmentController extends Controller
             404,
         );
         $plan = $planAssessment->businessPlan;
+        $notes = $planAssessment->mentor_notes;
+        if (! is_array($notes)) {
+            $notes = [];
+        }
+        $feedback = trim((string) ($notes['advisor_feedback'] ?? $notes['overall_visible'] ?? ''));
+        if ($feedback === '') {
+            $feedback = $this->feedbacks->draft($planAssessment);
+        }
+        $proposedReply = trim((string) ($notes['proposed_reply'] ?? ''));
+        if ($proposedReply === '') {
+            $proposedReply = $this->feedbacks->proposedReply($profile, $feedback);
+        }
 
         return Inertia::render('portal/entrepreneur/Assessment', [
             'profile' => [
@@ -45,6 +60,12 @@ final class EntrepreneurAssessmentController extends Controller
                 ] : null,
             ],
             'assessment' => $this->assessmentPayload($planAssessment),
+            'advisorFeedback' => [
+                'feedback' => $feedback,
+                'proposed_reply' => $proposedReply,
+                'sent_at' => $notes['feedback_sent_at'] ?? null,
+                'action_url' => route('advisor.entrepreneurs.assessments.feedback.update', [$profile, $planAssessment], absolute: false),
+            ],
             'dashboardUrl' => route('advisor.entrepreneurs.show', $profile, absolute: false),
             'backUrl' => route('advisor.entrepreneurs.show', $profile, absolute: false),
             'backLabel' => 'Entrepreneur',

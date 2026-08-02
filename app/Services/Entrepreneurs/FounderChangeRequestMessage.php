@@ -36,6 +36,21 @@ final class FounderChangeRequestMessage
         ]);
     }
 
+    public function fromAssessmentFeedback(EntrepreneurProfile $profile, string $feedback): string
+    {
+        $feedback = $this->normalise($feedback);
+
+        if ($this->alreadyAddressed($feedback)) {
+            return $feedback;
+        }
+
+        return $this->build($profile, [
+            'Thank you for the work you have put into your business plan and budget. I have completed the latest assessment.',
+            $feedback,
+            'Please use this feedback to guide the next revision, and reply if you would like to discuss any of the recommendations.',
+        ]);
+    }
+
     private function salutation(EntrepreneurProfile $profile): string
     {
         $firstName = $this->firstName($profile);
