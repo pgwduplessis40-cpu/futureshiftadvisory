@@ -24,6 +24,7 @@ use Database\Seeders\RatingFrameworkSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\MakesIdeaReviewEligible;
 use Tests\TestCase;
 
@@ -69,6 +70,37 @@ final class AssessmentTest extends TestCase
         $this->assertSame(91, data_get($assessment->ai_scores, '0.score'));
         $this->assertSame('ai_assessment', data_get($assessment->ai_scores, '0.score_source'));
         $this->assertSame('exceptional', $assessment->overall_grade);
+    }
+
+    public function test_super_admin_assessment_from_the_workspace_persists_and_returns_to_the_workspace(): void
+    {
+        [$advisor, $plan] = $this->plan('workspace-assessment-founder@example.test');
+        $profile = $plan->entrepreneurProfile()->firstOrFail();
+        $admin = User::factory()->superAdmin()->withTwoFactor()->create();
+        $admin->assignRole(User::TYPE_SUPER_ADMIN);
+
+        $response = $this->actingAsMfa($admin)
+            ->post(route('advisor.entrepreneurs.plans.assessments.store', [
+                'entrepreneurProfile' => $profile,
+                'businessPlan' => $plan,
+            ]));
+
+        $assessment = PlanAssessment::query()
+            ->where('business_plan_id', $plan->getKey())
+            ->firstOrFail();
+
+        $response->assertRedirect(route('advisor.entrepreneurs.show', $profile, absolute: false));
+        $this->assertSame(EntrepreneurStage::ASSESSMENT, $profile->refresh()->stage);
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('advisor/entrepreneurs/Show')
+                ->where('entrepreneur.latest_plan.assessment_count', 1)
+                ->where('entrepreneur.latest_plan.latest_round', 1)
+                ->where('entrepreneur.latest_plan.latest_assessment.id', $assessment->id)
+            );
     }
 
     public function test_advisor_adjustment_requires_note_and_queues_governed_learning(): void

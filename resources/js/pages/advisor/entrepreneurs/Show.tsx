@@ -96,6 +96,8 @@ export default function EntrepreneursShow({
     const [feedbackSurveyPending, setFeedbackSurveyPending] = useState(false);
     const [serviceFeedbackSurveyPending, setServiceFeedbackSurveyPending] =
         useState(false);
+    const [assessmentPending, setAssessmentPending] = useState(false);
+    const [assessmentError, setAssessmentError] = useState<string | null>(null);
     const [gateNote, setGateNote] = useState('');
     const [changeRequestNote, setChangeRequestNote] = useState('');
     const [ideaRefreshPending, setIdeaRefreshPending] = useState(false);
@@ -144,6 +146,35 @@ export default function EntrepreneursShow({
             ? `AI review reached Anthropic but did not return a usable result. ${ideaRefreshFailure}. Repeated retries may consume API credit; wait a few minutes before retrying.`
             : `AI review did not complete. ${ideaRefreshFailure}`
         : 'AI review did not complete. Retry the AI review or continue manual review with the submitted answers.';
+
+    const runAssessment = () => {
+        const assessUrl = entrepreneur.latest_plan?.assess_url;
+
+        if (!assessUrl || assessmentPending) {
+            return;
+        }
+
+        router.post(
+            assessUrl,
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => {
+                    setAssessmentPending(true);
+                    setAssessmentError(null);
+                },
+                onError: (errors) => {
+                    const error = errors.assessment;
+                    setAssessmentError(
+                        typeof error === 'string'
+                            ? error
+                            : 'The assessment did not complete. No new assessment round was created.',
+                    );
+                },
+                onFinish: () => setAssessmentPending(false),
+            },
+        );
+    };
     const submittedIdeaFields = ideaValidation
         ? [
               { label: 'Problem', value: ideaValidation.problem },
@@ -815,18 +846,17 @@ export default function EntrepreneursShow({
                                         type="button"
                                         size="sm"
                                         variant="outline"
-                                        onClick={() =>
-                                            router.post(
-                                                entrepreneur.latest_plan
-                                                    ?.assess_url ?? '',
-                                                {},
-                                                { preserveScroll: true },
-                                            )
-                                        }
+                                        disabled={assessmentPending}
+                                        onClick={runAssessment}
                                     >
-                                        {latestAssessment ? (
+                                        {assessmentPending ||
+                                        latestAssessment ? (
                                             <RefreshCw
-                                                className="size-4"
+                                                className={cn(
+                                                    'size-4',
+                                                    assessmentPending &&
+                                                        'animate-spin',
+                                                )}
                                                 aria-hidden="true"
                                             />
                                         ) : (
@@ -835,9 +865,11 @@ export default function EntrepreneursShow({
                                                 aria-hidden="true"
                                             />
                                         )}
-                                        {latestAssessment
-                                            ? 'Run reassessment'
-                                            : 'Run assessment'}
+                                        {assessmentPending
+                                            ? 'Running assessment'
+                                            : latestAssessment
+                                              ? 'Run reassessment'
+                                              : 'Run assessment'}
                                     </Button>
                                 ) : null}
                                 {latestAssessment &&
@@ -892,6 +924,17 @@ export default function EntrepreneursShow({
                             </div>
                         </div>
 
+                        {assessmentPending ? (
+                            <p
+                                className="text-sm text-muted-foreground"
+                                role="status"
+                            >
+                                Scoring the current plan and saving the next
+                                assessment round. This can take a moment.
+                            </p>
+                        ) : null}
+                        <InputError message={assessmentError ?? undefined} />
+
                         {latestAssessment &&
                         !latestAssessmentUsesCurrentRubric ? (
                             <div className="grid gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 md:grid-cols-[1fr_auto] md:items-center">
@@ -942,20 +985,19 @@ export default function EntrepreneursShow({
                                     size="sm"
                                     variant="outline"
                                     className="border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
-                                    onClick={() =>
-                                        router.post(
-                                            entrepreneur.latest_plan
-                                                ?.assess_url ?? '',
-                                            {},
-                                            { preserveScroll: true },
-                                        )
-                                    }
+                                    disabled={assessmentPending}
+                                    onClick={runAssessment}
                                 >
                                     <RefreshCw
-                                        className="size-4"
+                                        className={cn(
+                                            'size-4',
+                                            assessmentPending && 'animate-spin',
+                                        )}
                                         aria-hidden="true"
                                     />
-                                    Run reassessment
+                                    {assessmentPending
+                                        ? 'Running assessment'
+                                        : 'Run reassessment'}
                                 </Button>
                             </div>
                         ) : null}

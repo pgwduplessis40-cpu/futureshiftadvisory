@@ -25,6 +25,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Throwable;
 
 final class EntrepreneurActionController extends Controller
 {
@@ -90,10 +91,19 @@ final class EntrepreneurActionController extends Controller
         $this->assertPlanBelongsToProfile($businessPlan, $entrepreneurProfile);
         $advisor = $this->advisor($request);
 
-        $assessment = $assessments->firstPass($businessPlan->refresh()->load('sections'), $advisor);
-        $entrepreneurProfile->forceFill(['stage' => EntrepreneurStage::ASSESSMENT])->save();
+        try {
+            $assessments->firstPass($businessPlan->refresh()->load('sections'), $advisor);
+            $entrepreneurProfile->forceFill(['stage' => EntrepreneurStage::ASSESSMENT])->save();
+        } catch (Throwable $exception) {
+            report($exception);
 
-        return to_route('advisor.entrepreneurs.assessments.show', [$entrepreneurProfile, $assessment])
+            return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)
+                ->withErrors([
+                    'assessment' => 'The assessment could not be saved, so no new assessment round was created. Please retry after the issue has been resolved.',
+                ]);
+        }
+
+        return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)
             ->with('status', 'entrepreneur-plan-assessed');
     }
 
