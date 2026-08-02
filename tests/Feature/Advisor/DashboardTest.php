@@ -283,6 +283,15 @@ final class DashboardTest extends TestCase
             ->assertRedirect($showUrl);
 
         $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.show', [
+                'client' => $client,
+                'focus' => 'questionnaire',
+                'highlight' => 'missing-financials',
+                'client_workspace' => 1,
+            ]))
+            ->assertRedirect($showUrl);
+
+        $this->actingAsMfa($advisor)
             ->get($showUrl)
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('advisor/entrepreneurs/Show')

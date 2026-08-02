@@ -512,11 +512,7 @@ final class ClientController extends Controller
         Gate::authorize('view', $client);
         $entrepreneurProfile = $this->activeEntrepreneurWorkspace($client);
 
-        if (
-            $entrepreneurProfile instanceof EntrepreneurProfile
-            && ! $request->boolean('client_workspace')
-            && ! $request->hasAny(['focus', 'highlight'])
-        ) {
+        if ($entrepreneurProfile instanceof EntrepreneurProfile) {
             return to_route('advisor.entrepreneurs.show', $entrepreneurProfile);
         }
 

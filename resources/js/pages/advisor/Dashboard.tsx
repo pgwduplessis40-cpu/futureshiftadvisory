@@ -3759,9 +3759,18 @@ function EntrepreneurReviewPanel({
                                         {item.status}
                                     </Badge>
                                 </div>
-                                <div className="mt-2 text-sm font-medium">
-                                    {item.entrepreneur_name}
-                                </div>
+                                {item.detail_url ? (
+                                    <Link
+                                        href={item.detail_url}
+                                        className="mt-2 block text-sm font-medium hover:underline focus-visible:underline focus-visible:outline-none"
+                                    >
+                                        {item.entrepreneur_name}
+                                    </Link>
+                                ) : (
+                                    <div className="mt-2 text-sm font-medium">
+                                        {item.entrepreneur_name}
+                                    </div>
+                                )}
                                 <div className="text-xs text-muted-foreground">
                                     {item.entrepreneur_email ?? 'No email'} -{' '}
                                     {formatDate(item.submitted_at)}
