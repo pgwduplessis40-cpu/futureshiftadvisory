@@ -1,61 +1,72 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
+import {
+    queryParams,
+    type RouteQueryOptions,
+    type RouteDefinition,
+    type RouteFormDefinition,
+} from './../../../../wayfinder';
 /**
-* @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:220
+ * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:223
  * @route '/portal/acquisition-plan/business-advice'
  */
-export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const store = (
+    options?: RouteQueryOptions,
+): RouteDefinition<'post'> => ({
     url: store.url(options),
     method: 'post',
-})
+});
 
 store.definition = {
-    methods: ["post"],
+    methods: ['post'],
     url: '/portal/acquisition-plan/business-advice',
-} satisfies RouteDefinition<["post"]>
+} satisfies RouteDefinition<['post']>;
 
 /**
-* @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:220
+ * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:223
  * @route '/portal/acquisition-plan/business-advice'
  */
 store.url = (options?: RouteQueryOptions) => {
-    return store.definition.url + queryParams(options)
-}
+    return store.definition.url + queryParams(options);
+};
 
 /**
-* @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:220
+ * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:223
  * @route '/portal/acquisition-plan/business-advice'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(options),
     method: 'post',
-})
+});
 
-    /**
-* @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:220
+/**
+ * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:223
  * @route '/portal/acquisition-plan/business-advice'
  */
-    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(options),
-        method: 'post',
-    })
+const storeForm = (
+    options?: RouteQueryOptions,
+): RouteFormDefinition<'post'> => ({
+    action: store.url(options),
+    method: 'post',
+});
 
-            /**
-* @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:220
+/**
+ * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:223
  * @route '/portal/acquisition-plan/business-advice'
  */
-        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(options),
-            method: 'post',
-        })
+storeForm.post = (
+    options?: RouteQueryOptions,
+): RouteFormDefinition<'post'> => ({
+    action: store.url(options),
+    method: 'post',
+});
 
-    store.form = storeForm
+store.form = storeForm;
 const businessAdvice = {
     store: Object.assign(store, store),
-}
+};
 
-export default businessAdvice
+export default businessAdvice;
