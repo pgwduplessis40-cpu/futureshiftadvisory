@@ -110,11 +110,15 @@ final class AuditTrailController extends Controller
         }
 
         if ($this->filled($filters, 'date_from')) {
-            $query->where('occurred_at', '>=', Carbon::parse((string) $filters['date_from'])->startOfDay());
+            $query->where('occurred_at', '>=', Carbon::parse((string) $filters['date_from'], $this->displayTimezone())
+                ->startOfDay()
+                ->utc());
         }
 
         if ($this->filled($filters, 'date_to')) {
-            $query->where('occurred_at', '<=', Carbon::parse((string) $filters['date_to'])->endOfDay());
+            $query->where('occurred_at', '<=', Carbon::parse((string) $filters['date_to'], $this->displayTimezone())
+                ->endOfDay()
+                ->utc());
         }
 
         return $query;
@@ -194,7 +198,7 @@ final class AuditTrailController extends Controller
             'id' => $event->id,
             'occurred_at' => $event->occurred_at?->toIso8601String(),
             'occurred_at_label' => $event->occurred_at
-                ? $event->occurred_at->copy()->timezone(config('app.timezone'))->format('d M Y, g:i A')
+                ? $event->occurred_at->copy()->timezone($this->displayTimezone())->format('d M Y, g:i A')
                 : null,
             'action' => $event->action,
             'actor' => [
@@ -223,5 +227,10 @@ final class AuditTrailController extends Controller
     private function filled(array $filters, string $key): bool
     {
         return isset($filters[$key]) && is_string($filters[$key]) && trim($filters[$key]) !== '';
+    }
+
+    private function displayTimezone(): string
+    {
+        return (string) config('app.display_timezone', 'Pacific/Auckland');
     }
 }

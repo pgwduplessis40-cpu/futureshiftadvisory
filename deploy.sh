@@ -469,6 +469,10 @@ else
     log "Skipping migrations (RUN_MIGRATIONS=$RUN_MIGRATIONS)"
 fi
 
+log "Ensuring entrepreneur rating framework"
+php artisan db:seed --class=Database\\Seeders\\RatingFrameworkSeeder --force
+php artisan db:seed --class=Database\\Seeders\\FoundingRatingFrameworkValuesSeeder --force
+
 log "Refreshing caches"
 php artisan config:cache
 php artisan route:cache

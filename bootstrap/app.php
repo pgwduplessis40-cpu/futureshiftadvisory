@@ -46,6 +46,7 @@ use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogAuditEvent;
+use App\Http\Middleware\LogFailedRequest;
 use App\Http\Middleware\MeasureDashboardLaunch;
 use App\Http\Middleware\NormalizePortalOfflineSyncResponse;
 use App\Http\Middleware\PreventEntrepreneurTwoFactorDisable;
@@ -73,6 +74,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+        $middleware->web(prepend: [
+            LogFailedRequest::class,
+        ]);
 
         // EnforceClientScope must run on every authenticated route so the
         // Postgres session variables driving row-level security policies
