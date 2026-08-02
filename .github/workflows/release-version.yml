@@ -10,15 +10,14 @@ permissions:
   contents: write
   checks: read
 
-concurrency:
-  group: release-version-main
-  cancel-in-progress: false
-
 jobs:
   wait-for-ci:
     if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip release]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    concurrency:
+      group: release-version-main
+      cancel-in-progress: true
 
     steps:
       - name: Require successful source checks
@@ -105,8 +104,23 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Confirm source is still main head
+        id: current-head
+        shell: bash
+        run: |
+          git fetch origin main
+
+          if [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]; then
+            echo "Release source ${GITHUB_SHA} has been superseded by $(git rev-parse origin/main); skipping version bump."
+            echo "release_ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "release_ready=true" >> "$GITHUB_OUTPUT"
+
       - name: Increment patch version
         id: version
+        if: ${{ steps.current-head.outputs.release_ready == 'true' }}
         shell: bash
         run: |
           current_version="$(tr -d '\r\n' < VERSION)"
@@ -123,6 +137,7 @@ jobs:
 
       - name: Commit release version
         id: release
+        if: ${{ steps.current-head.outputs.release_ready == 'true' }}
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
@@ -130,12 +145,17 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add VERSION
           git commit -m "chore(release): v${VERSION} [skip release]"
-          git push origin HEAD:main
+
+          if ! git push origin HEAD:main; then
+            echo "main advanced before the release version could be published; a newer source workflow will release it."
+            exit 0
+          fi
+
           echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   deploy-production:
     needs: bump-patch-version
-    if: ${{ vars.PRODUCTION_DEPLOY_ENABLED == 'true' }}
+    if: ${{ vars.PRODUCTION_DEPLOY_ENABLED == 'true' && needs.bump-patch-version.outputs.commit != '' }}
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 25
