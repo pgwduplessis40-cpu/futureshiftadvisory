@@ -309,6 +309,29 @@ final class DashboardTest extends TestCase
             ->assertRedirect($showUrl);
     }
 
+    public function test_client_with_an_entrepreneur_primary_contact_uses_the_entrepreneur_workspace(): void
+    {
+        $advisor = $this->advisor('contact-workspace@example.test');
+        $profile = $this->entrepreneurProfileFor(
+            $advisor,
+            'Primary Contact Founder',
+            'primary-contact-founder@example.test',
+        );
+        $client = $this->clientFor($advisor, 'Legacy Primary Contact Limited');
+        $client->forceFill(['primary_contact_user_id' => $profile->user_id])->save();
+        $showUrl = route('advisor.entrepreneurs.show', $profile, absolute: false);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('clientsHealth.clients.0.show_url', $showUrl)
+                ->where('clientsHealth.clients.0.engagement.drill_url', $showUrl));
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.show', $client))
+            ->assertRedirect($showUrl);
+    }
+
     public function test_advisor_dashboard_surfaces_ai_provider_failure_as_an_action(): void
     {
         $advisor = $this->advisor('ai-provider-action@example.test');
@@ -328,6 +351,23 @@ final class DashboardTest extends TestCase
                 ->where('aiOperationalAlert.total', 1)
                 ->where('aiOperationalAlert.reason', 'Anthropic API request failed with status 400.')
                 ->where('aiOperationalAlert.action_url', route('admin.integration-health.index', absolute: false)));
+    }
+
+    public function test_advisor_dashboard_does_not_surface_an_alert_from_the_superseded_provider_cache_key(): void
+    {
+        $advisor = $this->advisor('legacy-ai-provider-action@example.test');
+        $advisor->givePermissionTo(Permission::INTEGRATION_HEALTH_VIEW->value);
+        Cache::put('fsa.ai.unavailable.latest_notice', [
+            'reason' => 'Historical AI provider failure.',
+            'recorded_at' => now()->subDay()->toIso8601String(),
+        ], now()->addDay());
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('aiOperationalAlert.available', true)
+                ->where('aiOperationalAlert.total', 0));
     }
 
     private function advisor(string $email): User

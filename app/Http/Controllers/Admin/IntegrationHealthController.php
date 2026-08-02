@@ -10,8 +10,10 @@ use App\Models\AiUsageEvent;
 use App\Models\IntegrationCall;
 use App\Models\IntegrationHealthAlert;
 use App\Models\IntegrationHealthSample;
+use App\Services\Ai\AdvisorAiNotice;
 use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\IntegrationRegistry;
+use App\Services\Integration\Resilience\HealthRecorder;
 use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
@@ -28,6 +30,8 @@ final class IntegrationHealthController extends Controller
     public function __construct(
         private readonly IntegrationCredentials $credentials,
         private readonly IntegrationRegistry $registry,
+        private readonly AdvisorAiNotice $aiNotice,
+        private readonly HealthRecorder $healthRecorder,
     ) {}
 
     public function index(): Response
@@ -64,6 +68,12 @@ final class IntegrationHealthController extends Controller
 
     public function refresh(): RedirectResponse
     {
+        $officialCost = $this->anthropicOfficialCostPayload(now(), recordHealthProbe: true);
+
+        if ($officialCost['status'] === 'synced') {
+            $this->aiNotice->clear();
+        }
+
         Artisan::call(AggregateIntegrationHealth::class, [
             '--minutes' => 5,
         ]);
@@ -320,6 +330,7 @@ final class IntegrationHealthController extends Controller
         $base = IntegrationCall::query()
             ->where('service', 'anthropic')
             ->whereIn('status', $attemptStatuses)
+            ->where('endpoint', 'not like', '%/v1/organizations/cost_report%')
             ->where('occurred_at', '>=', $start)
             ->where('occurred_at', '<=', $end);
 
@@ -383,7 +394,7 @@ final class IntegrationHealthController extends Controller
     /**
      * @return array{configured:bool,status:string,month_cost_usd:float|null,last_synced_at:string|null,error:string|null,credit_balance_supported:bool,credit_balance_usd:null}
      */
-    private function anthropicOfficialCostPayload(CarbonInterface $now): array
+    private function anthropicOfficialCostPayload(CarbonInterface $now, bool $recordHealthProbe = false): array
     {
         $key = $this->credentials->get('anthropic_admin', 'key');
 
@@ -397,6 +408,7 @@ final class IntegrationHealthController extends Controller
         }
 
         $endpoint = 'https://api.anthropic.com/v1/organizations/cost_report';
+        $startedAt = hrtime(true);
 
         try {
             $response = Http::timeout(12)
@@ -414,16 +426,42 @@ final class IntegrationHealthController extends Controller
                 ]);
         } catch (Throwable $exception) {
             report($exception);
+            $this->recordAnthropicCostProbe(
+                enabled: $recordHealthProbe,
+                status: IntegrationCall::STATUS_FAILURE,
+                startedAt: $startedAt,
+                errorPayload: [
+                    'reason' => 'admin_api_unreachable',
+                    'message' => 'Unable to reach Anthropic Admin API.',
+                ],
+            );
 
             return $this->emptyAnthropicOfficialPayload('sync_failed', 'Unable to reach Anthropic Admin API.');
         }
 
         if ($response->failed()) {
+            $this->recordAnthropicCostProbe(
+                enabled: $recordHealthProbe,
+                status: IntegrationCall::STATUS_FAILURE,
+                startedAt: $startedAt,
+                errorPayload: [
+                    'reason' => 'admin_api_http_error',
+                    'http_status' => $response->status(),
+                    'message' => 'Anthropic Admin API returned HTTP '.$response->status().'.',
+                ],
+            );
+
             return $this->emptyAnthropicOfficialPayload(
                 'sync_failed',
                 'Anthropic Admin API returned HTTP '.$response->status().'.',
             );
         }
+
+        $this->recordAnthropicCostProbe(
+            enabled: $recordHealthProbe,
+            status: IntegrationCall::STATUS_SUCCESS,
+            startedAt: $startedAt,
+        );
 
         return [
             'configured' => true,
@@ -434,6 +472,29 @@ final class IntegrationHealthController extends Controller
             'credit_balance_supported' => false,
             'credit_balance_usd' => null,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $errorPayload
+     */
+    private function recordAnthropicCostProbe(
+        bool $enabled,
+        string $status,
+        int $startedAt,
+        ?array $errorPayload = null,
+    ): void {
+        if (! $enabled || ! Schema::hasTable('integration_calls')) {
+            return;
+        }
+
+        $this->healthRecorder->record(
+            service: 'anthropic',
+            endpoint: 'https://api.anthropic.com/v1/organizations/cost_report',
+            status: $status,
+            attempt: 1,
+            latencyMs: max(0, (int) round((hrtime(true) - $startedAt) / 1_000_000)),
+            errorPayload: $errorPayload,
+        );
     }
 
     /**

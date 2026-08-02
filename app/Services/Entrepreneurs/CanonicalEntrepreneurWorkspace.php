@@ -53,6 +53,30 @@ final class CanonicalEntrepreneurWorkspace
                 );
             });
 
+        // Converted entrepreneurs can retain a legacy client record without its
+        // direct profile link. The shared primary-contact account is a safe
+        // identity link back to the entrepreneur workspace.
+        $clientIdsByPrimaryContact = $clients
+            ->filter(fn (Client $client): bool => filled($client->primary_contact_user_id))
+            ->groupBy(fn (Client $client): string => (string) $client->primary_contact_user_id)
+            ->map(fn (EloquentCollection $clients): array => $clients
+                ->map(fn (Client $client): string => (string) $client->getKey())
+                ->all());
+
+        if ($clientIdsByPrimaryContact->isNotEmpty()) {
+            EntrepreneurProfile::query()
+                ->whereIn('user_id', $clientIdsByPrimaryContact->keys()->all())
+                ->get(['id', 'user_id'])
+                ->each(function (EntrepreneurProfile $profile) use ($clientIdsByPrimaryContact, $profileIdsByClient): void {
+                    foreach ($clientIdsByPrimaryContact->get((string) $profile->user_id, []) as $clientId) {
+                        $profileIdsByClient->put(
+                            $clientId,
+                            [...$profileIdsByClient->get($clientId, []), (string) $profile->getKey()],
+                        );
+                    }
+                });
+        }
+
         ServiceActivation::query()
             ->whereIn('client_id', $clientIds)
             ->where('service_type', ServiceActivation::SERVICE_ENTREPRENEUR)

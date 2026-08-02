@@ -9,9 +9,11 @@ use App\Models\AiUsageEvent;
 use App\Models\IntegrationCall;
 use App\Models\IntegrationHealthSample;
 use App\Models\User;
+use App\Services\Ai\AdvisorAiNotice;
 use Carbon\CarbonInterface;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -192,6 +194,41 @@ final class HealthDashboardTest extends TestCase
             'p95_latency_ms' => 220,
             'health' => IntegrationHealthSample::HEALTH_GREEN,
         ]);
+    }
+
+    public function test_refresh_records_a_successful_anthropic_health_probe_and_clears_an_obsolete_provider_alert(): void
+    {
+        $this->travelTo(now()->setMicrosecond(0));
+        config(['services.anthropic.admin_key' => 'sk-ant-admin01-test']);
+        Http::fake([
+            'https://api.anthropic.com/v1/organizations/cost_report*' => Http::response([
+                'data' => [],
+                'has_more' => false,
+            ]),
+        ]);
+        Cache::put(AdvisorAiNotice::CACHE_KEY, [
+            'reason' => 'Anthropic API request failed with status 400.',
+            'recorded_at' => now()->subHour()->toIso8601String(),
+        ], now()->addDay());
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'anthropic-refresh-admin@example.test');
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.integration-health.refresh'))
+            ->assertRedirect(route('admin.integration-health.index'));
+
+        $this->assertNull(Cache::get(AdvisorAiNotice::CACHE_KEY));
+        $this->assertDatabaseHas('integration_health_samples', [
+            'service' => 'anthropic',
+            'success_rate' => 1.0,
+            'health' => IntegrationHealthSample::HEALTH_GREEN,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.integration-health.index'))
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('summary.green', 1)
+                ->where('summary.red', 0)
+                ->where('aiUsage.provider_attempts.today.attempts', 0));
     }
 
     public function test_stuck_red_alert_fires_once_per_red_window(): void

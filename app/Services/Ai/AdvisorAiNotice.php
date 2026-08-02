@@ -15,7 +15,7 @@ use Throwable;
 
 final class AdvisorAiNotice
 {
-    public const CACHE_KEY = 'fsa.ai.unavailable.latest_notice';
+    public const CACHE_KEY = 'fsa.ai.provider.unavailable.latest_notice.v2';
 
     public function __construct(private readonly AuditWriter $auditWriter) {}
 
