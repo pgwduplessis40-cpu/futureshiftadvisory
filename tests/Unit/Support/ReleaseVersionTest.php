@@ -10,16 +10,20 @@ class ReleaseVersionTest extends TestCase
 {
     private string $versionFile;
 
+    private string $deploymentMetadataFile;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->versionFile = storage_path('framework/testing-release-version');
+        $this->deploymentMetadataFile = storage_path('framework/testing-release-version-deployment.json');
     }
 
     protected function tearDown(): void
     {
         @unlink($this->versionFile);
+        @unlink($this->deploymentMetadataFile);
 
         parent::tearDown();
     }
@@ -28,6 +32,7 @@ class ReleaseVersionTest extends TestCase
     {
         file_put_contents($this->versionFile, "2.4.6\n");
         Config::set('app.release_version_file', $this->versionFile);
+        Config::set('app.release_version_deployment_metadata_file', $this->deploymentMetadataFile);
         Config::set('app.release_version_override', null);
         Config::set('app.legacy_release_version', '1.0.0');
 
@@ -38,6 +43,7 @@ class ReleaseVersionTest extends TestCase
     {
         file_put_contents($this->versionFile, "2.4.6\n");
         Config::set('app.release_version_file', $this->versionFile);
+        Config::set('app.release_version_deployment_metadata_file', $this->deploymentMetadataFile);
         Config::set('app.release_version_override', '3.0.0-rc.1');
 
         $this->assertSame('3.0.0-rc.1', app(ReleaseVersion::class)->current());
@@ -47,9 +53,27 @@ class ReleaseVersionTest extends TestCase
     {
         file_put_contents($this->versionFile, "next\n");
         Config::set('app.release_version_file', $this->versionFile);
+        Config::set('app.release_version_deployment_metadata_file', $this->deploymentMetadataFile);
         Config::set('app.release_version_override', null);
         Config::set('app.legacy_release_version', '1.9.2');
 
         $this->assertSame('1.9.2', app(ReleaseVersion::class)->current());
+    }
+
+    public function test_a_verified_deployment_tag_takes_precedence_over_the_source_fallback(): void
+    {
+        file_put_contents($this->versionFile, "1.0.76\n");
+        file_put_contents($this->deploymentMetadataFile, json_encode([
+            'version' => '1.0.77',
+            'commit' => str_repeat('a', 40),
+            'deployed_at' => '2026-08-02T00:00:00Z',
+            'client_manifest_sha256' => str_repeat('b', 64),
+            'ssr_manifest_sha256' => str_repeat('c', 64),
+        ], JSON_THROW_ON_ERROR));
+        Config::set('app.release_version_file', $this->versionFile);
+        Config::set('app.release_version_deployment_metadata_file', $this->deploymentMetadataFile);
+        Config::set('app.release_version_override', null);
+
+        $this->assertSame('1.0.77', app(ReleaseVersion::class)->current());
     }
 }

@@ -12,7 +12,6 @@ permissions:
 
 jobs:
   wait-for-ci:
-    if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip release]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     concurrency:
@@ -27,22 +26,7 @@ jobs:
           SOURCE_SHA: ${{ github.sha }}
         run: |
           required_checks=("quality" "ci (8.4)" "ci (8.5)")
-          source_commit="$(curl --fail --silent --show-error --retry 5 --retry-delay 3 \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            "${GITHUB_API_URL}/repos/${REPOSITORY}/commits/${SOURCE_SHA}")"
           check_sha="$SOURCE_SHA"
-
-          if [[ "$(jq -r '.commit.message' <<< "$source_commit")" == *"[skip release]"* ]]; then
-            check_sha="$(jq -r '.parents[0].sha // empty' <<< "$source_commit")"
-
-            if [ -z "$check_sha" ]; then
-              echo "Unable to resolve the source commit for the release-version bump." >&2
-              exit 1
-            fi
-
-            echo "Using source commit ${check_sha} for checks behind automated version bump ${SOURCE_SHA}."
-          fi
 
           for attempt in {1..180}; do
             if ! checks="$(curl --fail --silent --show-error \
@@ -90,9 +74,8 @@ jobs:
           echo "ERROR: timed out waiting for required source checks." >&2
           exit 1
 
-  bump-patch-version:
+  tag-release:
     needs: wait-for-ci
-    if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip release]') }}
     runs-on: ubuntu-latest
 
     outputs:
@@ -111,31 +94,44 @@ jobs:
           git fetch origin main
 
           if [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]; then
-            echo "Release source ${GITHUB_SHA} has been superseded by $(git rev-parse origin/main); skipping version bump."
+            echo "Release source ${GITHUB_SHA} has been superseded by $(git rev-parse origin/main); skipping release tag."
             echo "release_ready=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           echo "release_ready=true" >> "$GITHUB_OUTPUT"
 
-      - name: Increment patch version
+      - name: Determine next release tag
         id: version
         if: ${{ steps.current-head.outputs.release_ready == 'true' }}
         shell: bash
         run: |
-          current_version="$(tr -d '\r\n' < VERSION)"
+          baseline_version="$(tr -d '\r\n' < VERSION)"
 
-          if [[ ! "$current_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "VERSION must use major.minor.patch format; found '$current_version'." >&2
+          if [[ ! "$baseline_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "VERSION must use major.minor.patch format; found '$baseline_version'." >&2
             exit 1
           fi
 
-          IFS='.' read -r major minor patch <<< "$current_version"
+          latest_tag=""
+          while IFS= read -r candidate; do
+            if [[ "$candidate" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              latest_tag="$candidate"
+              break
+            fi
+          done < <(git tag --list 'v*' --sort=-v:refname)
+
+          latest_version="${latest_tag#v}"
+          highest_version="$baseline_version"
+          if [ -n "$latest_tag" ]; then
+            highest_version="$(printf '%s\n%s\n' "$baseline_version" "$latest_version" | sort -V | tail -n 1)"
+          fi
+
+          IFS='.' read -r major minor patch <<< "$highest_version"
           next_version="$major.$minor.$((patch + 1))"
-          printf '%s\n' "$next_version" > VERSION
           echo "version=$next_version" >> "$GITHUB_OUTPUT"
 
-      - name: Commit release version
+      - name: Create release tag
         id: release
         if: ${{ steps.current-head.outputs.release_ready == 'true' }}
         env:
@@ -143,19 +139,32 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add VERSION
-          git commit -m "chore(release): v${VERSION} [skip release]"
+          tag="v${VERSION}"
 
-          if ! git push origin HEAD:main; then
-            echo "main advanced before the release version could be published; a newer source workflow will release it."
+          git fetch origin main
+          if [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]; then
+            echo "Release source ${GITHUB_SHA} has been superseded by $(git rev-parse origin/main); skipping release tag."
             exit 0
           fi
 
-          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            tagged_commit="$(git rev-list -n 1 "$tag")"
+            if [ "$tagged_commit" != "$GITHUB_SHA" ]; then
+              echo "ERROR: ${tag} already points to ${tagged_commit}, not ${GITHUB_SHA}." >&2
+              exit 1
+            fi
+
+            echo "Reusing existing release tag ${tag}."
+          else
+            git tag --annotate "$tag" "$GITHUB_SHA" --message "Release ${tag}"
+            git push origin "refs/tags/${tag}"
+          fi
+
+          echo "commit=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
 
   deploy-production:
-    needs: bump-patch-version
-    if: ${{ vars.PRODUCTION_DEPLOY_ENABLED == 'true' && needs.bump-patch-version.outputs.commit != '' }}
+    needs: tag-release
+    if: ${{ vars.PRODUCTION_DEPLOY_ENABLED == 'true' && needs.tag-release.outputs.commit != '' }}
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 25
@@ -184,12 +193,12 @@ jobs:
 
       - name: Deploy the released commit
         env:
-          DEPLOY_COMMIT: ${{ needs.bump-patch-version.outputs.commit }}
+          DEPLOY_COMMIT: ${{ needs.tag-release.outputs.commit }}
           DEPLOY_PATH: ${{ secrets.PRODUCTION_APP_PATH }}
           DEPLOY_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
           DEPLOY_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
           DEPLOY_USER: ${{ secrets.PRODUCTION_SSH_USER }}
-          DEPLOY_VERSION: ${{ needs.bump-patch-version.outputs.version }}
+          DEPLOY_VERSION: ${{ needs.tag-release.outputs.version }}
         run: |
           test -n "$DEPLOY_PATH" || { echo "Missing production deployment secret: DEPLOY_PATH" >&2; exit 1; }
           # An older deploy can leave its own script or generated Wayfinder
@@ -215,9 +224,9 @@ jobs:
 
       - name: Verify the live release identity
         env:
-          DEPLOY_COMMIT: ${{ needs.bump-patch-version.outputs.commit }}
+          DEPLOY_COMMIT: ${{ needs.tag-release.outputs.commit }}
           DEPLOY_URL: ${{ secrets.PRODUCTION_URL }}
-          DEPLOY_VERSION: ${{ needs.bump-patch-version.outputs.version }}
+          DEPLOY_VERSION: ${{ needs.tag-release.outputs.version }}
         run: |
           test -n "$DEPLOY_URL" || { echo "Missing production deployment secret: PRODUCTION_URL" >&2; exit 1; }
           payload="$(curl --fail --silent --show-error --retry 5 --retry-delay 3 "$DEPLOY_URL/api/deployment")"

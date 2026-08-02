@@ -20,12 +20,14 @@ return [
     | Release Version
     |--------------------------------------------------------------------------
     |
-    | The version is read at runtime from the repository VERSION file. This
-    | allows every release commit to be visible immediately, even where Laravel
-    | configuration has been cached. APP_VERSION_OVERRIDE is reserved for an
-    | intentional environment-specific override.
+    | A verified deployment stores the immutable release-tag version in runtime
+    | metadata. VERSION remains a source-controlled fallback for local and
+    | legacy deployments. APP_VERSION_OVERRIDE is reserved for an intentional
+    | environment-specific override.
     |
     */
+
+    'release_version_deployment_metadata_file' => storage_path('app/deployment.json'),
 
     'release_version_file' => base_path('VERSION'),
 

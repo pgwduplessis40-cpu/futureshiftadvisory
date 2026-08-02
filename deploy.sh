@@ -92,11 +92,44 @@ clear_orphaned_git_index_lock() {
     rm -f -- "$lock_path"
 }
 
+release_version() {
+    local tagged_version tag candidate fallback_version
+
+    tag=""
+    while IFS= read -r candidate; do
+        if [[ "$candidate" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            tag="$candidate"
+            break
+        fi
+    done < <(git tag --points-at HEAD --list 'v*' --sort=-v:refname)
+
+    if [ -n "$EXPECTED_VERSION" ]; then
+        if [ "$tag" != "v${EXPECTED_VERSION}" ]; then
+            echo "ERROR: expected release tag v${EXPECTED_VERSION} on $(git rev-parse HEAD), found ${tag:-none}." >&2
+            exit 1
+        fi
+
+        tagged_version="$EXPECTED_VERSION"
+    elif [ -n "$tag" ]; then
+        tagged_version="${tag#v}"
+    else
+        fallback_version="$(tr -d '\r\n' < VERSION)"
+        tagged_version="$fallback_version"
+    fi
+
+    if [[ ! "$tagged_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "ERROR: release version must use major.minor.patch format; found '${tagged_version}'." >&2
+        exit 1
+    fi
+
+    printf '%s\n' "$tagged_version"
+}
+
 verify_expected_release() {
     local deployed_commit deployed_version
 
     deployed_commit="$(git rev-parse HEAD)"
-    deployed_version="$(tr -d '\r\n' < VERSION)"
+    deployed_version="$(release_version)"
 
     if [ -n "$EXPECTED_COMMIT" ] && [ "$deployed_commit" != "$EXPECTED_COMMIT" ]; then
         echo "ERROR: expected commit ${EXPECTED_COMMIT}, checked out ${deployed_commit}." >&2
@@ -112,7 +145,7 @@ verify_expected_release() {
 record_deployment_identity() {
     local version commit deployed_at client_manifest ssr_manifest metadata_path metadata_tmp
 
-    version="$(tr -d '\r\n' < VERSION)"
+    version="$(release_version)"
     commit="$(git rev-parse HEAD)"
     deployed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     client_manifest="public/build/manifest.json"
@@ -138,7 +171,7 @@ verify_live_deployment_identity() {
     local commit version payload
 
     commit="$(git rev-parse HEAD)"
-    version="$(tr -d '\r\n' < VERSION)"
+    version="$(release_version)"
     payload="$(curl -fsS --max-time 20 "$SITE_URL/api/deployment")" || {
         echo "ERROR: live deployment identity endpoint did not return successfully." >&2
         exit 1
@@ -439,7 +472,7 @@ log "Pulling latest code"
 # argument. FETCH_HEAD always represents this one explicit fetch.
 GIT_REMOTE="${GIT_REMOTE:-origin}"
 GIT_BRANCH="${GIT_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
-git fetch "$GIT_REMOTE" "$GIT_BRANCH"
+git fetch --tags "$GIT_REMOTE" "$GIT_BRANCH"
 git merge --ff-only FETCH_HEAD
 verify_expected_release
 

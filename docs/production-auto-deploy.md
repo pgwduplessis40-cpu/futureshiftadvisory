@@ -3,10 +3,10 @@
 Pushing to `main` does not deploy code by itself. Once this workflow is configured, a normal `main` push follows this sequence:
 
 1. GitHub waits for `quality` and every PHP test-matrix check on the source commit. Any failed, cancelled, missing, or timed-out check stops the release.
-2. GitHub increments `VERSION` and commits the release marker.
+2. GitHub creates an immutable `vMAJOR.MINOR.PATCH` tag on that exact tested commit. It does not create a follow-up commit on `main`.
 3. GitHub connects to the VPS with the dedicated deployment account.
 4. `deploy.sh` checks out that exact commit, builds the client and SSR bundles, runs migrations, installs and verifies the Laravel scheduler cron entry, runs the authenticated operational-health checks, restarts PHP-FPM and SSR, and verifies SSR.
-5. The script writes `storage/app/deployment.json` only after those checks pass.
+5. The script writes `storage/app/deployment.json` only after those checks pass. Its version comes from the release tag, which also drives the PWA cache identity.
 6. GitHub requests `https://futureshiftadvisory.nz/api/deployment` and fails the workflow unless its commit and version match the release.
 
 The endpoint is deliberately public and contains only release identity and manifest hashes. It has `Cache-Control: no-store`, so neither the PWA nor an intermediary cache can present it as a cached deployment result.
