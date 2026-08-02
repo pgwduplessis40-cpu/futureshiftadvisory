@@ -43,6 +43,9 @@ final class LearningUpdateApprovalTest extends TestCase
                 ->where('cards.0.magnitude', 'medium')
                 ->where('cards.0.confidence', 0.82)
                 ->where('cards.0.evidence.samples', 9)
+                ->where('cards.0.plain_english.what_we_learnt', 'The analysis feedback signal found a possible prompt update for financial analysis.')
+                ->where('cards.0.plain_english.why_it_matters', 'This could affect financial analysis or advice, so assumptions, calculations, evidence, and wording need checking before use.')
+                ->where('cards.0.plain_english.signals', [])
                 ->where('cards.0.capability_profile', fn (Collection $profile): bool => collect($profile->get('capabilities', []))->contains('Finance')
                     && collect($profile->get('capabilities', []))->contains('decision-toolkit')
                     && collect($profile->get('ai_surfaces', []))->contains('analysis_modules')
@@ -50,6 +53,48 @@ final class LearningUpdateApprovalTest extends TestCase
                     && data_get($profile->all(), 'advice_quality.methodology_review_required') === true
                     && data_get($profile->all(), 'advice_quality.calculation_validation_required') === true
                     && data_get($profile->all(), 'advice_quality.truthfulness_review_required') === true),
+            );
+    }
+
+    public function test_learning_queue_translates_bias_signals_to_plain_english(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+
+        $this->candidate([
+            'source' => [
+                'type' => 'bias_detector',
+                'prompt_id' => 'entrepreneur_plan_score_criterion',
+            ],
+            'summary' => 'Bias detector heuristic flagged AI output for governed review.',
+            'proposed_change' => [
+                'action' => 'review_prompt_or_output_policy',
+                'signals' => [[
+                    'term' => 'exceptional',
+                    'type' => 'praise_language',
+                    'reason' => 'Phase 1 heuristic flagged praise-oriented wording for advisor review.',
+                    'severity' => 'review',
+                ]],
+            ],
+            'evidence' => [
+                'signals' => [[
+                    'term' => 'exceptional',
+                    'type' => 'praise_language',
+                    'reason' => 'Phase 1 heuristic flagged praise-oriented wording for advisor review.',
+                    'severity' => 'review',
+                ]],
+            ],
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.learning-updates.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/learning/Index')
+                ->where('cards.0.plain_english.what_we_learnt', 'The bias detector found possible praise language: exceptional. It was seen in the entrepreneur plan score criterion prompt or output.')
+                ->where('cards.0.plain_english.why_it_matters', 'Praise-heavy or biased wording can make analysis sound more certain or favourable than the evidence supports, so it needs human review before it influences advice.')
+                ->where('cards.0.plain_english.review_decision', 'Check whether the wording or rule should be changed, kept with a clear reason, deferred for more evidence, or rejected.')
+                ->where('cards.0.plain_english.signals.0', 'Praise language signal for exceptional: Phase 1 heuristic flagged praise-oriented wording for advisor review. Severity: review.'),
             );
     }
 

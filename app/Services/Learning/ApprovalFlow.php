@@ -23,6 +23,7 @@ final class ApprovalFlow
         private readonly AuditWriter $audit,
         private readonly ReferenceDataProjector $referenceDataProjector,
         private readonly LearningCapabilityProfile $capabilityProfile,
+        private readonly LearningUpdatePlainEnglishSummary $plainEnglishSummary,
     ) {}
 
     /**
@@ -306,6 +307,7 @@ final class ApprovalFlow
     {
         /** @var EloquentCollection<int, LearningUpdateDecision> $decisions */
         $decisions = $update->decisions;
+        $capabilityProfile = $this->capabilityProfile->forUpdate($update);
 
         return [
             'id' => $update->id,
@@ -318,7 +320,8 @@ final class ApprovalFlow
             'magnitude' => $update->magnitude,
             'confidence' => $update->confidence,
             'evidence' => $update->evidence,
-            'capability_profile' => $this->capabilityProfile->forUpdate($update),
+            'capability_profile' => $capabilityProfile,
+            'plain_english' => $this->plainEnglishSummary->forUpdate($update, $capabilityProfile),
             'status' => $update->status,
             'effective_date' => $update->effective_date?->toIso8601String(),
             'pre_implementation_notice_at' => $update->pre_implementation_notice_at?->toIso8601String(),

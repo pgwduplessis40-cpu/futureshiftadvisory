@@ -35,6 +35,7 @@ type LearningUpdateCard = {
     confidence: number | null;
     evidence: Record<string, unknown> | null;
     capability_profile: CapabilityProfile;
+    plain_english: PlainEnglishSummary;
     status: string;
     effective_date: string | null;
     pre_implementation_notice_at: string | null;
@@ -50,6 +51,13 @@ type LearningUpdateCard = {
         reason: string | null;
         decided_at: string | null;
     } | null;
+};
+
+type PlainEnglishSummary = {
+    what_we_learnt: string;
+    why_it_matters: string;
+    review_decision: string;
+    signals: string[];
 };
 
 type Props = {
@@ -616,6 +624,7 @@ function UpdateCard({
             </div>
 
             <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                <PlainEnglishPanel summary={card.plain_english} />
                 <ReviewFocusPanel profile={card.capability_profile} />
                 <JsonPanel title="Source" value={card.source} />
                 <JsonPanel
@@ -721,6 +730,48 @@ function CapabilityStrip({
             {profile.advice_quality?.budget_principle_review_required && (
                 <Badge variant="outline">Budget check</Badge>
             )}
+        </div>
+    );
+}
+
+function PlainEnglishPanel({ summary }: { summary: PlainEnglishSummary }) {
+    return (
+        <section className="border-l-2 border-primary/50 pl-3 lg:col-span-3">
+            <h3 className="text-xs font-medium text-muted-foreground">
+                What we learnt
+            </h3>
+            <div className="mt-2 grid gap-3 text-sm md:grid-cols-3">
+                <PlainEnglishItem
+                    label="Observed"
+                    value={summary.what_we_learnt}
+                />
+                <PlainEnglishItem
+                    label="Why it matters"
+                    value={summary.why_it_matters}
+                />
+                <PlainEnglishItem
+                    label="Decision needed"
+                    value={summary.review_decision}
+                />
+            </div>
+            {summary.signals.length > 0 && (
+                <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+                    {summary.signals.map((signal) => (
+                        <li key={signal}>{signal}</li>
+                    ))}
+                </ul>
+            )}
+        </section>
+    );
+}
+
+function PlainEnglishItem({ label, value }: { label: string; value: string }) {
+    return (
+        <div>
+            <div className="text-xs font-medium text-muted-foreground">
+                {label}
+            </div>
+            <p className="mt-1 leading-6 text-foreground">{value}</p>
         </div>
     );
 }

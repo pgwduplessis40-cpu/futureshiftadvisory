@@ -19,6 +19,11 @@ type SurveyQuestionOptions =
     | Record<string, string | number | boolean | string[] | number[]>
     | Array<Record<string, string | number | boolean>>;
 
+type ScaleOption = {
+    value: number;
+    label: string;
+};
+
 type SurveyPayload = {
     id: string;
     key: string;
@@ -156,15 +161,9 @@ export default function SurveyShow({
                                                 {question.key}
                                             </div>
                                         </div>
-                                        {question.options ? (
-                                            <pre className="mt-3 overflow-auto rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
-                                                {JSON.stringify(
-                                                    question.options,
-                                                    null,
-                                                    2,
-                                                )}
-                                            </pre>
-                                        ) : null}
+                                        <QuestionResponsePreview
+                                            question={question}
+                                        />
                                     </article>
                                 ))}
                         </div>
@@ -204,4 +203,156 @@ function formatLabel(value: string) {
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
+}
+
+function QuestionResponsePreview({ question }: { question: SurveyQuestion }) {
+    if (question.type === 'likert' || question.type === 'nps') {
+        const options = ratingOptions(question);
+
+        return (
+            <div className="mt-4 border-t pt-4">
+                <p className="text-xs font-medium text-muted-foreground">
+                    Respondent rating scale
+                </p>
+                <div
+                    className={
+                        question.type === 'likert'
+                            ? 'mt-2 grid grid-cols-5 gap-2'
+                            : 'mt-2 grid grid-cols-6 gap-2 sm:grid-cols-11'
+                    }
+                >
+                    {options.map((option) => (
+                        <div
+                            key={option.value}
+                            className="min-w-0 border px-2 py-2 text-center"
+                        >
+                            <div className="text-sm font-medium">
+                                {option.value}
+                            </div>
+                            <div className="mt-1 hidden text-xs text-muted-foreground sm:block">
+                                {option.label}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div className="mt-2 flex justify-between gap-4 text-xs text-muted-foreground">
+                    <span>
+                        {options.at(0)?.value} - {options.at(0)?.label}
+                    </span>
+                    <span className="text-right">
+                        {options.at(-1)?.value} - {options.at(-1)?.label}
+                    </span>
+                </div>
+                <div className="mt-3 border-l-2 border-[var(--fs-teal)] pl-3">
+                    <p className="text-sm font-medium">
+                        Optional rating context
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        What would help us understand this rating?
+                    </p>
+                    <div className="mt-2 min-h-10 border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                        Respondents can add the detail behind their score.
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (question.type === 'anchored_matrix') {
+        const answerKeys = optionStrings(question.options, 'answer_keys');
+
+        return (
+            <div className="mt-4 border-t pt-4">
+                <p className="text-xs font-medium text-muted-foreground">
+                    Delivered item checks
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                    {answerKeys.map((key) => (
+                        <Badge key={key} variant="outline">
+                            {formatLabel(key)}
+                        </Badge>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    if (question.type === 'text') {
+        return (
+            <div className="mt-4 border-t pt-4">
+                <p className="text-xs font-medium text-muted-foreground">
+                    Written response
+                </p>
+                <div className="mt-2 min-h-20 border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+                    The respondent writes their answer here.
+                </div>
+            </div>
+        );
+    }
+
+    return null;
+}
+
+function ratingOptions(question: SurveyQuestion): ScaleOption[] {
+    if (question.type === 'likert') {
+        const options = Array.isArray(question.options)
+            ? question.options
+                  .map((option): ScaleOption | null => {
+                      const value = option.value;
+                      const label = option.label;
+
+                      return typeof value === 'number' &&
+                          typeof label === 'string'
+                          ? { value, label }
+                          : null;
+                  })
+                  .filter((option): option is ScaleOption => option !== null)
+            : [];
+
+        return options;
+    }
+
+    const settings = isOptionsRecord(question.options) ? question.options : {};
+    const min = typeof settings.min === 'number' ? settings.min : 0;
+    const max = typeof settings.max === 'number' ? settings.max : 10;
+    const minLabel =
+        typeof settings.min_label === 'string'
+            ? settings.min_label
+            : 'Not at all likely';
+    const maxLabel =
+        typeof settings.max_label === 'string'
+            ? settings.max_label
+            : 'Extremely likely';
+
+    return Array.from({ length: max - min + 1 }, (_, index) => {
+        const value = min + index;
+
+        return {
+            value,
+            label:
+                value === min
+                    ? minLabel
+                    : value === max
+                      ? maxLabel
+                      : String(value),
+        };
+    });
+}
+
+function optionStrings(options: SurveyQuestionOptions, key: string): string[] {
+    if (!isOptionsRecord(options)) {
+        return [];
+    }
+
+    const value = options[key];
+
+    return Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === 'string')
+        : [];
+}
+
+function isOptionsRecord(
+    options: SurveyQuestionOptions,
+): options is Record<string, string | number | boolean | string[] | number[]> {
+    return options !== null && !Array.isArray(options);
 }

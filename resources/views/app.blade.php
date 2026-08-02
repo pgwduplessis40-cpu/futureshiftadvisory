@@ -1,7 +1,19 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" @class(['dark' => ($appearance ?? 'light') == 'dark'])>
     <head>
-        @php($googleAnalyticsMeasurementId = config('services.google_analytics.measurement_id'))
+        {{--
+            Analytics loads on the public marketing pages only.
+
+            The authenticated app shares this shell, and its page titles embed
+            client and person names (e.g. "<legal name> messages"), which gtag
+            sends as `page_title`. Loading the tag app-wide therefore
+            transmitted client identities to a third party and mixed portal
+            traffic into public-site reporting. Gating on the Inertia component
+            keeps confidential pages untracked by construction rather than by
+            remembering to redact each title.
+        --}}
+        @php($isPublicPage = str_starts_with($page['component'] ?? '', 'public/'))
+        @php($googleAnalyticsMeasurementId = $isPublicPage ? config('services.google_analytics.measurement_id') : null)
         @if (is_string($googleAnalyticsMeasurementId) && $googleAnalyticsMeasurementId !== '')
             <!-- Google tag (gtag.js) -->
             <script async src="https://www.googletagmanager.com/gtag/js?id={{ urlencode($googleAnalyticsMeasurementId) }}"></script>
