@@ -21,13 +21,14 @@ Add the following **Actions secrets** to the repository:
 | `PRODUCTION_SSH_PORT` | SSH port, normally `22` |
 | `PRODUCTION_SSH_USER` | Dedicated deploy user |
 | `PRODUCTION_SSH_PRIVATE_KEY` | Private key for that deploy user |
+| `CRON_SERVICE` | Optional deploy environment override when the VPS cron systemd unit is not `crond`, `cron`, or `cronie` |
 | `PRODUCTION_SSH_KNOWN_HOSTS` | Exact `known_hosts` line for the VPS, obtained from a trusted connection |
 | `PRODUCTION_APP_PATH` | `/var/www/futureshiftadvisory` |
 | `PRODUCTION_URL` | `https://futureshiftadvisory.nz` |
 
 Create the repository variable `PRODUCTION_DEPLOY_ENABLED` with value `true` only after every secret is present. Until then, the production deploy job is skipped rather than pretending to have deployed anything. The release cannot proceed unless the existing `quality`, `ci (8.4)`, and `ci (8.5)` check-runs all pass for the source commit.
 
-The deploy user needs write access to the application checkout, access to its own `crontab`, and permission to restart the PHP-FPM and SSR services through `sudo systemctl`. Do not use the VPS root password or place it in GitHub.
+The deploy user needs write access to the application checkout, access to its own `crontab`, and permission to start/enable the cron daemon plus restart the PHP-FPM and SSR services through `sudo systemctl`. Do not use the VPS root password or place it in GitHub.
 
 ## Confirming a release
 

@@ -27,6 +27,7 @@ PHP_FPM_SERVICE="${PHP_FPM_SERVICE:-php-fpm}"
 SITE_URL="${SITE_URL:-https://futureshiftadvisory.nz}"
 RUN_MIGRATIONS="${RUN_MIGRATIONS:-yes}"
 CONFIGURE_SCHEDULER="${CONFIGURE_SCHEDULER:-yes}"
+CRON_SERVICE="${CRON_SERVICE:-}"
 EXPECTED_COMMIT="${DEPLOY_EXPECTED_COMMIT:-}"
 EXPECTED_VERSION="${DEPLOY_EXPECTED_VERSION:-}"
 
@@ -187,6 +188,49 @@ verify_live_deployment_identity() {
     esac
 }
 
+ensure_cron_daemon_running() {
+    local cron_service candidates=()
+
+    if [ "$CONFIGURE_SCHEDULER" != "yes" ]; then
+        return
+    fi
+
+    command -v systemctl >/dev/null 2>&1 || {
+        echo "ERROR: systemctl is required to verify the cron daemon for Laravel's scheduler." >&2
+        exit 1
+    }
+
+    if [ -n "$CRON_SERVICE" ]; then
+        candidates=("$CRON_SERVICE")
+    else
+        candidates=(crond cron cronie)
+    fi
+
+    for candidate in "${candidates[@]}"; do
+        if systemctl cat "$candidate" >/dev/null 2>&1; then
+            cron_service="$candidate"
+            break
+        fi
+    done
+
+    if [ -z "${cron_service:-}" ]; then
+        echo "ERROR: no cron systemd unit was found; set CRON_SERVICE to the host's cron service name." >&2
+        exit 1
+    fi
+
+    if ! systemctl is-active --quiet "$cron_service"; then
+        echo "Starting cron service '${cron_service}' for Laravel scheduler."
+        $SUDO systemctl enable --now "$cron_service"
+    fi
+
+    if ! systemctl is-active --quiet "$cron_service"; then
+        echo "ERROR: cron service '${cron_service}' is not active; scheduled app checks will not run." >&2
+        exit 1
+    fi
+
+    echo "Cron service '${cron_service}' is active."
+}
+
 configure_scheduler_cron() {
     local php_binary scheduler_line current_crontab updated_crontab
 
@@ -194,6 +238,8 @@ configure_scheduler_cron() {
         echo "Skipping scheduler cron setup (CONFIGURE_SCHEDULER=$CONFIGURE_SCHEDULER)."
         return
     fi
+
+    ensure_cron_daemon_running
 
     command -v crontab >/dev/null 2>&1 || {
         echo "ERROR: crontab is required to keep Laravel's scheduler running." >&2
