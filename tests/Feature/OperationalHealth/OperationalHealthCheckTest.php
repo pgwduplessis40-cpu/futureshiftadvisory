@@ -12,6 +12,8 @@ use App\Models\ClientTeamMember;
 use App\Models\OperationalHealthCheckResult;
 use App\Models\OperationalHealthCheckRun;
 use App\Models\User;
+use App\Notifications\OperationalHealthAttentionNotification;
+use App\Services\OperationalHealth\OperationalHealthAlerter;
 use App\Services\OperationalHealth\OperationalHealthSchedule;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Security\StepUpEvaluator;
@@ -21,6 +23,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -35,7 +38,7 @@ final class OperationalHealthCheckTest extends TestCase
         $this->seed(RoleSeeder::class);
     }
 
-    public function test_health_checks_are_scheduled_hourly_during_business_hours_in_new_zealand_timezone(): void
+    public function test_health_checks_are_scheduled_for_business_hours_with_an_hourly_sentinel(): void
     {
         config()->set('operational_health.enabled', true);
         config()->set('operational_health.timezone', 'Pacific/Auckland');
@@ -67,6 +70,14 @@ final class OperationalHealthCheckTest extends TestCase
         $this->assertSame('30 7 * * 6,0', $weekend->first()->expression);
         $this->assertSame(['Pacific/Auckland'], $weekday->pluck('timezone')->unique()->values()->all());
         $this->assertSame('Pacific/Auckland', $weekend->first()->timezone);
+
+        $sentinel = $events
+            ->first(fn ($event): bool => $event->description === 'fsa-operational-health-sentinel');
+
+        $this->assertNotNull($sentinel);
+        $this->assertSame('0 * * * *', $sentinel->expression);
+        $this->assertSame('Pacific/Auckland', $sentinel->timezone);
+        $this->assertStringContainsString('--sentinel', $sentinel->command);
 
         $quarantineRecovery = $events
             ->first(fn ($event): bool => $event->description === 'fsa-rescan-quarantined-documents');
@@ -118,6 +129,42 @@ final class OperationalHealthCheckTest extends TestCase
         $this->assertSame(1, $skipped->consecutive_failures);
     }
 
+    public function test_sentinel_scope_runs_only_always_on_client_facing_checks(): void
+    {
+        config()->set('operational_health.ensure_fixtures', false);
+
+        $this->userWithRole(User::TYPE_SUPER_ADMIN, 'sentinel-admin@example.test');
+
+        $this->artisan(RunOperationalHealthChecks::class, ['--sentinel' => true])
+            ->assertSuccessful();
+
+        /** @var OperationalHealthCheckRun $run */
+        $run = OperationalHealthCheckRun::query()->latest()->firstOrFail();
+        $checkKeys = $run->results()->pluck('check_key')->all();
+
+        $this->assertSame('sentinel', data_get($run->metadata, 'scope'));
+        $this->assertContains('core.up', $checkKeys);
+        $this->assertContains('public.home', $checkKeys);
+        $this->assertContains('auth.login', $checkKeys);
+        $this->assertContains('pwa.service_worker', $checkKeys);
+        $this->assertContains('deployment.identity', $checkKeys);
+        $this->assertContains('staff.dashboard', $checkKeys);
+        $this->assertContains('portal.dashboard', $checkKeys);
+        $this->assertContains('portal.entrepreneur.dashboard', $checkKeys);
+        $this->assertContains('portal.documents.show', $checkKeys);
+        $this->assertNotContains('portal.business_plan_budget.pdf', $checkKeys);
+        $this->assertNotContains('portal.dd_plan.preview', $checkKeys);
+        $this->assertNotContains('advisor.templates.preview', $checkKeys);
+
+        $serviceWorker = OperationalHealthCheckResult::query()
+            ->where('run_id', $run->id)
+            ->where('check_key', 'pwa.service_worker')
+            ->firstOrFail();
+
+        $this->assertSame(OperationalHealthCheckResult::STATUS_PASSED, $serviceWorker->status);
+        $this->assertSame([], data_get($serviceWorker->context, 'header_failures'));
+    }
+
     public function test_seeded_monitor_fixtures_let_recurring_workflow_checks_run(): void
     {
         Storage::fake('secure_local');
@@ -135,7 +182,14 @@ final class OperationalHealthCheckTest extends TestCase
         /** @var OperationalHealthCheckRun $run */
         $run = OperationalHealthCheckRun::query()->latest()->firstOrFail();
 
-        $this->assertSame(OperationalHealthCheckRun::STATUS_PASSED, $run->status);
+        $this->assertSame(
+            OperationalHealthCheckRun::STATUS_PASSED,
+            $run->status,
+            $run->results()
+                ->where('status', '!=', OperationalHealthCheckResult::STATUS_PASSED)
+                ->get(['check_key', 'status', 'actual_status', 'issue_summary'])
+                ->toJson(),
+        );
         $this->assertSame(0, $run->failed_checks);
         $this->assertSame(0, $run->skipped_checks);
 
@@ -145,6 +199,7 @@ final class OperationalHealthCheckTest extends TestCase
             'portal.business_plan_budget.pdf',
             'portal.dd_plan.preview',
             'portal.entrepreneur.plan.preview',
+            'portal.entrepreneur.dashboard',
             'portal.documents.show',
             'advisor.templates.preview',
         ] as $checkKey) {
@@ -324,7 +379,14 @@ final class OperationalHealthCheckTest extends TestCase
         /** @var OperationalHealthCheckRun $run */
         $run = OperationalHealthCheckRun::query()->latest()->firstOrFail();
 
-        $this->assertSame(OperationalHealthCheckRun::STATUS_PASSED, $run->status);
+        $this->assertSame(
+            OperationalHealthCheckRun::STATUS_PASSED,
+            $run->status,
+            $run->results()
+                ->where('status', '!=', OperationalHealthCheckResult::STATUS_PASSED)
+                ->get(['check_key', 'status', 'actual_status', 'issue_summary'])
+                ->toJson(),
+        );
         $this->assertSame(0, $run->failed_checks);
         $this->assertSame(0, $run->skipped_checks);
 
@@ -353,6 +415,31 @@ final class OperationalHealthCheckTest extends TestCase
             ->assertJsonPath('props.operationalHealth.index_url', route('admin.app-health.index', absolute: false))
             ->assertJsonPath('props.operationalHealth.latest_issue.issue_summary', 'Entrepreneur business plan preview returned HTTP 500; expected 200.')
             ->assertJsonPath('props.operationalHealth.latest_issue.consecutive_failures', 3);
+    }
+
+    public function test_repeated_operational_health_findings_notify_real_super_admins(): void
+    {
+        Notification::fake();
+
+        $superAdmin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'ops-alert-admin@example.test');
+        $fixtureAdmin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'operational-health-admin@futureshiftadvisory.test');
+        $run = $this->healthRun(OperationalHealthCheckRun::STATUS_FAILED);
+        $result = $this->healthResult($run, [
+            'fingerprint' => hash('sha256', 'repeated-operational-health-failure'),
+            'consecutive_failures' => 2,
+            'failures_last_7_days' => 2,
+            'failures_last_30_days' => 2,
+        ]);
+
+        $sent = app(OperationalHealthAlerter::class)->notify($run);
+
+        $this->assertSame(1, $sent);
+        Notification::assertSentTo(
+            $superAdmin,
+            OperationalHealthAttentionNotification::class,
+            fn (OperationalHealthAttentionNotification $notification): bool => $notification->result->is($result),
+        );
+        Notification::assertNotSentTo($fixtureAdmin, OperationalHealthAttentionNotification::class);
     }
 
     private function fakePdfRenderer(): void

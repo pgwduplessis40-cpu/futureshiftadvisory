@@ -18,16 +18,17 @@ use App\Models\RiskCost;
 use App\Models\User;
 use App\Services\Analytics\FunnelTracker;
 use App\Services\Audit\AuditWriter;
+use App\Support\DatabaseSchema;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 final class PracticeHealthReport
 {
     public function __construct(
         private readonly AuditWriter $audit,
         private readonly FunnelTracker $funnels,
+        private readonly DatabaseSchema $schema,
     ) {}
 
     /**
@@ -186,7 +187,7 @@ final class PracticeHealthReport
             $query->whereIn('id', $clientIds);
         }
 
-        if (Schema::hasColumn('clients', 'status')) {
+        if ($this->schema->hasColumn('clients', 'status')) {
             $query->where('status', ClientStatus::ACTIVE->value);
         }
 

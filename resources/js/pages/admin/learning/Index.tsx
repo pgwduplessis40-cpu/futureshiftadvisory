@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 
 type Decision = 'approve' | 'approve_modified_date' | 'defer' | 'reject';
 type LearningTab = 'actions' | 'information';
+type ImpactOutcome = 'improved' | 'neutral' | 'regressed' | 'inconclusive';
 
 type LearningUpdateCard = {
     id: string;
@@ -78,6 +79,15 @@ type ImpactReviewCard = {
     review_url: string;
     proposed_change: Record<string, unknown> | null;
     capability_profile: CapabilityProfile | null;
+    suggested_metrics: {
+        impact_outcome: ImpactOutcome;
+        affected_surface: string | null;
+        metric_name: string | null;
+        before_metric: number | string | null;
+        after_metric: number | string | null;
+        sample_size: number | string | null;
+        rollback_required: boolean;
+    };
 };
 
 type CapabilityProfile = {
@@ -271,6 +281,27 @@ function ImpactReviewPanel({ reviews }: { reviews: ImpactReviewCard[] }) {
 
 function ImpactReviewCardItem({ review }: { review: ImpactReviewCard }) {
     const [outcome, setOutcome] = useState('');
+    const [impactOutcome, setImpactOutcome] = useState<ImpactOutcome>(
+        review.suggested_metrics.impact_outcome ?? 'neutral',
+    );
+    const [affectedSurface, setAffectedSurface] = useState(
+        review.suggested_metrics.affected_surface ?? '',
+    );
+    const [metricName, setMetricName] = useState(
+        review.suggested_metrics.metric_name ?? '',
+    );
+    const [beforeMetric, setBeforeMetric] = useState(
+        metricInputValue(review.suggested_metrics.before_metric),
+    );
+    const [afterMetric, setAfterMetric] = useState(
+        metricInputValue(review.suggested_metrics.after_metric),
+    );
+    const [sampleSize, setSampleSize] = useState(
+        metricInputValue(review.suggested_metrics.sample_size),
+    );
+    const [rollbackRequired, setRollbackRequired] = useState(
+        review.suggested_metrics.rollback_required,
+    );
 
     return (
         <article className="grid gap-3 rounded-md border p-3 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.7fr)]">
@@ -295,6 +326,88 @@ function ImpactReviewCardItem({ review }: { review: ImpactReviewCard }) {
                 )}
             </div>
             <div className="grid gap-2">
+                <div className="grid gap-2 sm:grid-cols-2">
+                    <label className="grid gap-1 text-xs text-muted-foreground">
+                        Impact
+                        <select
+                            className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                            value={impactOutcome}
+                            onChange={(event) =>
+                                setImpactOutcome(
+                                    event.target.value as ImpactOutcome,
+                                )
+                            }
+                        >
+                            <option value="improved">Improved</option>
+                            <option value="neutral">Neutral</option>
+                            <option value="regressed">Regressed</option>
+                            <option value="inconclusive">Inconclusive</option>
+                        </select>
+                    </label>
+                    <label className="grid gap-1 text-xs text-muted-foreground">
+                        Surface
+                        <input
+                            className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                            value={affectedSurface}
+                            onChange={(event) =>
+                                setAffectedSurface(event.target.value)
+                            }
+                        />
+                    </label>
+                    <label className="grid gap-1 text-xs text-muted-foreground">
+                        Metric
+                        <input
+                            className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                            value={metricName}
+                            onChange={(event) =>
+                                setMetricName(event.target.value)
+                            }
+                        />
+                    </label>
+                    <label className="grid gap-1 text-xs text-muted-foreground">
+                        Sample
+                        <input
+                            className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                            inputMode="numeric"
+                            value={sampleSize}
+                            onChange={(event) =>
+                                setSampleSize(event.target.value)
+                            }
+                        />
+                    </label>
+                    <label className="grid gap-1 text-xs text-muted-foreground">
+                        Before
+                        <input
+                            className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                            inputMode="decimal"
+                            value={beforeMetric}
+                            onChange={(event) =>
+                                setBeforeMetric(event.target.value)
+                            }
+                        />
+                    </label>
+                    <label className="grid gap-1 text-xs text-muted-foreground">
+                        After
+                        <input
+                            className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                            inputMode="decimal"
+                            value={afterMetric}
+                            onChange={(event) =>
+                                setAfterMetric(event.target.value)
+                            }
+                        />
+                    </label>
+                </div>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <input
+                        type="checkbox"
+                        checked={rollbackRequired}
+                        onChange={(event) =>
+                            setRollbackRequired(event.target.checked)
+                        }
+                    />
+                    Rollback required
+                </label>
                 <textarea
                     className="min-h-20 rounded-md border bg-background px-3 py-2 text-sm"
                     value={outcome}
@@ -309,6 +422,13 @@ function ImpactReviewCardItem({ review }: { review: ImpactReviewCard }) {
                             review_outcome:
                                 outcome ||
                                 'Impact review completed with no exceptions recorded.',
+                            impact_outcome: impactOutcome,
+                            affected_surface: affectedSurface || null,
+                            metric_name: metricName || null,
+                            before_metric: numericMetric(beforeMetric),
+                            after_metric: numericMetric(afterMetric),
+                            sample_size: integerMetric(sampleSize),
+                            rollback_required: rollbackRequired,
                         })
                     }
                 >
@@ -318,6 +438,30 @@ function ImpactReviewCardItem({ review }: { review: ImpactReviewCard }) {
             </div>
         </article>
     );
+}
+
+function metricInputValue(value: number | string | null): string {
+    return value === null || value === undefined ? '' : String(value);
+}
+
+function numericMetric(value: string): number | null {
+    if (value.trim() === '') {
+        return null;
+    }
+
+    const number = Number(value);
+
+    return Number.isFinite(number) ? number : null;
+}
+
+function integerMetric(value: string): number | null {
+    if (value.trim() === '') {
+        return null;
+    }
+
+    const number = Number.parseInt(value, 10);
+
+    return Number.isFinite(number) ? number : null;
 }
 
 function LearningTabList({

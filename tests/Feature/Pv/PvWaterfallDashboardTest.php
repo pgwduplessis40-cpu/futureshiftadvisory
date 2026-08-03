@@ -157,12 +157,13 @@ final class PvWaterfallDashboardTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('advisor/Dashboard')
-                ->where('pvWaterfall.summary.clients', 1)
-                ->where('pvWaterfall.summary.current_pv', 100000)
-                ->where('pvWaterfall.summary.target_pv', 135000)
-                ->where('pvWaterfall.clients.0.client_id', $client->id)
-                ->where('pvWaterfall.clients.0.waterfall.1.label', 'Automation upside')
-                ->where('pvWaterfall.clients.0.waterfall.3.end', 135000));
+                ->loadDeferredProps('advisor-portfolio', fn (Assert $page): Assert => $page
+                    ->where('pvWaterfall.summary.clients', 1)
+                    ->where('pvWaterfall.summary.current_pv', 100000)
+                    ->where('pvWaterfall.summary.target_pv', 135000)
+                    ->where('pvWaterfall.clients.0.client_id', $client->id)
+                    ->where('pvWaterfall.clients.0.waterfall.1.label', 'Automation upside')
+                    ->where('pvWaterfall.clients.0.waterfall.3.end', 135000)));
     }
 
     public function test_server_side_waterfall_chart_renders_for_reports(): void

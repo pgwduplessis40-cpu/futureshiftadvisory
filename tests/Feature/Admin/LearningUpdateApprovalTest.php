@@ -257,18 +257,34 @@ final class LearningUpdateApprovalTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->has('impact_reviews', 1)
                 ->where('impact_reviews.0.id', $implementation->id)
-                ->where('impact_reviews.0.summary', 'Adjust prompt calibration'));
+                ->where('impact_reviews.0.summary', 'Adjust prompt calibration')
+                ->where('impact_reviews.0.suggested_metrics.impact_outcome', 'neutral')
+                ->where('impact_reviews.0.suggested_metrics.affected_surface', 'financial')
+                ->where('impact_reviews.0.suggested_metrics.rollback_required', false));
 
         $this->actingAsMfa($admin)
             ->patch(route('admin.learning-update-implementations.review', $implementation), [
                 'review_outcome' => 'No client impact exceptions after 30-day review.',
+                'impact_outcome' => 'improved',
+                'affected_surface' => 'prompt_calibration',
+                'metric_name' => 'advisor_acceptance_rate',
+                'before_metric' => 0.62,
+                'after_metric' => 0.74,
+                'sample_size' => 18,
+                'rollback_required' => false,
             ])
             ->assertRedirect(route('admin.learning-updates.index', absolute: false));
 
-        $this->assertSame(
-            'No client impact exceptions after 30-day review.',
-            $implementation->refresh()->review_outcome,
-        );
+        $implementation->refresh();
+
+        $this->assertSame('No client impact exceptions after 30-day review.', $implementation->review_outcome);
+        $this->assertSame('improved', data_get($implementation->review_metrics, 'impact_outcome'));
+        $this->assertSame('prompt_calibration', data_get($implementation->review_metrics, 'affected_surface'));
+        $this->assertSame('advisor_acceptance_rate', data_get($implementation->review_metrics, 'metric_name'));
+        $this->assertEquals(0.62, data_get($implementation->review_metrics, 'before_metric'));
+        $this->assertEquals(0.74, data_get($implementation->review_metrics, 'after_metric'));
+        $this->assertSame(18, data_get($implementation->review_metrics, 'sample_size'));
+        $this->assertFalse(data_get($implementation->review_metrics, 'rollback_required'));
         $this->assertDatabaseHas('audit_events', ['action' => 'learning_update.impact_reviewed']);
     }
 

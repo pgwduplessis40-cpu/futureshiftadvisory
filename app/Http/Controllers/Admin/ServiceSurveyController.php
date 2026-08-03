@@ -25,12 +25,9 @@ use Inertia\Response;
 
 final class ServiceSurveyController extends Controller
 {
-    public function index(Request $request, SurveyLibrary $library): Response
+    public function index(): Response
     {
         Gate::authorize('viewAny', Survey::class);
-
-        $user = $request->user();
-        $library->ensureServiceImprovement($user instanceof User ? $user : null);
 
         return Inertia::render('admin/surveys/ServiceAssignments', [
             'surveys' => Survey::query()

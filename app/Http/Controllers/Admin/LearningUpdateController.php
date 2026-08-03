@@ -79,12 +79,28 @@ final class LearningUpdateController extends Controller
 
         $validated = $request->validate([
             'review_outcome' => ['required', 'string', 'max:4000'],
+            'impact_outcome' => ['nullable', 'string', Rule::in(['improved', 'neutral', 'regressed', 'inconclusive'])],
+            'affected_surface' => ['nullable', 'string', 'max:120'],
+            'metric_name' => ['nullable', 'string', 'max:120'],
+            'before_metric' => ['nullable', 'numeric'],
+            'after_metric' => ['nullable', 'numeric'],
+            'sample_size' => ['nullable', 'integer', 'min:0', 'max:1000000'],
+            'rollback_required' => ['nullable', 'boolean'],
         ]);
 
         $this->approvalFlow->recordImpactReview(
             $learningUpdateImplementation,
             $validated['review_outcome'],
             $user,
+            [
+                'impact_outcome' => $validated['impact_outcome'] ?? null,
+                'affected_surface' => $validated['affected_surface'] ?? null,
+                'metric_name' => $validated['metric_name'] ?? null,
+                'before_metric' => $validated['before_metric'] ?? null,
+                'after_metric' => $validated['after_metric'] ?? null,
+                'sample_size' => $validated['sample_size'] ?? null,
+                'rollback_required' => $validated['rollback_required'] ?? false,
+            ],
         );
 
         return to_route('admin.learning-updates.index')->with('status', 'learning-impact-reviewed');

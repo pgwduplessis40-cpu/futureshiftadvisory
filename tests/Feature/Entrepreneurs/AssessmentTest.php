@@ -193,6 +193,11 @@ final class AssessmentTest extends TestCase
         $this->assertSame($feedback, data_get($notes, 'overall_visible'));
         $this->assertSame($proposedReply, data_get($notes, 'proposed_reply'));
         $this->assertNotNull(data_get($notes, 'feedback_sent_at'));
+        $this->assertSame($assessment->getKey(), data_get($notes, 'feedback_snapshot.source.plan_assessment_id'));
+        $this->assertCount(3, data_get($notes, 'feedback_snapshot.priorities'));
+        $this->assertNotNull(data_get($notes, 'feedback_snapshot.suggested_feedback.sha256'));
+        $this->assertTrue(data_get($notes, 'feedback_snapshot.advisor_edits.feedback_changed_from_suggestion'));
+        $this->assertTrue(data_get($notes, 'feedback_snapshot.advisor_edits.proposed_reply_changed_from_suggestion'));
         $this->assertDatabaseHas('message_threads', [
             'entrepreneur_profile_id' => $profile->getKey(),
             'subject' => 'Business plan assessment feedback',
@@ -212,6 +217,7 @@ final class AssessmentTest extends TestCase
                 ->component('portal/entrepreneur/Assessment')
                 ->where('advisorFeedback.feedback', $feedback)
                 ->where('advisorFeedback.proposed_reply', $proposedReply)
+                ->missing('assessment.mentor_notes.feedback_snapshot')
             );
     }
 
@@ -232,6 +238,7 @@ final class AssessmentTest extends TestCase
 
         $this->assertArrayNotHasKey('advisor_feedback', $visible);
         $this->assertArrayNotHasKey('proposed_reply', $visible);
+        $this->assertArrayNotHasKey('feedback_snapshot', $visible);
         $this->assertArrayNotHasKey('overall_visible', $visible);
     }
 

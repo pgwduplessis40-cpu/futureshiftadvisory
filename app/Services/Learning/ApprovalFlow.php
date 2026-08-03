@@ -19,6 +19,13 @@ use RuntimeException;
 
 final class ApprovalFlow
 {
+    private const IMPACT_OUTCOMES = [
+        'improved',
+        'neutral',
+        'regressed',
+        'inconclusive',
+    ];
+
     public function __construct(
         private readonly AuditWriter $audit,
         private readonly ReferenceDataProjector $referenceDataProjector,
@@ -188,14 +195,18 @@ final class ApprovalFlow
                     'review_due' => $implementation->review_due?->toIso8601String(),
                     'review_url' => route('admin.learning-update-implementations.review', $implementation, absolute: false),
                     'proposed_change' => $update?->proposed_change ?? [],
+                    'suggested_metrics' => $this->suggestedImpactMetrics($implementation),
                 ];
             })
             ->values();
     }
 
-    public function recordImpactReview(LearningUpdateImplementation $implementation, string $outcome, User $actor): LearningUpdateImplementation
+    /**
+     * @param  array<string, mixed>  $metrics
+     */
+    public function recordImpactReview(LearningUpdateImplementation $implementation, string $outcome, User $actor, array $metrics = []): LearningUpdateImplementation
     {
-        return DB::transaction(function () use ($implementation, $outcome, $actor): LearningUpdateImplementation {
+        return DB::transaction(function () use ($implementation, $outcome, $actor, $metrics): LearningUpdateImplementation {
             /** @var LearningUpdateImplementation $locked */
             $locked = LearningUpdateImplementation::query()
                 ->with('learningUpdate')
@@ -203,12 +214,18 @@ final class ApprovalFlow
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $locked->forceFill(['review_outcome' => $outcome])->save();
+            $reviewMetrics = $this->normaliseImpactReviewMetrics($metrics, $locked, $actor);
+
+            $locked->forceFill([
+                'review_outcome' => $outcome,
+                'review_metrics' => $reviewMetrics,
+            ])->save();
 
             $this->audit->record('learning_update.impact_reviewed', subject: $locked->learningUpdate, actor: $actor, after: [
                 'implementation_id' => $locked->getKey(),
                 'review_due' => $locked->review_due?->toIso8601String(),
                 'review_outcome' => $outcome,
+                'review_metrics' => $reviewMetrics,
             ]);
 
             return $locked->refresh();
@@ -298,6 +315,81 @@ final class ApprovalFlow
             ?? data_get($update->proposed_change, "target.{$key}");
 
         return is_scalar($value) && $value !== '' ? (string) $value : null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function suggestedImpactMetrics(LearningUpdateImplementation $implementation): array
+    {
+        $update = $implementation->learningUpdate;
+        $impactScope = $update?->impact_scope ?? [];
+        $modules = data_get($impactScope, 'modules');
+        $surface = data_get($impactScope, 'module') ?? data_get($impactScope, 'surface');
+
+        if (! is_string($surface) && is_array($modules)) {
+            $surface = collect($modules)
+                ->filter(fn (mixed $module): bool => is_scalar($module) && trim((string) $module) !== '')
+                ->map(fn (mixed $module): string => trim((string) $module))
+                ->join(', ');
+        }
+
+        $evidence = $update?->evidence ?? [];
+
+        return [
+            'impact_outcome' => 'neutral',
+            'affected_surface' => is_string($surface) && trim($surface) !== ''
+                ? trim($surface)
+                : 'learning_update',
+            'metric_name' => is_string(data_get($evidence, 'metric_name'))
+                ? (string) data_get($evidence, 'metric_name')
+                : null,
+            'before_metric' => data_get($implementation->before_state, 'metric.value'),
+            'after_metric' => data_get($implementation->after_state, 'metric.value'),
+            'sample_size' => data_get($evidence, 'sample_size'),
+            'rollback_required' => false,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $metrics
+     * @return array<string, mixed>
+     */
+    private function normaliseImpactReviewMetrics(array $metrics, LearningUpdateImplementation $implementation, User $actor): array
+    {
+        $suggested = $this->suggestedImpactMetrics($implementation);
+        $impactOutcome = (string) ($metrics['impact_outcome'] ?? $suggested['impact_outcome']);
+
+        if (! in_array($impactOutcome, self::IMPACT_OUTCOMES, true)) {
+            $impactOutcome = 'inconclusive';
+        }
+
+        return [
+            'impact_outcome' => $impactOutcome,
+            'affected_surface' => $this->trimmedMetricString($metrics['affected_surface'] ?? $suggested['affected_surface']),
+            'metric_name' => $this->trimmedMetricString($metrics['metric_name'] ?? $suggested['metric_name']),
+            'before_metric' => $this->metricNumber($metrics['before_metric'] ?? $suggested['before_metric']),
+            'after_metric' => $this->metricNumber($metrics['after_metric'] ?? $suggested['after_metric']),
+            'sample_size' => $this->metricInteger($metrics['sample_size'] ?? $suggested['sample_size']),
+            'rollback_required' => (bool) ($metrics['rollback_required'] ?? $suggested['rollback_required']),
+            'recorded_at' => now()->toIso8601String(),
+            'recorded_by_user_id' => $actor->getKey(),
+        ];
+    }
+
+    private function trimmedMetricString(mixed $value): ?string
+    {
+        return is_string($value) && trim($value) !== '' ? trim($value) : null;
+    }
+
+    private function metricNumber(mixed $value): int|float|null
+    {
+        return is_numeric($value) ? (float) $value : null;
+    }
+
+    private function metricInteger(mixed $value): ?int
+    {
+        return is_numeric($value) ? max(0, (int) $value) : null;
     }
 
     /**

@@ -8,12 +8,14 @@ use App\Models\Client;
 use App\Models\FinancialAlert;
 use App\Models\FinancialSnapshot;
 use App\Models\StrategicBudget;
+use App\Support\DatabaseSchema;
 use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Schema;
 
 final class CashFlowStatusMonitor implements ProvidesMethodology
 {
+    public function __construct(private readonly DatabaseSchema $schema) {}
+
     public static function methodologyIds(): array
     {
         return ['cash_flow.status'];
@@ -39,7 +41,7 @@ final class CashFlowStatusMonitor implements ProvidesMethodology
      */
     public function forClientIds(?array $clientIds): array
     {
-        if ($clientIds === [] || ! Schema::hasTable('clients')) {
+        if ($clientIds === [] || ! $this->schema->hasTable('clients')) {
             return $this->empty();
         }
 
@@ -131,7 +133,7 @@ final class CashFlowStatusMonitor implements ProvidesMethodology
      */
     private function latestSnapshots(array $clientIds): array
     {
-        if ($clientIds === [] || ! Schema::hasTable('financial_snapshots')) {
+        if ($clientIds === [] || ! $this->schema->hasTable('financial_snapshots')) {
             return [];
         }
 
@@ -152,7 +154,7 @@ final class CashFlowStatusMonitor implements ProvidesMethodology
      */
     private function latestBudgets(array $clientIds): array
     {
-        if ($clientIds === [] || ! Schema::hasTable('strategic_budgets')) {
+        if ($clientIds === [] || ! $this->schema->hasTable('strategic_budgets')) {
             return [];
         }
 
@@ -171,7 +173,7 @@ final class CashFlowStatusMonitor implements ProvidesMethodology
      */
     private function latestCashFlowAlerts(array $clientIds): array
     {
-        if ($clientIds === [] || ! Schema::hasTable('financial_alerts')) {
+        if ($clientIds === [] || ! $this->schema->hasTable('financial_alerts')) {
             return [];
         }
 

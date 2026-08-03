@@ -105,6 +105,49 @@ final class AssessmentFeedback
             ->all();
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function snapshot(EntrepreneurProfile $profile, PlanAssessment $assessment): array
+    {
+        $priorities = $this->priorities($assessment);
+        $suggestedFeedback = $this->draft($assessment);
+        $suggestedReply = $this->proposedReply($profile, $assessment);
+
+        return [
+            'generated_at' => now()->toIso8601String(),
+            'source' => [
+                'plan_assessment_id' => $assessment->getKey(),
+                'business_plan_id' => $assessment->business_plan_id,
+                'entrepreneur_profile_id' => $profile->getKey(),
+            ],
+            'weighted_score' => round(AssessmentScoring::weightedScore($assessment), 2),
+            'threshold' => AdvisoryReadiness::THRESHOLD,
+            'priorities' => collect($priorities)
+                ->values()
+                ->map(fn (array $priority, int $index): array => [
+                    'rank' => $index + 1,
+                    'title' => $priority['title'],
+                    'score' => $priority['score'],
+                    'where_in_plan' => $priority['where_in_plan'],
+                    'what_is_missing_sha256' => $this->textHash((string) $priority['what_is_missing']),
+                    'what_to_add_or_change_sha256' => $this->textHash((string) $priority['what_to_add_or_change']),
+                ])
+                ->all(),
+            'suggested_feedback' => [
+                'sha256' => $this->textHash($suggestedFeedback),
+                'length' => Str::length($suggestedFeedback),
+            ],
+            'suggested_reply' => [
+                'sha256' => $this->textHash($suggestedReply),
+                'length' => Str::length($suggestedReply),
+            ],
+            'document_support' => [
+                'attached_document_count' => (int) data_get($assessment->document_support, 'attached_document_count', 0),
+            ],
+        ];
+    }
+
     public function draft(PlanAssessment $assessment): string
     {
         $score = AssessmentScoring::weightedScore($assessment);
@@ -205,5 +248,10 @@ final class AssessmentFeedback
         $rationale = Str::squish($rationale);
 
         return $rationale === '' ? $fallback : Str::limit($rationale, 220);
+    }
+
+    private function textHash(string $text): string
+    {
+        return hash('sha256', Str::squish($text));
     }
 }

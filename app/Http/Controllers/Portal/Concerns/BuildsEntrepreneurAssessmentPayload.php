@@ -81,6 +81,7 @@ trait BuildsEntrepreneurAssessmentPayload
             $notes['proposed_reply'],
             $notes['feedback_sent_at'],
             $notes['feedback_sent_by_user_id'],
+            $notes['feedback_snapshot'],
             $notes['updated_by_user_id'],
             $notes['updated_at'],
         );

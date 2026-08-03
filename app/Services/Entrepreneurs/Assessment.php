@@ -157,6 +157,7 @@ final class Assessment implements ProvidesMethodology
         string $proposedReply,
         bool $sentToFounder,
         User $advisor,
+        array $feedbackSnapshot = [],
     ): PlanAssessment {
         $notes = $assessment->mentor_notes;
         if (! is_array($notes)) {
@@ -167,6 +168,13 @@ final class Assessment implements ProvidesMethodology
         $notes['proposed_reply'] = trim($proposedReply);
         $notes['updated_by_user_id'] = $advisor->getKey();
         $notes['updated_at'] = now()->toIso8601String();
+        $notes['feedback_snapshot'] = $this->feedbackSnapshotWithEdits(
+            snapshot: $feedbackSnapshot,
+            feedback: $feedback,
+            proposedReply: $proposedReply,
+            sentToFounder: $sentToFounder,
+            advisor: $advisor,
+        );
 
         if ($sentToFounder) {
             $notes['overall_visible'] = trim($feedback);
@@ -187,6 +195,8 @@ final class Assessment implements ProvidesMethodology
             after: [
                 'business_plan_id' => $assessment->business_plan_id,
                 'round' => $assessment->round,
+                'feedback_changed_from_suggestion' => data_get($notes, 'feedback_snapshot.advisor_edits.feedback_changed_from_suggestion'),
+                'proposed_reply_changed_from_suggestion' => data_get($notes, 'feedback_snapshot.advisor_edits.proposed_reply_changed_from_suggestion'),
             ],
         );
 
@@ -209,6 +219,7 @@ final class Assessment implements ProvidesMethodology
             $notes['proposed_reply'],
             $notes['feedback_sent_at'],
             $notes['feedback_sent_by_user_id'],
+            $notes['feedback_snapshot'],
             $notes['updated_by_user_id'],
             $notes['updated_at'],
         );
@@ -465,5 +476,48 @@ final class Assessment implements ProvidesMethodology
             ],
             'status' => LearningUpdate::STATUS_DETECTED,
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @return array<string, mixed>
+     */
+    private function feedbackSnapshotWithEdits(
+        array $snapshot,
+        string $feedback,
+        string $proposedReply,
+        bool $sentToFounder,
+        User $advisor,
+    ): array {
+        $feedback = trim($feedback);
+        $proposedReply = trim($proposedReply);
+        $feedbackHash = $this->feedbackTextHash($feedback);
+        $replyHash = $this->feedbackTextHash($proposedReply);
+        $suggestedFeedbackHash = data_get($snapshot, 'suggested_feedback.sha256');
+        $suggestedReplyHash = data_get($snapshot, 'suggested_reply.sha256');
+
+        return [
+            ...$snapshot,
+            'saved_at' => now()->toIso8601String(),
+            'saved_by_user_id' => $advisor->getKey(),
+            'sent_to_founder' => $sentToFounder,
+            'advisor_edits' => [
+                'feedback_sha256' => $feedbackHash,
+                'proposed_reply_sha256' => $replyHash,
+                'feedback_changed_from_suggestion' => is_string($suggestedFeedbackHash)
+                    ? $feedbackHash !== $suggestedFeedbackHash
+                    : null,
+                'proposed_reply_changed_from_suggestion' => is_string($suggestedReplyHash)
+                    ? $replyHash !== $suggestedReplyHash
+                    : null,
+                'feedback_length_delta' => Str::length($feedback) - (int) data_get($snapshot, 'suggested_feedback.length', 0),
+                'proposed_reply_length_delta' => Str::length($proposedReply) - (int) data_get($snapshot, 'suggested_reply.length', 0),
+            ],
+        ];
+    }
+
+    private function feedbackTextHash(string $text): string
+    {
+        return hash('sha256', Str::squish($text));
     }
 }

@@ -20,6 +20,7 @@ final class LearningUpdateImplementation extends Model
         'review_due' => 'datetime',
         'before_state' => 'array',
         'after_state' => 'array',
+        'review_metrics' => 'array',
         'rolled_back_at' => 'datetime',
     ];
 

@@ -164,10 +164,11 @@ final class PracticeHealthReportTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('advisor/Dashboard')
-                ->where('practiceHealth.summary.active_clients', 1)
-                ->where('practiceHealth.summary.target_pv', 135000)
-                ->where('practiceHealth.summary.revenue_under_management', 500000)
-                ->where('practiceHealth.clients.0.client_id', $client->id));
+                ->loadDeferredProps('advisor-portfolio', fn (Assert $page): Assert => $page
+                    ->where('practiceHealth.summary.active_clients', 1)
+                    ->where('practiceHealth.summary.target_pv', 135000)
+                    ->where('practiceHealth.summary.revenue_under_management', 500000)
+                    ->where('practiceHealth.clients.0.client_id', $client->id)));
     }
 
     public function test_practice_health_snapshots_are_isolated_by_advisor_rls(): void

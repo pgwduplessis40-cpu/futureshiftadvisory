@@ -30,11 +30,16 @@ use Throwable;
 
 final class OperationalHealthCheckRunner
 {
+    public const SCOPE_FULL = 'full';
+
+    public const SCOPE_SENTINEL = 'sentinel';
+
     public function __construct(private readonly ReleaseVersion $releaseVersion) {}
 
-    public function run(): OperationalHealthCheckRun
+    public function run(string $scope = self::SCOPE_FULL): OperationalHealthCheckRun
     {
         $startedAt = now();
+        $scope = $scope === self::SCOPE_SENTINEL ? self::SCOPE_SENTINEL : self::SCOPE_FULL;
 
         /** @var OperationalHealthCheckRun $run */
         $run = OperationalHealthCheckRun::query()->create([
@@ -47,10 +52,11 @@ final class OperationalHealthCheckRunner
                 'php_version' => PHP_VERSION,
                 'timezone' => (string) config('operational_health.timezone', 'Pacific/Auckland'),
                 'runner' => self::class,
+                'scope' => $scope,
             ],
         ]);
 
-        foreach ($this->definitions() as $definition) {
+        foreach ($this->definitions($scope) as $definition) {
             $this->recordDefinition($run, $definition);
         }
 
@@ -62,7 +68,7 @@ final class OperationalHealthCheckRunner
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function definitions(): array
+    private function definitions(string $scope = self::SCOPE_FULL): array
     {
         $superAdmin = $this->superAdminUser();
         $clientUser = $this->clientPortalUser();
@@ -74,7 +80,7 @@ final class OperationalHealthCheckRunner
             : null;
         $template = $this->templateCandidate();
 
-        return [
+        $definitions = [
             [
                 'key' => 'core.up',
                 'name' => 'Public health endpoint',
@@ -86,6 +92,68 @@ final class OperationalHealthCheckRunner
                 'expected_statuses' => [200],
                 'expected_behavior' => 'The Laravel health endpoint should return HTTP 200.',
                 'missing_fixture' => null,
+                'sentinel' => true,
+            ],
+            [
+                'key' => 'public.home',
+                'name' => 'Public app shell',
+                'area' => 'Core availability',
+                'method' => 'GET',
+                'url' => route('home', absolute: false),
+                'route_name' => 'home',
+                'user' => null,
+                'expected_statuses' => [200],
+                'expected_behavior' => 'The public app shell should render for unauthenticated visitors.',
+                'missing_fixture' => null,
+                'sentinel' => true,
+            ],
+            [
+                'key' => 'auth.login',
+                'name' => 'Login screen',
+                'area' => 'Authentication',
+                'method' => 'GET',
+                'url' => route('login', absolute: false),
+                'route_name' => 'login',
+                'user' => null,
+                'expected_statuses' => [200],
+                'expected_behavior' => 'The login screen should render for unauthenticated visitors.',
+                'missing_fixture' => null,
+                'sentinel' => true,
+            ],
+            [
+                'key' => 'pwa.service_worker',
+                'name' => 'Service worker freshness',
+                'area' => 'PWA freshness',
+                'method' => 'GET',
+                'url' => route('service-worker', absolute: false),
+                'route_name' => 'service-worker',
+                'user' => null,
+                'expected_statuses' => [200],
+                'expected_content_type' => 'application/javascript',
+                'expected_headers' => [
+                    'cache-control' => 'no-store',
+                    'service-worker-allowed' => '/',
+                ],
+                'expected_behavior' => 'The service worker should be served dynamically with no-store caching and root scope.',
+                'missing_fixture' => null,
+                'sentinel' => true,
+            ],
+            [
+                'key' => 'deployment.identity',
+                'name' => 'Deployment identity',
+                'area' => 'PWA freshness',
+                'method' => 'GET',
+                'url' => route('deployment.show', absolute: false),
+                'route_name' => 'deployment.show',
+                'user' => null,
+                'expected_statuses' => $this->deploymentExpectedStatuses(),
+                'expected_content_type' => 'application/json',
+                'expected_headers' => $this->requiresVerifiedDeployment()
+                    ? ['x-fsa-deployment-status' => 'verified']
+                    : [],
+                'expected_behavior' => 'The deployment endpoint should report the release identity expected by installed clients.',
+                'missing_fixture' => null,
+                'sentinel' => true,
             ],
             [
                 'key' => 'staff.dashboard',
@@ -98,6 +166,7 @@ final class OperationalHealthCheckRunner
                 'expected_statuses' => [200],
                 'expected_behavior' => 'A verified super administrator with an MFA-verified session should reach the staff dashboard.',
                 'missing_fixture' => 'No super administrator monitor user is available.',
+                'sentinel' => true,
             ],
             [
                 'key' => 'admin.app_health.index',
@@ -134,6 +203,7 @@ final class OperationalHealthCheckRunner
                 'expected_statuses' => [200],
                 'expected_behavior' => 'A client portal user with a client assignment should reach the portal dashboard.',
                 'missing_fixture' => 'No client portal monitor user with a client assignment is available.',
+                'sentinel' => true,
             ],
             [
                 'key' => 'portal.business_plan_budget.document',
@@ -187,6 +257,19 @@ final class OperationalHealthCheckRunner
                 'missing_fixture' => 'No entrepreneur monitor user with an entrepreneur profile is available.',
             ],
             [
+                'key' => 'portal.entrepreneur.dashboard',
+                'name' => 'Entrepreneur dashboard',
+                'area' => 'Client portal',
+                'method' => 'GET',
+                'url' => route('portal.entrepreneur.dashboard', absolute: false),
+                'route_name' => 'portal.entrepreneur.dashboard',
+                'user' => $entrepreneurUser,
+                'expected_statuses' => [200],
+                'expected_behavior' => 'An entrepreneur monitor user should reach their portal dashboard.',
+                'missing_fixture' => 'No entrepreneur monitor user with an entrepreneur profile is available.',
+                'sentinel' => true,
+            ],
+            [
                 'key' => 'portal.documents.show',
                 'name' => 'Client document view',
                 'area' => 'Documents',
@@ -205,6 +288,7 @@ final class OperationalHealthCheckRunner
                     'label' => $document->original_filename,
                 ] : null,
                 'document' => $document,
+                'sentinel' => true,
             ],
             [
                 'key' => 'advisor.templates.preview',
@@ -226,6 +310,10 @@ final class OperationalHealthCheckRunner
                 ] : null,
             ],
         ];
+
+        return $scope === self::SCOPE_SENTINEL
+            ? array_values(array_filter($definitions, fn (array $definition): bool => (bool) ($definition['sentinel'] ?? false)))
+            : $definitions;
     }
 
     /**
@@ -275,15 +363,16 @@ final class OperationalHealthCheckRunner
         $statusPassed = $actualStatus !== null && in_array($actualStatus, $expectedStatuses, true);
         $contentTypePassed = $expectedContentType === null
             || ($actualContentType !== null && str_starts_with($actualContentType, $expectedContentType));
+        $headerFailures = $this->expectedHeaderFailures($definition, $probe);
         $exceptionClass = is_string($probe['exception_class'] ?? null) ? $probe['exception_class'] : null;
         $exceptionMessage = is_string($probe['exception_message'] ?? null) ? $probe['exception_message'] : null;
-        $status = $statusPassed && $contentTypePassed && $exceptionClass === null
+        $status = $statusPassed && $contentTypePassed && $headerFailures === [] && $exceptionClass === null
             ? OperationalHealthCheckResult::STATUS_PASSED
             : OperationalHealthCheckResult::STATUS_FAILED;
 
         $issueSummary = $status === OperationalHealthCheckResult::STATUS_PASSED
             ? null
-            : $this->issueSummary($definition, $expectedStatuses, $actualStatus, $expectedContentType, $actualContentType, $probe);
+            : $this->issueSummary($definition, $expectedStatuses, $actualStatus, $expectedContentType, $actualContentType, $headerFailures, $probe);
         $documentStorageDiagnostic = $status === OperationalHealthCheckResult::STATUS_FAILED
             && $actualStatus === 404
             && ($definition['document'] ?? null) instanceof Document
@@ -306,6 +395,9 @@ final class OperationalHealthCheckRunner
                 'redirect_url' => $probe['redirect_url'] ?? null,
                 'body_excerpt' => $probe['body_excerpt'] ?? null,
                 'expected_content_type' => $expectedContentType,
+                'expected_headers' => $definition['expected_headers'] ?? [],
+                'header_failures' => $headerFailures,
+                'response_headers' => $probe['headers'] ?? [],
                 'internal_request' => true,
             ],
         ]);
@@ -453,11 +545,11 @@ final class OperationalHealthCheckRunner
         $session->setId(Str::random(40));
         $session->replace([]);
         $session->start();
+        app('auth')->forgetGuards();
 
         if ($user instanceof User) {
             $session->put(MfaChallenger::SESSION_USER_ID, (string) $user->getAuthIdentifier());
             $session->put(MfaChallenger::SESSION_CONFIRMED_AT, now()->getTimestamp());
-            app('auth')->forgetGuards();
             Auth::guard('web')->setUser($user);
         }
 
@@ -527,7 +619,22 @@ final class OperationalHealthCheckRunner
             'body_excerpt' => is_string($content) ? $this->bodyExcerpt($content) : null,
             'exception_class' => null,
             'exception_message' => null,
+            'headers' => $this->responseHeaders($response),
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function responseHeaders(Response $response): array
+    {
+        $headers = [];
+
+        foreach ($response->headers->all() as $name => $values) {
+            $headers[strtolower($name)] = implode(', ', array_map('strval', $values));
+        }
+
+        return $headers;
     }
 
     private function inertiaVersion(): string
@@ -593,6 +700,7 @@ final class OperationalHealthCheckRunner
     /**
      * @param  array<string, mixed>  $definition
      * @param  array<int, int>  $expectedStatuses
+     * @param  array<int, string>  $headerFailures
      * @param  array<string, mixed>  $probe
      */
     private function issueSummary(
@@ -601,6 +709,7 @@ final class OperationalHealthCheckRunner
         ?int $actualStatus,
         ?string $expectedContentType,
         ?string $actualContentType,
+        array $headerFailures,
         array $probe,
     ): string {
         $name = (string) $definition['name'];
@@ -617,6 +726,10 @@ final class OperationalHealthCheckRunner
             return is_string($redirect) && $redirect !== ''
                 ? "{$summary} Redirect target: {$redirect}."
                 : $summary;
+        }
+
+        if ($headerFailures !== []) {
+            return "{$name} returned unexpected headers: ".implode('; ', $headerFailures).'.';
         }
 
         return "{$name} returned content type ".($actualContentType ?? 'none')."; expected {$expectedContentType}.";
@@ -665,6 +778,51 @@ final class OperationalHealthCheckRunner
         }
 
         return implode(' ', $parts);
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function deploymentExpectedStatuses(): array
+    {
+        return $this->requiresVerifiedDeployment() ? [200] : [200, 503];
+    }
+
+    private function requiresVerifiedDeployment(): bool
+    {
+        return (bool) config('operational_health.require_verified_deployment', false);
+    }
+
+    /**
+     * @param  array<string, mixed>  $definition
+     * @param  array<string, mixed>  $probe
+     * @return array<int, string>
+     */
+    private function expectedHeaderFailures(array $definition, array $probe): array
+    {
+        $expectedHeaders = (array) ($definition['expected_headers'] ?? []);
+        if ($expectedHeaders === []) {
+            return [];
+        }
+
+        $headers = is_array($probe['headers'] ?? null) ? $probe['headers'] : [];
+        $failures = [];
+
+        foreach ($expectedHeaders as $header => $expected) {
+            $header = strtolower((string) $header);
+            $actual = strtolower((string) ($headers[$header] ?? ''));
+            $needles = array_map('strtolower', array_map('strval', (array) $expected));
+
+            foreach ($needles as $needle) {
+                if ($needle === '' || str_contains($actual, $needle)) {
+                    continue;
+                }
+
+                $failures[] = "{$header} expected {$needle}, got ".($actual !== '' ? $actual : 'missing');
+            }
+        }
+
+        return $failures;
     }
 
     private function superAdminUser(): ?User

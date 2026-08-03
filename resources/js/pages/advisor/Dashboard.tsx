@@ -765,6 +765,12 @@ const advisorSignalDeferredProps = [
     'funnelAnalytics',
 ];
 
+const advisorPortfolioDeferredProps = [
+    'pvWaterfall',
+    'practiceHealth',
+    'scenarioPlanning',
+];
+
 const emptyIntegrationHealth: IntegrationHealthPayload = {
     summary: {
         total: 0,
@@ -829,6 +835,54 @@ const emptyFunnelAnalytics: FunnelAnalyticsPayload = {
     steps: [],
 };
 
+const emptyPvWaterfall: PvWaterfallPayload = {
+    summary: {
+        clients: 0,
+        current_pv: 0,
+        improvement_pv: 0,
+        risk_mitigation_pv: 0,
+        target_pv: 0,
+        target_pv_label: 'Target PV',
+        target_pv_range: {
+            low: 0,
+            mid: 0,
+            high: 0,
+            range_percent: 0,
+        },
+    },
+    clients: [],
+};
+
+const emptyPracticeHealth: PracticeHealthPayload = {
+    summary: {
+        active_clients: 0,
+        clients_with_pv: 0,
+        current_pv: 0,
+        improvement_pv: 0,
+        risk_mitigation_pv: 0,
+        target_pv: 0,
+        revenue_under_management: 0,
+    },
+    phase_two: {
+        released_proposals: 0,
+        open_red_flags: 0,
+        generated_reports: 0,
+        funnel_events: 0,
+        funnel_worst_drop_off_rate: 0,
+        proposal_statuses: {},
+    },
+    clients: [],
+    generated_at: '',
+};
+
+const emptyScenarioPlanning: ScenarioPlanningPayload = {
+    summary: {
+        scenarios: 0,
+        clients: 0,
+    },
+    items: [],
+};
+
 const signalPanelTargetIds = new Set([
     'advisor-panel-operations',
     'advisor-panel-approvals',
@@ -855,8 +909,8 @@ type Props = {
     aiOperationalAlert: AiOperationalAlertPayload;
     integrationHealth?: IntegrationHealthPayload;
     economicIndicators?: EconomicIndicatorsPayload;
-    pvWaterfall: PvWaterfallPayload;
-    practiceHealth: PracticeHealthPayload;
+    pvWaterfall?: PvWaterfallPayload;
+    practiceHealth?: PracticeHealthPayload;
     proposalStatus: ProposalStatusPayload;
     paymentStatus: PaymentStatusPayload;
     feeStatus: FeeStatusPayload;
@@ -866,7 +920,7 @@ type Props = {
     npoPendingConversions: NpoPendingConversionsPayload;
     npoFunding: NpoFundingPayload;
     referenceDataTasks: ReferenceDataTasksPayload;
-    scenarioPlanning: ScenarioPlanningPayload;
+    scenarioPlanning?: ScenarioPlanningPayload;
     funnelAnalytics?: FunnelAnalyticsPayload;
     panelOperations: PanelOperationsPayload;
 };
@@ -903,6 +957,18 @@ export default function AdvisorDashboard({
 }: Props) {
     const [activeTab, setActiveTab] =
         useState<DashboardTab>(initialDashboardTab);
+    const loadedIntegrationHealth = integrationHealth ?? emptyIntegrationHealth;
+    const loadedEconomicIndicators =
+        economicIndicators ?? emptyEconomicIndicators;
+    const loadedQuestionnaireOptimisation =
+        questionnaireOptimisation ?? emptyQuestionnaireOptimisation;
+    const loadedWellbeingAnalytics =
+        wellbeingAnalytics ?? emptyWellbeingAnalytics;
+    const loadedCoachSignals = coachSignals ?? emptyCoachSignals;
+    const loadedFunnelAnalytics = funnelAnalytics ?? emptyFunnelAnalytics;
+    const loadedPvWaterfall = pvWaterfall ?? emptyPvWaterfall;
+    const loadedPracticeHealth = practiceHealth ?? emptyPracticeHealth;
+    const loadedScenarioPlanning = scenarioPlanning ?? emptyScenarioPlanning;
     const actionItems = buildActionSummaryItems({
         cashFlowStatus,
         redFlags,
@@ -916,26 +982,17 @@ export default function AdvisorDashboard({
         feeStatus,
         operationalHealth,
         aiOperationalAlert,
-        pvWaterfall,
-        practiceHealth,
+        pvWaterfall: loadedPvWaterfall,
+        practiceHealth: loadedPracticeHealth,
         npoPendingConversions,
         npoFunding,
         referenceDataTasks,
-        scenarioPlanning,
+        scenarioPlanning: loadedScenarioPlanning,
         panelOperations,
     });
     const actionQueueCount = actionItems.filter(
         (item) => item.value > 0 && item.priority !== 'neutral',
     ).length;
-    const loadedIntegrationHealth = integrationHealth ?? emptyIntegrationHealth;
-    const loadedEconomicIndicators =
-        economicIndicators ?? emptyEconomicIndicators;
-    const loadedQuestionnaireOptimisation =
-        questionnaireOptimisation ?? emptyQuestionnaireOptimisation;
-    const loadedWellbeingAnalytics =
-        wellbeingAnalytics ?? emptyWellbeingAnalytics;
-    const loadedCoachSignals = coachSignals ?? emptyCoachSignals;
-    const loadedFunnelAnalytics = funnelAnalytics ?? emptyFunnelAnalytics;
     const signalQueueCount =
         loadedIntegrationHealth.summary.amber +
         loadedIntegrationHealth.summary.red +
@@ -998,11 +1055,11 @@ export default function AdvisorDashboard({
                             href={messagesPending.index_url}
                         />
                         <Metric
-                            label={pvWaterfall.summary.target_pv_label}
+                            label={loadedPvWaterfall.summary.target_pv_label}
                             value={formatCurrency(
-                                pvWaterfall.summary.target_pv,
+                                loadedPvWaterfall.summary.target_pv,
                             )}
-                            explanation={`Modelled upside assumes surfaced improvements and risk mitigations are fully captured. Planning range ${formatCurrency(pvWaterfall.summary.target_pv_range.low)} - ${formatCurrency(pvWaterfall.summary.target_pv_range.high)}.`}
+                            explanation={`Modelled upside assumes surfaced improvements and risk mitigations are fully captured. Planning range ${formatCurrency(loadedPvWaterfall.summary.target_pv_range.low)} - ${formatCurrency(loadedPvWaterfall.summary.target_pv_range.high)}.`}
                             href="#advisor-pv-waterfall"
                         />
                     </div>
@@ -1073,15 +1130,30 @@ export default function AdvisorDashboard({
                             title="Portfolio decisions"
                             description="Review client health, PV opportunity, practice position, and scenario options."
                         >
-                            <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,0.95fr)]">
-                                <MyClientsHealth payload={clientsHealth} />
-                                <PvWaterfallPanel payload={pvWaterfall} />
-                            </div>
+                            <Deferred
+                                data={advisorPortfolioDeferredProps}
+                                fallback={<AdvisorPortfolioFallback />}
+                            >
+                                <>
+                                    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,0.95fr)]">
+                                        <MyClientsHealth
+                                            payload={clientsHealth}
+                                        />
+                                        <PvWaterfallPanel
+                                            payload={loadedPvWaterfall}
+                                        />
+                                    </div>
 
-                            <div className="grid items-start gap-4 xl:grid-cols-2">
-                                <PracticeHealth payload={practiceHealth} />
-                                <ScenarioPlanning payload={scenarioPlanning} />
-                            </div>
+                                    <div className="grid items-start gap-4 xl:grid-cols-2">
+                                        <PracticeHealth
+                                            payload={loadedPracticeHealth}
+                                        />
+                                        <ScenarioPlanning
+                                            payload={loadedScenarioPlanning}
+                                        />
+                                    </div>
+                                </>
+                            </Deferred>
                         </DashboardSection>
 
                         <DashboardSection
@@ -1166,6 +1238,15 @@ export default function AdvisorDashboard({
                     </div>
                 )}
             </div>
+        </>
+    );
+}
+
+function AdvisorPortfolioFallback() {
+    return (
+        <>
+            <SignalSkeletonGrid cards={2} />
+            <SignalSkeletonGrid cards={2} />
         </>
     );
 }
@@ -1449,6 +1530,30 @@ function ActionSummaryCard({
     );
 }
 
+type ActionSummaryInput = Pick<
+    Props,
+    | 'cashFlowStatus'
+    | 'redFlags'
+    | 'documentVerificationFlags'
+    | 'clientTransferQueue'
+    | 'entrepreneurReviews'
+    | 'strategicPlanDeployments'
+    | 'pendingTermsReacceptance'
+    | 'proposalStatus'
+    | 'paymentStatus'
+    | 'feeStatus'
+    | 'operationalHealth'
+    | 'aiOperationalAlert'
+    | 'npoPendingConversions'
+    | 'npoFunding'
+    | 'referenceDataTasks'
+    | 'panelOperations'
+> & {
+    pvWaterfall: PvWaterfallPayload;
+    practiceHealth: PracticeHealthPayload;
+    scenarioPlanning: ScenarioPlanningPayload;
+};
+
 function buildActionSummaryItems({
     cashFlowStatus,
     redFlags,
@@ -1469,28 +1574,7 @@ function buildActionSummaryItems({
     referenceDataTasks,
     scenarioPlanning,
     panelOperations,
-}: Pick<
-    Props,
-    | 'cashFlowStatus'
-    | 'redFlags'
-    | 'documentVerificationFlags'
-    | 'clientTransferQueue'
-    | 'entrepreneurReviews'
-    | 'strategicPlanDeployments'
-    | 'pendingTermsReacceptance'
-    | 'proposalStatus'
-    | 'paymentStatus'
-    | 'feeStatus'
-    | 'operationalHealth'
-    | 'aiOperationalAlert'
-    | 'pvWaterfall'
-    | 'practiceHealth'
-    | 'npoPendingConversions'
-    | 'npoFunding'
-    | 'referenceDataTasks'
-    | 'scenarioPlanning'
-    | 'panelOperations'
->): ActionSummaryItem[] {
+}: ActionSummaryInput): ActionSummaryItem[] {
     const paymentActionCount =
         paymentStatus.summary.failed + paymentStatus.summary.retrying;
     const feesDisabled = feeStatus.free_access_mode;

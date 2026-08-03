@@ -157,6 +157,48 @@ final class ServiceImprovementSurveyTest extends TestCase
         $this->assertNull($legacy->questions()->firstOrFail()->help_text);
     }
 
+    public function test_admin_survey_pages_do_not_reconcile_builtin_templates_on_get(): void
+    {
+        Survey::query()->delete();
+        $admin = $this->superAdmin('service-survey-readonly-admin@example.test');
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.surveys.index'))
+            ->assertOk();
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.service-surveys.index'))
+            ->assertOk();
+
+        $this->assertDatabaseCount('surveys', 0);
+    }
+
+    public function test_builtin_survey_templates_are_reconciled_by_explicit_command(): void
+    {
+        Survey::query()->delete();
+
+        $this->artisan('fsa:ensure-built-in-surveys')
+            ->assertSuccessful();
+
+        $this->assertDatabaseHas('surveys', [
+            'key' => SurveyLibrary::CLIENT_EXPERIENCE_KEY,
+            'version' => SurveyLibrary::DEFAULT_VERSION,
+            'type' => 'general_experience',
+        ]);
+        $this->assertDatabaseHas('surveys', [
+            'key' => SurveyLibrary::SERVICE_IMPROVEMENT_KEY,
+            'version' => SurveyLibrary::SERVICE_IMPROVEMENT_VERSION,
+            'type' => 'service_improvement',
+            'status' => SurveyStatus::Published->value,
+        ]);
+        $this->assertSame(8, Survey::query()
+            ->where('key', SurveyLibrary::SERVICE_IMPROVEMENT_KEY)
+            ->where('version', SurveyLibrary::SERVICE_IMPROVEMENT_VERSION)
+            ->firstOrFail()
+            ->questions()
+            ->count());
+    }
+
     public function test_super_admin_can_issue_service_survey_to_an_advisory_ready_entrepreneur(): void
     {
         $admin = $this->superAdmin('entrepreneur-service-survey-admin@example.test');

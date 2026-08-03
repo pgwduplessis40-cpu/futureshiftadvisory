@@ -28,6 +28,23 @@ return [
         implode(',', OperationalHealthSchedule::DEFAULT_WEEKEND_TIMES),
     )),
 
+    'sentinel_enabled' => env('OPERATIONAL_HEALTH_SENTINEL_ENABLED', true),
+
+    'require_verified_deployment' => env(
+        'OPERATIONAL_HEALTH_REQUIRE_VERIFIED_DEPLOYMENT',
+        ! in_array(env('APP_ENV', 'production'), ['local', 'testing'], true),
+    ),
+
+    'alerts' => [
+        'enabled' => env('OPERATIONAL_HEALTH_ALERTS_ENABLED', true),
+        'consecutive_failures' => (int) env('OPERATIONAL_HEALTH_ALERT_CONSECUTIVE_FAILURES', 2),
+        'statuses' => [
+            'failed',
+            'warning',
+            'skipped',
+        ],
+    ],
+
     'retention_days' => (int) env('OPERATIONAL_HEALTH_RETENTION_DAYS', 90),
 
     'ensure_fixtures' => env('OPERATIONAL_HEALTH_ENSURE_FIXTURES', true),

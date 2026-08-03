@@ -60,19 +60,22 @@ use App\Services\ReferenceData\ReferenceDataFreshness;
 use App\Services\Reports\PracticeHealthReport;
 use App\Services\Terms\TermsAcceptanceGate;
 use App\Services\Wellbeing\WellbeingTrendAnalytics;
+use App\Support\DatabaseSchema;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 
 final class StaffDashboardController extends Controller
 {
-    public function __construct(private readonly ProposalBrief $proposalBriefs) {}
+    public function __construct(
+        private readonly ProposalBrief $proposalBriefs,
+        private readonly DatabaseSchema $schema,
+    ) {}
 
     public function __invoke(
         Request $request,
@@ -691,7 +694,6 @@ final class StaffDashboardController extends Controller
         AdvisorAiNotice $aiNotice,
     ): array {
         $clientIds = $this->visibleClientIds($user);
-        $pvWaterfall = $pvWaterfalls->forClients($clientIds);
         $cashFlowStatusPayload = $cashFlowStatus->forClientIds($clientIds);
 
         return [
@@ -719,11 +721,11 @@ final class StaffDashboardController extends Controller
             'economicIndicators' => Inertia::defer(fn (): array => $this->economicIndicators($clientIds, $economicExposure), 'advisor-signals'),
             'paymentStatus' => $paymentStatus->forClientIds($clientIds),
             'feeStatus' => $this->feeStatus($user, $serviceRates),
-            'pvWaterfall' => [
-                ...$pvWaterfall,
+            'pvWaterfall' => Inertia::defer(fn (): array => [
+                ...$pvWaterfalls->forClients($clientIds),
                 'methodology_id' => 'pv.waterfall',
-            ],
-            'practiceHealth' => $practiceHealth->forClientIds($clientIds),
+            ], 'advisor-portfolio'),
+            'practiceHealth' => Inertia::defer(fn (): array => $practiceHealth->forClientIds($clientIds), 'advisor-portfolio'),
             'proposalStatus' => $this->proposalStatus($clientIds),
             'questionnaireOptimisation' => Inertia::defer(fn (): array => $questionnaireOptimisation->summary(), 'advisor-signals'),
             'wellbeingAnalytics' => Inertia::defer(fn (): array => [
@@ -737,7 +739,7 @@ final class StaffDashboardController extends Controller
             'npoPendingConversions' => $npoConversion->pendingPanel($user),
             'npoFunding' => $npoFunders->advisorPanel($clientIds),
             'referenceDataTasks' => $this->referenceDataTasks($user, $referenceDataFreshness),
-            'scenarioPlanning' => $this->scenarioPlanning($clientIds),
+            'scenarioPlanning' => Inertia::defer(fn (): array => $this->scenarioPlanning($clientIds), 'advisor-portfolio'),
             'funnelAnalytics' => Inertia::defer(fn (): array => [
                 ...$funnels->summary($clientIds),
                 'methodology_id' => 'funnel.drop_off',
@@ -967,7 +969,7 @@ final class StaffDashboardController extends Controller
      */
     private function strategicPlanDeployments(?array $clientIds): array
     {
-        if ($clientIds === [] || ! Schema::hasTable('strategic_plans')) {
+        if ($clientIds === [] || ! $this->schema->hasTable('strategic_plans')) {
             return [
                 'summary' => [
                     'total' => 0,
@@ -992,7 +994,7 @@ final class StaffDashboardController extends Controller
                     ->whereColumn('strategic_plans.proposal_id', 'proposals.id');
             });
 
-        if (Schema::hasTable('strategic_budgets')) {
+        if ($this->schema->hasTable('strategic_budgets')) {
             $generationQuery->with('strategicBudget');
         }
 
@@ -1320,7 +1322,7 @@ final class StaffDashboardController extends Controller
      */
     private function learningQueue(User $user): array
     {
-        if (! Schema::hasTable('learning_updates')) {
+        if (! $this->schema->hasTable('learning_updates')) {
             return [
                 'summary' => [
                     'detected' => 0,
@@ -1382,7 +1384,7 @@ final class StaffDashboardController extends Controller
      */
     private function proposalStatus(?array $clientIds): array
     {
-        if ($clientIds === [] || ! Schema::hasTable('proposals')) {
+        if ($clientIds === [] || ! $this->schema->hasTable('proposals')) {
             return $this->emptyProposalStatus();
         }
 
@@ -1492,7 +1494,7 @@ final class StaffDashboardController extends Controller
      */
     private function messagesPending(User $user, ?array $clientIds): array
     {
-        if (! Schema::hasTable('messages') || ! Schema::hasTable('message_threads')) {
+        if (! $this->schema->hasTable('messages') || ! $this->schema->hasTable('message_threads')) {
             return [
                 'total' => 0,
                 'index_url' => route('advisor.messages.index', absolute: false),
@@ -2065,7 +2067,7 @@ final class StaffDashboardController extends Controller
      */
     private function prospectInbox(): array
     {
-        if (! Schema::hasTable('prospect_leads')) {
+        if (! $this->schema->hasTable('prospect_leads')) {
             return [
                 'total' => 0,
                 'triage_enabled' => false,
@@ -2074,7 +2076,7 @@ final class StaffDashboardController extends Controller
             ];
         }
 
-        $hasStatus = Schema::hasColumn('prospect_leads', 'status');
+        $hasStatus = $this->schema->hasColumn('prospect_leads', 'status');
         $leads = ProspectLead::query()
             ->latest()
             ->limit(5)
@@ -2108,7 +2110,7 @@ final class StaffDashboardController extends Controller
             return $this->emptyIntegrationHealth();
         }
 
-        if (! Schema::hasTable('integration_health_samples')) {
+        if (! $this->schema->hasTable('integration_health_samples')) {
             return $this->emptyIntegrationHealth();
         }
 
@@ -2150,7 +2152,7 @@ final class StaffDashboardController extends Controller
             return $this->emptyOperationalHealth();
         }
 
-        if (! Schema::hasTable('operational_health_check_runs') || ! Schema::hasTable('operational_health_check_results')) {
+        if (! $this->schema->hasTable('operational_health_check_runs') || ! $this->schema->hasTable('operational_health_check_results')) {
             return $this->emptyOperationalHealth();
         }
 
@@ -2249,7 +2251,7 @@ final class StaffDashboardController extends Controller
      */
     private function economicIndicators(?array $clientIds, EconomicExposureMapper $economicExposure): array
     {
-        if (! Schema::hasTable('economic_indicators') || ! Schema::hasTable('exchange_rates')) {
+        if (! $this->schema->hasTable('economic_indicators') || ! $this->schema->hasTable('exchange_rates')) {
             return $this->emptyEconomicIndicators();
         }
 
@@ -2284,7 +2286,7 @@ final class StaffDashboardController extends Controller
             ->unique(fn (ExchangeRate $rate): string => $rate->base_currency.'/'.$rate->quote_currency)
             ->values();
 
-        $alerts = Schema::hasTable('learning_updates')
+        $alerts = $this->schema->hasTable('learning_updates')
             ? LearningUpdate::query()
                 ->where('layer_id', EconomicIndicatorRefresher::LAYER_ID)
                 ->where('status', LearningUpdate::STATUS_DETECTED)
@@ -2472,7 +2474,7 @@ final class StaffDashboardController extends Controller
      */
     private function scenarioPlanning(?array $clientIds): array
     {
-        if ($clientIds === [] || ! Schema::hasTable('scenarios')) {
+        if ($clientIds === [] || ! $this->schema->hasTable('scenarios')) {
             return [
                 'summary' => [
                     'scenarios' => 0,

@@ -13,7 +13,6 @@ use App\Models\SurveyQuestion;
 use App\Models\SurveyResponse;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
-use App\Services\Surveys\SurveyLibrary;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,18 +26,9 @@ final class SurveyController extends Controller
 {
     public function __construct(private readonly AuditWriter $audit) {}
 
-    public function index(Request $request, SurveyLibrary $library): Response
+    public function index(): Response
     {
         Gate::authorize('viewAny', Survey::class);
-
-        $user = $request->user();
-        $creator = $user instanceof User ? $user : null;
-
-        if (! Survey::query()->where('type', SurveyType::GeneralExperience->value)->exists()) {
-            $library->ensureDefault($creator);
-        }
-
-        $library->ensureServiceImprovement($creator);
 
         return Inertia::render('admin/surveys/Index', [
             'surveys' => Survey::query()

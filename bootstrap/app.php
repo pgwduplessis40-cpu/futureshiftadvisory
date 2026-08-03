@@ -147,6 +147,17 @@ return Application::configure(basePath: dirname(__DIR__))
                 ? ['--ensure-fixtures' => true]
                 : [];
 
+            if ((bool) config('operational_health.sentinel_enabled', true)) {
+                $schedule->command(RunOperationalHealthChecks::class, [
+                    ...$operationalHealthCommandOptions,
+                    '--sentinel' => true,
+                ])
+                    ->hourly()
+                    ->timezone($operationalHealthSchedule->timezone())
+                    ->name('fsa-operational-health-sentinel')
+                    ->withoutOverlapping();
+            }
+
             foreach ($operationalHealthSchedule->weekdayTimes() as $time) {
                 $schedule->command(RunOperationalHealthChecks::class, $operationalHealthCommandOptions)
                     ->weekdays()

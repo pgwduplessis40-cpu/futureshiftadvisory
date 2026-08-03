@@ -17,6 +17,7 @@ use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\AdvisoryConversion;
 use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\Assessment;
+use App\Services\Entrepreneurs\AssessmentFeedback;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Entrepreneurs\EntrepreneurStreak;
 use App\Services\Entrepreneurs\IdeaValidationService;
@@ -140,6 +141,7 @@ final class EntrepreneurActionController extends Controller
         EntrepreneurProfile $entrepreneurProfile,
         PlanAssessment $planAssessment,
         Assessment $assessments,
+        AssessmentFeedback $feedbacks,
         MessageThreadService $messages,
     ): RedirectResponse {
         Gate::authorize('view', $entrepreneurProfile);
@@ -158,6 +160,7 @@ final class EntrepreneurActionController extends Controller
             proposedReply: (string) $validated['proposed_reply'],
             sentToFounder: $sendToFounder,
             advisor: $advisor,
+            feedbackSnapshot: $feedbacks->snapshot($entrepreneurProfile, $planAssessment),
         );
 
         if ($sendToFounder) {
