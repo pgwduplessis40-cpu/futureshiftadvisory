@@ -29,7 +29,7 @@ RUN_MIGRATIONS="${RUN_MIGRATIONS:-yes}"
 CONFIGURE_SCHEDULER="${CONFIGURE_SCHEDULER:-yes}"
 SCHEDULER_SERVICE="${SCHEDULER_SERVICE:-futureshiftadvisory-scheduler.service}"
 SCHEDULER_TIMER="${SCHEDULER_TIMER:-futureshiftadvisory-scheduler.timer}"
-SCHEDULER_UNIT_SOURCE_DIR="${SCHEDULER_UNIT_SOURCE_DIR:-${APP_DIR}/storage/app/systemd}"
+SCHEDULER_UNIT_DIR="${SCHEDULER_UNIT_DIR:-/etc/systemd/system}"
 SCHEDULER_USER="${SCHEDULER_USER:-$(id -un)}"
 EXPECTED_COMMIT="${DEPLOY_EXPECTED_COMMIT:-}"
 EXPECTED_VERSION="${DEPLOY_EXPECTED_VERSION:-}"
@@ -275,12 +275,10 @@ configure_scheduler_timer() {
             ;;
     esac
 
-    scheduler_service_path="${SCHEDULER_UNIT_SOURCE_DIR%/}/${SCHEDULER_SERVICE}"
-    scheduler_timer_path="${SCHEDULER_UNIT_SOURCE_DIR%/}/${SCHEDULER_TIMER}"
+    scheduler_service_path="${SCHEDULER_UNIT_DIR%/}/${SCHEDULER_SERVICE}"
+    scheduler_timer_path="${SCHEDULER_UNIT_DIR%/}/${SCHEDULER_TIMER}"
     scheduler_service_tmp="$(mktemp)"
     scheduler_timer_tmp="$(mktemp)"
-
-    mkdir -p "$SCHEDULER_UNIT_SOURCE_DIR"
 
     cat > "$scheduler_service_tmp" <<EOF
 [Unit]
@@ -312,22 +310,27 @@ Unit=${SCHEDULER_SERVICE}
 WantedBy=timers.target
 EOF
 
-    if ! mv "$scheduler_service_tmp" "$scheduler_service_path"; then
+    if [ -L "$scheduler_service_path" ]; then
+        $SUDO rm -f "$scheduler_service_path"
+    fi
+
+    if [ -L "$scheduler_timer_path" ]; then
+        $SUDO rm -f "$scheduler_timer_path"
+    fi
+
+    if ! $SUDO install -m 0644 "$scheduler_service_tmp" "$scheduler_service_path"; then
         rm -f -- "$scheduler_service_tmp" "$scheduler_timer_tmp"
-        echo "ERROR: could not write ${scheduler_service_path}; check application storage permissions." >&2
+        echo "ERROR: could not install ${scheduler_service_path}; grant the deploy user sudo install access for systemd units." >&2
         exit 1
     fi
 
-    if ! mv "$scheduler_timer_tmp" "$scheduler_timer_path"; then
+    if ! $SUDO install -m 0644 "$scheduler_timer_tmp" "$scheduler_timer_path"; then
         rm -f -- "$scheduler_service_tmp" "$scheduler_timer_tmp"
-        echo "ERROR: could not write ${scheduler_timer_path}; check application storage permissions." >&2
+        echo "ERROR: could not install ${scheduler_timer_path}; grant the deploy user sudo install access for systemd units." >&2
         exit 1
     fi
 
-    chmod 0644 "$scheduler_service_path" "$scheduler_timer_path"
-
-    $SUDO systemctl link --force "$scheduler_service_path"
-    $SUDO systemctl link --force "$scheduler_timer_path"
+    rm -f -- "$scheduler_service_tmp" "$scheduler_timer_tmp"
     $SUDO systemctl daemon-reload
     $SUDO systemctl enable "$SCHEDULER_TIMER"
     $SUDO systemctl restart "$SCHEDULER_TIMER"

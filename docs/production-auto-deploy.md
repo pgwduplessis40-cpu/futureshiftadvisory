@@ -27,7 +27,7 @@ Add the following **Actions secrets** to the repository:
 
 Create the repository variable `PRODUCTION_DEPLOY_ENABLED` with value `true` only after every secret is present. Until then, the production deploy job is skipped rather than pretending to have deployed anything. The release cannot proceed unless the existing `quality`, `ci (8.4)`, and `ci (8.5)` check-runs all pass for the source commit.
 
-The deploy user needs write access to the application checkout and permission to link, enable, restart, and start the scheduler timer/service plus restart the PHP-FPM and SSR services through passwordless `sudo systemctl`. Do not use the VPS root password or place it in GitHub.
+The deploy user needs write access to the application checkout and permission to install the scheduler unit files in `/etc/systemd/system`, run `systemctl daemon-reload`, enable/restart/start the scheduler timer/service, and restart the PHP-FPM and SSR services through passwordless sudo. Do not use the VPS root password or place it in GitHub.
 
 ## Confirming a release
 

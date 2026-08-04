@@ -119,7 +119,7 @@ Options (environment variables):
 | `CONFIGURE_SCHEDULER` | `yes` | Install and verify the Laravel scheduler systemd timer |
 | `SCHEDULER_SERVICE` | `futureshiftadvisory-scheduler.service` | systemd service unit that runs `php artisan schedule:run --no-interaction` |
 | `SCHEDULER_TIMER` | `futureshiftadvisory-scheduler.timer` | systemd timer unit that triggers the scheduler service every minute |
-| `SCHEDULER_UNIT_SOURCE_DIR` | `storage/app/systemd` | App-owned directory containing the linked scheduler systemd unit files |
+| `SCHEDULER_UNIT_DIR` | `/etc/systemd/system` | Directory where deploy installs the scheduler systemd unit files |
 | `SCHEDULER_USER` | current deploy user | Linux user that executes the scheduler service |
 | `INSTALL_CLAMAV` | `yes` | Install the ClamAV daemon when no configured or local service exists |
 | `CLAMAV_SERVICE` | auto-detected | Override the ClamAV systemd unit name |
