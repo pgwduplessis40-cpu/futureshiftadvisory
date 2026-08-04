@@ -27,7 +27,10 @@ PHP_FPM_SERVICE="${PHP_FPM_SERVICE:-php-fpm}"
 SITE_URL="${SITE_URL:-https://futureshiftadvisory.nz}"
 RUN_MIGRATIONS="${RUN_MIGRATIONS:-yes}"
 CONFIGURE_SCHEDULER="${CONFIGURE_SCHEDULER:-yes}"
-CRON_SERVICE="${CRON_SERVICE:-}"
+SCHEDULER_SERVICE="${SCHEDULER_SERVICE:-futureshiftadvisory-scheduler.service}"
+SCHEDULER_TIMER="${SCHEDULER_TIMER:-futureshiftadvisory-scheduler.timer}"
+SCHEDULER_UNIT_SOURCE_DIR="${SCHEDULER_UNIT_SOURCE_DIR:-${APP_DIR}/storage/app/systemd}"
+SCHEDULER_USER="${SCHEDULER_USER:-$(id -un)}"
 EXPECTED_COMMIT="${DEPLOY_EXPECTED_COMMIT:-}"
 EXPECTED_VERSION="${DEPLOY_EXPECTED_VERSION:-}"
 
@@ -188,71 +191,42 @@ verify_live_deployment_identity() {
     esac
 }
 
-ensure_cron_daemon_running() {
-    local cron_service candidates=()
+validate_systemd_unit_name() {
+    local name="$1"
+    local label="$2"
+    local suffix="$3"
 
-    if [ "$CONFIGURE_SCHEDULER" != "yes" ]; then
-        return
-    fi
+    case "$name" in
+        ''|*[!A-Za-z0-9@._-]*)
+            echo "ERROR: ${label} must be a plain systemd unit name; found '${name}'." >&2
+            exit 1
+            ;;
+    esac
 
-    command -v systemctl >/dev/null 2>&1 || {
-        echo "ERROR: systemctl is required to verify the cron daemon for Laravel's scheduler." >&2
-        exit 1
-    }
-
-    if [ -n "$CRON_SERVICE" ]; then
-        candidates=("$CRON_SERVICE")
-    else
-        candidates=(crond cron cronie)
-    fi
-
-    for candidate in "${candidates[@]}"; do
-        if systemctl cat "$candidate" >/dev/null 2>&1; then
-            cron_service="$candidate"
-            break
-        fi
-    done
-
-    if [ -z "${cron_service:-}" ]; then
-        echo "ERROR: no cron systemd unit was found; set CRON_SERVICE to the host's cron service name." >&2
-        exit 1
-    fi
-
-    if ! systemctl is-active --quiet "$cron_service"; then
-        echo "Starting cron service '${cron_service}' for Laravel scheduler."
-        $SUDO systemctl enable --now "$cron_service"
-    fi
-
-    if ! systemctl is-active --quiet "$cron_service"; then
-        echo "ERROR: cron service '${cron_service}' is not active; scheduled app checks will not run." >&2
-        exit 1
-    fi
-
-    echo "Cron service '${cron_service}' is active."
+    case "$name" in
+        *"$suffix") ;;
+        *)
+            echo "ERROR: ${label} must end with ${suffix}; found '${name}'." >&2
+            exit 1
+            ;;
+    esac
 }
 
-configure_scheduler_cron() {
-    local php_binary scheduler_line current_crontab updated_crontab
-
-    if [ "$CONFIGURE_SCHEDULER" != "yes" ]; then
-        echo "Skipping scheduler cron setup (CONFIGURE_SCHEDULER=$CONFIGURE_SCHEDULER)."
-        return
-    fi
-
-    ensure_cron_daemon_running
+remove_legacy_scheduler_cron() {
+    local current_crontab updated_crontab
 
     command -v crontab >/dev/null 2>&1 || {
-        echo "ERROR: crontab is required to keep Laravel's scheduler running." >&2
-        exit 1
+        echo "crontab is unavailable; no legacy scheduler cron block to remove."
+        return
     }
 
-    php_binary="$(command -v php)"
-    scheduler_line="* * * * * cd '${APP_DIR}' && '${php_binary}' artisan schedule:run --no-interaction >/dev/null 2>&1"
     current_crontab="$(mktemp)"
     updated_crontab="$(mktemp)"
 
     if ! crontab -l > "$current_crontab" 2>/dev/null; then
-        : > "$current_crontab"
+        rm -f -- "$current_crontab" "$updated_crontab"
+        echo "No legacy scheduler cron block is installed for this user."
+        return
     fi
 
     awk '
@@ -261,25 +235,119 @@ configure_scheduler_cron() {
         ! skip { print }
     ' "$current_crontab" > "$updated_crontab"
 
-    printf '%s\n' \
-        '# BEGIN FUTURESHIFT SCHEDULER' \
-        "$scheduler_line" \
-        '# END FUTURESHIFT SCHEDULER' \
-        >> "$updated_crontab"
+    if cmp -s "$current_crontab" "$updated_crontab"; then
+        echo "No legacy scheduler cron block is installed for this user."
+    else
+        crontab "$updated_crontab"
+        echo "Removed legacy Laravel scheduler cron block."
+    fi
 
-    crontab "$updated_crontab"
     rm -f -- "$current_crontab" "$updated_crontab"
+}
 
-    case "$(crontab -l)" in
-        *"$scheduler_line"*) ;;
+configure_scheduler_timer() {
+    local php_binary scheduler_service_path scheduler_timer_path scheduler_service_tmp scheduler_timer_tmp
+
+    if [ "$CONFIGURE_SCHEDULER" != "yes" ]; then
+        echo "Skipping scheduler setup (CONFIGURE_SCHEDULER=$CONFIGURE_SCHEDULER)."
+        return
+    fi
+
+    command -v systemctl >/dev/null 2>&1 || {
+        echo "ERROR: systemctl is required to keep Laravel's scheduler running." >&2
+        exit 1
+    }
+
+    php_binary="$(command -v php)"
+    [ -n "$php_binary" ] || {
+        echo "ERROR: php could not be found on PATH for the Laravel scheduler." >&2
+        exit 1
+    }
+
+    validate_systemd_unit_name "$SCHEDULER_SERVICE" "SCHEDULER_SERVICE" ".service"
+    validate_systemd_unit_name "$SCHEDULER_TIMER" "SCHEDULER_TIMER" ".timer"
+
+    case "$APP_DIR" in
+        /*) ;;
         *)
-            echo "ERROR: Laravel scheduler cron entry could not be verified." >&2
+            echo "ERROR: APP_DIR must be absolute for the systemd scheduler unit; found '${APP_DIR}'." >&2
             exit 1
             ;;
     esac
 
-    php artisan schedule:run --no-interaction
-    echo "Laravel scheduler cron entry is installed and verified."
+    scheduler_service_path="${SCHEDULER_UNIT_SOURCE_DIR%/}/${SCHEDULER_SERVICE}"
+    scheduler_timer_path="${SCHEDULER_UNIT_SOURCE_DIR%/}/${SCHEDULER_TIMER}"
+    scheduler_service_tmp="$(mktemp)"
+    scheduler_timer_tmp="$(mktemp)"
+
+    mkdir -p "$SCHEDULER_UNIT_SOURCE_DIR"
+
+    cat > "$scheduler_service_tmp" <<EOF
+[Unit]
+Description=Run Future Shift Advisory Laravel scheduler
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=${SCHEDULER_USER}
+WorkingDirectory=${APP_DIR}
+ExecStart=${php_binary} artisan schedule:run --no-interaction
+TimeoutStartSec=30min
+StandardOutput=journal
+StandardError=journal
+EOF
+
+    cat > "$scheduler_timer_tmp" <<EOF
+[Unit]
+Description=Run Future Shift Advisory Laravel scheduler every minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=1s
+Persistent=true
+Unit=${SCHEDULER_SERVICE}
+
+[Install]
+WantedBy=timers.target
+EOF
+
+    if ! mv "$scheduler_service_tmp" "$scheduler_service_path"; then
+        rm -f -- "$scheduler_service_tmp" "$scheduler_timer_tmp"
+        echo "ERROR: could not write ${scheduler_service_path}; check application storage permissions." >&2
+        exit 1
+    fi
+
+    if ! mv "$scheduler_timer_tmp" "$scheduler_timer_path"; then
+        rm -f -- "$scheduler_service_tmp" "$scheduler_timer_tmp"
+        echo "ERROR: could not write ${scheduler_timer_path}; check application storage permissions." >&2
+        exit 1
+    fi
+
+    chmod 0644 "$scheduler_service_path" "$scheduler_timer_path"
+
+    $SUDO systemctl link --force "$scheduler_service_path"
+    $SUDO systemctl link --force "$scheduler_timer_path"
+    $SUDO systemctl daemon-reload
+    $SUDO systemctl enable "$SCHEDULER_TIMER"
+    $SUDO systemctl restart "$SCHEDULER_TIMER"
+
+    if ! systemctl is-active --quiet "$SCHEDULER_TIMER"; then
+        echo "ERROR: Laravel scheduler timer '${SCHEDULER_TIMER}' is not active; scheduled app checks will not run." >&2
+        $SUDO systemctl status "$SCHEDULER_TIMER" --no-pager --full || true
+        exit 1
+    fi
+
+    if ! $SUDO systemctl start "$SCHEDULER_SERVICE"; then
+        echo "ERROR: Laravel scheduler service '${SCHEDULER_SERVICE}' could not execute schedule:run." >&2
+        $SUDO systemctl status "$SCHEDULER_SERVICE" --no-pager --full || true
+        $SUDO journalctl -u "$SCHEDULER_SERVICE" -n 80 --no-pager || true
+        exit 1
+    fi
+
+    remove_legacy_scheduler_cron
+    systemctl list-timers "$SCHEDULER_TIMER" --no-pager || true
+    echo "Laravel scheduler systemd timer '${SCHEDULER_TIMER}' is installed, active, and verified."
 }
 
 ensure_malware_scanner() {
@@ -558,7 +626,7 @@ php artisan route:cache
 php artisan view:cache
 
 log "Configuring Laravel scheduler"
-configure_scheduler_cron
+configure_scheduler_timer
 
 log "Verifying malware scanner and recovering quarantined documents"
 ensure_malware_scanner
