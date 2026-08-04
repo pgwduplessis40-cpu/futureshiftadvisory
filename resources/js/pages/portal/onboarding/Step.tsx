@@ -60,7 +60,9 @@ type Props = {
 type WebsiteSubmission = {
     url: string | null;
     status:
-        'advisor_confirmed' | 'awaiting_advisor_confirmation' | 'not_listed';
+        | 'advisor_confirmed'
+        | 'awaiting_advisor_confirmation'
+        | 'not_listed';
 };
 
 type OnboardingForm = {
@@ -77,7 +79,11 @@ type OnboardingForm = {
 };
 
 type QuestionnaireDraftStatus =
-    'idle' | 'saving' | 'saved' | 'offline' | 'error';
+    | 'idle'
+    | 'saving'
+    | 'saved'
+    | 'offline'
+    | 'error';
 
 export default function OnboardingStep({
     client,

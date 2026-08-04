@@ -322,7 +322,10 @@ type StandardAdvisoryPortalPayload = {
             label: string;
             description: string;
             status:
-                'complete' | 'in_progress' | 'waiting_advisor' | 'not_required';
+                | 'complete'
+                | 'in_progress'
+                | 'waiting_advisor'
+                | 'not_required';
             owner: 'client' | 'advisor';
         }>;
     };
