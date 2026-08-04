@@ -844,16 +844,16 @@ final class EntrepreneurController extends Controller
         $evaluation = $validation->ai_evaluation ?? [];
         $findings = collect((array) data_get($evaluation, 'metadata.findings', []))
             ->filter(fn (mixed $finding): bool => is_array($finding))
-            ->map(fn (array $finding): string => $this->founderActionForFinding($finding))
-            ->filter()
-            ->take(3)
+            ->map(fn (array $finding): array => $this->founderActionForFinding($finding))
+            ->filter(fn (array $action): bool => trim((string) ($action['action'] ?? '')) !== '')
+            ->take(4)
             ->values();
 
         if ($findings->isEmpty()) {
             $findings = collect([
-                'Define the primary customer segment, the paid problem it faces, and why this offer is a better choice than the alternatives.',
-                'Record at least one customer experiment with a clear hypothesis, evidence, result, and next step.',
-                'Describe a repeatable offer, pricing, delivery capacity, and revenue model that is not dependent only on your personal time.',
+                ['horizon' => 'now', 'action' => 'Define the primary customer segment, the paid problem it faces, and why this offer is a better choice than the alternatives.'],
+                ['horizon' => 'now', 'action' => 'Record at least one customer experiment with a clear hypothesis, evidence, result, and next step.'],
+                ['horizon' => 'now', 'action' => 'Describe a repeatable offer, pricing, delivery capacity, and revenue model that is not dependent only on your personal time.'],
             ]);
         }
 
@@ -861,32 +861,60 @@ final class EntrepreneurController extends Controller
             ->filter(fn (mixed $alert): bool => is_array($alert))
             ->map(fn (array $alert): string => trim((string) ($alert['message'] ?? '')))
             ->filter()
-            ->map(fn (string $alert): string => $this->completeFeedbackPoint($alert));
+            ->map(fn (string $alert): array => [
+                'horizon' => 'now',
+                'action' => $this->completeFeedbackPoint($alert),
+            ]);
 
-        $actions = $findings
+        $shortTermActions = $findings
             ->merge($alerts)
+            ->filter(fn (array $action): bool => ($action['horizon'] ?? 'now') === 'now')
+            ->pluck('action')
             ->unique(fn (string $action): string => Str::lower($action))
             ->take(4)
-            ->values()
-            ->map(fn (string $action, int $index): string => ($index + 1).'. '.$action)
-            ->implode("\n");
+            ->values();
+
+        if ($shortTermActions->isEmpty()) {
+            $shortTermActions = collect([
+                'Define the immediate evidence needed to decide whether this idea should move into business-plan development.',
+            ]);
+        }
+
+        $longTermActions = $findings
+            ->filter(fn (array $action): bool => ($action['horizon'] ?? 'now') === 'long_term')
+            ->pluck('action')
+            ->unique(fn (string $action): string => Str::lower($action))
+            ->take(3)
+            ->values();
+
+        if ($longTermActions->isEmpty()) {
+            $longTermActions = collect([
+                'Use the first validation cycle to decide which partnership, staffing, retention, and scale assumptions belong in the business-plan evidence.',
+            ]);
+        }
 
         return $this->changeRequestMessages->build($profile, [
             'Thank you for the work you have put into this idea validation.',
             'Your idea shows promise, but more evidence and a more repeatable commercial model are needed before it can move into business-plan development.',
-            "Before resubmitting, please:\n{$actions}",
-            'Please update the idea validation with this information and resubmit it for review.',
+            "Before resubmitting, please complete the short-term validation work:\n{$this->numberedFeedbackActions($shortTermActions)}",
+            "Longer-term plan-builder evidence to prepare after the gate decision:\n{$this->numberedFeedbackActions($longTermActions)}",
+            'Please update the idea validation with the short-term evidence and resubmit it for review. Keep the longer-term items for the plan-builder or scaling work if the gate is approved.',
         ]);
     }
 
     /**
      * @param  array<string, mixed>  $finding
      */
-    private function founderActionForFinding(array $finding): string
+    private function founderActionForFinding(array $finding): array
     {
         $recommendedAction = trim((string) ($finding['recommended_action'] ?? ''));
         if ($recommendedAction !== '') {
-            return $this->completeFeedbackPoint($recommendedAction);
+            $action = $this->completeFeedbackPoint($this->sanitiseReferenceSensitiveAction($recommendedAction));
+
+            return [
+                'horizon' => $this->feedbackHorizon($action, $this->findingContext($finding)),
+                'action' => $action,
+            ];
         }
 
         $title = trim((string) ($finding['title'] ?? ''));
@@ -894,26 +922,98 @@ final class EntrepreneurController extends Controller
         $context = Str::lower($title.' '.$body);
 
         if (Str::contains($context, ['revenue', 'pricing', 'price', 'time-constrained', 'capacity'])) {
-            return 'Build a sustainable revenue model: show how the offer can create income beyond your own billable days, including package pricing, delivery costs, monthly capacity, and recurring follow-on support.';
+            return [
+                'horizon' => 'now',
+                'action' => 'Build a sustainable revenue model: show how the offer can create income beyond your own billable days, including package pricing, delivery costs, monthly capacity, and recurring follow-on support.',
+            ];
         }
 
         if (Str::contains($context, ['demand', 'market', 'customer evidence', 'willingness to pay'])) {
-            return 'Collect and document stronger demand evidence: choose a primary customer segment, test a paid offer, and record the hypothesis, evidence, result, and next step.';
+            return [
+                'horizon' => 'now',
+                'action' => 'Collect and document stronger demand evidence: choose a primary customer segment, test a paid offer, and record the hypothesis, evidence, result, and next step.',
+            ];
         }
 
         if (Str::contains($context, ['value proposition', 'differentiat', 'positioning', 'communicat'])) {
-            return 'State one clear value proposition: name the customer, their pressing problem, the outcome they receive, and why this offer is more valuable than the alternatives.';
+            return [
+                'horizon' => 'now',
+                'action' => 'State one clear value proposition: name the customer, their pressing problem, the outcome they receive, and why this offer is more valuable than the alternatives.',
+            ];
         }
 
         if (Str::contains($context, ['target customer', 'customer segment', 'customer'])) {
-            return 'Narrow the starting customer segment and explain the specific paid problem this offer will solve for them.';
+            return [
+                'horizon' => 'now',
+                'action' => 'Narrow the starting customer segment and explain the specific paid problem this offer will solve for them.',
+            ];
         }
 
         if (Str::contains($context, ['solution', 'delivery', 'offer'])) {
-            return 'Describe a repeatable offer with clear outcomes, delivery steps, and what can be standardised as demand grows.';
+            return [
+                'horizon' => 'now',
+                'action' => 'Describe a repeatable offer with clear outcomes, delivery steps, and what can be standardised as demand grows.',
+            ];
         }
 
-        return $this->completeFeedbackPoint(trim(implode(': ', array_filter([$title, $body]))));
+        $action = $this->completeFeedbackPoint(trim(implode(': ', array_filter([$title, $body]))));
+
+        return [
+            'horizon' => $this->feedbackHorizon($action, $context),
+            'action' => $action,
+        ];
+    }
+
+    private function findingContext(array $finding): string
+    {
+        return Str::lower(implode(' ', [
+            (string) ($finding['title'] ?? ''),
+            (string) ($finding['body'] ?? ''),
+            (string) ($finding['recommended_action'] ?? ''),
+        ]));
+    }
+
+    private function feedbackHorizon(string $action, string $context): string
+    {
+        $haystack = Str::lower($action.' '.$context);
+
+        if (Str::contains($haystack, [
+            'before scaling',
+            'full season',
+            'seasonal',
+            'partner agreement',
+            'partnership agreement',
+            'retention',
+            'scaling',
+            'volunteer',
+            'written partnership',
+        ])) {
+            return 'long_term';
+        }
+
+        return 'now';
+    }
+
+    private function sanitiseReferenceSensitiveAction(string $action): string
+    {
+        if (! preg_match('/\bminimum wage\b|\$\d+(?:\.\d+)?\s*(?:\/\s*hr|per\s+hour|nzd_per_hour)/i', $action)) {
+            return $action;
+        }
+
+        $action = preg_replace('/\s*\((?=[^)]*(?:minimum wage|\$\d+(?:\.\d+)?\s*(?:\/\s*hr|per\s+hour|nzd_per_hour)))[^)]*\)/i', '', $action) ?? $action;
+        $action = preg_replace('/using\s+real\s+NZ\s+labou?r\s+rates/i', 'using current NZ wage reference data', $action) ?? $action;
+        $action = preg_replace('/minimum wage\s+(?:is\s+|of\s+)?\$?\d+(?:\.\d+)?(?:\s*(?:\/\s*hr|per\s+hour|nzd_per_hour))?(?:\s+as\s+of\s+[A-Za-z]+\s+\d{4})?/i', 'current NZ minimum wage reference data', $action) ?? $action;
+        $action = preg_replace('/\s+,/', ',', $action) ?? $action;
+
+        return trim(preg_replace('/\s{2,}/', ' ', $action) ?? $action);
+    }
+
+    private function numberedFeedbackActions(mixed $actions): string
+    {
+        return collect($actions)
+            ->values()
+            ->map(fn (string $action, int $index): string => ($index + 1).'. '.$action)
+            ->implode("\n");
     }
 
     private function completeFeedbackPoint(string $point): string

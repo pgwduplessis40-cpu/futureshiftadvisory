@@ -333,7 +333,7 @@ final class AnthropicClaudeClient implements AiClient, QuoteSourceExtractionClie
                                 'body' => ['type' => 'string'],
                                 'recommended_action' => [
                                     'type' => 'string',
-                                    'description' => 'A concise, client-facing action the founder can take before resubmitting.',
+                                    'description' => 'A concise, client-facing action the founder can take before resubmitting. Do not name exact external reference-data rates or dates unless the prompt supplies them; otherwise ask the founder to use current app reference data.',
                                 ],
                                 'attributions' => [
                                     'type' => 'array',
@@ -504,7 +504,7 @@ final class AnthropicClaudeClient implements AiClient, QuoteSourceExtractionClie
                         'severity' => 'info|low|medium|high|critical',
                         'title' => 'string',
                         'body' => 'string',
-                        'recommended_action' => 'string, concise and client-facing',
+                        'recommended_action' => 'string, concise and client-facing; do not name exact external reference-data rates or dates unless supplied in the prompt input',
                         'attributions' => [
                             ['claim' => 'string', 'source_reference' => 'string'],
                         ],

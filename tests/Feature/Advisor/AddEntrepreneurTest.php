@@ -485,8 +485,13 @@ final class AddEntrepreneurTest extends TestCase
                 'metadata' => [
                     'degraded' => true,
                     'findings' => [[
-                        'title' => 'Revenue model is acutely time-constrained',
-                        'body' => 'The primary revenue unit is two to three days of the founder\'s time per client. At $4,000 per four-day engagement, the implied day rate is $1,000. This is before costs and tax, and the founder needs a repeatable delivery model to grow beyond personal availability.',
+                        'title' => 'Cost model needs current labour reference data',
+                        'body' => 'The service model depends on paid coordination and suburb-level travel time.',
+                        'recommended_action' => 'Build a detailed per-household cost model using real NZ labour rates (minimum wage is $23.15/hr as of April 2025), realistic travel time per suburb, and materials cost. Share this model with an advisor before proceeding to pilot.',
+                    ], [
+                        'title' => 'Seasonal partnership proof is needed before scaling',
+                        'body' => 'Volunteer retention and partner commitments need longer-term proof before the model is scaled.',
+                        'recommended_action' => 'Pilot one hub end-to-end with a real Project Leader and document volunteer retention over at least one full season (3 months minimum). Establish a written partnership agreement template with at least one church before scaling.',
                     ]],
                 ],
             ],
@@ -509,7 +514,7 @@ final class AddEntrepreneurTest extends TestCase
                 ->where('entrepreneur.idea_validation.target_customer', "SME's")
                 ->where(
                     'entrepreneur.idea_validation.proposed_change_request',
-                    "Dear Deferred,\n\nThank you for the work you have put into this idea validation.\n\nYour idea shows promise, but more evidence and a more repeatable commercial model are needed before it can move into business-plan development.\n\nBefore resubmitting, please:\n1. Build a sustainable revenue model: show how the offer can create income beyond your own billable days, including package pricing, delivery costs, monthly capacity, and recurring follow-on support.\n\nPlease update the idea validation with this information and resubmit it for review.",
+                    "Dear Deferred,\n\nThank you for the work you have put into this idea validation.\n\nYour idea shows promise, but more evidence and a more repeatable commercial model are needed before it can move into business-plan development.\n\nBefore resubmitting, please complete the short-term validation work:\n1. Build a detailed per-household cost model using current NZ wage reference data, realistic travel time per suburb, and materials cost. Share this model with an advisor before proceeding to pilot.\n\nLonger-term plan-builder evidence to prepare after the gate decision:\n1. Pilot one hub end-to-end with a real Project Leader and document volunteer retention over at least one full season (3 months minimum). Establish a written partnership agreement template with at least one church before scaling.\n\nPlease update the idea validation with the short-term evidence and resubmit it for review. Keep the longer-term items for the plan-builder or scaling work if the gate is approved.",
                 )
                 ->where('entrepreneur.idea_validation.refresh_url', route('advisor.entrepreneurs.idea-validations.refresh', [$profile, $validation], absolute: false))
                 ->where('entrepreneur.idea_validation.request_changes_url', route('advisor.entrepreneurs.idea-validations.request-changes', [$profile, $validation], absolute: false))

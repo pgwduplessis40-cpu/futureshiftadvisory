@@ -12,6 +12,7 @@ use App\Models\LearningUpdate;
 use App\Models\ReferenceDataEntry;
 use App\Models\User;
 use App\Models\ValuationMultiple;
+use App\Services\EconomicData\EconomicIndicatorRefresher;
 use App\Services\Learning\LayerCadenceRegistry;
 use App\Services\ReferenceData\ReferenceDataFreshness;
 use App\Services\ReferenceData\ReferenceDataSubmission;
@@ -45,7 +46,18 @@ final class ReferenceDataController extends Controller
             'currentValues' => $this->currentValues(),
             'pendingReviews' => $this->pendingReviewRows(),
             'entries' => $this->entryRows(),
+            'refreshEconomicIndicatorsUrl' => route('admin.reference-data.economic-indicators.refresh', absolute: false),
         ]);
+    }
+
+    public function refreshEconomicIndicators(EconomicIndicatorRefresher $refresher): RedirectResponse
+    {
+        abort_unless(Schema::hasTable('economic_indicators'), 503, 'Economic indicator store is not migrated.');
+
+        $refresher->refresh();
+
+        return to_route('admin.reference-data.index')
+            ->with('status', 'economic-indicators-refreshed');
     }
 
     public function store(Request $request, ReferenceDataSubmission $submission, SecureFileWriter $files): RedirectResponse
@@ -566,6 +578,8 @@ final class ReferenceDataController extends Controller
                 'value' => $indicator->value.' '.$indicator->unit,
                 'as_at' => $indicator->period_date?->toDateString(),
                 'source' => $indicator->source,
+                'source_badge' => $indicator->source_badge,
+                'degraded' => $indicator->degraded,
             ]));
 
         $valuation = $this->whenTableExists('valuation_multiples', fn (): Collection => ValuationMultiple::query()
@@ -579,6 +593,8 @@ final class ReferenceDataController extends Controller
                 'value' => $multiple->multiple_low.'-'.$multiple->multiple_mid.'-'.$multiple->multiple_high,
                 'as_at' => $multiple->quarter,
                 'source' => $multiple->source,
+                'source_badge' => $multiple->source_badge,
+                'degraded' => $multiple->degraded,
             ]));
 
         $wacc = $this->whenTableExists('industry_wacc_data', fn (): Collection => IndustryWaccData::query()
@@ -592,6 +608,8 @@ final class ReferenceDataController extends Controller
                 'value' => round($row->wacc_rate * 100, 2).'%',
                 'as_at' => $row->quarter,
                 'source' => $row->source,
+                'source_badge' => $row->source_badge,
+                'degraded' => $row->degraded,
             ]));
 
         $cpb = collect();

@@ -151,6 +151,7 @@ final class ReferenceDataManagementTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('admin/reference-data/Index')
+                ->where('refreshEconomicIndicatorsUrl', route('admin.reference-data.economic-indicators.refresh', absolute: false))
                 ->where('recordTargets.0.key', 'economic_indicator:ocr')
                 ->where('recordTargets.4.key', 'economic_indicator:gdp_quarterly')
                 ->where('recordTargets.4.dataset', ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR)
@@ -158,6 +159,67 @@ final class ReferenceDataManagementTest extends TestCase
                 ->where('recordTargets.3.key', ReferenceDataEntry::DATASET_GST_RATE)
                 ->where('recordTargets.6.key', ReferenceDataEntry::DATASET_VALUATION_MULTIPLE)
                 ->where('datasets.0', ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR));
+    }
+
+    public function test_reference_data_page_exposes_current_value_source_badges(): void
+    {
+        $admin = $this->superAdmin();
+        EconomicIndicator::query()->create([
+            'indicator' => EconomicIndicator::MINIMUM_WAGE,
+            'label' => 'Adult minimum wage',
+            'value' => 23.95,
+            'unit' => 'nzd_per_hour',
+            'period_date' => '2026-04-01',
+            'source' => 'mbie',
+            'source_badge' => 'stub_live_fallback',
+            'degraded' => true,
+            'fetched_at' => now(),
+            'payload' => ['category' => 'adult'],
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.reference-data.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('admin/reference-data/Index')
+                ->where('currentValues.0.label', 'Adult minimum wage')
+                ->where('currentValues.0.source', 'mbie')
+                ->where('currentValues.0.source_badge', 'stub_live_fallback')
+                ->where('currentValues.0.degraded', true));
+    }
+
+    public function test_super_admin_can_refresh_economic_indicators_from_reference_data_page(): void
+    {
+        Config::set('integrations.rbnz.live', false);
+        Config::set('integrations.stats_nz.live', false);
+        Config::set('integrations.mbie.live', false);
+
+        $admin = $this->superAdmin();
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.reference-data.economic-indicators.refresh'))
+            ->assertRedirect(route('admin.reference-data.index', absolute: false))
+            ->assertSessionHas('status', 'economic-indicators-refreshed');
+
+        $this->assertDatabaseHas('economic_indicators', [
+            'indicator' => EconomicIndicator::MINIMUM_WAGE,
+            'value' => 23.95,
+            'unit' => 'nzd_per_hour',
+            'period_date' => '2026-04-01 00:00:00',
+            'source' => 'mbie',
+            'source_badge' => 'stub',
+            'degraded' => false,
+        ]);
+
+        $this->assertDatabaseHas('economic_indicators', [
+            'indicator' => EconomicIndicator::LIVING_WAGE,
+            'value' => 28.95,
+            'unit' => 'nzd_per_hour',
+            'period_date' => '2025-09-01 00:00:00',
+            'source' => 'living_wage_aotearoa',
+            'source_badge' => 'stub',
+            'degraded' => false,
+        ]);
     }
 
     public function test_reference_data_page_marks_selected_gdp_as_pending_review(): void

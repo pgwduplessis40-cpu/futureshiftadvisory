@@ -78,6 +78,15 @@ final class EconomicIndicatorsTest extends TestCase
             'indicator' => EconomicIndicator::MINIMUM_WAGE,
             'source' => 'mbie',
             'source_badge' => 'stub',
+            'value' => 23.95,
+            'period_date' => '2026-04-01',
+        ]);
+        $this->assertDatabaseHas('economic_indicators', [
+            'indicator' => EconomicIndicator::LIVING_WAGE,
+            'source' => 'living_wage_aotearoa',
+            'source_badge' => 'stub',
+            'value' => 28.95,
+            'period_date' => '2025-09-01',
         ]);
         $this->assertDatabaseHas('economic_indicators', [
             'indicator' => EconomicIndicator::GDP_QUARTERLY,

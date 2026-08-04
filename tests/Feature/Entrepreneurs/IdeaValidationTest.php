@@ -6,6 +6,7 @@ namespace Tests\Feature\Entrepreneurs;
 
 use App\Enums\EntrepreneurStage;
 use App\Jobs\RefreshIdeaValidationAiReview;
+use App\Models\EconomicIndicator;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
 use App\Models\MessageThread;
@@ -82,6 +83,32 @@ final class IdeaValidationTest extends TestCase
         $this->assertSame([], $validation->viability_alerts);
         $this->assertFalse(app(IdeaValidationService::class)->planBuilderUnlocked($profile));
         $this->assertSame(EntrepreneurStage::IDEA_VALIDATION, $profile->refresh()->stage);
+    }
+
+    public function test_idea_validation_supplies_current_wage_reference_context(): void
+    {
+        [$advisor, $profile] = $this->profile('wage-reference-founder@example.test');
+        EconomicIndicator::query()->create([
+            'indicator' => EconomicIndicator::MINIMUM_WAGE,
+            'label' => 'Adult minimum wage',
+            'value' => 23.95,
+            'unit' => 'nzd_per_hour',
+            'period_date' => '2026-04-01',
+            'source' => 'mbie',
+            'source_badge' => 'stub',
+            'degraded' => false,
+            'fetched_at' => now(),
+            'payload' => ['category' => 'adult'],
+        ]);
+
+        $validation = app(IdeaValidationService::class)->evaluate($profile, $this->strongPayload(), $advisor);
+
+        $reference = data_get($validation->ai_evaluation, 'nz_wage_reference.0');
+        $this->assertSame(EconomicIndicator::MINIMUM_WAGE, $reference['indicator'] ?? null);
+        $this->assertSame(23.95, $reference['value'] ?? null);
+        $this->assertSame('2026-04-01', $reference['period_date'] ?? null);
+        $sources = collect(data_get($validation->ai_evaluation, 'attributions', []))->pluck('source_reference');
+        $this->assertTrue($sources->contains('economic_indicators:wage_reference:minimum_wage'));
     }
 
     public function test_weak_core_fields_block_the_builder_gate(): void

@@ -58,6 +58,7 @@ final readonly class PromptEnvelope
                             'severity' => 'info|low|medium|high|critical',
                             'title' => 'string',
                             'body' => 'string',
+                            'recommended_action' => 'string, concise and client-facing; do not name exact external reference-data rates or dates unless supplied in the prompt input',
                             'attributions' => [
                                 ['claim' => 'string', 'source_reference' => 'string'],
                             ],

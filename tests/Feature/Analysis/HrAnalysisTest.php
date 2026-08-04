@@ -52,8 +52,8 @@ final class HrAnalysisTest extends TestCase
     {
         $client = $this->clientWithHrEvidence();
         $document = $this->verifiedHrDocument($client);
-        $minimumWage = $this->indicator(EconomicIndicator::MINIMUM_WAGE, 'Minimum wage', 23.15);
-        $this->indicator(EconomicIndicator::LIVING_WAGE, 'Living wage', 27.8);
+        $minimumWage = $this->indicator(EconomicIndicator::MINIMUM_WAGE, 'Minimum wage', 23.95);
+        $this->indicator(EconomicIndicator::LIVING_WAGE, 'Living wage', 28.95);
 
         $run = app(AnalysisRunner::class)->run($client, app(HrAnalysis::class));
 

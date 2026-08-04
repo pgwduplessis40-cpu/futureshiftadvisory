@@ -230,6 +230,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         ->group(function (): void {
             Route::get('reference-data', [ReferenceDataController::class, 'index'])
                 ->name('reference-data.index');
+            Route::post('reference-data/economic-indicators/refresh', [ReferenceDataController::class, 'refreshEconomicIndicators'])
+                ->name('reference-data.economic-indicators.refresh');
             Route::post('reference-data', [ReferenceDataController::class, 'store'])
                 ->name('reference-data.store');
             Route::get('reference-data/evidence/{document}', [ReferenceDataController::class, 'evidence'])

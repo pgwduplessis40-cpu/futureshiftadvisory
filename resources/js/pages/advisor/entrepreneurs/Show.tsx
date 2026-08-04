@@ -136,6 +136,12 @@ export default function EntrepreneursShow({
         string | undefined
     >;
     const ideaValidation = entrepreneur.idea_validation;
+    const ideaRecalled = Boolean(ideaValidation?.recalled_at);
+    const ideaRefreshAvailable = Boolean(
+        ideaValidation?.refresh_url &&
+        !ideaRecalled &&
+        !ideaValidation?.advisor_gate_passed_at,
+    );
     const ideaRefreshInFlight =
         (ideaValidation?.refresh_status === 'queued' ||
             ideaValidation?.refresh_status === 'running') &&
@@ -155,7 +161,6 @@ export default function EntrepreneursShow({
             : 'Rerun AI review';
     const ideaRefreshFailure = ideaValidation?.refresh_failure ?? '';
     const proposedChangeRequest = ideaValidation?.proposed_change_request ?? '';
-    const ideaRecalled = Boolean(ideaValidation?.recalled_at);
     const ideaRefreshProviderTransient =
         /status\s+(429|500|502|503|504|529)\b/i.test(ideaRefreshFailure) ||
         /timeout|timed out|overloaded/i.test(ideaRefreshFailure);
@@ -1100,8 +1105,7 @@ export default function EntrepreneursShow({
                                         Version {ideaValidation.revision_number}
                                     </Badge>
                                 ) : null}
-                                {ideaValidation?.ai_deferred &&
-                                !ideaRecalled ? (
+                                {ideaRefreshAvailable ? (
                                     <Button
                                         type="button"
                                         size="sm"

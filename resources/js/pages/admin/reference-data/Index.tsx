@@ -1,5 +1,5 @@
-import { Head, useForm } from '@inertiajs/react';
-import { Clock3, DatabaseZap, Send, Upload } from 'lucide-react';
+import { Head, router, useForm } from '@inertiajs/react';
+import { Clock3, DatabaseZap, RefreshCw, Send, Upload } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { ExplainedSectionHeader, Explainer } from '@/components/explainer';
@@ -41,6 +41,8 @@ type CurrentValue = {
     value: string;
     as_at: string | null;
     source: string;
+    source_badge?: string | null;
+    degraded?: boolean;
 };
 
 type RecordTarget = {
@@ -75,6 +77,7 @@ type Props = {
     currentValues: CurrentValue[];
     pendingReviews: PendingReview[];
     entries: ReferenceDataEntry[];
+    refreshEconomicIndicatorsUrl: string;
 };
 
 const samplePayloads: Record<string, string> = {
@@ -210,6 +213,7 @@ export default function ReferenceDataIndex({
     currentValues,
     pendingReviews,
     entries,
+    refreshEconomicIndicatorsUrl,
 }: Props) {
     const initialTarget = initialRecordTarget(recordTargets, datasets);
     const initialDataset =
@@ -217,6 +221,7 @@ export default function ReferenceDataIndex({
     const [selectedTargetKey, setSelectedTargetKey] = useState(
         initialTarget?.key ?? '',
     );
+    const [refreshPending, setRefreshPending] = useState(false);
 
     const form = useForm<{
         dataset: string;
@@ -248,6 +253,18 @@ export default function ReferenceDataIndex({
             preserveScroll: true,
             onSuccess: () => form.reset('upload', 'evidence_upload'),
         });
+    }
+
+    function refreshEconomicIndicators() {
+        setRefreshPending(true);
+        router.post(
+            refreshEconomicIndicatorsUrl,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => setRefreshPending(false),
+            },
+        );
     }
 
     function setDataset(dataset: string) {
@@ -550,10 +567,28 @@ export default function ReferenceDataIndex({
                 </section>
 
                 <section className="space-y-3 rounded-md border bg-background p-4">
-                    <ExplainedSectionHeader
-                        title="Current effective values"
-                        explanation={referenceExplanations.currentValues}
-                    />
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <ExplainedSectionHeader
+                            title="Current effective values"
+                            explanation={referenceExplanations.currentValues}
+                        />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={refreshEconomicIndicators}
+                            disabled={refreshPending}
+                        >
+                            <RefreshCw
+                                className={
+                                    refreshPending
+                                        ? 'size-4 animate-spin'
+                                        : 'size-4'
+                                }
+                                aria-hidden="true"
+                            />
+                            Refresh API data
+                        </Button>
+                    </div>
                     <div className="overflow-hidden rounded-md border">
                         <table className="fsa-responsive-table table-fixed md:table-fixed">
                             <thead className="bg-muted/60 text-left">
@@ -619,7 +654,21 @@ export default function ReferenceDataIndex({
                                                 className="px-3 py-3 break-words"
                                                 data-label="Source"
                                             >
-                                                {value.source}
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span>{value.source}</span>
+                                                    {value.source_badge ? (
+                                                        <Badge variant="outline">
+                                                            {formatSourceBadge(
+                                                                value.source_badge,
+                                                            )}
+                                                        </Badge>
+                                                    ) : null}
+                                                    {value.degraded ? (
+                                                        <Badge variant="destructive">
+                                                            degraded
+                                                        </Badge>
+                                                    ) : null}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))
@@ -786,6 +835,13 @@ function sampleForTarget(
 
 function formatDataset(dataset: string): string {
     return dataset
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
+
+function formatSourceBadge(sourceBadge: string): string {
+    return sourceBadge
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');

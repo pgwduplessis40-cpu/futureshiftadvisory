@@ -74,7 +74,7 @@ final class FakeMbieClient implements MbieClient
         return array_values(array_map(
             fn (array $rate): array => [
                 ...$rate,
-                'source' => 'mbie',
+                'source' => (string) ($rate['source'] ?? 'mbie'),
                 'source_badge' => $badge,
                 'degraded' => $degraded || (bool) ($rate['degraded'] ?? false),
             ],

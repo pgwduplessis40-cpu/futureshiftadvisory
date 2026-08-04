@@ -6,6 +6,7 @@ namespace App\Services\Entrepreneurs;
 
 use App\Enums\EntrepreneurStage;
 use App\Models\BusinessPlan;
+use App\Models\EconomicIndicator;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
 use App\Models\User;
@@ -15,6 +16,7 @@ use App\Services\Audit\AuditWriter;
 use App\Services\Messaging\MessageThreadService;
 use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -291,25 +293,29 @@ final class IdeaValidationService implements ProvidesMethodology
     {
         $pastPattern = $this->pastPlanPattern($profile, $payload);
         $evidenceLoop = $this->validationEvidenceLoop($payload);
+        $wageReference = $this->wageReferenceContext();
         $prompt = new PromptEnvelope(
             id: EntrepreneurPromptRegistry::IDEA_VALIDATION,
-            version: '2026-07-30',
+            version: '2026-08-05',
             task: 'Evaluate entrepreneur concept viability against prior plan patterns without overstating certainty.',
-            body: 'Assess problem, customer, solution, value proposition, demand, and revenue model. Return practical risks and cite past plan pattern context.',
+            body: 'Assess problem, customer, solution, value proposition, demand, and revenue model. Return practical risks and cite past plan pattern context. When labour, wage, staffing, travel, pricing, or service-cost claims are relevant, use only the supplied nz_wage_reference rows for current NZ wage benchmarks; if no current row is supplied, ask the founder to verify current NZ wage reference data instead of naming a rate or date.',
             input: [
                 'profile_id' => $profile->getKey(),
                 'concept_summary' => $profile->concept_summary,
                 'idea' => $this->contexts->ideaValidationPromptInput($payload),
                 'past_plan_pattern' => $pastPattern,
                 'validation_evidence_loop' => $evidenceLoop,
+                'nz_wage_reference' => $wageReference['rates'],
             ],
             dataQualitySummary: [
                 'level' => $evidenceLoop['status'] === 'experiments_recorded' ? 'founder_supplied_with_experiment_evidence' : 'entrepreneur_supplied',
-                'message' => 'Idea validation is based on founder-supplied information, recorded experiments where available, and aggregate prior-plan patterns.',
+                'message' => 'Idea validation is based on founder-supplied information, recorded experiments where available, aggregate prior-plan patterns, and current app reference data where supplied.',
+                'wage_reference' => $wageReference['note'],
             ],
             sourceReferences: [
                 $pastPattern['source_reference'],
                 $evidenceLoop['source_reference'],
+                $wageReference['source_reference'],
             ],
         );
         $response = $this->ai->analyse($prompt);
@@ -332,12 +338,64 @@ final class IdeaValidationService implements ProvidesMethodology
                         'claim' => 'Idea validation recorded the founder experiment and evidence loop status.',
                         'source_reference' => $evidenceLoop['source_reference'],
                     ],
+                    [
+                        'claim' => 'Idea validation wage-sensitive guidance used the app economic indicator wage reference when available.',
+                        'source_reference' => $wageReference['source_reference'],
+                    ],
                 ],
                 'past_plan_pattern' => $pastPattern,
                 'validation_evidence_loop' => $evidenceLoop,
+                'nz_wage_reference' => $wageReference['rates'],
                 'metadata' => $response->metadata,
             ],
             'viability_alerts' => $alerts,
+        ];
+    }
+
+    /**
+     * @return array{source_reference:string, rates:array<int, array{indicator:string,label:string,value:float,unit:string,period_date:string|null,source:string,source_badge:string,degraded:bool}>, note:string}
+     */
+    private function wageReferenceContext(): array
+    {
+        if (! Schema::hasTable('economic_indicators')) {
+            return [
+                'source_reference' => 'economic_indicators:wage_reference:unavailable',
+                'rates' => [],
+                'note' => 'Economic indicator wage reference data is not available in this environment.',
+            ];
+        }
+
+        $rates = EconomicIndicator::query()
+            ->whereIn('indicator', [EconomicIndicator::MINIMUM_WAGE, EconomicIndicator::LIVING_WAGE])
+            ->orderByDesc('period_date')
+            ->orderByDesc('fetched_at')
+            ->get()
+            ->unique('indicator')
+            ->values()
+            ->map(fn (EconomicIndicator $indicator): array => [
+                'indicator' => $indicator->indicator,
+                'label' => $indicator->label,
+                'value' => $indicator->value,
+                'unit' => $indicator->unit,
+                'period_date' => $indicator->period_date?->toDateString(),
+                'source' => $indicator->source,
+                'source_badge' => $indicator->source_badge,
+                'degraded' => $indicator->degraded,
+            ])
+            ->all();
+
+        if ($rates === []) {
+            return [
+                'source_reference' => 'economic_indicators:wage_reference:none',
+                'rates' => [],
+                'note' => 'No current wage reference rows were available; exact wage rates must be verified before being named.',
+            ];
+        }
+
+        return [
+            'source_reference' => 'economic_indicators:wage_reference:'.collect($rates)->pluck('indicator')->implode(','),
+            'rates' => $rates,
+            'note' => 'Current wage reference rows were supplied for wage-sensitive cost and pricing guidance.',
         ];
     }
 
