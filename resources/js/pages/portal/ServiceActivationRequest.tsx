@@ -556,8 +556,8 @@ function PricingTransparencyPanel({
                             normal package fee
                             {packageToShow.pilot_fee_waiver
                                 .nominal_fixed_fee !== null &&
-                            packageToShow.pilot_fee_waiver
-                                .nominal_fixed_fee !== undefined
+                            packageToShow.pilot_fee_waiver.nominal_fixed_fee !==
+                                undefined
                                 ? ` of ${formatMoney(
                                       packageToShow.pilot_fee_waiver
                                           .nominal_fixed_fee,

@@ -612,8 +612,7 @@ final class ServiceActivationManager
         array $intake = [],
         bool $includePackages = false,
         ?Client $client = null,
-    ): array
-    {
+    ): array {
         $serviceType = $this->normaliseServiceType($serviceType);
         $packages = collect($this->activePackagesFor($serviceType));
         $packageSnapshots = $packages

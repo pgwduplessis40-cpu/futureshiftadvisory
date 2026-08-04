@@ -272,8 +272,7 @@ final class ServiceActivationPackageFlowTest extends TestCase
     private function activationFixture(
         string $clientEmail = 'activation-client@example.test',
         string $serviceType = ServiceActivation::SERVICE_ENTREPRENEUR,
-    ): array
-    {
+    ): array {
         $advisor = User::factory()->withTwoFactor()->create([
             'email' => 'advisor-'.$clientEmail,
             'user_type' => User::TYPE_ADVISOR,
@@ -342,8 +341,7 @@ final class ServiceActivationPackageFlowTest extends TestCase
         string $scope,
         float $depositPercent = 100,
         string $serviceType = ServiceRatePackage::SERVICE_ENTREPRENEUR,
-    ): ServiceRatePackage
-    {
+    ): ServiceRatePackage {
         return ServiceRatePackage::query()->create([
             'service_type' => $serviceType,
             'package_scope' => $scope,
