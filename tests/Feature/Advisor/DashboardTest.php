@@ -226,6 +226,48 @@ final class DashboardTest extends TestCase
                 ->has('entrepreneurReviews.items', 2));
     }
 
+    public function test_advisor_dashboard_marks_sent_assessment_feedback_as_awaiting_resubmission(): void
+    {
+        $advisor = $this->advisor('assessment-feedback-sent-dashboard@example.test');
+        $profile = $this->entrepreneurProfileFor($advisor, 'Tania Hassounia', 'tania@example.test');
+
+        $plan = BusinessPlan::query()->create([
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'title' => 'Tania business plan',
+            'source_type' => BusinessPlan::SOURCE_ENTREPRENEUR,
+            'status' => BusinessPlan::STATUS_ASSESSING,
+            'current_phase' => 5,
+            'created_by_user_id' => $profile->user_id,
+        ]);
+        $this->seed(RatingFrameworkSeeder::class);
+        PlanAssessment::query()->create([
+            'business_plan_id' => $plan->getKey(),
+            'rating_framework_id' => RatingFramework::query()->firstOrFail()->getKey(),
+            'round' => 1,
+            'ai_scores' => [],
+            'mentor_notes' => [
+                'advisor_feedback' => 'Strengthen the opening evidence before the next assessment.',
+                'feedback_sent_at' => now()->subHour()->toIso8601String(),
+            ],
+            'overall_grade' => 'needs_work',
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/Dashboard')
+                ->where('entrepreneurReviews.summary.total', 1)
+                ->where('entrepreneurReviews.summary.idea_validations', 0)
+                ->where('entrepreneurReviews.summary.business_plans', 1)
+                ->where('entrepreneurReviews.items.0.type', 'business_plan')
+                ->where('entrepreneurReviews.items.0.entrepreneur_name', 'Tania Hassounia')
+                ->where('entrepreneurReviews.items.0.status', 'Changes requested')
+                ->where('entrepreneurReviews.items.0.action_label', 'Await resubmission')
+                ->where('entrepreneurReviews.items.0.detail_url', route('advisor.entrepreneurs.show', $profile, absolute: false))
+                ->has('entrepreneurReviews.items', 1));
+    }
+
     public function test_client_primary_user_still_redirects_to_portal_dashboard(): void
     {
         $clientUser = User::factory()->withTwoFactor()->create([

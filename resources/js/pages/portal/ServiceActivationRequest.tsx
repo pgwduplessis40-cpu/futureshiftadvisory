@@ -49,6 +49,13 @@ type ServicePackage = {
         nominal_fixed_fee?: number | null;
         stripe_required?: boolean;
     };
+    pilot_fee_waiver?: {
+        active?: boolean;
+        reason?: string;
+        nominal_fixed_fee?: number | null;
+        expires_at?: string | null;
+        stripe_required?: boolean;
+    };
 };
 
 type PricingPreview = {
@@ -469,7 +476,8 @@ function PricingTransparencyPanel({
                             </p>
                         </div>
                         <Badge variant="secondary">
-                            {packageToShow.free_access_mode?.active
+                            {packageToShow.free_access_mode?.active ||
+                            packageToShow.pilot_fee_waiver?.active
                                 ? 'No payment now'
                                 : 'Matched fee'}
                         </Badge>
@@ -540,6 +548,24 @@ function PricingTransparencyPanel({
                                 : 'not charged'}{' '}
                             and Stripe/payment will not be requested before the
                             workspace moves forward.
+                        </p>
+                    ) : null}
+                    {packageToShow.pilot_fee_waiver?.active ? (
+                        <p className="rounded-md border border-emerald-200 bg-background p-2 text-sm">
+                            This client has an active pilot fee waiver. The
+                            normal package fee
+                            {packageToShow.pilot_fee_waiver
+                                .nominal_fixed_fee !== null &&
+                            packageToShow.pilot_fee_waiver
+                                .nominal_fixed_fee !== undefined
+                                ? ` of ${formatMoney(
+                                      packageToShow.pilot_fee_waiver
+                                          .nominal_fixed_fee,
+                                      currency,
+                                  )}`
+                                : ''}{' '}
+                            is not being charged, and no deposit will be
+                            requested before the workspace moves forward.
                         </p>
                     ) : null}
                 </div>

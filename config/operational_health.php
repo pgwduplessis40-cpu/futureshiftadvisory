@@ -41,7 +41,6 @@ return [
         'statuses' => [
             'failed',
             'warning',
-            'skipped',
         ],
     ],
 

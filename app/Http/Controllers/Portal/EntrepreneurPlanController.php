@@ -34,6 +34,7 @@ use App\Services\Entrepreneurs\PlanBuilder;
 use App\Services\Entrepreneurs\PlanDocuments;
 use App\Services\Entrepreneurs\PlanRequirements;
 use App\Services\Entrepreneurs\Readiness;
+use App\Services\Entrepreneurs\Revision;
 use App\Services\Messaging\MessageThreadService;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pdf\SimpleTextPdf;
@@ -540,7 +541,7 @@ final class EntrepreneurPlanController extends Controller
         return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-plan-guidance-generated');
     }
 
-    public function submit(Request $request): RedirectResponse
+    public function submit(Request $request, Revision $revisions): RedirectResponse
     {
         $user = $this->entrepreneurUser($request);
         $profile = $this->profileFor($user);
@@ -556,6 +557,16 @@ final class EntrepreneurPlanController extends Controller
             return to_route('portal.entrepreneur.plan.show')
                 ->with('status', 'entrepreneur-plan-requirements-missing')
                 ->with('entrepreneur_plan_missing_requirements', $completion['missing']);
+        }
+
+        if ($plan->status === BusinessPlan::STATUS_REVISING) {
+            $plan->forceFill([
+                'founding_advisory_payload' => $this->sharedPlans->foundingPayload($plan),
+            ])->save();
+            $revisions->submit($plan->refresh()->load('sections'), $user);
+            $profile->forceFill(['stage' => EntrepreneurStage::ASSESSMENT])->save();
+
+            return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-plan-submitted');
         }
 
         $plan->forceFill([

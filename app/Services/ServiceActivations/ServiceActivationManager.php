@@ -24,6 +24,7 @@ use App\Models\User;
 use App\Notifications\ServiceActivationRequestedNotification;
 use App\Services\Audit\AuditWriter;
 use App\Services\Conflicts\ConflictDeclarer;
+use App\Services\Fees\PilotFeeWaiverManager;
 use App\Services\Fees\ServiceRateManager;
 use App\Services\Goals\GoalTracker;
 use App\Services\Learning\LayerCadenceRegistry;
@@ -44,6 +45,7 @@ final class ServiceActivationManager
         private readonly SharedPlanBuilder $plans,
         private readonly RequestContext $context,
         private readonly ServiceRateManager $serviceRates,
+        private readonly PilotFeeWaiverManager $pilotWaivers,
         private readonly GoalTracker $goals,
     ) {}
 
@@ -58,7 +60,7 @@ final class ServiceActivationManager
 
         return DB::transaction(function () use ($client, $advisor, $package): ServiceActivation {
             $this->assertNoBlockingOpenActivation($client, ServiceActivation::SERVICE_INTEGRATION_SCOPING);
-            $snapshot = $this->packageSnapshotForActivation($package);
+            $snapshot = $this->packageSnapshotForActivation($package, $client);
             $activation = ServiceActivation::query()->create([
                 'client_id' => $client->getKey(),
                 'requested_by_user_id' => $advisor->getKey(),
@@ -99,7 +101,7 @@ final class ServiceActivationManager
         $serviceType = $this->normaliseServiceType($serviceType);
         $this->assertNoBlockingOpenActivation($client, $serviceType);
         $advisor = $this->leadAdvisor($client);
-        $pricingPreview ??= $this->pricingPreviewForRequest($serviceType, $intake);
+        $pricingPreview ??= $this->pricingPreviewForRequest($serviceType, $intake, client: $client);
 
         $activation = DB::transaction(function () use ($client, $actor, $serviceType, $intake, $advisor, $pricingPreview): ServiceActivation {
             $activation = ServiceActivation::query()->create([
@@ -149,7 +151,7 @@ final class ServiceActivationManager
     public function selectPackage(ServiceActivation $activation, ServiceRatePackage $package, User $advisor): ServiceActivation
     {
         $activation->loadMissing('client');
-        $snapshot = $this->packageSnapshotForActivation($package);
+        $snapshot = $this->packageSnapshotForActivation($package, $activation->client);
         $paymentStatus = $this->packagePaymentStatus($snapshot);
 
         if (! in_array($advisor->user_type, [User::TYPE_ADVISOR, User::TYPE_JUNIOR_ADVISOR, User::TYPE_SUPER_ADMIN], true)) {
@@ -181,6 +183,7 @@ final class ServiceActivationManager
                 'package_selected_at' => now()->toIso8601String(),
                 'pricing_source' => 'admin_service_rate_package',
                 'free_access_mode' => (bool) data_get($snapshot, 'free_access_mode.active', false),
+                'pilot_fee_waiver' => (bool) data_get($snapshot, 'pilot_fee_waiver.active', false),
                 'payment_required_before_workspace_access' => $paymentStatus !== ServiceActivation::PAYMENT_NOT_REQUIRED,
             ],
         ])->save();
@@ -214,6 +217,11 @@ final class ServiceActivationManager
 
         if ($activation->status !== ServiceActivation::STATUS_PACKAGE_SELECTED || ! is_array($activation->selected_package_snapshot)) {
             throw ValidationException::withMessages(['activation' => 'The advisor must select the package before payment can be completed.']);
+        }
+
+        $activation = $this->applyPilotFeeWaiverIfEligible($activation, $actor);
+        if ($activation->paymentComplete()) {
+            return $activation->refresh();
         }
 
         if (! $this->activationRequiresPayment($activation)) {
@@ -355,6 +363,51 @@ final class ServiceActivationManager
         return $activation->refresh();
     }
 
+    public function applyPilotFeeWaiverIfEligible(ServiceActivation $activation, ?User $actor = null): ServiceActivation
+    {
+        $activation->loadMissing('client');
+        $client = $activation->client;
+
+        if (! $client instanceof Client || ! is_array($activation->selected_package_snapshot)) {
+            return $activation->refresh();
+        }
+
+        if ($activation->paymentComplete()) {
+            return $activation->refresh();
+        }
+
+        $pilot = $this->pilotWaivers->eligibility($client);
+        if (! $pilot['eligible']) {
+            return $activation->refresh();
+        }
+
+        $before = [
+            'payment_status' => $activation->payment_status,
+            'fixed_fee' => data_get($activation->selected_package_snapshot, 'fixed_fee'),
+            'deposit_percent' => data_get($activation->selected_package_snapshot, 'deposit_percent'),
+        ];
+        $snapshot = $this->pilotWaivedPackageSnapshot((array) $activation->selected_package_snapshot, $pilot);
+
+        $activation->forceFill([
+            'selected_package_snapshot' => $snapshot,
+            'payment_status' => ServiceActivation::PAYMENT_NOT_REQUIRED,
+            'metadata' => [
+                ...(array) ($activation->metadata ?? []),
+                'pilot_fee_waiver' => true,
+                'payment_required_before_workspace_access' => false,
+                'pilot_fee_waiver_applied_at' => now()->toIso8601String(),
+            ],
+        ])->save();
+
+        $this->audit->record('service_activation.pilot_fee_waiver_applied', subject: $activation, actor: $actor, before: $before, after: [
+            'payment_status' => ServiceActivation::PAYMENT_NOT_REQUIRED,
+            'nominal_fixed_fee' => data_get($snapshot, 'pilot_fee_waiver.nominal_fixed_fee'),
+            'pilot_waiver_expires_at' => data_get($snapshot, 'pilot_fee_waiver.expires_at'),
+        ]);
+
+        return $activation->refresh();
+    }
+
     public function activateIntegrationFromProposalPayment(Proposal $proposal, ?Payment $payment = null): ServiceActivation
     {
         $proposal->loadMissing(['client', 'feeCalculation.integrationScope']);
@@ -474,7 +527,18 @@ final class ServiceActivationManager
             throw ValidationException::withMessages(['activation' => 'The advisor must select the package and scope before you can accept.']);
         }
 
+        if (! in_array($activation->service_type, [
+            ServiceActivation::SERVICE_DUE_DILIGENCE,
+            ServiceActivation::SERVICE_ENTREPRENEUR,
+        ], true)) {
+            throw ValidationException::withMessages([
+                'activation' => 'This advisor-led service is activated by FSA through its dedicated scope and payment workflow.',
+            ]);
+        }
+
         $this->assertClientUser($client, $actor);
+
+        $activation = $this->applyPilotFeeWaiverIfEligible($activation, $actor);
 
         if (! $activation->paymentComplete()) {
             throw ValidationException::withMessages(['payment' => 'Full package payment must be received before opening this workspace.']);
@@ -543,12 +607,17 @@ final class ServiceActivationManager
      * @param  array<string, mixed>  $intake
      * @return array<string, mixed>
      */
-    public function pricingPreviewForRequest(string $serviceType, array $intake = [], bool $includePackages = false): array
+    public function pricingPreviewForRequest(
+        string $serviceType,
+        array $intake = [],
+        bool $includePackages = false,
+        ?Client $client = null,
+    ): array
     {
         $serviceType = $this->normaliseServiceType($serviceType);
         $packages = collect($this->activePackagesFor($serviceType));
         $packageSnapshots = $packages
-            ->map(fn (ServiceRatePackage $package): array => $this->packageSnapshotForActivation($package))
+            ->map(fn (ServiceRatePackage $package): array => $this->packageSnapshotForActivation($package, $client))
             ->values()
             ->all();
 
@@ -586,7 +655,7 @@ final class ServiceActivationManager
                 );
             }
 
-            $snapshot = $this->packageSnapshotForActivation($matchedPackage);
+            $snapshot = $this->packageSnapshotForActivation($matchedPackage, $client);
 
             return $this->pricingPreviewPayload(
                 status: 'matched_package',
@@ -882,9 +951,11 @@ final class ServiceActivationManager
             ? number_format((float) $snapshot['fixed_fee'], 2)
             : 'the selected fee';
         $currency = (string) ($snapshot['currency'] ?? 'NZD');
-        $paymentText = $this->activationRequiresPayment($activation)
-            ? 'workspace access opens only after full package payment has been received and confirmed'
-            : 'no payment is required before this workspace opens while fees are inactive';
+        $paymentText = match (true) {
+            $this->activationRequiresPayment($activation) => 'workspace access opens only after full package payment has been received and confirmed',
+            (bool) data_get($snapshot, 'pilot_fee_waiver.active', false) => 'no payment is required before this workspace opens because this client has an active pilot fee waiver',
+            default => 'no payment is required before this workspace opens while fees are inactive',
+        };
 
         return sprintf(
             'I accept the %s workspace package "%s" for %s %s%s. I understand the standard Terms and Conditions I already accepted for portal access continue to apply, this acknowledgement confirms the workspace-specific scope and fee, and %s.',
@@ -913,9 +984,14 @@ final class ServiceActivationManager
     /**
      * @return array<string, mixed>
      */
-    private function packageSnapshotForActivation(ServiceRatePackage $package): array
+    private function packageSnapshotForActivation(ServiceRatePackage $package, ?Client $client = null): array
     {
         $snapshot = $package->snapshot();
+        $pilot = $client instanceof Client ? $this->pilotWaivers->eligibility($client) : null;
+
+        if (is_array($pilot) && $pilot['eligible']) {
+            return $this->pilotWaivedPackageSnapshot($snapshot, $pilot);
+        }
 
         if (! $this->serviceRates->freeAccessModeActive()) {
             return $snapshot;
@@ -935,6 +1011,35 @@ final class ServiceActivationManager
                 'active' => true,
                 'reason' => 'Admin service rates are inactive; package payment is not required until rates are activated.',
                 'nominal_fixed_fee' => $snapshot['fixed_fee'] ?? null,
+                'stripe_required' => false,
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @param  array{eligible:bool, program_status:string, starts_at:?string, expires_at:?string}  $pilot
+     * @return array<string, mixed>
+     */
+    private function pilotWaivedPackageSnapshot(array $snapshot, array $pilot): array
+    {
+        return [
+            ...$snapshot,
+            'fixed_fee' => 0.0,
+            'deposit_percent' => 100.0,
+            'payment_split' => [
+                'deposit_percent' => 100.0,
+                'card_deposit_amount' => 0.0,
+                'bank_transfer_amount' => 0.0,
+                'requires_bank_transfer' => false,
+            ],
+            'pilot_fee_waiver' => [
+                'active' => true,
+                'reason' => 'Pilot fee waiver active; package payment is not required for this client.',
+                'nominal_fixed_fee' => $snapshot['fixed_fee'] ?? null,
+                'program_status' => $pilot['program_status'],
+                'starts_at' => $pilot['starts_at'],
+                'expires_at' => $pilot['expires_at'],
                 'stripe_required' => false,
             ],
         ];

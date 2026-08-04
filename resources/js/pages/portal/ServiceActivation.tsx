@@ -53,11 +53,23 @@ type ActivationPackage = {
         nominal_fixed_fee?: number | null;
         stripe_required?: boolean;
     };
+    pilot_fee_waiver?: {
+        active?: boolean;
+        reason?: string;
+        nominal_fixed_fee?: number | null;
+        expires_at?: string | null;
+        stripe_required?: boolean;
+    };
 };
 
 type Activation = {
     id: string;
-    service_type: 'due_diligence' | 'entrepreneur';
+    service_type:
+        | 'due_diligence'
+        | 'entrepreneur'
+        | 'integration_scoping'
+        | 'integration'
+        | (string & {});
     client_label: string;
     status: string;
     status_label: string;
@@ -85,7 +97,7 @@ type Activation = {
     accepted_at: string | null;
     acceptance_text: string | null;
     workspace_ready: boolean;
-    workspace_url: string;
+    workspace_url: string | null;
     message_thread_url: string | null;
 };
 
@@ -253,6 +265,24 @@ export default function ServiceActivation({ activation, urls }: Props) {
                                     />
                                 ) : null}
                             </div>
+                            {selectedPackage.pilot_fee_waiver?.active ? (
+                                <p className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
+                                    This client has an active pilot fee waiver.
+                                    The normal package fee
+                                    {selectedPackage.pilot_fee_waiver
+                                        .nominal_fixed_fee !== null &&
+                                    selectedPackage.pilot_fee_waiver
+                                        .nominal_fixed_fee !== undefined
+                                        ? ` of ${formatMoney(
+                                              selectedPackage.pilot_fee_waiver
+                                                  .nominal_fixed_fee,
+                                              selectedPackage.currency ?? 'NZD',
+                                          )}`
+                                        : ''}{' '}
+                                    is not being charged, and no deposit is
+                                    required before the workspace moves forward.
+                                </p>
+                            ) : null}
                             <div className="grid gap-3 md:grid-cols-2">
                                 <PackageList
                                     title="What you get access to"
@@ -289,7 +319,9 @@ export default function ServiceActivation({ activation, urls }: Props) {
                     )}
                 </section>
 
-                {selectedPackage && !activation.workspace_ready ? (
+                {selectedPackage &&
+                !activation.workspace_ready &&
+                activation.payment_required ? (
                     <section className="rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-950">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                             <div className="flex items-start gap-3">
@@ -372,15 +404,21 @@ export default function ServiceActivation({ activation, urls }: Props) {
                                     </p>
                                 </div>
                             </div>
-                            <Button asChild>
-                                <Link href={activation.workspace_url}>
-                                    Open workspace
-                                    <ExternalLink
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                </Link>
-                            </Button>
+                            {activation.workspace_url ? (
+                                <Button asChild>
+                                    <Link href={activation.workspace_url}>
+                                        Open workspace
+                                        <ExternalLink
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                    </Link>
+                                </Button>
+                            ) : (
+                                <Badge variant="secondary">
+                                    Managed by FSA
+                                </Badge>
+                            )}
                         </div>
                     </section>
                 ) : (
@@ -394,10 +432,10 @@ export default function ServiceActivation({ activation, urls }: Props) {
                         />
                         <p className="mt-2 text-sm text-muted-foreground">
                             The standard Terms and Conditions already accepted
-                            for portal access continue to apply. Full payment
-                            must be received and confirmed first; this checkbox
-                            confirms the workspace-specific scope and
-                            GST-exclusive fee.
+                            for portal access continue to apply.{' '}
+                            {activation.payment_required
+                                ? 'Full payment must be received and confirmed first; this checkbox confirms the workspace-specific scope and GST-exclusive fee.'
+                                : 'No payment is required before this workspace opens; this checkbox confirms the workspace-specific scope and fee waiver position.'}
                         </p>
                         {!canAccept ? (
                             <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-950">

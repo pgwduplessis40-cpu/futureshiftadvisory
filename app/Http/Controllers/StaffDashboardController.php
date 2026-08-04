@@ -859,6 +859,7 @@ final class StaffDashboardController extends Controller
             ->whereIn('status', [
                 BusinessPlan::STATUS_SUBMITTED,
                 BusinessPlan::STATUS_ASSESSING,
+                BusinessPlan::STATUS_REVISING,
             ])
             ->whereHas(
                 'entrepreneurProfile',
@@ -940,6 +941,31 @@ final class StaffDashboardController extends Controller
         $profile = $plan->entrepreneurProfile;
         $assessment = $plan->assessments->first();
         $assessmentReady = $assessment instanceof PlanAssessment;
+        $assessmentFeedbackSent = $assessmentReady
+            && data_get($assessment->mentor_notes, 'feedback_sent_at') !== null;
+        $awaitingResubmission = $plan->status === BusinessPlan::STATUS_REVISING
+            || $assessmentFeedbackSent;
+        $status = 'Submitted for assessment';
+        $detailUrl = $profile instanceof EntrepreneurProfile
+            ? route('advisor.entrepreneurs.show', $profile, absolute: false)
+            : null;
+        $actionLabel = 'Run assessment';
+
+        if ($assessmentReady) {
+            $status = 'Assessment ready for feedback';
+            $detailUrl = $profile instanceof EntrepreneurProfile
+                ? route('advisor.entrepreneurs.assessments.show', [$profile, $assessment], absolute: false)
+                : null;
+            $actionLabel = 'Review assessment';
+        }
+
+        if ($awaitingResubmission) {
+            $status = 'Changes requested';
+            $detailUrl = $profile instanceof EntrepreneurProfile
+                ? route('advisor.entrepreneurs.show', $profile, absolute: false)
+                : null;
+            $actionLabel = 'Await resubmission';
+        }
 
         return [
             'id' => $plan->id,
@@ -948,18 +974,10 @@ final class StaffDashboardController extends Controller
             'entrepreneur_id' => $profile?->id,
             'entrepreneur_name' => $profile?->name ?? 'Entrepreneur',
             'entrepreneur_email' => $profile?->email,
-            'status' => $assessmentReady
-                ? 'Assessment ready for feedback'
-                : 'Submitted for assessment',
+            'status' => $status,
             'submitted_at' => $plan->submitted_at?->toIso8601String() ?? $plan->updated_at?->toIso8601String(),
-            'detail_url' => $profile instanceof EntrepreneurProfile && $assessmentReady
-                ? route('advisor.entrepreneurs.assessments.show', [$profile, $assessment], absolute: false)
-                : ($profile instanceof EntrepreneurProfile
-                    ? route('advisor.entrepreneurs.show', $profile, absolute: false)
-                    : null),
-            'action_label' => $assessmentReady
-                ? 'Review assessment'
-                : 'Run assessment',
+            'detail_url' => $detailUrl,
+            'action_label' => $actionLabel,
         ];
     }
 
@@ -2175,7 +2193,7 @@ final class StaffDashboardController extends Controller
                 'status' => $latestRun->status,
                 'total' => $latestRun->total_checks,
                 'passed' => $latestRun->passed_checks,
-                'warning' => $latestRun->warning_checks + $latestRun->skipped_checks,
+                'warning' => $latestRun->warning_checks,
                 'failed' => $latestRun->failed_checks,
             ],
             'index_url' => route('admin.app-health.index', absolute: false),

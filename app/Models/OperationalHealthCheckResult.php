@@ -48,7 +48,6 @@ final class OperationalHealthCheckResult extends Model
         return in_array($this->status, [
             self::STATUS_FAILED,
             self::STATUS_WARNING,
-            self::STATUS_SKIPPED,
         ], true);
     }
 }

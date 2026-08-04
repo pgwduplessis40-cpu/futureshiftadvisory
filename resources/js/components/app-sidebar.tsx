@@ -398,14 +398,26 @@ type PortalClient = {
     onboarding_complete?: boolean;
 };
 
-type PortalServiceType = 'due_diligence' | 'entrepreneur';
+type PortalServiceType =
+    | 'due_diligence'
+    | 'entrepreneur'
+    | 'standard_advisory'
+    | 'post_acquisition_advisory'
+    | 'entrepreneur_module'
+    | 'npo'
+    | 'integration_scoping'
+    | 'integration'
+    | (string & {});
 
 type PortalServiceOption = {
     service_type: PortalServiceType;
     label: string;
     description: string;
     available: boolean;
-    start_url: string;
+    delivery_mode?: string;
+    availability_label?: string;
+    unavailable_reason?: string | null;
+    start_url: string | null;
 };
 
 type PortalServiceItem = {
@@ -506,6 +518,9 @@ function portalServiceNavItems(
             description:
                 'Open a DD workspace when you are considering a purchase or investment.',
             available: true,
+            delivery_mode: 'self_start',
+            availability_label: 'Start available',
+            unavailable_reason: null,
             start_url: '/portal/service-activations/new/due_diligence',
         },
         {
@@ -514,6 +529,9 @@ function portalServiceNavItems(
             description:
                 'Open idea validation, business-plan, and budget support inside this portal.',
             available: true,
+            delivery_mode: 'self_start',
+            availability_label: 'Start available',
+            unavailable_reason: null,
             start_url: '/portal/service-activations/new/entrepreneur',
         },
     ];
@@ -522,23 +540,58 @@ function portalServiceNavItems(
         portalServices?.options && portalServices.options.length > 0
             ? portalServices.options
             : fallbackOptions;
+    const items: NavItem[] = [];
 
-    return options.map((option) => {
+    options.forEach((option) => {
         const current = portalServices?.items.find(
             (item) =>
                 item.service_type === option.service_type &&
                 !closedStatuses.has(item.status),
         );
+        const href = current?.workspace_url ?? current?.url ?? option.start_url;
 
-        return {
+        if (!href) {
+            return;
+        }
+
+        items.push({
             title: option.label,
-            href: current?.workspace_url ?? current?.url ?? option.start_url,
-            icon:
-                option.service_type === 'due_diligence'
-                    ? BriefcaseBusiness
-                    : Lightbulb,
-        };
+            href,
+            icon: portalServiceIcon(option.service_type),
+        });
     });
+
+    return items;
+}
+
+function portalServiceIcon(serviceType: PortalServiceType) {
+    if (serviceType === 'due_diligence') {
+        return BriefcaseBusiness;
+    }
+
+    if (
+        serviceType === 'entrepreneur' ||
+        serviceType === 'entrepreneur_module'
+    ) {
+        return Lightbulb;
+    }
+
+    if (serviceType === 'post_acquisition_advisory') {
+        return Handshake;
+    }
+
+    if (serviceType === 'npo') {
+        return HeartHandshake;
+    }
+
+    if (
+        serviceType === 'integration_scoping' ||
+        serviceType === 'integration'
+    ) {
+        return PlugZap;
+    }
+
+    return FileText;
 }
 
 function navGroupsFor(

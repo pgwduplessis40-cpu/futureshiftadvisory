@@ -518,7 +518,7 @@ final class OperationalHealthCheckRunner
         $run->forceFill([
             'status' => $failed > 0
                 ? OperationalHealthCheckRun::STATUS_FAILED
-                : (($warnings + $skipped) > 0
+                : ($warnings > 0
                     ? OperationalHealthCheckRun::STATUS_WARNING
                     : OperationalHealthCheckRun::STATUS_PASSED),
             'duration_ms' => (int) max(0, $startedAt->diffInMilliseconds($finishedAt, false)),

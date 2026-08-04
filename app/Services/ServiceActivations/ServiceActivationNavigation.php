@@ -32,12 +32,49 @@ final class ServiceActivationNavigation
                     'Explore buying a business',
                     'Open a DD workspace when you are considering a purchase or investment.',
                     ! $open->contains(fn (ServiceActivation $activation): bool => $activation->service_type === ServiceActivation::SERVICE_DUE_DILIGENCE),
+                    'self_start',
                 ),
                 $this->optionPayload(
                     ServiceActivation::SERVICE_ENTREPRENEUR,
                     'Test new Business Idea',
                     'Open idea validation, business-plan, and budget support inside this portal.',
                     ! $open->contains(fn (ServiceActivation $activation): bool => $activation->service_type === ServiceActivation::SERVICE_ENTREPRENEUR),
+                    'self_start',
+                ),
+                $this->advisorLedOption(
+                    'standard_advisory',
+                    'Standard Advisory',
+                    'Whole-business diagnostic, prioritised advisory roadmap, valuation context, and client-ready report.',
+                    'Advisor-led engagement',
+                    'Ask your FSA advisor to confirm or open this engagement path.',
+                ),
+                $this->advisorLedOption(
+                    'post_acquisition_advisory',
+                    'Post-acquisition Advisory',
+                    'First-100-days gap review, integration priorities, and follow-on advisory after a completed purchase.',
+                    'Advisor-led handoff',
+                    'This starts after DD or an advisor handoff confirms the post-close scope.',
+                ),
+                $this->advisorLedOption(
+                    'npo',
+                    'NPO Advisory',
+                    'Not-for-profit health, governance, impact, and funder-accountability support.',
+                    'Advisor-led engagement',
+                    'Ask your FSA advisor to confirm the NPO scope and board access needed.',
+                ),
+                $this->advisorLedOption(
+                    ServiceActivation::SERVICE_INTEGRATION_SCOPING,
+                    'Systems integration scoping',
+                    'Advisor-offered scoping for time-saving systems, data, and workflow integration opportunities.',
+                    'Advisor offered',
+                    'FSA offers this after reviewing your current systems and potential efficiency gains.',
+                ),
+                $this->advisorLedOption(
+                    ServiceActivation::SERVICE_INTEGRATION,
+                    'Systems integration delivery',
+                    'Implementation delivery after an approved integration scope, proposal, and payment path.',
+                    'Follows approved scope',
+                    'This opens after the integration scope and proposal have been approved.',
                 ),
             ],
             'items' => $activations
@@ -61,12 +98,37 @@ final class ServiceActivationNavigation
             'package_label' => data_get($activation->selected_package_snapshot, 'client_label'),
             'fixed_fee' => data_get($activation->selected_package_snapshot, 'fixed_fee'),
             'currency' => data_get($activation->selected_package_snapshot, 'currency', 'NZD'),
+            'payment_status' => $activation->payment_status ?? ServiceActivation::PAYMENT_NOT_REQUIRED,
+            'payment_status_label' => str((string) ($activation->payment_status ?? ServiceActivation::PAYMENT_NOT_REQUIRED))->replace('_', ' ')->title()->toString(),
+            'accepted_at' => $activation->accepted_at?->toIso8601String(),
             'created_at' => $activation->created_at?->toIso8601String(),
             'url' => route('portal.service-activations.show', $activation, absolute: false),
-            'workspace_url' => $activation->status === ServiceActivation::STATUS_ACTIVE
-                ? ($activation->service_type === ServiceActivation::SERVICE_DUE_DILIGENCE
-                    ? route('portal.dd-plan.show', absolute: false)
-                    : route('portal.entrepreneur.plan.show', absolute: false))
+            'workspace_url' => $this->workspaceUrl($activation),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function optionPayload(
+        string $serviceType,
+        string $label,
+        string $description,
+        bool $available,
+        string $deliveryMode,
+    ): array {
+        return [
+            'service_type' => $serviceType,
+            'label' => $label,
+            'description' => $description,
+            'available' => $available,
+            'delivery_mode' => $deliveryMode,
+            'availability_label' => $available ? 'Start available' : 'Already open',
+            'unavailable_reason' => $available
+                ? null
+                : 'You already have an open workspace for this service. Use the active workspace instead of starting another request.',
+            'start_url' => $available
+                ? route('portal.service-activations.create', ['serviceType' => $serviceType], absolute: false)
                 : null,
         ];
     }
@@ -74,14 +136,35 @@ final class ServiceActivationNavigation
     /**
      * @return array<string, mixed>
      */
-    private function optionPayload(string $serviceType, string $label, string $description, bool $available): array
-    {
+    private function advisorLedOption(
+        string $serviceType,
+        string $label,
+        string $description,
+        string $availabilityLabel,
+        string $unavailableReason,
+    ): array {
         return [
             'service_type' => $serviceType,
             'label' => $label,
             'description' => $description,
-            'available' => $available,
-            'start_url' => route('portal.service-activations.create', ['serviceType' => $serviceType], absolute: false),
+            'available' => false,
+            'delivery_mode' => 'advisor_led',
+            'availability_label' => $availabilityLabel,
+            'unavailable_reason' => $unavailableReason,
+            'start_url' => null,
         ];
+    }
+
+    private function workspaceUrl(ServiceActivation $activation): ?string
+    {
+        if ($activation->status !== ServiceActivation::STATUS_ACTIVE) {
+            return null;
+        }
+
+        return match ($activation->service_type) {
+            ServiceActivation::SERVICE_DUE_DILIGENCE => route('portal.dd-plan.show', absolute: false),
+            ServiceActivation::SERVICE_ENTREPRENEUR => route('portal.entrepreneur.plan.show', absolute: false),
+            default => null,
+        };
     }
 }

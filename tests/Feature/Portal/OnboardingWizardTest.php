@@ -11,6 +11,7 @@ use App\Models\ConflictDeclaration;
 use App\Models\DdEngagement;
 use App\Models\Document;
 use App\Models\Questionnaire;
+use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Models\WebsiteUrlConfirmation;
 use App\Services\Portal\OnboardingWizard;
@@ -44,6 +45,46 @@ final class OnboardingWizardTest extends TestCase
                 ->where('client.id', $client->id)
                 ->where('progress.completed', 0)
                 ->where('currentStep', OnboardingWizard::STEP_WELCOME)
+            );
+    }
+
+    public function test_portal_dashboard_exposes_service_journey_and_full_fsa_catalogue(): void
+    {
+        $this->seed(RoleSeeder::class);
+        [$user, $client] = $this->clientUserWithClient(EngagementType::STANDARD_ADVISORY);
+
+        Document::query()->create([
+            'client_id' => $client->getKey(),
+            'category' => Document::CATEGORY_OTHER,
+            'original_filename' => 'current-evidence.pdf',
+            'stored_path' => 'documents/testing/current-evidence.pdf',
+            'byte_size' => 1200,
+            'mime_type' => 'application/pdf',
+            'sha256' => str_repeat('b', 64),
+            'uploaded_by_user_id' => $user->getKey(),
+            'scanner_result' => Document::SCANNER_CLEAN,
+            'scanner_payload' => [],
+        ]);
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('portal/Dashboard')
+                ->where('serviceJourney.primary.service_label', 'Standard Advisory')
+                ->where('serviceJourney.primary.owner_label', 'Awaiting you')
+                ->has('serviceJourney.stages', 5)
+                ->has('serviceJourney.metrics', 3)
+                ->where('serviceJourney.metrics.0.value', '1 document')
+                ->has('serviceActivations.options', 7)
+                ->where('serviceActivations.options.0.service_type', ServiceActivation::SERVICE_DUE_DILIGENCE)
+                ->where('serviceActivations.options.0.delivery_mode', 'self_start')
+                ->where('serviceActivations.options.0.start_url', route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DUE_DILIGENCE], absolute: false))
+                ->where('serviceActivations.options.2.service_type', EngagementType::STANDARD_ADVISORY->value)
+                ->where('serviceActivations.options.2.delivery_mode', 'advisor_led')
+                ->where('serviceActivations.options.2.start_url', null)
+                ->where('serviceActivations.options.4.service_type', EngagementType::NPO->value)
+                ->where('serviceActivations.options.5.service_type', ServiceActivation::SERVICE_INTEGRATION_SCOPING)
             );
     }
 

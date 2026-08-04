@@ -53,7 +53,7 @@ final class OperationalHealthController extends Controller
             'latestRun' => $latestRun instanceof OperationalHealthCheckRun
                 ? $this->runPayload($latestRun, includeResults: true)
                 : null,
-            'recurringIssues' => $this->recurringIssues(),
+            'recurringIssues' => $this->recurringIssues($latestRun),
             'results' => $results,
             'filters' => [
                 'q' => $filters['q'] ?? '',
@@ -186,18 +186,16 @@ final class OperationalHealthController extends Controller
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function recurringIssues(): array
+    private function recurringIssues(?OperationalHealthCheckRun $latestRun): array
     {
-        return OperationalHealthCheckResult::query()
-            ->whereIn('status', [
-                OperationalHealthCheckResult::STATUS_FAILED,
-                OperationalHealthCheckResult::STATUS_WARNING,
-                OperationalHealthCheckResult::STATUS_SKIPPED,
-            ])
-            ->whereNotNull('fingerprint')
-            ->latest()
-            ->limit(300)
-            ->get()
+        if (! $latestRun instanceof OperationalHealthCheckRun) {
+            return [];
+        }
+
+        return $latestRun->results
+            ->filter(fn (OperationalHealthCheckResult $result): bool => $result->needsAttention()
+                && is_string($result->fingerprint)
+                && $result->fingerprint !== '')
             ->unique('fingerprint')
             ->filter(fn (OperationalHealthCheckResult $result): bool => (int) $result->consecutive_failures > 1
                 || (int) $result->failures_last_7_days > 1)

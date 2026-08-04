@@ -12,16 +12,20 @@ use App\Models\EntrepreneurProfile;
 use App\Models\EntrepreneurStreakEvent;
 use App\Models\MessageThread;
 use App\Models\PlanAssessment;
+use App\Models\PlanRevision;
 use App\Models\RatingFramework;
 use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Fake\FakeAiClient;
+use App\Services\Entrepreneurs\Assessment;
 use App\Services\Entrepreneurs\EntrepreneurBudgetService;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBuilder;
 use App\Services\Entrepreneurs\PlanRequirements;
+use App\Services\Entrepreneurs\Revision;
 use App\Support\RequestContext;
+use Database\Seeders\RatingFrameworkSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -83,6 +87,37 @@ final class GamificationTest extends TestCase
             ->where('entrepreneur_profile_id', $profile->id)
             ->where('milestone_key', EntrepreneurMilestones::PLAN_SUBMITTED)
             ->count());
+    }
+
+    public function test_resubmitting_a_revising_plan_creates_a_revision_and_new_assessment_round(): void
+    {
+        $this->seed(RatingFrameworkSeeder::class);
+        [$advisor, $entrepreneur, $profile] = $this->profile('resubmit-revision-gamification@example.test', gamificationOn: true);
+        $this->openIdeaGate($profile, $advisor);
+        $plan = app(PlanBuilder::class)->start($profile, $entrepreneur);
+        $this->completePlan($plan, $entrepreneur);
+
+        $this->actingAsMfa($entrepreneur)
+            ->post(route('portal.entrepreneur.plan.submit'))
+            ->assertRedirect(route('portal.entrepreneur.plan.show'));
+
+        $firstSubmittedAt = $plan->refresh()->submitted_at?->copy();
+        app(Assessment::class)->firstPass($plan->refresh()->load('sections'), $advisor);
+        app(Revision::class)->open($plan->refresh(), $advisor);
+
+        $this->actingAsMfa($entrepreneur)
+            ->post(route('portal.entrepreneur.plan.submit'))
+            ->assertRedirect(route('portal.entrepreneur.plan.show'));
+
+        $revision = PlanRevision::query()
+            ->where('business_plan_id', $plan->getKey())
+            ->firstOrFail();
+
+        $this->assertSame(BusinessPlan::STATUS_ASSESSING, $plan->refresh()->status);
+        $this->assertSame(EntrepreneurStage::ASSESSMENT, $profile->refresh()->stage);
+        $this->assertTrue($firstSubmittedAt?->equalTo($plan->submitted_at));
+        $this->assertSame(2, PlanAssessment::query()->where('business_plan_id', $plan->getKey())->count());
+        $this->assertSame(2, $revision->round);
     }
 
     public function test_enable_reconciles_prior_plan_submitted_with_estimated_timestamp(): void

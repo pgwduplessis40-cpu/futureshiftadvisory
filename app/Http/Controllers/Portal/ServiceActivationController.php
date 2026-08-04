@@ -58,7 +58,7 @@ final class ServiceActivationController extends Controller
 
         return Inertia::render('portal/ServiceActivationRequest', [
             'service' => $option,
-            'pricingPreview' => $this->activations->pricingPreviewForRequest($serviceType, includePackages: true),
+            'pricingPreview' => $this->activations->pricingPreviewForRequest($serviceType, includePackages: true, client: $client),
             'requestUrl' => route('portal.service-activations.store', absolute: false),
             'dashboardUrl' => $this->dashboardUrl($request),
         ]);
@@ -85,9 +85,19 @@ final class ServiceActivationController extends Controller
             'pricing_package_id' => ['nullable', 'string', 'max:36'],
         ]);
 
+        if (! in_array((string) $validated['service_type'], [
+            ServiceActivation::SERVICE_DUE_DILIGENCE,
+            ServiceActivation::SERVICE_ENTREPRENEUR,
+        ], true)) {
+            throw ValidationException::withMessages([
+                'service_type' => 'This service is advisor-led. Message FSA to confirm the right scope and next step.',
+            ]);
+        }
+
         $pricingPreview = $this->activations->pricingPreviewForRequest(
             (string) $validated['service_type'],
             $validated,
+            client: $client,
         );
         $matchedPackageId = data_get($pricingPreview, 'package.id');
 
@@ -113,9 +123,12 @@ final class ServiceActivationController extends Controller
     {
         $client = $this->clients->resolveForServiceWorkspace($request);
         $this->assertBelongsToClient($serviceActivation, $client);
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+        $activation = $this->activations->applyPilotFeeWaiverIfEligible($serviceActivation->refresh(), $user);
 
         return Inertia::render('portal/ServiceActivation', [
-            'activation' => $this->activationPayload($serviceActivation->refresh()),
+            'activation' => $this->activationPayload($activation),
             'urls' => [
                 'dashboard' => $this->dashboardUrl($request),
                 'paymentComplete' => route('portal.service-activations.payment-complete', $serviceActivation, absolute: false),
@@ -156,7 +169,12 @@ final class ServiceActivationController extends Controller
             return to_route('portal.dd-plan.show')->with('status', 'service-activation-accepted');
         }
 
-        return to_route('portal.entrepreneur.plan.show')->with('status', 'service-activation-accepted');
+        if ($activation->service_type === ServiceActivation::SERVICE_ENTREPRENEUR) {
+            return to_route('portal.entrepreneur.plan.show')->with('status', 'service-activation-accepted');
+        }
+
+        return to_route('portal.service-activations.show', $activation)
+            ->with('status', 'service-activation-accepted');
     }
 
     private function assertBelongsToClient(ServiceActivation $activation, Client $client): void
@@ -203,12 +221,23 @@ final class ServiceActivationController extends Controller
             'accepted_at' => $activation->accepted_at?->toIso8601String(),
             'acceptance_text' => $activation->acceptance_text,
             'workspace_ready' => $activation->status === ServiceActivation::STATUS_ACTIVE,
-            'workspace_url' => $activation->service_type === ServiceActivation::SERVICE_DUE_DILIGENCE
-                ? route('portal.dd-plan.show', absolute: false)
-                : route('portal.entrepreneur.plan.show', absolute: false),
+            'workspace_url' => $this->workspaceUrl($activation),
             'message_thread_url' => $activation->client_message_thread_id !== null
                 ? route('portal.messages.show', $activation->client_message_thread_id, absolute: false)
                 : null,
         ];
+    }
+
+    private function workspaceUrl(ServiceActivation $activation): ?string
+    {
+        if ($activation->status !== ServiceActivation::STATUS_ACTIVE) {
+            return null;
+        }
+
+        return match ($activation->service_type) {
+            ServiceActivation::SERVICE_DUE_DILIGENCE => route('portal.dd-plan.show', absolute: false),
+            ServiceActivation::SERVICE_ENTREPRENEUR => route('portal.entrepreneur.plan.show', absolute: false),
+            default => null,
+        };
     }
 }

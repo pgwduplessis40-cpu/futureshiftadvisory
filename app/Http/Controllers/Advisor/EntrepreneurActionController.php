@@ -21,6 +21,7 @@ use App\Services\Entrepreneurs\AssessmentFeedback;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Entrepreneurs\EntrepreneurStreak;
 use App\Services\Entrepreneurs\IdeaValidationService;
+use App\Services\Entrepreneurs\Revision;
 use App\Services\Messaging\MessageThreadService;
 use App\Services\Reports\ReportComposer;
 use Illuminate\Http\RedirectResponse;
@@ -142,6 +143,7 @@ final class EntrepreneurActionController extends Controller
         PlanAssessment $planAssessment,
         Assessment $assessments,
         AssessmentFeedback $feedbacks,
+        Revision $revisions,
         MessageThreadService $messages,
     ): RedirectResponse {
         Gate::authorize('view', $entrepreneurProfile);
@@ -164,6 +166,16 @@ final class EntrepreneurActionController extends Controller
         );
 
         if ($sendToFounder) {
+            $assessment->loadMissing('businessPlan');
+            $plan = $assessment->businessPlan;
+            if ($plan instanceof BusinessPlan && in_array($plan->status, [
+                BusinessPlan::STATUS_SUBMITTED,
+                BusinessPlan::STATUS_ASSESSING,
+            ], true)) {
+                $revisions->open($plan, $advisor);
+            }
+            $entrepreneurProfile->forceFill(['stage' => EntrepreneurStage::REVISING])->save();
+
             $messages->startEntrepreneurThread(
                 profile: $entrepreneurProfile,
                 sender: $advisor,

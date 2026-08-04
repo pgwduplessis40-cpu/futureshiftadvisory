@@ -25,8 +25,21 @@ final class OperationalHealthAlerter
         }
 
         $sent = 0;
+        $activeFingerprints = $this->alertableResults($run);
 
-        foreach ($this->alertableResults($run) as $result) {
+        foreach ($recipients as $recipient) {
+            $this->clearResolvedNotifications(
+                $recipient,
+                $activeFingerprints
+                    ->pluck('fingerprint')
+                    ->filter()
+                    ->map(fn (mixed $fingerprint): string => (string) $fingerprint)
+                    ->values()
+                    ->all(),
+            );
+        }
+
+        foreach ($activeFingerprints as $result) {
             foreach ($recipients as $recipient) {
                 if ($this->hasUnreadNotification($recipient, (string) $result->fingerprint)) {
                     continue;
@@ -63,12 +76,12 @@ final class OperationalHealthAlerter
         $statuses = array_map('strval', (array) config('operational_health.alerts.statuses', [
             OperationalHealthCheckResult::STATUS_FAILED,
             OperationalHealthCheckResult::STATUS_WARNING,
-            OperationalHealthCheckResult::STATUS_SKIPPED,
         ]));
 
         return $run->results()
             ->get()
             ->filter(fn (OperationalHealthCheckResult $result): bool => in_array($result->status, $statuses, true)
+                && $result->needsAttention()
                 && is_string($result->fingerprint)
                 && $result->fingerprint !== ''
                 && (int) $result->consecutive_failures >= $threshold)
@@ -82,5 +95,22 @@ final class OperationalHealthAlerter
             ->where('type', 'operational_health.attention')
             ->get()
             ->contains(fn (DatabaseNotification $notification): bool => data_get($notification->data, 'fingerprint') === $fingerprint);
+    }
+
+    /**
+     * @param  array<int, string>  $activeFingerprints
+     */
+    private function clearResolvedNotifications(User $user, array $activeFingerprints): void
+    {
+        $user->notifications()
+            ->where('type', 'operational_health.attention')
+            ->whereNull('read_at')
+            ->get()
+            ->each(function (DatabaseNotification $notification) use ($activeFingerprints): void {
+                $fingerprint = (string) data_get($notification->data, 'fingerprint');
+                if (! in_array($fingerprint, $activeFingerprints, true)) {
+                    $notification->markAsRead();
+                }
+            });
     }
 }

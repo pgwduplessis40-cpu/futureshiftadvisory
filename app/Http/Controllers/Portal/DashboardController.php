@@ -113,6 +113,18 @@ final class DashboardController extends Controller
         $goals = $npoEngagement instanceof NpoEngagement
             ? $this->goals->dashboardForEngagement($client, $npoEngagement)
             : $this->goals->dashboard($client);
+        $progress = $this->wizard->progress($client);
+        $currentStep = $this->wizard->currentStepSlug($client);
+        $onboardingUrl = route('portal.onboarding.step', ['step' => $currentStep]);
+        $npoPortal = $npoEngagement instanceof NpoEngagement ? $this->npoPortalPayload($client, $npoEngagement, $goals) : null;
+        $ddPlanPayload = $ddEngagement instanceof DdEngagement ? $this->ddPlanPayload($ddEngagement) : null;
+        $postAcquisitionPayload = $postAcquisition instanceof PostAcquisitionMigration ? $this->postAcquisitionPayload($postAcquisition) : null;
+        $serviceActivations = $this->serviceActivationNavigation->payload($client);
+        $standardAdvisory = $this->standardAdvisory->portalSummary($client);
+        $documents = $this->documentPayload($client, $npoEngagement);
+        $reports = $this->reportPayload($client, $npoEngagement);
+        $surveys = $this->surveyPayload($client);
+        $outcomeFollowUps = $this->outcomeFollowUpPayload($client);
 
         return Inertia::render('portal/Dashboard', [
             'client' => $this->clientPayload($client),
@@ -148,16 +160,14 @@ final class DashboardController extends Controller
                     'heartbeat_seconds' => max(5, (int) config('co-browse.heartbeat_interval_seconds', 10)),
                 ]
                 : null,
-            'progress' => $this->wizard->progress($client),
-            'currentStep' => $this->wizard->currentStepSlug($client),
+            'progress' => $progress,
+            'currentStep' => $currentStep,
             'welcomeMessage' => $this->welcomeMessage->renderForClient(
                 $client,
                 $viewer,
             ),
             'inspirationBoard' => $this->inspirationBoardPayload(),
-            'onboardingUrl' => route('portal.onboarding.step', [
-                'step' => $this->wizard->currentStepSlug($client),
-            ]),
+            'onboardingUrl' => $onboardingUrl,
             // notificationSummary is shared globally (full shape) by HandleInertiaRequests;
             // do not override it here with counts-only or the bell popover (which reads
             // summary.latest) crashes the page.
@@ -165,24 +175,38 @@ final class DashboardController extends Controller
             'businessHealth' => $this->businessHealth->portalPayload($client),
             'healthFindings' => $this->businessHealth->healthFindingsPayload($client),
             'npoHealth' => $npoEngagement instanceof NpoEngagement ? $this->npoHealth->summary($npoEngagement) : null,
-            'npoPortal' => $npoEngagement instanceof NpoEngagement ? $this->npoPortalPayload($client, $npoEngagement, $goals) : null,
-            'ddPlan' => $ddEngagement instanceof DdEngagement ? $this->ddPlanPayload($ddEngagement) : null,
-            'postAcquisition' => $postAcquisition instanceof PostAcquisitionMigration ? $this->postAcquisitionPayload($postAcquisition) : null,
-            'serviceActivations' => $this->serviceActivationNavigation->payload($client),
+            'npoPortal' => $npoPortal,
+            'ddPlan' => $ddPlanPayload,
+            'postAcquisition' => $postAcquisitionPayload,
+            'serviceActivations' => $serviceActivations,
+            'serviceJourney' => $this->serviceJourneyPayload(
+                client: $client,
+                progress: $progress,
+                serviceActivations: $serviceActivations,
+                standardAdvisory: $standardAdvisory,
+                ddPlan: $ddPlanPayload,
+                postAcquisition: $postAcquisitionPayload,
+                npoPortal: $npoPortal,
+                documents: $documents,
+                reports: $reports,
+                surveys: $surveys,
+                outcomeFollowUps: $outcomeFollowUps,
+                onboardingUrl: $onboardingUrl,
+            ),
             'strategicBudget' => $this->strategicBudgets->portalPayload($strategicBudget),
             'strategicPlan' => $this->strategicPlans->portalPayload($client),
-            'standardAdvisory' => $this->standardAdvisory->portalSummary($client),
+            'standardAdvisory' => $standardAdvisory,
             'goals' => $goals,
-            'documents' => $this->documentPayload($client, $npoEngagement),
+            'documents' => $documents,
             'documentUploadUrl' => route('portal.documents.store', absolute: false),
             'npoImpactMetricStoreUrl' => $npoEngagement instanceof NpoEngagement ? route('portal.npo-impact-metrics.store', absolute: false) : null,
             'scenarios' => $this->scenarioPayload($client),
             'proposals' => $this->proposalPayload($client),
-            'reports' => $this->reportPayload($client, $npoEngagement),
+            'reports' => $reports,
             'messageSummary' => $this->messageSummary($client, $viewer),
             'messagesUrl' => route('portal.messages.index', absolute: false),
-            'surveys' => $this->surveyPayload($client),
-            'outcomeFollowUps' => $this->outcomeFollowUpPayload($client),
+            'surveys' => $surveys,
+            'outcomeFollowUps' => $outcomeFollowUps,
         ]);
     }
 
@@ -257,6 +281,401 @@ final class DashboardController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $progress
+     * @param  array<string, mixed>  $serviceActivations
+     * @param  array<string, mixed>|null  $standardAdvisory
+     * @param  array<string, mixed>|null  $ddPlan
+     * @param  array<string, mixed>|null  $postAcquisition
+     * @param  array<string, mixed>|null  $npoPortal
+     * @param  array<int, array<string, mixed>>  $documents
+     * @param  array<int, array<string, mixed>>  $reports
+     * @param  array<string, mixed>  $surveys
+     * @param  array<string, mixed>  $outcomeFollowUps
+     * @return array<string, mixed>
+     */
+    private function serviceJourneyPayload(
+        Client $client,
+        array $progress,
+        array $serviceActivations,
+        ?array $standardAdvisory,
+        ?array $ddPlan,
+        ?array $postAcquisition,
+        ?array $npoPortal,
+        array $documents,
+        array $reports,
+        array $surveys,
+        array $outcomeFollowUps,
+        string $onboardingUrl,
+    ): array {
+        $openActivation = collect((array) ($serviceActivations['items'] ?? []))
+            ->first(fn (array $activation): bool => ! in_array((string) ($activation['status'] ?? ''), [
+                ServiceActivation::STATUS_CANCELLED,
+                ServiceActivation::STATUS_CLOSED,
+                ServiceActivation::STATUS_REJECTED,
+            ], true));
+        $primary = is_array($openActivation)
+            ? $this->activationJourneyPrimary($openActivation)
+            : $this->engagementJourneyPrimary($client, $standardAdvisory, $ddPlan, $postAcquisition, $npoPortal, $onboardingUrl);
+
+        $documentCount = count($documents);
+        $reportCount = count($reports);
+        $documentReviewCount = collect($documents)
+            ->filter(fn (array $document): bool => in_array((string) ($document['verification_state'] ?? ''), [
+                DocumentVerification::OUTCOME_ACCURACY_DISCREPANCY,
+                DocumentVerification::OUTCOME_ADVISORY_FLAG,
+                DocumentVerification::OUTCOME_VERIFICATION_ERROR,
+                DocumentVerification::OUTCOME_PENDING,
+            ], true))
+            ->count();
+        $followUpCount = (int) ($surveys['total_open'] ?? 0) + (int) ($outcomeFollowUps['total_open'] ?? 0);
+        $scopeComplete = (int) ($progress['percentage'] ?? 0) >= 100
+            || (is_array($openActivation) && in_array((string) ($openActivation['status'] ?? ''), [
+                ServiceActivation::STATUS_PACKAGE_SELECTED,
+                ServiceActivation::STATUS_ACTIVE,
+                ServiceActivation::STATUS_CLOSED,
+            ], true))
+            || (bool) data_get($standardAdvisory, 'questionnaire_submitted', false)
+            || (bool) data_get($postAcquisition, 'gap_questionnaire.submitted', false)
+            || (bool) data_get($npoPortal, 'questionnaire_completion.completed', false);
+        $evidenceComplete = $documentCount > 0
+            || (int) data_get($standardAdvisory, 'document_count', 0) > 0
+            || (int) data_get($ddPlan, 'data_room_item_count', 0) > 0
+            || (int) data_get($postAcquisition, 'migrated_document_count', 0) > 0;
+        $analysisComplete = data_get($standardAdvisory, 'latest_report_generated_at') !== null
+            || (bool) data_get($ddPlan, 'generated', false)
+            || (bool) data_get($postAcquisition, 'gap_questionnaire.submitted', false)
+            || (int) data_get($npoPortal, 'milestone_progress.total', 0) > 0;
+        $outputsComplete = $reportCount > 0
+            || data_get($standardAdvisory, 'client_report') !== null
+            || (bool) data_get($ddPlan, 'plan_completed', false);
+
+        return [
+            'primary' => $primary,
+            'message_url' => route('portal.messages.index', absolute: false),
+            'stages' => [
+                $this->journeyStage(
+                    key: 'scope',
+                    label: 'Scope agreed',
+                    description: 'The service path, package, fee, and starting brief are clear enough for the next step.',
+                    complete: $scopeComplete,
+                    active: ! $scopeComplete,
+                    owner: 'client',
+                ),
+                $this->journeyStage(
+                    key: 'evidence',
+                    label: 'Evidence shared',
+                    description: 'FSA has the documents, questionnaire answers, or workspace inputs needed to assess the work.',
+                    complete: $evidenceComplete,
+                    active: $scopeComplete && ! $evidenceComplete,
+                    owner: 'client',
+                ),
+                $this->journeyStage(
+                    key: 'advisor_review',
+                    label: 'FSA review',
+                    description: 'Advisor analysis, verification, prioritisation, and reasoning are being completed.',
+                    complete: $analysisComplete,
+                    active: $evidenceComplete && ! $analysisComplete,
+                    owner: 'fsa',
+                ),
+                $this->journeyStage(
+                    key: 'outputs',
+                    label: 'Outputs released',
+                    description: 'Reports, plans, milestones, or workspace deliverables are ready for client review.',
+                    complete: $outputsComplete,
+                    active: $analysisComplete && ! $outputsComplete,
+                    owner: 'fsa',
+                ),
+                $this->journeyStage(
+                    key: 'outcomes',
+                    label: 'Feedback and outcomes',
+                    description: 'Client feedback and follow-up outcomes confirm whether the work met expectations.',
+                    complete: $outputsComplete && $followUpCount === 0,
+                    active: $outputsComplete && $followUpCount > 0,
+                    owner: 'client',
+                ),
+            ],
+            'metrics' => [
+                [
+                    'label' => 'Evidence',
+                    'value' => $this->countLabel($documentCount, 'document', 'documents'),
+                    'detail' => $documentReviewCount > 0
+                        ? $this->countLabel($documentReviewCount, 'item needs verification review', 'items need verification review')
+                        : 'No open verification flags in the client-visible document set.',
+                ],
+                [
+                    'label' => 'Outputs',
+                    'value' => $this->countLabel($reportCount, 'released report', 'released reports'),
+                    'detail' => $outputsComplete
+                        ? 'Client-visible deliverables are available in the portal.'
+                        : 'FSA will release outputs once review is complete.',
+                ],
+                [
+                    'label' => 'Feedback',
+                    'value' => $followUpCount > 0
+                        ? $this->countLabel($followUpCount, 'open follow-up', 'open follow-ups')
+                        : 'No open follow-ups',
+                    'detail' => $followUpCount > 0
+                        ? 'Complete open surveys or outcome checks so FSA can measure service quality.'
+                        : 'New service feedback appears here after delivery milestones.',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $activation
+     * @return array<string, mixed>
+     */
+    private function activationJourneyPrimary(array $activation): array
+    {
+        $status = (string) ($activation['status'] ?? ServiceActivation::STATUS_REQUESTED);
+        $serviceType = (string) ($activation['service_type'] ?? 'service');
+        $statusLabel = (string) ($activation['status_label'] ?? str($status)->replace('_', ' ')->title()->toString());
+        $actionUrl = (string) (($activation['workspace_url'] ?? null) ?: ($activation['url'] ?? route('portal.messages.index', absolute: false)));
+        $packageLabel = $activation['package_label'] ?? null;
+
+        if ($status === ServiceActivation::STATUS_REQUESTED) {
+            return $this->journeyPrimary(
+                serviceType: $serviceType,
+                serviceLabel: (string) ($activation['client_label'] ?? 'Service workspace'),
+                statusLabel: $statusLabel,
+                owner: 'fsa',
+                nextAction: 'FSA is reviewing the request and will confirm the scope, package, and next advisory step.',
+                actionUrl: $actionUrl,
+                actionLabel: 'Review request',
+                clientNext: 'Watch for the scope and pricing update, and reply to any advisor questions.',
+                fsaNext: 'Confirm the right package, fee, and workspace path from the Admin Service Rates table.',
+                timeframe: 'Next advisor review cycle',
+            );
+        }
+
+        if ($status === ServiceActivation::STATUS_PACKAGE_SELECTED) {
+            return $this->journeyPrimary(
+                serviceType: $serviceType,
+                serviceLabel: (string) ($activation['client_label'] ?? 'Service workspace'),
+                statusLabel: $statusLabel,
+                owner: 'client',
+                nextAction: $packageLabel
+                    ? 'Review the selected scope and fee, then complete the required payment or acknowledgement step.'
+                    : 'Review the advisor-selected scope and fee before workspace access opens.',
+                actionUrl: $actionUrl,
+                actionLabel: 'Review scope',
+                clientNext: 'Complete the payment and fee/scope acknowledgement so the workspace can open.',
+                fsaNext: 'Hold workspace access until the selected package, payment, and acknowledgement are complete.',
+                timeframe: 'Actionable now',
+            );
+        }
+
+        if ($status === ServiceActivation::STATUS_ACTIVE) {
+            return $this->journeyPrimary(
+                serviceType: $serviceType,
+                serviceLabel: (string) ($activation['client_label'] ?? 'Service workspace'),
+                statusLabel: $statusLabel,
+                owner: 'shared',
+                nextAction: 'The workspace is active. Use the workspace and messages to complete current evidence, review, and delivery steps.',
+                actionUrl: $actionUrl,
+                actionLabel: ($activation['workspace_url'] ?? null) !== null ? 'Open workspace' : 'Open service',
+                clientNext: 'Keep the workspace inputs, evidence, and advisor messages current.',
+                fsaNext: 'Review inputs, produce the agreed outputs, and keep the next step visible.',
+                timeframe: 'Current workspace',
+            );
+        }
+
+        return $this->journeyPrimary(
+            serviceType: $serviceType,
+            serviceLabel: (string) ($activation['client_label'] ?? 'Service workspace'),
+            statusLabel: $statusLabel,
+            owner: 'fsa',
+            nextAction: 'FSA is managing the current service state and will confirm any client action through the portal.',
+            actionUrl: $actionUrl,
+            actionLabel: 'Open service',
+            clientNext: 'Review any visible messages or requests from FSA.',
+            fsaNext: 'Confirm the next service step and keep the client-facing status current.',
+            timeframe: 'Next advisor update',
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $standardAdvisory
+     * @param  array<string, mixed>|null  $ddPlan
+     * @param  array<string, mixed>|null  $postAcquisition
+     * @param  array<string, mixed>|null  $npoPortal
+     * @return array<string, mixed>
+     */
+    private function engagementJourneyPrimary(
+        Client $client,
+        ?array $standardAdvisory,
+        ?array $ddPlan,
+        ?array $postAcquisition,
+        ?array $npoPortal,
+        string $onboardingUrl,
+    ): array {
+        if (is_array($standardAdvisory)) {
+            $nextMomentum = collect((array) data_get($standardAdvisory, 'momentum.items', []))
+                ->first(fn (array $item): bool => ! in_array((string) ($item['status'] ?? ''), ['complete', 'not_required'], true));
+            $owner = data_get($nextMomentum, 'owner') === 'advisor' ? 'fsa' : 'client';
+            $reportUrl = data_get($standardAdvisory, 'client_report.view_url');
+
+            return $this->journeyPrimary(
+                serviceType: EngagementType::STANDARD_ADVISORY->value,
+                serviceLabel: 'Standard Advisory',
+                statusLabel: (string) ($standardAdvisory['status_label'] ?? 'In progress'),
+                owner: $owner,
+                nextAction: (string) ($standardAdvisory['next_action'] ?? data_get($nextMomentum, 'description', 'Continue the advisory journey.')),
+                actionUrl: is_string($reportUrl) && $reportUrl !== '' ? $reportUrl : ($owner === 'client' ? $onboardingUrl : '#section-reports'),
+                actionLabel: is_string($reportUrl) && $reportUrl !== '' ? 'View report' : ($owner === 'client' ? 'Continue' : 'View outputs'),
+                clientNext: $owner === 'client'
+                    ? 'Complete the next requested input so FSA can continue the advisory review.'
+                    : 'Monitor outputs and messages while FSA completes the current review step.',
+                fsaNext: $owner === 'fsa'
+                    ? 'Complete the advisor review, reasoning, and released outputs.'
+                    : 'Use the client inputs to confirm analysis readiness and next priorities.',
+                timeframe: $owner === 'client' ? 'Actionable now' : 'With FSA',
+            );
+        }
+
+        if (is_array($postAcquisition)) {
+            $gapSubmitted = (bool) data_get($postAcquisition, 'gap_questionnaire.submitted', false);
+            $proposalUrl = data_get($postAcquisition, 'proposal.signoff_url');
+
+            return $this->journeyPrimary(
+                serviceType: EngagementType::POST_ACQUISITION_ADVISORY->value,
+                serviceLabel: 'Post-acquisition Advisory',
+                statusLabel: $gapSubmitted ? 'Gap questionnaire submitted' : 'Gap questionnaire needed',
+                owner: $gapSubmitted ? 'fsa' : 'client',
+                nextAction: $gapSubmitted
+                    ? 'FSA is using the DD evidence and gap questionnaire to prepare the post-close advisory plan.'
+                    : 'Complete the post-acquisition gap questionnaire so FSA can shape the first-100-days plan.',
+                actionUrl: is_string($proposalUrl) && $proposalUrl !== '' ? $proposalUrl : (string) ($postAcquisition['gap_questionnaire_url'] ?? $onboardingUrl),
+                actionLabel: is_string($proposalUrl) && $proposalUrl !== '' ? 'Review proposal' : ($gapSubmitted ? 'View handoff' : 'Complete gap review'),
+                clientNext: $gapSubmitted ? 'Review any proposal or follow-up questions FSA releases.' : 'Complete the gap questionnaire and upload any post-close evidence.',
+                fsaNext: 'Turn the DD baseline and post-close gap evidence into prioritised advisory actions.',
+                timeframe: $gapSubmitted ? 'With FSA' : 'Actionable now',
+            );
+        }
+
+        if (is_array($ddPlan)) {
+            $generated = (bool) ($ddPlan['generated'] ?? false);
+
+            return $this->journeyPrimary(
+                serviceType: EngagementType::DUE_DILIGENCE->value,
+                serviceLabel: 'Due Diligence',
+                statusLabel: $generated ? 'DD plan prepared' : 'DD plan not generated',
+                owner: $generated ? 'shared' : 'fsa',
+                nextAction: $generated
+                    ? 'Use the DD workspace to review the plan, evidence, and acquisition next steps.'
+                    : 'FSA is preparing the due-diligence plan from questionnaire answers and data-room evidence.',
+                actionUrl: (string) ($ddPlan['url'] ?? $onboardingUrl),
+                actionLabel: $generated ? 'Open plan' : 'Open DD',
+                clientNext: 'Keep data-room evidence and advisor questions current.',
+                fsaNext: 'Review the acquisition evidence, red flags, valuation context, and next decision point.',
+                timeframe: $generated ? 'Current workspace' : 'With FSA',
+            );
+        }
+
+        if (is_array($npoPortal)) {
+            $questionnaireComplete = (bool) data_get($npoPortal, 'questionnaire_completion.completed', false);
+
+            return $this->journeyPrimary(
+                serviceType: EngagementType::NPO->value,
+                serviceLabel: 'NPO Advisory',
+                statusLabel: $questionnaireComplete ? 'NPO inputs submitted' : 'NPO inputs needed',
+                owner: $questionnaireComplete ? 'fsa' : 'client',
+                nextAction: $questionnaireComplete
+                    ? 'FSA is reviewing NPO health, impact, funder, and governance evidence.'
+                    : 'Complete the NPO questionnaire and share board, funding, or impact evidence.',
+                actionUrl: $onboardingUrl,
+                actionLabel: $questionnaireComplete ? 'View portal' : 'Continue inputs',
+                clientNext: $questionnaireComplete ? 'Watch for advisor findings, report access, or impact metric requests.' : 'Complete NPO inputs and upload supporting evidence.',
+                fsaNext: 'Connect NPO health, funder accountability, governance, and impact signals into useful advice.',
+                timeframe: $questionnaireComplete ? 'With FSA' : 'Actionable now',
+            );
+        }
+
+        $engagementType = $client->engagement_type instanceof EngagementType
+            ? $client->engagement_type
+            : EngagementType::tryFrom((string) $client->engagement_type);
+
+        return $this->journeyPrimary(
+            serviceType: $engagementType?->value ?? 'service',
+            serviceLabel: $engagementType?->label() ?? 'FSA service',
+            statusLabel: 'Getting started',
+            owner: 'client',
+            nextAction: 'Complete onboarding so FSA has enough context to confirm scope, evidence needs, and the next service step.',
+            actionUrl: $onboardingUrl,
+            actionLabel: 'Continue onboarding',
+            clientNext: 'Complete the open onboarding step and upload useful evidence.',
+            fsaNext: 'Review the submitted context and confirm the service pathway.',
+            timeframe: 'Actionable now',
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function journeyPrimary(
+        string $serviceType,
+        string $serviceLabel,
+        string $statusLabel,
+        string $owner,
+        string $nextAction,
+        string $actionUrl,
+        string $actionLabel,
+        string $clientNext,
+        string $fsaNext,
+        string $timeframe,
+    ): array {
+        return [
+            'service_type' => $serviceType,
+            'service_label' => $serviceLabel,
+            'status_label' => $statusLabel,
+            'owner' => $owner,
+            'owner_label' => $this->journeyOwnerLabel($owner),
+            'next_action' => $nextAction,
+            'action_url' => $actionUrl,
+            'action_label' => $actionLabel,
+            'client_next' => $clientNext,
+            'fsa_next' => $fsaNext,
+            'timeframe' => $timeframe,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function journeyStage(
+        string $key,
+        string $label,
+        string $description,
+        bool $complete,
+        bool $active,
+        string $owner,
+    ): array {
+        return [
+            'key' => $key,
+            'label' => $label,
+            'description' => $description,
+            'status' => $complete ? 'complete' : ($active ? 'active' : 'pending'),
+            'owner' => $owner,
+            'owner_label' => $this->journeyOwnerLabel($owner),
+        ];
+    }
+
+    private function journeyOwnerLabel(string $owner): string
+    {
+        return match ($owner) {
+            'client' => 'Awaiting you',
+            'fsa' => 'With FSA',
+            default => 'Shared',
+        };
+    }
+
+    private function countLabel(int $count, string $singular, string $plural): string
+    {
+        return $count === 1 ? "1 {$singular}" : "{$count} {$plural}";
     }
 
     /**

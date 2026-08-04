@@ -4,7 +4,9 @@ import {
     Bell,
     BriefcaseBusiness,
     CalendarClock,
+    CheckCircle2,
     ClipboardList,
+    Clock3,
     CircleDollarSign,
     FileSpreadsheet,
     FileText,
@@ -12,6 +14,7 @@ import {
     Lightbulb,
     MessageSquare,
     PieChart,
+    PlugZap,
     Save,
     Target,
     TrendingUp,
@@ -111,6 +114,7 @@ type Props = {
     ddPlan: DdPlanPayload | null;
     postAcquisition: PostAcquisitionPayload | null;
     serviceActivations: ServiceActivationsPayload;
+    serviceJourney: ServiceJourneyPayload;
     strategicBudget: StrategicBudgetPayload;
     strategicPlan: StrategicPlanPayload | null;
     standardAdvisory: StandardAdvisoryPortalPayload | null;
@@ -132,6 +136,17 @@ type Props = {
     welcomeMessage: WelcomeMessage;
     inspirationBoard: InspirationPost | null;
 };
+
+type ServiceType =
+    | 'due_diligence'
+    | 'entrepreneur'
+    | 'standard_advisory'
+    | 'post_acquisition_advisory'
+    | 'entrepreneur_module'
+    | 'npo'
+    | 'integration_scoping'
+    | 'integration'
+    | (string & {});
 
 type WelcomeMessage = {
     has_message: boolean;
@@ -233,24 +248,60 @@ type PostAcquisitionPayload = {
 type ServiceActivationsPayload = {
     request_url: string;
     options: Array<{
-        service_type: 'due_diligence' | 'entrepreneur';
+        service_type: ServiceType;
         label: string;
         description: string;
         available: boolean;
-        start_url: string;
+        delivery_mode: 'self_start' | 'advisor_led' | (string & {});
+        availability_label: string;
+        unavailable_reason: string | null;
+        start_url: string | null;
     }>;
     items: Array<{
         id: string;
-        service_type: 'due_diligence' | 'entrepreneur';
+        service_type: ServiceType;
         client_label: string;
         status: string;
         status_label: string;
         package_label: string | null;
         fixed_fee: number | null;
         currency: string;
+        payment_status: string;
+        payment_status_label: string;
+        accepted_at: string | null;
         created_at: string | null;
         url: string;
         workspace_url: string | null;
+    }>;
+};
+
+type ServiceJourneyPayload = {
+    primary: {
+        service_type: ServiceType;
+        service_label: string;
+        status_label: string;
+        owner: 'client' | 'fsa' | 'shared' | (string & {});
+        owner_label: string;
+        next_action: string;
+        action_url: string;
+        action_label: string;
+        client_next: string;
+        fsa_next: string;
+        timeframe: string;
+    };
+    message_url: string;
+    stages: Array<{
+        key: string;
+        label: string;
+        description: string;
+        status: 'complete' | 'active' | 'pending';
+        owner: 'client' | 'fsa' | 'shared' | (string & {});
+        owner_label: string;
+    }>;
+    metrics: Array<{
+        label: string;
+        value: string;
+        detail: string;
     }>;
 };
 
@@ -271,10 +322,7 @@ type StandardAdvisoryPortalPayload = {
             label: string;
             description: string;
             status:
-                | 'complete'
-                | 'in_progress'
-                | 'waiting_advisor'
-                | 'not_required';
+                'complete' | 'in_progress' | 'waiting_advisor' | 'not_required';
             owner: 'client' | 'advisor';
         }>;
     };
@@ -597,6 +645,7 @@ export default function PortalDashboard({
     ddPlan,
     postAcquisition,
     serviceActivations,
+    serviceJourney,
     strategicBudget,
     strategicPlan,
     standardAdvisory,
@@ -861,6 +910,11 @@ export default function PortalDashboard({
 
                 {activeTab === 'actions' ? (
                     <>
+                        <ServiceJourneyPanel
+                            journey={serviceJourney}
+                            services={serviceActivations}
+                        />
+
                         <DashboardSection
                             title="Priority actions"
                             description="Start with the tiles that can block progress or need a response."
@@ -1017,12 +1071,9 @@ export default function PortalDashboard({
                                     .map((activation) => (
                                         <StatusPanel
                                             key={activation.id}
-                                            icon={
-                                                activation.service_type ===
-                                                'due_diligence'
-                                                    ? BriefcaseBusiness
-                                                    : Lightbulb
-                                            }
+                                            icon={serviceIconFor(
+                                                activation.service_type,
+                                            )}
                                             label={activation.client_label}
                                             value={activation.status_label}
                                             explanation={
@@ -2064,6 +2115,326 @@ function initialPortalDashboardTab(): PortalDashboardTab {
     }
 
     return 'actions';
+}
+
+function ServiceJourneyPanel({
+    journey,
+    services,
+}: {
+    journey: ServiceJourneyPayload;
+    services: ServiceActivationsPayload;
+}) {
+    const primary = journey.primary;
+    const closedStatuses = new Set(['cancelled', 'closed', 'rejected']);
+
+    return (
+        <section
+            id="section-service-journey"
+            className="space-y-4 rounded-md border bg-background p-4"
+            aria-labelledby="service-journey-heading"
+        >
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex items-start gap-3">
+                    <span className="rounded-md border bg-muted/30 p-2">
+                        <ServiceIcon
+                            serviceType={primary.service_type}
+                            className="size-5 text-muted-foreground"
+                        />
+                    </span>
+                    <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h2
+                                id="service-journey-heading"
+                                className="text-base font-semibold"
+                            >
+                                {primary.service_label}
+                            </h2>
+                            <Badge variant="secondary">
+                                {primary.status_label}
+                            </Badge>
+                            <Badge variant="outline">
+                                {primary.owner_label}
+                            </Badge>
+                        </div>
+                        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                            {primary.next_action}
+                        </p>
+                    </div>
+                </div>
+                <Button asChild size="sm">
+                    <Link href={primary.action_url}>
+                        {primary.action_label}
+                    </Link>
+                </Button>
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-3">
+                <JourneyFact
+                    label="Your next step"
+                    value={primary.client_next}
+                />
+                <JourneyFact label="FSA next step" value={primary.fsa_next} />
+                <JourneyFact label="Timing" value={primary.timeframe} />
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-5">
+                {journey.stages.map((stage) => {
+                    return (
+                        <article
+                            key={stage.key}
+                            className={cn(
+                                'min-h-36 rounded-md border p-3',
+                                stage.status === 'active' &&
+                                    'border-primary/50 bg-muted/30',
+                            )}
+                        >
+                            <div className="flex items-center justify-between gap-2">
+                                <StageStatusIcon
+                                    status={stage.status}
+                                    className={cn(
+                                        'size-4',
+                                        stage.status === 'complete'
+                                            ? 'text-emerald-600'
+                                            : 'text-muted-foreground',
+                                    )}
+                                />
+                                <Badge
+                                    variant={
+                                        stage.status === 'active'
+                                            ? 'secondary'
+                                            : 'outline'
+                                    }
+                                >
+                                    {formatLabel(stage.status)}
+                                </Badge>
+                            </div>
+                            <h3 className="mt-3 text-sm font-medium">
+                                {stage.label}
+                            </h3>
+                            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                                {stage.description}
+                            </p>
+                            <div className="mt-3 text-xs font-medium text-foreground">
+                                {stage.owner_label}
+                            </div>
+                        </article>
+                    );
+                })}
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-3">
+                {journey.metrics.map((metric) => (
+                    <JourneyFact
+                        key={metric.label}
+                        label={metric.label}
+                        value={metric.value}
+                        detail={metric.detail}
+                    />
+                ))}
+            </div>
+
+            <div className="space-y-3">
+                <div>
+                    <h3 className="text-sm font-medium">FSA services</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Service pathways available in this portal and through
+                        FSA advisor confirmation.
+                    </p>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    {services.options.map((option) => {
+                        const current = services.items.find(
+                            (item) =>
+                                item.service_type === option.service_type &&
+                                !closedStatuses.has(item.status),
+                        );
+                        const href =
+                            current?.workspace_url ??
+                            current?.url ??
+                            option.start_url ??
+                            journey.message_url;
+                        const actionLabel = current
+                            ? 'Open'
+                            : option.start_url
+                              ? 'Start'
+                              : 'Message FSA';
+
+                        return (
+                            <article
+                                key={option.service_type}
+                                className="flex min-h-48 flex-col justify-between rounded-md border p-3"
+                            >
+                                <div className="space-y-3">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <ServiceIcon
+                                                serviceType={
+                                                    option.service_type
+                                                }
+                                                className="size-4 text-muted-foreground"
+                                            />
+                                            <h4 className="text-sm font-medium">
+                                                {option.label}
+                                            </h4>
+                                        </div>
+                                        <Badge
+                                            variant={
+                                                current || option.available
+                                                    ? 'secondary'
+                                                    : 'outline'
+                                            }
+                                        >
+                                            {current
+                                                ? current.status_label
+                                                : option.availability_label}
+                                        </Badge>
+                                    </div>
+                                    <p className="text-xs leading-relaxed text-muted-foreground">
+                                        {option.description}
+                                    </p>
+                                    {option.unavailable_reason && !current ? (
+                                        <p className="text-xs text-muted-foreground">
+                                            {option.unavailable_reason}
+                                        </p>
+                                    ) : null}
+                                </div>
+                                <Button
+                                    asChild
+                                    size="sm"
+                                    variant={
+                                        current || option.start_url
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    className="mt-4 self-start"
+                                >
+                                    <Link href={href}>{actionLabel}</Link>
+                                </Button>
+                            </article>
+                        );
+                    })}
+                </div>
+            </div>
+        </section>
+    );
+}
+
+function JourneyFact({
+    label,
+    value,
+    detail,
+}: {
+    label: string;
+    value: ReactNode;
+    detail?: string;
+}) {
+    return (
+        <article className="rounded-md border p-3">
+            <div className="text-xs font-medium tracking-normal text-muted-foreground uppercase">
+                {label}
+            </div>
+            <div className="mt-2 text-sm font-medium">{value}</div>
+            {detail ? (
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    {detail}
+                </p>
+            ) : null}
+        </article>
+    );
+}
+
+function ServiceIcon({
+    serviceType,
+    className,
+}: {
+    serviceType: ServiceType;
+    className?: string;
+}) {
+    if (serviceType === 'due_diligence') {
+        return <BriefcaseBusiness className={className} aria-hidden={true} />;
+    }
+
+    if (
+        serviceType === 'entrepreneur' ||
+        serviceType === 'entrepreneur_module'
+    ) {
+        return <Lightbulb className={className} aria-hidden={true} />;
+    }
+
+    if (serviceType === 'post_acquisition_advisory') {
+        return <TrendingUp className={className} aria-hidden={true} />;
+    }
+
+    if (
+        serviceType === 'integration_scoping' ||
+        serviceType === 'integration'
+    ) {
+        return <PlugZap className={className} aria-hidden={true} />;
+    }
+
+    if (serviceType === 'npo') {
+        return <Users className={className} aria-hidden={true} />;
+    }
+
+    if (serviceType === 'standard_advisory') {
+        return <FileText className={className} aria-hidden={true} />;
+    }
+
+    return <Target className={className} aria-hidden={true} />;
+}
+
+function StageStatusIcon({
+    status,
+    className,
+}: {
+    status: ServiceJourneyPayload['stages'][number]['status'];
+    className?: string;
+}) {
+    if (status === 'complete') {
+        return <CheckCircle2 className={className} aria-hidden={true} />;
+    }
+
+    if (status === 'active') {
+        return <Clock3 className={className} aria-hidden={true} />;
+    }
+
+    return <Target className={className} aria-hidden={true} />;
+}
+
+function serviceIconFor(
+    serviceType: ServiceType,
+): ComponentType<{ className?: string; 'aria-hidden'?: boolean }> {
+    if (serviceType === 'due_diligence') {
+        return BriefcaseBusiness;
+    }
+
+    if (
+        serviceType === 'entrepreneur' ||
+        serviceType === 'entrepreneur_module'
+    ) {
+        return Lightbulb;
+    }
+
+    if (serviceType === 'post_acquisition_advisory') {
+        return TrendingUp;
+    }
+
+    if (
+        serviceType === 'integration_scoping' ||
+        serviceType === 'integration'
+    ) {
+        return PlugZap;
+    }
+
+    if (serviceType === 'npo') {
+        return Users;
+    }
+
+    if (serviceType === 'standard_advisory') {
+        return FileText;
+    }
+
+    return Target;
 }
 
 function NpoStat({

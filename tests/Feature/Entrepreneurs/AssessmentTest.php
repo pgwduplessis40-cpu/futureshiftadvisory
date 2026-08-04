@@ -198,6 +198,8 @@ final class AssessmentTest extends TestCase
         $this->assertNotNull(data_get($notes, 'feedback_snapshot.suggested_feedback.sha256'));
         $this->assertTrue(data_get($notes, 'feedback_snapshot.advisor_edits.feedback_changed_from_suggestion'));
         $this->assertTrue(data_get($notes, 'feedback_snapshot.advisor_edits.proposed_reply_changed_from_suggestion'));
+        $this->assertSame(BusinessPlan::STATUS_REVISING, $plan->refresh()->status);
+        $this->assertSame(EntrepreneurStage::REVISING, $profile->refresh()->stage);
         $this->assertDatabaseHas('message_threads', [
             'entrepreneur_profile_id' => $profile->getKey(),
             'subject' => 'Business plan assessment feedback',
@@ -208,6 +210,10 @@ final class AssessmentTest extends TestCase
         $this->assertDatabaseHas('audit_events', [
             'action' => 'entrepreneur.plan_assessment_feedback_sent',
             'subject_id' => $assessment->getKey(),
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.plan_revision_opened',
+            'subject_id' => $plan->getKey(),
         ]);
 
         $this->actingAsMfa($advisor)

@@ -99,7 +99,7 @@ final class OperationalHealthCheckTest extends TestCase
         /** @var OperationalHealthCheckRun $run */
         $run = OperationalHealthCheckRun::query()->latest()->firstOrFail();
 
-        $this->assertSame(OperationalHealthCheckRun::STATUS_WARNING, $run->status);
+        $this->assertSame(OperationalHealthCheckRun::STATUS_PASSED, $run->status);
         $this->assertGreaterThan(0, $run->passed_checks);
         $this->assertSame(0, $run->failed_checks);
         $this->assertGreaterThan(0, $run->skipped_checks);
@@ -300,6 +300,48 @@ final class OperationalHealthCheckTest extends TestCase
             ->assertJsonPath('props.results.data.0.issue_summary', 'Entrepreneur business plan preview returned HTTP 500; expected 200.');
     }
 
+    public function test_admin_page_treats_skipped_monitor_fixtures_as_coverage_gaps_not_active_warnings(): void
+    {
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'app-health-skipped-admin@example.test');
+        $oldRun = $this->healthRun(OperationalHealthCheckRun::STATUS_FAILED, [
+            'started_at' => now()->subDay(),
+            'finished_at' => now()->subDay(),
+        ]);
+        $this->healthResult($oldRun, [
+            'created_at' => now()->subDay(),
+            'consecutive_failures' => 4,
+            'failures_last_7_days' => 4,
+            'failures_last_30_days' => 4,
+        ]);
+        $latestRun = $this->healthRun(OperationalHealthCheckRun::STATUS_PASSED, [
+            'total_checks' => 2,
+            'passed_checks' => 1,
+            'failed_checks' => 0,
+            'skipped_checks' => 1,
+        ]);
+        $this->healthResult($latestRun, [
+            'status' => OperationalHealthCheckResult::STATUS_SKIPPED,
+            'actual_status' => null,
+            'actual_content_type' => null,
+            'issue_summary' => 'Monitor fixture missing: No entrepreneur monitor user with an entrepreneur profile is available.',
+            'fingerprint' => hash('sha256', 'skipped-monitor-fixture'),
+            'consecutive_failures' => 12,
+            'failures_last_7_days' => 7,
+            'failures_last_30_days' => 12,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->withHeaders($this->inertiaHeaders())
+            ->get(route('admin.app-health.index'))
+            ->assertOk()
+            ->assertJsonPath('props.summary.latest_status', OperationalHealthCheckRun::STATUS_PASSED)
+            ->assertJsonPath('props.summary.failed_checks', 0)
+            ->assertJsonPath('props.summary.warning_checks', 0)
+            ->assertJsonPath('props.summary.skipped_checks', 1)
+            ->assertJsonPath('props.summary.latest_issue', null)
+            ->assertJsonCount(0, 'props.recurringIssues');
+    }
+
     public function test_admin_page_reports_run_dates_and_today_counts_in_the_operational_timezone(): void
     {
         config()->set('operational_health.timezone', 'Pacific/Auckland');
@@ -417,6 +459,35 @@ final class OperationalHealthCheckTest extends TestCase
             ->assertJsonPath('props.operationalHealth.latest_issue.consecutive_failures', 3);
     }
 
+    public function test_dashboard_action_board_treats_skipped_app_checks_as_clean_coverage_gaps(): void
+    {
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'dashboard-app-health-skipped@example.test');
+        $run = $this->healthRun(OperationalHealthCheckRun::STATUS_PASSED, [
+            'total_checks' => 2,
+            'passed_checks' => 1,
+            'failed_checks' => 0,
+            'skipped_checks' => 1,
+        ]);
+        $this->healthResult($run, [
+            'status' => OperationalHealthCheckResult::STATUS_SKIPPED,
+            'actual_status' => null,
+            'fingerprint' => hash('sha256', 'dashboard-skipped-operational-health-fixture'),
+            'consecutive_failures' => 12,
+            'failures_last_7_days' => 7,
+            'failures_last_30_days' => 12,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->withHeaders($this->inertiaHeaders())
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertJsonPath('component', 'advisor/Dashboard')
+            ->assertJsonPath('props.operationalHealth.summary.status', OperationalHealthCheckRun::STATUS_PASSED)
+            ->assertJsonPath('props.operationalHealth.summary.warning', 0)
+            ->assertJsonPath('props.operationalHealth.summary.failed', 0)
+            ->assertJsonPath('props.operationalHealth.latest_issue', null);
+    }
+
     public function test_repeated_operational_health_findings_notify_real_super_admins(): void
     {
         Notification::fake();
@@ -440,6 +511,42 @@ final class OperationalHealthCheckTest extends TestCase
             fn (OperationalHealthAttentionNotification $notification): bool => $notification->result->is($result),
         );
         Notification::assertNotSentTo($fixtureAdmin, OperationalHealthAttentionNotification::class);
+    }
+
+    public function test_skipped_monitor_fixtures_do_not_notify_and_clear_stale_operational_health_notifications(): void
+    {
+        $superAdmin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'ops-alert-skipped-admin@example.test');
+        $fingerprint = hash('sha256', 'resolved-operational-health-failure');
+        $superAdmin->notifications()->create([
+            'type' => 'operational_health.attention',
+            'data' => [
+                'fingerprint' => $fingerprint,
+                'status' => OperationalHealthCheckResult::STATUS_FAILED,
+                'message' => 'Previous app health failure.',
+            ],
+            'urgency' => 'urgent',
+            'channel_decision' => json_encode([], JSON_THROW_ON_ERROR),
+            'read_at' => null,
+        ]);
+        $run = $this->healthRun(OperationalHealthCheckRun::STATUS_PASSED, [
+            'total_checks' => 1,
+            'passed_checks' => 0,
+            'failed_checks' => 0,
+            'skipped_checks' => 1,
+        ]);
+        $this->healthResult($run, [
+            'status' => OperationalHealthCheckResult::STATUS_SKIPPED,
+            'actual_status' => null,
+            'fingerprint' => hash('sha256', 'skipped-operational-health-fixture'),
+            'consecutive_failures' => 12,
+            'failures_last_7_days' => 7,
+            'failures_last_30_days' => 12,
+        ]);
+
+        $sent = app(OperationalHealthAlerter::class)->notify($run);
+
+        $this->assertSame(0, $sent);
+        $this->assertSame(0, $superAdmin->refresh()->unreadNotifications()->where('type', 'operational_health.attention')->count());
     }
 
     private function fakePdfRenderer(): void
