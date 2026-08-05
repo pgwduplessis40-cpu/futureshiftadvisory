@@ -14,6 +14,7 @@ use App\Models\Document;
 use App\Models\DocumentVerification;
 use App\Models\EntrepreneurProfile;
 use App\Models\Goal;
+use App\Models\IdeaValidation;
 use App\Models\MessageThread;
 use App\Models\Milestone;
 use App\Models\Questionnaire;
@@ -199,6 +200,55 @@ final class ClientEngagementScorerTest extends TestCase
         $this->assertSame('green', $score['level']);
         $this->assertSame(0, $score['display']['last_activity_days']);
         $this->assertSame('goals', $score['focus_section']);
+    }
+
+    public function test_entrepreneur_idea_validation_changes_requested_drives_pre_plan_engagement(): void
+    {
+        $client = $this->client();
+        $advisor = User::factory()->create();
+        $founder = User::factory()->create();
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $founder->getKey(),
+            'client_id' => $client->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => 'Founder Awaiting Resubmission',
+            'email' => 'awaiting-resubmission@example.test',
+            'stage' => EntrepreneurStage::IDEA_VALIDATION,
+            'gamification_on' => true,
+        ]);
+
+        IdeaValidation::query()->create([
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'problem' => 'Backyards are underused.',
+            'target_customer' => 'Homeowners',
+            'solution' => 'Harvest local produce.',
+            'value_proposition' => 'Lower food cost.',
+            'demand_signal' => 'Initial conversations only.',
+            'revenue_model' => 'Household fee.',
+            'ai_evaluation' => [
+                'metadata' => [
+                    'advisor_gate_status' => 'changes_requested',
+                    'changes_requested_at' => now()->toIso8601String(),
+                    'change_request_note' => 'Validate demand and resubmit.',
+                ],
+            ],
+            'viability_alerts' => ['Demand evidence needed.'],
+            'revision_number' => 1,
+            'evaluated_at' => now()->subHour(),
+            'evaluated_by_user_id' => $advisor->getKey(),
+        ]);
+
+        $score = app(ClientEngagementScorer::class)->score($client);
+
+        $this->assertSame('entrepreneur_validation', $score['scoring_mode']);
+        $this->assertSame('amber', $score['level']);
+        $this->assertSame(72, $score['score']);
+        $this->assertSame(60, $score['scores']['idea_validation_pct']);
+        $this->assertSame(100, $score['scores']['activity_recency_pct']);
+        $this->assertSame(0, $score['display']['last_activity_days']);
+        $this->assertSame('awaiting_resubmission', $score['display']['idea_validation_status']);
+        $this->assertSame('idea_validation_pct', $score['weakest_component']);
+        $this->assertSame('idea-validation', $score['focus_section']);
     }
 
     /**

@@ -52,11 +52,15 @@ type EngagementScoreKey =
     | 'documents_pct'
     | 'milestones_on_track_pct'
     | 'comms_recency_pct'
+    | 'idea_validation_pct'
     | 'plan_progress_pct'
     | 'activity_recency_pct';
 
 type EngagementScore = {
-    scoring_mode: 'standard_advisory' | 'entrepreneur_plan';
+    scoring_mode:
+        | 'standard_advisory'
+        | 'entrepreneur_validation'
+        | 'entrepreneur_plan';
     level: HealthLevel;
     score: number;
     scores: {
@@ -64,6 +68,7 @@ type EngagementScore = {
         documents_pct: number;
         milestones_on_track_pct: number;
         comms_recency_pct: number;
+        idea_validation_pct?: number;
         plan_progress_pct?: number;
         activity_recency_pct?: number;
     };
@@ -73,6 +78,8 @@ type EngagementScore = {
         last_comms_days: number | null;
         last_activity_days?: number | null;
         last_plan_activity_at?: string | null;
+        last_idea_validation_at?: string | null;
+        idea_validation_status?: string | null;
     };
     weakest_component: EngagementScoreKey;
     focus_section: string;
@@ -3368,11 +3375,28 @@ function MyClientsHealth({ payload }: { payload: ClientsHealthPayload }) {
 
 function EngagementBadge({ engagement }: { engagement: EngagementScore }) {
     const rows: InsightHoverCardRow[] =
-        engagement.scoring_mode === 'entrepreneur_plan'
+        engagement.scoring_mode === 'entrepreneur_validation'
             ? [
                   {
-                      label: 'Business plan',
-                      value: `${engagement.scores.plan_progress_pct ?? 0}%`,
+                      label: 'Idea validation',
+                      value: `${engagement.scores.idea_validation_pct ?? 0}%`,
+                      tone:
+                          engagement.display.idea_validation_status ===
+                          'awaiting_resubmission'
+                              ? 'default'
+                              : engagement.display.idea_validation_status ===
+                                      'refresh_failed' ||
+                                  engagement.display.idea_validation_status ===
+                                      'recalled'
+                                ? 'negative'
+                                : 'default',
+                  },
+                  {
+                      label: 'Status',
+                      value: formatLabel(
+                          engagement.display.idea_validation_status ??
+                              'submitted',
+                      ),
                   },
                   {
                       label: 'Activity',
@@ -3391,32 +3415,55 @@ function EngagementBadge({ engagement }: { engagement: EngagementScore }) {
                               : 'default',
                   },
               ]
-            : [
-                  {
-                      label: 'Questionnaire',
-                      value: `${engagement.scores.questionnaire_pct}%`,
-                  },
-                  {
-                      label: 'Documents',
-                      value: `${engagement.scores.documents_pct}%`,
-                  },
-                  {
-                      label: 'Milestones',
-                      value: `${engagement.scores.milestones_on_track_pct}% (${engagement.display.overdue_count} overdue / ${engagement.display.blocked_count} blocked)`,
-                      tone:
-                          engagement.display.overdue_count > 0 ||
-                          engagement.display.blocked_count > 0
-                              ? 'negative'
-                              : 'default',
-                  },
-                  {
-                      label: 'Last comms',
-                      value:
-                          engagement.display.last_comms_days === null
-                              ? 'Never'
-                              : `${engagement.display.last_comms_days} days`,
-                  },
-              ];
+            : engagement.scoring_mode === 'entrepreneur_plan'
+              ? [
+                    {
+                        label: 'Business plan',
+                        value: `${engagement.scores.plan_progress_pct ?? 0}%`,
+                    },
+                    {
+                        label: 'Activity',
+                        value:
+                            engagement.display.last_activity_days == null
+                                ? 'Never'
+                                : `${engagement.display.last_activity_days} days`,
+                    },
+                    {
+                        label: 'Milestones',
+                        value: `${engagement.scores.milestones_on_track_pct}% (${engagement.display.overdue_count} overdue / ${engagement.display.blocked_count} blocked)`,
+                        tone:
+                            engagement.display.overdue_count > 0 ||
+                            engagement.display.blocked_count > 0
+                                ? 'negative'
+                                : 'default',
+                    },
+                ]
+              : [
+                    {
+                        label: 'Questionnaire',
+                        value: `${engagement.scores.questionnaire_pct}%`,
+                    },
+                    {
+                        label: 'Documents',
+                        value: `${engagement.scores.documents_pct}%`,
+                    },
+                    {
+                        label: 'Milestones',
+                        value: `${engagement.scores.milestones_on_track_pct}% (${engagement.display.overdue_count} overdue / ${engagement.display.blocked_count} blocked)`,
+                        tone:
+                            engagement.display.overdue_count > 0 ||
+                            engagement.display.blocked_count > 0
+                                ? 'negative'
+                                : 'default',
+                    },
+                    {
+                        label: 'Last comms',
+                        value:
+                            engagement.display.last_comms_days === null
+                                ? 'Never'
+                                : `${engagement.display.last_comms_days} days`,
+                    },
+                ];
 
     return (
         <InsightHoverCard
