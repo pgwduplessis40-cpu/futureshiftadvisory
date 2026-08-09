@@ -14,6 +14,7 @@ use App\Services\DataQuality\DataQualitySignal;
 use App\Services\DataQuality\Gate;
 use App\Services\DataQuality\QuestionnaireCompletenessResult;
 use App\Services\Dd\AcquisitionPlanRequirements;
+use App\Services\Dd\ClientCapability;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Dd\DdDisclaimer;
@@ -118,6 +119,7 @@ final class MethodologyDriftGuardTest extends TestCase
         QuestionnaireCompletenessResult::class => 'DTO returned by the completeness calculator.',
         DataRoom::class => 'Data-room file workflow.',
         AcquisitionPlanRequirements::class => 'Plan requirement checklist for the DD portal workflow.',
+        ClientCapability::class => 'DD support-mode capture and confirmation workflow, not an advisory methodology surface.',
         DdAdviceReportGenerator::class => 'Readiness orchestration before delegating to the report methodology.',
         DdDisclaimer::class => 'Static disclaimer copy.',
         DdOnboarding::class => 'DD workflow orchestration.',
