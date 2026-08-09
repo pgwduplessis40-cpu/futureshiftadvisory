@@ -93,10 +93,7 @@ final class AssessmentFeedback
                 return [
                     'title' => $name,
                     'score' => round((float) ($criterion['score'] ?? 0), 1),
-                    'what_is_missing' => $this->gapSummary(
-                        (string) ($criterion['rationale'] ?? ''),
-                        $guidance['what_is_missing'],
-                    ),
+                    'what_is_missing' => $guidance['what_is_missing'],
                     'what_to_add_or_change' => $guidance['what_to_add_or_change'],
                     'where_in_plan' => $guidance['where_in_plan'],
                 ];
@@ -168,9 +165,9 @@ final class AssessmentFeedback
 
         return implode("\n\n", [
             $intro,
-            'Focus the next revision on these three targeted updates:',
+            'Ask the founder to update these three areas next:',
             $this->formatPriorities($priorities, includeScores: true),
-            'These targeted changes will give the next assessment stronger evidence to work from.',
+            'These changes will give the next assessment clearer evidence to review.',
         ]);
     }
 
@@ -180,15 +177,15 @@ final class AssessmentFeedback
 
         if ($priorities === []) {
             return $this->changeRequestMessages->build($profile, [
-                'You have made real progress on your business plan. The next step is to add a little more practical detail before we review it again.',
-                'Please reply when you are ready to talk through the next revision.',
+                'You have made progress on your business plan. The next step is to add a little more practical detail before we review it again.',
+                'Please reply if you would like to talk through the next update before you begin.',
             ]);
         }
 
         return $this->changeRequestMessages->build($profile, [
-            'You have made real progress on your business plan. You do not need to start again; the next step is to strengthen a few important areas so the plan can support a confident decision.',
-            "To move this forward, please focus on these three targeted updates:\n\n".$this->formatPriorities($priorities, includeScores: false),
-            'Once these updates are in place, send the plan back and we will review the progress together. Please reply if you would like to talk through any of them before you begin.',
+            'You have made progress on your business plan. You do not need to start again. Please update the three areas below before you send it back.',
+            "Please work through these updates:\n\n".$this->formatPriorities($priorities, includeScores: false),
+            'When these updates are done, send the plan back. We will review what changed. Please reply if you would like to talk through any item before you begin.',
         ]);
     }
 
@@ -196,16 +193,18 @@ final class AssessmentFeedback
     {
         $feedback = trim($feedback);
 
-        return str_starts_with($feedback, 'I have completed the assessment. The current score is')
-            && str_contains($feedback, 'The most useful priorities for the next revision are:');
+        return (str_starts_with($feedback, 'I have completed the assessment. The current score is')
+            && str_contains($feedback, 'The most useful priorities for the next revision are:'))
+            || $this->containsRetiredFounderLanguage($feedback);
     }
 
     public function isLegacyReply(string $reply): bool
     {
         $reply = trim($reply);
 
-        return str_contains($reply, 'The most useful priorities for the next revision are:')
-            && ! str_contains($reply, 'What is missing:');
+        return (str_contains($reply, 'The most useful priorities for the next revision are:')
+            && ! str_contains($reply, 'What is missing:'))
+            || $this->containsRetiredFounderLanguage($reply);
     }
 
     /**
@@ -243,15 +242,28 @@ final class AssessmentFeedback
         ];
     }
 
-    private function gapSummary(string $rationale, string $fallback): string
-    {
-        $rationale = Str::squish($rationale);
-
-        return $rationale === '' ? $fallback : Str::limit($rationale, 220);
-    }
-
     private function textHash(string $text): string
     {
         return hash('sha256', Str::squish($text));
+    }
+
+    private function containsRetiredFounderLanguage(string $text): bool
+    {
+        $text = Str::lower($text);
+
+        foreach ([
+            '...',
+            'directionally',
+            'materially underdeveloped',
+            'launch decision-making',
+            'advisory-readiness',
+            'targeted updates',
+        ] as $retiredPhrase) {
+            if (str_contains($text, $retiredPhrase)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

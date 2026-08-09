@@ -1,965 +1,690 @@
-import {
-    queryParams,
-    type RouteQueryOptions,
-    type RouteDefinition,
-    type RouteFormDefinition,
-    applyUrlDefaults,
-} from './../../../../../wayfinder';
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::index
- * @see app/Http/Controllers/Admin/SurveyController.php:30
+* @see \App\Http\Controllers\Admin\SurveyController::index
+ * @see app/Http/Controllers/Admin/SurveyController.php:29
  * @route '/admin/surveys'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
-});
+})
 
 index.definition = {
-    methods: ['get', 'head'],
+    methods: ["get","head"],
     url: '/admin/surveys',
-} satisfies RouteDefinition<['get', 'head']>;
+} satisfies RouteDefinition<["get","head"]>
 
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::index
- * @see app/Http/Controllers/Admin/SurveyController.php:30
+* @see \App\Http\Controllers\Admin\SurveyController::index
+ * @see app/Http/Controllers/Admin/SurveyController.php:29
  * @route '/admin/surveys'
  */
 index.url = (options?: RouteQueryOptions) => {
-    return index.definition.url + queryParams(options);
-};
+    return index.definition.url + queryParams(options)
+}
 
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::index
- * @see app/Http/Controllers/Admin/SurveyController.php:30
+* @see \App\Http\Controllers\Admin\SurveyController::index
+ * @see app/Http/Controllers/Admin/SurveyController.php:29
  * @route '/admin/surveys'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
-});
+})
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::index
- * @see app/Http/Controllers/Admin/SurveyController.php:30
+* @see \App\Http\Controllers\Admin\SurveyController::index
+ * @see app/Http/Controllers/Admin/SurveyController.php:29
  * @route '/admin/surveys'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: index.url(options),
     method: 'head',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::index
- * @see app/Http/Controllers/Admin/SurveyController.php:30
+    /**
+* @see \App\Http\Controllers\Admin\SurveyController::index
+ * @see app/Http/Controllers/Admin/SurveyController.php:29
  * @route '/admin/surveys'
  */
-const indexForm = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: index.url(options),
-    method: 'get',
-});
+    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(options),
+        method: 'get',
+    })
 
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::index
- * @see app/Http/Controllers/Admin/SurveyController.php:30
+            /**
+* @see \App\Http\Controllers\Admin\SurveyController::index
+ * @see app/Http/Controllers/Admin/SurveyController.php:29
  * @route '/admin/surveys'
  */
-indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url(options),
-    method: 'get',
-});
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::index
- * @see app/Http/Controllers/Admin/SurveyController.php:30
+        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Admin\SurveyController::index
+ * @see app/Http/Controllers/Admin/SurveyController.php:29
  * @route '/admin/surveys'
  */
-indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'get',
-});
+        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
 
-index.form = indexForm;
+    index.form = indexForm
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::store
- * @see app/Http/Controllers/Admin/SurveyController.php:72
+* @see \App\Http\Controllers\Admin\SurveyController::store
+ * @see app/Http/Controllers/Admin/SurveyController.php:62
  * @route '/admin/surveys'
  */
-export const store = (
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(options),
     method: 'post',
-});
+})
 
 store.definition = {
-    methods: ['post'],
+    methods: ["post"],
     url: '/admin/surveys',
-} satisfies RouteDefinition<['post']>;
+} satisfies RouteDefinition<["post"]>
 
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::store
- * @see app/Http/Controllers/Admin/SurveyController.php:72
+* @see \App\Http\Controllers\Admin\SurveyController::store
+ * @see app/Http/Controllers/Admin/SurveyController.php:62
  * @route '/admin/surveys'
  */
 store.url = (options?: RouteQueryOptions) => {
-    return store.definition.url + queryParams(options);
-};
+    return store.definition.url + queryParams(options)
+}
 
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::store
- * @see app/Http/Controllers/Admin/SurveyController.php:72
+* @see \App\Http\Controllers\Admin\SurveyController::store
+ * @see app/Http/Controllers/Admin/SurveyController.php:62
  * @route '/admin/surveys'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(options),
     method: 'post',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::store
- * @see app/Http/Controllers/Admin/SurveyController.php:72
+    /**
+* @see \App\Http\Controllers\Admin\SurveyController::store
+ * @see app/Http/Controllers/Admin/SurveyController.php:62
  * @route '/admin/surveys'
  */
-const storeForm = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: store.url(options),
-    method: 'post',
-});
+    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(options),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::store
- * @see app/Http/Controllers/Admin/SurveyController.php:72
+            /**
+* @see \App\Http\Controllers\Admin\SurveyController::store
+ * @see app/Http/Controllers/Admin/SurveyController.php:62
  * @route '/admin/surveys'
  */
-storeForm.post = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: store.url(options),
-    method: 'post',
-});
+        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(options),
+            method: 'post',
+        })
 
-store.form = storeForm;
+    store.form = storeForm
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::show
- * @see app/Http/Controllers/Admin/SurveyController.php:106
+* @see \App\Http\Controllers\Admin\SurveyController::show
+ * @see app/Http/Controllers/Admin/SurveyController.php:96
  * @route '/admin/surveys/{survey}'
  */
-export const show = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'get'> => ({
+export const show = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
-});
+})
 
 show.definition = {
-    methods: ['get', 'head'],
+    methods: ["get","head"],
     url: '/admin/surveys/{survey}',
-} satisfies RouteDefinition<['get', 'head']>;
+} satisfies RouteDefinition<["get","head"]>
 
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::show
- * @see app/Http/Controllers/Admin/SurveyController.php:106
+* @see \App\Http\Controllers\Admin\SurveyController::show
+ * @see app/Http/Controllers/Admin/SurveyController.php:96
  * @route '/admin/surveys/{survey}'
  */
-show.url = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-) => {
+show.url = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { survey: args };
+        args = { survey: args }
     }
 
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { survey: args.id };
-    }
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { survey: args.id }
+        }
 
     if (Array.isArray(args)) {
         args = {
-            survey: args[0],
-        };
+                    survey: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        survey: typeof args.survey === 'object' ? args.survey.id : args.survey,
-    };
+                        survey: typeof args.survey === 'object'
+                ? args.survey.id
+                : args.survey,
+                }
 
-    return (
-        show.definition.url
+    return show.definition.url
             .replace('{survey}', parsedArgs.survey.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::show
- * @see app/Http/Controllers/Admin/SurveyController.php:106
+* @see \App\Http\Controllers\Admin\SurveyController::show
+ * @see app/Http/Controllers/Admin/SurveyController.php:96
  * @route '/admin/surveys/{survey}'
  */
-show.get = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'get'> => ({
+show.get = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
-});
+})
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::show
- * @see app/Http/Controllers/Admin/SurveyController.php:106
+* @see \App\Http\Controllers\Admin\SurveyController::show
+ * @see app/Http/Controllers/Admin/SurveyController.php:96
  * @route '/admin/surveys/{survey}'
  */
-show.head = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'head'> => ({
+show.head = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: show.url(args, options),
     method: 'head',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::show
- * @see app/Http/Controllers/Admin/SurveyController.php:106
+    /**
+* @see \App\Http\Controllers\Admin\SurveyController::show
+ * @see app/Http/Controllers/Admin/SurveyController.php:96
  * @route '/admin/surveys/{survey}'
  */
-const showForm = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: show.url(args, options),
-    method: 'get',
-});
+    const showForm = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: show.url(args, options),
+        method: 'get',
+    })
 
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::show
- * @see app/Http/Controllers/Admin/SurveyController.php:106
+            /**
+* @see \App\Http\Controllers\Admin\SurveyController::show
+ * @see app/Http/Controllers/Admin/SurveyController.php:96
  * @route '/admin/surveys/{survey}'
  */
-showForm.get = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: show.url(args, options),
-    method: 'get',
-});
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::show
- * @see app/Http/Controllers/Admin/SurveyController.php:106
+        showForm.get = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Admin\SurveyController::show
+ * @see app/Http/Controllers/Admin/SurveyController.php:96
  * @route '/admin/surveys/{survey}'
  */
-showForm.head = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: show.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'get',
-});
+        showForm.head = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
 
-show.form = showForm;
+    show.form = showForm
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::edit
- * @see app/Http/Controllers/Admin/SurveyController.php:118
+* @see \App\Http\Controllers\Admin\SurveyController::edit
+ * @see app/Http/Controllers/Admin/SurveyController.php:108
  * @route '/admin/surveys/{survey}/edit'
  */
-export const edit = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'get'> => ({
+export const edit = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: edit.url(args, options),
     method: 'get',
-});
+})
 
 edit.definition = {
-    methods: ['get', 'head'],
+    methods: ["get","head"],
     url: '/admin/surveys/{survey}/edit',
-} satisfies RouteDefinition<['get', 'head']>;
+} satisfies RouteDefinition<["get","head"]>
 
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::edit
- * @see app/Http/Controllers/Admin/SurveyController.php:118
+* @see \App\Http\Controllers\Admin\SurveyController::edit
+ * @see app/Http/Controllers/Admin/SurveyController.php:108
  * @route '/admin/surveys/{survey}/edit'
  */
-edit.url = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-) => {
+edit.url = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { survey: args };
+        args = { survey: args }
     }
 
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { survey: args.id };
-    }
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { survey: args.id }
+        }
 
     if (Array.isArray(args)) {
         args = {
-            survey: args[0],
-        };
+                    survey: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        survey: typeof args.survey === 'object' ? args.survey.id : args.survey,
-    };
+                        survey: typeof args.survey === 'object'
+                ? args.survey.id
+                : args.survey,
+                }
 
-    return (
-        edit.definition.url
+    return edit.definition.url
             .replace('{survey}', parsedArgs.survey.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::edit
- * @see app/Http/Controllers/Admin/SurveyController.php:118
+* @see \App\Http\Controllers\Admin\SurveyController::edit
+ * @see app/Http/Controllers/Admin/SurveyController.php:108
  * @route '/admin/surveys/{survey}/edit'
  */
-edit.get = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'get'> => ({
+edit.get = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: edit.url(args, options),
     method: 'get',
-});
+})
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::edit
- * @see app/Http/Controllers/Admin/SurveyController.php:118
+* @see \App\Http\Controllers\Admin\SurveyController::edit
+ * @see app/Http/Controllers/Admin/SurveyController.php:108
  * @route '/admin/surveys/{survey}/edit'
  */
-edit.head = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'head'> => ({
+edit.head = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: edit.url(args, options),
     method: 'head',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::edit
- * @see app/Http/Controllers/Admin/SurveyController.php:118
+    /**
+* @see \App\Http\Controllers\Admin\SurveyController::edit
+ * @see app/Http/Controllers/Admin/SurveyController.php:108
  * @route '/admin/surveys/{survey}/edit'
  */
-const editForm = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: edit.url(args, options),
-    method: 'get',
-});
+    const editForm = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: edit.url(args, options),
+        method: 'get',
+    })
 
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::edit
- * @see app/Http/Controllers/Admin/SurveyController.php:118
+            /**
+* @see \App\Http\Controllers\Admin\SurveyController::edit
+ * @see app/Http/Controllers/Admin/SurveyController.php:108
  * @route '/admin/surveys/{survey}/edit'
  */
-editForm.get = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: edit.url(args, options),
-    method: 'get',
-});
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::edit
- * @see app/Http/Controllers/Admin/SurveyController.php:118
+        editForm.get = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: edit.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Admin\SurveyController::edit
+ * @see app/Http/Controllers/Admin/SurveyController.php:108
  * @route '/admin/surveys/{survey}/edit'
  */
-editForm.head = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: edit.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'get',
-});
+        editForm.head = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: edit.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
 
-edit.form = editForm;
+    edit.form = editForm
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::update
- * @see app/Http/Controllers/Admin/SurveyController.php:133
+* @see \App\Http\Controllers\Admin\SurveyController::update
+ * @see app/Http/Controllers/Admin/SurveyController.php:123
  * @route '/admin/surveys/{survey}'
  */
-export const update = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'put'> => ({
+export const update = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
     url: update.url(args, options),
     method: 'put',
-});
+})
 
 update.definition = {
-    methods: ['put'],
+    methods: ["put"],
     url: '/admin/surveys/{survey}',
-} satisfies RouteDefinition<['put']>;
+} satisfies RouteDefinition<["put"]>
 
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::update
- * @see app/Http/Controllers/Admin/SurveyController.php:133
+* @see \App\Http\Controllers\Admin\SurveyController::update
+ * @see app/Http/Controllers/Admin/SurveyController.php:123
  * @route '/admin/surveys/{survey}'
  */
-update.url = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-) => {
+update.url = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { survey: args };
+        args = { survey: args }
     }
 
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { survey: args.id };
-    }
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { survey: args.id }
+        }
 
     if (Array.isArray(args)) {
         args = {
-            survey: args[0],
-        };
+                    survey: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        survey: typeof args.survey === 'object' ? args.survey.id : args.survey,
-    };
+                        survey: typeof args.survey === 'object'
+                ? args.survey.id
+                : args.survey,
+                }
 
-    return (
-        update.definition.url
+    return update.definition.url
             .replace('{survey}', parsedArgs.survey.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::update
- * @see app/Http/Controllers/Admin/SurveyController.php:133
+* @see \App\Http\Controllers\Admin\SurveyController::update
+ * @see app/Http/Controllers/Admin/SurveyController.php:123
  * @route '/admin/surveys/{survey}'
  */
-update.put = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'put'> => ({
+update.put = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
     url: update.url(args, options),
     method: 'put',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::update
- * @see app/Http/Controllers/Admin/SurveyController.php:133
+    /**
+* @see \App\Http\Controllers\Admin\SurveyController::update
+ * @see app/Http/Controllers/Admin/SurveyController.php:123
  * @route '/admin/surveys/{survey}'
  */
-const updateForm = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: update.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'PUT',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'post',
-});
+    const updateForm = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PUT',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::update
- * @see app/Http/Controllers/Admin/SurveyController.php:133
+            /**
+* @see \App\Http\Controllers\Admin\SurveyController::update
+ * @see app/Http/Controllers/Admin/SurveyController.php:123
  * @route '/admin/surveys/{survey}'
  */
-updateForm.put = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: update.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'PUT',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'post',
-});
+        updateForm.put = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PUT',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
 
-update.form = updateForm;
+    update.form = updateForm
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::publish
- * @see app/Http/Controllers/Admin/SurveyController.php:194
+* @see \App\Http\Controllers\Admin\SurveyController::publish
+ * @see app/Http/Controllers/Admin/SurveyController.php:184
  * @route '/admin/surveys/{survey}/publish'
  */
-export const publish = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+export const publish = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: publish.url(args, options),
     method: 'post',
-});
+})
 
 publish.definition = {
-    methods: ['post'],
+    methods: ["post"],
     url: '/admin/surveys/{survey}/publish',
-} satisfies RouteDefinition<['post']>;
+} satisfies RouteDefinition<["post"]>
 
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::publish
- * @see app/Http/Controllers/Admin/SurveyController.php:194
+* @see \App\Http\Controllers\Admin\SurveyController::publish
+ * @see app/Http/Controllers/Admin/SurveyController.php:184
  * @route '/admin/surveys/{survey}/publish'
  */
-publish.url = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-) => {
+publish.url = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { survey: args };
+        args = { survey: args }
     }
 
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { survey: args.id };
-    }
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { survey: args.id }
+        }
 
     if (Array.isArray(args)) {
         args = {
-            survey: args[0],
-        };
+                    survey: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        survey: typeof args.survey === 'object' ? args.survey.id : args.survey,
-    };
+                        survey: typeof args.survey === 'object'
+                ? args.survey.id
+                : args.survey,
+                }
 
-    return (
-        publish.definition.url
+    return publish.definition.url
             .replace('{survey}', parsedArgs.survey.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::publish
- * @see app/Http/Controllers/Admin/SurveyController.php:194
+* @see \App\Http\Controllers\Admin\SurveyController::publish
+ * @see app/Http/Controllers/Admin/SurveyController.php:184
  * @route '/admin/surveys/{survey}/publish'
  */
-publish.post = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+publish.post = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: publish.url(args, options),
     method: 'post',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::publish
- * @see app/Http/Controllers/Admin/SurveyController.php:194
+    /**
+* @see \App\Http\Controllers\Admin\SurveyController::publish
+ * @see app/Http/Controllers/Admin/SurveyController.php:184
  * @route '/admin/surveys/{survey}/publish'
  */
-const publishForm = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: publish.url(args, options),
-    method: 'post',
-});
+    const publishForm = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: publish.url(args, options),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::publish
- * @see app/Http/Controllers/Admin/SurveyController.php:194
+            /**
+* @see \App\Http\Controllers\Admin\SurveyController::publish
+ * @see app/Http/Controllers/Admin/SurveyController.php:184
  * @route '/admin/surveys/{survey}/publish'
  */
-publishForm.post = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: publish.url(args, options),
-    method: 'post',
-});
+        publishForm.post = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: publish.url(args, options),
+            method: 'post',
+        })
 
-publish.form = publishForm;
+    publish.form = publishForm
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::archive
- * @see app/Http/Controllers/Admin/SurveyController.php:216
+* @see \App\Http\Controllers\Admin\SurveyController::archive
+ * @see app/Http/Controllers/Admin/SurveyController.php:206
  * @route '/admin/surveys/{survey}/archive'
  */
-export const archive = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+export const archive = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: archive.url(args, options),
     method: 'post',
-});
+})
 
 archive.definition = {
-    methods: ['post'],
+    methods: ["post"],
     url: '/admin/surveys/{survey}/archive',
-} satisfies RouteDefinition<['post']>;
+} satisfies RouteDefinition<["post"]>
 
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::archive
- * @see app/Http/Controllers/Admin/SurveyController.php:216
+* @see \App\Http\Controllers\Admin\SurveyController::archive
+ * @see app/Http/Controllers/Admin/SurveyController.php:206
  * @route '/admin/surveys/{survey}/archive'
  */
-archive.url = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-) => {
+archive.url = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { survey: args };
+        args = { survey: args }
     }
 
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { survey: args.id };
-    }
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { survey: args.id }
+        }
 
     if (Array.isArray(args)) {
         args = {
-            survey: args[0],
-        };
+                    survey: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        survey: typeof args.survey === 'object' ? args.survey.id : args.survey,
-    };
+                        survey: typeof args.survey === 'object'
+                ? args.survey.id
+                : args.survey,
+                }
 
-    return (
-        archive.definition.url
+    return archive.definition.url
             .replace('{survey}', parsedArgs.survey.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::archive
- * @see app/Http/Controllers/Admin/SurveyController.php:216
+* @see \App\Http\Controllers\Admin\SurveyController::archive
+ * @see app/Http/Controllers/Admin/SurveyController.php:206
  * @route '/admin/surveys/{survey}/archive'
  */
-archive.post = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+archive.post = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: archive.url(args, options),
     method: 'post',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::archive
- * @see app/Http/Controllers/Admin/SurveyController.php:216
+    /**
+* @see \App\Http\Controllers\Admin\SurveyController::archive
+ * @see app/Http/Controllers/Admin/SurveyController.php:206
  * @route '/admin/surveys/{survey}/archive'
  */
-const archiveForm = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: archive.url(args, options),
-    method: 'post',
-});
+    const archiveForm = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: archive.url(args, options),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::archive
- * @see app/Http/Controllers/Admin/SurveyController.php:216
+            /**
+* @see \App\Http\Controllers\Admin\SurveyController::archive
+ * @see app/Http/Controllers/Admin/SurveyController.php:206
  * @route '/admin/surveys/{survey}/archive'
  */
-archiveForm.post = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: archive.url(args, options),
-    method: 'post',
-});
+        archiveForm.post = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: archive.url(args, options),
+            method: 'post',
+        })
 
-archive.form = archiveForm;
+    archive.form = archiveForm
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::results
- * @see app/Http/Controllers/Admin/SurveyController.php:233
+* @see \App\Http\Controllers\Admin\SurveyController::results
+ * @see app/Http/Controllers/Admin/SurveyController.php:223
  * @route '/admin/surveys/{survey}/results'
  */
-export const results = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'get'> => ({
+export const results = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: results.url(args, options),
     method: 'get',
-});
+})
 
 results.definition = {
-    methods: ['get', 'head'],
+    methods: ["get","head"],
     url: '/admin/surveys/{survey}/results',
-} satisfies RouteDefinition<['get', 'head']>;
+} satisfies RouteDefinition<["get","head"]>
 
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::results
- * @see app/Http/Controllers/Admin/SurveyController.php:233
+* @see \App\Http\Controllers\Admin\SurveyController::results
+ * @see app/Http/Controllers/Admin/SurveyController.php:223
  * @route '/admin/surveys/{survey}/results'
  */
-results.url = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-) => {
+results.url = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { survey: args };
+        args = { survey: args }
     }
 
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { survey: args.id };
-    }
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { survey: args.id }
+        }
 
     if (Array.isArray(args)) {
         args = {
-            survey: args[0],
-        };
+                    survey: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        survey: typeof args.survey === 'object' ? args.survey.id : args.survey,
-    };
+                        survey: typeof args.survey === 'object'
+                ? args.survey.id
+                : args.survey,
+                }
 
-    return (
-        results.definition.url
+    return results.definition.url
             .replace('{survey}', parsedArgs.survey.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::results
- * @see app/Http/Controllers/Admin/SurveyController.php:233
+* @see \App\Http\Controllers\Admin\SurveyController::results
+ * @see app/Http/Controllers/Admin/SurveyController.php:223
  * @route '/admin/surveys/{survey}/results'
  */
-results.get = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'get'> => ({
+results.get = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: results.url(args, options),
     method: 'get',
-});
+})
 /**
- * @see \App\Http\Controllers\Admin\SurveyController::results
- * @see app/Http/Controllers/Admin/SurveyController.php:233
+* @see \App\Http\Controllers\Admin\SurveyController::results
+ * @see app/Http/Controllers/Admin/SurveyController.php:223
  * @route '/admin/surveys/{survey}/results'
  */
-results.head = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'head'> => ({
+results.head = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: results.url(args, options),
     method: 'head',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::results
- * @see app/Http/Controllers/Admin/SurveyController.php:233
+    /**
+* @see \App\Http\Controllers\Admin\SurveyController::results
+ * @see app/Http/Controllers/Admin/SurveyController.php:223
  * @route '/admin/surveys/{survey}/results'
  */
-const resultsForm = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: results.url(args, options),
-    method: 'get',
-});
+    const resultsForm = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: results.url(args, options),
+        method: 'get',
+    })
 
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::results
- * @see app/Http/Controllers/Admin/SurveyController.php:233
+            /**
+* @see \App\Http\Controllers\Admin\SurveyController::results
+ * @see app/Http/Controllers/Admin/SurveyController.php:223
  * @route '/admin/surveys/{survey}/results'
  */
-resultsForm.get = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: results.url(args, options),
-    method: 'get',
-});
-/**
- * @see \App\Http\Controllers\Admin\SurveyController::results
- * @see app/Http/Controllers/Admin/SurveyController.php:233
+        resultsForm.get = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: results.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Admin\SurveyController::results
+ * @see app/Http/Controllers/Admin/SurveyController.php:223
  * @route '/admin/surveys/{survey}/results'
  */
-resultsForm.head = (
-    args:
-        | { survey: string | { id: string } }
-        | [survey: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: results.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'get',
-});
+        resultsForm.head = (args: { survey: string | { id: string } } | [survey: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: results.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
 
-results.form = resultsForm;
-const SurveyController = {
-    index,
-    store,
-    show,
-    edit,
-    update,
-    publish,
-    archive,
-    results,
-};
+    results.form = resultsForm
+const SurveyController = { index, store, show, edit, update, publish, archive, results }
 
-export default SurveyController;
+export default SurveyController

@@ -33,12 +33,16 @@ type Props = {
     clientId?: string;
     collapsibleSections?: boolean;
     showProgress?: boolean;
+    helpTextLabel?: string;
+    showCharacterCounts?: boolean;
 };
 
 type UploadedDocument = {
     id: string;
     original_filename: string;
 };
+
+const LONG_TEXT_CHARACTER_LIMIT = 50000;
 
 export function QuestionnaireRenderer({
     schema,
@@ -50,6 +54,8 @@ export function QuestionnaireRenderer({
     clientId,
     collapsibleSections = false,
     showProgress = false,
+    helpTextLabel,
+    showCharacterCounts = false,
 }: Props) {
     const [uploadedDocuments, setUploadedDocuments] = useState<
         Record<string, UploadedDocument>
@@ -216,6 +222,8 @@ export function QuestionnaireRenderer({
                                 uploadUrl={uploadUrl}
                                 clientId={clientId}
                                 uploadedDocuments={uploadedDocuments}
+                                helpTextLabel={helpTextLabel}
+                                showCharacterCounts={showCharacterCounts}
                                 onDocumentUploaded={(document) =>
                                     setUploadedDocuments((current) => ({
                                         ...current,
@@ -284,6 +292,8 @@ function QuestionField({
     uploadUrl,
     clientId,
     uploadedDocuments,
+    helpTextLabel,
+    showCharacterCounts,
     onDocumentUploaded,
     onChange,
 }: {
@@ -294,6 +304,8 @@ function QuestionField({
     uploadUrl?: string;
     clientId?: string;
     uploadedDocuments: Record<string, UploadedDocument>;
+    helpTextLabel?: string;
+    showCharacterCounts: boolean;
     onDocumentUploaded: (document: UploadedDocument) => void;
     onChange: (answer: Partial<QuestionnaireAnswer>) => void;
 }) {
@@ -305,9 +317,16 @@ function QuestionField({
                 <div className="min-w-0">
                     <Label htmlFor={fieldId}>{question.prompt}</Label>
                     {question.help_text && (
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            {question.help_text}
-                        </p>
+                        <div className="mt-2 rounded-md border bg-muted/30 p-2 text-sm">
+                            {helpTextLabel ? (
+                                <div className="font-medium">
+                                    {helpTextLabel}
+                                </div>
+                            ) : null}
+                            <p className="mt-1 text-muted-foreground">
+                                {question.help_text}
+                            </p>
+                        </div>
                     )}
                 </div>
                 {question.required && (
@@ -323,6 +342,7 @@ function QuestionField({
                     question={question}
                     answer={answer}
                     readOnly={readOnly}
+                    showCharacterCounts={showCharacterCounts}
                     onChange={onChange}
                 />
             )}
@@ -349,30 +369,49 @@ function QuestionControl({
     question,
     answer,
     readOnly,
+    showCharacterCounts,
     onChange,
 }: {
     id: string;
     question: QuestionnaireQuestion;
     answer: QuestionnaireAnswer;
     readOnly: boolean;
+    showCharacterCounts: boolean;
     onChange: (answer: Partial<QuestionnaireAnswer>) => void;
 }) {
     const disabled = readOnly;
 
     switch (question.type) {
-        case 'long-text':
+        case 'long-text': {
+            const value = stringValue(answer.value);
+
             return (
-                <textarea
-                    id={id}
-                    value={stringValue(answer.value)}
-                    rows={4}
-                    disabled={disabled}
-                    onChange={(event) =>
-                        onChange({ value: event.target.value })
-                    }
-                    className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
-                />
+                <div className="space-y-1">
+                    <textarea
+                        id={id}
+                        value={value}
+                        rows={4}
+                        disabled={disabled}
+                        maxLength={
+                            showCharacterCounts
+                                ? LONG_TEXT_CHARACTER_LIMIT
+                                : undefined
+                        }
+                        onChange={(event) =>
+                            onChange({ value: event.target.value })
+                        }
+                        className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                    {showCharacterCounts ? (
+                        <div className="text-right text-xs text-muted-foreground">
+                            {value.length.toLocaleString()}/
+                            {LONG_TEXT_CHARACTER_LIMIT.toLocaleString()}{' '}
+                            characters
+                        </div>
+                    ) : null}
+                </div>
             );
+        }
         case 'number':
         case 'currency':
             return (

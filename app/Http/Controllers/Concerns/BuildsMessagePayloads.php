@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Concerns;
 
 use App\Models\Client;
+use App\Models\Document;
 use App\Models\EntrepreneurProfile;
 use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\MessageThreadParticipant;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 trait BuildsMessagePayloads
 {
@@ -95,8 +97,20 @@ trait BuildsMessagePayloads
      */
     private function messagePayload(Message $message, User $viewer): array
     {
-        $attachments = collect($message->attachments ?? [])
-            ->map(fn (mixed $attachment): ?array => $this->attachmentPayload($attachment))
+        $rawAttachments = collect($message->attachments ?? []);
+        $documents = Document::query()
+            ->whereKey($rawAttachments
+                ->map(fn (mixed $attachment): ?string => $this->attachmentDocumentId($attachment))
+                ->filter()
+                ->filter(fn (string $id): bool => Str::isUuid($id))
+                ->unique()
+                ->values()
+                ->all())
+            ->get()
+            ->keyBy(fn (Document $document): string => (string) $document->getKey());
+
+        $attachments = $rawAttachments
+            ->map(fn (mixed $attachment): ?array => $this->attachmentPayload($attachment, $viewer, $documents))
             ->filter()
             ->values()
             ->all();
@@ -119,31 +133,94 @@ trait BuildsMessagePayloads
     }
 
     /**
-     * @return array{document_id: string, type?: string}|null
+     * @param  Collection<string, Document>  $documents
+     * @return array{document_id: string, type?: string, filename?: string|null, mime_type?: string|null, url?: string|null}|null
      */
-    private function attachmentPayload(mixed $attachment): ?array
+    private function attachmentPayload(mixed $attachment, User $viewer, Collection $documents): ?array
+    {
+        $id = $this->attachmentDocumentId($attachment);
+        $type = null;
+
+        if (is_array($attachment)) {
+            $type = $attachment['type'] ?? null;
+        }
+
+        if ($id === null) {
+            return null;
+        }
+
+        $document = $documents->get($id);
+        $payload = ['document_id' => $id];
+
+        if (is_scalar($type) && (string) $type !== '') {
+            $payload['type'] = (string) $type;
+        }
+
+        if ($document instanceof Document) {
+            $payload['filename'] = $document->original_filename;
+            $payload['mime_type'] = $document->mime_type;
+            $payload['url'] = $this->attachmentUrl($document, $viewer);
+        }
+
+        return $payload;
+    }
+
+    private function attachmentDocumentId(mixed $attachment): ?string
     {
         $id = null;
-        $type = null;
 
         if (is_scalar($attachment)) {
             $id = $attachment;
         } elseif (is_array($attachment)) {
             $id = $attachment['document_id'] ?? $attachment['id'] ?? null;
-            $type = $attachment['type'] ?? null;
         }
 
         if (! is_scalar($id) || (string) $id === '') {
             return null;
         }
 
-        $payload = ['document_id' => (string) $id];
+        return (string) $id;
+    }
 
-        if (is_scalar($type) && (string) $type !== '') {
-            $payload['type'] = (string) $type;
+    private function attachmentUrl(Document $document, User $viewer): ?string
+    {
+        if ($document->scanner_result !== Document::SCANNER_CLEAN) {
+            return null;
         }
 
-        return $payload;
+        if ($document->entrepreneur_profile_id !== null) {
+            if ($viewer->user_type === User::TYPE_ENTREPRENEUR) {
+                return route('portal.documents.show', $document, absolute: false);
+            }
+
+            if (in_array($viewer->user_type, [
+                User::TYPE_SUPER_ADMIN,
+                User::TYPE_ADVISOR,
+                User::TYPE_JUNIOR_ADVISOR,
+                User::TYPE_ENTREPRENEUR_MENTOR,
+            ], true)) {
+                return route('advisor.entrepreneurs.documents.show', [$document->entrepreneur_profile_id, $document], absolute: false);
+            }
+        }
+
+        if ($document->client_id !== null) {
+            if (in_array($viewer->user_type, [
+                User::TYPE_CLIENT_PRIMARY,
+                User::TYPE_CLIENT_TEAM,
+            ], true)) {
+                return route('portal.documents.show', $document, absolute: false);
+            }
+
+            if (in_array($viewer->user_type, [
+                User::TYPE_SUPER_ADMIN,
+                User::TYPE_ADVISOR,
+                User::TYPE_JUNIOR_ADVISOR,
+            ], true)) {
+                return route('advisor.clients.documents.show', [$document->client_id, $document], absolute: false);
+            }
+        }
+
+        return null;
     }
 
     private function unreadCount(MessageThread $thread, User $viewer): int

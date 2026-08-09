@@ -120,6 +120,38 @@ final class ServiceImprovementSurveyTest extends TestCase
         $this->assertDatabaseCount('survey_assignments', 0);
     }
 
+    public function test_super_admin_resending_service_survey_replaces_existing_open_assignment(): void
+    {
+        [, $client] = $this->clientUserWithClient('service-survey-resend-client@example.test');
+        $admin = $this->superAdmin('service-survey-resend-admin@example.test');
+        $activation = $this->closedService($client);
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.service-surveys.store', $activation), [
+                'survey_id' => $this->survey->id,
+            ])
+            ->assertRedirect();
+
+        $first = SurveyAssignment::query()->sole();
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.service-surveys.store', $activation), [
+                'survey_id' => $this->survey->id,
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(SurveyAssignmentStatus::Cancelled, $first->refresh()->status);
+        $this->assertDatabaseCount('survey_assignments', 2);
+        $this->assertDatabaseHas('survey_assignments', [
+            'service_activation_id' => $activation->getKey(),
+            'status' => SurveyAssignmentStatus::Pending->value,
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'survey_assignment.replaced',
+            'subject_id' => $first->getKey(),
+        ]);
+    }
+
     public function test_builtin_service_survey_upgrade_publishes_v1_1_and_preserves_the_v1_0_template(): void
     {
         $this->survey->delete();
@@ -244,18 +276,43 @@ final class ServiceImprovementSurveyTest extends TestCase
         $this->actingAsMfa($admin)
             ->get(route('advisor.entrepreneurs.show', $profile))
             ->assertInertia(fn (Assert $page): Assert => $page
-                ->where('entrepreneur.service_feedback_survey.action_url', null)
+                ->where(
+                    'entrepreneur.service_feedback_survey.action_url',
+                    route('admin.service-surveys.entrepreneurs.store', $profile, absolute: false),
+                )
+                ->where('entrepreneur.service_feedback_survey.has_open_survey', true)
                 ->where(
                     'entrepreneur.service_feedback_survey.unavailable_reason',
-                    'A service feedback survey is already awaiting a response.',
+                    'A service feedback survey is already awaiting a response. Sending again will cancel the old survey and issue the latest version.',
                 ));
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.service-surveys.entrepreneurs.store', $profile))
+            ->assertRedirect();
+
+        $this->assertSame(SurveyAssignmentStatus::Cancelled, $assignment->refresh()->status);
+        $this->assertDatabaseCount('survey_assignments', 2);
+        $this->assertDatabaseHas('survey_assignments', [
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'status' => SurveyAssignmentStatus::Pending->value,
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'survey_assignment.replaced',
+            'subject_id' => $assignment->getKey(),
+        ]);
 
         $this->actingAsMfa($entrepreneurUser)
             ->get(route('portal.entrepreneur.surveys.show', $assignment))
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
-                ->component('portal/entrepreneur/surveys/Show')
-                ->where('assignment.service.service_label', 'Entrepreneur advisory service'));
+                ->where('assignment.status', SurveyAssignmentStatus::Cancelled->value)
+                ->where('assignment.is_open', false));
+
+        $this->actingAsMfa($entrepreneurUser)
+            ->post(route('portal.entrepreneur.surveys.submit', $assignment), [
+                'answers' => $this->answersFor($assignment),
+            ])
+            ->assertForbidden();
     }
 
     public function test_super_admin_can_issue_an_idea_validation_service_survey_after_builder_gate_approval(): void

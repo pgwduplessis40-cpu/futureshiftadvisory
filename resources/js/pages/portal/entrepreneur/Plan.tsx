@@ -18,7 +18,7 @@ import {
     Trophy,
     Upload,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
     ComponentType,
     Dispatch,
@@ -310,7 +310,30 @@ type PlanSectionPayload = {
         };
     } | null;
     requirement_key: string | null;
+    updated_at: string | null;
     guidance_url: string;
+};
+
+type PlanWorkspaceDraft = {
+    selectedKey?: string | null;
+    windowScrollY?: number;
+    sectionDrafts?: Record<
+        string,
+        {
+            title: string;
+            body: string;
+            updatedAt: string;
+        }
+    >;
+    sectionPositions?: Record<
+        string,
+        {
+            scrollTop: number;
+            selectionStart: number;
+            selectionEnd: number;
+        }
+    >;
+    budgetForm?: BudgetFormState;
 };
 
 type ReportPayload = {
@@ -436,12 +459,29 @@ export default function EntrepreneurPlan({
         () => phases.flatMap((phase) => phase.requirements),
         [phases],
     );
+    const workspaceKey = useMemo(
+        () => planWorkspaceKey(profile.id),
+        [profile.id],
+    );
+    const initialWorkspaceDraft = useMemo(
+        () => readPlanWorkspaceDraft(workspaceKey),
+        [workspaceKey],
+    );
     const firstMissingRequirement =
         requirements.find((requirement) => !requirement.complete) ??
         requirements[0] ??
         null;
-    const [selectedKey, setSelectedKey] = useState<string | null>(
-        firstMissingRequirement ? requirementId(firstMissingRequirement) : null,
+    const [selectedKey, setSelectedKey] = useState<string | null>(() =>
+        initialWorkspaceDraft?.selectedKey &&
+        requirements.some(
+            (requirement) =>
+                requirementId(requirement) ===
+                initialWorkspaceDraft.selectedKey,
+        )
+            ? initialWorkspaceDraft.selectedKey
+            : firstMissingRequirement
+              ? requirementId(firstMissingRequirement)
+              : null,
     );
     const selectedRequirement =
         requirements.find(
@@ -452,6 +492,25 @@ export default function EntrepreneurPlan({
     const selectedSection = selectedRequirement
         ? findSection(plan, selectedRequirement)
         : null;
+    const budgetAutosaveUnlocked = useMemo(() => {
+        if (!plan) {
+            return false;
+        }
+
+        const budgetSource = budgetPlanSource(
+            plan,
+            BUDGET_UNLOCK_REQUIREMENT_KEY,
+        );
+        const assumptionsSource = budgetPlanSource(
+            plan,
+            BUDGET_ASSUMPTIONS_REQUIREMENT_KEY,
+        );
+
+        return (
+            budgetSource.requirement?.complete === true &&
+            assumptionsSource.requirement?.complete === true
+        );
+    }, [plan]);
     const completedRequirementCount = requirements.filter(
         (requirement) => requirement.complete,
     ).length;
@@ -572,10 +631,35 @@ export default function EntrepreneurPlan({
     const [savingSection, setSavingSection] = useState(false);
     const [assistingSection, setAssistingSection] = useState(false);
     const [assistantNotice, setAssistantNotice] = useState<string | null>(null);
-    const [budgetForm, setBudgetForm] = useState<BudgetFormState>(() =>
-        budgetToForm(plan?.budget),
+    const [budgetForm, setBudgetForm] = useState<BudgetFormState>(
+        () => initialWorkspaceDraft?.budgetForm ?? budgetToForm(plan?.budget),
     );
     const [savingBudget, setSavingBudget] = useState(false);
+    const [sectionAutosaveState, setSectionAutosaveState] = useState<
+        'idle' | 'saving' | 'saved' | 'error'
+    >('idle');
+    const [budgetAutosaveState, setBudgetAutosaveState] = useState<
+        'idle' | 'saving' | 'saved' | 'error'
+    >('idle');
+    const selectedKeyRef = useRef<string | null>(selectedKey);
+    const budgetAutosaveReadyRef = useRef(false);
+    const rememberWorkspacePosition = useCallback(() => {
+        const key = selectedKeyRef.current;
+        const position = currentSectionTextareaPosition();
+
+        updatePlanWorkspaceDraft(workspaceKey, (draft) => ({
+            ...draft,
+            selectedKey: key,
+            windowScrollY: window.scrollY,
+            sectionPositions:
+                key && position
+                    ? {
+                          ...(draft.sectionPositions ?? {}),
+                          [key]: position,
+                      }
+                    : draft.sectionPositions,
+        }));
+    }, [workspaceKey]);
 
     useEffect(() => {
         if (!selectedRequirement) {
@@ -583,23 +667,246 @@ export default function EntrepreneurPlan({
         }
 
         const section = findSection(plan, selectedRequirement);
+        const sectionKey = requirementId(selectedRequirement);
+        const draft =
+            readPlanWorkspaceDraft(workspaceKey)?.sectionDrafts?.[sectionKey];
+        const useLocalDraft =
+            draft !== undefined &&
+            localDraftIsNewer(draft.updatedAt, section?.updated_at ?? null);
         // Intentionally sync the editable form state to the selected
         // requirement (and re-sync when the plan refreshes after a save).
         /* eslint-disable react-hooks/set-state-in-effect */
-        setSectionTitle(section?.title ?? selectedRequirement.title);
-        setSectionBody(section?.body ?? '');
+        setSectionTitle(
+            useLocalDraft
+                ? draft.title
+                : (section?.title ?? selectedRequirement.title),
+        );
+        setSectionBody(useLocalDraft ? draft.body : (section?.body ?? ''));
         setSupportingFile(null);
         setSupportingKey((key) => key + 1);
         setSectionError(null);
         setAssistantNotice(null);
+        setSectionAutosaveState('idle');
+        window.requestAnimationFrame(() =>
+            restoreSectionTextareaPosition(workspaceKey, sectionKey),
+        );
         /* eslint-enable react-hooks/set-state-in-effect */
-    }, [selectedRequirement, plan]);
+    }, [selectedRequirement, plan, workspaceKey]);
 
     useEffect(() => {
         // Keep the editable budget form aligned with Inertia refreshes after save.
         /* eslint-disable-next-line react-hooks/set-state-in-effect */
-        setBudgetForm(budgetToForm(plan?.budget));
-    }, [plan?.budget]);
+        setBudgetForm(
+            readPlanWorkspaceDraft(workspaceKey)?.budgetForm ??
+                budgetToForm(plan?.budget),
+        );
+    }, [plan?.budget, workspaceKey]);
+
+    useEffect(() => {
+        selectedKeyRef.current = selectedKey;
+        updatePlanWorkspaceDraft(workspaceKey, (draft) => ({
+            ...draft,
+            selectedKey,
+        }));
+    }, [selectedKey, workspaceKey]);
+
+    useEffect(() => {
+        const draft = readPlanWorkspaceDraft(workspaceKey);
+
+        if (draft?.windowScrollY !== undefined) {
+            window.requestAnimationFrame(() => {
+                window.scrollTo({
+                    top: draft.windowScrollY ?? 0,
+                    behavior: 'auto',
+                });
+            });
+        }
+    }, [workspaceKey]);
+
+    useEffect(() => {
+        const remember = () => rememberWorkspacePosition();
+        const rememberOnHidden = () => {
+            if (document.visibilityState === 'hidden') {
+                remember();
+            }
+        };
+
+        window.addEventListener('beforeunload', remember);
+        document.addEventListener('visibilitychange', rememberOnHidden);
+
+        return () => {
+            window.removeEventListener('beforeunload', remember);
+            document.removeEventListener('visibilitychange', rememberOnHidden);
+        };
+    }, [rememberWorkspacePosition]);
+
+    useEffect(() => {
+        if (selectedRequirement?.type !== 'budget') {
+            budgetAutosaveReadyRef.current = false;
+        }
+    }, [selectedRequirement?.type]);
+
+    useEffect(() => {
+        if (!selectedRequirement || selectedRequirement.type === 'budget') {
+            return;
+        }
+
+        const sectionKey = requirementId(selectedRequirement);
+        const timeout = window.setTimeout(() => {
+            const position = currentSectionTextareaPosition();
+
+            updatePlanWorkspaceDraft(workspaceKey, (draft) => ({
+                ...draft,
+                selectedKey: sectionKey,
+                windowScrollY: window.scrollY,
+                sectionDrafts: {
+                    ...(draft.sectionDrafts ?? {}),
+                    [sectionKey]: {
+                        title: sectionTitle,
+                        body: sectionBody,
+                        updatedAt: new Date().toISOString(),
+                    },
+                },
+                sectionPositions:
+                    position !== null
+                        ? {
+                              ...(draft.sectionPositions ?? {}),
+                              [sectionKey]: position,
+                          }
+                        : draft.sectionPositions,
+            }));
+        }, 250);
+
+        return () => window.clearTimeout(timeout);
+    }, [sectionBody, sectionTitle, selectedRequirement, workspaceKey]);
+
+    useEffect(() => {
+        if (!selectedRequirement || selectedRequirement.type === 'budget') {
+            return;
+        }
+
+        if (!plan) {
+            return;
+        }
+
+        if (
+            !selectedSection &&
+            sectionBody.trim() === '' &&
+            sectionTitle.trim() === selectedRequirement.title
+        ) {
+            return;
+        }
+
+        let cancelled = false;
+        const timeout = window.setTimeout(() => {
+            setSectionAutosaveState('saving');
+
+            void fetch(urls.sectionStore, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken(),
+                },
+                body: JSON.stringify({
+                    _autosave: true,
+                    phase_key: selectedRequirement.phase_key,
+                    requirement_key: selectedRequirement.key,
+                    title: sectionTitle,
+                    body: sectionBody,
+                    attached_document_ids: [],
+                }),
+            })
+                .then((response) => {
+                    if (cancelled) {
+                        return;
+                    }
+
+                    setSectionAutosaveState(response.ok ? 'saved' : 'error');
+                })
+                .catch(() => {
+                    if (!cancelled) {
+                        setSectionAutosaveState('error');
+                    }
+                });
+        }, 2000);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timeout);
+        };
+    }, [
+        plan,
+        sectionBody,
+        sectionTitle,
+        selectedRequirement,
+        selectedSection,
+        urls.sectionStore,
+    ]);
+
+    useEffect(() => {
+        updatePlanWorkspaceDraft(workspaceKey, (draft) => ({
+            ...draft,
+            budgetForm,
+        }));
+    }, [budgetForm, workspaceKey]);
+
+    useEffect(() => {
+        if (
+            !plan ||
+            selectedRequirement?.type !== 'budget' ||
+            !budgetAutosaveUnlocked
+        ) {
+            return;
+        }
+
+        if (!budgetAutosaveReadyRef.current) {
+            budgetAutosaveReadyRef.current = true;
+
+            return;
+        }
+
+        let cancelled = false;
+        const timeout = window.setTimeout(() => {
+            setBudgetAutosaveState('saving');
+
+            void fetch(urls.budgetUpdate, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken(),
+                },
+                body: JSON.stringify({
+                    ...cleanBudgetForm(budgetForm),
+                    _autosave: true,
+                }),
+            })
+                .then((response) => {
+                    if (cancelled) {
+                        return;
+                    }
+
+                    setBudgetAutosaveState(response.ok ? 'saved' : 'error');
+                })
+                .catch(() => {
+                    if (!cancelled) {
+                        setBudgetAutosaveState('error');
+                    }
+                });
+        }, 2500);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timeout);
+        };
+    }, [
+        budgetAutosaveUnlocked,
+        budgetForm,
+        plan,
+        selectedRequirement?.type,
+        urls.budgetUpdate,
+    ]);
 
     useEffect(() => {
         // Keep the idea form aligned with the latest submitted validation.
@@ -1629,8 +1936,8 @@ export default function EntrepreneurPlan({
                                     </p>
                                 </div>
                             ) : hasPlan ? (
-                                <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-                                    <div className="space-y-3">
+                                <div className="grid items-start gap-6 xl:grid-cols-[minmax(15rem,0.58fr)_minmax(0,1.42fr)]">
+                                    <div className="space-y-3 xl:sticky xl:top-24 xl:self-start">
                                         {phases.map((phase) => (
                                             <div
                                                 key={phase.key}
@@ -1657,13 +1964,14 @@ export default function EntrepreneurPlan({
                                                                         ) &&
                                                                     'border-foreground',
                                                             )}
-                                                            onClick={() =>
+                                                            onClick={() => {
+                                                                rememberWorkspacePosition();
                                                                 setSelectedKey(
                                                                     requirementId(
                                                                         requirement,
                                                                     ),
-                                                                )
-                                                            }
+                                                                );
+                                                            }}
                                                         >
                                                             <div className="flex items-start justify-between gap-3">
                                                                 <div>
@@ -1697,7 +2005,7 @@ export default function EntrepreneurPlan({
                                         ))}
                                     </div>
 
-                                    <div className="space-y-4 rounded-md border p-4">
+                                    <div className="min-w-0 space-y-4 rounded-md border p-4 xl:self-start">
                                         {selectedRequirement ? (
                                             selectedRequirement.type ===
                                                 'budget' && plan ? (
@@ -1710,6 +2018,9 @@ export default function EntrepreneurPlan({
                                                     }
                                                     gamification={gamification}
                                                     saving={savingBudget}
+                                                    autosaveState={
+                                                        budgetAutosaveState
+                                                    }
                                                     onFormChange={setBudgetForm}
                                                     onSave={saveBudget}
                                                     onAcknowledgeFlag={
@@ -1799,6 +2110,13 @@ export default function EntrepreneurPlan({
                                                                 Plan detail
                                                             </label>
                                                             <span className="shrink-0 text-xs font-normal text-muted-foreground tabular-nums">
+                                                                {sectionAutosaveStateLabel(
+                                                                    sectionAutosaveState,
+                                                                )}
+                                                                {sectionAutosaveState !==
+                                                                'idle'
+                                                                    ? ' | '
+                                                                    : ''}
                                                                 {
                                                                     sectionBody.length
                                                                 }
@@ -2313,6 +2631,7 @@ function BudgetEditor({
     ideaValidation,
     gamification,
     saving,
+    autosaveState,
     onFormChange,
     onSave,
     onAcknowledgeFlag,
@@ -2324,6 +2643,7 @@ function BudgetEditor({
     ideaValidation: IdeaValidationPayload;
     gamification: GamificationPayload;
     saving: boolean;
+    autosaveState: 'idle' | 'saving' | 'saved' | 'error';
     onFormChange: Dispatch<SetStateAction<BudgetFormState>>;
     onSave: () => void;
     onAcknowledgeFlag: (key: string) => void;
@@ -2898,15 +3218,22 @@ function BudgetEditor({
                         </div>
                     ) : null}
 
-                    <Button
-                        type="button"
-                        size="sm"
-                        onClick={onSave}
-                        disabled={saving}
-                    >
-                        <Upload className="size-4" aria-hidden="true" />
-                        {saving ? 'Saving' : 'Save budget'}
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                            type="button"
+                            size="sm"
+                            onClick={onSave}
+                            disabled={saving}
+                        >
+                            <Upload className="size-4" aria-hidden="true" />
+                            {saving ? 'Saving' : 'Save budget'}
+                        </Button>
+                        {autosaveState !== 'idle' ? (
+                            <span className="text-xs text-muted-foreground">
+                                {sectionAutosaveStateLabel(autosaveState)}
+                            </span>
+                        ) : null}
+                    </div>
                 </>
             ) : null}
         </div>
@@ -2966,6 +3293,7 @@ function BudgetRowsEditor({
                                     type="button"
                                     size="sm"
                                     variant="outline"
+                                    className="max-w-full text-left whitespace-normal"
                                     title={budgetRowDescription(row)}
                                     onClick={() =>
                                         onFormChange((current) => ({
@@ -2999,8 +3327,12 @@ function BudgetRowsEditor({
                     <div
                         key={index}
                         className={cn(
-                            'grid gap-3 sm:grid-cols-2 lg:grid-cols-4',
-                            revenue && 'xl:grid-cols-5',
+                            'grid gap-3 md:grid-cols-[minmax(13rem,1.35fr)_minmax(7rem,0.75fr)_minmax(5rem,0.55fr)_minmax(8rem,0.8fr)_auto]',
+                            timed &&
+                                !revenue &&
+                                'md:grid-cols-[minmax(13rem,1.35fr)_minmax(7rem,0.75fr)_minmax(5rem,0.55fr)_minmax(5rem,0.55fr)_minmax(8rem,0.8fr)_auto]',
+                            revenue &&
+                                'xl:grid-cols-[minmax(13rem,1.35fr)_repeat(5,minmax(5rem,0.6fr))_minmax(8rem,0.8fr)_auto]',
                         )}
                     >
                         <BudgetInput
@@ -3281,7 +3613,7 @@ function FutureCostsEditor({
                 {rows.map((row, index) => (
                     <div
                         key={index}
-                        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+                        className="grid gap-3 md:grid-cols-[minmax(13rem,1.35fr)_minmax(7rem,0.75fr)_minmax(5rem,0.55fr)_minmax(5rem,0.55fr)_minmax(8rem,0.8fr)_minmax(8rem,0.8fr)_auto]"
                     >
                         <BudgetInput
                             label="Item"
@@ -3415,7 +3747,7 @@ function FundingScenariosEditor({
                 {rows.map((row, index) => (
                     <div
                         key={index}
-                        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+                        className="grid gap-3 md:grid-cols-[minmax(13rem,1.35fr)_minmax(8rem,0.85fr)_minmax(7rem,0.75fr)_repeat(3,minmax(5rem,0.55fr))_minmax(8rem,0.8fr)_auto]"
                     >
                         <BudgetInput
                             label="Scenario"
@@ -4631,6 +4963,114 @@ function csrfToken(): string {
             .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
             ?.getAttribute('content') ?? ''
     );
+}
+
+function planWorkspaceKey(profileId: string): string {
+    return `fsa:entrepreneur-plan-workspace:${profileId}:v1`;
+}
+
+function readPlanWorkspaceDraft(key: string): PlanWorkspaceDraft | null {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        const raw = window.localStorage.getItem(key);
+
+        if (!raw) {
+            return null;
+        }
+
+        const parsed = JSON.parse(raw) as PlanWorkspaceDraft;
+
+        return typeof parsed === 'object' && parsed !== null ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+function updatePlanWorkspaceDraft(
+    key: string,
+    updater: (draft: PlanWorkspaceDraft) => PlanWorkspaceDraft,
+): void {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const current = readPlanWorkspaceDraft(key) ?? {};
+
+    try {
+        window.localStorage.setItem(key, JSON.stringify(updater(current)));
+    } catch {
+        // Browsers can reject storage in private mode or when quota is full.
+    }
+}
+
+function localDraftIsNewer(
+    draftUpdatedAt: string,
+    serverUpdatedAt: string | null,
+): boolean {
+    if (!serverUpdatedAt) {
+        return true;
+    }
+
+    return Date.parse(draftUpdatedAt) > Date.parse(serverUpdatedAt);
+}
+
+function currentSectionTextareaPosition(): {
+    scrollTop: number;
+    selectionStart: number;
+    selectionEnd: number;
+} | null {
+    if (typeof document === 'undefined') {
+        return null;
+    }
+
+    const textarea = document.getElementById(
+        'entrepreneur-plan-section-body',
+    ) as HTMLTextAreaElement | null;
+
+    if (!textarea) {
+        return null;
+    }
+
+    return {
+        scrollTop: textarea.scrollTop,
+        selectionStart: textarea.selectionStart,
+        selectionEnd: textarea.selectionEnd,
+    };
+}
+
+function restoreSectionTextareaPosition(key: string, sectionKey: string): void {
+    if (typeof document === 'undefined') {
+        return;
+    }
+
+    const position =
+        readPlanWorkspaceDraft(key)?.sectionPositions?.[sectionKey];
+    const textarea = document.getElementById(
+        'entrepreneur-plan-section-body',
+    ) as HTMLTextAreaElement | null;
+
+    if (!position || !textarea) {
+        return;
+    }
+
+    textarea.scrollTop = position.scrollTop;
+    textarea.setSelectionRange(position.selectionStart, position.selectionEnd);
+}
+
+function sectionAutosaveStateLabel(
+    state: 'idle' | 'saving' | 'saved' | 'error',
+): string {
+    const labels = {
+        idle: '',
+        saving: 'Saving draft',
+        saved: 'Draft saved',
+        error: 'Draft not saved',
+    };
+
+    return labels[state];
 }
 
 function ideaValidationToForm(

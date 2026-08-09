@@ -163,7 +163,7 @@ final class ServiceActivationNavigation
 
         return match ($activation->service_type) {
             ServiceActivation::SERVICE_DUE_DILIGENCE => route('portal.dd-plan.show', absolute: false),
-            ServiceActivation::SERVICE_ENTREPRENEUR => route('portal.entrepreneur.plan.show', absolute: false),
+            ServiceActivation::SERVICE_ENTREPRENEUR => route('portal.entrepreneur.dashboard', absolute: false),
             default => null,
         };
     }

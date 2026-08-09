@@ -742,7 +742,18 @@ final class ServiceActivationManager
     private function cleanIntake(string $serviceType, array $intake): array
     {
         $allowed = $serviceType === ServiceActivation::SERVICE_DUE_DILIGENCE
-            ? ['target_name', 'vendor_name', 'industry', 'asking_price', 'timing', 'notes']
+            ? [
+                'target_name',
+                'vendor_name',
+                'industry',
+                'asking_price',
+                'dd_experience',
+                'business_ownership_experience',
+                'financial_confidence',
+                'preferred_guidance',
+                'timing',
+                'notes',
+            ]
             : ['idea_name', 'industry', 'customer', 'problem', 'timing', 'notes'];
 
         return collect($intake)
@@ -837,6 +848,7 @@ final class ServiceActivationManager
                 'industry' => $intake['industry'] ?? null,
                 'asking_price' => $intake['asking_price'] ?? null,
                 'notes' => $intake['notes'] ?? null,
+                'client_capability' => $this->ddClientCapability($intake),
                 'data_scope' => 'client_requested_acquisition_workspace',
                 'service_activation_id' => $activation->getKey(),
             ],
@@ -848,6 +860,49 @@ final class ServiceActivationManager
         ]);
 
         $activation->forceFill(['related_dd_engagement_id' => $engagement->getKey()])->save();
+    }
+
+    /**
+     * @param  array<string, mixed>  $intake
+     * @return array<string, mixed>
+     */
+    private function ddClientCapability(array $intake): array
+    {
+        $ddExperience = (string) ($intake['dd_experience'] ?? 'first_time');
+        $ownershipExperience = (string) ($intake['business_ownership_experience'] ?? 'none');
+        $financialConfidence = (string) ($intake['financial_confidence'] ?? 'low');
+        $preferredGuidance = (string) ($intake['preferred_guidance'] ?? 'guided');
+
+        $experiencedSignals = [
+            $ddExperience === 'completed_before',
+            $ownershipExperience === 'bought_or_sold_business',
+            in_array($ownershipExperience, ['managed_business', 'owned_business'], true)
+                && $financialConfidence === 'high',
+            $preferredGuidance === 'fast_track',
+        ];
+        $guidedSignals = [
+            $ddExperience === 'first_time',
+            $ownershipExperience === 'none',
+            $financialConfidence === 'low',
+            $preferredGuidance === 'guided',
+        ];
+
+        $mode = in_array(true, $experiencedSignals, true)
+            && ! in_array(true, $guidedSignals, true)
+            ? 'experienced'
+            : 'guided';
+
+        return [
+            'mode' => $mode,
+            'support_level' => $mode === 'experienced' ? 'fast_track' : 'guided',
+            'label' => $mode === 'experienced' ? 'Experienced DD support' : 'Guided DD support',
+            'dd_experience' => $ddExperience,
+            'business_ownership_experience' => $ownershipExperience,
+            'financial_confidence' => $financialConfidence,
+            'preferred_guidance' => $preferredGuidance,
+            'captured_from' => 'service_activation_intake',
+            'captured_at' => now()->toIso8601String(),
+        ];
     }
 
     private function ensureEntrepreneurWorkspace(ServiceActivation $activation, User $actor): void

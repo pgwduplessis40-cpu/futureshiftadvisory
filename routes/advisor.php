@@ -11,6 +11,7 @@ use App\Http\Controllers\Advisor\BulkCommunicationController;
 use App\Http\Controllers\Advisor\BusinessHealthController;
 use App\Http\Controllers\Advisor\CalendarController;
 use App\Http\Controllers\Advisor\ClientController;
+use App\Http\Controllers\Advisor\ClientDocumentController;
 use App\Http\Controllers\Advisor\ClientEmailController;
 use App\Http\Controllers\Advisor\ClientLifecycleController;
 use App\Http\Controllers\Advisor\ClientMessageController;
@@ -251,6 +252,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('clients/{client}/messages/{messageThread}', [ClientMessageController::class, 'reply'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.messages.reply');
+        Route::get('clients/{client}/documents/{document}', [ClientDocumentController::class, 'show'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('clients.documents.show');
         Route::get('clients/{client}/accounting/{provider}/connect', [AccountingConnectionController::class, 'connect'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.accounting.connect');

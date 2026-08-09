@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Portal;
 
+use App\Enums\ClientStatus;
+use App\Enums\EngagementType;
 use App\Enums\EntrepreneurStage;
 use App\Enums\ReportType;
 use App\Http\Controllers\Controller;
 use App\Models\AdvisoryReadinessSignal;
 use App\Models\BusinessPlan;
+use App\Models\Client;
 use App\Models\Document;
 use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
@@ -323,7 +326,7 @@ final class EntrepreneurPlanController extends Controller
         return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-plan-started');
     }
 
-    public function section(Request $request): RedirectResponse
+    public function section(Request $request): RedirectResponse|JsonResponse
     {
         $user = $this->entrepreneurUser($request);
         $profile = $this->profileFor($user);
@@ -334,11 +337,13 @@ final class EntrepreneurPlanController extends Controller
         $plan = $this->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan, 404);
 
+        $autosave = $request->boolean('_autosave');
         $validated = $request->validate([
+            '_autosave' => ['sometimes', 'boolean'],
             'phase_key' => ['required', 'string', Rule::in(array_keys(PlanRequirements::definitions()))],
             'requirement_key' => ['required', 'string', 'max:100'],
             'title' => ['nullable', 'string', 'max:180'],
-            'body' => ['required', 'string', 'min:80', 'max:'.PlanAiContext::PLAN_SECTION_BODY_MAX_LENGTH],
+            'body' => [$autosave ? 'nullable' : 'required', 'string', $autosave ? 'min:0' : 'min:80', 'max:'.PlanAiContext::PLAN_SECTION_BODY_MAX_LENGTH],
             'attached_document_ids' => ['array'],
             'attached_document_ids.*' => ['string', 'uuid'],
         ]);
@@ -346,20 +351,35 @@ final class EntrepreneurPlanController extends Controller
         $phaseKey = (string) $validated['phase_key'];
         $requirementKey = (string) $validated['requirement_key'];
         $requirement = $this->requirement($phaseKey, $requirementKey);
+        $sectionKey = 'founder-'.$phaseKey.'-'.$requirementKey;
+        $body = (string) ($validated['body'] ?? '');
+        $existingSection = PlanSection::query()
+            ->where('business_plan_id', $plan->getKey())
+            ->where('key', $sectionKey)
+            ->first();
+        $completenessStatus = null;
+
+        if ($autosave) {
+            $completenessStatus = trim($body) === ''
+                ? PlanSection::STATUS_DRAFT
+                : ($existingSection?->completeness_status ?? PlanSection::STATUS_DRAFT);
+        }
 
         $section = $this->plans->upsertSection(
             plan: $plan,
             phaseKey: $phaseKey,
-            key: 'founder-'.$phaseKey.'-'.$requirementKey,
+            key: $sectionKey,
             title: (string) ($validated['title'] ?: $requirement['title']),
-            body: (string) $validated['body'],
+            body: $body,
             actor: $user,
             metadata: [
                 'source' => 'entrepreneur_plan_workspace',
                 'requirement_key' => $requirementKey,
                 'requirement_title' => $requirement['title'],
                 'completed_by_user_id' => $user->getKey(),
+                'autosaved_at' => $autosave ? now()->toIso8601String() : null,
             ],
+            completenessStatus: $completenessStatus,
         );
 
         foreach (array_values((array) ($validated['attached_document_ids'] ?? [])) as $documentId) {
@@ -373,15 +393,28 @@ final class EntrepreneurPlanController extends Controller
                     section: $section,
                     document: $document,
                     actor: $user,
-                    claim: Str::limit((string) $validated['body'], 500, ''),
+                    claim: Str::limit($body, 500, ''),
                 );
             }
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => $autosave ? 'entrepreneur-plan-section-autosaved' : 'entrepreneur-plan-section-saved',
+                'section' => [
+                    'id' => $section->id,
+                    'title' => $section->title,
+                    'body' => $section->body,
+                    'completeness_status' => $section->completeness_status,
+                    'updated_at' => $section->updated_at?->toIso8601String(),
+                ],
+            ]);
         }
 
         return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-plan-section-saved');
     }
 
-    public function budget(Request $request): RedirectResponse
+    public function budget(Request $request): RedirectResponse|JsonResponse
     {
         $user = $this->entrepreneurUser($request);
         $profile = $this->profileFor($user);
@@ -399,6 +432,7 @@ final class EntrepreneurPlanController extends Controller
         }
 
         $validated = $request->validate([
+            '_autosave' => ['sometimes', 'boolean'],
             'expected_runway_months' => ['nullable', 'integer', 'min:0', 'max:60'],
             'forecast_years' => ['nullable', 'integer', Rule::in([1, 2, 3, 5])],
             'assumptions' => ['array'],
@@ -454,6 +488,14 @@ final class EntrepreneurPlanController extends Controller
         ]);
 
         $this->budgets->update($plan, $validated, $user);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => $request->boolean('_autosave')
+                    ? 'entrepreneur-budget-autosaved'
+                    : 'entrepreneur-budget-saved',
+            ]);
+        }
 
         return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-budget-saved');
     }
@@ -636,7 +678,8 @@ final class EntrepreneurPlanController extends Controller
         abort_unless($user instanceof User, 403);
         abort_unless(
             $user->user_type === User::TYPE_ENTREPRENEUR
-            || ($this->activeEntrepreneurActivationForUser($user) instanceof ServiceActivation),
+            || ($this->activeEntrepreneurActivationForUser($user) instanceof ServiceActivation)
+            || ($this->entrepreneurModuleClientForUser($user) instanceof Client),
             403,
         );
 
@@ -651,6 +694,13 @@ final class EntrepreneurPlanController extends Controller
         if ($activation instanceof ServiceActivation && $activation->related_entrepreneur_profile_id !== null) {
             return EntrepreneurProfile::query()
                 ->whereKey($activation->related_entrepreneur_profile_id)
+                ->firstOrFail();
+        }
+
+        $entrepreneurModuleClient = $this->entrepreneurModuleClientForUser($user);
+        if ($user->user_type !== User::TYPE_ENTREPRENEUR && $entrepreneurModuleClient instanceof Client) {
+            return EntrepreneurProfile::query()
+                ->where('client_id', $entrepreneurModuleClient->getKey())
                 ->firstOrFail();
         }
 
@@ -672,6 +722,22 @@ final class EntrepreneurPlanController extends Controller
             ->where('service_type', ServiceActivation::SERVICE_ENTREPRENEUR)
             ->where('status', ServiceActivation::STATUS_ACTIVE)
             ->whereNotNull('related_entrepreneur_profile_id')
+            ->latest()
+            ->first();
+    }
+
+    private function entrepreneurModuleClientForUser(User $user): ?Client
+    {
+        $clientIds = $user->accessibleClientIds();
+
+        if ($clientIds === []) {
+            return null;
+        }
+
+        return Client::query()
+            ->whereIn('id', $clientIds)
+            ->where('engagement_type', EngagementType::ENTREPRENEUR_MODULE->value)
+            ->where('status', '!=', ClientStatus::SUSPENDED->value)
             ->latest()
             ->first();
     }
@@ -938,6 +1004,7 @@ final class EntrepreneurPlanController extends Controller
                                 'predictive_score' => $section->predictive_score,
                                 'guidance' => data_get($section->metadata, 'ai_guidance'),
                                 'requirement_key' => data_get($section->metadata, 'requirement_key'),
+                                'updated_at' => $section->updated_at?->toIso8601String(),
                                 'guidance_url' => route('portal.entrepreneur.plan.sections.guidance', $section, absolute: false),
                             ])
                             ->values()

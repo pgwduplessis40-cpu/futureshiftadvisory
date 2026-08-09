@@ -863,8 +863,16 @@ export default function EntrepreneursShow({
                                             aria-hidden="true"
                                         />
                                         {serviceFeedbackSurveyPending
-                                            ? `Sending ${entrepreneur.service_feedback_survey.service_label ?? 'service'} survey`
-                                            : `Send ${entrepreneur.service_feedback_survey.service_label ?? 'service'} feedback survey`}
+                                            ? entrepreneur
+                                                  .service_feedback_survey
+                                                  .has_open_survey
+                                                ? `Replacing ${entrepreneur.service_feedback_survey.service_label ?? 'service'} survey`
+                                                : `Sending ${entrepreneur.service_feedback_survey.service_label ?? 'service'} survey`
+                                            : entrepreneur
+                                                    .service_feedback_survey
+                                                    .has_open_survey
+                                              ? `Replace ${entrepreneur.service_feedback_survey.service_label ?? 'service'} feedback survey`
+                                              : `Send ${entrepreneur.service_feedback_survey.service_label ?? 'service'} feedback survey`}
                                     </Button>
                                 ) : null}
                                 {latestAssessment ? (

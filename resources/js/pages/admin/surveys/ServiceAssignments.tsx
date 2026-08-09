@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Send } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -160,10 +160,7 @@ export default function ServiceSurveyAssignments({
                                             <Button
                                                 type="button"
                                                 size="sm"
-                                                disabled={
-                                                    surveyId === '' ||
-                                                    activation.has_open_survey
-                                                }
+                                                disabled={surveyId === ''}
                                                 onClick={() =>
                                                     router.post(
                                                         activation.issue_url,
@@ -171,11 +168,20 @@ export default function ServiceSurveyAssignments({
                                                     )
                                                 }
                                             >
-                                                <Send
-                                                    className="size-4"
-                                                    aria-hidden="true"
-                                                />
-                                                Send survey
+                                                {activation.has_open_survey ? (
+                                                    <RefreshCw
+                                                        className="size-4"
+                                                        aria-hidden="true"
+                                                    />
+                                                ) : (
+                                                    <Send
+                                                        className="size-4"
+                                                        aria-hidden="true"
+                                                    />
+                                                )}
+                                                {activation.has_open_survey
+                                                    ? 'Replace survey'
+                                                    : 'Send survey'}
                                             </Button>
                                         </div>
                                     </td>

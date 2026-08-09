@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Portal;
 
+use App\Enums\ClientStatus;
+use App\Enums\EngagementType;
 use App\Enums\SurveyAssignmentStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\BuildsEntrepreneurAssessmentPayload;
 use App\Models\AdvisoryReadinessSignal;
 use App\Models\BoardPost;
 use App\Models\BusinessPlan;
+use App\Models\Client;
 use App\Models\Document;
 use App\Models\EntrepreneurProfile;
 use App\Models\Message;
@@ -22,6 +25,7 @@ use App\Models\User;
 use App\Services\Board\InspirationBoard;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
+use App\Services\Portal\ServiceWorkspaces;
 use App\Services\Portal\Welcome\WelcomeMessageRenderer;
 use App\Services\ScreenShare\ClientPortalContextTokens;
 use Illuminate\Http\Request;
@@ -36,6 +40,7 @@ final class EntrepreneurDashboardController extends Controller
         private readonly InspirationBoard $inspirationBoard,
         private readonly EntrepreneurGamification $gamification,
         private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
+        private readonly ServiceWorkspaces $workspaces,
         private readonly WelcomeMessageRenderer $welcomeMessage,
         private readonly ClientPortalContextTokens $screenShareContexts,
     ) {}
@@ -45,7 +50,13 @@ final class EntrepreneurDashboardController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 403);
         $clientActivation = $this->activeEntrepreneurActivationForUser($user);
-        abort_unless($user->user_type === User::TYPE_ENTREPRENEUR || $clientActivation instanceof ServiceActivation, 403);
+        $entrepreneurModuleClient = $this->entrepreneurModuleClientForUser($user);
+        abort_unless(
+            $user->user_type === User::TYPE_ENTREPRENEUR
+            || $clientActivation instanceof ServiceActivation
+            || $entrepreneurModuleClient instanceof Client,
+            403,
+        );
 
         $this->entrepreneurInvites->reconcile($user);
 
@@ -58,7 +69,9 @@ final class EntrepreneurDashboardController extends Controller
             ->when(
                 $clientActivation instanceof ServiceActivation && $clientActivation->related_entrepreneur_profile_id !== null,
                 fn ($query) => $query->whereKey($clientActivation->related_entrepreneur_profile_id),
-                fn ($query) => $query->where('user_id', $user->getKey()),
+                fn ($query) => $entrepreneurModuleClient instanceof Client
+                    ? $query->where('client_id', $entrepreneurModuleClient->getKey())
+                    : $query->where('user_id', $user->getKey()),
             )
             ->first();
         $latestPlan = $profile?->businessPlans
@@ -71,6 +84,7 @@ final class EntrepreneurDashboardController extends Controller
             ->sortByDesc('surfaced_at')
             ->first();
         $latestAssessmentPayload = $latestAssessment ? $this->assessmentPayload($latestAssessment) : null;
+        $workspaceClient = $this->workspaceClient($profile, $clientActivation);
 
         return Inertia::render('portal/entrepreneur/Dashboard', [
             'profile' => $profile ? [
@@ -113,8 +127,9 @@ final class EntrepreneurDashboardController extends Controller
             'inspirationBoard' => $this->inspirationBoardPayload(),
             'messagesUrl' => route('portal.messages.index', absolute: false),
             'planWorkspaceUrl' => route('portal.entrepreneur.plan.show', absolute: false),
-            'buyingBusinessServiceUrl' => route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DUE_DILIGENCE], absolute: false),
-            'documentUploadUrl' => route('portal.documents.store', absolute: false),
+            'workspaces' => $workspaceClient instanceof Client
+                ? $this->workspaces->payload($workspaceClient, ServiceWorkspaces::KEY_ENTREPRENEUR)
+                : null,
             'notificationsUrl' => route('notifications.index', absolute: false),
             'settingsUrl' => route('profile.edit', absolute: false),
             'screenShare' => $this->screenSharePayload($user, $profile),
@@ -138,6 +153,21 @@ final class EntrepreneurDashboardController extends Controller
                 ? $this->welcomeMessage->renderForEntrepreneur($profile, $user)
                 : ['has_message' => false, 'html' => '', 'version' => null],
         ]);
+    }
+
+    private function workspaceClient(?EntrepreneurProfile $profile, ?ServiceActivation $activation): ?Client
+    {
+        if ($profile instanceof EntrepreneurProfile && $profile->client_id !== null) {
+            return Client::query()->whereKey($profile->client_id)->first();
+        }
+
+        if ($activation instanceof ServiceActivation) {
+            $activation->loadMissing('client');
+
+            return $activation->client instanceof Client ? $activation->client : null;
+        }
+
+        return null;
     }
 
     /**
@@ -377,6 +407,22 @@ final class EntrepreneurDashboardController extends Controller
             ->where('service_type', ServiceActivation::SERVICE_ENTREPRENEUR)
             ->where('status', ServiceActivation::STATUS_ACTIVE)
             ->whereNotNull('related_entrepreneur_profile_id')
+            ->latest()
+            ->first();
+    }
+
+    private function entrepreneurModuleClientForUser(User $user): ?Client
+    {
+        $clientIds = $user->accessibleClientIds();
+
+        if ($clientIds === []) {
+            return null;
+        }
+
+        return Client::query()
+            ->whereIn('id', $clientIds)
+            ->where('engagement_type', EngagementType::ENTREPRENEUR_MODULE->value)
+            ->where('status', '!=', ClientStatus::SUSPENDED->value)
             ->latest()
             ->first();
     }

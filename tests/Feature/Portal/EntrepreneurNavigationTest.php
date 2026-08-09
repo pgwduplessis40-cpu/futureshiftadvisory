@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Portal;
 
+use App\Enums\ClientStatus;
+use App\Enums\EngagementType;
 use App\Enums\EntrepreneurStage;
+use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
@@ -474,7 +477,9 @@ final class EntrepreneurNavigationTest extends TestCase
             ->get(route('portal.entrepreneur.dashboard'))
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('buyingBusinessServiceUrl', route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DUE_DILIGENCE], absolute: false)));
+                ->component('portal/entrepreneur/Dashboard')
+                ->missing('buyingBusinessServiceUrl')
+                ->missing('documentUploadUrl'));
 
         $this->actingAsMfa($entrepreneur)
             ->get(route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DUE_DILIGENCE]))
@@ -508,6 +513,10 @@ final class EntrepreneurNavigationTest extends TestCase
                 'vendor_name' => 'Kauri Vendors',
                 'industry' => 'Food service',
                 'asking_price' => 850000,
+                'dd_experience' => 'first_time',
+                'business_ownership_experience' => 'none',
+                'financial_confidence' => 'low',
+                'preferred_guidance' => 'guided',
                 'timing' => 'Shortlisting now',
                 'notes' => 'I want due diligence support before submitting an offer.',
                 'pricing_acknowledged' => true,
@@ -523,9 +532,60 @@ final class EntrepreneurNavigationTest extends TestCase
         $this->assertSame(ServiceActivation::STATUS_REQUESTED, $activation->status);
         $this->assertSame((string) $advisor->getKey(), (string) $activation->advisor_id);
         $this->assertSame('Kauri Kitchens Group Limited', $activation->intake['target_name']);
+        $this->assertSame('first_time', $activation->intake['dd_experience']);
+        $this->assertSame('guided', $activation->intake['preferred_guidance']);
         $this->assertSame('matched_package', $activation->metadata['pre_request_pricing']['status']);
         $this->assertSame(8500, $activation->metadata['pre_request_pricing']['package']['fixed_fee']);
         $this->assertSame((string) $package->getKey(), (string) $activation->metadata['pre_request_pricing']['package']['id']);
+    }
+
+    public function test_buying_business_start_link_does_not_open_active_dd_workspace(): void
+    {
+        $this->seed(RoleSeeder::class);
+
+        $advisor = User::factory()->create([
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'email' => 'buyer-active-workspace@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => 'Buyer With Active Workspace',
+            'email' => $entrepreneur->email,
+            'stage' => EntrepreneurStage::ONBOARDING,
+            'concept_summary' => 'Founder has one active DD and may explore another later.',
+        ]);
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DUE_DILIGENCE]))
+            ->assertOk();
+
+        $profile->refresh();
+
+        $activation = ServiceActivation::query()->create([
+            'client_id' => $profile->client_id,
+            'requested_by_user_id' => $entrepreneur->getKey(),
+            'advisor_id' => $advisor->getKey(),
+            'service_type' => ServiceActivation::SERVICE_DUE_DILIGENCE,
+            'client_label' => 'Explore buying a business',
+            'status' => ServiceActivation::STATUS_ACTIVE,
+            'intake' => [
+                'target_name' => 'Kauri Kitchens Group Limited',
+            ],
+            'metadata' => [
+                'source' => 'test_active_workspace',
+            ],
+        ]);
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DUE_DILIGENCE]))
+            ->assertRedirect(route('portal.service-activations.show', $activation, absolute: false));
     }
 
     public function test_buying_business_request_survives_notification_delivery_failure(): void
@@ -569,6 +629,10 @@ final class EntrepreneurNavigationTest extends TestCase
                 'vendor_name' => 'Kauri Vendors',
                 'industry' => 'Food service',
                 'asking_price' => 850000,
+                'dd_experience' => 'completed_before',
+                'business_ownership_experience' => 'bought_or_sold_business',
+                'financial_confidence' => 'high',
+                'preferred_guidance' => 'fast_track',
                 'timing' => 'Shortlisting now',
                 'notes' => 'I want due diligence support before submitting an offer.',
                 'pricing_acknowledged' => true,
@@ -635,6 +699,101 @@ final class EntrepreneurNavigationTest extends TestCase
 
         $this->assertSame((string) $entrepreneur->getKey(), (string) $profile->user_id);
         $this->assertSame(EntrepreneurStage::ONBOARDING, $profile->stage);
+    }
+
+    public function test_client_primary_entrepreneur_module_client_uses_entrepreneur_workspace_dashboard(): void
+    {
+        $this->seed(RoleSeeder::class);
+
+        $advisor = User::factory()->create([
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $clientPrimary = User::factory()->withTwoFactor()->create([
+            'email' => 'experienced-client-primary@example.test',
+            'user_type' => User::TYPE_CLIENT_PRIMARY,
+            'primary_role' => User::TYPE_CLIENT_PRIMARY,
+        ]);
+        $clientPrimary->assignRole(User::TYPE_CLIENT_PRIMARY);
+        $client = Client::query()->create([
+            'engagement_type' => EngagementType::ENTREPRENEUR_MODULE->value,
+            'status' => ClientStatus::ACTIVE->value,
+            'legal_name' => 'Experienced Mixed Workspace Limited',
+            'trading_name' => 'Rodney & Janya Experience',
+            'data_quality' => Client::DATA_QUALITY_HIGH,
+            'registry_sources' => [
+                'fixture' => 'experienced_dd_layout',
+            ],
+            'created_by_user_id' => $advisor->getKey(),
+            'primary_contact_user_id' => $clientPrimary->getKey(),
+        ]);
+        ClientTeamMember::query()->create([
+            'client_id' => $client->getKey(),
+            'user_id' => $clientPrimary->getKey(),
+            'role' => 'primary_contact',
+            'granted_modules' => [
+                'portal',
+                EngagementType::ENTREPRENEUR_MODULE->value,
+                EngagementType::DUE_DILIGENCE->value,
+            ],
+        ]);
+        ClientTeamMember::query()->create([
+            'client_id' => $client->getKey(),
+            'user_id' => $advisor->getKey(),
+            'role' => 'lead_advisor',
+            'granted_modules' => [
+                'portal',
+                EngagementType::ENTREPRENEUR_MODULE->value,
+                EngagementType::DUE_DILIGENCE->value,
+            ],
+        ]);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => null,
+            'client_id' => $client->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => 'Rodney & Janya Experience',
+            'email' => 'rodney-janya-experience@example.test',
+            'stage' => EntrepreneurStage::BUILDING_PHASE_1,
+            'concept_summary' => 'Entrepreneur Module workspace with active DD add-on.',
+            'gamification_on' => true,
+        ]);
+        ServiceActivation::query()->create([
+            'client_id' => $client->getKey(),
+            'requested_by_user_id' => $clientPrimary->getKey(),
+            'advisor_id' => $advisor->getKey(),
+            'service_type' => ServiceActivation::SERVICE_DUE_DILIGENCE,
+            'client_label' => 'Explore buying a business',
+            'status' => ServiceActivation::STATUS_ACTIVE,
+            'intake' => [
+                'target_name' => 'Coastal Bulk Spreaders Limited',
+            ],
+            'metadata' => [
+                'fixture' => 'experienced_dd_layout',
+            ],
+        ]);
+
+        $this->actingAsMfa($clientPrimary)
+            ->get(route('portal.dashboard'))
+            ->assertRedirect(route('portal.entrepreneur.dashboard', absolute: false));
+
+        $this->actingAsMfa($clientPrimary)
+            ->get(route('portal.entrepreneur.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('portal/entrepreneur/Dashboard')
+                ->where('profile.id', $profile->id)
+                ->where('workspaces.active_key', 'entrepreneur')
+                ->where('workspaces.items.0.key', 'entrepreneur')
+                ->where('workspaces.items.1.key', 'due_diligence')
+                ->where('workspaces.items.1.label', 'Due Diligence')
+                ->where('workspaces.items.1.href', route('portal.dd-plan.show', ['client' => $client->getKey()], absolute: false)));
+
+        $this->actingAsMfa($clientPrimary)
+            ->get(route('portal.entrepreneur.plan.show'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('portal/entrepreneur/Plan')
+                ->where('profile.id', $profile->id));
     }
 
     /**

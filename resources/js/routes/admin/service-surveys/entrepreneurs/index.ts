@@ -1,132 +1,85 @@
-import {
-    queryParams,
-    type RouteQueryOptions,
-    type RouteDefinition,
-    type RouteFormDefinition,
-    applyUrlDefaults,
-} from './../../../../wayfinder';
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
- * @see \App\Http\Controllers\Admin\ServiceSurveyController::store
- * @see app/Http/Controllers/Admin/ServiceSurveyController.php:115
+* @see \App\Http\Controllers\Admin\ServiceSurveyController::store
+ * @see app/Http/Controllers/Admin/ServiceSurveyController.php:113
  * @route '/admin/service-surveys/entrepreneurs/{entrepreneurProfile}'
  */
-export const store = (
-    args:
-        | { entrepreneurProfile: string | { id: string } }
-        | [entrepreneurProfile: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+export const store = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
-});
+})
 
 store.definition = {
-    methods: ['post'],
+    methods: ["post"],
     url: '/admin/service-surveys/entrepreneurs/{entrepreneurProfile}',
-} satisfies RouteDefinition<['post']>;
+} satisfies RouteDefinition<["post"]>
 
 /**
- * @see \App\Http\Controllers\Admin\ServiceSurveyController::store
- * @see app/Http/Controllers/Admin/ServiceSurveyController.php:115
+* @see \App\Http\Controllers\Admin\ServiceSurveyController::store
+ * @see app/Http/Controllers/Admin/ServiceSurveyController.php:113
  * @route '/admin/service-surveys/entrepreneurs/{entrepreneurProfile}'
  */
-store.url = (
-    args:
-        | { entrepreneurProfile: string | { id: string } }
-        | [entrepreneurProfile: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-) => {
+store.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { entrepreneurProfile: args };
+        args = { entrepreneurProfile: args }
     }
 
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { entrepreneurProfile: args.id };
-    }
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { entrepreneurProfile: args.id }
+        }
 
     if (Array.isArray(args)) {
         args = {
-            entrepreneurProfile: args[0],
-        };
+                    entrepreneurProfile: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        entrepreneurProfile:
-            typeof args.entrepreneurProfile === 'object'
+                        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
                 ? args.entrepreneurProfile.id
                 : args.entrepreneurProfile,
-    };
+                }
 
-    return (
-        store.definition.url
-            .replace(
-                '{entrepreneurProfile}',
-                parsedArgs.entrepreneurProfile.toString(),
-            )
+    return store.definition.url
+            .replace('{entrepreneurProfile}', parsedArgs.entrepreneurProfile.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\Admin\ServiceSurveyController::store
- * @see app/Http/Controllers/Admin/ServiceSurveyController.php:115
+* @see \App\Http\Controllers\Admin\ServiceSurveyController::store
+ * @see app/Http/Controllers/Admin/ServiceSurveyController.php:113
  * @route '/admin/service-surveys/entrepreneurs/{entrepreneurProfile}'
  */
-store.post = (
-    args:
-        | { entrepreneurProfile: string | { id: string } }
-        | [entrepreneurProfile: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+store.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Admin\ServiceSurveyController::store
- * @see app/Http/Controllers/Admin/ServiceSurveyController.php:115
+    /**
+* @see \App\Http\Controllers\Admin\ServiceSurveyController::store
+ * @see app/Http/Controllers/Admin/ServiceSurveyController.php:113
  * @route '/admin/service-surveys/entrepreneurs/{entrepreneurProfile}'
  */
-const storeForm = (
-    args:
-        | { entrepreneurProfile: string | { id: string } }
-        | [entrepreneurProfile: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: store.url(args, options),
-    method: 'post',
-});
+    const storeForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(args, options),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Admin\ServiceSurveyController::store
- * @see app/Http/Controllers/Admin/ServiceSurveyController.php:115
+            /**
+* @see \App\Http\Controllers\Admin\ServiceSurveyController::store
+ * @see app/Http/Controllers/Admin/ServiceSurveyController.php:113
  * @route '/admin/service-surveys/entrepreneurs/{entrepreneurProfile}'
  */
-storeForm.post = (
-    args:
-        | { entrepreneurProfile: string | { id: string } }
-        | [entrepreneurProfile: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: store.url(args, options),
-    method: 'post',
-});
+        storeForm.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(args, options),
+            method: 'post',
+        })
 
-store.form = storeForm;
+    store.form = storeForm
 const entrepreneurs = {
     store: Object.assign(store, store),
-};
+}
 
-export default entrepreneurs;
+export default entrepreneurs

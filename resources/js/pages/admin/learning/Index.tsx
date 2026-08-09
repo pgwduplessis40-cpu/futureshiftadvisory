@@ -153,6 +153,12 @@ const decisionCopy: Record<Decision, string> = {
     reject: 'Reject',
 };
 
+const approvedLearningStatuses = new Set([
+    'approved',
+    'implemented',
+    'rolled_back',
+]);
+
 export default function LearningUpdatesIndex({
     cards,
     decisions,
@@ -161,6 +167,8 @@ export default function LearningUpdatesIndex({
     rerun_url,
 }: Props) {
     const [activeTab, setActiveTab] = useState<LearningTab>('actions');
+    const approvedCards = cards.filter(isApprovedLearning);
+    const pendingCards = cards.filter((card) => !isApprovedLearning(card));
 
     return (
         <>
@@ -186,7 +194,7 @@ export default function LearningUpdatesIndex({
                                 Run due layers
                             </Button>
                             <Badge variant="secondary">
-                                {cards.length} queued
+                                {pendingCards.length} pending
                             </Badge>
                         </>
                     }
@@ -232,22 +240,11 @@ export default function LearningUpdatesIndex({
                             <ImpactReviewPanel reviews={impact_reviews} />
                         )}
 
-                        {cards.length === 0 ? (
-                            <p className="rounded-md border px-3 py-8 text-sm text-muted-foreground">
-                                No governed learning updates are waiting for
-                                review.
-                            </p>
-                        ) : (
-                            <div className="grid gap-4">
-                                {cards.map((card) => (
-                                    <UpdateCard
-                                        key={card.id}
-                                        card={card}
-                                        decisions={decisions}
-                                    />
-                                ))}
-                            </div>
-                        )}
+                        <LearningQueueTables
+                            pendingCards={pendingCards}
+                            approvedCards={approvedCards}
+                            decisions={decisions}
+                        />
                     </section>
                 ) : (
                     <MonitorPanel monitor={monitor} />
@@ -648,7 +645,87 @@ function MonitorPanel({ monitor }: { monitor: LearningMonitor }) {
     );
 }
 
-function UpdateCard({
+function LearningQueueTables({
+    pendingCards,
+    approvedCards,
+    decisions,
+}: {
+    pendingCards: LearningUpdateCard[];
+    approvedCards: LearningUpdateCard[];
+    decisions: Decision[];
+}) {
+    return (
+        <div className="space-y-6">
+            <PendingLearningTable cards={pendingCards} decisions={decisions} />
+            <ApprovedLearningTable cards={approvedCards} />
+        </div>
+    );
+}
+
+function PendingLearningTable({
+    cards,
+    decisions,
+}: {
+    cards: LearningUpdateCard[];
+    decisions: Decision[];
+}) {
+    return (
+        <section className="space-y-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <h2 className="text-sm font-semibold">
+                        Learnings pending approval
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                        Governed learning changes that still need a human
+                        decision.
+                    </p>
+                </div>
+                <Badge variant={cards.length > 0 ? 'default' : 'secondary'}>
+                    {cards.length} pending
+                </Badge>
+            </div>
+
+            {cards.length === 0 ? (
+                <p className="rounded-md border px-3 py-8 text-sm text-muted-foreground">
+                    No learnings are pending approval.
+                </p>
+            ) : (
+                <div className="overflow-hidden rounded-md border bg-background">
+                    <table className="fsa-responsive-table table-fixed md:table-auto">
+                        <thead className="bg-muted/60 text-left">
+                            <tr>
+                                <th className="w-[30%] px-3 py-2 font-medium">
+                                    Learning
+                                </th>
+                                <th className="w-[30%] px-3 py-2 font-medium">
+                                    What we learnt
+                                </th>
+                                <th className="px-3 py-2 font-medium">
+                                    Review
+                                </th>
+                                <th className="w-[24rem] px-3 py-2 font-medium">
+                                    Decision
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {cards.map((card) => (
+                                <PendingLearningRow
+                                    key={card.id}
+                                    card={card}
+                                    decisions={decisions}
+                                />
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </section>
+    );
+}
+
+function PendingLearningRow({
     card,
     decisions,
 }: {
@@ -659,10 +736,6 @@ function UpdateCard({
         card.effective_date?.slice(0, 16) ?? '',
     );
     const [reason, setReason] = useState('');
-    const [rollbackReason, setRollbackReason] = useState('');
-    const canDecide = !['rejected', 'implemented', 'rolled_back'].includes(
-        card.status,
-    );
 
     function submit(decision: Decision) {
         router.patch(`/admin/learning-updates/${card.id}/decision`, {
@@ -675,56 +748,46 @@ function UpdateCard({
         });
     }
 
-    function rollback(implementationId: string) {
-        router.patch(
-            `/admin/learning-update-implementations/${implementationId}/rollback`,
-            {
-                reason: rollbackReason || 'Admin rollback requested',
-            },
-        );
-    }
-
     return (
-        <article className="rounded-md border bg-background p-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0 space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline">Layer {card.layer_id}</Badge>
-                        <Badge variant={statusVariant(card.status)}>
-                            {card.status}
-                        </Badge>
-                        <Badge variant="secondary">{card.magnitude}</Badge>
+        <tr className="border-t align-top">
+            <td className="px-3 py-3" data-label="Learning">
+                <LearningIdentity card={card} />
+                <details className="mt-3">
+                    <summary className="cursor-pointer text-xs font-medium text-primary">
+                        Evidence and review focus
+                    </summary>
+                    <div className="mt-3 grid gap-3 xl:grid-cols-2">
+                        <ReviewFocusPanel profile={card.capability_profile} />
+                        <JsonPanel title="Source" value={card.source} />
+                        <JsonPanel
+                            title="Proposed change"
+                            value={card.proposed_change}
+                        />
+                        <JsonPanel title="Evidence" value={card.evidence} />
                     </div>
-                    <h2 className="text-base font-semibold">{card.summary}</h2>
-                    <CapabilityStrip profile={card.capability_profile} />
-                    {card.capability_profile.business_value && (
-                        <p className="max-w-3xl text-sm text-muted-foreground">
-                            {card.capability_profile.business_value}
-                        </p>
-                    )}
-                    <dl className="grid gap-2 text-sm sm:grid-cols-3">
-                        <Metric
-                            label="Clients"
-                            value={String(card.clients_affected)}
-                            explanation="Client records affected if this learning update is approved."
-                        />
-                        <Metric
-                            label="Confidence"
-                            value={
-                                card.confidence === null
-                                    ? 'n/a'
-                                    : `${Math.round(card.confidence * 100)}%`
-                            }
-                            explanation="Model confidence in the proposed change. Keep lower-confidence changes under closer review."
-                        />
-                        <Metric
-                            label="Review due"
-                            value={formatDate(card.review_due_at)}
-                            explanation="Date by which this governed update should receive a human decision."
-                        />
-                    </dl>
+                </details>
+            </td>
+            <td className="px-3 py-3" data-label="What we learnt">
+                <PlainEnglishSummaryBlock summary={card.plain_english} />
+            </td>
+            <td className="px-3 py-3" data-label="Review">
+                <div className="grid gap-2 text-sm">
+                    <TableStat
+                        label="Clients"
+                        value={String(card.clients_affected)}
+                    />
+                    <TableStat
+                        label="Confidence"
+                        value={confidenceLabel(card.confidence)}
+                    />
+                    <TableStat
+                        label="Review due"
+                        value={formatDate(card.review_due_at)}
+                    />
                 </div>
-                <div className="grid gap-2 text-sm sm:min-w-72">
+            </td>
+            <td className="px-3 py-3" data-label="Decision">
+                <div className="grid gap-2 text-sm">
                     <label className="grid gap-1">
                         <span className="text-xs text-muted-foreground">
                             Effective date
@@ -748,99 +811,264 @@ function UpdateCard({
                             onChange={(event) => setReason(event.target.value)}
                         />
                     </label>
-                    {canDecide && (
-                        <div className="flex flex-wrap gap-2">
-                            {decisions.map((decision) => (
-                                <Button
-                                    key={decision}
-                                    type="button"
-                                    size="sm"
-                                    variant={buttonVariant(decision)}
-                                    onClick={() => submit(decision)}
-                                >
-                                    <DecisionIcon decision={decision} />
-                                    {decisionCopy[decision]}
-                                </Button>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            <div className="mt-4 grid gap-3 lg:grid-cols-3">
-                <PlainEnglishPanel summary={card.plain_english} />
-                <ReviewFocusPanel profile={card.capability_profile} />
-                <JsonPanel title="Source" value={card.source} />
-                <JsonPanel
-                    title="Proposed change"
-                    value={card.proposed_change}
-                />
-                <JsonPanel title="Evidence" value={card.evidence} />
-            </div>
-
-            {card.implementations.length > 0 && (
-                <section className="mt-4 space-y-2 rounded-md border p-3">
-                    <h3 className="text-xs font-medium text-muted-foreground">
-                        Implementations
-                    </h3>
-                    <div className="grid gap-2">
-                        {card.implementations.map((implementation) => (
-                            <div
-                                key={implementation.id}
-                                className="flex flex-col gap-2 rounded-md border px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
+                    <div className="flex flex-wrap gap-2">
+                        {decisions.map((decision) => (
+                            <Button
+                                key={decision}
+                                type="button"
+                                size="sm"
+                                variant={buttonVariant(decision)}
+                                onClick={() => submit(decision)}
                             >
-                                <div>
-                                    <div className="font-medium">
-                                        {formatDate(
-                                            implementation.implemented_at,
-                                        )}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        Review{' '}
-                                        {formatDate(implementation.review_due)}
-                                    </div>
-                                </div>
-                                {implementation.rolled_back_at ? (
-                                    <Badge variant="outline">
-                                        Rolled back{' '}
-                                        {formatDate(
-                                            implementation.rolled_back_at,
-                                        )}
-                                    </Badge>
-                                ) : (
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() =>
-                                            rollback(implementation.id)
-                                        }
-                                    >
-                                        <XCircle
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        Roll back
-                                    </Button>
-                                )}
-                            </div>
+                                <DecisionIcon decision={decision} />
+                                {decisionCopy[decision]}
+                            </Button>
                         ))}
                     </div>
-                    <label className="grid gap-1 text-sm">
-                        <span className="text-xs text-muted-foreground">
-                            Rollback reason
-                        </span>
-                        <textarea
-                            className="min-h-16 rounded-md border bg-background px-3 py-2"
-                            value={rollbackReason}
-                            onChange={(event) =>
-                                setRollbackReason(event.target.value)
-                            }
-                        />
-                    </label>
-                </section>
+                </div>
+            </td>
+        </tr>
+    );
+}
+
+function ApprovedLearningTable({ cards }: { cards: LearningUpdateCard[] }) {
+    return (
+        <section className="space-y-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <h2 className="text-sm font-semibold">
+                        Approved learnings
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                        Rolled-up view of accepted learning changes and their
+                        implementation tracking.
+                    </p>
+                </div>
+                <Badge variant="secondary">{cards.length} rolled up</Badge>
+            </div>
+
+            {cards.length === 0 ? (
+                <p className="rounded-md border px-3 py-8 text-sm text-muted-foreground">
+                    No approved learnings are waiting for implementation
+                    tracking.
+                </p>
+            ) : (
+                <div className="overflow-hidden rounded-md border bg-background">
+                    <table className="fsa-responsive-table table-fixed md:table-auto">
+                        <thead className="bg-muted/60 text-left">
+                            <tr>
+                                <th className="w-[28%] px-3 py-2 font-medium">
+                                    Learning
+                                </th>
+                                <th className="w-[30%] px-3 py-2 font-medium">
+                                    Rollup
+                                </th>
+                                <th className="px-3 py-2 font-medium">Scope</th>
+                                <th className="px-3 py-2 font-medium">
+                                    Approval
+                                </th>
+                                <th className="px-3 py-2 font-medium">
+                                    Implementation
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {cards.map((card) => (
+                                <ApprovedLearningRow
+                                    key={card.id}
+                                    card={card}
+                                />
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             )}
-        </article>
+        </section>
+    );
+}
+
+function ApprovedLearningRow({ card }: { card: LearningUpdateCard }) {
+    return (
+        <tr className="border-t align-top">
+            <td className="px-3 py-3" data-label="Learning">
+                <LearningIdentity card={card} />
+            </td>
+            <td className="px-3 py-3" data-label="Rollup">
+                <PlainEnglishSummaryBlock
+                    summary={card.plain_english}
+                    compact
+                />
+                <details className="mt-3">
+                    <summary className="cursor-pointer text-xs font-medium text-primary">
+                        Source and evidence
+                    </summary>
+                    <div className="mt-3 grid gap-3">
+                        <JsonPanel title="Source" value={card.source} />
+                        <JsonPanel
+                            title="Proposed change"
+                            value={card.proposed_change}
+                        />
+                        <JsonPanel title="Evidence" value={card.evidence} />
+                    </div>
+                </details>
+            </td>
+            <td className="px-3 py-3" data-label="Scope">
+                <div className="grid gap-2 text-sm">
+                    <TableStat
+                        label="Clients"
+                        value={String(card.clients_affected)}
+                    />
+                    <TableStat
+                        label="Confidence"
+                        value={confidenceLabel(card.confidence)}
+                    />
+                    <TableStat label="Magnitude" value={card.magnitude} />
+                </div>
+            </td>
+            <td className="px-3 py-3" data-label="Approval">
+                <div className="grid gap-2 text-sm">
+                    <TableStat
+                        label="Decision"
+                        value={decisionLabel(card.latest_decision?.decision)}
+                    />
+                    <TableStat
+                        label="Decided"
+                        value={formatDate(
+                            card.latest_decision?.decided_at ?? null,
+                        )}
+                    />
+                    <TableStat
+                        label="Effective"
+                        value={formatDate(card.effective_date)}
+                    />
+                    <TableStat
+                        label="Review"
+                        value={formatDate(card.review_due_at)}
+                    />
+                    {card.latest_decision?.reason && (
+                        <p className="text-xs leading-5 text-muted-foreground">
+                            {card.latest_decision.reason}
+                        </p>
+                    )}
+                </div>
+            </td>
+            <td className="px-3 py-3" data-label="Implementation">
+                <ImplementationSummary card={card} />
+            </td>
+        </tr>
+    );
+}
+
+function LearningIdentity({ card }: { card: LearningUpdateCard }) {
+    return (
+        <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline">Layer {card.layer_id}</Badge>
+                <Badge variant={statusVariant(card.status)}>
+                    {label(card.status)}
+                </Badge>
+                <Badge variant="secondary">{card.magnitude}</Badge>
+            </div>
+            <h3 className="text-sm leading-6 font-semibold">{card.summary}</h3>
+            <CapabilityStrip profile={card.capability_profile} compact />
+            {card.capability_profile.business_value && (
+                <p className="text-xs leading-5 text-muted-foreground">
+                    {card.capability_profile.business_value}
+                </p>
+            )}
+        </div>
+    );
+}
+
+function PlainEnglishSummaryBlock({
+    summary,
+    compact = false,
+}: {
+    summary: PlainEnglishSummary;
+    compact?: boolean;
+}) {
+    return (
+        <div className="text-sm">
+            <p className="leading-6 font-medium text-foreground">
+                {summary.what_we_learnt}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                {compact ? summary.review_decision : summary.why_it_matters}
+            </p>
+            {summary.signals.length > 0 && !compact && (
+                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                    {summary.signals.map((signal) => (
+                        <li key={signal}>{signal}</li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+}
+
+function TableStat({ label, value }: { label: string; value: string }) {
+    return (
+        <div>
+            <div className="text-xs text-muted-foreground">{label}</div>
+            <div className="font-medium">{value}</div>
+        </div>
+    );
+}
+
+function ImplementationSummary({ card }: { card: LearningUpdateCard }) {
+    const activeImplementations = card.implementations.filter(
+        (implementation) => !implementation.rolled_back_at,
+    );
+    const rolledBackImplementations = card.implementations.filter(
+        (implementation) => implementation.rolled_back_at,
+    );
+
+    if (card.implementations.length === 0) {
+        return (
+            <p className="text-sm text-muted-foreground">
+                Waiting to implement
+            </p>
+        );
+    }
+
+    return (
+        <div className="space-y-2 text-sm">
+            <div className="flex flex-wrap gap-1.5">
+                {activeImplementations.length > 0 && (
+                    <Badge variant="secondary">
+                        {activeImplementations.length} active
+                    </Badge>
+                )}
+                {rolledBackImplementations.length > 0 && (
+                    <Badge variant="outline">
+                        {rolledBackImplementations.length} rolled back
+                    </Badge>
+                )}
+            </div>
+            <details>
+                <summary className="cursor-pointer text-xs font-medium text-primary">
+                    Implementation dates
+                </summary>
+                <div className="mt-2 space-y-2">
+                    {card.implementations.map((implementation) => (
+                        <div key={implementation.id}>
+                            <div className="font-medium">
+                                {formatDate(implementation.implemented_at)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                                Review {formatDate(implementation.review_due)}
+                            </div>
+                            {implementation.rolled_back_at && (
+                                <Badge variant="outline">
+                                    Rolled back{' '}
+                                    {formatDate(implementation.rolled_back_at)}
+                                </Badge>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </details>
+        </div>
     );
 }
 
@@ -878,46 +1106,8 @@ function CapabilityStrip({
     );
 }
 
-function PlainEnglishPanel({ summary }: { summary: PlainEnglishSummary }) {
-    return (
-        <section className="border-l-2 border-primary/50 pl-3 lg:col-span-3">
-            <h3 className="text-xs font-medium text-muted-foreground">
-                What we learnt
-            </h3>
-            <div className="mt-2 grid gap-3 text-sm md:grid-cols-3">
-                <PlainEnglishItem
-                    label="Observed"
-                    value={summary.what_we_learnt}
-                />
-                <PlainEnglishItem
-                    label="Why it matters"
-                    value={summary.why_it_matters}
-                />
-                <PlainEnglishItem
-                    label="Decision needed"
-                    value={summary.review_decision}
-                />
-            </div>
-            {summary.signals.length > 0 && (
-                <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
-                    {summary.signals.map((signal) => (
-                        <li key={signal}>{signal}</li>
-                    ))}
-                </ul>
-            )}
-        </section>
-    );
-}
-
-function PlainEnglishItem({ label, value }: { label: string; value: string }) {
-    return (
-        <div>
-            <div className="text-xs font-medium text-muted-foreground">
-                {label}
-            </div>
-            <p className="mt-1 leading-6 text-foreground">{value}</p>
-        </div>
-    );
+function isApprovedLearning(card: LearningUpdateCard): boolean {
+    return approvedLearningStatuses.has(card.status);
 }
 
 function ReviewFocusPanel({ profile }: { profile: CapabilityProfile }) {
@@ -981,6 +1171,22 @@ function Metric({
 
 function label(value: string): string {
     return value.replaceAll('_', ' ');
+}
+
+function confidenceLabel(confidence: number | null): string {
+    return confidence === null ? 'n/a' : `${Math.round(confidence * 100)}%`;
+}
+
+function decisionLabel(value: string | null | undefined): string {
+    if (!value) {
+        return 'No decision recorded';
+    }
+
+    if (value in decisionCopy) {
+        return decisionCopy[value as Decision];
+    }
+
+    return label(value);
 }
 
 function JsonPanel({

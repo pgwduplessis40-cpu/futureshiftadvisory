@@ -15,11 +15,11 @@ use App\Models\DdValuation;
 use App\Models\DdWorkstream;
 use App\Models\PlanSection;
 use App\Models\PostAcquisitionMigration;
+use App\Models\Questionnaire;
 use App\Models\QuestionnaireResponse;
 use App\Models\Report;
 use App\Models\ServiceActivation;
 use App\Models\User;
-use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Dd\AcquisitionPlanRequirements;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdAdviceReportGenerator;
@@ -29,6 +29,9 @@ use App\Services\Entrepreneurs\Guidance as EntrepreneurGuidance;
 use App\Services\Pdf\ResilientPdfPreviewRenderer;
 use App\Services\Plans\PlanBuilder as SharedPlanBuilder;
 use App\Services\Portal\ClientPortalResolver;
+use App\Services\Portal\ServiceWorkspaces;
+use App\Services\Questionnaires\QuestionnairePayload;
+use App\Services\Questionnaires\QuestionnaireResponseRecorder;
 use App\Services\Reports\BrandedReportLayout;
 use App\Support\RequestContext;
 use Illuminate\Http\RedirectResponse;
@@ -53,14 +56,15 @@ final class DdBusinessPlanController extends Controller
         private readonly ResilientPdfPreviewRenderer $pdf,
         private readonly BrandedReportLayout $layout,
         private readonly RequestContext $requestContext,
-        private readonly StrategicBudgetService $strategicBudgets,
+        private readonly ServiceWorkspaces $workspaces,
+        private readonly QuestionnairePayload $questionnairePayloads,
+        private readonly QuestionnaireResponseRecorder $questionnaireResponses,
     ) {}
 
     public function show(Request $request): Response
     {
         $client = $this->clients->resolveForServiceWorkspace($request);
         $engagement = $this->engagementFor($client);
-        $plan = $this->latestPlan($engagement);
 
         $readiness = $this->readiness($engagement);
 
@@ -78,17 +82,12 @@ final class DdBusinessPlanController extends Controller
                 'target_details' => $engagement->target_details ?? [],
             ],
             'readiness' => $readiness,
-            'plan' => $plan instanceof BusinessPlan ? $this->planPayload($plan) : null,
-            'strategicBudget' => $this->strategicBudgets->portalPayload($this->strategicBudgets->ensureForClient($client, $plan)),
-            'planTemplate' => $this->requirements->templatePayload(),
-            'businessAdvice' => $this->businessAdvicePayload($engagement, $plan, $readiness),
-            'generateUrl' => route('portal.dd-plan.store', absolute: false),
-            'previewUrl' => route('portal.dd-plan.preview', absolute: false),
-            'sectionStoreUrl' => route('portal.dd-plan.sections.store', absolute: false),
-            'completeUrl' => route('portal.dd-plan.complete', absolute: false),
-            'onboardingUrl' => route('portal.onboarding.step', ['step' => 'questionnaire'], absolute: false),
+            'capability' => $this->capabilityPayload($engagement),
+            'workspaces' => $this->workspaces->payload($client, ServiceWorkspaces::KEY_DUE_DILIGENCE),
+            'questionnaire' => $this->questionnairePayload($client),
+            'businessPlanBudgetUrl' => route('portal.business-plan-budget.show', ['client' => $client->id], absolute: false),
             'documentUploadUrl' => route('portal.documents.store', absolute: false),
-            'messagesUrl' => route('portal.messages.index', absolute: false),
+            'messagesUrl' => route('portal.messages.index', ['client' => $client->id], absolute: false),
             'workstreamOptions' => collect(DataRoom::WORKSTREAMS)
                 ->map(fn (string $label, string $value): array => [
                     'value' => $value,
@@ -133,6 +132,18 @@ final class DdBusinessPlanController extends Controller
         $this->ddPlans->buildFromWorkstreams($engagement, $user);
 
         return to_route('portal.dd-plan.show')->with('status', 'dd-acquisition-plan-generated');
+    }
+
+    public function questionnaire(Request $request): RedirectResponse
+    {
+        $client = $this->clients->resolveForServiceWorkspace($request);
+        $questionnaire = $this->activeDdQuestionnaire();
+        $user = $request->user();
+        abort_unless($questionnaire instanceof Questionnaire && $user instanceof User, 404);
+
+        $this->questionnaireResponses->record($client, $user, $questionnaire, $request->all());
+
+        return back()->with('status', 'dd-questionnaire-submitted');
     }
 
     public function section(Request $request): RedirectResponse
@@ -341,6 +352,69 @@ final class DdBusinessPlanController extends Controller
             'advice_report_ready' => $report instanceof Report,
             'advice_report_generated_at' => $report?->generated_at?->toIso8601String(),
             'missing' => $missing,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function questionnairePayload(Client $client): ?array
+    {
+        $questionnaire = $this->activeDdQuestionnaire();
+
+        if (! $questionnaire instanceof Questionnaire) {
+            return null;
+        }
+
+        $response = QuestionnaireResponse::query()
+            ->where('client_id', $client->getKey())
+            ->where('questionnaire_id', $questionnaire->getKey())
+            ->with('answers')
+            ->latest('submitted_at')
+            ->latest()
+            ->first();
+
+        return [
+            'schema' => $this->questionnairePayloads->schema($questionnaire),
+            'answers' => $this->questionnairePayloads->answers($response),
+            'submitUrl' => route('portal.dd-plan.questionnaire.store', ['client' => $client->id], absolute: false),
+            'submitted' => $response instanceof QuestionnaireResponse && $response->submitted_at !== null,
+            'submittedAt' => $response?->submitted_at?->toIso8601String(),
+        ];
+    }
+
+    private function activeDdQuestionnaire(): ?Questionnaire
+    {
+        return Questionnaire::query()
+            ->published()
+            ->forSet(QuestionnaireSet::DUE_DILIGENCE)
+            ->with('sections.questions')
+            ->latest('published_at')
+            ->latest()
+            ->first();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function capabilityPayload(DdEngagement $engagement): array
+    {
+        $capability = (array) data_get($engagement->target_details ?? [], 'client_capability', []);
+        $mode = in_array(($capability['mode'] ?? null), ['guided', 'experienced'], true)
+            ? (string) $capability['mode']
+            : 'guided';
+
+        return [
+            'mode' => $mode,
+            'label' => $mode === 'experienced' ? 'Experienced DD support' : 'Guided DD support',
+            'summary' => $mode === 'experienced'
+                ? 'This workspace uses a shorter path for buyers who already understand business ownership, financials, or DD.'
+                : 'This workspace should keep the next step plain, visible, and guided for a first-time or less confident buyer.',
+            'next_step_style' => $mode === 'experienced' ? 'Compact prompts' : 'Step-by-step prompts',
+            'dd_experience' => $capability['dd_experience'] ?? null,
+            'business_ownership_experience' => $capability['business_ownership_experience'] ?? null,
+            'financial_confidence' => $capability['financial_confidence'] ?? null,
+            'preferred_guidance' => $capability['preferred_guidance'] ?? null,
         ];
     }
 

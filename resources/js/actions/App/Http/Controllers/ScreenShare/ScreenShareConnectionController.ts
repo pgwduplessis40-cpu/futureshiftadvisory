@@ -1,426 +1,296 @@
-import {
-    queryParams,
-    type RouteQueryOptions,
-    type RouteDefinition,
-    type RouteFormDefinition,
-    applyUrlDefaults,
-} from './../../../../../wayfinder';
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerAdvisor
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerAdvisor
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:33
  * @route '/advisor/clients/{client}/screen-share/connections'
  */
-export const registerAdvisor = (
-    args:
-        | { client: string | { id: string } }
-        | [client: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+export const registerAdvisor = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: registerAdvisor.url(args, options),
     method: 'post',
-});
+})
 
 registerAdvisor.definition = {
-    methods: ['post'],
+    methods: ["post"],
     url: '/advisor/clients/{client}/screen-share/connections',
-} satisfies RouteDefinition<['post']>;
+} satisfies RouteDefinition<["post"]>
 
 /**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerAdvisor
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerAdvisor
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:33
  * @route '/advisor/clients/{client}/screen-share/connections'
  */
-registerAdvisor.url = (
-    args:
-        | { client: string | { id: string } }
-        | [client: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-) => {
+registerAdvisor.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { client: args };
+        args = { client: args }
     }
 
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { client: args.id };
-    }
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { client: args.id }
+        }
 
     if (Array.isArray(args)) {
         args = {
-            client: args[0],
-        };
+                    client: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        client: typeof args.client === 'object' ? args.client.id : args.client,
-    };
+                        client: typeof args.client === 'object'
+                ? args.client.id
+                : args.client,
+                }
 
-    return (
-        registerAdvisor.definition.url
+    return registerAdvisor.definition.url
             .replace('{client}', parsedArgs.client.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerAdvisor
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerAdvisor
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:33
  * @route '/advisor/clients/{client}/screen-share/connections'
  */
-registerAdvisor.post = (
-    args:
-        | { client: string | { id: string } }
-        | [client: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+registerAdvisor.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: registerAdvisor.url(args, options),
     method: 'post',
-});
+})
 
-/**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerAdvisor
+    /**
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerAdvisor
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:33
  * @route '/advisor/clients/{client}/screen-share/connections'
  */
-const registerAdvisorForm = (
-    args:
-        | { client: string | { id: string } }
-        | [client: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: registerAdvisor.url(args, options),
-    method: 'post',
-});
+    const registerAdvisorForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: registerAdvisor.url(args, options),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerAdvisor
+            /**
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerAdvisor
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:33
  * @route '/advisor/clients/{client}/screen-share/connections'
  */
-registerAdvisorForm.post = (
-    args:
-        | { client: string | { id: string } }
-        | [client: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: registerAdvisor.url(args, options),
-    method: 'post',
-});
+        registerAdvisorForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: registerAdvisor.url(args, options),
+            method: 'post',
+        })
 
-registerAdvisor.form = registerAdvisorForm;
+    registerAdvisor.form = registerAdvisorForm
 /**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerClient
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerClient
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:22
  * @route '/portal/screen-share/connections'
  */
-export const registerClient = (
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+export const registerClient = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: registerClient.url(options),
     method: 'post',
-});
+})
 
 registerClient.definition = {
-    methods: ['post'],
+    methods: ["post"],
     url: '/portal/screen-share/connections',
-} satisfies RouteDefinition<['post']>;
+} satisfies RouteDefinition<["post"]>
 
 /**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerClient
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerClient
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:22
  * @route '/portal/screen-share/connections'
  */
 registerClient.url = (options?: RouteQueryOptions) => {
-    return registerClient.definition.url + queryParams(options);
-};
+    return registerClient.definition.url + queryParams(options)
+}
 
 /**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerClient
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerClient
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:22
  * @route '/portal/screen-share/connections'
  */
-registerClient.post = (
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+registerClient.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: registerClient.url(options),
     method: 'post',
-});
+})
 
-/**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerClient
+    /**
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerClient
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:22
  * @route '/portal/screen-share/connections'
  */
-const registerClientForm = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: registerClient.url(options),
-    method: 'post',
-});
+    const registerClientForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: registerClient.url(options),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerClient
+            /**
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerClient
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:22
  * @route '/portal/screen-share/connections'
  */
-registerClientForm.post = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: registerClient.url(options),
-    method: 'post',
-});
+        registerClientForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: registerClient.url(options),
+            method: 'post',
+        })
 
-registerClient.form = registerClientForm;
+    registerClient.form = registerClientForm
 /**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::pendingPrompt
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::pendingPrompt
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:50
  * @route '/screen-share/connections/{connection}/pending-prompt'
  */
-export const pendingPrompt = (
-    args:
-        | { connection: string | { id: string } }
-        | [connection: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+export const pendingPrompt = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: pendingPrompt.url(args, options),
     method: 'post',
-});
+})
 
 pendingPrompt.definition = {
-    methods: ['post'],
+    methods: ["post"],
     url: '/screen-share/connections/{connection}/pending-prompt',
-} satisfies RouteDefinition<['post']>;
+} satisfies RouteDefinition<["post"]>
 
 /**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::pendingPrompt
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::pendingPrompt
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:50
  * @route '/screen-share/connections/{connection}/pending-prompt'
  */
-pendingPrompt.url = (
-    args:
-        | { connection: string | { id: string } }
-        | [connection: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-) => {
+pendingPrompt.url = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { connection: args };
+        args = { connection: args }
     }
 
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { connection: args.id };
-    }
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { connection: args.id }
+        }
 
     if (Array.isArray(args)) {
         args = {
-            connection: args[0],
-        };
+                    connection: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        connection:
-            typeof args.connection === 'object'
+                        connection: typeof args.connection === 'object'
                 ? args.connection.id
                 : args.connection,
-    };
+                }
 
-    return (
-        pendingPrompt.definition.url
+    return pendingPrompt.definition.url
             .replace('{connection}', parsedArgs.connection.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::pendingPrompt
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::pendingPrompt
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:50
  * @route '/screen-share/connections/{connection}/pending-prompt'
  */
-pendingPrompt.post = (
-    args:
-        | { connection: string | { id: string } }
-        | [connection: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+pendingPrompt.post = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: pendingPrompt.url(args, options),
     method: 'post',
-});
+})
 
-/**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::pendingPrompt
+    /**
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::pendingPrompt
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:50
  * @route '/screen-share/connections/{connection}/pending-prompt'
  */
-const pendingPromptForm = (
-    args:
-        | { connection: string | { id: string } }
-        | [connection: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: pendingPrompt.url(args, options),
-    method: 'post',
-});
+    const pendingPromptForm = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: pendingPrompt.url(args, options),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::pendingPrompt
+            /**
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::pendingPrompt
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:50
  * @route '/screen-share/connections/{connection}/pending-prompt'
  */
-pendingPromptForm.post = (
-    args:
-        | { connection: string | { id: string } }
-        | [connection: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: pendingPrompt.url(args, options),
-    method: 'post',
-});
+        pendingPromptForm.post = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: pendingPrompt.url(args, options),
+            method: 'post',
+        })
 
-pendingPrompt.form = pendingPromptForm;
+    pendingPrompt.form = pendingPromptForm
 /**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::heartbeat
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::heartbeat
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:40
  * @route '/screen-share/connections/{connection}/heartbeat'
  */
-export const heartbeat = (
-    args:
-        | { connection: string | { id: string } }
-        | [connection: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+export const heartbeat = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: heartbeat.url(args, options),
     method: 'post',
-});
+})
 
 heartbeat.definition = {
-    methods: ['post'],
+    methods: ["post"],
     url: '/screen-share/connections/{connection}/heartbeat',
-} satisfies RouteDefinition<['post']>;
+} satisfies RouteDefinition<["post"]>
 
 /**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::heartbeat
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::heartbeat
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:40
  * @route '/screen-share/connections/{connection}/heartbeat'
  */
-heartbeat.url = (
-    args:
-        | { connection: string | { id: string } }
-        | [connection: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-) => {
+heartbeat.url = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { connection: args };
+        args = { connection: args }
     }
 
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { connection: args.id };
-    }
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { connection: args.id }
+        }
 
     if (Array.isArray(args)) {
         args = {
-            connection: args[0],
-        };
+                    connection: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        connection:
-            typeof args.connection === 'object'
+                        connection: typeof args.connection === 'object'
                 ? args.connection.id
                 : args.connection,
-    };
+                }
 
-    return (
-        heartbeat.definition.url
+    return heartbeat.definition.url
             .replace('{connection}', parsedArgs.connection.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::heartbeat
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::heartbeat
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:40
  * @route '/screen-share/connections/{connection}/heartbeat'
  */
-heartbeat.post = (
-    args:
-        | { connection: string | { id: string } }
-        | [connection: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+heartbeat.post = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: heartbeat.url(args, options),
     method: 'post',
-});
+})
 
-/**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::heartbeat
+    /**
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::heartbeat
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:40
  * @route '/screen-share/connections/{connection}/heartbeat'
  */
-const heartbeatForm = (
-    args:
-        | { connection: string | { id: string } }
-        | [connection: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: heartbeat.url(args, options),
-    method: 'post',
-});
+    const heartbeatForm = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: heartbeat.url(args, options),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::heartbeat
+            /**
+* @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::heartbeat
  * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:40
  * @route '/screen-share/connections/{connection}/heartbeat'
  */
-heartbeatForm.post = (
-    args:
-        | { connection: string | { id: string } }
-        | [connection: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: heartbeat.url(args, options),
-    method: 'post',
-});
+        heartbeatForm.post = (args: { connection: string | { id: string } } | [connection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: heartbeat.url(args, options),
+            method: 'post',
+        })
 
-heartbeat.form = heartbeatForm;
-const ScreenShareConnectionController = {
-    registerAdvisor,
-    registerClient,
-    pendingPrompt,
-    heartbeat,
-};
+    heartbeat.form = heartbeatForm
+const ScreenShareConnectionController = { registerAdvisor, registerClient, pendingPrompt, heartbeat }
 
-export default ScreenShareConnectionController;
+export default ScreenShareConnectionController

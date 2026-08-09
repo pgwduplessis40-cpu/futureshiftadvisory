@@ -525,7 +525,7 @@ final class EntrepreneurController extends Controller
     }
 
     /**
-     * @return array{action_url:string|null,service_label:string|null,unavailable_reason:string|null}|null
+     * @return array{action_url:string|null,service_label:string|null,unavailable_reason:string|null,has_open_survey:bool}|null
      */
     private function serviceFeedbackSurvey(User $viewer, EntrepreneurProfile $profile): ?array
     {
@@ -540,6 +540,7 @@ final class EntrepreneurController extends Controller
                 'action_url' => null,
                 'service_label' => null,
                 'unavailable_reason' => 'Service feedback is available after an Idea Validation gate is approved or once the entrepreneur is advisory ready or launched.',
+                'has_open_survey' => false,
             ];
         }
 
@@ -557,9 +558,10 @@ final class EntrepreneurController extends Controller
 
         if ($hasOpenServiceSurvey) {
             return [
-                'action_url' => null,
+                'action_url' => route('admin.service-surveys.entrepreneurs.store', $profile, absolute: false),
                 'service_label' => $serviceLabel,
-                'unavailable_reason' => 'A service feedback survey is already awaiting a response.',
+                'unavailable_reason' => 'A service feedback survey is already awaiting a response. Sending again will cancel the old survey and issue the latest version.',
+                'has_open_survey' => true,
             ];
         }
 
@@ -567,6 +569,7 @@ final class EntrepreneurController extends Controller
             'action_url' => route('admin.service-surveys.entrepreneurs.store', $profile, absolute: false),
             'service_label' => $serviceLabel,
             'unavailable_reason' => null,
+            'has_open_survey' => false,
         ];
     }
 
@@ -1035,9 +1038,13 @@ final class EntrepreneurController extends Controller
             $limited = $candidate;
         }
 
-        return $limited !== ''
-            ? $limited
-            : Str::limit($point, 600, '...');
+        if ($limited !== '') {
+            return $limited;
+        }
+
+        $truncated = rtrim(Str::limit($point, 600, ''), " \t\n\r\0\x0B.,;:");
+
+        return $truncated === '' ? $point : $truncated.'.';
     }
 
     private function ideaGateStatus(IdeaValidation $validation): string

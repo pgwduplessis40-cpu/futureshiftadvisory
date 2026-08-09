@@ -1,608 +1,421 @@
-import {
-    queryParams,
-    type RouteQueryOptions,
-    type RouteDefinition,
-    type RouteFormDefinition,
-    applyUrlDefaults,
-} from './../../../../../wayfinder';
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::index
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::index
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:23
  * @route '/advisor/service-activations'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
-});
+})
 
 index.definition = {
-    methods: ['get', 'head'],
+    methods: ["get","head"],
     url: '/advisor/service-activations',
-} satisfies RouteDefinition<['get', 'head']>;
+} satisfies RouteDefinition<["get","head"]>
 
 /**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::index
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::index
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:23
  * @route '/advisor/service-activations'
  */
 index.url = (options?: RouteQueryOptions) => {
-    return index.definition.url + queryParams(options);
-};
+    return index.definition.url + queryParams(options)
+}
 
 /**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::index
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::index
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:23
  * @route '/advisor/service-activations'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
-});
+})
 /**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::index
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::index
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:23
  * @route '/advisor/service-activations'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: index.url(options),
     method: 'head',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::index
+    /**
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::index
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:23
  * @route '/advisor/service-activations'
  */
-const indexForm = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: index.url(options),
-    method: 'get',
-});
+    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(options),
+        method: 'get',
+    })
 
-/**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::index
+            /**
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::index
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:23
  * @route '/advisor/service-activations'
  */
-indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url(options),
-    method: 'get',
-});
-/**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::index
+        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::index
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:23
  * @route '/advisor/service-activations'
  */
-indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'get',
-});
+        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
 
-index.form = indexForm;
+    index.form = indexForm
 /**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::show
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::show
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:48
  * @route '/advisor/service-activations/{serviceActivation}'
  */
-export const show = (
-    args:
-        | { serviceActivation: string | { id: string } }
-        | [serviceActivation: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'get'> => ({
+export const show = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
-});
+})
 
 show.definition = {
-    methods: ['get', 'head'],
+    methods: ["get","head"],
     url: '/advisor/service-activations/{serviceActivation}',
-} satisfies RouteDefinition<['get', 'head']>;
+} satisfies RouteDefinition<["get","head"]>
 
 /**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::show
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::show
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:48
  * @route '/advisor/service-activations/{serviceActivation}'
  */
-show.url = (
-    args:
-        | { serviceActivation: string | { id: string } }
-        | [serviceActivation: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-) => {
+show.url = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { serviceActivation: args };
+        args = { serviceActivation: args }
     }
 
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { serviceActivation: args.id };
-    }
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { serviceActivation: args.id }
+        }
 
     if (Array.isArray(args)) {
         args = {
-            serviceActivation: args[0],
-        };
+                    serviceActivation: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        serviceActivation:
-            typeof args.serviceActivation === 'object'
+                        serviceActivation: typeof args.serviceActivation === 'object'
                 ? args.serviceActivation.id
                 : args.serviceActivation,
-    };
+                }
 
-    return (
-        show.definition.url
-            .replace(
-                '{serviceActivation}',
-                parsedArgs.serviceActivation.toString(),
-            )
+    return show.definition.url
+            .replace('{serviceActivation}', parsedArgs.serviceActivation.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::show
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::show
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:48
  * @route '/advisor/service-activations/{serviceActivation}'
  */
-show.get = (
-    args:
-        | { serviceActivation: string | { id: string } }
-        | [serviceActivation: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'get'> => ({
+show.get = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
-});
+})
 /**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::show
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::show
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:48
  * @route '/advisor/service-activations/{serviceActivation}'
  */
-show.head = (
-    args:
-        | { serviceActivation: string | { id: string } }
-        | [serviceActivation: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'head'> => ({
+show.head = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: show.url(args, options),
     method: 'head',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::show
+    /**
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::show
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:48
  * @route '/advisor/service-activations/{serviceActivation}'
  */
-const showForm = (
-    args:
-        | { serviceActivation: string | { id: string } }
-        | [serviceActivation: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: show.url(args, options),
-    method: 'get',
-});
+    const showForm = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: show.url(args, options),
+        method: 'get',
+    })
 
-/**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::show
+            /**
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::show
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:48
  * @route '/advisor/service-activations/{serviceActivation}'
  */
-showForm.get = (
-    args:
-        | { serviceActivation: string | { id: string } }
-        | [serviceActivation: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: show.url(args, options),
-    method: 'get',
-});
-/**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::show
+        showForm.get = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::show
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:48
  * @route '/advisor/service-activations/{serviceActivation}'
  */
-showForm.head = (
-    args:
-        | { serviceActivation: string | { id: string } }
-        | [serviceActivation: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: show.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'get',
-});
+        showForm.head = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
 
-show.form = showForm;
+    show.form = showForm
 /**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:68
  * @route '/advisor/service-activations/{serviceActivation}/package'
  */
-export const packageMethod = (
-    args:
-        | { serviceActivation: string | { id: string } }
-        | [serviceActivation: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+export const packageMethod = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: packageMethod.url(args, options),
     method: 'post',
-});
+})
 
 packageMethod.definition = {
-    methods: ['post'],
+    methods: ["post"],
     url: '/advisor/service-activations/{serviceActivation}/package',
-} satisfies RouteDefinition<['post']>;
+} satisfies RouteDefinition<["post"]>
 
 /**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:68
  * @route '/advisor/service-activations/{serviceActivation}/package'
  */
-packageMethod.url = (
-    args:
-        | { serviceActivation: string | { id: string } }
-        | [serviceActivation: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-) => {
+packageMethod.url = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { serviceActivation: args };
+        args = { serviceActivation: args }
     }
 
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { serviceActivation: args.id };
-    }
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { serviceActivation: args.id }
+        }
 
     if (Array.isArray(args)) {
         args = {
-            serviceActivation: args[0],
-        };
+                    serviceActivation: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        serviceActivation:
-            typeof args.serviceActivation === 'object'
+                        serviceActivation: typeof args.serviceActivation === 'object'
                 ? args.serviceActivation.id
                 : args.serviceActivation,
-    };
+                }
 
-    return (
-        packageMethod.definition.url
-            .replace(
-                '{serviceActivation}',
-                parsedArgs.serviceActivation.toString(),
-            )
+    return packageMethod.definition.url
+            .replace('{serviceActivation}', parsedArgs.serviceActivation.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:68
  * @route '/advisor/service-activations/{serviceActivation}/package'
  */
-packageMethod.post = (
-    args:
-        | { serviceActivation: string | { id: string } }
-        | [serviceActivation: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+packageMethod.post = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: packageMethod.url(args, options),
     method: 'post',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
+    /**
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:68
  * @route '/advisor/service-activations/{serviceActivation}/package'
  */
-const packageMethodForm = (
-    args:
-        | { serviceActivation: string | { id: string } }
-        | [serviceActivation: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: packageMethod.url(args, options),
-    method: 'post',
-});
+    const packageMethodForm = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: packageMethod.url(args, options),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
+            /**
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:68
  * @route '/advisor/service-activations/{serviceActivation}/package'
  */
-packageMethodForm.post = (
-    args:
-        | { serviceActivation: string | { id: string } }
-        | [serviceActivation: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: packageMethod.url(args, options),
-    method: 'post',
-});
+        packageMethodForm.post = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: packageMethod.url(args, options),
+            method: 'post',
+        })
 
-packageMethod.form = packageMethodForm;
+    packageMethod.form = packageMethodForm
 /**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:88
  * @route '/advisor/service-activations/{serviceActivation}/balance-received'
  */
-export const balanceReceived = (
-    args:
-        | { serviceActivation: string | { id: string } }
-        | [serviceActivation: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+export const balanceReceived = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: balanceReceived.url(args, options),
     method: 'post',
-});
+})
 
 balanceReceived.definition = {
-    methods: ['post'],
+    methods: ["post"],
     url: '/advisor/service-activations/{serviceActivation}/balance-received',
-} satisfies RouteDefinition<['post']>;
+} satisfies RouteDefinition<["post"]>
 
 /**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:88
  * @route '/advisor/service-activations/{serviceActivation}/balance-received'
  */
-balanceReceived.url = (
-    args:
-        | { serviceActivation: string | { id: string } }
-        | [serviceActivation: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-) => {
+balanceReceived.url = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { serviceActivation: args };
+        args = { serviceActivation: args }
     }
 
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { serviceActivation: args.id };
-    }
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { serviceActivation: args.id }
+        }
 
     if (Array.isArray(args)) {
         args = {
-            serviceActivation: args[0],
-        };
+                    serviceActivation: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        serviceActivation:
-            typeof args.serviceActivation === 'object'
+                        serviceActivation: typeof args.serviceActivation === 'object'
                 ? args.serviceActivation.id
                 : args.serviceActivation,
-    };
+                }
 
-    return (
-        balanceReceived.definition.url
-            .replace(
-                '{serviceActivation}',
-                parsedArgs.serviceActivation.toString(),
-            )
+    return balanceReceived.definition.url
+            .replace('{serviceActivation}', parsedArgs.serviceActivation.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:88
  * @route '/advisor/service-activations/{serviceActivation}/balance-received'
  */
-balanceReceived.post = (
-    args:
-        | { serviceActivation: string | { id: string } }
-        | [serviceActivation: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+balanceReceived.post = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: balanceReceived.url(args, options),
     method: 'post',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
+    /**
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:88
  * @route '/advisor/service-activations/{serviceActivation}/balance-received'
  */
-const balanceReceivedForm = (
-    args:
-        | { serviceActivation: string | { id: string } }
-        | [serviceActivation: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: balanceReceived.url(args, options),
-    method: 'post',
-});
+    const balanceReceivedForm = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: balanceReceived.url(args, options),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
+            /**
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:88
  * @route '/advisor/service-activations/{serviceActivation}/balance-received'
  */
-balanceReceivedForm.post = (
-    args:
-        | { serviceActivation: string | { id: string } }
-        | [serviceActivation: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: balanceReceived.url(args, options),
-    method: 'post',
-});
+        balanceReceivedForm.post = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: balanceReceived.url(args, options),
+            method: 'post',
+        })
 
-balanceReceived.form = balanceReceivedForm;
+    balanceReceived.form = balanceReceivedForm
 /**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::offerIntegrationScoping
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::offerIntegrationScoping
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:100
  * @route '/advisor/clients/{client}/integration-scoping-offer'
  */
-export const offerIntegrationScoping = (
-    args:
-        | { client: string | { id: string } }
-        | [client: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+export const offerIntegrationScoping = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: offerIntegrationScoping.url(args, options),
     method: 'post',
-});
+})
 
 offerIntegrationScoping.definition = {
-    methods: ['post'],
+    methods: ["post"],
     url: '/advisor/clients/{client}/integration-scoping-offer',
-} satisfies RouteDefinition<['post']>;
+} satisfies RouteDefinition<["post"]>
 
 /**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::offerIntegrationScoping
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::offerIntegrationScoping
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:100
  * @route '/advisor/clients/{client}/integration-scoping-offer'
  */
-offerIntegrationScoping.url = (
-    args:
-        | { client: string | { id: string } }
-        | [client: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-) => {
+offerIntegrationScoping.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { client: args };
+        args = { client: args }
     }
 
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { client: args.id };
-    }
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { client: args.id }
+        }
 
     if (Array.isArray(args)) {
         args = {
-            client: args[0],
-        };
+                    client: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        client: typeof args.client === 'object' ? args.client.id : args.client,
-    };
+                        client: typeof args.client === 'object'
+                ? args.client.id
+                : args.client,
+                }
 
-    return (
-        offerIntegrationScoping.definition.url
+    return offerIntegrationScoping.definition.url
             .replace('{client}', parsedArgs.client.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::offerIntegrationScoping
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::offerIntegrationScoping
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:100
  * @route '/advisor/clients/{client}/integration-scoping-offer'
  */
-offerIntegrationScoping.post = (
-    args:
-        | { client: string | { id: string } }
-        | [client: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+offerIntegrationScoping.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: offerIntegrationScoping.url(args, options),
     method: 'post',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::offerIntegrationScoping
+    /**
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::offerIntegrationScoping
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:100
  * @route '/advisor/clients/{client}/integration-scoping-offer'
  */
-const offerIntegrationScopingForm = (
-    args:
-        | { client: string | { id: string } }
-        | [client: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: offerIntegrationScoping.url(args, options),
-    method: 'post',
-});
+    const offerIntegrationScopingForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: offerIntegrationScoping.url(args, options),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Advisor\ServiceActivationController::offerIntegrationScoping
+            /**
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::offerIntegrationScoping
  * @see app/Http/Controllers/Advisor/ServiceActivationController.php:100
  * @route '/advisor/clients/{client}/integration-scoping-offer'
  */
-offerIntegrationScopingForm.post = (
-    args:
-        | { client: string | { id: string } }
-        | [client: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: offerIntegrationScoping.url(args, options),
-    method: 'post',
-});
+        offerIntegrationScopingForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: offerIntegrationScoping.url(args, options),
+            method: 'post',
+        })
 
-offerIntegrationScoping.form = offerIntegrationScopingForm;
-const ServiceActivationController = {
-    index,
-    show,
-    packageMethod,
-    balanceReceived,
-    offerIntegrationScoping,
-    package: packageMethod,
-};
+    offerIntegrationScoping.form = offerIntegrationScopingForm
+const ServiceActivationController = { index, show, packageMethod, balanceReceived, offerIntegrationScoping, package: packageMethod }
 
-export default ServiceActivationController;
+export default ServiceActivationController

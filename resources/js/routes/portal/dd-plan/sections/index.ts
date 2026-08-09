@@ -1,191 +1,141 @@
-import {
-    queryParams,
-    type RouteQueryOptions,
-    type RouteDefinition,
-    type RouteFormDefinition,
-    applyUrlDefaults,
-} from './../../../../wayfinder';
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
- * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:138
+* @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:149
  * @route '/portal/acquisition-plan/sections'
  */
-export const store = (
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(options),
     method: 'post',
-});
+})
 
 store.definition = {
-    methods: ['post'],
+    methods: ["post"],
     url: '/portal/acquisition-plan/sections',
-} satisfies RouteDefinition<['post']>;
+} satisfies RouteDefinition<["post"]>
 
 /**
- * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:138
+* @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:149
  * @route '/portal/acquisition-plan/sections'
  */
 store.url = (options?: RouteQueryOptions) => {
-    return store.definition.url + queryParams(options);
-};
+    return store.definition.url + queryParams(options)
+}
 
 /**
- * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:138
+* @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:149
  * @route '/portal/acquisition-plan/sections'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(options),
     method: 'post',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:138
+    /**
+* @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:149
  * @route '/portal/acquisition-plan/sections'
  */
-const storeForm = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: store.url(options),
-    method: 'post',
-});
+    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(options),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:138
+            /**
+* @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:149
  * @route '/portal/acquisition-plan/sections'
  */
-storeForm.post = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: store.url(options),
-    method: 'post',
-});
+        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(options),
+            method: 'post',
+        })
 
-store.form = storeForm;
+    store.form = storeForm
 /**
- * @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:183
+* @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:194
  * @route '/portal/acquisition-plan/sections/{planSection}/guidance'
  */
-export const guidance = (
-    args:
-        | { planSection: string | { id: string } }
-        | [planSection: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+export const guidance = (args: { planSection: string | { id: string } } | [planSection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: guidance.url(args, options),
     method: 'post',
-});
+})
 
 guidance.definition = {
-    methods: ['post'],
+    methods: ["post"],
     url: '/portal/acquisition-plan/sections/{planSection}/guidance',
-} satisfies RouteDefinition<['post']>;
+} satisfies RouteDefinition<["post"]>
 
 /**
- * @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:183
+* @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:194
  * @route '/portal/acquisition-plan/sections/{planSection}/guidance'
  */
-guidance.url = (
-    args:
-        | { planSection: string | { id: string } }
-        | [planSection: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-) => {
+guidance.url = (args: { planSection: string | { id: string } } | [planSection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { planSection: args };
+        args = { planSection: args }
     }
 
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { planSection: args.id };
-    }
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { planSection: args.id }
+        }
 
     if (Array.isArray(args)) {
         args = {
-            planSection: args[0],
-        };
+                    planSection: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        planSection:
-            typeof args.planSection === 'object'
+                        planSection: typeof args.planSection === 'object'
                 ? args.planSection.id
                 : args.planSection,
-    };
+                }
 
-    return (
-        guidance.definition.url
+    return guidance.definition.url
             .replace('{planSection}', parsedArgs.planSection.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:183
+* @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:194
  * @route '/portal/acquisition-plan/sections/{planSection}/guidance'
  */
-guidance.post = (
-    args:
-        | { planSection: string | { id: string } }
-        | [planSection: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+guidance.post = (args: { planSection: string | { id: string } } | [planSection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: guidance.url(args, options),
     method: 'post',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:183
+    /**
+* @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:194
  * @route '/portal/acquisition-plan/sections/{planSection}/guidance'
  */
-const guidanceForm = (
-    args:
-        | { planSection: string | { id: string } }
-        | [planSection: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: guidance.url(args, options),
-    method: 'post',
-});
+    const guidanceForm = (args: { planSection: string | { id: string } } | [planSection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: guidance.url(args, options),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:183
+            /**
+* @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:194
  * @route '/portal/acquisition-plan/sections/{planSection}/guidance'
  */
-guidanceForm.post = (
-    args:
-        | { planSection: string | { id: string } }
-        | [planSection: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: guidance.url(args, options),
-    method: 'post',
-});
+        guidanceForm.post = (args: { planSection: string | { id: string } } | [planSection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: guidance.url(args, options),
+            method: 'post',
+        })
 
-guidance.form = guidanceForm;
+    guidance.form = guidanceForm
 const sections = {
     store: Object.assign(store, store),
-    guidance: Object.assign(guidance, guidance),
-};
+guidance: Object.assign(guidance, guidance),
+}
 
-export default sections;
+export default sections

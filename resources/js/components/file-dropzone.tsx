@@ -130,17 +130,19 @@ export default function FileDropzone({
             </div>
 
             {files.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex min-w-0 flex-wrap gap-2">
                     {files.map((file) => (
                         <Badge
                             key={`${file.name}-${file.size}-${file.lastModified}`}
                             variant="secondary"
-                            className="gap-2"
+                            className="max-w-full gap-2"
                         >
-                            {file.name}
+                            <span className="min-w-0 truncate">
+                                {file.name}
+                            </span>
                             <button
                                 type="button"
-                                className="rounded-xs outline-none focus-visible:ring-[2px] focus-visible:ring-ring"
+                                className="shrink-0 rounded-xs outline-none focus-visible:ring-[2px] focus-visible:ring-ring"
                                 aria-label={`Remove ${file.name}`}
                                 onClick={() =>
                                     onFilesChange(

@@ -80,6 +80,10 @@ export type ThreadMessage = {
     mine: boolean;
     attachments: Array<{
         document_id: string;
+        type?: string;
+        filename?: string | null;
+        mime_type?: string | null;
+        url?: string | null;
     }>;
     sent_at: string | null;
 };
@@ -508,16 +512,39 @@ function MessageBubble({ message }: { message: ThreadMessage }) {
 
             {message.attachments.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                    {message.attachments.map((attachment) => (
-                        <Badge
-                            key={attachment.document_id}
-                            variant="outline"
-                            className="gap-1"
-                        >
-                            <Paperclip className="size-3" aria-hidden="true" />
-                            {shortDocumentId(attachment.document_id)}
-                        </Badge>
-                    ))}
+                    {message.attachments.map((attachment) => {
+                        const label = attachmentLabel(attachment);
+
+                        return attachment.url ? (
+                            <a
+                                key={attachment.document_id}
+                                href={attachment.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex max-w-full items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:ring-[2px] focus-visible:ring-ring focus-visible:outline-none"
+                                title={label}
+                            >
+                                <Paperclip
+                                    className="size-3 shrink-0"
+                                    aria-hidden="true"
+                                />
+                                <span className="truncate">{label}</span>
+                            </a>
+                        ) : (
+                            <Badge
+                                key={attachment.document_id}
+                                variant="outline"
+                                className="max-w-full gap-1"
+                                title={label}
+                            >
+                                <Paperclip
+                                    className="size-3 shrink-0"
+                                    aria-hidden="true"
+                                />
+                                <span className="truncate">{label}</span>
+                            </Badge>
+                        );
+                    })}
                 </div>
             )}
         </article>
@@ -572,6 +599,8 @@ function AttachmentField({
                 id={id}
                 files={files}
                 label="Attachments"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.gif"
+                description="PDF, Office, spreadsheet, or image files up to 20 MB each"
                 multiple
                 onFilesChange={onChange}
             />
@@ -591,8 +620,12 @@ function formatDate(value: string | null) {
     }).format(new Date(value));
 }
 
-function shortDocumentId(id: string) {
-    return `Document ${id.slice(0, 8)}`;
+function attachmentLabel(attachment: ThreadMessage['attachments'][number]) {
+    return (
+        attachment.filename ??
+        attachment.type ??
+        `Document ${attachment.document_id.slice(0, 8)}`
+    );
 }
 
 function deliveryLabel(value: string) {

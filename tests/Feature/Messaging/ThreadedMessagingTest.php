@@ -122,6 +122,14 @@ final class ThreadedMessagingTest extends TestCase
         $this->assertTrue($decision['email_deferred']);
         $this->assertFalse($decision['mail_now']);
         Mail::assertNothingSent();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.messages.show', [$client, $thread]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('selectedThread.messages.0.attachments.0.document_id', $document->id)
+                ->where('selectedThread.messages.0.attachments.0.filename', 'cashflow.pdf')
+                ->where('selectedThread.messages.0.attachments.0.url', route('advisor.clients.documents.show', [$client, $document], absolute: false)));
     }
 
     public function test_client_replies_from_portal_and_advisor_receives_notification(): void
@@ -240,6 +248,53 @@ final class ThreadedMessagingTest extends TestCase
                 ->where('backHref', route('portal.entrepreneur.dashboard', absolute: false))
                 ->where('selectedThread.id', $thread->id)
                 ->has('selectedThread.messages', 1));
+    }
+
+    public function test_entrepreneur_message_image_attachment_reaches_advisor_thread(): void
+    {
+        $advisor = $this->advisor();
+        $entrepreneur = $this->entrepreneurUser();
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->getKey(),
+            'user_id' => $entrepreneur->getKey(),
+            'name' => 'Image Attachment Founder',
+            'email' => $entrepreneur->email,
+            'stage' => EntrepreneurStage::ONBOARDING,
+            'concept_summary' => 'A founder sharing UI screenshots.',
+        ]);
+
+        $this->actingAsMfa($entrepreneur)
+            ->post(route('portal.messages.store'), [
+                'subject' => 'Budget layout screenshots',
+                'body' => 'The budget section is hard to work with on my laptop.',
+                'attachments' => [
+                    UploadedFile::fake()->create('budget-layout.jpg', 24, 'image/jpeg'),
+                ],
+            ])
+            ->assertRedirect();
+
+        $thread = MessageThread::query()->firstOrFail();
+        $message = Message::query()->firstOrFail();
+        $document = Document::query()->firstOrFail();
+        $notification = $advisor->notifications()->firstOrFail();
+
+        $this->assertSame($profile->id, $thread->entrepreneur_profile_id);
+        $this->assertSame([$document->id], $message->attachments);
+        $this->assertSame('budget-layout.jpg', $document->original_filename);
+        $this->assertSame('image/jpeg', $document->mime_type);
+        $this->assertSame(
+            route('advisor.entrepreneurs.messages.show', [$profile, $thread], absolute: false),
+            $notification->data['url'] ?? null,
+        );
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.messages.show', [$profile, $thread]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('selectedThread.messages.0.attachments.0.document_id', $document->id)
+                ->where('selectedThread.messages.0.attachments.0.filename', 'budget-layout.jpg')
+                ->where('selectedThread.messages.0.attachments.0.mime_type', 'image/jpeg')
+                ->where('selectedThread.messages.0.attachments.0.url', route('advisor.entrepreneurs.documents.show', [$profile, $document], absolute: false)));
     }
 
     public function test_advisor_starts_entrepreneur_thread_from_advisor_portal(): void

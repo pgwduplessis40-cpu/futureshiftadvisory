@@ -166,9 +166,36 @@ final class AssessmentTest extends TestCase
         $this->assertStringContainsString('What to add/change:', $feedback);
         $this->assertStringContainsString('Where in the plan:', $feedback);
         $this->assertStringContainsString('Dear Assessment,', $reply);
-        $this->assertStringContainsString('You have made real progress', $reply);
+        $this->assertStringContainsString('You have made progress', $reply);
         $this->assertStringContainsString('What is missing:', $reply);
         $this->assertStringNotContainsString('Assessment completed:', $reply);
+    }
+
+    public function test_assessment_feedback_reply_uses_plain_language_without_truncated_ai_rationale(): void
+    {
+        [$advisor, $plan] = $this->plan('assessment-feedback-plain-language@example.test');
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $assessment->forceFill([
+            'ai_scores' => collect($assessment->ai_scores)
+                ->map(fn (array $row, int $index): array => [
+                    ...$row,
+                    'score' => $index < 3 ? 35 + $index : 88,
+                    'rationale' => 'The section is directionally aware but materially underdeveloped for launch decision-making and anchors the target cust...',
+                ])
+                ->all(),
+        ])->save();
+
+        $feedbacks = app(AssessmentFeedback::class);
+        $reply = $feedbacks->proposedReply($plan->entrepreneurProfile()->firstOrFail(), $assessment->refresh());
+        $replyLower = strtolower($reply);
+
+        $this->assertStringContainsString('You do not need to start again.', $reply);
+        $this->assertStringContainsString('Please work through these updates:', $reply);
+        $this->assertStringNotContainsString('...', $reply);
+        $this->assertStringNotContainsString('directionally', $replyLower);
+        $this->assertStringNotContainsString('materially underdeveloped', $replyLower);
+        $this->assertStringNotContainsString('launch decision-making', $replyLower);
+        $this->assertTrue($feedbacks->isLegacyReply('The IP section is directionally aware but materially underdeveloped for launch decision-making...'));
     }
 
     public function test_advisor_can_save_and_send_assessment_feedback_to_the_founder(): void

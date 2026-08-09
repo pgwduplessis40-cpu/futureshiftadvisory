@@ -126,7 +126,21 @@ final class ClientController extends Controller
             $engagement = EngagementType::tryFrom($engagementType);
             abort_unless($engagement instanceof EngagementType, 404);
 
-            $query->where('engagement_type', $engagement->value);
+            if ($engagement === EngagementType::DUE_DILIGENCE) {
+                $query->where(function ($clientQuery) use ($engagement): void {
+                    $clientQuery
+                        ->where('engagement_type', $engagement->value)
+                        ->orWhereHas('serviceActivations', function ($activationQuery): void {
+                            $activationQuery
+                                ->where('service_type', ServiceActivation::SERVICE_DUE_DILIGENCE)
+                                ->where('status', ServiceActivation::STATUS_ACTIVE)
+                                ->whereNotNull('related_dd_engagement_id');
+                        });
+                });
+            } else {
+                $query->where('engagement_type', $engagement->value);
+            }
+
             $engagementFilter = [
                 'key' => $engagement->value,
                 'label' => $this->engagementIndexLabel($engagement),

@@ -1,292 +1,267 @@
-import {
-    queryParams,
-    type RouteQueryOptions,
-    type RouteDefinition,
-    type RouteFormDefinition,
-} from './../../../../../wayfinder';
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
- * @see \App\Http\Controllers\Settings\ProfileController::edit
+* @see \App\Http\Controllers\Settings\ProfileController::edit
  * @see app/Http/Controllers/Settings/ProfileController.php:24
  * @route '/settings/profile'
  */
 export const edit = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: edit.url(options),
     method: 'get',
-});
+})
 
 edit.definition = {
-    methods: ['get', 'head'],
+    methods: ["get","head"],
     url: '/settings/profile',
-} satisfies RouteDefinition<['get', 'head']>;
+} satisfies RouteDefinition<["get","head"]>
 
 /**
- * @see \App\Http\Controllers\Settings\ProfileController::edit
+* @see \App\Http\Controllers\Settings\ProfileController::edit
  * @see app/Http/Controllers/Settings/ProfileController.php:24
  * @route '/settings/profile'
  */
 edit.url = (options?: RouteQueryOptions) => {
-    return edit.definition.url + queryParams(options);
-};
+    return edit.definition.url + queryParams(options)
+}
 
 /**
- * @see \App\Http\Controllers\Settings\ProfileController::edit
+* @see \App\Http\Controllers\Settings\ProfileController::edit
  * @see app/Http/Controllers/Settings/ProfileController.php:24
  * @route '/settings/profile'
  */
 edit.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: edit.url(options),
     method: 'get',
-});
+})
 /**
- * @see \App\Http\Controllers\Settings\ProfileController::edit
+* @see \App\Http\Controllers\Settings\ProfileController::edit
  * @see app/Http/Controllers/Settings/ProfileController.php:24
  * @route '/settings/profile'
  */
 edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: edit.url(options),
     method: 'head',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Settings\ProfileController::edit
+    /**
+* @see \App\Http\Controllers\Settings\ProfileController::edit
  * @see app/Http/Controllers/Settings/ProfileController.php:24
  * @route '/settings/profile'
  */
-const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: edit.url(options),
-    method: 'get',
-});
+    const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: edit.url(options),
+        method: 'get',
+    })
 
-/**
- * @see \App\Http\Controllers\Settings\ProfileController::edit
+            /**
+* @see \App\Http\Controllers\Settings\ProfileController::edit
  * @see app/Http/Controllers/Settings/ProfileController.php:24
  * @route '/settings/profile'
  */
-editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: edit.url(options),
-    method: 'get',
-});
-/**
- * @see \App\Http\Controllers\Settings\ProfileController::edit
+        editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: edit.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Settings\ProfileController::edit
  * @see app/Http/Controllers/Settings/ProfileController.php:24
  * @route '/settings/profile'
  */
-editForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: edit.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'get',
-});
+        editForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: edit.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
 
-edit.form = editForm;
+    edit.form = editForm
 /**
- * @see \App\Http\Controllers\Settings\ProfileController::update
+* @see \App\Http\Controllers\Settings\ProfileController::update
  * @see app/Http/Controllers/Settings/ProfileController.php:36
  * @route '/settings/profile'
  */
-export const update = (
-    options?: RouteQueryOptions,
-): RouteDefinition<'patch'> => ({
+export const update = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: update.url(options),
     method: 'patch',
-});
+})
 
 update.definition = {
-    methods: ['patch'],
+    methods: ["patch"],
     url: '/settings/profile',
-} satisfies RouteDefinition<['patch']>;
+} satisfies RouteDefinition<["patch"]>
 
 /**
- * @see \App\Http\Controllers\Settings\ProfileController::update
+* @see \App\Http\Controllers\Settings\ProfileController::update
  * @see app/Http/Controllers/Settings/ProfileController.php:36
  * @route '/settings/profile'
  */
 update.url = (options?: RouteQueryOptions) => {
-    return update.definition.url + queryParams(options);
-};
+    return update.definition.url + queryParams(options)
+}
 
 /**
- * @see \App\Http\Controllers\Settings\ProfileController::update
+* @see \App\Http\Controllers\Settings\ProfileController::update
  * @see app/Http/Controllers/Settings/ProfileController.php:36
  * @route '/settings/profile'
  */
 update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: update.url(options),
     method: 'patch',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Settings\ProfileController::update
+    /**
+* @see \App\Http\Controllers\Settings\ProfileController::update
  * @see app/Http/Controllers/Settings/ProfileController.php:36
  * @route '/settings/profile'
  */
-const updateForm = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: update.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'PATCH',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'post',
-});
+    const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url({
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Settings\ProfileController::update
+            /**
+* @see \App\Http\Controllers\Settings\ProfileController::update
  * @see app/Http/Controllers/Settings/ProfileController.php:36
  * @route '/settings/profile'
  */
-updateForm.patch = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: update.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'PATCH',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'post',
-});
+        updateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
 
-update.form = updateForm;
+    update.form = updateForm
 /**
- * @see \App\Http\Controllers\Settings\ProfileController::requestDeactivation
+* @see \App\Http\Controllers\Settings\ProfileController::requestDeactivation
  * @see app/Http/Controllers/Settings/ProfileController.php:59
  * @route '/settings/profile/deactivation-request'
  */
-export const requestDeactivation = (
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+export const requestDeactivation = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: requestDeactivation.url(options),
     method: 'post',
-});
+})
 
 requestDeactivation.definition = {
-    methods: ['post'],
+    methods: ["post"],
     url: '/settings/profile/deactivation-request',
-} satisfies RouteDefinition<['post']>;
+} satisfies RouteDefinition<["post"]>
 
 /**
- * @see \App\Http\Controllers\Settings\ProfileController::requestDeactivation
+* @see \App\Http\Controllers\Settings\ProfileController::requestDeactivation
  * @see app/Http/Controllers/Settings/ProfileController.php:59
  * @route '/settings/profile/deactivation-request'
  */
 requestDeactivation.url = (options?: RouteQueryOptions) => {
-    return requestDeactivation.definition.url + queryParams(options);
-};
+    return requestDeactivation.definition.url + queryParams(options)
+}
 
 /**
- * @see \App\Http\Controllers\Settings\ProfileController::requestDeactivation
+* @see \App\Http\Controllers\Settings\ProfileController::requestDeactivation
  * @see app/Http/Controllers/Settings/ProfileController.php:59
  * @route '/settings/profile/deactivation-request'
  */
-requestDeactivation.post = (
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+requestDeactivation.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: requestDeactivation.url(options),
     method: 'post',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Settings\ProfileController::requestDeactivation
+    /**
+* @see \App\Http\Controllers\Settings\ProfileController::requestDeactivation
  * @see app/Http/Controllers/Settings/ProfileController.php:59
  * @route '/settings/profile/deactivation-request'
  */
-const requestDeactivationForm = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: requestDeactivation.url(options),
-    method: 'post',
-});
+    const requestDeactivationForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: requestDeactivation.url(options),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Settings\ProfileController::requestDeactivation
+            /**
+* @see \App\Http\Controllers\Settings\ProfileController::requestDeactivation
  * @see app/Http/Controllers/Settings/ProfileController.php:59
  * @route '/settings/profile/deactivation-request'
  */
-requestDeactivationForm.post = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: requestDeactivation.url(options),
-    method: 'post',
-});
+        requestDeactivationForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: requestDeactivation.url(options),
+            method: 'post',
+        })
 
-requestDeactivation.form = requestDeactivationForm;
+    requestDeactivation.form = requestDeactivationForm
 /**
- * @see \App\Http\Controllers\Settings\ProfileController::destroy
+* @see \App\Http\Controllers\Settings\ProfileController::destroy
  * @see app/Http/Controllers/Settings/ProfileController.php:54
  * @route '/settings/profile'
  */
-export const destroy = (
-    options?: RouteQueryOptions,
-): RouteDefinition<'delete'> => ({
+export const destroy = (options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
     url: destroy.url(options),
     method: 'delete',
-});
+})
 
 destroy.definition = {
-    methods: ['delete'],
+    methods: ["delete"],
     url: '/settings/profile',
-} satisfies RouteDefinition<['delete']>;
+} satisfies RouteDefinition<["delete"]>
 
 /**
- * @see \App\Http\Controllers\Settings\ProfileController::destroy
+* @see \App\Http\Controllers\Settings\ProfileController::destroy
  * @see app/Http/Controllers/Settings/ProfileController.php:54
  * @route '/settings/profile'
  */
 destroy.url = (options?: RouteQueryOptions) => {
-    return destroy.definition.url + queryParams(options);
-};
+    return destroy.definition.url + queryParams(options)
+}
 
 /**
- * @see \App\Http\Controllers\Settings\ProfileController::destroy
+* @see \App\Http\Controllers\Settings\ProfileController::destroy
  * @see app/Http/Controllers/Settings/ProfileController.php:54
  * @route '/settings/profile'
  */
 destroy.delete = (options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
     url: destroy.url(options),
     method: 'delete',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Settings\ProfileController::destroy
+    /**
+* @see \App\Http\Controllers\Settings\ProfileController::destroy
  * @see app/Http/Controllers/Settings/ProfileController.php:54
  * @route '/settings/profile'
  */
-const destroyForm = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: destroy.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'DELETE',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'post',
-});
+    const destroyForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: destroy.url({
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Settings\ProfileController::destroy
+            /**
+* @see \App\Http\Controllers\Settings\ProfileController::destroy
  * @see app/Http/Controllers/Settings/ProfileController.php:54
  * @route '/settings/profile'
  */
-destroyForm.delete = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: destroy.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'DELETE',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'post',
-});
+        destroyForm.delete = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: destroy.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
 
-destroy.form = destroyForm;
-const ProfileController = { edit, update, requestDeactivation, destroy };
+    destroy.form = destroyForm
+const ProfileController = { edit, update, requestDeactivation, destroy }
 
-export default ProfileController;
+export default ProfileController

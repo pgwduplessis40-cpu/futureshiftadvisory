@@ -1,99 +1,80 @@
-import {
-    queryParams,
-    type RouteQueryOptions,
-    type RouteDefinition,
-    type RouteFormDefinition,
-} from './../../../../../wayfinder';
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
- * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:43
+* @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:48
  * @route '/portal/entrepreneur'
  */
-const EntrepreneurDashboardController = (
-    options?: RouteQueryOptions,
-): RouteDefinition<'get'> => ({
+const EntrepreneurDashboardController = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: EntrepreneurDashboardController.url(options),
     method: 'get',
-});
+})
 
 EntrepreneurDashboardController.definition = {
-    methods: ['get', 'head'],
+    methods: ["get","head"],
     url: '/portal/entrepreneur',
-} satisfies RouteDefinition<['get', 'head']>;
+} satisfies RouteDefinition<["get","head"]>
 
 /**
- * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:43
+* @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:48
  * @route '/portal/entrepreneur'
  */
 EntrepreneurDashboardController.url = (options?: RouteQueryOptions) => {
-    return (
-        EntrepreneurDashboardController.definition.url + queryParams(options)
-    );
-};
+    return EntrepreneurDashboardController.definition.url + queryParams(options)
+}
 
 /**
- * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:43
+* @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:48
  * @route '/portal/entrepreneur'
  */
-EntrepreneurDashboardController.get = (
-    options?: RouteQueryOptions,
-): RouteDefinition<'get'> => ({
+EntrepreneurDashboardController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: EntrepreneurDashboardController.url(options),
     method: 'get',
-});
+})
 /**
- * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:43
+* @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:48
  * @route '/portal/entrepreneur'
  */
-EntrepreneurDashboardController.head = (
-    options?: RouteQueryOptions,
-): RouteDefinition<'head'> => ({
+EntrepreneurDashboardController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: EntrepreneurDashboardController.url(options),
     method: 'head',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:43
+    /**
+* @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:48
  * @route '/portal/entrepreneur'
  */
-const EntrepreneurDashboardControllerForm = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: EntrepreneurDashboardController.url(options),
-    method: 'get',
-});
+    const EntrepreneurDashboardControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: EntrepreneurDashboardController.url(options),
+        method: 'get',
+    })
 
-/**
- * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:43
+            /**
+* @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:48
  * @route '/portal/entrepreneur'
  */
-EntrepreneurDashboardControllerForm.get = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: EntrepreneurDashboardController.url(options),
-    method: 'get',
-});
-/**
- * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:43
+        EntrepreneurDashboardControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: EntrepreneurDashboardController.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:48
  * @route '/portal/entrepreneur'
  */
-EntrepreneurDashboardControllerForm.head = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: EntrepreneurDashboardController.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'get',
-});
+        EntrepreneurDashboardControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: EntrepreneurDashboardController.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
 
-EntrepreneurDashboardController.form = EntrepreneurDashboardControllerForm;
-export default EntrepreneurDashboardController;
+    EntrepreneurDashboardController.form = EntrepreneurDashboardControllerForm
+export default EntrepreneurDashboardController

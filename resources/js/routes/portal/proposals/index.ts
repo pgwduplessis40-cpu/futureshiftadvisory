@@ -1,323 +1,213 @@
-import {
-    queryParams,
-    type RouteQueryOptions,
-    type RouteDefinition,
-    type RouteFormDefinition,
-    applyUrlDefaults,
-} from './../../../wayfinder';
-import signoff from './signoff';
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
+import signoff from './signoff'
 /**
- * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::show
  * @see app/Http/Controllers/Portal/ProposalSignoffController.php:151
  * @route '/portal/proposals/{proposal}'
  */
-export const show = (
-    args:
-        | { proposal: string | { id: string } }
-        | [proposal: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'get'> => ({
+export const show = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
-});
+})
 
 show.definition = {
-    methods: ['get', 'head'],
+    methods: ["get","head"],
     url: '/portal/proposals/{proposal}',
-} satisfies RouteDefinition<['get', 'head']>;
+} satisfies RouteDefinition<["get","head"]>
 
 /**
- * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::show
  * @see app/Http/Controllers/Portal/ProposalSignoffController.php:151
  * @route '/portal/proposals/{proposal}'
  */
-show.url = (
-    args:
-        | { proposal: string | { id: string } }
-        | [proposal: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-) => {
+show.url = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { proposal: args };
+        args = { proposal: args }
     }
 
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { proposal: args.id };
-    }
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { proposal: args.id }
+        }
 
     if (Array.isArray(args)) {
         args = {
-            proposal: args[0],
-        };
+                    proposal: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        proposal:
-            typeof args.proposal === 'object'
+                        proposal: typeof args.proposal === 'object'
                 ? args.proposal.id
                 : args.proposal,
-    };
+                }
 
-    return (
-        show.definition.url
+    return show.definition.url
             .replace('{proposal}', parsedArgs.proposal.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::show
  * @see app/Http/Controllers/Portal/ProposalSignoffController.php:151
  * @route '/portal/proposals/{proposal}'
  */
-show.get = (
-    args:
-        | { proposal: string | { id: string } }
-        | [proposal: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'get'> => ({
+show.get = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
-});
+})
 /**
- * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::show
  * @see app/Http/Controllers/Portal/ProposalSignoffController.php:151
  * @route '/portal/proposals/{proposal}'
  */
-show.head = (
-    args:
-        | { proposal: string | { id: string } }
-        | [proposal: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'head'> => ({
+show.head = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: show.url(args, options),
     method: 'head',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
+    /**
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::show
  * @see app/Http/Controllers/Portal/ProposalSignoffController.php:151
  * @route '/portal/proposals/{proposal}'
  */
-const showForm = (
-    args:
-        | { proposal: string | { id: string } }
-        | [proposal: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: show.url(args, options),
-    method: 'get',
-});
+    const showForm = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: show.url(args, options),
+        method: 'get',
+    })
 
-/**
- * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
+            /**
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::show
  * @see app/Http/Controllers/Portal/ProposalSignoffController.php:151
  * @route '/portal/proposals/{proposal}'
  */
-showForm.get = (
-    args:
-        | { proposal: string | { id: string } }
-        | [proposal: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: show.url(args, options),
-    method: 'get',
-});
-/**
- * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
+        showForm.get = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::show
  * @see app/Http/Controllers/Portal/ProposalSignoffController.php:151
  * @route '/portal/proposals/{proposal}'
  */
-showForm.head = (
-    args:
-        | { proposal: string | { id: string } }
-        | [proposal: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: show.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'get',
-});
+        showForm.head = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: show.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
 
-show.form = showForm;
+    show.form = showForm
 /**
- * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::download
  * @see app/Http/Controllers/Portal/ProposalSignoffController.php:182
  * @route '/portal/proposals/{proposal}/download'
  */
-export const download = (
-    args:
-        | { proposal: string | { id: string } }
-        | [proposal: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'get'> => ({
+export const download = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: download.url(args, options),
     method: 'get',
-});
+})
 
 download.definition = {
-    methods: ['get', 'head'],
+    methods: ["get","head"],
     url: '/portal/proposals/{proposal}/download',
-} satisfies RouteDefinition<['get', 'head']>;
+} satisfies RouteDefinition<["get","head"]>
 
 /**
- * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::download
  * @see app/Http/Controllers/Portal/ProposalSignoffController.php:182
  * @route '/portal/proposals/{proposal}/download'
  */
-download.url = (
-    args:
-        | { proposal: string | { id: string } }
-        | [proposal: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-) => {
+download.url = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { proposal: args };
+        args = { proposal: args }
     }
 
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { proposal: args.id };
-    }
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { proposal: args.id }
+        }
 
     if (Array.isArray(args)) {
         args = {
-            proposal: args[0],
-        };
+                    proposal: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        proposal:
-            typeof args.proposal === 'object'
+                        proposal: typeof args.proposal === 'object'
                 ? args.proposal.id
                 : args.proposal,
-    };
+                }
 
-    return (
-        download.definition.url
+    return download.definition.url
             .replace('{proposal}', parsedArgs.proposal.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::download
  * @see app/Http/Controllers/Portal/ProposalSignoffController.php:182
  * @route '/portal/proposals/{proposal}/download'
  */
-download.get = (
-    args:
-        | { proposal: string | { id: string } }
-        | [proposal: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'get'> => ({
+download.get = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: download.url(args, options),
     method: 'get',
-});
+})
 /**
- * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::download
  * @see app/Http/Controllers/Portal/ProposalSignoffController.php:182
  * @route '/portal/proposals/{proposal}/download'
  */
-download.head = (
-    args:
-        | { proposal: string | { id: string } }
-        | [proposal: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteDefinition<'head'> => ({
+download.head = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: download.url(args, options),
     method: 'head',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
+    /**
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::download
  * @see app/Http/Controllers/Portal/ProposalSignoffController.php:182
  * @route '/portal/proposals/{proposal}/download'
  */
-const downloadForm = (
-    args:
-        | { proposal: string | { id: string } }
-        | [proposal: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: download.url(args, options),
-    method: 'get',
-});
+    const downloadForm = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: download.url(args, options),
+        method: 'get',
+    })
 
-/**
- * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
+            /**
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::download
  * @see app/Http/Controllers/Portal/ProposalSignoffController.php:182
  * @route '/portal/proposals/{proposal}/download'
  */
-downloadForm.get = (
-    args:
-        | { proposal: string | { id: string } }
-        | [proposal: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: download.url(args, options),
-    method: 'get',
-});
-/**
- * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
+        downloadForm.get = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: download.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::download
  * @see app/Http/Controllers/Portal/ProposalSignoffController.php:182
  * @route '/portal/proposals/{proposal}/download'
  */
-downloadForm.head = (
-    args:
-        | { proposal: string | { id: string } }
-        | [proposal: string | { id: string }]
-        | string
-        | { id: string },
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: download.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'get',
-});
+        downloadForm.head = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: download.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
 
-download.form = downloadForm;
+    download.form = downloadForm
 const proposals = {
     show: Object.assign(show, show),
-    download: Object.assign(download, download),
-    signoff: Object.assign(signoff, signoff),
-};
+download: Object.assign(download, download),
+signoff: Object.assign(signoff, signoff),
+}
 
-export default proposals;
+export default proposals

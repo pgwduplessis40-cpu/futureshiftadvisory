@@ -81,8 +81,9 @@ final class PlanBuilder
         User $actor,
         array $metadata = [],
         array $attachedDocumentIds = [],
+        ?string $completenessStatus = null,
     ): PlanSection {
-        return DB::transaction(function () use ($plan, $phaseKey, $key, $title, $body, $actor, $metadata, $attachedDocumentIds): PlanSection {
+        return DB::transaction(function () use ($plan, $phaseKey, $key, $title, $body, $actor, $metadata, $attachedDocumentIds, $completenessStatus): PlanSection {
             $warning = $this->plans->dependencyWarning($plan, $phaseKey);
             $section = $this->plans->upsertSection(
                 plan: $plan,
@@ -97,6 +98,7 @@ final class PlanBuilder
                     ...$metadata,
                 ],
                 attachedDocumentIds: $attachedDocumentIds,
+                completenessStatus: $completenessStatus,
             );
 
             $phasePosition = (int) $section->phase()->value('position');

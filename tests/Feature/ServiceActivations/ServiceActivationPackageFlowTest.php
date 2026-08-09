@@ -9,6 +9,7 @@ use App\Enums\EntrepreneurStage;
 use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\DdEngagement;
 use App\Models\EntrepreneurProfile;
 use App\Models\PilotFeeWaiverProgram;
 use App\Models\ServiceActivation;
@@ -149,6 +150,44 @@ final class ServiceActivationPackageFlowTest extends TestCase
         $this->assertSame(ServiceActivation::STATUS_ACTIVE, $activation->status);
         $this->assertSame(ServiceActivation::PAYMENT_NOT_REQUIRED, $activation->payment_status);
         $this->assertNotNull($activation->related_dd_engagement_id);
+        $engagement = DdEngagement::query()->findOrFail($activation->related_dd_engagement_id);
+        $this->assertSame('guided', data_get($engagement->target_details, 'client_capability.mode'));
+    }
+
+    public function test_due_diligence_acceptance_records_experienced_support_path(): void
+    {
+        [$activation, $advisor, $clientUser] = $this->activationFixture(
+            'experienced-dd@example.test',
+            ServiceActivation::SERVICE_DUE_DILIGENCE,
+        );
+        $activation->forceFill([
+            'intake' => [
+                'target_name' => 'Acquisition target',
+                'industry' => 'Retail',
+                'asking_price' => 250000,
+                'dd_experience' => 'completed_before',
+                'business_ownership_experience' => 'bought_or_sold_business',
+                'financial_confidence' => 'high',
+                'preferred_guidance' => 'fast_track',
+                'notes' => 'Experienced buyer wants a compact DD path.',
+            ],
+        ])->save();
+        $package = $this->package(
+            ServiceRatePackage::SCOPE_DD_UNDER_300K,
+            serviceType: ServiceRatePackage::SERVICE_DUE_DILIGENCE,
+        );
+        $manager = app(ServiceActivationManager::class);
+
+        $activation = $manager->selectPackage($activation, $package, $advisor);
+        $activation = $manager->completePayment($activation, $clientUser);
+        $activation = $manager->accept($activation, $clientUser);
+
+        $engagement = DdEngagement::query()->findOrFail($activation->related_dd_engagement_id);
+
+        $this->assertSame(ServiceActivation::STATUS_ACTIVE, $activation->status);
+        $this->assertSame('experienced', data_get($engagement->target_details, 'client_capability.mode'));
+        $this->assertSame('fast_track', data_get($engagement->target_details, 'client_capability.support_level'));
+        $this->assertSame('completed_before', data_get($engagement->target_details, 'client_capability.dd_experience'));
     }
 
     public function test_existing_deposit_pending_activation_is_waived_when_client_becomes_pilot(): void

@@ -8,137 +8,158 @@ use App\Enums\QuestionnaireQuestionType;
 use App\Enums\QuestionnaireSet;
 use App\Models\Questionnaire;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Version 2 of the Due Diligence (dd_specific) questionnaire — the full,
- * researched base content, completed on the target/vendor side. Each question
- * carries the "why we need this" as help_text. Published after v1, so the
- * resolver makes this the active set; v1 is retained for history.
- *
- * Per scope decision: the addendum's "Clarifying questions for you" (asset vs
- * share, regulated, cross-border) are acquirer/engagement-setup questions, not
- * target questions, and the "Red Flags Checklist" is advisor-facing / auto-
- * detected — both are intentionally excluded from this target questionnaire.
+ * Version 2 of the buying-a-business due diligence questions. The wording is
+ * intentionally plain because many buyers are not finance or M&A specialists.
  */
 final class DdSpecificQuestionnaireV2Seeder extends Seeder
 {
     public function run(): void
     {
         DB::transaction(function (): void {
-            $questionnaire = Questionnaire::query()->firstOrCreate(
+            $questionnaire = Questionnaire::query()->updateOrCreate(
                 [
                     'set' => QuestionnaireSet::DUE_DILIGENCE->value,
                     'version' => '2',
                 ],
                 [
-                    'title' => 'Due Diligence Questionnaire',
+                    'title' => 'Buying a Business Questions',
                     'published_at' => now(),
                 ],
             );
 
-            if ($questionnaire->sections()->exists()) {
-                return;
-            }
-
             $sections = [
                 [
-                    'title' => 'Deal Summary and Structure',
-                    'help_text' => 'How the transaction is framed — what transfers, how, and on what timetable.',
+                    'title' => 'The deal basics',
+                    'help_text' => 'The basic facts about what you may buy, how much it may cost, and when it may happen.',
                     'questions' => [
-                        $this->q('Transaction type — asset sale or share sale?', QuestionnaireQuestionType::SINGLE_SELECT, 'Decides which liabilities and contracts transfer to the buyer.', options: $this->options(['Asset sale', 'Share sale', 'Undecided'])),
-                        $this->q('Proposed price and payment mix.', QuestionnaireQuestionType::LONG_TEXT, 'Cash, vendor finance, earnout, or combination? Shows how risk and seller incentives are shared.'),
-                        $this->q('Target completion date and key milestones.', QuestionnaireQuestionType::LONG_TEXT, 'Dates for exclusivity, DD, signing, and settlement. Sets the timetable and conditionality.'),
+                        $this->q('Are you buying the business assets, the company shares, or are you not sure yet?', QuestionnaireQuestionType::SINGLE_SELECT, 'This changes what old debts, contracts, staff obligations, and problems may come with the purchase.', options: $this->options(['Assets only', 'Company shares', 'Not sure yet'])),
+                        $this->q('What price is being discussed, and how would it be paid?', QuestionnaireQuestionType::LONG_TEXT, 'This helps us see how much cash you need, whether the seller is lending money, and whether the payment terms protect you.'),
+                        $this->q('When do you hope to decide, sign, and take over?', QuestionnaireQuestionType::LONG_TEXT, 'This helps us plan what must be checked first and what could delay the purchase.'),
                     ],
                 ],
                 [
-                    'title' => 'Financial Quality and Earnings',
-                    'help_text' => 'Verifying true, recurring earnings and the working-capital position.',
+                    'title' => 'Sales, costs, and profit',
+                    'help_text' => 'The money records help us see whether the business really earns what the seller says it earns.',
                     'questions' => [
-                        $this->q('3–5 years P&L, balance sheet, cashflow, and last 24 months monthly management accounts.', QuestionnaireQuestionType::FILE_ATTACH, 'Verifies trends, seasonality and normalised earnings.', required: false),
-                        $this->q('Owner discretionary adjustments and one-off items.', QuestionnaireQuestionType::LONG_TEXT, 'Describe and quantify, so we can calculate true recurring EBITDA.'),
-                        $this->q('Working capital detail.', QuestionnaireQuestionType::LONG_TEXT, 'Aged receivables/payables, inventory, customer prepayments. Sets the working-capital target at close.'),
+                        $this->q('Upload any sales, cost, profit, cash, stock, money owed, or money owing reports you have.', QuestionnaireQuestionType::FILE_ATTACH, 'These reports help us check trends, busy seasons, slow seasons, and whether profit is steady or unusual.', required: false),
+                        $this->q('Are there any costs, income, owner perks, or one-off items that may not continue after you buy?', QuestionnaireQuestionType::LONG_TEXT, 'This helps us work out what the business may earn for you after the current owner leaves.'),
+                        $this->q('What money would need to stay in the business on takeover day?', QuestionnaireQuestionType::LONG_TEXT, 'This helps avoid surprises around stock, unpaid customer invoices, supplier bills, deposits, or cash needed to keep trading.'),
                     ],
                 ],
                 [
-                    'title' => 'Liabilities, Debt and Tax',
-                    'help_text' => 'Hidden obligations that change price or structure.',
+                    'title' => 'Debts, tax, and other amounts owed',
+                    'help_text' => 'Old debts or unpaid tax can change the price or create risk for you.',
                     'questions' => [
-                        $this->q('All loan agreements, guarantees, security interests, and covenant history.', QuestionnaireQuestionType::FILE_ATTACH, 'Hidden debt or guarantees change price and structure.', required: false),
-                        $this->q('Recent tax returns, GST filings, and any tax audits or disputes.', QuestionnaireQuestionType::FILE_ATTACH, 'Tax exposures differ by asset vs share sale.', required: false),
+                        $this->q('Upload any loan, guarantee, security, or debt documents you have.', QuestionnaireQuestionType::FILE_ATTACH, 'These documents help us check whether the business has debts or promises that could follow the sale.', required: false),
+                        $this->q('Upload any recent tax, GST, or tax dispute information you have.', QuestionnaireQuestionType::FILE_ATTACH, 'Tax problems can reduce value or create costs after you buy.', required: false),
                     ],
                 ],
                 [
-                    'title' => 'Contracts, Customers and Suppliers',
-                    'help_text' => 'Revenue concentration and change-of-control risk in key relationships.',
+                    'title' => 'Customers, suppliers, and key agreements',
+                    'help_text' => 'A business can lose value if important customers, suppliers, or agreements do not continue after the sale.',
                     'questions' => [
-                        $this->q('Top 20 customers and % revenue, contract terms, expiry, and auto-renewal clauses.', QuestionnaireQuestionType::LONG_TEXT, 'Customer concentration is a major value and risk driver.'),
-                        $this->q('Material supplier contracts, exclusivity, and change-of-control consent requirements.', QuestionnaireQuestionType::LONG_TEXT, 'Supplier consent or exclusivity can block or reprice the deal.'),
+                        $this->q('Who are the most important customers, and how much of the sales come from them?', QuestionnaireQuestionType::LONG_TEXT, 'If too much income comes from a few customers, losing one customer could hurt the business.'),
+                        $this->q('Which supplier, lease, customer, or other agreements are important to keep?', QuestionnaireQuestionType::LONG_TEXT, 'Some agreements need permission before they can move to a new owner, and that can delay or change the deal.'),
                     ],
                 ],
                 [
-                    'title' => 'People and HR',
-                    'help_text' => 'Staff transfer rules, retention risk, and payroll liabilities.',
+                    'title' => 'Staff and key people',
+                    'help_text' => 'The people in the business often carry the customer knowledge and day-to-day know-how.',
                     'questions' => [
-                        $this->q('Employees, contractors, key persons, employment contracts, non-competes, and payroll liabilities.', QuestionnaireQuestionType::LONG_TEXT, 'Staff transfer rules and retention risk affect continuity and cost.'),
+                        $this->q('Who works in the business, who is essential, and what staff costs or issues should we know about?', QuestionnaireQuestionType::LONG_TEXT, 'This helps us check whether the business can keep running smoothly after you take over.'),
                     ],
                 ],
                 [
-                    'title' => 'Property, Leases and Premises',
-                    'help_text' => 'Premises continuity and landlord consent.',
+                    'title' => 'Premises, rent, and leases',
+                    'help_text' => 'If the business relies on a location, the lease or landlord approval can be critical.',
                     'questions' => [
-                        $this->q('Leases, rent reviews, assignment consent clauses, and landlord contacts.', QuestionnaireQuestionType::FILE_ATTACH, 'Lease consent can be a deal breaker in asset purchases.', required: false),
+                        $this->q('Upload lease, rent review, landlord, or premises documents you have.', QuestionnaireQuestionType::FILE_ATTACH, 'We need to check whether you can keep using the premises after the sale and what rent changes may happen.', required: false),
                     ],
                 ],
                 [
-                    'title' => 'IP, IT and Data Privacy',
-                    'help_text' => 'What intellectual property actually transfers, and data-handling exposure.',
+                    'title' => 'Names, systems, software, and customer data',
+                    'help_text' => 'The business name, website, software, and customer data may not automatically transfer to you.',
                     'questions' => [
-                        $this->q('Ownership of trademarks, domain names, source code, licences, and software subscriptions.', QuestionnaireQuestionType::LONG_TEXT, 'Confirms what IP actually transfers and any licence restrictions.'),
-                        $this->q('Data privacy compliance and history of breaches.', QuestionnaireQuestionType::LONG_TEXT, 'Privacy exposure and breach history are post-close liabilities.'),
+                        $this->q('What names, websites, software, systems, licences, or online accounts does the business use?', QuestionnaireQuestionType::LONG_TEXT, 'This helps us check what you actually get and what may need a new account, licence, or owner transfer.'),
+                        $this->q('Does the business hold customer or staff information, and has there been any data or privacy problem?', QuestionnaireQuestionType::LONG_TEXT, 'Customer and staff information must be handled carefully, and past problems can create cost or trust issues.'),
                     ],
                 ],
                 [
-                    'title' => 'Regulatory, Insurance and Environmental',
-                    'help_text' => 'Sector-specific obligations and claims exposure.',
+                    'title' => 'Rules, insurance, and claims',
+                    'help_text' => 'Some businesses need licences, permits, insurance, or special approvals to keep operating.',
                     'questions' => [
-                        $this->q('Licences, permits, renewal dates, insurance policies, and claims history.', QuestionnaireQuestionType::LONG_TEXT, 'Regulated sectors need early checks to avoid post-close surprises.'),
+                        $this->q('What licences, permits, insurance policies, claims, or legal issues should we know about?', QuestionnaireQuestionType::LONG_TEXT, 'This helps us check whether the business can legally keep operating and whether there are hidden costs.'),
                     ],
                 ],
                 [
-                    'title' => 'Integration, Synergies and Post-Close Costs',
-                    'help_text' => 'The true cost and timing of capturing the deal’s value.',
+                    'title' => 'Taking over after purchase',
+                    'help_text' => 'Buying the business is only the first step. You also need to know what it will take to run it after takeover.',
                     'questions' => [
-                        $this->q('Systems to migrate, estimated one-time integration costs, and required vendor handover period.', QuestionnaireQuestionType::LONG_TEXT, 'Models true cost of capture and timing of synergies.'),
+                        $this->q('What will need to change, move, be set up, or be taught to you after settlement?', QuestionnaireQuestionType::LONG_TEXT, 'This helps us estimate takeover costs, training needs, system changes, and how long the seller may need to help.'),
                     ],
                 ],
             ];
 
-            foreach ($sections as $sectionIndex => $sectionData) {
-                $section = $questionnaire->sections()->create([
-                    'order' => $sectionIndex + 1,
-                    'title' => $sectionData['title'],
-                    'help_text' => $sectionData['help_text'],
-                ]);
-
-                foreach ($sectionData['questions'] as $questionIndex => $questionData) {
-                    $section->questions()->create([
-                        ...$questionData,
-                        'order' => $questionIndex + 1,
-                    ]);
-                }
-            }
+            $this->syncSections($questionnaire, $sections);
 
             // v2 is the sole published base; unpublish prior versions so the
-            // "latest published" resolvers (and tests) are deterministic even
-            // when the clock is frozen and published_at would otherwise tie.
+            // latest-published resolver is deterministic.
             Questionnaire::query()
                 ->where('set', QuestionnaireSet::DUE_DILIGENCE->value)
                 ->whereKeyNot($questionnaire->getKey())
                 ->whereNotNull('published_at')
                 ->update(['published_at' => null]);
         });
+    }
+
+    /**
+     * @param  array<int, array{title:string, help_text:string, questions:array<int, array<string, mixed>>}>  $sections
+     */
+    private function syncSections(Questionnaire $questionnaire, array $sections): void
+    {
+        foreach ($sections as $sectionIndex => $sectionData) {
+            $section = $questionnaire->sections()
+                ->where('order', $sectionIndex + 1)
+                ->first();
+
+            if ($section === null) {
+                $section = $questionnaire->sections()->create([
+                    'order' => $sectionIndex + 1,
+                    'title' => $sectionData['title'],
+                    'help_text' => $sectionData['help_text'],
+                ]);
+            } else {
+                $section->forceFill([
+                    'title' => $sectionData['title'],
+                    'help_text' => $sectionData['help_text'],
+                ])->save();
+            }
+
+            foreach ($sectionData['questions'] as $questionIndex => $questionData) {
+                $question = $section->questions()
+                    ->where('order', $questionIndex + 1)
+                    ->first();
+
+                if ($question === null) {
+                    $section->questions()->create([
+                        ...$questionData,
+                        'order' => $questionIndex + 1,
+                    ]);
+
+                    continue;
+                }
+
+                $question->forceFill([
+                    ...Arr::except($questionData, ['id']),
+                    'order' => $questionIndex + 1,
+                ])->save();
+            }
+        }
     }
 
     /**

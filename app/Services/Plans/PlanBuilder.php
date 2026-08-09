@@ -109,6 +109,7 @@ final class PlanBuilder
         array $metadata = [],
         array $attachedDocumentIds = [],
         ?array $predictiveScore = null,
+        ?string $completenessStatus = null,
     ): PlanSection {
         $phase = $this->phase($plan, $phaseKey);
         $section = PlanSection::query()->updateOrCreate(
@@ -123,7 +124,7 @@ final class PlanBuilder
                 'attached_document_ids' => $attachedDocumentIds,
                 'source_type' => $sourceType,
                 'source_analysis_finding_id' => $finding?->getKey(),
-                'completeness_status' => trim($body) === '' ? PlanSection::STATUS_DRAFT : PlanSection::STATUS_COMPLETE,
+                'completeness_status' => $completenessStatus ?? (trim($body) === '' ? PlanSection::STATUS_DRAFT : PlanSection::STATUS_COMPLETE),
                 'metadata' => $metadata,
                 'predictive_score' => $predictiveScore,
             ],

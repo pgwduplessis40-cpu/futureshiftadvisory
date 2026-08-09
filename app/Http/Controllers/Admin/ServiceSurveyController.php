@@ -102,6 +102,7 @@ final class ServiceSurveyController extends Controller
             $survey,
             $user,
             isset($validated['due_at']) ? Carbon::parse($validated['due_at']) : null,
+            replaceOpen: true,
         );
 
         return back()
@@ -138,7 +139,7 @@ final class ServiceSurveyController extends Controller
             ])->save();
         }
 
-        $assignment = $activation->activateForEntrepreneurService($entrepreneurProfile, $survey, $user);
+        $assignment = $activation->activateForEntrepreneurService($entrepreneurProfile, $survey, $user, replaceOpen: true);
 
         return back()
             ->with('status', 'service-survey-activated')

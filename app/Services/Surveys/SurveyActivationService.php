@@ -57,8 +57,13 @@ final class SurveyActivationService
         ]);
     }
 
-    public function activateForEntrepreneurService(EntrepreneurProfile $profile, Survey $survey, User $actor, ?CarbonInterface $dueAt = null): SurveyAssignment
-    {
+    public function activateForEntrepreneurService(
+        EntrepreneurProfile $profile,
+        Survey $survey,
+        User $actor,
+        ?CarbonInterface $dueAt = null,
+        bool $replaceOpen = false,
+    ): SurveyAssignment {
         $this->ensurePublished($survey);
         $this->ensureType($survey, SurveyType::ServiceImprovement);
 
@@ -70,26 +75,36 @@ final class SurveyActivationService
             ]);
         }
 
-        $hasOpenSurvey = SurveyAssignment::query()
-            ->where('entrepreneur_profile_id', $profile->getKey())
-            ->whereNull('service_activation_id')
-            ->whereNotNull('service_snapshot')
-            ->whereIn('status', SurveyAssignmentStatus::activeValues())
-            ->whereHas('survey', fn ($query) => $query->where('type', SurveyType::ServiceImprovement->value))
-            ->exists();
-
-        if ($hasOpenSurvey) {
-            throw ValidationException::withMessages([
-                'entrepreneur_profile' => 'This entrepreneur already has an open service survey.',
-            ]);
-        }
-
-        return $this->createAssignment($survey, $actor, [], $dueAt, [
+        $subject = [
             'client_id' => null,
             'entrepreneur_profile_id' => $profile->getKey(),
             'service_activation_id' => null,
             'service_snapshot' => $serviceSnapshot,
-        ]);
+        ];
+
+        return DB::transaction(function () use ($actor, $dueAt, $profile, $replaceOpen, $subject, $survey): SurveyAssignment {
+            $openAssignments = SurveyAssignment::query()
+                ->where('entrepreneur_profile_id', $profile->getKey())
+                ->whereNull('service_activation_id')
+                ->whereNotNull('service_snapshot')
+                ->whereIn('status', SurveyAssignmentStatus::activeValues())
+                ->whereHas('survey', fn ($query) => $query->where('type', SurveyType::ServiceImprovement->value))
+                ->lockForUpdate()
+                ->get();
+
+            if ($openAssignments->isNotEmpty() && ! $replaceOpen) {
+                throw ValidationException::withMessages([
+                    'entrepreneur_profile' => 'This entrepreneur already has an open service survey.',
+                ]);
+            }
+
+            $this->replaceOpenAssignments($openAssignments, $actor, [
+                'replacement_survey_id' => $survey->getKey(),
+                'replacement_reason' => 'latest_entrepreneur_service_survey_reissued',
+            ]);
+
+            return $this->createAssignmentRecord($survey, $actor, [], $dueAt, $subject);
+        });
     }
 
     /**
@@ -131,8 +146,13 @@ final class SurveyActivationService
         ];
     }
 
-    public function activateForService(ServiceActivation $serviceActivation, Survey $survey, User $actor, ?CarbonInterface $dueAt = null): SurveyAssignment
-    {
+    public function activateForService(
+        ServiceActivation $serviceActivation,
+        Survey $survey,
+        User $actor,
+        ?CarbonInterface $dueAt = null,
+        bool $replaceOpen = false,
+    ): SurveyAssignment {
         $this->ensurePublished($survey);
         $this->ensureType($survey, SurveyType::ServiceImprovement);
 
@@ -151,17 +171,6 @@ final class SurveyActivationService
             ]);
         }
 
-        $hasOpenSurvey = SurveyAssignment::query()
-            ->where('service_activation_id', $serviceActivation->getKey())
-            ->whereIn('status', SurveyAssignmentStatus::activeValues())
-            ->exists();
-
-        if ($hasOpenSurvey) {
-            throw ValidationException::withMessages([
-                'service_activation' => 'This service already has an open survey.',
-            ]);
-        }
-
         $packageSnapshot = is_array($serviceActivation->selected_package_snapshot)
             ? $serviceActivation->selected_package_snapshot
             : [];
@@ -169,7 +178,7 @@ final class SurveyActivationService
             ?? data_get($packageSnapshot, 'package_name')
             ?? $serviceActivation->package?->package_name;
 
-        return $this->createAssignment($survey, $actor, [], $dueAt, [
+        $subject = [
             'client_id' => $client->getKey(),
             'entrepreneur_profile_id' => null,
             'service_activation_id' => $serviceActivation->getKey(),
@@ -180,7 +189,28 @@ final class SurveyActivationService
                 'package_label' => is_string($packageLabel) ? $packageLabel : null,
                 'closed_at' => $serviceActivation->closed_at?->toIso8601String(),
             ],
-        ]);
+        ];
+
+        return DB::transaction(function () use ($actor, $dueAt, $replaceOpen, $serviceActivation, $subject, $survey): SurveyAssignment {
+            $openAssignments = SurveyAssignment::query()
+                ->where('service_activation_id', $serviceActivation->getKey())
+                ->whereIn('status', SurveyAssignmentStatus::activeValues())
+                ->lockForUpdate()
+                ->get();
+
+            if ($openAssignments->isNotEmpty() && ! $replaceOpen) {
+                throw ValidationException::withMessages([
+                    'service_activation' => 'This service already has an open survey.',
+                ]);
+            }
+
+            $this->replaceOpenAssignments($openAssignments, $actor, [
+                'replacement_survey_id' => $survey->getKey(),
+                'replacement_reason' => 'latest_service_survey_reissued',
+            ]);
+
+            return $this->createAssignmentRecord($survey, $actor, [], $dueAt, $subject);
+        });
     }
 
     public function cancel(SurveyAssignment $assignment, User $actor): SurveyAssignment
@@ -222,31 +252,68 @@ final class SurveyActivationService
     private function createAssignment(Survey $survey, User $actor, array $snapshot, ?CarbonInterface $dueAt, array $subject): SurveyAssignment
     {
         return DB::transaction(function () use ($actor, $dueAt, $snapshot, $subject, $survey): SurveyAssignment {
-            $assignment = SurveyAssignment::query()->create([
-                'survey_id' => $survey->getKey(),
-                'client_id' => $subject['client_id'],
-                'entrepreneur_profile_id' => $subject['entrepreneur_profile_id'],
-                'status' => SurveyAssignmentStatus::Pending->value,
-                'activated_by_user_id' => $actor->getKey(),
-                'activated_at' => now(),
-                'due_at' => $dueAt,
-                'deliverable_snapshot' => $snapshot,
-                'service_activation_id' => $subject['service_activation_id'] ?? null,
-                'service_snapshot' => $subject['service_snapshot'] ?? null,
-            ]);
-
-            $this->audit->record('survey_assignment.activated', subject: $assignment, actor: $actor, after: [
-                'survey_assignment_id' => $assignment->getKey(),
-                'survey_id' => $survey->getKey(),
-                'client_id' => $subject['client_id'],
-                'entrepreneur_profile_id' => $subject['entrepreneur_profile_id'],
-                'deliverable_count' => count($snapshot),
-                'service_activation_id' => $subject['service_activation_id'] ?? null,
-                'due_at' => $dueAt?->toIso8601String(),
-            ]);
-
-            return $assignment;
+            return $this->createAssignmentRecord($survey, $actor, $snapshot, $dueAt, $subject);
         });
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $snapshot
+     * @param  array{client_id:string|null,entrepreneur_profile_id:string|null,service_activation_id?:string|null,service_snapshot?:array<string, mixed>|null}  $subject
+     */
+    private function createAssignmentRecord(Survey $survey, User $actor, array $snapshot, ?CarbonInterface $dueAt, array $subject): SurveyAssignment
+    {
+        $assignment = SurveyAssignment::query()->create([
+            'survey_id' => $survey->getKey(),
+            'client_id' => $subject['client_id'],
+            'entrepreneur_profile_id' => $subject['entrepreneur_profile_id'],
+            'status' => SurveyAssignmentStatus::Pending->value,
+            'activated_by_user_id' => $actor->getKey(),
+            'activated_at' => now(),
+            'due_at' => $dueAt,
+            'deliverable_snapshot' => $snapshot,
+            'service_activation_id' => $subject['service_activation_id'] ?? null,
+            'service_snapshot' => $subject['service_snapshot'] ?? null,
+        ]);
+
+        $this->audit->record('survey_assignment.activated', subject: $assignment, actor: $actor, after: [
+            'survey_assignment_id' => $assignment->getKey(),
+            'survey_id' => $survey->getKey(),
+            'client_id' => $subject['client_id'],
+            'entrepreneur_profile_id' => $subject['entrepreneur_profile_id'],
+            'deliverable_count' => count($snapshot),
+            'service_activation_id' => $subject['service_activation_id'] ?? null,
+            'due_at' => $dueAt?->toIso8601String(),
+        ]);
+
+        return $assignment;
+    }
+
+    /**
+     * @param  iterable<int, SurveyAssignment>  $assignments
+     * @param  array<string, mixed>  $after
+     */
+    private function replaceOpenAssignments(iterable $assignments, User $actor, array $after): void
+    {
+        foreach ($assignments as $assignment) {
+            if (! $assignment->isActive()) {
+                continue;
+            }
+
+            $this->context->withSystemContext(function () use ($assignment): void {
+                $assignment->forceFill([
+                    'status' => SurveyAssignmentStatus::Cancelled->value,
+                ])->save();
+            });
+
+            $this->audit->record('survey_assignment.replaced', subject: $assignment, actor: $actor, after: [
+                ...$after,
+                'survey_assignment_id' => $assignment->getKey(),
+                'survey_id' => $assignment->survey_id,
+                'client_id' => $assignment->client_id,
+                'entrepreneur_profile_id' => $assignment->entrepreneur_profile_id,
+                'service_activation_id' => $assignment->service_activation_id,
+            ]);
+        }
     }
 
     private function ensurePublished(Survey $survey): void

@@ -151,6 +151,45 @@ final class PlanBuilderTest extends TestCase
         $this->assertSame(5, $plan->refresh()->current_phase);
     }
 
+    public function test_plan_section_autosave_stores_short_text_as_draft(): void
+    {
+        [$advisor, $profile] = $this->profile('autosave-plan-founder@example.test');
+        $this->openIdeaGate($profile, $advisor);
+        $plan = app(PlanBuilder::class)->start($profile, $advisor);
+        $entrepreneur = $profile->user()->firstOrFail();
+
+        $this->actingAsMfa($entrepreneur)
+            ->postJson(route('portal.entrepreneur.plan.sections.store'), [
+                '_autosave' => true,
+                'phase_key' => 'market',
+                'requirement_key' => 'industry-context',
+                'title' => 'Industry and customer demand',
+                'body' => 'I am still writing this section.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'entrepreneur-plan-section-autosaved')
+            ->assertJsonPath('section.completeness_status', PlanSection::STATUS_DRAFT);
+
+        $section = PlanSection::query()
+            ->where('business_plan_id', $plan->getKey())
+            ->where('key', 'founder-market-industry-context')
+            ->firstOrFail();
+
+        $this->assertSame('I am still writing this section.', $section->body);
+        $this->assertSame(PlanSection::STATUS_DRAFT, $section->completeness_status);
+
+        $this->actingAsMfa($entrepreneur)
+            ->post(route('portal.entrepreneur.plan.sections.store'), [
+                'phase_key' => 'market',
+                'requirement_key' => 'industry-context',
+                'title' => 'Industry and customer demand',
+                'body' => str_repeat('Customer demand evidence, tested pricing, competitors, and local market context are described clearly. ', 2),
+            ])
+            ->assertRedirect(route('portal.entrepreneur.plan.show'));
+
+        $this->assertSame(PlanSection::STATUS_COMPLETE, $section->refresh()->completeness_status);
+    }
+
     public function test_business_plan_preview_renders_markdown_formatting_safely(): void
     {
         [$advisor, $profile] = $this->profile('markdown-preview-founder@example.test');

@@ -1,20 +1,21 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
-    Bot,
+    ArrowRight,
     CheckCircle2,
+    CircleHelp,
     ClipboardList,
     FileSpreadsheet,
     FileText,
     MessageSquare,
-    PieChart,
-    RefreshCw,
-    Send,
     Upload,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
+import { WorkspaceSwitcher } from '@/components/portal/WorkspaceSwitcher';
+import type { WorkspaceSwitcherPayload } from '@/components/portal/WorkspaceSwitcher';
+import { QuestionnaireRenderer } from '@/components/questionnaires/QuestionnaireRenderer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,12 +25,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import type {
+    QuestionnaireAnswers,
+    QuestionnaireSchema,
+} from '@/types/questionnaire';
 
 type ClientPayload = {
     id: string;
@@ -58,96 +58,23 @@ type ReadinessPayload = {
     missing: string[];
 };
 
-type BusinessAdvicePayload = {
-    requested: boolean;
-    available: boolean;
-    blockers: string[];
-    requestUrl: string;
-    dashboardUrl: string;
-    advisory_client: {
-        id: string | null;
-        legal_name: string | null;
-        engagement_type: string | null;
-    } | null;
-};
-
-type BusinessPlanPayload = {
-    id: string;
-    title: string;
-    status: string;
-    completed_at: string | null;
-    updated_at: string | null;
-    completion: {
-        complete: boolean;
-        missing_phases: string[];
-        completed_phases: string[];
-    };
-    requirements_complete: boolean;
-    missing_requirements: string[];
-    phases: PlanPhasePayload[];
-};
-
-type StrategicBudgetPayload = {
+type CapabilityPayload = {
+    mode: 'guided' | 'experienced';
     label: string;
-    status_label: string;
-    locked: boolean;
-    readiness_score: number;
-    progress_score: number;
-    source_financials: {
-        system_review?: string;
-    };
+    summary: string;
+    next_step_style: string;
+    dd_experience: string | null;
+    business_ownership_experience: string | null;
+    financial_confidence: string | null;
+    preferred_guidance: string | null;
 };
 
-type PlanPhasePayload = {
-    id: string;
-    key: string;
-    title: string;
-    status: string;
-    requirements: PlanRequirementPayload[];
-    sections: PlanSectionPayload[];
-};
-
-type PlanTemplatePhasePayload = {
-    key: string;
-    title: string;
-    requirements: PlanRequirementPayload[];
-};
-
-type PlanRequirementPayload = {
-    key: string;
-    phase_key: string;
-    phase_title: string;
-    title: string;
-    description: string;
-    complete: boolean;
-    section_id: string | null;
-    section_title: string | null;
-};
-
-type PlanSectionPayload = {
-    id: string;
-    title: string;
-    body: string;
-    source_type: string;
-    completeness_status: string;
-    attached_document_ids: string[];
-    predictive_score: PredictiveScore | null;
-    guidance: SectionGuidance | null;
-    requirement_key: string | null;
-    guidance_url: string;
-};
-
-type PredictiveScore = {
-    score?: number;
-    band?: string;
-    gaps?: string[];
-    reasons?: string[];
-};
-
-type SectionGuidance = {
-    summary?: string;
-    ai_summary?: string;
-    predictive_score?: PredictiveScore;
+type DdQuestionnairePayload = {
+    schema: QuestionnaireSchema;
+    answers: QuestionnaireAnswers;
+    submitUrl: string;
+    submitted: boolean;
+    submittedAt: string | null;
 };
 
 type WorkstreamOption = {
@@ -164,41 +91,101 @@ type Props = {
     client: ClientPayload;
     engagement: EngagementPayload;
     readiness: ReadinessPayload;
-    businessAdvice: BusinessAdvicePayload;
-    plan: BusinessPlanPayload | null;
-    strategicBudget: StrategicBudgetPayload;
-    planTemplate: PlanTemplatePhasePayload[];
-    generateUrl: string;
-    previewUrl: string;
-    sectionStoreUrl: string;
-    completeUrl: string;
-    onboardingUrl: string;
+    capability: CapabilityPayload;
+    workspaces: WorkspaceSwitcherPayload;
+    questionnaire: DdQuestionnairePayload | null;
+    businessPlanBudgetUrl: string;
     documentUploadUrl: string;
     messagesUrl: string;
     workstreamOptions: WorkstreamOption[];
 };
 
 type Tab = 'actions' | 'information';
+type WorkflowKey =
+    | 'questions'
+    | 'evidence'
+    | 'financials'
+    | 'review'
+    | 'plan_budget';
+type WorkflowStatus = 'complete' | 'current' | 'locked';
+
+type WorkflowStep = {
+    key: WorkflowKey;
+    number: number;
+    title: string;
+    shortTitle: string;
+    description: string;
+    whatToDo: string;
+    status: WorkflowStatus;
+};
+
+const WORKFLOW_TEMPLATE: Array<Omit<WorkflowStep, 'status'>> = [
+    {
+        key: 'questions',
+        number: 1,
+        title: 'Answer questions about the business',
+        shortTitle: 'Questions',
+        description:
+            'Tell us what you know about the business, seller, price, and risks.',
+        whatToDo:
+            'Answer what you know. If something is uncertain, say that clearly so FSA can help with the next request.',
+    },
+    {
+        key: 'evidence',
+        number: 2,
+        title: 'Upload evidence',
+        shortTitle: 'Evidence',
+        description:
+            'Add documents from the seller, broker, accountant, lawyer, or your own notes.',
+        whatToDo:
+            'Choose the document area, select one or more files, then upload the selected files.',
+    },
+    {
+        key: 'financials',
+        number: 3,
+        title: 'Check the price and money records',
+        shortTitle: 'Price check',
+        description:
+            'Upload reports that show sales, costs, profit, cash, debt, or how the seller chose the price.',
+        whatToDo:
+            'If you have money records, upload them here. If you do not have them yet, ask FSA what to request from the seller.',
+    },
+    {
+        key: 'review',
+        number: 4,
+        title: 'FSA checks the information',
+        shortTitle: 'FSA checks',
+        description:
+            'FSA checks your answers, documents, price support, and any gaps.',
+        whatToDo:
+            'Keep an eye on messages. FSA will ask for missing items or confirm when this step is ready.',
+    },
+    {
+        key: 'plan_budget',
+        number: 5,
+        title: 'Move to Business Plan & Budget',
+        shortTitle: 'Plan & budget',
+        description:
+            'Use the DD material to create the acquisition business plan and budget.',
+        whatToDo:
+            'Open Business Plan & Budget and start the draft from the DD material there.',
+    },
+];
 
 export default function DdBusinessPlan({
     client,
     engagement,
     readiness,
-    businessAdvice,
-    plan,
-    strategicBudget,
-    planTemplate,
-    generateUrl,
-    previewUrl,
-    sectionStoreUrl,
-    completeUrl,
-    onboardingUrl,
+    capability,
+    workspaces,
+    questionnaire,
+    businessPlanBudgetUrl,
     documentUploadUrl,
     messagesUrl,
     workstreamOptions,
 }: Props) {
     const [activeTab, setActiveTab] = useState<Tab>('actions');
-    const [file, setFile] = useState<File | null>(null);
+    const [files, setFiles] = useState<File[]>([]);
     const [workstream, setWorkstream] = useState(
         workstreamOptions[0]?.value ?? 'financial',
     );
@@ -208,137 +195,102 @@ export default function DdBusinessPlan({
         UploadedDocument[]
     >([]);
     const [uploadKey, setUploadKey] = useState(0);
-    const [selectedRequirementKey, setSelectedRequirementKey] = useState<
-        string | null
-    >(null);
-    const [sectionTitle, setSectionTitle] = useState('');
-    const [sectionBody, setSectionBody] = useState('');
-    const [supportingFile, setSupportingFile] = useState<File | null>(null);
-    const [supportingFileKey, setSupportingFileKey] = useState(0);
-    const [sectionError, setSectionError] = useState<string | null>(null);
-    const [savingSection, setSavingSection] = useState(false);
-
-    const requirements = useMemo(
-        () => plan?.phases.flatMap((phase) => phase.requirements) ?? [],
-        [plan],
+    const [questionnaireAnswers, setQuestionnaireAnswers] =
+        useState<QuestionnaireAnswers>(questionnaire?.answers ?? {});
+    const [questionnaireErrors, setQuestionnaireErrors] = useState<
+        Record<string, string | undefined>
+    >({});
+    const [savingQuestionnaire, setSavingQuestionnaire] = useState(false);
+    const [selectedStepKey, setSelectedStepKey] = useState<WorkflowKey | null>(
+        null,
     );
-    const firstMissingRequirement =
-        requirements.find((requirement) => !requirement.complete) ??
-        requirements[0] ??
-        null;
-    const selectedRequirement =
-        requirements.find(
-            (requirement) =>
-                requirementKey(requirement) === selectedRequirementKey,
-        ) ?? firstMissingRequirement;
-    const planCompleted = plan?.status === 'founding';
-    const canCompletePlan =
-        Boolean(plan) && !planCompleted && Boolean(plan?.requirements_complete);
 
-    const populateFromDd = () => {
-        router.post(generateUrl, {}, { preserveScroll: true });
-    };
-
-    const completePlan = () => {
-        router.post(completeUrl, {}, { preserveScroll: true });
-    };
-
-    const requestBusinessAdvice = () => {
-        router.post(businessAdvice.requestUrl, {}, { preserveScroll: true });
-    };
+    const uploadedCount =
+        readiness.data_room_item_count + uploadedDocuments.length;
+    const steps = useMemo(
+        () => workflowSteps(readiness, uploadedCount),
+        [readiness, uploadedCount],
+    );
+    const currentStep =
+        steps.find((step) => step.status === 'current') ?? steps[0];
+    const displayedStep =
+        steps.find((step) => step.key === selectedStepKey) ?? currentStep;
+    const completedSteps = steps.filter(
+        (step) => step.status === 'complete',
+    ).length;
+    const progressPercent = Math.round((completedSteps / steps.length) * 100);
 
     const uploadEvidence = async () => {
-        if (!file) {
+        if (files.length === 0) {
             return;
         }
 
         setUploading(true);
         setUploadError(null);
 
-        const uploaded = await uploadDocument(
-            documentUploadUrl,
-            file,
-            workstream,
-            'Due diligence acquisition-plan evidence uploaded from the client portal.',
-            'DD acquisition business plan evidence upload',
-        ).catch((error: Error) => {
-            setUploadError(error.message);
+        const successfulUploads: UploadedDocument[] = [];
 
-            return null;
-        });
-
-        setUploading(false);
-
-        if (!uploaded) {
-            return;
-        }
-
-        setUploadedDocuments((current) => [uploaded, ...current]);
-        setFile(null);
-        setUploadKey((key) => key + 1);
-    };
-
-    const saveRequirement = async () => {
-        if (!selectedRequirement) {
-            return;
-        }
-
-        if (sectionBody.trim().length < 80) {
-            setSectionError(
-                'Add at least 80 characters so the advisor has usable context.',
-            );
-
-            return;
-        }
-
-        setSavingSection(true);
-        setSectionError(null);
-
-        const attachedDocumentIds: string[] = [];
-
-        if (supportingFile) {
+        for (const selectedFile of files) {
             const uploaded = await uploadDocument(
                 documentUploadUrl,
-                supportingFile,
+                selectedFile,
                 workstream,
-                `Supporting document for ${selectedRequirement.title}.`,
-                `Acquisition plan supporting document: ${selectedRequirement.title}`,
+                'Due diligence evidence uploaded from the client DD workspace.',
+                'DD evidence upload',
             ).catch((error: Error) => {
-                setSectionError(error.message);
+                setUploadError(`${selectedFile.name}: ${error.message}`);
 
                 return null;
             });
 
             if (!uploaded) {
-                setSavingSection(false);
+                setUploading(false);
 
                 return;
             }
 
-            attachedDocumentIds.push(uploaded.id);
-            setUploadedDocuments((current) => [uploaded, ...current]);
+            successfulUploads.push(uploaded);
         }
 
+        setUploadedDocuments((current) => [
+            ...successfulUploads.reverse(),
+            ...current,
+        ]);
+        setFiles([]);
+        setUploadKey((key) => key + 1);
+        setUploading(false);
+    };
+
+    const submitQuestionnaire = () => {
+        if (!questionnaire) {
+            return;
+        }
+
+        setSavingQuestionnaire(true);
+        setQuestionnaireErrors({});
+
         router.post(
-            sectionStoreUrl,
-            {
-                phase_key: selectedRequirement.phase_key,
-                requirement_key: selectedRequirement.key,
-                title: sectionTitle || selectedRequirement.title,
-                body: sectionBody,
-                attached_document_ids: attachedDocumentIds,
-            },
+            questionnaire.submitUrl,
+            { answers: questionnaireAnswers },
             {
                 preserveScroll: true,
-                onSuccess: () => {
-                    setSectionTitle('');
-                    setSectionBody('');
-                    setSupportingFile(null);
-                    setSupportingFileKey((key) => key + 1);
-                },
-                onFinish: () => setSavingSection(false),
+                onError: (errors) =>
+                    setQuestionnaireErrors(
+                        errors as Record<string, string | undefined>,
+                    ),
+                onSuccess: () => setQuestionnaireErrors({}),
+                onFinish: () => setSavingQuestionnaire(false),
             },
         );
+    };
+
+    const selectStep = (step: WorkflowStep) => {
+        const canSelect =
+            capability.mode === 'experienced' || step.status !== 'locked';
+
+        if (canSelect) {
+            setSelectedStepKey(step.key);
+        }
     };
 
     return (
@@ -347,7 +299,7 @@ export default function DdBusinessPlan({
 
             <main className="flex-1 space-y-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
+                    <div className="min-w-0">
                         <h1 className="text-xl font-semibold">
                             Prepare Due Diligence
                         </h1>
@@ -359,243 +311,88 @@ export default function DdBusinessPlan({
                             </span>
                         </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        <Button type="button" onClick={populateFromDd}>
-                            <RefreshCw className="size-4" aria-hidden="true" />
-                            {plan ? 'Repopulate from DD' : 'Populate from DD'}
-                        </Button>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button asChild variant="outline">
-                                    <a
-                                        href={previewUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        <FileText
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        Preview DD plan
-                                    </a>
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-xs">
-                                Generates a PDF from the available DD and plan
-                                requirement content, with incomplete sections
-                                shown as pending.
-                            </TooltipContent>
-                        </Tooltip>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            disabled={!canCompletePlan}
-                            onClick={completePlan}
-                        >
-                            <CheckCircle2
+                    <Button asChild variant="outline">
+                        <Link href={messagesUrl}>
+                            <MessageSquare
                                 className="size-4"
                                 aria-hidden="true"
                             />
-                            {planCompleted ? 'Plan completed' : 'Complete plan'}
-                        </Button>
-                        <Button asChild variant="outline">
-                            <Link href={messagesUrl}>
-                                <MessageSquare
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
-                                Messages
-                            </Link>
-                        </Button>
-                    </div>
+                            Messages
+                        </Link>
+                    </Button>
                 </div>
+
+                <WorkspaceSwitcher workspaces={workspaces} />
+
+                <Section
+                    title="DD progress"
+                    description="Each item opens the work needed for that part of due diligence."
+                >
+                    <ProgressStepper
+                        steps={steps}
+                        progressPercent={progressPercent}
+                        selectedStep={displayedStep}
+                        capability={capability}
+                        onSelect={selectStep}
+                    />
+                </Section>
+
+                <CurrentStepPrompt
+                    step={displayedStep}
+                    capability={capability}
+                    onOpen={() => setActiveTab('actions')}
+                />
 
                 <TabList activeTab={activeTab} onChange={setActiveTab} />
 
                 {activeTab === 'actions' ? (
-                    <>
-                        <Section
-                            title="Priority actions"
-                            description="Start with DD inputs, complete the missing plan requirements, then request post-acquisition advisory when advice is ready."
-                        >
-                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-                                <ActionTile
-                                    icon={ClipboardList}
-                                    title="DD questionnaire"
-                                    value={
-                                        readiness.questionnaire_submitted
-                                            ? `Submitted ${formatDate(readiness.questionnaire_submitted_at)}`
-                                            : 'Not submitted'
-                                    }
-                                    explanation="The questionnaire captures buyer context, target risk, integration assumptions, and inputs that influence the DD advice."
-                                >
-                                    <Button asChild size="sm" variant="outline">
-                                        <Link href={onboardingUrl}>
-                                            {readiness.questionnaire_submitted
-                                                ? 'Review'
-                                                : 'Complete'}
-                                        </Link>
-                                    </Button>
-                                </ActionTile>
-
-                                <EvidenceTile
-                                    file={file}
-                                    workstream={workstream}
-                                    workstreamOptions={workstreamOptions}
-                                    uploadedCount={
-                                        readiness.data_room_item_count +
-                                        uploadedDocuments.length
-                                    }
-                                    uploadKey={uploadKey}
-                                    uploading={uploading}
-                                    uploadError={uploadError}
-                                    onFileChange={setFile}
-                                    onWorkstreamChange={setWorkstream}
-                                    onUpload={() => void uploadEvidence()}
-                                />
-
-                                <ActionTile
-                                    icon={CheckCircle2}
-                                    title="Advice readiness"
-                                    value={
-                                        readiness.missing.length > 0
-                                            ? `${readiness.missing.length} gaps`
-                                            : readiness.advice_report_ready
-                                              ? 'Advice ready'
-                                              : 'Processing'
-                                    }
-                                    explanation="Advisor DD advice is ready after questionnaire, evidence, workstreams, and valuation inputs are all present."
-                                >
-                                    <ReadinessList readiness={readiness} />
-                                </ActionTile>
-
-                                <ActionTile
-                                    icon={PieChart}
-                                    title="Plan completion"
-                                    value={
-                                        plan
-                                            ? plan.requirements_complete
-                                                ? planCompleted
-                                                    ? 'Completed'
-                                                    : 'Ready to complete'
-                                                : `${plan.missing_requirements.length} requirements`
-                                            : 'Not populated'
-                                    }
-                                    explanation="The DD information pre-populates the plan; remaining requirements must be completed before the plan can be finalised."
-                                >
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        disabled={!canCompletePlan}
-                                        onClick={completePlan}
-                                    >
-                                        <CheckCircle2
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        {planCompleted
-                                            ? 'Completed'
-                                            : 'Complete plan'}
-                                    </Button>
-                                </ActionTile>
-
-                                <ActionTile
-                                    icon={FileSpreadsheet}
-                                    title="Budget"
-                                    value={
-                                        strategicBudget.locked
-                                            ? 'Locked'
-                                            : `${strategicBudget.readiness_score}/100 ready`
-                                    }
-                                    explanation={
-                                        strategicBudget.locked
-                                            ? (strategicBudget.source_financials
-                                                  .system_review ??
-                                              'Upload P&L or management accounts to unlock the acquisition budget.')
-                                            : `Budget status: ${strategicBudget.status_label}. Progress ${strategicBudget.progress_score}%.`
-                                    }
-                                >
-                                    <Button asChild size="sm" variant="outline">
-                                        <Link href="/portal/business-plan-budget">
-                                            {strategicBudget.locked
-                                                ? 'Unlock'
-                                                : 'Open'}
-                                        </Link>
-                                    </Button>
-                                </ActionTile>
-
-                                <BusinessAdviceTile
-                                    businessAdvice={businessAdvice}
-                                    onRequest={requestBusinessAdvice}
-                                />
-                            </div>
-                        </Section>
-
-                        <Section
-                            title="Plan assistant"
-                            description="Complete the missing plan parts with DD context, supporting evidence, and section-level guidance."
-                        >
-                            {plan ? (
-                                <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-                                    <RequirementList
-                                        requirements={requirements}
-                                        selectedRequirement={
-                                            selectedRequirement
-                                        }
-                                        onSelect={(requirement) =>
-                                            setSelectedRequirementKey(
-                                                requirementKey(requirement),
-                                            )
-                                        }
-                                    />
-                                    <RequirementEditor
-                                        requirement={selectedRequirement}
-                                        sectionTitle={sectionTitle}
-                                        sectionBody={sectionBody}
-                                        supportingFile={supportingFile}
-                                        supportingFileKey={supportingFileKey}
-                                        savingSection={savingSection}
-                                        sectionError={sectionError}
-                                        workstream={workstream}
-                                        workstreamOptions={workstreamOptions}
-                                        onTitleChange={setSectionTitle}
-                                        onBodyChange={setSectionBody}
-                                        onFileChange={setSupportingFile}
-                                        onWorkstreamChange={setWorkstream}
-                                        onSave={() => void saveRequirement()}
-                                    />
-                                </div>
-                            ) : (
-                                <EmptyPlanPanel
-                                    readiness={readiness}
-                                    onPopulate={populateFromDd}
-                                />
-                            )}
-                        </Section>
-
-                        {plan ? (
-                            <PlanWorkspace plan={plan} />
-                        ) : (
-                            <PlanTemplatePreview phases={planTemplate} />
-                        )}
-                    </>
+                    <Section
+                        title="Current step"
+                        description={
+                            capability.mode === 'experienced'
+                                ? 'Complete the selected step or choose another step above.'
+                                : 'Complete this step first. The next step opens when it is done.'
+                        }
+                    >
+                        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+                            <NextStepPanel
+                                step={displayedStep}
+                                currentStep={currentStep}
+                                capability={capability}
+                                questionnaire={questionnaire}
+                                questionnaireAnswers={questionnaireAnswers}
+                                questionnaireErrors={questionnaireErrors}
+                                savingQuestionnaire={savingQuestionnaire}
+                                documentUploadUrl={documentUploadUrl}
+                                clientId={client.id}
+                                files={files}
+                                workstream={workstream}
+                                workstreamOptions={workstreamOptions}
+                                uploadedCount={uploadedCount}
+                                uploadedDocuments={uploadedDocuments}
+                                uploadKey={uploadKey}
+                                uploading={uploading}
+                                uploadError={uploadError}
+                                businessPlanBudgetUrl={businessPlanBudgetUrl}
+                                messagesUrl={messagesUrl}
+                                onQuestionnaireChange={setQuestionnaireAnswers}
+                                onSubmitQuestionnaire={submitQuestionnaire}
+                                onFilesChange={setFiles}
+                                onWorkstreamChange={setWorkstream}
+                                onUploadEvidence={() => void uploadEvidence()}
+                            />
+                            <HelpPanel messagesUrl={messagesUrl} />
+                        </div>
+                    </Section>
                 ) : (
                     <Section
                         title="Information"
-                        description="Review target details, DD status, and the generated acquisition plan structure."
+                        description="Target details, current status, and what FSA still needs."
                     >
                         <div className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
                             <TargetPanel engagement={engagement} />
                             <ReadinessPanel readiness={readiness} />
                         </div>
-                        {plan ? (
-                            <PlanWorkspace plan={plan} compact />
-                        ) : (
-                            <PlanTemplatePreview
-                                phases={planTemplate}
-                                compact
-                            />
-                        )}
                     </Section>
                 )}
             </main>
@@ -603,654 +400,602 @@ export default function DdBusinessPlan({
     );
 }
 
-function EvidenceTile({
-    file,
-    workstream,
-    workstreamOptions,
-    uploadedCount,
-    uploadKey,
-    uploading,
-    uploadError,
-    onFileChange,
-    onWorkstreamChange,
-    onUpload,
+function CurrentStepPrompt({
+    step,
+    capability,
+    onOpen,
 }: {
-    file: File | null;
-    workstream: string;
-    workstreamOptions: WorkstreamOption[];
-    uploadedCount: number;
-    uploadKey: number;
-    uploading: boolean;
-    uploadError: string | null;
-    onFileChange: (file: File | null) => void;
-    onWorkstreamChange: (workstream: string) => void;
-    onUpload: () => void;
+    step: WorkflowStep;
+    capability: CapabilityPayload;
+    onOpen: () => void;
 }) {
     return (
-        <ActionTile
-            icon={Upload}
-            title="DD evidence"
-            value={`${uploadedCount} uploaded`}
-            explanation="Uploaded evidence is routed into the DD data room and assigned to the selected workstream."
-        >
-            <div className="grid gap-2">
-                <Select value={workstream} onValueChange={onWorkstreamChange}>
-                    <SelectTrigger size="sm" aria-label="DD workstream">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {workstreamOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <FileDropzone
-                    key={uploadKey}
-                    id="dd_acquisition_plan_evidence"
-                    files={file ? [file] : []}
-                    label="Upload evidence"
-                    onFilesChange={(files) => onFileChange(files[0] ?? null)}
-                />
-                <InputError message={uploadError ?? undefined} />
-                <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={!file || uploading}
-                    onClick={onUpload}
-                >
-                    <Upload className="size-4" aria-hidden="true" />
-                    {uploading ? 'Uploading' : 'Upload'}
-                </Button>
+        <section className="space-y-2">
+            <div className="text-sm text-muted-foreground">
+                Next: {step.shortTitle}
             </div>
-        </ActionTile>
-    );
-}
-
-function BusinessAdviceTile({
-    businessAdvice,
-    onRequest,
-}: {
-    businessAdvice: BusinessAdvicePayload;
-    onRequest: () => void;
-}) {
-    return (
-        <ActionTile
-            icon={Send}
-            title="Business advice"
-            value={
-                businessAdvice.requested
-                    ? 'Requested'
-                    : businessAdvice.available
-                      ? 'Ready to request'
-                      : `${businessAdvice.blockers.length} blockers`
-            }
-            explanation="Once DD advice and the acquisition business plan are ready, this requests post-acquisition advisory using the DD plan context."
-        >
-            {businessAdvice.requested ? (
-                <Button asChild size="sm" variant="outline">
-                    <Link href={businessAdvice.dashboardUrl}>Open portal</Link>
-                </Button>
-            ) : (
-                <Button
-                    type="button"
-                    size="sm"
-                    disabled={!businessAdvice.available}
-                    onClick={onRequest}
-                >
-                    <Send className="size-4" aria-hidden="true" />
-                    Request advice
-                </Button>
-            )}
-            {!businessAdvice.available && !businessAdvice.requested ? (
-                <div className="grid gap-1 text-xs text-muted-foreground">
-                    {businessAdvice.blockers.map((blocker) => (
-                        <span key={blocker}>{blocker}</span>
-                    ))}
+            <div className="flex flex-col gap-3 rounded-md border bg-background p-4 shadow-xs sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline">Step {step.number}</Badge>
+                        <h2 className="text-sm font-semibold">{step.title}</h2>
+                    </div>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        {step.description}
+                    </p>
                 </div>
-            ) : null}
-        </ActionTile>
-    );
-}
-
-function RequirementList({
-    requirements,
-    selectedRequirement,
-    onSelect,
-}: {
-    requirements: PlanRequirementPayload[];
-    selectedRequirement: PlanRequirementPayload | null;
-    onSelect: (requirement: PlanRequirementPayload) => void;
-}) {
-    return (
-        <section className="space-y-3 rounded-md border bg-background p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                    <ClipboardList className="size-4" aria-hidden="true" />
-                    <h2 className="text-sm font-medium">Plan requirements</h2>
-                </div>
-                <Badge variant="outline">
-                    {
-                        requirements.filter(
-                            (requirement) => requirement.complete,
-                        ).length
-                    }
-                    /{requirements.length} complete
-                </Badge>
-            </div>
-            <div className="grid gap-2">
-                {requirements.map((requirement) => (
-                    <button
-                        key={requirementKey(requirement)}
-                        type="button"
-                        className={cn(
-                            'rounded-md border p-3 text-left transition-colors',
-                            selectedRequirement &&
-                                requirementKey(requirement) ===
-                                    requirementKey(selectedRequirement)
-                                ? 'border-foreground'
-                                : 'hover:border-foreground/50',
-                        )}
-                        onClick={() => onSelect(requirement)}
-                    >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="text-sm font-medium">
-                                {requirement.title}
-                            </div>
-                            <Badge
-                                variant={
-                                    requirement.complete
-                                        ? 'default'
-                                        : 'secondary'
-                                }
-                            >
-                                {requirement.complete ? 'Complete' : 'Needed'}
-                            </Badge>
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                            {requirement.phase_title}
-                        </p>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                            {requirement.description}
-                        </p>
-                    </button>
-                ))}
+                <Button type="button" onClick={onOpen}>
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                    {capability.mode === 'experienced'
+                        ? 'Open step'
+                        : 'Continue'}
+                </Button>
             </div>
         </section>
     );
 }
 
-function RequirementEditor({
-    requirement,
-    sectionTitle,
-    sectionBody,
-    supportingFile,
-    supportingFileKey,
-    savingSection,
-    sectionError,
+function NextStepPanel({
+    step,
+    currentStep,
+    capability,
+    questionnaire,
+    questionnaireAnswers,
+    questionnaireErrors,
+    savingQuestionnaire,
+    documentUploadUrl,
+    clientId,
+    files,
     workstream,
     workstreamOptions,
-    onTitleChange,
-    onBodyChange,
-    onFileChange,
+    uploadedCount,
+    uploadedDocuments,
+    uploadKey,
+    uploading,
+    uploadError,
+    businessPlanBudgetUrl,
+    messagesUrl,
+    onQuestionnaireChange,
+    onSubmitQuestionnaire,
+    onFilesChange,
     onWorkstreamChange,
-    onSave,
+    onUploadEvidence,
 }: {
-    requirement: PlanRequirementPayload | null;
-    sectionTitle: string;
-    sectionBody: string;
-    supportingFile: File | null;
-    supportingFileKey: number;
-    savingSection: boolean;
-    sectionError: string | null;
+    step: WorkflowStep;
+    currentStep: WorkflowStep;
+    capability: CapabilityPayload;
+    questionnaire: DdQuestionnairePayload | null;
+    questionnaireAnswers: QuestionnaireAnswers;
+    questionnaireErrors: Record<string, string | undefined>;
+    savingQuestionnaire: boolean;
+    documentUploadUrl: string;
+    clientId: string;
+    files: File[];
     workstream: string;
     workstreamOptions: WorkstreamOption[];
-    onTitleChange: (value: string) => void;
-    onBodyChange: (value: string) => void;
-    onFileChange: (file: File | null) => void;
-    onWorkstreamChange: (value: string) => void;
-    onSave: () => void;
+    uploadedCount: number;
+    uploadedDocuments: UploadedDocument[];
+    uploadKey: number;
+    uploading: boolean;
+    uploadError: string | null;
+    businessPlanBudgetUrl: string;
+    messagesUrl: string;
+    onQuestionnaireChange: (answers: QuestionnaireAnswers) => void;
+    onSubmitQuestionnaire: () => void;
+    onFilesChange: (files: File[]) => void;
+    onWorkstreamChange: (workstream: string) => void;
+    onUploadEvidence: () => void;
 }) {
-    if (!requirement) {
+    const isCurrentStep = step.key === currentStep.key;
+
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                    <Badge variant="outline">Step {step.number} of 5</Badge>
+                    <h2 className="text-lg font-semibold">{step.title}</h2>
+                    <p className="text-sm text-muted-foreground">
+                        {step.description}
+                    </p>
+                </div>
+                <Badge
+                    variant={
+                        step.status === 'complete' ? 'default' : 'secondary'
+                    }
+                >
+                    {formatStatus(step.status)}
+                </Badge>
+            </div>
+
+            {!isCurrentStep && capability.mode === 'experienced' ? (
+                <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                    This is not the current blocker, but experienced buyers can
+                    open it early to add or review information.
+                </div>
+            ) : null}
+
+            <div className="rounded-md border bg-muted/20 p-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                    <CircleHelp className="size-4" aria-hidden="true" />
+                    What to do here
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    {step.whatToDo}
+                </p>
+            </div>
+
+            <StepActionContent
+                step={step}
+                questionnaire={questionnaire}
+                questionnaireAnswers={questionnaireAnswers}
+                questionnaireErrors={questionnaireErrors}
+                savingQuestionnaire={savingQuestionnaire}
+                documentUploadUrl={documentUploadUrl}
+                clientId={clientId}
+                files={files}
+                workstream={workstream}
+                workstreamOptions={workstreamOptions}
+                uploadedCount={uploadedCount}
+                uploadedDocuments={uploadedDocuments}
+                uploadKey={uploadKey}
+                uploading={uploading}
+                uploadError={uploadError}
+                businessPlanBudgetUrl={businessPlanBudgetUrl}
+                messagesUrl={messagesUrl}
+                onQuestionnaireChange={onQuestionnaireChange}
+                onSubmitQuestionnaire={onSubmitQuestionnaire}
+                onFilesChange={onFilesChange}
+                onWorkstreamChange={onWorkstreamChange}
+                onUploadEvidence={onUploadEvidence}
+            />
+        </section>
+    );
+}
+
+function StepActionContent({
+    step,
+    questionnaire,
+    questionnaireAnswers,
+    questionnaireErrors,
+    savingQuestionnaire,
+    documentUploadUrl,
+    clientId,
+    files,
+    workstream,
+    workstreamOptions,
+    uploadedCount,
+    uploadedDocuments,
+    uploadKey,
+    uploading,
+    uploadError,
+    businessPlanBudgetUrl,
+    messagesUrl,
+    onQuestionnaireChange,
+    onSubmitQuestionnaire,
+    onFilesChange,
+    onWorkstreamChange,
+    onUploadEvidence,
+}: {
+    step: WorkflowStep;
+    questionnaire: DdQuestionnairePayload | null;
+    questionnaireAnswers: QuestionnaireAnswers;
+    questionnaireErrors: Record<string, string | undefined>;
+    savingQuestionnaire: boolean;
+    documentUploadUrl: string;
+    clientId: string;
+    files: File[];
+    workstream: string;
+    workstreamOptions: WorkstreamOption[];
+    uploadedCount: number;
+    uploadedDocuments: UploadedDocument[];
+    uploadKey: number;
+    uploading: boolean;
+    uploadError: string | null;
+    businessPlanBudgetUrl: string;
+    messagesUrl: string;
+    onQuestionnaireChange: (answers: QuestionnaireAnswers) => void;
+    onSubmitQuestionnaire: () => void;
+    onFilesChange: (files: File[]) => void;
+    onWorkstreamChange: (workstream: string) => void;
+    onUploadEvidence: () => void;
+}) {
+    if (step.key === 'questions') {
         return (
-            <section className="rounded-md border bg-background p-4 text-sm text-muted-foreground">
-                Populate the plan from DD before completing missing sections.
-            </section>
+            <QuestionnairePanel
+                questionnaire={questionnaire}
+                answers={questionnaireAnswers}
+                errors={questionnaireErrors}
+                saving={savingQuestionnaire}
+                documentUploadUrl={documentUploadUrl}
+                clientId={clientId}
+                onChange={onQuestionnaireChange}
+                onSubmit={onSubmitQuestionnaire}
+            />
+        );
+    }
+
+    if (step.key === 'evidence' || step.key === 'financials') {
+        return (
+            <EvidencePanel
+                title={
+                    step.key === 'financials'
+                        ? 'Upload price and money records'
+                        : 'Upload DD evidence'
+                }
+                description={
+                    step.key === 'financials'
+                        ? 'Useful files include sales reports, profit reports, cash records, stock reports, debt details, and notes showing how the seller chose the price.'
+                        : 'Useful files include seller packs, contracts, leases, customer information, staff details, asset lists, and broker notes.'
+                }
+                files={files}
+                workstream={workstream}
+                workstreamOptions={workstreamOptions}
+                uploadedCount={uploadedCount}
+                uploadedDocuments={uploadedDocuments}
+                uploadKey={uploadKey}
+                uploading={uploading}
+                uploadError={uploadError}
+                onFilesChange={onFilesChange}
+                onWorkstreamChange={onWorkstreamChange}
+                onUpload={onUploadEvidence}
+            />
+        );
+    }
+
+    if (step.key === 'review') {
+        return (
+            <PlainActionPanel
+                icon={MessageSquare}
+                title="FSA is reviewing"
+                description="There may be nothing for you to do until FSA asks for another document, answer, or decision."
+            >
+                <Button asChild>
+                    <Link href={messagesUrl}>
+                        <MessageSquare className="size-4" aria-hidden="true" />
+                        Open messages
+                    </Link>
+                </Button>
+            </PlainActionPanel>
         );
     }
 
     return (
-        <section className="space-y-4 rounded-md border bg-background p-4">
-            <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                    <Bot className="size-4" aria-hidden="true" />
-                    <h2 className="text-sm font-medium">
-                        Complete requirement
-                    </h2>
-                    <Badge variant="outline">{requirement.phase_title}</Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                    {requirement.description}
-                </p>
-            </div>
-
-            <div className="grid gap-3">
-                <label className="grid gap-1 text-sm">
-                    <span className="font-medium">Section title</span>
-                    <input
-                        value={sectionTitle}
-                        placeholder={requirement.title}
-                        onChange={(event) =>
-                            onTitleChange(event.currentTarget.value)
-                        }
-                        className="rounded-md border bg-background px-3 py-2"
-                    />
-                </label>
-                <label className="grid gap-1 text-sm">
-                    <span className="font-medium">Plan detail</span>
-                    <textarea
-                        value={sectionBody}
-                        placeholder="Add the missing context, assumptions, evidence, decisions, and risks the advisor should rely on."
-                        rows={8}
-                        onChange={(event) =>
-                            onBodyChange(event.currentTarget.value)
-                        }
-                        className="min-h-40 rounded-md border bg-background px-3 py-2"
-                    />
-                </label>
-                <div className="grid gap-2">
-                    <div className="grid gap-2 sm:grid-cols-[220px_1fr]">
-                        <Select
-                            value={workstream}
-                            onValueChange={onWorkstreamChange}
-                        >
-                            <SelectTrigger
-                                size="sm"
-                                aria-label="Supporting evidence workstream"
-                            >
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {workstreamOptions.map((option) => (
-                                    <SelectItem
-                                        key={option.value}
-                                        value={option.value}
-                                    >
-                                        {option.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <FileDropzone
-                            key={supportingFileKey}
-                            id="dd_acquisition_plan_supporting_document"
-                            files={supportingFile ? [supportingFile] : []}
-                            label="Attach supporting document"
-                            onFilesChange={(files) =>
-                                onFileChange(files[0] ?? null)
-                            }
-                        />
-                    </div>
-                </div>
-                <InputError message={sectionError ?? undefined} />
-                <div>
-                    <Button
-                        type="button"
-                        disabled={savingSection}
-                        onClick={onSave}
-                    >
-                        <CheckCircle2 className="size-4" aria-hidden="true" />
-                        {savingSection ? 'Saving' : 'Save requirement'}
-                    </Button>
-                </div>
-            </div>
-        </section>
-    );
-}
-
-function PlanWorkspace({
-    plan,
-    compact = false,
-}: {
-    plan: BusinessPlanPayload;
-    compact?: boolean;
-}) {
-    return (
-        <Section
-            title="Plan workspace"
-            description="Review the DD-populated sections, completed requirements, and assistant guidance."
+        <PlainActionPanel
+            icon={FileSpreadsheet}
+            title="Create the plan and budget from DD"
+            description="The DD workspace has done its job. The business-plan draft and budget should now start from the Business Plan & Budget workspace."
         >
-            <section className="space-y-4 rounded-md border bg-background p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                        <FileText className="size-4" aria-hidden="true" />
-                        <h2 className="text-sm font-medium">{plan.title}</h2>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        <Badge variant="outline">
-                            {formatLabel(plan.status)}
-                        </Badge>
-                        <Badge
-                            variant={
-                                plan.requirements_complete
-                                    ? 'default'
-                                    : 'secondary'
-                            }
-                        >
-                            {plan.requirements_complete
-                                ? 'Requirements complete'
-                                : `${plan.missing_requirements.length} missing`}
-                        </Badge>
-                    </div>
-                </div>
-
-                {!plan.requirements_complete ? (
-                    <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-                        Missing: {plan.missing_requirements.join(', ')}
-                    </div>
-                ) : null}
-
-                <div className="grid gap-3">
-                    {plan.phases.map((phase) => (
-                        <article
-                            key={phase.id}
-                            className="rounded-md border p-3"
-                        >
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <h3 className="text-sm font-medium">
-                                    {phase.title}
-                                </h3>
-                                <Badge variant="outline">
-                                    {
-                                        phase.requirements.filter(
-                                            (requirement) =>
-                                                requirement.complete,
-                                        ).length
-                                    }
-                                    /{phase.requirements.length} requirements
-                                </Badge>
-                            </div>
-                            <div className="mt-3 grid gap-2 md:grid-cols-2">
-                                {phase.requirements.map((requirement) => (
-                                    <div
-                                        key={requirement.key}
-                                        className="rounded-md bg-muted/40 p-3 text-sm"
-                                    >
-                                        <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <span className="font-medium">
-                                                {requirement.title}
-                                            </span>
-                                            <Badge
-                                                variant={
-                                                    requirement.complete
-                                                        ? 'default'
-                                                        : 'secondary'
-                                                }
-                                            >
-                                                {requirement.complete
-                                                    ? 'Complete'
-                                                    : 'Needed'}
-                                            </Badge>
-                                        </div>
-                                        <p className="mt-1 text-muted-foreground">
-                                            {requirement.description}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                            {phase.sections.length === 0 ? (
-                                <p className="mt-3 text-sm text-muted-foreground">
-                                    No section generated yet.
-                                </p>
-                            ) : (
-                                <div className="mt-3 space-y-3">
-                                    {phase.sections
-                                        .slice(0, compact ? 1 : undefined)
-                                        .map((section) => (
-                                            <PlanSection
-                                                key={section.id}
-                                                section={section}
-                                            />
-                                        ))}
-                                </div>
-                            )}
-                            {phase.requirements.some(
-                                (requirement) => !requirement.complete,
-                            ) ? (
-                                <div className="mt-3 space-y-2">
-                                    {phase.requirements
-                                        .filter(
-                                            (requirement) =>
-                                                !requirement.complete,
-                                        )
-                                        .slice(0, compact ? 1 : undefined)
-                                        .map((requirement) => (
-                                            <PendingRequirement
-                                                key={requirement.key}
-                                                requirement={requirement}
-                                            />
-                                        ))}
-                                </div>
-                            ) : null}
-                        </article>
-                    ))}
-                </div>
-            </section>
-        </Section>
+            <Button asChild>
+                <Link href={businessPlanBudgetUrl}>
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                    Open Business Plan & Budget
+                </Link>
+            </Button>
+        </PlainActionPanel>
     );
 }
 
-function PlanTemplatePreview({
-    phases,
-    compact = false,
+function QuestionnairePanel({
+    questionnaire,
+    answers,
+    errors,
+    saving,
+    documentUploadUrl,
+    clientId,
+    onChange,
+    onSubmit,
 }: {
-    phases: PlanTemplatePhasePayload[];
-    compact?: boolean;
+    questionnaire: DdQuestionnairePayload | null;
+    answers: QuestionnaireAnswers;
+    errors: Record<string, string | undefined>;
+    saving: boolean;
+    documentUploadUrl: string;
+    clientId: string;
+    onChange: (answers: QuestionnaireAnswers) => void;
+    onSubmit: () => void;
 }) {
-    return (
-        <Section
-            title="Due diligence source view"
-            description="The DD structure is visible before generation; DD-populated and client-completed sections become source material for Business Plan & Budget."
-        >
-            <section className="space-y-4 rounded-md border bg-background p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                        <FileText className="size-4" aria-hidden="true" />
-                        <h2 className="text-sm font-medium">
-                            Draft acquisition plan
-                        </h2>
-                    </div>
-                    <Badge variant="secondary">Pending generation</Badge>
-                </div>
+    if (!questionnaire) {
+        return (
+            <PlainActionPanel
+                icon={ClipboardList}
+                title="DD questions are not available"
+                description="Ask FSA to publish the Due Diligence questionnaire before continuing."
+            />
+        );
+    }
 
-                <div className="grid gap-3">
-                    {phases.map((phase) => (
-                        <article
-                            key={phase.key}
-                            className="rounded-md border p-3"
-                        >
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <h3 className="text-sm font-medium">
-                                    {phase.title}
-                                </h3>
-                                <Badge variant="outline">
-                                    0/{phase.requirements.length} requirements
-                                </Badge>
-                            </div>
-                            <div className="mt-3 space-y-2">
-                                {phase.requirements
-                                    .slice(0, compact ? 1 : undefined)
-                                    .map((requirement) => (
-                                        <PendingRequirement
-                                            key={requirement.key}
-                                            requirement={requirement}
-                                        />
-                                    ))}
-                            </div>
-                        </article>
-                    ))}
-                </div>
-            </section>
-        </Section>
-    );
-}
-
-function PendingRequirement({
-    requirement,
-}: {
-    requirement: PlanRequirementPayload;
-}) {
     return (
-        <div className="rounded-md border border-dashed bg-muted/20 p-3 text-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-medium">
-                    Pending: {requirement.title}
-                </span>
-                <Badge variant="secondary">Pending</Badge>
+        <div className="space-y-4">
+            <div className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
+                These questions help FSA spot risk, ask for the right seller
+                documents, check whether the price makes sense, and explain what
+                should happen before you commit to the purchase.
             </div>
-            <p className="mt-1 text-muted-foreground">
-                {requirement.description}
-            </p>
+            {questionnaire.submitted ? (
+                <div className="flex flex-wrap items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                    <CheckCircle2 className="size-4" aria-hidden="true" />
+                    Submitted {formatDate(questionnaire.submittedAt)}. You can
+                    update answers if something has changed.
+                </div>
+            ) : null}
+            <QuestionnaireRenderer
+                schema={questionnaire.schema}
+                answers={answers}
+                errors={errors}
+                onChange={onChange}
+                uploadUrl={documentUploadUrl}
+                clientId={clientId}
+                collapsibleSections
+                showProgress
+                helpTextLabel="Why this is needed"
+                showCharacterCounts
+            />
+            <div className="flex flex-wrap gap-2">
+                <Button type="button" disabled={saving} onClick={onSubmit}>
+                    <CheckCircle2 className="size-4" aria-hidden="true" />
+                    {saving ? 'Saving answers' : 'Submit DD answers'}
+                </Button>
+            </div>
         </div>
     );
 }
 
-function PlanSection({ section }: { section: PlanSectionPayload }) {
-    const askAssistant = () => {
-        router.post(section.guidance_url, {}, { preserveScroll: true });
-    };
-
+function EvidencePanel({
+    title,
+    description,
+    files,
+    workstream,
+    workstreamOptions,
+    uploadedCount,
+    uploadedDocuments,
+    uploadKey,
+    uploading,
+    uploadError,
+    onFilesChange,
+    onWorkstreamChange,
+    onUpload,
+}: {
+    title: string;
+    description: string;
+    files: File[];
+    workstream: string;
+    workstreamOptions: WorkstreamOption[];
+    uploadedCount: number;
+    uploadedDocuments: UploadedDocument[];
+    uploadKey: number;
+    uploading: boolean;
+    uploadError: string | null;
+    onFilesChange: (files: File[]) => void;
+    onWorkstreamChange: (workstream: string) => void;
+    onUpload: () => void;
+}) {
     return (
-        <div className="rounded-md bg-muted/40 p-3">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                    <h4 className="text-sm font-medium">{section.title}</h4>
-                    <div className="mt-1 flex flex-wrap gap-2">
-                        <Badge variant="outline">
-                            {formatLabel(section.completeness_status)}
-                        </Badge>
-                        {section.predictive_score?.score ? (
-                            <Badge variant="secondary">
-                                {section.predictive_score.score}/100
-                            </Badge>
-                        ) : null}
-                        {section.attached_document_ids.length > 0 ? (
-                            <Badge variant="outline">
-                                {section.attached_document_ids.length} docs
-                            </Badge>
-                        ) : null}
-                    </div>
+        <div className="space-y-4 rounded-md border p-4">
+            <div>
+                <h3 className="text-sm font-medium">{title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    {description}
+                </p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-[240px_1fr]">
+                <label className="grid gap-2 text-sm">
+                    <span className="font-medium">Evidence area</span>
+                    <Select
+                        value={workstream}
+                        onValueChange={onWorkstreamChange}
+                    >
+                        <SelectTrigger aria-label="DD evidence area">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {workstreamOptions.map((option) => (
+                                <SelectItem
+                                    key={option.value}
+                                    value={option.value}
+                                >
+                                    {option.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </label>
+                <div className="grid gap-2">
+                    <FileDropzone
+                        key={uploadKey}
+                        id="dd_evidence_files"
+                        files={files}
+                        label="Select evidence files"
+                        description="Drag files here or browse"
+                        multiple
+                        onFilesChange={onFilesChange}
+                    />
+                    <InputError message={uploadError ?? undefined} />
+                </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm text-muted-foreground">
+                    {uploadedCount} uploaded in this DD workspace
                 </div>
                 <Button
                     type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={askAssistant}
+                    disabled={files.length === 0 || uploading}
+                    onClick={onUpload}
                 >
-                    <Bot className="size-4" aria-hidden="true" />
-                    Ask assistant
+                    <Upload className="size-4" aria-hidden="true" />
+                    {uploading
+                        ? `Uploading ${files.length} file${files.length === 1 ? '' : 's'}`
+                        : 'Upload selected files'}
                 </Button>
             </div>
-            <p className="mt-3 text-sm whitespace-pre-line text-muted-foreground">
-                {section.body}
-            </p>
-            {section.guidance ? (
-                <div className="mt-3 rounded-md border bg-background p-3 text-sm">
-                    <div className="font-medium">Assistant guidance</div>
-                    <p className="mt-1 text-muted-foreground">
-                        {section.guidance.summary ??
-                            section.guidance.ai_summary ??
-                            'Guidance generated.'}
-                    </p>
+            {uploadedDocuments.length > 0 ? (
+                <div className="rounded-md border bg-muted/20 p-3">
+                    <div className="text-sm font-medium">
+                        Uploaded this session
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                        {uploadedDocuments.map((document) => (
+                            <Badge
+                                key={document.id}
+                                variant="secondary"
+                                className="gap-2"
+                            >
+                                <CheckCircle2
+                                    className="size-3"
+                                    aria-hidden="true"
+                                />
+                                {document.original_filename}
+                            </Badge>
+                        ))}
+                    </div>
                 </div>
             ) : null}
         </div>
     );
 }
 
-function EmptyPlanPanel({
-    readiness,
-    onPopulate,
-}: {
-    readiness: ReadinessPayload;
-    onPopulate: () => void;
-}) {
-    return (
-        <section className="rounded-md border bg-background p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h2 className="text-sm font-medium">Plan not populated</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        {readiness.missing.length > 0
-                            ? readiness.missing.join(', ')
-                            : 'The DD inputs are available.'}
-                    </p>
-                </div>
-                <Button type="button" onClick={onPopulate}>
-                    Populate from DD
-                </Button>
-            </div>
-        </section>
-    );
-}
-
-function Section({
+function PlainActionPanel({
+    icon: Icon,
     title,
     description,
     children,
 }: {
+    icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
     title: string;
     description: string;
-    children: ReactNode;
+    children?: ReactNode;
 }) {
     return (
-        <section className="space-y-4">
-            <div>
-                <h2 className="text-base font-semibold">{title}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                    {description}
-                </p>
+        <div className="space-y-4 rounded-md border p-4">
+            <div className="flex items-start gap-3">
+                <Icon className="mt-0.5 size-5" aria-hidden={true} />
+                <div>
+                    <h3 className="text-sm font-medium">{title}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        {description}
+                    </p>
+                </div>
             </div>
-            {children}
+            {children ? <div>{children}</div> : null}
+        </div>
+    );
+}
+
+function HelpPanel({ messagesUrl }: { messagesUrl: string }) {
+    return (
+        <aside className="space-y-4 self-start rounded-md border bg-background p-4">
+            <div className="flex items-start gap-3">
+                <CircleHelp className="mt-0.5 size-5" aria-hidden="true" />
+                <div>
+                    <h2 className="text-sm font-medium">Need help?</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        If a question is unclear, a file is missing, or you do
+                        not know what to ask the seller for, message FSA before
+                        you continue.
+                    </p>
+                </div>
+            </div>
+            <Button asChild variant="outline">
+                <Link href={messagesUrl}>
+                    <MessageSquare className="size-4" aria-hidden="true" />I
+                    need help
+                </Link>
+            </Button>
+        </aside>
+    );
+}
+
+function ProgressStepper({
+    steps,
+    progressPercent,
+    selectedStep,
+    capability,
+    onSelect,
+}: {
+    steps: WorkflowStep[];
+    progressPercent: number;
+    selectedStep: WorkflowStep;
+    capability: CapabilityPayload;
+    onSelect: (step: WorkflowStep) => void;
+}) {
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm font-medium">
+                    {progressPercent}% complete
+                </div>
+                <div
+                    className="h-2 w-full overflow-hidden rounded-full bg-muted sm:w-80"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={progressPercent}
+                    aria-label="DD progress"
+                >
+                    <div
+                        className="h-full rounded-full bg-foreground transition-[width]"
+                        style={{ width: `${progressPercent}%` }}
+                    />
+                </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-5">
+                {steps.map((step) => {
+                    const canSelect =
+                        capability.mode === 'experienced' ||
+                        step.status !== 'locked';
+                    const selected = step.key === selectedStep.key;
+
+                    return (
+                        <button
+                            key={step.key}
+                            type="button"
+                            disabled={!canSelect}
+                            className={cn(
+                                'min-h-28 rounded-md border p-3 text-left transition-colors',
+                                selected
+                                    ? 'border-foreground bg-muted/30'
+                                    : 'hover:border-foreground/50',
+                                step.status === 'complete' &&
+                                    'border-emerald-200 bg-emerald-50',
+                                step.status === 'locked' &&
+                                    !canSelect &&
+                                    'cursor-not-allowed opacity-60',
+                            )}
+                            onClick={() => onSelect(step)}
+                        >
+                            <div className="flex items-center gap-2">
+                                <StepStatusIcon status={step.status} />
+                                <span className="text-sm font-medium">
+                                    {step.shortTitle}
+                                </span>
+                            </div>
+                            <p className="mt-2 text-xs text-muted-foreground">
+                                {step.description}
+                            </p>
+                        </button>
+                    );
+                })}
+            </div>
         </section>
     );
 }
 
-function ActionTile({
-    icon: Icon,
-    title,
-    value,
-    explanation,
-    children,
-}: {
-    icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
-    title: string;
-    value: ReactNode;
-    explanation: string;
-    children: ReactNode;
-}) {
+function StepStatusIcon({ status }: { status: WorkflowStatus }) {
+    if (status === 'complete') {
+        return <CheckCircle2 className="size-4 text-emerald-600" />;
+    }
+
+    if (status === 'current') {
+        return (
+            <span className="grid size-5 place-items-center rounded-full bg-foreground text-xs font-medium text-background">
+                !
+            </span>
+        );
+    }
+
     return (
-        <Tooltip>
-            <TooltipTrigger asChild>
-                <section className="space-y-4 rounded-md border bg-background p-4">
-                    <div>
-                        <div className="flex items-center gap-2 text-sm font-medium">
-                            <Icon className="size-4" aria-hidden={true} />
-                            {title}
-                        </div>
-                        <div className="mt-2 text-sm text-muted-foreground">
-                            {value}
-                        </div>
-                    </div>
-                    {children}
-                </section>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-xs">
-                {explanation}
-            </TooltipContent>
-        </Tooltip>
+        <span className="grid size-5 place-items-center rounded-full border text-xs text-muted-foreground">
+            -
+        </span>
     );
 }
 
@@ -1258,7 +1003,7 @@ function TargetPanel({ engagement }: { engagement: EngagementPayload }) {
     return (
         <section className="space-y-4 rounded-md border bg-background p-4">
             <div className="flex items-center gap-2">
-                <PieChart className="size-4" aria-hidden="true" />
+                <FileText className="size-4" aria-hidden="true" />
                 <h2 className="text-sm font-medium">Target</h2>
             </div>
             <dl className="grid gap-3 text-sm">
@@ -1285,16 +1030,16 @@ function ReadinessPanel({ readiness }: { readiness: ReadinessPayload }) {
     return (
         <section className="space-y-4 rounded-md border bg-background p-4">
             <div className="flex items-center gap-2">
-                <CheckCircle2 className="size-4" aria-hidden="true" />
-                <h2 className="text-sm font-medium">Readiness</h2>
+                <ClipboardList className="size-4" aria-hidden="true" />
+                <h2 className="text-sm font-medium">Where things stand</h2>
             </div>
             <div className="grid gap-3 text-sm md:grid-cols-2">
                 <Detail
-                    label="Questionnaire"
+                    label="Questions"
                     value={
                         readiness.questionnaire_submitted
                             ? formatDate(readiness.questionnaire_submitted_at)
-                            : 'Pending'
+                            : 'Not submitted'
                     }
                 />
                 <Detail
@@ -1302,23 +1047,23 @@ function ReadinessPanel({ readiness }: { readiness: ReadinessPayload }) {
                     value={`${readiness.data_room_item_count} item${readiness.data_room_item_count === 1 ? '' : 's'}`}
                 />
                 <Detail
-                    label="Workstreams"
+                    label="FSA checks"
                     value={`${readiness.workstreams_completed}/${readiness.workstreams_total}`}
                 />
                 <Detail
-                    label="Valuation"
+                    label="Price check"
                     value={
                         readiness.valuation_ready
                             ? formatDate(readiness.valuation_as_at)
-                            : 'Pending'
+                            : 'Waiting for financials'
                     }
                 />
                 <Detail
-                    label="Advice report"
+                    label="FSA report"
                     value={
                         readiness.advice_report_ready
                             ? formatDate(readiness.advice_report_generated_at)
-                            : 'Pending'
+                            : 'Not ready yet'
                     }
                 />
             </div>
@@ -1330,8 +1075,8 @@ function ReadinessPanel({ readiness }: { readiness: ReadinessPayload }) {
 function ReadinessList({ readiness }: { readiness: ReadinessPayload }) {
     if (readiness.missing.length === 0) {
         return (
-            <p className="text-sm text-muted-foreground">
-                No blocking gaps currently surfaced.
+            <p className="rounded-md border bg-emerald-50 p-3 text-sm text-emerald-900">
+                DD inputs are ready for the next FSA action.
             </p>
         );
     }
@@ -1341,7 +1086,7 @@ function ReadinessList({ readiness }: { readiness: ReadinessPayload }) {
             {readiness.missing.map((item) => (
                 <div key={item} className="flex items-center gap-2">
                     <span className="size-1.5 rounded-full bg-amber-500" />
-                    {item}
+                    {plainMissingItem(item)}
                 </div>
             ))}
         </div>
@@ -1358,7 +1103,7 @@ function TabList({
     return (
         <div
             className="inline-flex rounded-md border bg-background p-1"
-            aria-label="Acquisition plan sections"
+            aria-label="Due diligence sections"
         >
             {[
                 ['actions', 'Actions'],
@@ -1382,6 +1127,83 @@ function TabList({
     );
 }
 
+function Section({
+    title,
+    description,
+    children,
+}: {
+    title: string;
+    description: string;
+    children: ReactNode;
+}) {
+    return (
+        <section className="space-y-4">
+            <div>
+                <h2 className="text-base font-semibold">{title}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    {description}
+                </p>
+            </div>
+            {children}
+        </section>
+    );
+}
+
+function workflowSteps(
+    readiness: ReadinessPayload,
+    uploadedCount: number,
+): WorkflowStep[] {
+    const currentIndex = currentWorkflowIndex(readiness, uploadedCount);
+
+    return WORKFLOW_TEMPLATE.map((step, index) => ({
+        ...step,
+        status:
+            index < currentIndex
+                ? 'complete'
+                : index === currentIndex
+                  ? 'current'
+                  : 'locked',
+    }));
+}
+
+function currentWorkflowIndex(
+    readiness: ReadinessPayload,
+    uploadedCount: number,
+): number {
+    if (!readiness.questionnaire_submitted) {
+        return 0;
+    }
+
+    if (uploadedCount === 0) {
+        return 1;
+    }
+
+    if (!readiness.valuation_ready) {
+        return 2;
+    }
+
+    if (
+        readiness.workstreams_completed < readiness.workstreams_total ||
+        !readiness.advice_report_ready
+    ) {
+        return 3;
+    }
+
+    return 4;
+}
+
+function formatStatus(status: WorkflowStatus): string {
+    if (status === 'complete') {
+        return 'Done';
+    }
+
+    if (status === 'current') {
+        return 'Do this now';
+    }
+
+    return 'Later';
+}
+
 function Detail({ label, value }: { label: string; value: string | null }) {
     return (
         <div className="grid grid-cols-[130px_minmax(0,1fr)] gap-3">
@@ -1389,10 +1211,6 @@ function Detail({ label, value }: { label: string; value: string | null }) {
             <dd>{value || '-'}</dd>
         </div>
     );
-}
-
-function requirementKey(requirement: PlanRequirementPayload): string {
-    return `${requirement.phase_key}:${requirement.key}`;
 }
 
 async function uploadDocument(
@@ -1447,6 +1265,20 @@ function stringDetail(value: unknown): string | null {
     }
 
     return null;
+}
+
+function plainMissingItem(item: string): string {
+    return item
+        .replace('Submit the DD questionnaire', 'Answer the questions')
+        .replace('Upload DD evidence', 'Upload evidence')
+        .replace(
+            'Provide valuation financials',
+            'Upload price and money records',
+        )
+        .replace(
+            'Complete DD workstream analysis',
+            'FSA checks are still in progress',
+        );
 }
 
 function formatDate(value: string | null): string {

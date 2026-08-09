@@ -98,6 +98,7 @@ final class TestingSeedDataSeeder extends Seeder
             TermsVersionSeeder::class,
             StandardAdvisoryQuestionnaireSeeder::class,
             DdSpecificQuestionnaireSeeder::class,
+            DdSpecificQuestionnaireV2Seeder::class,
             PostAcquisitionGapQuestionnaireSeeder::class,
             EntrepreneurReadinessQuestionnaireSeeder::class,
             GovernanceReviewQuestionnaireSeeder::class,
@@ -129,6 +130,7 @@ final class TestingSeedDataSeeder extends Seeder
             $this->seedEngagementTouchpoints();
             $this->seedPanelAndReferralData();
             $this->seedDueDiligenceJourney();
+            $this->seedDueDiligenceWorkspacePersonas();
             $this->seedOutcomeFollowUpFixtures();
             $this->seedStrategicPlanTestData();
             $this->seedBulkCommunicationsAndExpiryReminders();
@@ -147,6 +149,8 @@ final class TestingSeedDataSeeder extends Seeder
             'buyer' => ['Seed Buyer Principal', 'seed.buyer.primary@futureshiftadvisory.test', User::TYPE_CLIENT_PRIMARY, 20],
             'analyst' => ['Seed Buyer Analyst', 'seed.buyer.analyst@futureshiftadvisory.test', User::TYPE_CLIENT_TEAM, 20],
             'entrepreneur' => ['Seed Founder', 'seed.entrepreneur@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
+            'ddGuided' => ['Seed DD Guided Buyer', 'seed.dd.guided@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
+            'ddExperience' => ['Seed DD Experienced Buyer', 'seed.dd.experience@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
             'ideaValidationStart' => ['Seed Idea Validation Starter', 'seed.idea.start@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
             'ideaValidationReview' => ['Seed Idea Validation Review', 'seed.idea.review@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
             'broker' => ['Seed Broker Partner', 'seed.broker@futureshiftadvisory.test', User::TYPE_BROKER, 20],
@@ -747,6 +751,78 @@ XML);
             ],
         );
 
+        $this->clients['ddGuided'] = Client::query()->updateOrCreate(
+            ['nzbn' => '9429000000140'],
+            [
+                'engagement_type' => EngagementType::ENTREPRENEUR_MODULE->value,
+                'status' => ClientStatus::ACTIVE->value,
+                'legal_name' => 'Neighbourhood Cycles Limited',
+                'trading_name' => 'Rodney & Janya Guided',
+                'entity_type' => 'NZ Limited Company',
+                'address' => [
+                    'line1' => '22 Market Lane',
+                    'city' => 'Hamilton',
+                    'region' => 'Waikato',
+                    'country' => 'NZ',
+                ],
+                'gst_registered' => true,
+                'directors' => [
+                    ['name' => 'Rodney & Janya', 'role' => 'Founders'],
+                ],
+                'filing_status' => 'up_to_date',
+                'data_quality' => Client::DATA_QUALITY_MEDIUM,
+                'registry_sources' => [
+                    'nzbn' => 'seeded',
+                    'workspace_fixture' => 'dd_guided',
+                ],
+                'created_by_user_id' => $this->users['advisor']->getKey(),
+                'primary_contact_user_id' => $this->users['ddGuided']->getKey(),
+                'engagement_type_locked_at' => $this->now->copy()->subDays(12),
+                'onboarding_wizard_state' => [
+                    'completed_steps' => ['welcome', 'goals', 'website', 'questionnaire', 'documents', 'review'],
+                    'current_step' => 'complete',
+                    'submitted_at' => $this->now->copy()->subDays(10)->toIso8601String(),
+                    'fixture' => 'entrepreneur_original_dd_addon_guided',
+                ],
+            ],
+        );
+
+        $this->clients['ddExperience'] = Client::query()->updateOrCreate(
+            ['nzbn' => '9429000000157'],
+            [
+                'engagement_type' => EngagementType::ENTREPRENEUR_MODULE->value,
+                'status' => ClientStatus::ACTIVE->value,
+                'legal_name' => 'Computerised Bulk Spreaders Limited',
+                'trading_name' => 'Rodney & Janya Experience',
+                'entity_type' => 'NZ Limited Company',
+                'address' => [
+                    'line1' => '48 Orchard Road',
+                    'city' => 'Tauranga',
+                    'region' => 'Bay of Plenty',
+                    'country' => 'NZ',
+                ],
+                'gst_registered' => true,
+                'directors' => [
+                    ['name' => 'Rodney & Janya', 'role' => 'Directors'],
+                ],
+                'filing_status' => 'up_to_date',
+                'data_quality' => Client::DATA_QUALITY_HIGH,
+                'registry_sources' => [
+                    'nzbn' => 'seeded',
+                    'workspace_fixture' => 'dd_experience',
+                ],
+                'created_by_user_id' => $this->users['advisor']->getKey(),
+                'primary_contact_user_id' => $this->users['ddExperience']->getKey(),
+                'engagement_type_locked_at' => $this->now->copy()->subDays(18),
+                'onboarding_wizard_state' => [
+                    'completed_steps' => ['welcome', 'goals', 'website', 'questionnaire', 'documents', 'review'],
+                    'current_step' => 'complete',
+                    'submitted_at' => $this->now->copy()->subDays(16)->toIso8601String(),
+                    'fixture' => 'entrepreneur_original_dd_addon_experience',
+                ],
+            ],
+        );
+
         $this->seedPvWaterfallClients();
         $this->seedClientTeam();
         $this->seedConflictDeclarations();
@@ -836,6 +912,10 @@ XML);
             ['advisory', 'team', 'finance_contact', ['documents', 'payments', 'reports']],
             ['websiteAudit', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'questionnaire', 'reports']],
             ['websiteAudit', 'primary', 'primary_contact', ['portal', 'documents', 'questionnaire', 'reports']],
+            ['ddGuided', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'entrepreneur_module', 'dd', 'reports']],
+            ['ddGuided', 'ddGuided', 'primary_contact', ['portal', 'documents', 'entrepreneur_module', 'dd']],
+            ['ddExperience', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'entrepreneur_module', 'dd', 'reports']],
+            ['ddExperience', 'ddExperience', 'primary_contact', ['portal', 'documents', 'entrepreneur_module', 'dd']],
             ['dd', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'dd', 'reports']],
             ['dd', 'junior', 'advisor', ['documents', 'dd']],
             ['dd', 'buyer', 'primary_contact', ['portal', 'documents', 'dd']],
@@ -873,14 +953,14 @@ XML);
 
     private function seedConflictDeclarations(): void
     {
-        foreach (['advisory', 'dd', 'postAcquisition', 'npo', 'socialEnterprise', ...array_keys($this->pvWaterfallClientDefinitions())] as $clientKey) {
+        foreach (['advisory', 'ddGuided', 'ddExperience', 'dd', 'postAcquisition', 'npo', 'socialEnterprise', ...array_keys($this->pvWaterfallClientDefinitions())] as $clientKey) {
             $this->ids["conflict_{$clientKey}"] = $this->upsert('conflict_declarations', [
                 'client_id' => $this->clients[$clientKey]->getKey(),
                 'advisor_id' => $this->users['advisor']->getKey(),
             ], [
                 'declaration' => $this->json([
-                    'has_conflict' => $clientKey === 'dd',
-                    'summary' => $clientKey === 'dd'
+                    'has_conflict' => in_array($clientKey, ['ddGuided', 'ddExperience', 'dd'], true),
+                    'summary' => in_array($clientKey, ['ddGuided', 'ddExperience', 'dd'], true)
                         ? 'Advisor has prior sector familiarity but no financial interest in the target.'
                         : 'No known conflicts for this seeded engagement.',
                     'mitigation' => 'Reviewed by the seed super admin fixture.',
@@ -4742,6 +4822,154 @@ XML);
             'migrated_by_user_id' => $this->users['advisor']->getKey(),
             'migrated_at' => $this->now->copy()->subHours(12),
         ]);
+    }
+
+    private function seedDueDiligenceWorkspacePersonas(): void
+    {
+        $package = ServiceRatePackage::query()
+            ->where('service_type', ServiceRatePackage::SERVICE_DUE_DILIGENCE)
+            ->where('package_scope', ServiceRatePackage::SCOPE_DD_300K_1M)
+            ->first();
+
+        if (! $package instanceof ServiceRatePackage) {
+            return;
+        }
+
+        foreach ([
+            'ddGuided' => [
+                'target_name' => 'Main Street Bikes Limited',
+                'vendor_name' => 'Main Street Bikes Vendor Trust',
+                'industry' => 'Bicycle retail and servicing',
+                'asking_price' => 640_000,
+                'notes' => 'First-time buyer scenario. The DD workspace should use plain-language prompts and visible next steps.',
+                'capability' => [
+                    'mode' => 'guided',
+                    'support_level' => 'guided',
+                    'label' => 'Guided DD support',
+                    'dd_experience' => 'first_time',
+                    'business_ownership_experience' => 'none',
+                    'financial_confidence' => 'low',
+                    'preferred_guidance' => 'guided',
+                ],
+            ],
+            'ddExperience' => [
+                'target_name' => 'Coastal Bulk Spreaders Limited',
+                'vendor_name' => 'Coastal Agri Vendors',
+                'industry' => 'Agricultural equipment and contracting',
+                'asking_price' => 880_000,
+                'notes' => 'Experienced buyer scenario. The DD workspace can use a more compact path while still showing the next action.',
+                'capability' => [
+                    'mode' => 'experienced',
+                    'support_level' => 'fast_track',
+                    'label' => 'Experienced DD support',
+                    'dd_experience' => 'completed_before',
+                    'business_ownership_experience' => 'bought_or_sold_business',
+                    'financial_confidence' => 'high',
+                    'preferred_guidance' => 'fast_track',
+                ],
+            ],
+        ] as $clientKey => $scenario) {
+            if (! isset($this->clients[$clientKey], $this->users[$clientKey])) {
+                continue;
+            }
+
+            $client = $this->clients[$clientKey];
+            $user = $this->users[$clientKey];
+            $capability = [
+                ...$scenario['capability'],
+                'captured_from' => 'testing_seed_data',
+                'captured_at' => $this->now->copy()->subDays(5)->toIso8601String(),
+            ];
+
+            $this->ids["{$clientKey}_entrepreneur_profile"] = $this->upsert('entrepreneur_profiles', [
+                'email' => $user->email,
+            ], [
+                'user_id' => $user->getKey(),
+                'client_id' => $client->getKey(),
+                'assigned_advisor_id' => $this->users['advisor']->getKey(),
+                'invite_token_id' => null,
+                'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+                'intended_package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO,
+                'name' => $client->trading_name,
+                'stage' => EntrepreneurStage::BUILDING_PHASE_1->value,
+                'concept_summary' => 'Entrepreneur workspace with an added buying-a-business DD service.',
+                'gamification_on' => true,
+            ]);
+
+            $engagementId = $this->upsert('dd_engagements', [
+                'client_id' => $client->getKey(),
+                'target_name' => $scenario['target_name'],
+            ], [
+                'target_details' => $this->json([
+                    'vendor_name' => $scenario['vendor_name'],
+                    'industry' => $scenario['industry'],
+                    'asking_price' => $scenario['asking_price'],
+                    'notes' => $scenario['notes'],
+                    'client_capability' => $capability,
+                    'data_scope' => 'seeded_entrepreneur_dd_addon_workspace',
+                ]),
+                'status' => 'in_progress',
+                'recommendation' => null,
+                'conflict_declaration_id' => $this->ids["conflict_{$clientKey}"] ?? null,
+                'created_by_user_id' => $this->users['advisor']->getKey(),
+                'disclaimer_acknowledged_at' => $this->now->copy()->subDays(5),
+            ]);
+            $this->ids["{$clientKey}_dd_engagement"] = $engagementId;
+
+            $snapshot = $package->snapshot();
+            $this->ids["{$clientKey}_dd_activation"] = $this->upsert('service_activations', [
+                'client_id' => $client->getKey(),
+                'service_type' => ServiceActivation::SERVICE_DUE_DILIGENCE,
+                'client_label' => 'Explore buying a business',
+            ], [
+                'requested_by_user_id' => $user->getKey(),
+                'advisor_id' => $this->users['advisor']->getKey(),
+                'approved_by_user_id' => $this->users['advisor']->getKey(),
+                'service_rate_package_id' => $package->getKey(),
+                'status' => ServiceActivation::STATUS_ACTIVE,
+                'intake' => $this->json([
+                    'target_name' => $scenario['target_name'],
+                    'vendor_name' => $scenario['vendor_name'],
+                    'industry' => $scenario['industry'],
+                    'asking_price' => $scenario['asking_price'],
+                    'notes' => $scenario['notes'],
+                    'dd_experience' => $capability['dd_experience'],
+                    'business_ownership_experience' => $capability['business_ownership_experience'],
+                    'financial_confidence' => $capability['financial_confidence'],
+                    'preferred_guidance' => $capability['preferred_guidance'],
+                ]),
+                'selected_package_snapshot' => $this->json($snapshot),
+                'payment_status' => ServiceActivation::PAYMENT_PAID,
+                'payment_completed_at' => $this->now->copy()->subDays(5),
+                'payment_completed_by_user_id' => $user->getKey(),
+                'payment_reference' => "seed-dd-persona-{$clientKey}",
+                'deposit_paid_at' => $this->now->copy()->subDays(5),
+                'deposit_paid_by_user_id' => $user->getKey(),
+                'deposit_reference' => "seed-dd-persona-deposit-{$clientKey}",
+                'balance_received_at' => null,
+                'balance_received_by_user_id' => null,
+                'balance_reference' => null,
+                'accepted_by_user_id' => $user->getKey(),
+                'accepted_at' => $this->now->copy()->subDays(5),
+                'acceptance_text' => 'Seeded accepted DD workspace for persona testing.',
+                'terms_reference' => $this->json([
+                    'standard_terms_already_accepted' => true,
+                    'workspace_specific_fee_scope_acknowledged' => true,
+                    'seed_persona' => $clientKey,
+                ]),
+                'related_dd_engagement_id' => $engagementId,
+                'related_entrepreneur_profile_id' => null,
+                'client_message_thread_id' => null,
+                'closed_at' => null,
+                'cancelled_at' => null,
+                'metadata' => $this->json([
+                    'fixture' => true,
+                    'fixture_key' => "dd_persona_{$clientKey}",
+                    'pricing_source' => 'testing_seed_data',
+                    'capability_mode' => $capability['mode'],
+                ]),
+            ]);
+        }
     }
 
     private function seedOutcomeFollowUpFixtures(): void

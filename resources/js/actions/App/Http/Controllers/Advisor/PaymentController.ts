@@ -1,120 +1,78 @@
-import {
-    queryParams,
-    type RouteQueryOptions,
-    type RouteDefinition,
-    type RouteFormDefinition,
-    applyUrlDefaults,
-} from './../../../../../wayfinder';
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
- * @see \App\Http\Controllers\Advisor\PaymentController::retry
+* @see \App\Http\Controllers\Advisor\PaymentController::retry
  * @see app/Http/Controllers/Advisor/PaymentController.php:20
  * @route '/advisor/payments/{payment}/retry'
  */
-export const retry = (
-    args:
-        | { payment: string | number }
-        | [payment: string | number]
-        | string
-        | number,
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+export const retry = (args: { payment: string | number } | [payment: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: retry.url(args, options),
     method: 'post',
-});
+})
 
 retry.definition = {
-    methods: ['post'],
+    methods: ["post"],
     url: '/advisor/payments/{payment}/retry',
-} satisfies RouteDefinition<['post']>;
+} satisfies RouteDefinition<["post"]>
 
 /**
- * @see \App\Http\Controllers\Advisor\PaymentController::retry
+* @see \App\Http\Controllers\Advisor\PaymentController::retry
  * @see app/Http/Controllers/Advisor/PaymentController.php:20
  * @route '/advisor/payments/{payment}/retry'
  */
-retry.url = (
-    args:
-        | { payment: string | number }
-        | [payment: string | number]
-        | string
-        | number,
-    options?: RouteQueryOptions,
-) => {
+retry.url = (args: { payment: string | number } | [payment: string | number ] | string | number, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
-        args = { payment: args };
+        args = { payment: args }
     }
+
 
     if (Array.isArray(args)) {
         args = {
-            payment: args[0],
-        };
+                    payment: args[0],
+                }
     }
 
-    args = applyUrlDefaults(args);
+    args = applyUrlDefaults(args)
 
     const parsedArgs = {
-        payment: args.payment,
-    };
+                        payment: args.payment,
+                }
 
-    return (
-        retry.definition.url
+    return retry.definition.url
             .replace('{payment}', parsedArgs.payment.toString())
             .replace(/\/+$/, '') + queryParams(options)
-    );
-};
+}
 
 /**
- * @see \App\Http\Controllers\Advisor\PaymentController::retry
+* @see \App\Http\Controllers\Advisor\PaymentController::retry
  * @see app/Http/Controllers/Advisor/PaymentController.php:20
  * @route '/advisor/payments/{payment}/retry'
  */
-retry.post = (
-    args:
-        | { payment: string | number }
-        | [payment: string | number]
-        | string
-        | number,
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+retry.post = (args: { payment: string | number } | [payment: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: retry.url(args, options),
     method: 'post',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Advisor\PaymentController::retry
+    /**
+* @see \App\Http\Controllers\Advisor\PaymentController::retry
  * @see app/Http/Controllers/Advisor/PaymentController.php:20
  * @route '/advisor/payments/{payment}/retry'
  */
-const retryForm = (
-    args:
-        | { payment: string | number }
-        | [payment: string | number]
-        | string
-        | number,
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: retry.url(args, options),
-    method: 'post',
-});
+    const retryForm = (args: { payment: string | number } | [payment: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: retry.url(args, options),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Advisor\PaymentController::retry
+            /**
+* @see \App\Http\Controllers\Advisor\PaymentController::retry
  * @see app/Http/Controllers/Advisor/PaymentController.php:20
  * @route '/advisor/payments/{payment}/retry'
  */
-retryForm.post = (
-    args:
-        | { payment: string | number }
-        | [payment: string | number]
-        | string
-        | number,
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: retry.url(args, options),
-    method: 'post',
-});
+        retryForm.post = (args: { payment: string | number } | [payment: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: retry.url(args, options),
+            method: 'post',
+        })
 
-retry.form = retryForm;
-const PaymentController = { retry };
+    retry.form = retryForm
+const PaymentController = { retry }
 
-export default PaymentController;
+export default PaymentController

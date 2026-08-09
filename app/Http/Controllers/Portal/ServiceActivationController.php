@@ -13,6 +13,7 @@ use App\Services\ServiceActivations\ServiceActivationManager;
 use App\Services\ServiceActivations\ServiceActivationNavigation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -41,12 +42,6 @@ final class ServiceActivationController extends Controller
             ->first(fn (ServiceActivation $activation): bool => $activation->isOpen());
 
         if ($currentActivation instanceof ServiceActivation) {
-            if ($currentActivation->status === ServiceActivation::STATUS_ACTIVE) {
-                return $currentActivation->service_type === ServiceActivation::SERVICE_DUE_DILIGENCE
-                    ? to_route('portal.dd-plan.show')
-                    : to_route('portal.entrepreneur.plan.show');
-            }
-
             return to_route('portal.service-activations.show', $currentActivation);
         }
 
@@ -76,6 +71,30 @@ final class ServiceActivationController extends Controller
             'vendor_name' => ['nullable', 'string', 'max:255'],
             'industry' => ['nullable', 'string', 'max:255'],
             'asking_price' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
+            'dd_experience' => [
+                Rule::requiredIf(fn (): bool => $request->input('service_type') === ServiceActivation::SERVICE_DUE_DILIGENCE),
+                'nullable',
+                'string',
+                Rule::in(['first_time', 'helped_before', 'completed_before']),
+            ],
+            'business_ownership_experience' => [
+                Rule::requiredIf(fn (): bool => $request->input('service_type') === ServiceActivation::SERVICE_DUE_DILIGENCE),
+                'nullable',
+                'string',
+                Rule::in(['none', 'managed_business', 'owned_business', 'bought_or_sold_business']),
+            ],
+            'financial_confidence' => [
+                Rule::requiredIf(fn (): bool => $request->input('service_type') === ServiceActivation::SERVICE_DUE_DILIGENCE),
+                'nullable',
+                'string',
+                Rule::in(['low', 'medium', 'high']),
+            ],
+            'preferred_guidance' => [
+                Rule::requiredIf(fn (): bool => $request->input('service_type') === ServiceActivation::SERVICE_DUE_DILIGENCE),
+                'nullable',
+                'string',
+                Rule::in(['guided', 'balanced', 'fast_track']),
+            ],
             'idea_name' => ['nullable', 'string', 'max:255'],
             'customer' => ['nullable', 'string', 'max:255'],
             'problem' => ['nullable', 'string', 'max:1200'],
@@ -134,7 +153,7 @@ final class ServiceActivationController extends Controller
                 'paymentComplete' => route('portal.service-activations.payment-complete', $serviceActivation, absolute: false),
                 'accept' => route('portal.service-activations.accept', $serviceActivation, absolute: false),
                 'ddWorkspace' => route('portal.dd-plan.show', absolute: false),
-                'ideaWorkspace' => route('portal.entrepreneur.plan.show', absolute: false),
+                'ideaWorkspace' => route('portal.entrepreneur.dashboard', absolute: false),
             ],
         ]);
     }
@@ -170,7 +189,7 @@ final class ServiceActivationController extends Controller
         }
 
         if ($activation->service_type === ServiceActivation::SERVICE_ENTREPRENEUR) {
-            return to_route('portal.entrepreneur.plan.show')->with('status', 'service-activation-accepted');
+            return to_route('portal.entrepreneur.dashboard')->with('status', 'service-activation-accepted');
         }
 
         return to_route('portal.service-activations.show', $activation)
@@ -236,7 +255,7 @@ final class ServiceActivationController extends Controller
 
         return match ($activation->service_type) {
             ServiceActivation::SERVICE_DUE_DILIGENCE => route('portal.dd-plan.show', absolute: false),
-            ServiceActivation::SERVICE_ENTREPRENEUR => route('portal.entrepreneur.plan.show', absolute: false),
+            ServiceActivation::SERVICE_ENTREPRENEUR => route('portal.entrepreneur.dashboard', absolute: false),
             default => null,
         };
     }

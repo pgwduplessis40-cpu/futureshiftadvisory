@@ -102,7 +102,7 @@ final class NewMessageNotification extends ChannelAwareNotification
                 User::TYPE_JUNIOR_ADVISOR,
                 User::TYPE_ENTREPRENEUR_MENTOR,
             ], true)) {
-                return route('advisor.entrepreneurs.show', $profile, absolute: $absolute);
+                return route('advisor.entrepreneurs.messages.show', [$profile, $thread], absolute: $absolute);
             }
 
             if ($notifiable instanceof User && $notifiable->user_type === User::TYPE_ENTREPRENEUR) {

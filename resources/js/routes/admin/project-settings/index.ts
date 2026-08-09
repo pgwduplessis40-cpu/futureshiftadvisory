@@ -1,361 +1,330 @@
-import {
-    queryParams,
-    type RouteQueryOptions,
-    type RouteDefinition,
-    type RouteFormDefinition,
-} from './../../../wayfinder';
-import mailGraph from './mail-graph';
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../wayfinder'
+import mailGraph from './mail-graph'
 /**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::index
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::index
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:31
  * @route '/admin/project-settings'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
-});
+})
 
 index.definition = {
-    methods: ['get', 'head'],
+    methods: ["get","head"],
     url: '/admin/project-settings',
-} satisfies RouteDefinition<['get', 'head']>;
+} satisfies RouteDefinition<["get","head"]>
 
 /**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::index
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::index
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:31
  * @route '/admin/project-settings'
  */
 index.url = (options?: RouteQueryOptions) => {
-    return index.definition.url + queryParams(options);
-};
+    return index.definition.url + queryParams(options)
+}
 
 /**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::index
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::index
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:31
  * @route '/admin/project-settings'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
-});
+})
 /**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::index
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::index
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:31
  * @route '/admin/project-settings'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: index.url(options),
     method: 'head',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::index
+    /**
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::index
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:31
  * @route '/admin/project-settings'
  */
-const indexForm = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'get'> => ({
-    action: index.url(options),
-    method: 'get',
-});
+    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(options),
+        method: 'get',
+    })
 
-/**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::index
+            /**
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::index
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:31
  * @route '/admin/project-settings'
  */
-indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url(options),
-    method: 'get',
-});
-/**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::index
+        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::index
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:31
  * @route '/admin/project-settings'
  */
-indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: index.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'get',
-});
+        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
 
-index.form = indexForm;
+    index.form = indexForm
 /**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::update
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::update
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:49
  * @route '/admin/project-settings'
  */
-export const update = (
-    options?: RouteQueryOptions,
-): RouteDefinition<'patch'> => ({
+export const update = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: update.url(options),
     method: 'patch',
-});
+})
 
 update.definition = {
-    methods: ['patch'],
+    methods: ["patch"],
     url: '/admin/project-settings',
-} satisfies RouteDefinition<['patch']>;
+} satisfies RouteDefinition<["patch"]>
 
 /**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::update
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::update
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:49
  * @route '/admin/project-settings'
  */
 update.url = (options?: RouteQueryOptions) => {
-    return update.definition.url + queryParams(options);
-};
+    return update.definition.url + queryParams(options)
+}
 
 /**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::update
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::update
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:49
  * @route '/admin/project-settings'
  */
 update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: update.url(options),
     method: 'patch',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::update
+    /**
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::update
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:49
  * @route '/admin/project-settings'
  */
-const updateForm = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: update.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'PATCH',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'post',
-});
+    const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url({
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::update
+            /**
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::update
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:49
  * @route '/admin/project-settings'
  */
-updateForm.patch = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: update.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'PATCH',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'post',
-});
+        updateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
 
-update.form = updateForm;
+    update.form = updateForm
 /**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::reset
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::reset
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:93
  * @route '/admin/project-settings/reset'
  */
-export const reset = (
-    options?: RouteQueryOptions,
-): RouteDefinition<'patch'> => ({
+export const reset = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: reset.url(options),
     method: 'patch',
-});
+})
 
 reset.definition = {
-    methods: ['patch'],
+    methods: ["patch"],
     url: '/admin/project-settings/reset',
-} satisfies RouteDefinition<['patch']>;
+} satisfies RouteDefinition<["patch"]>
 
 /**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::reset
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::reset
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:93
  * @route '/admin/project-settings/reset'
  */
 reset.url = (options?: RouteQueryOptions) => {
-    return reset.definition.url + queryParams(options);
-};
+    return reset.definition.url + queryParams(options)
+}
 
 /**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::reset
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::reset
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:93
  * @route '/admin/project-settings/reset'
  */
 reset.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: reset.url(options),
     method: 'patch',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::reset
+    /**
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::reset
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:93
  * @route '/admin/project-settings/reset'
  */
-const resetForm = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: reset.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'PATCH',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'post',
-});
+    const resetForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: reset.url({
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::reset
+            /**
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::reset
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:93
  * @route '/admin/project-settings/reset'
  */
-resetForm.patch = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: reset.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'PATCH',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        },
-    }),
-    method: 'post',
-});
+        resetForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: reset.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
 
-reset.form = resetForm;
+    reset.form = resetForm
 /**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::testEmail
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::testEmail
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:105
  * @route '/admin/project-settings/test-email'
  */
-export const testEmail = (
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+export const testEmail = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: testEmail.url(options),
     method: 'post',
-});
+})
 
 testEmail.definition = {
-    methods: ['post'],
+    methods: ["post"],
     url: '/admin/project-settings/test-email',
-} satisfies RouteDefinition<['post']>;
+} satisfies RouteDefinition<["post"]>
 
 /**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::testEmail
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::testEmail
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:105
  * @route '/admin/project-settings/test-email'
  */
 testEmail.url = (options?: RouteQueryOptions) => {
-    return testEmail.definition.url + queryParams(options);
-};
+    return testEmail.definition.url + queryParams(options)
+}
 
 /**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::testEmail
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::testEmail
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:105
  * @route '/admin/project-settings/test-email'
  */
 testEmail.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: testEmail.url(options),
     method: 'post',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::testEmail
+    /**
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::testEmail
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:105
  * @route '/admin/project-settings/test-email'
  */
-const testEmailForm = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: testEmail.url(options),
-    method: 'post',
-});
+    const testEmailForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: testEmail.url(options),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::testEmail
+            /**
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::testEmail
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:105
  * @route '/admin/project-settings/test-email'
  */
-testEmailForm.post = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: testEmail.url(options),
-    method: 'post',
-});
+        testEmailForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: testEmail.url(options),
+            method: 'post',
+        })
 
-testEmail.form = testEmailForm;
+    testEmail.form = testEmailForm
 /**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::testSlack
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::testSlack
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:129
  * @route '/admin/project-settings/test-slack'
  */
-export const testSlack = (
-    options?: RouteQueryOptions,
-): RouteDefinition<'post'> => ({
+export const testSlack = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: testSlack.url(options),
     method: 'post',
-});
+})
 
 testSlack.definition = {
-    methods: ['post'],
+    methods: ["post"],
     url: '/admin/project-settings/test-slack',
-} satisfies RouteDefinition<['post']>;
+} satisfies RouteDefinition<["post"]>
 
 /**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::testSlack
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::testSlack
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:129
  * @route '/admin/project-settings/test-slack'
  */
 testSlack.url = (options?: RouteQueryOptions) => {
-    return testSlack.definition.url + queryParams(options);
-};
+    return testSlack.definition.url + queryParams(options)
+}
 
 /**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::testSlack
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::testSlack
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:129
  * @route '/admin/project-settings/test-slack'
  */
 testSlack.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: testSlack.url(options),
     method: 'post',
-});
+})
 
-/**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::testSlack
+    /**
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::testSlack
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:129
  * @route '/admin/project-settings/test-slack'
  */
-const testSlackForm = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: testSlack.url(options),
-    method: 'post',
-});
+    const testSlackForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: testSlack.url(options),
+        method: 'post',
+    })
 
-/**
- * @see \App\Http\Controllers\Admin\ProjectSettingsController::testSlack
+            /**
+* @see \App\Http\Controllers\Admin\ProjectSettingsController::testSlack
  * @see app/Http/Controllers/Admin/ProjectSettingsController.php:129
  * @route '/admin/project-settings/test-slack'
  */
-testSlackForm.post = (
-    options?: RouteQueryOptions,
-): RouteFormDefinition<'post'> => ({
-    action: testSlack.url(options),
-    method: 'post',
-});
+        testSlackForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: testSlack.url(options),
+            method: 'post',
+        })
 
-testSlack.form = testSlackForm;
+    testSlack.form = testSlackForm
 const projectSettings = {
     index: Object.assign(index, index),
-    update: Object.assign(update, update),
-    reset: Object.assign(reset, reset),
-    testEmail: Object.assign(testEmail, testEmail),
-    testSlack: Object.assign(testSlack, testSlack),
-    mailGraph: Object.assign(mailGraph, mailGraph),
-};
+update: Object.assign(update, update),
+reset: Object.assign(reset, reset),
+testEmail: Object.assign(testEmail, testEmail),
+testSlack: Object.assign(testSlack, testSlack),
+mailGraph: Object.assign(mailGraph, mailGraph),
+}
 
-export default projectSettings;
+export default projectSettings

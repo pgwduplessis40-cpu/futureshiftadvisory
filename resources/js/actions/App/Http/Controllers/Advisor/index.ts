@@ -19,6 +19,7 @@ import BusinessHealthController from './BusinessHealthController'
 import MeetingController from './MeetingController'
 import ClientEmailController from './ClientEmailController'
 import ClientMessageController from './ClientMessageController'
+import ClientDocumentController from './ClientDocumentController'
 import AccountingConnectionController from './AccountingConnectionController'
 import TestimonialController from './TestimonialController'
 import VoiceNoteController from './VoiceNoteController'
@@ -62,6 +63,7 @@ BusinessHealthController: Object.assign(BusinessHealthController, BusinessHealth
 MeetingController: Object.assign(MeetingController, MeetingController),
 ClientEmailController: Object.assign(ClientEmailController, ClientEmailController),
 ClientMessageController: Object.assign(ClientMessageController, ClientMessageController),
+ClientDocumentController: Object.assign(ClientDocumentController, ClientDocumentController),
 AccountingConnectionController: Object.assign(AccountingConnectionController, AccountingConnectionController),
 TestimonialController: Object.assign(TestimonialController, TestimonialController),
 VoiceNoteController: Object.assign(VoiceNoteController, VoiceNoteController),

@@ -376,11 +376,15 @@ export default function EntrepreneurAssessment({
                                 onClick={() =>
                                     updateAdvisorFeedbackDraft(
                                         advisorFeedback.suggested_feedback,
-                                        proposedReply,
+                                        advisorFeedback.suggested_reply,
                                     )
                                 }
                             >
-                                Use suggested feedback
+                                <RefreshCw
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Regenerate plain-language draft
                             </Button>
                             <Button
                                 type="button"

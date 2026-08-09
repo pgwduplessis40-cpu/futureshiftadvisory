@@ -44,6 +44,7 @@ use App\Services\Npo\NpoHealthScorer;
 use App\Services\Npo\NpoImpactMetricRecorder;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
+use App\Services\Portal\ServiceWorkspaces;
 use App\Services\Portal\Welcome\WelcomeMessageRenderer;
 use App\Services\Proposals\ProposalBrief;
 use App\Services\ScreenShare\ClientPortalContextTokens;
@@ -73,6 +74,7 @@ final class DashboardController extends Controller
         private readonly WelcomeMessageRenderer $welcomeMessage,
         private readonly InspirationBoard $inspirationBoard,
         private readonly ServiceActivationNavigation $serviceActivationNavigation,
+        private readonly ServiceWorkspaces $workspaces,
         private readonly StrategicBudgetService $strategicBudgets,
         private readonly StrategicPlanService $strategicPlans,
         private readonly ProposalBrief $proposalBriefs,
@@ -105,6 +107,11 @@ final class DashboardController extends Controller
         }
 
         $client = $this->clients->resolveFor($request);
+
+        if ($this->isEntrepreneurModuleClient($client)) {
+            return to_route('portal.entrepreneur.dashboard');
+        }
+
         $ddEngagement = $this->currentDdEngagement($client);
         $npoEngagement = $this->currentNpoEngagement($client);
         $postAcquisition = $this->currentPostAcquisitionMigration($client);
@@ -179,6 +186,7 @@ final class DashboardController extends Controller
             'ddPlan' => $ddPlanPayload,
             'postAcquisition' => $postAcquisitionPayload,
             'serviceActivations' => $serviceActivations,
+            'workspaces' => $this->workspaces->payload($client, $client->engagement_type),
             'serviceJourney' => $this->serviceJourneyPayload(
                 client: $client,
                 progress: $progress,
@@ -242,6 +250,15 @@ final class DashboardController extends Controller
             'data_quality_summary' => $dataQuality->toPayload(),
             'nzbn' => $client->nzbn,
         ];
+    }
+
+    private function isEntrepreneurModuleClient(Client $client): bool
+    {
+        $engagementType = $client->engagement_type instanceof EngagementType
+            ? $client->engagement_type
+            : EngagementType::tryFrom((string) $client->engagement_type);
+
+        return $engagementType === EngagementType::ENTREPRENEUR_MODULE;
     }
 
     /**

@@ -442,6 +442,24 @@ final class TestingSeedDataSeederTest extends TestCase
             'payment_status' => ServiceActivation::PAYMENT_PENDING,
             'payment_completed_at' => null,
         ]);
+
+        foreach ([
+            'seed.dd.guided@futureshiftadvisory.test' => 'guided',
+            'seed.dd.experience@futureshiftadvisory.test' => 'experienced',
+        ] as $email => $mode) {
+            $persona = DB::table('users')
+                ->join('clients', 'clients.primary_contact_user_id', '=', 'users.id')
+                ->join('dd_engagements', 'dd_engagements.client_id', '=', 'clients.id')
+                ->join('service_activations', 'service_activations.related_dd_engagement_id', '=', 'dd_engagements.id')
+                ->where('users.email', $email)
+                ->where('service_activations.status', ServiceActivation::STATUS_ACTIVE)
+                ->select('dd_engagements.target_details')
+                ->first();
+
+            $this->assertNotNull($persona, "Expected seeded DD persona [{$email}] to have an active DD workspace.");
+            $targetDetails = json_decode((string) $persona->target_details, true, flags: JSON_THROW_ON_ERROR);
+            $this->assertSame($mode, data_get($targetDetails, 'client_capability.mode'));
+        }
     }
 
     private function assertSeededProposalSignoffFlow(): void

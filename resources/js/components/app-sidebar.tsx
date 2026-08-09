@@ -33,6 +33,7 @@ import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
+import type { WorkspaceSwitcherPayload } from '@/components/portal/WorkspaceSwitcher';
 import {
     Sidebar,
     SidebarContent,
@@ -155,7 +156,7 @@ const advisorMessagesNavItem: NavItem = {
 };
 
 const acquisitionPlanNavItem: NavItem = {
-    title: 'Prepare Due Diligence',
+    title: 'Due Diligence',
     href: '/portal/acquisition-plan',
     icon: Scale,
 };
@@ -548,7 +549,10 @@ function portalServiceNavItems(
                 item.service_type === option.service_type &&
                 !closedStatuses.has(item.status),
         );
-        const href = current?.workspace_url ?? current?.url ?? option.start_url;
+        const href =
+            option.service_type === 'due_diligence'
+                ? option.start_url
+                : (current?.workspace_url ?? current?.url ?? option.start_url);
 
         if (!href) {
             return;
@@ -594,16 +598,44 @@ function portalServiceIcon(serviceType: PortalServiceType) {
     return FileText;
 }
 
+function workspaceNavItem(
+    workspaces: WorkspaceSwitcherPayload | null | undefined,
+    key: string,
+    icon: NavItem['icon'],
+): NavItem | null {
+    const workspace = workspaces?.items.find((item) => item.key === key);
+
+    if (!workspace) {
+        return null;
+    }
+
+    return {
+        title: workspace.label,
+        href: workspace.href,
+        icon,
+    };
+}
+
 function navGroupsFor(
     userType?: string | null,
     portalClient?: PortalClient | null,
     portalServices?: PortalServices | null,
+    workspaces?: WorkspaceSwitcherPayload | null,
 ): NavGroup[] {
+    const activeDueDiligenceNavItem = workspaceNavItem(
+        workspaces,
+        'due_diligence',
+        Scale,
+    );
+
     if (userType === 'entrepreneur') {
         return portalNavGroups({
             platformItems: [
                 entrepreneurDashboardNavItem,
                 entrepreneurBusinessPlanNavItem,
+                ...(activeDueDiligenceNavItem
+                    ? [activeDueDiligenceNavItem]
+                    : []),
                 portalInspirationNavItem,
                 entrepreneurSurveysNavItem,
             ],
@@ -618,6 +650,25 @@ function navGroupsFor(
             ...portalOnboardingNavItem,
             title: onboardingComplete ? 'Onboarded' : 'Onboarding',
         };
+
+        if (portalClient?.engagement_type === 'entrepreneur_module') {
+            return portalNavGroups({
+                platformItems: [
+                    {
+                        ...entrepreneurDashboardNavItem,
+                        href: '/portal/entrepreneur',
+                    },
+                    entrepreneurBusinessPlanNavItem,
+                    ...(activeDueDiligenceNavItem
+                        ? [activeDueDiligenceNavItem]
+                        : []),
+                    portalInspirationNavItem,
+                    portalSurveysNavItem,
+                ],
+                serviceItems: [entrepreneurBuyingBusinessNavItem],
+            });
+        }
+
         const planBudgetNavItem: NavItem = {
             ...strategicPlanBudgetNavItem,
             title:
@@ -625,10 +676,17 @@ function navGroupsFor(
                     ? 'Operating Plan & Budget'
                     : 'Business Plan & Budget',
         };
-        const activePathItems =
-            portalClient?.engagement_type === 'due_diligence'
-                ? [acquisitionPlanNavItem, planBudgetNavItem]
-                : [planBudgetNavItem];
+        const dueDiligenceWorkspaceNavItem =
+            activeDueDiligenceNavItem ??
+            (portalClient?.engagement_type === 'due_diligence'
+                ? acquisitionPlanNavItem
+                : null);
+        const activePathItems = [
+            planBudgetNavItem,
+            ...(dueDiligenceWorkspaceNavItem
+                ? [dueDiligenceWorkspaceNavItem]
+                : []),
+        ];
         const supportingItems = [
             portalWellbeingNavItem,
             portalSurveysNavItem,
@@ -801,6 +859,7 @@ export function AppSidebar() {
         auth: Auth;
         portalClient?: PortalClient | null;
         portalServices?: PortalServices | null;
+        workspaces?: WorkspaceSwitcherPayload | null;
         client?: AdvisorPageClient | null;
     }>();
     const { isMobile, setOpenMobile } = useSidebar();
@@ -822,6 +881,7 @@ export function AppSidebar() {
             userType,
             page.props.portalClient,
             page.props.portalServices,
+            page.props.workspaces,
         ),
         currentUrl.pathname,
         engagementType,

@@ -35,6 +35,8 @@ import { InspirationCard } from '@/components/inspiration/InspirationCard';
 import type { InspirationPost } from '@/components/inspiration/InspirationCard';
 import { NpoHealthPanel } from '@/components/npo/NpoHealthPanel';
 import type { NpoHealthPayload } from '@/components/npo/NpoHealthPanel';
+import { WorkspaceSwitcher } from '@/components/portal/WorkspaceSwitcher';
+import type { WorkspaceSwitcherPayload } from '@/components/portal/WorkspaceSwitcher';
 import { ClientSupport } from '@/components/screen-share/ClientSupport';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -114,6 +116,7 @@ type Props = {
     ddPlan: DdPlanPayload | null;
     postAcquisition: PostAcquisitionPayload | null;
     serviceActivations: ServiceActivationsPayload;
+    workspaces: WorkspaceSwitcherPayload;
     serviceJourney: ServiceJourneyPayload;
     strategicBudget: StrategicBudgetPayload;
     strategicPlan: StrategicPlanPayload | null;
@@ -648,6 +651,7 @@ export default function PortalDashboard({
     ddPlan,
     postAcquisition,
     serviceActivations,
+    workspaces,
     serviceJourney,
     strategicBudget,
     strategicPlan,
@@ -897,6 +901,8 @@ export default function PortalDashboard({
                         </Link>
                     </Button>
                 </div>
+
+                <WorkspaceSwitcher workspaces={workspaces} />
 
                 {welcomeMessage.has_message && progress.percentage < 100 ? (
                     <WelcomeBanner welcomeMessage={welcomeMessage} />

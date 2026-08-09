@@ -9,6 +9,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 type ServiceType = 'due_diligence' | 'entrepreneur';
@@ -90,6 +97,10 @@ export default function ServiceActivationRequest({
         vendor_name: '',
         industry: '',
         asking_price: '',
+        dd_experience: '',
+        business_ownership_experience: '',
+        financial_confidence: '',
+        preferred_guidance: '',
         idea_name: '',
         customer: '',
         problem: '',
@@ -329,6 +340,113 @@ function DueDiligenceFields({
                 />
                 <InputError message={form.errors.industry} />
             </div>
+            <DdSupportFields form={form} />
+        </div>
+    );
+}
+
+function DdSupportFields({
+    form,
+}: {
+    form: InertiaFormProps<ServiceActivationForm>;
+}) {
+    return (
+        <section className="grid gap-4 rounded-md border bg-muted/20 p-3 lg:col-span-4 lg:grid-cols-4">
+            <div className="lg:col-span-4">
+                <h2 className="text-sm font-medium">Buyer support level</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    These answers set the DD support path before the workspace
+                    opens.
+                </p>
+            </div>
+            <SelectField
+                label="DD experience"
+                value={form.data.dd_experience}
+                placeholder="Choose one"
+                error={form.errors.dd_experience}
+                onChange={(value) => form.setData('dd_experience', value)}
+                options={[
+                    ['first_time', 'First time doing DD'],
+                    ['helped_before', 'Helped with DD before'],
+                    ['completed_before', 'Completed DD before'],
+                ]}
+            />
+            <SelectField
+                label="Business experience"
+                value={form.data.business_ownership_experience}
+                placeholder="Choose one"
+                error={form.errors.business_ownership_experience}
+                onChange={(value) =>
+                    form.setData('business_ownership_experience', value)
+                }
+                options={[
+                    ['none', 'No ownership or management yet'],
+                    ['managed_business', 'Managed a business'],
+                    ['owned_business', 'Owned a business'],
+                    ['bought_or_sold_business', 'Bought or sold a business'],
+                ]}
+            />
+            <SelectField
+                label="Financial confidence"
+                value={form.data.financial_confidence}
+                placeholder="Choose one"
+                error={form.errors.financial_confidence}
+                onChange={(value) =>
+                    form.setData('financial_confidence', value)
+                }
+                options={[
+                    ['low', 'Need plain-language help'],
+                    ['medium', 'Comfortable with basics'],
+                    ['high', 'Confident reading financials'],
+                ]}
+            />
+            <SelectField
+                label="Preferred guidance"
+                value={form.data.preferred_guidance}
+                placeholder="Choose one"
+                error={form.errors.preferred_guidance}
+                onChange={(value) => form.setData('preferred_guidance', value)}
+                options={[
+                    ['guided', 'Step-by-step'],
+                    ['balanced', 'Balanced'],
+                    ['fast_track', 'Fast track'],
+                ]}
+            />
+        </section>
+    );
+}
+
+function SelectField({
+    label,
+    value,
+    placeholder,
+    error,
+    options,
+    onChange,
+}: {
+    label: string;
+    value: string;
+    placeholder: string;
+    error?: string;
+    options: Array<[string, string]>;
+    onChange: (value: string) => void;
+}) {
+    return (
+        <div className="grid gap-2">
+            <Label>{label}</Label>
+            <Select value={value} onValueChange={onChange}>
+                <SelectTrigger>
+                    <SelectValue placeholder={placeholder} />
+                </SelectTrigger>
+                <SelectContent>
+                    {options.map(([optionValue, optionLabel]) => (
+                        <SelectItem key={optionValue} value={optionValue}>
+                            {optionLabel}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <InputError message={error} />
         </div>
     );
 }
@@ -419,6 +537,10 @@ type ServiceActivationForm = {
     vendor_name: string;
     industry: string;
     asking_price: string;
+    dd_experience: string;
+    business_ownership_experience: string;
+    financial_confidence: string;
+    preferred_guidance: string;
     idea_name: string;
     customer: string;
     problem: string;
@@ -787,7 +909,7 @@ const serviceExplanations = {
     problem: {
         title: 'Problem to solve',
         what: 'The customer problem, friction, or unmet need the idea is trying to address.',
-        action: 'Write the practical problem in the customer’s words where possible.',
+        action: "Write the practical problem in the customer's words where possible.",
         why: 'Problem clarity helps the advisor separate attractive ideas from ideas with evidence of demand.',
     },
     timing: {

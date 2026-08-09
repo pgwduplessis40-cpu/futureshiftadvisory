@@ -1,7 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
     Bell,
-    BriefcaseBusiness,
     ClipboardCheck,
     Eye,
     FileText,
@@ -10,16 +9,15 @@ import {
     MessageSquare,
     Settings,
     Trophy,
-    Upload,
 } from 'lucide-react';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { ClientCoBrowse } from '@/components/co-browse/ClientCoBrowse';
 import type { ClientCoBrowseConfig } from '@/components/co-browse/ClientCoBrowse';
-import FileDropzone from '@/components/file-dropzone';
-import InputError from '@/components/input-error';
 import { InspirationCard } from '@/components/inspiration/InspirationCard';
 import type { InspirationPost } from '@/components/inspiration/InspirationCard';
+import { WorkspaceSwitcher } from '@/components/portal/WorkspaceSwitcher';
+import type { WorkspaceSwitcherPayload } from '@/components/portal/WorkspaceSwitcher';
 import { ClientSupport } from '@/components/screen-share/ClientSupport';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -203,8 +201,7 @@ type Props = {
     inspirationBoard: InspirationPost | null;
     messagesUrl: string;
     planWorkspaceUrl: string;
-    buyingBusinessServiceUrl: string;
-    documentUploadUrl: string;
+    workspaces: WorkspaceSwitcherPayload | null;
     notificationsUrl: string;
     settingsUrl: string;
     surveys: PendingSurveysPayload;
@@ -220,8 +217,7 @@ export default function EntrepreneurDashboard({
     inspirationBoard,
     messagesUrl,
     planWorkspaceUrl,
-    buyingBusinessServiceUrl,
-    documentUploadUrl,
+    workspaces,
     notificationsUrl,
     settingsUrl,
     surveys,
@@ -231,15 +227,9 @@ export default function EntrepreneurDashboard({
     screenShare,
     coBrowse,
 }: Props) {
-    const [documents, setDocuments] = useState<UploadedDocument[]>(
-        profile?.latest_documents ?? [],
-    );
-    const [file, setFile] = useState<File | null>(null);
-    const [uploading, setUploading] = useState(false);
-    const [uploadError, setUploadError] = useState<string | null>(null);
-    const [uploadKey, setUploadKey] = useState(0);
     const [activeTab, setActiveTab] =
         useState<EntrepreneurDashboardTab>('actions');
+    const documents = profile?.latest_documents ?? [];
     const latestAssessment = profile?.latest_plan?.latest_assessment ?? null;
     const readiness = profile?.advisory_readiness_signal ?? null;
     const nextSurvey = surveys.items[0] ?? null;
@@ -266,68 +256,6 @@ export default function EntrepreneurDashboard({
         ? 'Business plan opens the guided workspace for plan sections, preview, and advisory request.'
         : 'Idea validation is the first milestone before the business plan sections open.';
 
-    const uploadDocument = async () => {
-        if (!file) {
-            return;
-        }
-
-        setUploading(true);
-        setUploadError(null);
-
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('category', 'plan_attachment');
-        formData.append(
-            'claim_value',
-            'Plan evidence uploaded from the entrepreneur dashboard.',
-        );
-        formData.append(
-            'question_prompt',
-            'Entrepreneur dashboard document upload',
-        );
-
-        const response = await fetch(documentUploadUrl, {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'X-CSRF-TOKEN': csrfToken(),
-            },
-            body: formData,
-        });
-
-        setUploading(false);
-
-        if (!response.ok) {
-            const payload = (await response.json().catch(() => null)) as {
-                message?: string;
-            } | null;
-            setUploadError(payload?.message ?? 'Upload failed.');
-
-            return;
-        }
-
-        const payload = (await response.json()) as {
-            document?: UploadedDocument;
-        };
-
-        if (!payload.document) {
-            setUploadError('Upload response was missing document details.');
-
-            return;
-        }
-
-        setDocuments((current) =>
-            [
-                payload.document as UploadedDocument,
-                ...current.filter(
-                    (document) => document.id !== payload.document?.id,
-                ),
-            ].slice(0, 5),
-        );
-        setFile(null);
-        setUploadKey((key) => key + 1);
-    };
-
     return (
         <>
             <Head title="Entrepreneur dashboard" />
@@ -350,6 +278,8 @@ export default function EntrepreneurDashboard({
                         readiness={readiness}
                     />
                 </div>
+
+                <WorkspaceSwitcher workspaces={workspaces} />
 
                 {inspirationBoard ? (
                     <InspirationCard post={inspirationBoard} />
@@ -377,9 +307,9 @@ export default function EntrepreneurDashboard({
                     <>
                         <DashboardSection
                             title="Priority actions"
-                            description="Start with idea validation, then move into plan evidence, assessment, and advisor messages."
+                            description="Start with idea validation, then use the plan workspace, assessment, and advisor messages."
                         >
-                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                                 <ActionPanel
                                     icon={MessageSquare}
                                     title="Messages"
@@ -447,60 +377,6 @@ export default function EntrepreneurDashboard({
                                                 : 'Start idea validation'}
                                         </Link>
                                     </Button>
-                                </ActionPanel>
-
-                                <ActionPanel
-                                    icon={BriefcaseBusiness}
-                                    title="Explore buying a business"
-                                    value="Due diligence workspace"
-                                    explanation="Explore buying a business opens the acquisition due-diligence service request, then follows advisor package selection and the standard fee/scope acceptance flow."
-                                >
-                                    <Button asChild size="sm" variant="outline">
-                                        <Link href={buyingBusinessServiceUrl}>
-                                            <Eye
-                                                className="size-4"
-                                                aria-hidden="true"
-                                            />
-                                            Open service
-                                        </Link>
-                                    </Button>
-                                </ActionPanel>
-
-                                <ActionPanel
-                                    icon={Upload}
-                                    title="Plan evidence"
-                                    value={`${documents.length} recent uploads`}
-                                    explanation="Plan evidence lets you upload supporting documents for advisor review and future assessment updates."
-                                >
-                                    <div className="grid gap-2">
-                                        <FileDropzone
-                                            key={uploadKey}
-                                            id="entrepreneur_document"
-                                            files={file ? [file] : []}
-                                            label="Upload document"
-                                            onFilesChange={(files) =>
-                                                setFile(files[0] ?? null)
-                                            }
-                                        />
-                                        <InputError
-                                            message={uploadError ?? undefined}
-                                        />
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            disabled={!file || uploading}
-                                            onClick={() =>
-                                                void uploadDocument()
-                                            }
-                                        >
-                                            <Upload
-                                                className="size-4"
-                                                aria-hidden="true"
-                                            />
-                                            {uploading ? 'Uploading' : 'Upload'}
-                                        </Button>
-                                    </div>
                                 </ActionPanel>
 
                                 <ActionPanel
@@ -789,7 +665,7 @@ export default function EntrepreneurDashboard({
                     <>
                         <DashboardSection
                             title="Information"
-                            description="Use these panels for profile context and recently uploaded plan evidence."
+                            description="Use these panels for profile context and recently reviewed documents."
                         >
                             <div className="grid gap-6 lg:grid-cols-2">
                                 <section className="space-y-4 rounded-md border bg-background p-4">
@@ -898,7 +774,7 @@ export default function EntrepreneurDashboard({
                                         </div>
                                     ) : (
                                         <p className="text-sm text-muted-foreground">
-                                            No plan evidence has been uploaded
+                                            No recent documents are available
                                             yet.
                                         </p>
                                     )}
@@ -1511,14 +1387,6 @@ function formatLabel(value: string): string {
 
 function gradeLabel(value: string): string {
     return formatLabel(value);
-}
-
-function csrfToken(): string {
-    return (
-        document
-            .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
-            ?.getAttribute('content') ?? ''
-    );
 }
 
 EntrepreneurDashboard.layout = {
