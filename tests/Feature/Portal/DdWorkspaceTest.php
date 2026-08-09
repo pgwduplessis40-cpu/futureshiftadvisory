@@ -50,6 +50,44 @@ final class DdWorkspaceTest extends TestCase
                 ->missing('onboardingUrl'));
     }
 
+    public function test_existing_due_diligence_workspace_without_skill_profile_prompts_before_workflow(): void
+    {
+        [$buyer, $client, $engagement] = $this->entrepreneurClientWithDdWorkspace(withCapability: false);
+
+        $this->actingAsMfa($buyer)
+            ->get(route('portal.dd-plan.show', ['client' => $client->getKey()]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('portal/dd/BusinessPlan')
+                ->where('capability.requires_confirmation', true)
+                ->where('capability.mode', 'guided')
+                ->where('capability.confirm_url', route('portal.dd-plan.support-level.store', ['client' => $client->getKey()], absolute: false)));
+
+        $this->actingAsMfa($buyer)
+            ->from(route('portal.dd-plan.show', ['client' => $client->getKey()], absolute: false))
+            ->post(route('portal.dd-plan.support-level.store', ['client' => $client->getKey()]), [
+                'dd_experience' => 'completed_before',
+                'business_ownership_experience' => 'bought_or_sold_business',
+                'financial_confidence' => 'high',
+                'preferred_guidance' => 'fast_track',
+            ])
+            ->assertRedirect(route('portal.dd-plan.show', ['client' => $client->getKey()], absolute: false))
+            ->assertSessionHas('status', 'dd-support-level-confirmed');
+
+        $capability = $engagement->refresh()->target_details['client_capability'];
+
+        $this->assertSame('experienced', $capability['mode']);
+        $this->assertSame('completed_before', $capability['dd_experience']);
+        $this->assertSame('dd_support_confirmation', $capability['captured_from']);
+
+        $this->actingAsMfa($buyer)
+            ->get(route('portal.dd-plan.show', ['client' => $client->getKey()]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('capability.requires_confirmation', false)
+                ->where('capability.mode', 'experienced'));
+    }
+
     public function test_due_diligence_questionnaire_submit_counts_for_dd_readiness(): void
     {
         [$buyer, $client] = $this->entrepreneurClientWithDdWorkspace();
@@ -84,7 +122,7 @@ final class DdWorkspaceTest extends TestCase
     /**
      * @return array{0: User, 1: Client, 2: DdEngagement}
      */
-    private function entrepreneurClientWithDdWorkspace(): array
+    private function entrepreneurClientWithDdWorkspace(bool $withCapability = true): array
     {
         $advisor = User::factory()->withTwoFactor()->create([
             'user_type' => User::TYPE_ADVISOR,
@@ -141,16 +179,27 @@ final class DdWorkspaceTest extends TestCase
             'declared_at' => now(),
         ]);
 
+        $targetDetails = [
+            'industry' => 'Retail',
+        ];
+
+        if ($withCapability) {
+            $targetDetails['client_capability'] = [
+                'mode' => 'guided',
+                'support_level' => 'guided',
+                'dd_experience' => 'first_time',
+                'business_ownership_experience' => 'none',
+                'financial_confidence' => 'low',
+                'preferred_guidance' => 'guided',
+                'captured_from' => 'test',
+                'captured_at' => now()->toIso8601String(),
+            ];
+        }
+
         $engagement = DdEngagement::query()->create([
             'client_id' => $client->getKey(),
             'target_name' => 'Main Street Bikes Limited',
-            'target_details' => [
-                'industry' => 'Retail',
-                'client_capability' => [
-                    'mode' => 'guided',
-                    'support_level' => 'guided',
-                ],
-            ],
+            'target_details' => $targetDetails,
             'status' => DdEngagement::STATUS_IN_PROGRESS,
             'conflict_declaration_id' => $conflict->getKey(),
             'created_by_user_id' => $advisor->getKey(),

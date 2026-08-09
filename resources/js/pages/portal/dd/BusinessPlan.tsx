@@ -10,7 +10,7 @@ import {
     Upload,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { ComponentType, ReactNode } from 'react';
+import type { ComponentType, FormEvent, ReactNode } from 'react';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { WorkspaceSwitcher } from '@/components/portal/WorkspaceSwitcher';
@@ -67,6 +67,8 @@ type CapabilityPayload = {
     business_ownership_experience: string | null;
     financial_confidence: string | null;
     preferred_guidance: string | null;
+    requires_confirmation: boolean;
+    confirm_url: string;
 };
 
 type DdQuestionnairePayload = {
@@ -101,6 +103,12 @@ type Props = {
 };
 
 type Tab = 'actions' | 'information';
+type SupportProfileForm = {
+    dd_experience: string;
+    business_ownership_experience: string;
+    financial_confidence: string;
+    preferred_guidance: string;
+};
 type WorkflowKey =
     | 'questions'
     | 'evidence'
@@ -293,6 +301,18 @@ export default function DdBusinessPlan({
         }
     };
 
+    if (capability.requires_confirmation) {
+        return (
+            <SupportProfileGate
+                client={client}
+                engagement={engagement}
+                capability={capability}
+                workspaces={workspaces}
+                messagesUrl={messagesUrl}
+            />
+        );
+    }
+
     return (
         <>
             <Head title="Prepare Due Diligence" />
@@ -397,6 +417,214 @@ export default function DdBusinessPlan({
                 )}
             </main>
         </>
+    );
+}
+
+function SupportProfileGate({
+    client,
+    engagement,
+    capability,
+    workspaces,
+    messagesUrl,
+}: {
+    client: ClientPayload;
+    engagement: EngagementPayload;
+    capability: CapabilityPayload;
+    workspaces: WorkspaceSwitcherPayload;
+    messagesUrl: string;
+}) {
+    const [form, setForm] = useState<SupportProfileForm>({
+        dd_experience: '',
+        business_ownership_experience: '',
+        financial_confidence: '',
+        preferred_guidance: '',
+    });
+    const [errors, setErrors] = useState<
+        Partial<Record<keyof SupportProfileForm, string>>
+    >({});
+    const [saving, setSaving] = useState(false);
+
+    const update = (key: keyof SupportProfileForm, value: string) => {
+        setForm((current) => ({ ...current, [key]: value }));
+        setErrors((current) => ({ ...current, [key]: undefined }));
+    };
+
+    const submit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setSaving(true);
+        setErrors({});
+
+        router.post(capability.confirm_url, form, {
+            preserveScroll: true,
+            onError: (validationErrors) =>
+                setErrors(
+                    validationErrors as Partial<
+                        Record<keyof SupportProfileForm, string>
+                    >,
+                ),
+            onFinish: () => setSaving(false),
+        });
+    };
+
+    return (
+        <>
+            <Head title="Confirm DD Support Level" />
+
+            <main className="flex-1 space-y-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                        <h1 className="text-xl font-semibold">
+                            Prepare Due Diligence
+                        </h1>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                            <span>{engagement.target_name}</span>
+                            <span aria-hidden="true">/</span>
+                            <span>
+                                {client.trading_name || client.legal_name}
+                            </span>
+                        </div>
+                    </div>
+                    <Button asChild variant="outline">
+                        <Link href={messagesUrl}>
+                            <MessageSquare
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                            Messages
+                        </Link>
+                    </Button>
+                </div>
+
+                <WorkspaceSwitcher workspaces={workspaces} />
+
+                <section className="rounded-md border bg-background p-5 shadow-xs">
+                    <div className="max-w-3xl">
+                        <Badge variant="outline">One-time setup</Badge>
+                        <h2 className="mt-3 text-lg font-semibold">
+                            Confirm your DD support level
+                        </h2>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            Answer these four questions before you continue.
+                            They help FSA choose the right DD path for you:
+                            step-by-step help, or a shorter path if you already
+                            understand DD and business ownership.
+                        </p>
+                    </div>
+
+                    <form
+                        className="mt-5 grid gap-4 lg:grid-cols-2"
+                        onSubmit={submit}
+                    >
+                        <SupportSelect
+                            label="Have you worked through due diligence before?"
+                            value={form.dd_experience}
+                            error={errors.dd_experience}
+                            onChange={(value) =>
+                                update('dd_experience', value)
+                            }
+                            options={[
+                                ['first_time', 'No, this is my first time'],
+                                ['helped_before', 'I have helped with DD'],
+                                ['completed_before', 'Yes, I have completed DD'],
+                            ]}
+                        />
+                        <SupportSelect
+                            label="Have you managed, owned, bought, or sold a business?"
+                            value={form.business_ownership_experience}
+                            error={errors.business_ownership_experience}
+                            onChange={(value) =>
+                                update(
+                                    'business_ownership_experience',
+                                    value,
+                                )
+                            }
+                            options={[
+                                ['none', 'No, not yet'],
+                                ['managed_business', 'I managed a business'],
+                                ['owned_business', 'I owned a business'],
+                                [
+                                    'bought_or_sold_business',
+                                    'I bought or sold a business',
+                                ],
+                            ]}
+                        />
+                        <SupportSelect
+                            label="How confident are you with financial reports?"
+                            value={form.financial_confidence}
+                            error={errors.financial_confidence}
+                            onChange={(value) =>
+                                update('financial_confidence', value)
+                            }
+                            options={[
+                                ['low', 'I need plain-language help'],
+                                ['medium', 'I understand the basics'],
+                                ['high', 'I am confident with financials'],
+                            ]}
+                        />
+                        <SupportSelect
+                            label="What kind of help would you prefer?"
+                            value={form.preferred_guidance}
+                            error={errors.preferred_guidance}
+                            onChange={(value) =>
+                                update('preferred_guidance', value)
+                            }
+                            options={[
+                                ['guided', 'Step-by-step help'],
+                                ['balanced', 'Balanced support'],
+                                ['fast_track', 'Shorter path'],
+                            ]}
+                        />
+
+                        <div className="flex flex-col gap-3 border-t pt-4 lg:col-span-2 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-sm text-muted-foreground">
+                                You can still ask FSA for help at any point.
+                                This only sets the starting DD path.
+                            </p>
+                            <Button type="submit" disabled={saving}>
+                                <CheckCircle2
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                {saving ? 'Saving...' : 'Continue to DD'}
+                            </Button>
+                        </div>
+                    </form>
+                </section>
+            </main>
+        </>
+    );
+}
+
+function SupportSelect({
+    label,
+    value,
+    error,
+    options,
+    onChange,
+}: {
+    label: string;
+    value: string;
+    error?: string;
+    options: Array<[string, string]>;
+    onChange: (value: string) => void;
+}) {
+    return (
+        <div className="grid gap-2">
+            <label className="text-sm font-medium">{label}</label>
+            <Select value={value} onValueChange={onChange}>
+                <SelectTrigger>
+                    <SelectValue placeholder="Choose one" />
+                </SelectTrigger>
+                <SelectContent>
+                    {options.map(([optionValue, optionLabel]) => (
+                        <SelectItem key={optionValue} value={optionValue}>
+                            {optionLabel}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <InputError message={error} />
+        </div>
     );
 }
 

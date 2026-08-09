@@ -21,6 +21,7 @@ use App\Models\Report;
 use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Services\Dd\AcquisitionPlanRequirements;
+use App\Services\Dd\ClientCapability;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Dd\PlanBuilder as DdPlanBuilder;
@@ -59,6 +60,7 @@ final class DdBusinessPlanController extends Controller
         private readonly ServiceWorkspaces $workspaces,
         private readonly QuestionnairePayload $questionnairePayloads,
         private readonly QuestionnaireResponseRecorder $questionnaireResponses,
+        private readonly ClientCapability $clientCapability,
     ) {}
 
     public function show(Request $request): Response
@@ -96,6 +98,32 @@ final class DdBusinessPlanController extends Controller
                 ->values()
                 ->all(),
         ]);
+    }
+
+    public function supportLevel(Request $request): RedirectResponse
+    {
+        $client = $this->clients->resolveForServiceWorkspace($request);
+        $engagement = $this->engagementFor($client);
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $validated = $request->validate([
+            'dd_experience' => ['required', 'string', Rule::in(['first_time', 'helped_before', 'completed_before'])],
+            'business_ownership_experience' => ['required', 'string', Rule::in(['none', 'managed_business', 'owned_business', 'bought_or_sold_business'])],
+            'financial_confidence' => ['required', 'string', Rule::in(['low', 'medium', 'high'])],
+            'preferred_guidance' => ['required', 'string', Rule::in(['guided', 'balanced', 'fast_track'])],
+        ]);
+
+        $targetDetails = $engagement->target_details ?? [];
+        $targetDetails['client_capability'] = $this->clientCapability->fromIntake(
+            $validated,
+            'dd_support_confirmation',
+        );
+
+        $engagement->forceFill(['target_details' => $targetDetails])->save();
+
+        return to_route('portal.dd-plan.show', ['client' => $client->getKey()])
+            ->with('status', 'dd-support-level-confirmed');
     }
 
     public function preview(Request $request): SymfonyResponse
@@ -415,6 +443,8 @@ final class DdBusinessPlanController extends Controller
             'business_ownership_experience' => $capability['business_ownership_experience'] ?? null,
             'financial_confidence' => $capability['financial_confidence'] ?? null,
             'preferred_guidance' => $capability['preferred_guidance'] ?? null,
+            'requires_confirmation' => $this->clientCapability->needsConfirmation($capability),
+            'confirm_url' => route('portal.dd-plan.support-level.store', ['client' => $engagement->client_id], absolute: false),
         ];
     }
 

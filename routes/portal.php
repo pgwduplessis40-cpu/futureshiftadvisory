@@ -72,6 +72,7 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('acquisition-plan', [DdBusinessPlanController::class, 'show'])->name('dd-plan.show');
         Route::get('acquisition-plan/preview', [DdBusinessPlanController::class, 'preview'])->name('dd-plan.preview');
         Route::post('acquisition-plan', [DdBusinessPlanController::class, 'store'])->name('dd-plan.store');
+        Route::post('acquisition-plan/support-level', [DdBusinessPlanController::class, 'supportLevel'])->name('dd-plan.support-level.store');
         Route::post('acquisition-plan/questionnaire', [DdBusinessPlanController::class, 'questionnaire'])->name('dd-plan.questionnaire.store');
         Route::post('acquisition-plan/sections', [DdBusinessPlanController::class, 'section'])->name('dd-plan.sections.store');
         Route::post('acquisition-plan/sections/{planSection}/guidance', [DdBusinessPlanController::class, 'guidance'])->name('dd-plan.sections.guidance');

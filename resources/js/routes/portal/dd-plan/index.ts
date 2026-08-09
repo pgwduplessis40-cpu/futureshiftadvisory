@@ -1,10 +1,11 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../wayfinder'
+import supportLevel from './support-level'
 import questionnaire from './questionnaire'
 import sections from './sections'
 import businessAdvice from './business-advice'
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::show
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:64
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:66
  * @route '/portal/acquisition-plan'
  */
 export const show = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -19,7 +20,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::show
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:64
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:66
  * @route '/portal/acquisition-plan'
  */
 show.url = (options?: RouteQueryOptions) => {
@@ -28,7 +29,7 @@ show.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::show
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:64
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:66
  * @route '/portal/acquisition-plan'
  */
 show.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -37,7 +38,7 @@ show.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::show
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:64
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:66
  * @route '/portal/acquisition-plan'
  */
 show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -47,7 +48,7 @@ show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::show
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:64
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:66
  * @route '/portal/acquisition-plan'
  */
     const showForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -57,7 +58,7 @@ show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::show
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:64
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:66
  * @route '/portal/acquisition-plan'
  */
         showForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -66,7 +67,7 @@ show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::show
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:64
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:66
  * @route '/portal/acquisition-plan'
  */
         showForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +83,7 @@ show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::preview
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:101
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:129
  * @route '/portal/acquisition-plan/preview'
  */
 export const preview = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -97,7 +98,7 @@ preview.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::preview
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:101
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:129
  * @route '/portal/acquisition-plan/preview'
  */
 preview.url = (options?: RouteQueryOptions) => {
@@ -106,7 +107,7 @@ preview.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::preview
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:101
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:129
  * @route '/portal/acquisition-plan/preview'
  */
 preview.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -115,7 +116,7 @@ preview.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::preview
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:101
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:129
  * @route '/portal/acquisition-plan/preview'
  */
 preview.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -125,7 +126,7 @@ preview.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::preview
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:101
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:129
  * @route '/portal/acquisition-plan/preview'
  */
     const previewForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -135,7 +136,7 @@ preview.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::preview
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:101
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:129
  * @route '/portal/acquisition-plan/preview'
  */
         previewForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -144,7 +145,7 @@ preview.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::preview
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:101
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:129
  * @route '/portal/acquisition-plan/preview'
  */
         previewForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -160,7 +161,7 @@ preview.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     preview.form = previewForm
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:124
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:152
  * @route '/portal/acquisition-plan'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -175,7 +176,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:124
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:152
  * @route '/portal/acquisition-plan'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -184,7 +185,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:124
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:152
  * @route '/portal/acquisition-plan'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -194,7 +195,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:124
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:152
  * @route '/portal/acquisition-plan'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -204,7 +205,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:124
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:152
  * @route '/portal/acquisition-plan'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -215,7 +216,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::complete
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:207
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:235
  * @route '/portal/acquisition-plan/complete'
  */
 export const complete = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -230,7 +231,7 @@ complete.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::complete
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:207
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:235
  * @route '/portal/acquisition-plan/complete'
  */
 complete.url = (options?: RouteQueryOptions) => {
@@ -239,7 +240,7 @@ complete.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::complete
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:207
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:235
  * @route '/portal/acquisition-plan/complete'
  */
 complete.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -249,7 +250,7 @@ complete.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::complete
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:207
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:235
  * @route '/portal/acquisition-plan/complete'
  */
     const completeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -259,7 +260,7 @@ complete.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::complete
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:207
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:235
  * @route '/portal/acquisition-plan/complete'
  */
         completeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -272,6 +273,7 @@ const ddPlan = {
     show: Object.assign(show, show),
 preview: Object.assign(preview, preview),
 store: Object.assign(store, store),
+supportLevel: Object.assign(supportLevel, supportLevel),
 questionnaire: Object.assign(questionnaire, questionnaire),
 sections: Object.assign(sections, sections),
 complete: Object.assign(complete, complete),
