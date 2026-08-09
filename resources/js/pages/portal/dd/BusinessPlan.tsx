@@ -519,13 +519,14 @@ function SupportProfileGate({
                             label="Have you worked through due diligence before?"
                             value={form.dd_experience}
                             error={errors.dd_experience}
-                            onChange={(value) =>
-                                update('dd_experience', value)
-                            }
+                            onChange={(value) => update('dd_experience', value)}
                             options={[
                                 ['first_time', 'No, this is my first time'],
                                 ['helped_before', 'I have helped with DD'],
-                                ['completed_before', 'Yes, I have completed DD'],
+                                [
+                                    'completed_before',
+                                    'Yes, I have completed DD',
+                                ],
                             ]}
                         />
                         <SupportSelect
@@ -533,10 +534,7 @@ function SupportProfileGate({
                             value={form.business_ownership_experience}
                             error={errors.business_ownership_experience}
                             onChange={(value) =>
-                                update(
-                                    'business_ownership_experience',
-                                    value,
-                                )
+                                update('business_ownership_experience', value)
                             }
                             options={[
                                 ['none', 'No, not yet'],
@@ -575,7 +573,7 @@ function SupportProfileGate({
                             ]}
                         />
 
-                        <div className="flex flex-col gap-3 border-t pt-4 lg:col-span-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between lg:col-span-2">
                             <p className="text-sm text-muted-foreground">
                                 You can still ask FSA for help at any point.
                                 This only sets the starting DD path.
