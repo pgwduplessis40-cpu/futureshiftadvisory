@@ -45,7 +45,7 @@ final class BusinessPlanPreviewRenderer
 
     public function filename(EntrepreneurProfile $profile): string
     {
-        return Str::slug($profile->name ?: 'entrepreneur-business-plan').'-preview.pdf';
+        return Str::slug($profile->name ?: 'entrepreneur').'-business-plan.pdf';
     }
 
     public function budgetUnlocked(BusinessPlan $plan): bool
@@ -165,76 +165,120 @@ final class BusinessPlanPreviewRenderer
         $requirements = collect($phases)->flatMap(fn (array $phase): array => $phase['requirements'] ?? []);
         $total = $requirements->count();
         $completed = $requirements->filter(fn (array $requirement): bool => (bool) ($requirement['complete'] ?? false))->count();
-        $missingHtml = $requirements
-            ->reject(fn (array $requirement): bool => (bool) ($requirement['complete'] ?? false))
-            ->map(fn (array $requirement): string => '<li>'.$this->escape(($requirement['phase_title'] ?? 'Plan').': '.$requirement['title']).'</li>')
+        $documentSections = $this->documentSections($phases);
+        $sectionHtml = collect($documentSections)
+            ->map(fn (array $section): string => $this->documentSectionHtml($section))
             ->implode('');
-        $phaseHtml = collect($phases)
-            ->map(fn (array $phase): string => $this->phaseHtml($phase))
-            ->implode('');
+        $missingItems = $this->missingRequirements($requirements);
+        $missingHtml = $missingItems === []
+            ? ''
+            : '<article class="report-section missing-panel"><h2>Items still to complete before external issue</h2><ul>'.collect($missingItems)->map(fn (string $item): string => '<li>'.$this->escape($item).'</li>')->implode('').'</ul></article>';
+        $contentHtml = $sectionHtml !== ''
+            ? $sectionHtml.$missingHtml
+            : $this->layout->section(
+                'Plan content not completed yet',
+                '<p class="body">No completed business-plan sections are available yet. Complete the founder plan sections before issuing this document externally.</p>'.$missingHtml,
+                'missing-panel',
+            );
         $generatedAt = now()->format('M j, Y g:i A');
 
         return $this->layout->document(
-            title: 'Business plan preview - '.$profile->name,
-            templateKey: 'business-plan-preview',
-            documentTag: 'Business plan preview',
-            eyebrow: 'Entrepreneur business plan',
-            heading: 'Business plan preview',
+            title: 'Business plan - '.$profile->name,
+            templateKey: 'entrepreneur-business-plan',
+            documentTag: 'Business plan',
+            eyebrow: 'Prepared for lender and investor review',
+            heading: 'Business plan',
             subheading: $profile->name,
             meta: [
                 'Plan status' => $this->formatLabel($plan?->status ?? 'not started'),
                 'Requirements' => "{$completed}/{$total} complete",
                 'Stage' => $this->formatLabel($profile->currentStageValue()),
             ],
-            contentHtml: ($missingHtml === '' ? '' : '<article class="report-section missing-panel"><h2>Open items before finalising</h2><ul>'.$missingHtml.'</ul></article>').$phaseHtml,
-            footer: 'Generated '.$generatedAt.' using Future Shift Advisory business plan preview',
+            contentHtml: $contentHtml,
+            footer: 'Generated '.$generatedAt.' using Future Shift Advisory business-plan workspace',
+            extraCss: '.plan-subsection { border-top: 1px solid #eee7db; padding: 10px 0; } .plan-subsection:first-of-type { border-top: 0; padding-top: 0; } .plan-subsection h3 { color: #13233a; font-size: 13px; margin: 0 0 5px; } .plan-subsection .body { margin-top: 0; }',
         );
     }
 
     /**
-     * @param  array<string, mixed>  $phase
+     * @param  array<int, array<string, mixed>>  $phases
+     * @return array<int, array{title:string,entries:array<int, array{title:string,body:string,evidence_count:int}>}>
      */
-    private function phaseHtml(array $phase): string
+    private function documentSections(array $phases): array
     {
-        $sections = collect($phase['sections'] ?? []);
-        $requirementHtml = collect($phase['requirements'] ?? [])
-            ->map(fn (array $requirement): string => $this->requirementHtml($requirement, $sections))
+        return collect($phases)
+            ->map(function (array $phase): ?array {
+                $sections = collect($phase['sections'] ?? []);
+                $entries = collect($phase['requirements'] ?? [])
+                    ->map(function (array $requirement) use ($sections): ?array {
+                        $section = $sections->first(fn (array $candidate): bool => (string) ($candidate['requirement_key'] ?? '') === (string) $requirement['key']);
+
+                        if (! is_array($section) || trim((string) ($section['body'] ?? '')) === '') {
+                            return null;
+                        }
+
+                        return [
+                            'title' => (string) $requirement['title'],
+                            'body' => (string) ($section['body'] ?? ''),
+                            'evidence_count' => count((array) ($section['attached_document_ids'] ?? [])),
+                        ];
+                    })
+                    ->filter()
+                    ->values()
+                    ->all();
+
+                if ($entries === []) {
+                    return null;
+                }
+
+                return [
+                    'title' => (string) ($phase['title'] ?? 'Plan section'),
+                    'entries' => $entries,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array{title:string,entries:array<int, array{title:string,body:string,evidence_count:int}>}  $section
+     */
+    private function documentSectionHtml(array $section): string
+    {
+        $entries = collect($section['entries'])
+            ->map(function (array $entry): string {
+                $evidence = $entry['evidence_count'] === 1
+                    ? '1 supporting document referenced'
+                    : $entry['evidence_count'].' supporting documents referenced';
+
+                return sprintf(
+                    '<section class="plan-subsection"><h3>%s</h3><div class="body">%s</div><p class="note">%s.</p></section>',
+                    $this->escape($entry['title']),
+                    $this->markdownBodyHtml($entry['body']),
+                    $this->escape($evidence),
+                );
+            })
             ->implode('');
 
         return sprintf(
             '<article class="report-section"><h2>%s</h2>%s</article>',
-            $this->escape((string) $phase['title']),
-            $requirementHtml,
+            $this->escape($section['title']),
+            $entries,
         );
     }
 
-    private function requirementHtml(array $requirement, Collection $sections): string
+    /**
+     * @param  Collection<int, array<string, mixed>>  $requirements
+     * @return array<int, string>
+     */
+    private function missingRequirements(Collection $requirements): array
     {
-        $section = $sections->first(fn (array $candidate): bool => (string) ($candidate['requirement_key'] ?? '') === (string) $requirement['key']);
-        $complete = (bool) ($requirement['complete'] ?? false);
-        $content = is_array($section)
-            ? $this->sectionContentHtml($section)
-            : '<p class="body">Pending input: '.$this->escape((string) $requirement['description']).'</p>';
-
-        return sprintf(
-            '<article class="requirement"><h3>%s <span class="status %s">%s</span></h3>%s</article>',
-            $this->escape((string) $requirement['title']),
-            $complete ? 'complete' : 'pending',
-            $complete ? 'Complete' : 'Pending',
-            $content,
-        );
-    }
-
-    private function sectionContentHtml(array $section): string
-    {
-        $documentCount = count((array) ($section['attached_document_ids'] ?? []));
-        $docs = $documentCount === 1 ? '1 supporting document' : "{$documentCount} supporting documents";
-
-        return sprintf(
-            '<div class="body">%s</div><p class="note">Evidence: %s.</p>',
-            $this->markdownBodyHtml((string) ($section['body'] ?? '')),
-            $this->escape($docs),
-        );
+        return $requirements
+            ->reject(fn (array $requirement): bool => (bool) ($requirement['complete'] ?? false))
+            ->map(fn (array $requirement): string => (string) (($requirement['phase_title'] ?? 'Plan').': '.$requirement['title']))
+            ->values()
+            ->all();
     }
 
     /**
@@ -242,31 +286,35 @@ final class BusinessPlanPreviewRenderer
      */
     private function fallbackPdf(EntrepreneurProfile $profile, ?BusinessPlan $plan, array $phases): string
     {
-        $paragraphs = [
-            'Browser-formatted PDF generation was temporarily unavailable. This fallback preserves the current plan content.',
-            'Plan status: '.$this->formatLabel($plan?->status ?? 'not started'),
-            'Stage: '.$this->formatLabel($profile->currentStageValue()),
+        $requirements = collect($phases)->flatMap(fn (array $phase): array => $phase['requirements'] ?? []);
+        $blocks = [
+            ['type' => 'meta', 'text' => 'Prepared by Future Shift Advisory'],
+            ['type' => 'meta', 'text' => 'Founder: '.$profile->name],
+            ['type' => 'meta', 'text' => 'Plan status: '.$this->formatLabel($plan?->status ?? 'not started')],
+            ['type' => 'meta', 'text' => 'Stage: '.$this->formatLabel($profile->currentStageValue())],
+            ['type' => 'spacer'],
         ];
 
-        foreach ($phases as $phase) {
-            $paragraphs[] = (string) ($phase['title'] ?? 'Plan phase');
+        foreach ($this->documentSections($phases) as $section) {
+            $blocks[] = ['type' => 'section', 'text' => $section['title']];
 
-            foreach ((array) ($phase['requirements'] ?? []) as $requirement) {
-                $section = collect((array) ($phase['sections'] ?? []))
-                    ->first(fn (array $candidate): bool => (string) ($candidate['requirement_key'] ?? '') === (string) ($requirement['key'] ?? ''));
-                $status = (bool) ($requirement['complete'] ?? false) ? 'Complete' : 'Pending';
-                $body = is_array($section)
-                    ? trim(strip_tags($this->markdownBodyHtml((string) ($section['body'] ?? ''))))
-                    : 'Pending input: '.(string) ($requirement['description'] ?? '');
+            foreach ($section['entries'] as $entry) {
+                $blocks[] = ['type' => 'subsection', 'text' => $entry['title']];
+                $blocks[] = ['type' => 'paragraph', 'text' => $this->markdownPlainText($entry['body'])];
 
-                $paragraphs[] = sprintf('%s (%s): %s', (string) ($requirement['title'] ?? 'Requirement'), $status, $body);
+                if ($entry['evidence_count'] > 0) {
+                    $blocks[] = ['type' => 'meta', 'text' => 'Evidence: '.$entry['evidence_count'].' supporting document'.($entry['evidence_count'] === 1 ? '' : 's').' referenced.'];
+                }
             }
         }
 
-        return $this->fallbackPdf->render(
-            'Business plan preview - '.($profile->name ?: 'Entrepreneur'),
-            $paragraphs,
-        );
+        $missing = $this->missingRequirements($requirements);
+        if ($missing !== []) {
+            $blocks[] = ['type' => 'section', 'text' => 'Items still to complete before external issue'];
+            $blocks[] = ['type' => 'bullets', 'items' => $missing];
+        }
+
+        return $this->fallbackPdf->renderStructured('Business Plan - '.($profile->name ?: 'Entrepreneur'), $blocks);
     }
 
     private function requirementComplete(BusinessPlan $plan, string $phaseKey, string $requirementKey): bool
@@ -288,6 +336,15 @@ final class BusinessPlanPreviewRenderer
             'html_input' => 'strip',
             'allow_unsafe_links' => false,
         ]);
+    }
+
+    private function markdownPlainText(string $body): string
+    {
+        $html = $this->markdownBodyHtml($body);
+        $withBreaks = preg_replace('/<\/?(?:br|li|p|div|h[1-6]|blockquote)\b[^>]*>/i', "\n", $html) ?? $html;
+        $text = html_entity_decode(strip_tags($withBreaks), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+        return trim(preg_replace('/[\t ]+/', ' ', $text) ?? $text);
     }
 
     private function formatLabel(string $value): string

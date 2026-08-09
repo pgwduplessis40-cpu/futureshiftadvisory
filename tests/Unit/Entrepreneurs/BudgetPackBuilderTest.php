@@ -70,4 +70,51 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringContainsString('Break-even M2', $html);
         $this->assertStringContainsString('Runway M3', $html);
     }
+
+    public function test_budget_pack_fallback_pdf_is_structured_without_browser_renderer(): void
+    {
+        $profile = new EntrepreneurProfile(['name' => 'Budget Founder']);
+        $plan = new BusinessPlan(['title' => 'Budget runway plan']);
+        $budget = new EntrepreneurBudget([
+            'status' => EntrepreneurBudget::STATUS_COMPLETE,
+            'forecast_years' => 1,
+            'computed' => [
+                'forecast_years' => 1,
+                'break_even_year' => 1,
+                'first_profitable_year' => 1,
+                'cash_flow_positive_year' => 1,
+                'runway_months' => 3,
+                'runway_open_ended' => false,
+                'available_after_launch' => 4_000,
+                'assumptions' => [
+                    'gst_exclusive' => true,
+                    'company_tax_configured' => true,
+                    'company_tax_rate_percent' => 28,
+                    'field_labels' => [],
+                ],
+                'annual_totals' => [[
+                    'year' => 1,
+                    'revenue' => 36_000,
+                    'gross_profit' => 24_000,
+                    'gross_profit_percent' => 66.67,
+                    'fixed_costs' => 12_000,
+                    'net_profit_after_tax' => 8_640,
+                    'ending_cash' => 12_640,
+                ]],
+                'monthly_detail' => [],
+                'scenarios' => [],
+                'explanations' => [],
+            ],
+            'flags' => [],
+        ]);
+
+        $plan->setRelation('budgetRunway', $budget);
+        $plan->setRelation('sections', new EloquentCollection);
+
+        $pdf = app(BudgetPackBuilder::class)->fallbackPdf($profile, $plan);
+
+        $this->assertStringStartsWith('%PDF-1.4', $pdf);
+        $this->assertStringContainsString('Budget Pack - Budget Founder', $pdf);
+        $this->assertStringContainsString('Headline finance view', $pdf);
+    }
 }

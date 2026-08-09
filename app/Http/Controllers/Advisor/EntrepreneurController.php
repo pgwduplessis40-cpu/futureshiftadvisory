@@ -51,6 +51,7 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Throwable;
 
 final class EntrepreneurController extends Controller
 {
@@ -484,7 +485,12 @@ final class EntrepreneurController extends Controller
         $this->assertPlanBelongsToProfile($businessPlan, $entrepreneurProfile);
         abort_unless($this->planPreview->budgetUnlocked($businessPlan), 404);
 
-        $pdf = $this->pdf->render($this->budgetPack->html($entrepreneurProfile, $businessPlan));
+        try {
+            $pdf = $this->pdf->render($this->budgetPack->html($entrepreneurProfile, $businessPlan));
+        } catch (Throwable $exception) {
+            report($exception);
+            $pdf = $this->budgetPack->fallbackPdf($entrepreneurProfile, $businessPlan);
+        }
         $filename = Str::slug($entrepreneurProfile->name ?: 'entrepreneur').'-budget-pack.pdf';
 
         return response($pdf, 200, [

@@ -7,6 +7,7 @@ namespace App\Services\Entrepreneurs;
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
+use App\Services\Pdf\SimpleTextPdf;
 use App\Services\Reports\BrandedReportLayout;
 use Illuminate\Support\Collection;
 
@@ -14,6 +15,7 @@ final class BudgetPackBuilder
 {
     public function __construct(
         private readonly BrandedReportLayout $layout,
+        private readonly SimpleTextPdf $fallbackPdf,
     ) {}
 
     /**
@@ -170,6 +172,93 @@ HTML,
             metaColumns: 4,
             extraCss: $this->budgetPackCss(),
         );
+    }
+
+    public function fallbackPdf(EntrepreneurProfile $profile, BusinessPlan $plan): string
+    {
+        $payload = $this->payload($profile, $plan);
+        $summary = (array) ($payload['summary'] ?? []);
+        $blocks = [
+            ['type' => 'meta', 'text' => 'Prepared by Future Shift Advisory'],
+            ['type' => 'meta', 'text' => 'Founder: '.$profile->name],
+            ['type' => 'meta', 'text' => 'Plan: '.$plan->title],
+            ['type' => 'meta', 'text' => 'Status: '.$this->formatLabel((string) ($payload['status'] ?? 'not available'))],
+            ['type' => 'spacer'],
+            ['type' => 'section', 'text' => 'Headline finance view'],
+            ['type' => 'paragraph', 'text' => 'Break-even: '.$this->yearValue($summary['break_even_year'] ?? null).'. Profit year: '.$this->yearValue($summary['first_profitable_year'] ?? null).'. Cash-flow-positive year: '.$this->yearValue($summary['cash_flow_positive_year'] ?? null).'. Runway: '.$this->runwayText($summary).'.'],
+        ];
+
+        $warnings = (array) ($payload['warnings'] ?? []);
+        if ($warnings !== []) {
+            $blocks[] = ['type' => 'section', 'text' => 'Review notes'];
+            $blocks[] = ['type' => 'bullets', 'items' => array_values(array_map('strval', $warnings))];
+        }
+
+        $annual = collect((array) ($payload['annual_totals'] ?? []))
+            ->map(fn (array $row): string => sprintf(
+                'Year %s: revenue %s; gross profit %s (%s); fixed costs %s; net profit after tax %s; ending cash %s.',
+                (string) ($row['year'] ?? '-'),
+                $this->money($row['revenue'] ?? 0),
+                $this->money($row['gross_profit'] ?? 0),
+                $this->percent($row['gross_profit_percent'] ?? null),
+                $this->money($row['fixed_costs'] ?? 0),
+                $this->money($row['net_profit_after_tax'] ?? 0),
+                $this->money($row['ending_cash'] ?? 0),
+            ))
+            ->values()
+            ->all();
+
+        $blocks[] = ['type' => 'section', 'text' => 'Annual forecast'];
+        $blocks[] = $annual === []
+            ? ['type' => 'paragraph', 'text' => 'No annual forecast has been saved yet.']
+            : ['type' => 'bullets', 'items' => $annual];
+
+        $assumptions = collect((array) ($payload['assumptions'] ?? []))
+            ->map(fn (array $row): string => (string) ($row['label'] ?? '').': '.(string) ($row['value'] ?? ''))
+            ->filter()
+            ->values()
+            ->all();
+        $blocks[] = ['type' => 'section', 'text' => 'Assumptions used'];
+        $blocks[] = $assumptions === []
+            ? ['type' => 'paragraph', 'text' => 'No assumptions have been saved yet.']
+            : ['type' => 'bullets', 'items' => $assumptions];
+
+        $scenarios = collect((array) ($payload['scenarios'] ?? []))
+            ->map(fn (array $scenario): string => sprintf(
+                '%s (%s): break-even %s; cash positive %s.',
+                (string) ($scenario['name'] ?? 'Scenario'),
+                $this->formatLabel((string) ($scenario['type'] ?? 'base')),
+                $this->yearValue(data_get($scenario, 'summary.break_even_year')),
+                $this->yearValue(data_get($scenario, 'summary.cash_flow_positive_year')),
+            ))
+            ->values()
+            ->all();
+        $blocks[] = ['type' => 'section', 'text' => 'Funding scenarios'];
+        $blocks[] = $scenarios === []
+            ? ['type' => 'paragraph', 'text' => 'No funding scenarios have been saved yet.']
+            : ['type' => 'bullets', 'items' => $scenarios];
+
+        foreach ((array) ($payload['monthly_by_year'] ?? []) as $year) {
+            $rows = collect((array) ($year['rows'] ?? []))
+                ->map(fn (array $row): string => sprintf(
+                    'Month %s: revenue %s; gross profit %s; fixed costs %s; net cash flow %s; cumulative cash %s.',
+                    (string) ($row['month_in_year'] ?? '-'),
+                    $this->money($row['revenue'] ?? 0),
+                    $this->money($row['gross_profit'] ?? 0),
+                    $this->money($row['fixed_costs'] ?? 0),
+                    $this->money($row['net_cash_flow'] ?? 0),
+                    $this->money($row['cumulative_cash'] ?? 0),
+                ))
+                ->values()
+                ->all();
+
+            if ($rows !== []) {
+                $blocks[] = ['type' => 'section', 'text' => 'Year '.((string) ($year['year'] ?? '-')).' monthly detail'];
+                $blocks[] = ['type' => 'bullets', 'items' => $rows];
+            }
+        }
+
+        return $this->fallbackPdf->renderStructured('Budget Pack - '.($profile->name ?: 'Entrepreneur'), $blocks);
     }
 
     /**
@@ -554,6 +643,22 @@ CSS;
     private function yearValue(mixed $year): string
     {
         return is_numeric($year) ? 'Year '.((int) $year) : 'Not reached';
+    }
+
+    /**
+     * @param  array<string, mixed>  $summary
+     */
+    private function runwayText(array $summary): string
+    {
+        $months = $summary['runway_months'] ?? null;
+
+        if (! is_numeric($months)) {
+            return 'not calculated';
+        }
+
+        return (bool) ($summary['runway_open_ended'] ?? false)
+            ? 'more than '.((int) $months).' months'
+            : ((int) $months).' months';
     }
 
     private function formatLabel(string $value): string

@@ -51,6 +51,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Throwable;
 
 final class EntrepreneurPlanController extends Controller
 {
@@ -181,7 +182,12 @@ final class EntrepreneurPlanController extends Controller
         $plan = $this->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan && $this->budgetUnlocked($plan), 404);
 
-        $pdf = $this->pdf->render($this->budgetPack->html($profile, $plan));
+        try {
+            $pdf = $this->pdf->render($this->budgetPack->html($profile, $plan));
+        } catch (Throwable $exception) {
+            report($exception);
+            $pdf = $this->budgetPack->fallbackPdf($profile, $plan);
+        }
         $filename = Str::slug($profile->name ?: 'entrepreneur').'-budget-pack.pdf';
 
         return response($pdf, 200, [

@@ -10,6 +10,7 @@ use App\Mail\InvitationMail;
 use App\Models\AdvisoryReadinessSignal;
 use App\Models\BusinessPlan;
 use App\Models\Document;
+use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
 use App\Models\InviteToken;
@@ -19,6 +20,7 @@ use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Plans\PlanBuilder as SharedPlanBuilder;
 use App\Services\Security\InviteIssuer;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,6 +29,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
+use RuntimeException;
 use Tests\Concerns\MakesIdeaReviewEligible;
 use Tests\TestCase;
 
@@ -789,7 +792,7 @@ final class AddEntrepreneurTest extends TestCase
             ->assertHeader('Content-Type', 'application/pdf');
 
         self::assertStringContainsString('inline; filename=', (string) $response->headers->get('Content-Disposition'));
-        self::assertStringContainsString('Business plan preview', $pdfRenderer->html);
+        self::assertStringContainsString('Prepared for lender and investor review', $pdfRenderer->html);
         self::assertStringContainsString('Portal Founder', $pdfRenderer->html);
 
         $this->actingAsMfa($advisor)
@@ -874,6 +877,98 @@ final class AddEntrepreneurTest extends TestCase
         $this->actingAsMfa($advisor)
             ->get(route('advisor.entrepreneurs.documents.show', [$profile, $document]))
             ->assertNotFound();
+    }
+
+    public function test_advisor_budget_pdf_returns_fallback_when_browser_renderer_fails(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => 'Budget Founder',
+            'email' => $entrepreneur->email,
+            'stage' => EntrepreneurStage::BUILDING_PHASE_1,
+            'concept_summary' => 'A test business plan with enough budget detail for advisor review.',
+        ]);
+        $plan = app(SharedPlanBuilder::class)->createOrUpdateForEntrepreneur($profile, [
+            'title' => 'Business plan: Budget Founder',
+            'status' => BusinessPlan::STATUS_BUILDING,
+            'current_phase' => 5,
+        ], $advisor);
+
+        app(SharedPlanBuilder::class)->upsertSection(
+            plan: $plan,
+            phaseKey: 'foundation',
+            key: 'founder-foundation-business-type-location',
+            title: 'Business type, location, and operating model',
+            body: 'Budget Founder will operate a service business from Hamilton with online delivery and one owner-operator.',
+            sourceType: BusinessPlan::SOURCE_ENTREPRENEUR,
+            metadata: ['requirement_key' => 'business-type-location'],
+        );
+        app(SharedPlanBuilder::class)->upsertSection(
+            plan: $plan,
+            phaseKey: 'financial',
+            key: 'founder-financial-financial-assumptions',
+            title: 'Financial assumptions',
+            body: 'Revenue starts with two monthly clients, fixed costs are controlled, and funding covers the initial setup period.',
+            sourceType: BusinessPlan::SOURCE_ENTREPRENEUR,
+            metadata: ['requirement_key' => 'financial-assumptions'],
+        );
+        EntrepreneurBudget::query()->create([
+            'business_plan_id' => $plan->getKey(),
+            'status' => EntrepreneurBudget::STATUS_COMPLETE,
+            'forecast_years' => 1,
+            'computed' => [
+                'forecast_years' => 1,
+                'break_even_year' => 1,
+                'first_profitable_year' => 1,
+                'cash_flow_positive_year' => 1,
+                'runway_months' => 4,
+                'runway_open_ended' => false,
+                'available_after_launch' => 5_000,
+                'assumptions' => [
+                    'gst_exclusive' => true,
+                    'company_tax_configured' => true,
+                    'company_tax_rate_percent' => 28,
+                    'field_labels' => [],
+                ],
+                'annual_totals' => [[
+                    'year' => 1,
+                    'revenue' => 48_000,
+                    'gross_profit' => 36_000,
+                    'gross_profit_percent' => 75,
+                    'fixed_costs' => 18_000,
+                    'net_profit_after_tax' => 12_960,
+                    'ending_cash' => 17_960,
+                ]],
+                'monthly_detail' => [],
+                'scenarios' => [],
+                'explanations' => [],
+            ],
+            'flags' => [],
+        ]);
+        $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
+        {
+            public function render(string $html): string
+            {
+                throw new RuntimeException('Chromium is unavailable.');
+            }
+        });
+
+        $response = $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.plans.budget-pack.pdf', [$profile, $plan]))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+
+        self::assertStringStartsWith('%PDF-1.4', $response->getContent());
+        self::assertStringContainsString('Budget Pack - Budget Founder', $response->getContent());
+        self::assertStringContainsString('Headline finance view', $response->getContent());
     }
 
     private function advisor(): User

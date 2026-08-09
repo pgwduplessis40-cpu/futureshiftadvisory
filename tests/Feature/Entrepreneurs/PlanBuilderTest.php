@@ -249,6 +249,8 @@ final class PlanBuilderTest extends TestCase
             ->assertHeader('Content-Type', 'application/pdf');
 
         $this->assertStringStartsWith('%PDF-1.4', $response->getContent());
+        $this->assertStringContainsString('Business Plan - Plan Founder', $response->getContent());
+        $this->assertStringNotContainsString('Browser-formatted PDF generation', $response->getContent());
     }
 
     public function test_entrepreneur_plan_tables_are_profile_scoped_by_rls(): void
