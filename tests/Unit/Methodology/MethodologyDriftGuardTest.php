@@ -31,6 +31,7 @@ use App\Services\Entrepreneurs\AssessmentFeedback;
 use App\Services\Entrepreneurs\AssessmentScoring;
 use App\Services\Entrepreneurs\Benchmarking;
 use App\Services\Entrepreneurs\BudgetPackBuilder;
+use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
 use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
 use App\Services\Entrepreneurs\EntrepreneurBudgetService;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
@@ -135,6 +136,7 @@ final class MethodologyDriftGuardTest extends TestCase
         AssessmentScoring::class => 'Shared scoring helper; owned methodology services disclose the scoring formula.',
         Benchmarking::class => 'Privacy-gated cohort report; excluded until a client-safe aggregate methodology is surfaced.',
         BudgetPackBuilder::class => 'Budget-pack renderer; forecast formula is owned by BudgetCalculator.',
+        BusinessPlanPreviewRenderer::class => 'Business-plan PDF renderer; requirement completion is presentation state, not an advisory methodology surface.',
         CanonicalEntrepreneurWorkspace::class => 'Selects the canonical existing entrepreneur workspace for a client; it does not calculate or disclose advisory methodology.',
         EntrepreneurBudgetService::class => 'Budget persistence workflow; forecast formula is owned by BudgetCalculator.',
         EntrepreneurGamification::class => 'Gamification payload renderer; requirement and milestone rules are not advisor methodology disclosures.',
