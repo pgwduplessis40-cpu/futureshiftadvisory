@@ -865,6 +865,20 @@ final class StaffDashboardController extends Controller
                 'entrepreneurProfile',
                 fn (Builder $query): Builder => $this->visibleEntrepreneurQuery($query, $user),
             );
+        $actionableIdeaQuery = (clone $ideaQuery)
+            ->where(function (Builder $query): void {
+                $query
+                    ->whereNull('ai_evaluation->metadata->advisor_gate_status')
+                    ->orWhere('ai_evaluation->metadata->advisor_gate_status', '!=', 'changes_requested');
+            });
+        $actionablePlanQuery = (clone $planQuery)
+            ->whereIn('status', [
+                BusinessPlan::STATUS_SUBMITTED,
+                BusinessPlan::STATUS_ASSESSING,
+            ])
+            ->whereDoesntHave('assessments', function (Builder $query): void {
+                $query->whereNotNull('mentor_notes->feedback_sent_at');
+            });
 
         $ideaItems = (clone $ideaQuery)
             ->orderByDesc('revision_number')
@@ -885,9 +899,9 @@ final class StaffDashboardController extends Controller
 
         return [
             'summary' => [
-                'total' => (clone $ideaQuery)->count() + (clone $planQuery)->count(),
-                'idea_validations' => (clone $ideaQuery)->count(),
-                'business_plans' => (clone $planQuery)->count(),
+                'total' => (clone $actionableIdeaQuery)->count() + (clone $actionablePlanQuery)->count(),
+                'idea_validations' => (clone $actionableIdeaQuery)->count(),
+                'business_plans' => (clone $actionablePlanQuery)->count(),
             ],
             'items' => [
                 ...$ideaItems,

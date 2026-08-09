@@ -245,6 +245,48 @@ remove_legacy_scheduler_cron() {
     rm -f -- "$current_crontab" "$updated_crontab"
 }
 
+install_scheduler_cron() {
+    local php_binary="$1"
+    local current_crontab updated_crontab quoted_app_dir quoted_php
+
+    command -v crontab >/dev/null 2>&1 || {
+        echo "ERROR: crontab is unavailable, and the systemd scheduler timer could not be configured." >&2
+        exit 1
+    }
+
+    current_crontab="$(mktemp)"
+    updated_crontab="$(mktemp)"
+
+    if crontab -l > "$current_crontab" 2>/dev/null; then
+        awk '
+            /^# BEGIN FUTURESHIFT SCHEDULER$/ { skip = 1; next }
+            /^# END FUTURESHIFT SCHEDULER$/ { skip = 0; next }
+            ! skip { print }
+        ' "$current_crontab" > "$updated_crontab"
+    else
+        : > "$updated_crontab"
+    fi
+
+    printf -v quoted_app_dir '%q' "$APP_DIR"
+    printf -v quoted_php '%q' "$php_binary"
+
+    {
+        cat "$updated_crontab"
+        printf '\n# BEGIN FUTURESHIFT SCHEDULER\n'
+        printf '* * * * cd %s && %s artisan schedule:run --no-interaction >> storage/logs/scheduler.log 2>&1\n' "$quoted_app_dir" "$quoted_php"
+        printf '# END FUTURESHIFT SCHEDULER\n'
+    } > "$current_crontab"
+
+    if ! crontab "$current_crontab"; then
+        rm -f -- "$current_crontab" "$updated_crontab"
+        echo "ERROR: could not install Laravel scheduler crontab fallback." >&2
+        exit 1
+    fi
+
+    rm -f -- "$current_crontab" "$updated_crontab"
+    echo "Laravel scheduler crontab fallback is installed for $(id -un)."
+}
+
 configure_scheduler_timer() {
     local php_binary scheduler_service_path scheduler_timer_path scheduler_service_tmp scheduler_timer_tmp
 
@@ -253,15 +295,16 @@ configure_scheduler_timer() {
         return
     fi
 
-    command -v systemctl >/dev/null 2>&1 || {
-        echo "ERROR: systemctl is required to keep Laravel's scheduler running." >&2
-        exit 1
-    }
-
     php_binary="$(command -v php)"
     [ -n "$php_binary" ] || {
         echo "ERROR: php could not be found on PATH for the Laravel scheduler." >&2
         exit 1
+    }
+
+    command -v systemctl >/dev/null 2>&1 || {
+        echo "WARNING: systemctl is unavailable; installing Laravel scheduler crontab fallback." >&2
+        install_scheduler_cron "$php_binary"
+        return
     }
 
     validate_systemd_unit_name "$SCHEDULER_SERVICE" "SCHEDULER_SERVICE" ".service"
@@ -310,42 +353,66 @@ Unit=${SCHEDULER_SERVICE}
 WantedBy=timers.target
 EOF
 
-    if [ -L "$scheduler_service_path" ]; then
-        $SUDO rm -f "$scheduler_service_path"
+    if [ -L "$scheduler_service_path" ] && ! $SUDO rm -f "$scheduler_service_path"; then
+        rm -f -- "$scheduler_service_tmp" "$scheduler_timer_tmp"
+        echo "WARNING: could not remove ${scheduler_service_path}; installing Laravel scheduler crontab fallback." >&2
+        install_scheduler_cron "$php_binary"
+        return
     fi
 
-    if [ -L "$scheduler_timer_path" ]; then
-        $SUDO rm -f "$scheduler_timer_path"
+    if [ -L "$scheduler_timer_path" ] && ! $SUDO rm -f "$scheduler_timer_path"; then
+        rm -f -- "$scheduler_service_tmp" "$scheduler_timer_tmp"
+        echo "WARNING: could not remove ${scheduler_timer_path}; installing Laravel scheduler crontab fallback." >&2
+        install_scheduler_cron "$php_binary"
+        return
     fi
 
     if ! $SUDO install -m 0644 "$scheduler_service_tmp" "$scheduler_service_path"; then
         rm -f -- "$scheduler_service_tmp" "$scheduler_timer_tmp"
-        echo "ERROR: could not install ${scheduler_service_path}; grant the deploy user sudo install access for systemd units." >&2
-        exit 1
+        echo "WARNING: could not install ${scheduler_service_path}; installing Laravel scheduler crontab fallback." >&2
+        install_scheduler_cron "$php_binary"
+        return
     fi
 
     if ! $SUDO install -m 0644 "$scheduler_timer_tmp" "$scheduler_timer_path"; then
         rm -f -- "$scheduler_service_tmp" "$scheduler_timer_tmp"
-        echo "ERROR: could not install ${scheduler_timer_path}; grant the deploy user sudo install access for systemd units." >&2
-        exit 1
+        echo "WARNING: could not install ${scheduler_timer_path}; installing Laravel scheduler crontab fallback." >&2
+        install_scheduler_cron "$php_binary"
+        return
     fi
 
     rm -f -- "$scheduler_service_tmp" "$scheduler_timer_tmp"
-    $SUDO systemctl daemon-reload
-    $SUDO systemctl enable "$SCHEDULER_TIMER"
-    $SUDO systemctl restart "$SCHEDULER_TIMER"
+    if ! $SUDO systemctl daemon-reload; then
+        echo "WARNING: systemctl daemon-reload failed; installing Laravel scheduler crontab fallback." >&2
+        install_scheduler_cron "$php_binary"
+        return
+    fi
+
+    if ! $SUDO systemctl enable "$SCHEDULER_TIMER"; then
+        echo "WARNING: systemctl could not enable ${SCHEDULER_TIMER}; installing Laravel scheduler crontab fallback." >&2
+        install_scheduler_cron "$php_binary"
+        return
+    fi
+
+    if ! $SUDO systemctl restart "$SCHEDULER_TIMER"; then
+        echo "WARNING: systemctl could not restart ${SCHEDULER_TIMER}; installing Laravel scheduler crontab fallback." >&2
+        install_scheduler_cron "$php_binary"
+        return
+    fi
 
     if ! systemctl is-active --quiet "$SCHEDULER_TIMER"; then
-        echo "ERROR: Laravel scheduler timer '${SCHEDULER_TIMER}' is not active; scheduled app checks will not run." >&2
+        echo "WARNING: Laravel scheduler timer '${SCHEDULER_TIMER}' is not active; installing Laravel scheduler crontab fallback." >&2
         $SUDO systemctl status "$SCHEDULER_TIMER" --no-pager --full || true
-        exit 1
+        install_scheduler_cron "$php_binary"
+        return
     fi
 
     if ! $SUDO systemctl start "$SCHEDULER_SERVICE"; then
-        echo "ERROR: Laravel scheduler service '${SCHEDULER_SERVICE}' could not execute schedule:run." >&2
+        echo "WARNING: Laravel scheduler service '${SCHEDULER_SERVICE}' could not execute schedule:run; installing Laravel scheduler crontab fallback." >&2
         $SUDO systemctl status "$SCHEDULER_SERVICE" --no-pager --full || true
         $SUDO journalctl -u "$SCHEDULER_SERVICE" -n 80 --no-pager || true
-        exit 1
+        install_scheduler_cron "$php_binary"
+        return
     fi
 
     remove_legacy_scheduler_cron
@@ -636,6 +703,7 @@ ensure_malware_scanner
 php artisan fsa:rescan-quarantined-documents --probe --limit=1000
 
 log "Running authenticated operational health checks"
+php artisan fsa:operational-health-check:due --ensure-fixtures --limit="${OPERATIONAL_HEALTH_DEPLOY_CATCHUP_LIMIT:-3}"
 php artisan fsa:operational-health-check --ensure-fixtures
 
 log "Restarting PHP-FPM"

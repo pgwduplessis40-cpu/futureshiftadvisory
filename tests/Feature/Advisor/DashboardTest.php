@@ -257,14 +257,53 @@ final class DashboardTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('advisor/Dashboard')
-                ->where('entrepreneurReviews.summary.total', 1)
+                ->where('entrepreneurReviews.summary.total', 0)
                 ->where('entrepreneurReviews.summary.idea_validations', 0)
-                ->where('entrepreneurReviews.summary.business_plans', 1)
+                ->where('entrepreneurReviews.summary.business_plans', 0)
                 ->where('entrepreneurReviews.items.0.type', 'business_plan')
                 ->where('entrepreneurReviews.items.0.entrepreneur_name', 'Tania Hassounia')
                 ->where('entrepreneurReviews.items.0.status', 'Changes requested')
                 ->where('entrepreneurReviews.items.0.action_label', 'Await resubmission')
                 ->where('entrepreneurReviews.items.0.detail_url', route('advisor.entrepreneurs.show', $profile, absolute: false))
+                ->has('entrepreneurReviews.items', 1));
+    }
+
+    public function test_advisor_dashboard_excludes_change_requested_idea_validations_from_review_counts(): void
+    {
+        $advisor = $this->advisor('idea-feedback-sent-dashboard@example.test');
+        $profile = $this->entrepreneurProfileFor($advisor, 'Andrew Sing', 'andrew@example.test');
+
+        IdeaValidation::query()->create([
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'evaluated_by_user_id' => $profile->user_id,
+            'problem' => 'A clear customer problem.',
+            'target_customer' => 'Early-stage service founders.',
+            'solution' => 'A guided planning workspace.',
+            'value_proposition' => 'Less overwhelm and clearer advisor review.',
+            'demand_signal' => 'Founder requested guided help.',
+            'revenue_model' => 'Subscription and advisory conversion.',
+            'ai_evaluation' => [
+                'summary' => 'Changes requested.',
+                'metadata' => [
+                    'advisor_gate_status' => 'changes_requested',
+                ],
+            ],
+            'viability_alerts' => [],
+            'evaluated_at' => now()->subHour(),
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/Dashboard')
+                ->where('entrepreneurReviews.summary.total', 0)
+                ->where('entrepreneurReviews.summary.idea_validations', 0)
+                ->where('entrepreneurReviews.summary.business_plans', 0)
+                ->where('entrepreneurReviews.items.0.type', 'idea_validation')
+                ->where('entrepreneurReviews.items.0.entrepreneur_name', 'Andrew Sing')
+                ->where('entrepreneurReviews.items.0.status', 'Changes requested')
+                ->where('entrepreneurReviews.items.0.action_label', 'Await resubmission')
                 ->has('entrepreneurReviews.items', 1));
     }
 

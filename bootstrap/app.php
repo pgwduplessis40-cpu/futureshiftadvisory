@@ -23,6 +23,7 @@ use App\Console\Commands\RunCoachSignalCalibrationLayer;
 use App\Console\Commands\RunConversionOutcomeLearning;
 use App\Console\Commands\RunCrossClientIntelligence;
 use App\Console\Commands\RunDdLearning;
+use App\Console\Commands\RunDueOperationalHealthChecks;
 use App\Console\Commands\RunFeedbackLearningLayer;
 use App\Console\Commands\RunFinancialMonitoring;
 use App\Console\Commands\RunFunnelAnalyticsLayer;
@@ -157,6 +158,15 @@ return Application::configure(basePath: dirname(__DIR__))
                     ->name('fsa-operational-health-sentinel')
                     ->withoutOverlapping();
             }
+
+            $schedule->command(RunDueOperationalHealthChecks::class, [
+                ...$operationalHealthCommandOptions,
+                '--grace-minutes' => 10,
+            ])
+                ->cron('15,45 * * * *')
+                ->timezone($operationalHealthSchedule->timezone())
+                ->name('fsa-operational-health-due-runner')
+                ->withoutOverlapping();
 
             foreach ($operationalHealthSchedule->weekdayTimes() as $time) {
                 $schedule->command(RunOperationalHealthChecks::class, $operationalHealthCommandOptions)

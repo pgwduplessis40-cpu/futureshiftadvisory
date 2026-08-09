@@ -79,12 +79,55 @@ final class OperationalHealthCheckTest extends TestCase
         $this->assertSame('Pacific/Auckland', $sentinel->timezone);
         $this->assertStringContainsString('--sentinel', $sentinel->command);
 
+        $dueRunner = $events
+            ->first(fn ($event): bool => $event->description === 'fsa-operational-health-due-runner');
+
+        $this->assertNotNull($dueRunner);
+        $this->assertSame('15,45 * * * *', $dueRunner->expression);
+        $this->assertSame('Pacific/Auckland', $dueRunner->timezone);
+        $this->assertStringContainsString('fsa:operational-health-check:due', $dueRunner->command);
+
         $quarantineRecovery = $events
             ->first(fn ($event): bool => $event->description === 'fsa-rescan-quarantined-documents');
 
         $this->assertNotNull($quarantineRecovery);
         $this->assertSame('*/10 * * * *', $quarantineRecovery->expression);
         $this->assertStringContainsString('fsa:rescan-quarantined-documents', $quarantineRecovery->command);
+    }
+
+    public function test_due_runner_catches_up_missed_weekday_health_checks_once(): void
+    {
+        config()->set('operational_health.enabled', true);
+        config()->set('operational_health.timezone', 'Pacific/Auckland');
+        config()->set('operational_health.weekday_times', null);
+        config()->set('operational_health.weekend_times', null);
+
+        Carbon::setTestNow(Carbon::parse('2026-08-10 08:50:00', 'Pacific/Auckland'));
+
+        $this->artisan('fsa:operational-health-check:due', [
+            '--ensure-fixtures' => true,
+            '--grace-minutes' => 10,
+        ])->assertSuccessful();
+
+        $runs = OperationalHealthCheckRun::query()
+            ->where('metadata->trigger', 'scheduled_due')
+            ->orderBy('metadata->scheduled_for')
+            ->get();
+
+        $this->assertCount(2, $runs);
+        $this->assertSame([
+            '2026-08-10T07:30:00+12:00',
+            '2026-08-10T08:30:00+12:00',
+        ], $runs->pluck('metadata.scheduled_for')->all());
+
+        $this->artisan('fsa:operational-health-check:due', [
+            '--ensure-fixtures' => true,
+            '--grace-minutes' => 10,
+        ])->assertSuccessful();
+
+        $this->assertSame(2, OperationalHealthCheckRun::query()
+            ->where('metadata->trigger', 'scheduled_due')
+            ->count());
     }
 
     public function test_command_records_specific_findings_and_skips_missing_monitor_fixtures(): void
