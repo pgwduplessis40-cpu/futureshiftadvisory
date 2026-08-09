@@ -68,8 +68,9 @@ final class QuestionnaireBaseContentV2Test extends TestCase
         $this->assertSame('2', $active->version, 'v2 must be the active (latest published) DD set.');
 
         $titles = $active->sections->pluck('title')->all();
-        $this->assertContains('Deal Summary and Structure', $titles);
-        $this->assertContains('Integration, Synergies and Post-Close Costs', $titles);
+        $this->assertContains('The deal basics', $titles);
+        $this->assertContains('Sales, costs, and profit', $titles);
+        $this->assertContains('Taking over after purchase', $titles);
         // The two non-target sections are intentionally excluded.
         $this->assertNotContains('Red Flags Checklist', $titles);
         $this->assertNotContains('Clarifying questions for you', $titles);

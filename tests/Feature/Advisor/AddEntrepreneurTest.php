@@ -754,7 +754,7 @@ final class AddEntrepreneurTest extends TestCase
                 ->where('profile.advisory_readiness_signal.explanation', fn (string $value): bool => str_contains($value, 'weighted total'))
                 ->where('profile.message_summary.threads_count', 0)
                 ->where('messagesUrl', route('portal.messages.index', absolute: false))
-                ->where('documentUploadUrl', route('portal.documents.store', absolute: false))
+                ->missing('documentUploadUrl')
             );
 
         $this->actingAsMfa($advisor)
