@@ -2102,6 +2102,40 @@ export default function EntrepreneursShow({
                                         ]}
                                     />
                                 ) : null}
+                                <Button asChild size="sm" variant="outline">
+                                    <a
+                                        href={
+                                            entrepreneur.latest_plan
+                                                .preview_pdf_url
+                                        }
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        <FileText
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Business plan PDF
+                                    </a>
+                                </Button>
+                                {entrepreneur.latest_plan.budget_pdf_url ? (
+                                    <Button asChild size="sm" variant="outline">
+                                        <a
+                                            href={
+                                                entrepreneur.latest_plan
+                                                    .budget_pdf_url
+                                            }
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            <Banknote
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            Budget PDF
+                                        </a>
+                                    </Button>
+                                ) : null}
                                 {latestAssessment ? (
                                     <Button asChild size="sm" variant="outline">
                                         <Link href={latestAssessment.url}>
@@ -2127,8 +2161,9 @@ export default function EntrepreneursShow({
                             <ActionMetric
                                 label="Plan completion"
                                 value={`${gamification.plan_completion?.percent ?? 0}%`}
-                                href="#business-plan-budget"
-                                drillLabel="Review plan"
+                                href={entrepreneur.latest_plan.preview_pdf_url}
+                                drillLabel="View plan PDF"
+                                openInNewWindow
                                 hoverTitle="Plan completion"
                                 rows={[
                                     {
@@ -2239,6 +2274,12 @@ export default function EntrepreneursShow({
                                         aria-hidden="true"
                                     />
                                 }
+                                href={
+                                    entrepreneur.latest_plan.budget_pdf_url ??
+                                    undefined
+                                }
+                                drillLabel="View budget PDF"
+                                openInNewWindow
                                 hoverTitle="Budget runway"
                                 rows={[
                                     {
@@ -2408,6 +2449,7 @@ function ActionMetric({
     rows,
     footer,
     onClick,
+    openInNewWindow = false,
 }: {
     label: string;
     value: string;
@@ -2419,6 +2461,7 @@ function ActionMetric({
     rows: InsightHoverCardRow[];
     footer?: ReactNode;
     onClick?: (event: MouseEvent<Element>) => void;
+    openInNewWindow?: boolean;
 }) {
     const className = cn(
         'block min-h-28 rounded-md border bg-background p-4 text-left transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
@@ -2449,6 +2492,16 @@ function ActionMetric({
             <a href={href} className={className} onClick={onClick}>
                 {content}
             </a>
+        ) : href && openInNewWindow ? (
+            <a
+                href={href}
+                className={className}
+                target="_blank"
+                rel="noreferrer"
+                onClick={onClick}
+            >
+                {content}
+            </a>
         ) : href ? (
             <Link href={href} className={className} onClick={onClick}>
                 {content}
@@ -2465,6 +2518,7 @@ function ActionMetric({
                 href && !href.startsWith('#') && !onClick ? href : undefined
             }
             drillLabel={drillLabel}
+            drillNewWindow={openInNewWindow}
             footer={footer}
         >
             {trigger}

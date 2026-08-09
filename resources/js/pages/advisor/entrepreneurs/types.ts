@@ -77,6 +77,8 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
                 severity: string;
             }[];
         };
+        preview_pdf_url: string;
+        budget_pdf_url: string | null;
         assess_url: string;
         latest_revision: {
             id: string;

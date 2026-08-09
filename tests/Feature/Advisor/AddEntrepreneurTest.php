@@ -18,6 +18,7 @@ use App\Models\RatingFramework;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\User;
+use App\Services\Pdf\PdfRenderer;
 use App\Services\Security\InviteIssuer;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -734,6 +735,18 @@ final class AddEntrepreneurTest extends TestCase
             'uploaded_by_user_id' => $entrepreneur->getKey(),
             'scanner_result' => Document::SCANNER_CLEAN,
         ]);
+        $pdfRenderer = new class implements PdfRenderer
+        {
+            public string $html = '';
+
+            public function render(string $html): string
+            {
+                $this->html = $html;
+
+                return '%PDF-1.7 entrepreneur-plan-preview';
+            }
+        };
+        $this->app->instance(PdfRenderer::class, $pdfRenderer);
 
         $this->actingAsMfa($entrepreneur)
             ->get(route('dashboard'))
@@ -763,10 +776,21 @@ final class AddEntrepreneurTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('advisor/entrepreneurs/Show')
                 ->where('entrepreneur.messages.url', route('advisor.entrepreneurs.messages.index', $profile, absolute: false))
+                ->where('entrepreneur.latest_plan.preview_pdf_url', route('advisor.entrepreneurs.plans.preview', [$profile, $plan], absolute: false))
+                ->where('entrepreneur.latest_plan.budget_pdf_url', null)
                 ->where('entrepreneur.latest_plan.latest_assessment.url', route('advisor.entrepreneurs.assessments.show', [$profile, $assessment], absolute: false))
                 ->where('entrepreneur.latest_plan.latest_assessment.weighted_score', 86.3)
                 ->where('entrepreneur.documents.0.url', route('advisor.entrepreneurs.documents.show', [$profile, $document], absolute: false))
             );
+
+        $response = $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.plans.preview', [$profile, $plan]))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+
+        self::assertStringContainsString('inline; filename=', (string) $response->headers->get('Content-Disposition'));
+        self::assertStringContainsString('Business plan preview', $pdfRenderer->html);
+        self::assertStringContainsString('Portal Founder', $pdfRenderer->html);
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.entrepreneurs.assessments.show', [$profile, $assessment]))

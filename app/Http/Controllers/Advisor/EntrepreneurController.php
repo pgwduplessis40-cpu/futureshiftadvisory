@@ -30,10 +30,13 @@ use App\Models\SurveyAssignment;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
+use App\Services\Entrepreneurs\BudgetPackBuilder;
+use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
 use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\Entrepreneurs\FounderChangeRequestMessage;
 use App\Services\Entrepreneurs\IdeaViabilityGate;
+use App\Services\Pdf\PdfRenderer;
 use App\Services\ScreenShare\ScreenShareAuthorizer;
 use App\Services\Security\InviteIssuer;
 use App\Services\Surveys\SurveyActivationService;
@@ -47,6 +50,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 final class EntrepreneurController extends Controller
 {
@@ -59,6 +63,9 @@ final class EntrepreneurController extends Controller
         private readonly EntrepreneurGamification $gamification,
         private readonly FounderChangeRequestMessage $changeRequestMessages,
         private readonly IdeaViabilityGate $ideaViabilityGate,
+        private readonly BusinessPlanPreviewRenderer $planPreview,
+        private readonly BudgetPackBuilder $budgetPack,
+        private readonly PdfRenderer $pdf,
         private readonly CanonicalEntrepreneurWorkspace $entrepreneurWorkspaces,
         private readonly ScreenShareAuthorizer $screenShareAuthorizer,
         private readonly SurveyActivationService $surveyActivations,
@@ -457,6 +464,36 @@ final class EntrepreneurController extends Controller
         ]);
     }
 
+    public function planPreview(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): SymfonyResponse
+    {
+        Gate::authorize('view', $entrepreneurProfile);
+        $this->assertPlanBelongsToProfile($businessPlan, $entrepreneurProfile);
+
+        $pdf = $this->planPreview->pdf($entrepreneurProfile, $businessPlan);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$this->planPreview->filename($entrepreneurProfile).'"',
+            'Cache-Control' => 'no-store, max-age=0',
+        ]);
+    }
+
+    public function budgetPackPdf(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): SymfonyResponse
+    {
+        Gate::authorize('view', $entrepreneurProfile);
+        $this->assertPlanBelongsToProfile($businessPlan, $entrepreneurProfile);
+        abort_unless($this->planPreview->budgetUnlocked($businessPlan), 404);
+
+        $pdf = $this->pdf->render($this->budgetPack->html($entrepreneurProfile, $businessPlan));
+        $filename = Str::slug($entrepreneurProfile->name ?: 'entrepreneur').'-budget-pack.pdf';
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Cache-Control' => 'no-store, max-age=0',
+        ]);
+    }
+
     /**
      * @return array<string, mixed>|null
      */
@@ -703,6 +740,10 @@ final class EntrepreneurController extends Controller
                 'finalise_url' => route('advisor.entrepreneurs.assessments.finalise', [$profile, $latestAssessment], absolute: false),
             ] : null,
             'budget' => $this->budgetSummary($plan->budgetRunway),
+            'preview_pdf_url' => route('advisor.entrepreneurs.plans.preview', [$profile, $plan], absolute: false),
+            'budget_pdf_url' => $this->planPreview->budgetUnlocked($plan)
+                ? route('advisor.entrepreneurs.plans.budget-pack.pdf', [$profile, $plan], absolute: false)
+                : null,
             'assess_url' => route('advisor.entrepreneurs.plans.assessments.store', [$profile, $plan], absolute: false),
             'latest_revision' => $latestRevision instanceof PlanRevision ? [
                 'id' => $latestRevision->id,
@@ -714,6 +755,15 @@ final class EntrepreneurController extends Controller
                 'remaining_gaps' => data_get($latestRevision->progress_comparison, 'remaining_gaps', []),
             ] : null,
         ];
+    }
+
+    private function assertPlanBelongsToProfile(BusinessPlan $plan, EntrepreneurProfile $profile): void
+    {
+        abort_unless(
+            $plan->source_type === BusinessPlan::SOURCE_ENTREPRENEUR
+            && (string) $plan->entrepreneur_profile_id === (string) $profile->getKey(),
+            404,
+        );
     }
 
     /**
