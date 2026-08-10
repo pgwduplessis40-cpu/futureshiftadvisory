@@ -22,7 +22,6 @@ use App\Services\Panels\PanelOnboarding;
 use App\Services\Panels\ReferralConsentManager;
 use App\Services\Panels\ReferralLifecycle;
 use App\Services\Pdf\PdfRenderer;
-use App\Services\Pdf\SimpleTextPdf;
 use App\Services\Security\InviteIssuer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -362,14 +361,25 @@ final class BrokerPortalTest extends TestCase
         $signed = $onboarding->signAgreement($agreement, $broker)->refresh();
         $previousPath = $signed->pdf_path;
 
-        Storage::disk('secure_local')->put(
-            $previousPath,
-            app(SimpleTextPdf::class)->render('Future Shift Advisory Partner Agreement', [
-                'Future Shift Advisory partner agreement.',
-                'Agreement summary:',
-                'Broker operating terms:',
-            ]),
-        );
+        $legacyPlainFallbackPdf = <<<'PDF'
+%PDF-1.4
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+2 0 obj
+<< /Length 171 >>
+stream
+BT
+/F1 16 Tf 50 792 Td (Future Shift Advisory Partner Agreement) Tj
+/F1 10 Tf 50 764 Td (Future Shift Advisory partner agreement.) Tj
+50 746 Td (Agreement summary:) Tj
+50 728 Td (Broker operating terms:) Tj
+ET
+endstream
+endobj
+PDF;
+
+        Storage::disk('secure_local')->put($previousPath, $legacyPlainFallbackPdf);
 
         $this->actingAsMfa($broker)
             ->get(route('panel.agreements.view', $signed))
