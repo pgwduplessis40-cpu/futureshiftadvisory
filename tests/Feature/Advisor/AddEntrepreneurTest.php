@@ -779,7 +779,7 @@ final class AddEntrepreneurTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('advisor/entrepreneurs/Show')
                 ->where('entrepreneur.messages.url', route('advisor.entrepreneurs.messages.index', $profile, absolute: false))
-                ->where('entrepreneur.latest_plan.preview_pdf_url', route('advisor.entrepreneurs.plans.preview', [$profile, $plan], absolute: false))
+                ->where('entrepreneur.latest_plan.preview_pdf_url', route('advisor.entrepreneurs.plans.latest.preview', $profile, absolute: false))
                 ->where('entrepreneur.latest_plan.budget_pdf_url', null)
                 ->where('entrepreneur.latest_plan.latest_assessment.url', route('advisor.entrepreneurs.assessments.show', [$profile, $assessment], absolute: false))
                 ->where('entrepreneur.latest_plan.latest_assessment.weighted_score', 86.3)
@@ -787,13 +787,18 @@ final class AddEntrepreneurTest extends TestCase
             );
 
         $response = $this->actingAsMfa($advisor)
-            ->get(route('advisor.entrepreneurs.plans.preview', [$profile, $plan]))
+            ->get(route('advisor.entrepreneurs.plans.latest.preview', $profile))
             ->assertOk()
             ->assertHeader('Content-Type', 'application/pdf');
 
         self::assertStringContainsString('inline; filename=', (string) $response->headers->get('Content-Disposition'));
         self::assertStringContainsString('Prepared for lender and investor review', $pdfRenderer->html);
         self::assertStringContainsString('Portal Founder', $pdfRenderer->html);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.plans.preview', [$profile, $plan]))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.entrepreneurs.assessments.show', [$profile, $assessment]))
@@ -961,14 +966,26 @@ final class AddEntrepreneurTest extends TestCase
             }
         });
 
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('entrepreneur.latest_plan.preview_pdf_url', route('advisor.entrepreneurs.plans.latest.preview', $profile, absolute: false))
+                ->where('entrepreneur.latest_plan.budget_pdf_url', route('advisor.entrepreneurs.plans.latest.budget-pack.pdf', $profile, absolute: false)));
+
         $response = $this->actingAsMfa($advisor)
-            ->get(route('advisor.entrepreneurs.plans.budget-pack.pdf', [$profile, $plan]))
+            ->get(route('advisor.entrepreneurs.plans.latest.budget-pack.pdf', $profile))
             ->assertOk()
             ->assertHeader('Content-Type', 'application/pdf');
 
         self::assertStringStartsWith('%PDF-1.4', $response->getContent());
         self::assertStringContainsString('Budget Pack - Budget Founder', $response->getContent());
         self::assertStringContainsString('Headline finance view', $response->getContent());
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.plans.budget-pack.pdf', [$profile, $plan]))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
     }
 
     private function advisor(): User

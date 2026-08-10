@@ -13,6 +13,18 @@ final class BrowsershotRenderer implements PdfRenderer
     {
         [$html, $footer] = $this->extractPdfFooter($html);
         $timeout = max(1, (int) config('services.browsershot.timeout_seconds', 60));
+        $nodeBinary = $this->binaryPath('node_binary', [
+            '/usr/local/bin/node',
+            '/usr/bin/node',
+            '/snap/bin/node',
+            'C:\\Program Files\\nodejs\\node.exe',
+        ]);
+        $npmBinary = $this->binaryPath('npm_binary', [
+            '/usr/local/bin/npm',
+            '/usr/bin/npm',
+            '/snap/bin/npm',
+            'C:\\Program Files\\nodejs\\npm.cmd',
+        ]);
 
         $shot = Browsershot::html($html)
             ->format('A4')
@@ -21,18 +33,16 @@ final class BrowsershotRenderer implements PdfRenderer
             ->noSandbox()
             ->timeout($timeout);
 
-        $nodeBinary = config('services.browsershot.node_binary');
-        if (is_string($nodeBinary) && $nodeBinary !== '') {
+        if ($nodeBinary !== null) {
             $shot->setNodeBinary($nodeBinary);
         }
 
-        $npmBinary = config('services.browsershot.npm_binary');
-        if (is_string($npmBinary) && $npmBinary !== '') {
+        if ($npmBinary !== null) {
             $shot->setNpmBinary($npmBinary);
         }
 
-        $chromePath = config('services.browsershot.chrome_path');
-        if (is_string($chromePath) && $chromePath !== '') {
+        $chromePath = $this->chromePath($nodeBinary);
+        if ($chromePath !== null) {
             $shot->setChromePath($chromePath);
         }
 
@@ -44,6 +54,74 @@ final class BrowsershotRenderer implements PdfRenderer
         }
 
         return $this->withExecutionTimeLimit($timeout + 10, $shot->pdf(...));
+    }
+
+    /**
+     * @param  array<int, string>  $candidates
+     */
+    private function binaryPath(string $configKey, array $candidates): ?string
+    {
+        $configured = config('services.browsershot.'.$configKey);
+
+        if (is_string($configured) && $configured !== '') {
+            return $configured;
+        }
+
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function chromePath(?string $nodeBinary): ?string
+    {
+        $configured = config('services.browsershot.chrome_path');
+
+        if (is_string($configured) && $configured !== '') {
+            return $configured;
+        }
+
+        foreach ([
+            '/usr/bin/google-chrome',
+            '/usr/bin/google-chrome-stable',
+            '/usr/bin/chromium',
+            '/usr/bin/chromium-browser',
+            '/snap/bin/chromium',
+            'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        ] as $candidate) {
+            if (is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return $this->puppeteerChromePath($nodeBinary);
+    }
+
+    private function puppeteerChromePath(?string $nodeBinary): ?string
+    {
+        if ($nodeBinary === null || ! function_exists('exec')) {
+            return null;
+        }
+
+        $script = <<<'JS'
+const puppeteer = require('puppeteer');
+process.stdout.write(puppeteer.executablePath());
+JS;
+        $output = [];
+        $exitCode = 1;
+
+        @exec(escapeshellarg($nodeBinary).' -e '.escapeshellarg($script), $output, $exitCode);
+
+        if ($exitCode !== 0 || $output === []) {
+            return null;
+        }
+
+        $path = trim(implode("\n", $output));
+
+        return $path !== '' && is_file($path) ? $path : null;
     }
 
     private function withExecutionTimeLimit(int $seconds, Closure $callback): string

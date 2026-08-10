@@ -447,6 +447,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/refresh', [EntrepreneurActionController::class, 'refreshIdea'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.idea-validations.refresh');
+        Route::get('entrepreneurs/{entrepreneurProfile}/plans/preview', [EntrepreneurController::class, 'latestPlanPreview'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
+            ->name('entrepreneurs.plans.latest.preview');
+        Route::get('entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf', [EntrepreneurController::class, 'latestBudgetPackPdf'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
+            ->name('entrepreneurs.plans.latest.budget-pack.pdf');
         Route::get('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview', [EntrepreneurController::class, 'planPreview'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.plans.preview');

@@ -406,6 +406,7 @@ final class EntrepreneurController extends Controller
             'businessPlans.revisions',
         ]);
         $latestPlan = $entrepreneurProfile->businessPlans
+            ->where('source_type', BusinessPlan::SOURCE_ENTREPRENEUR)
             ->sortByDesc('updated_at')
             ->first();
         $activeInvite = $entrepreneurProfile->inviteToken instanceof InviteToken
@@ -465,11 +466,46 @@ final class EntrepreneurController extends Controller
         ]);
     }
 
+    public function latestPlanPreview(EntrepreneurProfile $entrepreneurProfile): SymfonyResponse
+    {
+        Gate::authorize('view', $entrepreneurProfile);
+
+        $businessPlan = $this->latestEntrepreneurPlan($entrepreneurProfile);
+        abort_unless($businessPlan instanceof BusinessPlan, 404);
+
+        return $this->planPreviewResponse($entrepreneurProfile, $businessPlan);
+    }
+
     public function planPreview(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): SymfonyResponse
     {
         Gate::authorize('view', $entrepreneurProfile);
         $this->assertPlanBelongsToProfile($businessPlan, $entrepreneurProfile);
 
+        return $this->planPreviewResponse($entrepreneurProfile, $businessPlan);
+    }
+
+    public function latestBudgetPackPdf(EntrepreneurProfile $entrepreneurProfile): SymfonyResponse
+    {
+        Gate::authorize('view', $entrepreneurProfile);
+
+        $businessPlan = $this->latestEntrepreneurPlan($entrepreneurProfile);
+        abort_unless($businessPlan instanceof BusinessPlan, 404);
+        abort_unless($this->planPreview->budgetUnlocked($businessPlan), 404);
+
+        return $this->budgetPackPdfResponse($entrepreneurProfile, $businessPlan);
+    }
+
+    public function budgetPackPdf(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): SymfonyResponse
+    {
+        Gate::authorize('view', $entrepreneurProfile);
+        $this->assertPlanBelongsToProfile($businessPlan, $entrepreneurProfile);
+        abort_unless($this->planPreview->budgetUnlocked($businessPlan), 404);
+
+        return $this->budgetPackPdfResponse($entrepreneurProfile, $businessPlan);
+    }
+
+    private function planPreviewResponse(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): SymfonyResponse
+    {
         $pdf = $this->planPreview->pdf($entrepreneurProfile, $businessPlan);
 
         return response($pdf, 200, [
@@ -479,12 +515,8 @@ final class EntrepreneurController extends Controller
         ]);
     }
 
-    public function budgetPackPdf(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): SymfonyResponse
+    private function budgetPackPdfResponse(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): SymfonyResponse
     {
-        Gate::authorize('view', $entrepreneurProfile);
-        $this->assertPlanBelongsToProfile($businessPlan, $entrepreneurProfile);
-        abort_unless($this->planPreview->budgetUnlocked($businessPlan), 404);
-
         try {
             $pdf = $this->pdf->render($this->budgetPack->html($entrepreneurProfile, $businessPlan));
         } catch (Throwable $exception) {
@@ -746,9 +778,9 @@ final class EntrepreneurController extends Controller
                 'finalise_url' => route('advisor.entrepreneurs.assessments.finalise', [$profile, $latestAssessment], absolute: false),
             ] : null,
             'budget' => $this->budgetSummary($plan->budgetRunway),
-            'preview_pdf_url' => route('advisor.entrepreneurs.plans.preview', [$profile, $plan], absolute: false),
+            'preview_pdf_url' => route('advisor.entrepreneurs.plans.latest.preview', $profile, absolute: false),
             'budget_pdf_url' => $this->planPreview->budgetUnlocked($plan)
-                ? route('advisor.entrepreneurs.plans.budget-pack.pdf', [$profile, $plan], absolute: false)
+                ? route('advisor.entrepreneurs.plans.latest.budget-pack.pdf', $profile, absolute: false)
                 : null,
             'assess_url' => route('advisor.entrepreneurs.plans.assessments.store', [$profile, $plan], absolute: false),
             'latest_revision' => $latestRevision instanceof PlanRevision ? [
@@ -770,6 +802,15 @@ final class EntrepreneurController extends Controller
             && (string) $plan->entrepreneur_profile_id === (string) $profile->getKey(),
             404,
         );
+    }
+
+    private function latestEntrepreneurPlan(EntrepreneurProfile $profile): ?BusinessPlan
+    {
+        return $profile->businessPlans()
+            ->where('source_type', BusinessPlan::SOURCE_ENTREPRENEUR)
+            ->latest('updated_at')
+            ->latest('created_at')
+            ->first();
     }
 
     /**

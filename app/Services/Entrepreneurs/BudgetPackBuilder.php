@@ -195,8 +195,7 @@ HTML,
         }
 
         $annual = collect((array) ($payload['annual_totals'] ?? []))
-            ->map(fn (array $row): string => sprintf(
-                'Year %s: revenue %s; gross profit %s (%s); fixed costs %s; net profit after tax %s; ending cash %s.',
+            ->map(fn (array $row): array => [
                 (string) ($row['year'] ?? '-'),
                 $this->money($row['revenue'] ?? 0),
                 $this->money($row['gross_profit'] ?? 0),
@@ -204,57 +203,75 @@ HTML,
                 $this->money($row['fixed_costs'] ?? 0),
                 $this->money($row['net_profit_after_tax'] ?? 0),
                 $this->money($row['ending_cash'] ?? 0),
-            ))
+            ])
             ->values()
             ->all();
 
         $blocks[] = ['type' => 'section', 'text' => 'Annual forecast'];
         $blocks[] = $annual === []
             ? ['type' => 'paragraph', 'text' => 'No annual forecast has been saved yet.']
-            : ['type' => 'bullets', 'items' => $annual];
+            : [
+                'type' => 'table',
+                'headers' => ['Year', 'Revenue', 'Gross profit', 'GP %', 'Fixed costs', 'NPAT', 'Ending cash'],
+                'rows' => $annual,
+                'widths' => [0.55, 1, 1, 0.65, 1, 1, 1],
+            ];
 
         $assumptions = collect((array) ($payload['assumptions'] ?? []))
-            ->map(fn (array $row): string => (string) ($row['label'] ?? '').': '.(string) ($row['value'] ?? ''))
+            ->map(fn (array $row): array => [(string) ($row['label'] ?? ''), (string) ($row['value'] ?? '')])
             ->filter()
             ->values()
             ->all();
         $blocks[] = ['type' => 'section', 'text' => 'Assumptions used'];
         $blocks[] = $assumptions === []
             ? ['type' => 'paragraph', 'text' => 'No assumptions have been saved yet.']
-            : ['type' => 'bullets', 'items' => $assumptions];
+            : [
+                'type' => 'table',
+                'headers' => ['Assumption', 'Value'],
+                'rows' => $assumptions,
+                'widths' => [1.3, 1],
+            ];
 
         $scenarios = collect((array) ($payload['scenarios'] ?? []))
-            ->map(fn (array $scenario): string => sprintf(
-                '%s (%s): break-even %s; cash positive %s.',
+            ->map(fn (array $scenario): array => [
                 (string) ($scenario['name'] ?? 'Scenario'),
                 $this->formatLabel((string) ($scenario['type'] ?? 'base')),
                 $this->yearValue(data_get($scenario, 'summary.break_even_year')),
                 $this->yearValue(data_get($scenario, 'summary.cash_flow_positive_year')),
-            ))
+            ])
             ->values()
             ->all();
         $blocks[] = ['type' => 'section', 'text' => 'Funding scenarios'];
         $blocks[] = $scenarios === []
             ? ['type' => 'paragraph', 'text' => 'No funding scenarios have been saved yet.']
-            : ['type' => 'bullets', 'items' => $scenarios];
+            : [
+                'type' => 'table',
+                'headers' => ['Scenario', 'Type', 'Break-even', 'Cash positive'],
+                'rows' => $scenarios,
+                'widths' => [1.5, 0.9, 0.9, 1],
+            ];
 
         foreach ((array) ($payload['monthly_by_year'] ?? []) as $year) {
             $rows = collect((array) ($year['rows'] ?? []))
-                ->map(fn (array $row): string => sprintf(
-                    'Month %s: revenue %s; gross profit %s; fixed costs %s; net cash flow %s; cumulative cash %s.',
+                ->map(fn (array $row): array => [
                     (string) ($row['month_in_year'] ?? '-'),
                     $this->money($row['revenue'] ?? 0),
                     $this->money($row['gross_profit'] ?? 0),
                     $this->money($row['fixed_costs'] ?? 0),
                     $this->money($row['net_cash_flow'] ?? 0),
                     $this->money($row['cumulative_cash'] ?? 0),
-                ))
+                ])
                 ->values()
                 ->all();
 
             if ($rows !== []) {
                 $blocks[] = ['type' => 'section', 'text' => 'Year '.((string) ($year['year'] ?? '-')).' monthly detail'];
-                $blocks[] = ['type' => 'bullets', 'items' => $rows];
+                $blocks[] = [
+                    'type' => 'table',
+                    'headers' => ['Month', 'Revenue', 'Gross profit', 'Fixed costs', 'Net cash flow', 'Cash'],
+                    'rows' => $rows,
+                    'widths' => [0.55, 1, 1, 1, 1, 1],
+                ];
             }
         }
 
