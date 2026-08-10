@@ -101,7 +101,11 @@ final class BudgetPackBuilderTest extends TestCase
                     'net_profit_after_tax' => 8_640,
                     'ending_cash' => 12_640,
                 ]],
-                'monthly_detail' => [],
+                'monthly_detail' => [
+                    ['month' => 1, 'month_in_year' => 1, 'year' => 1, 'revenue' => 1_000, 'gross_profit' => 1_000, 'fixed_costs' => 2_000, 'net_cash_flow' => 3_000, 'cumulative_cash' => 3_000],
+                    ['month' => 2, 'month_in_year' => 2, 'year' => 1, 'revenue' => 4_000, 'gross_profit' => 4_000, 'fixed_costs' => 2_000, 'net_cash_flow' => 1_440, 'cumulative_cash' => 4_440],
+                    ['month' => 3, 'month_in_year' => 3, 'year' => 1, 'revenue' => 4_000, 'gross_profit' => 4_000, 'fixed_costs' => 2_000, 'net_cash_flow' => -500, 'cumulative_cash' => 3_940],
+                ],
                 'scenarios' => [],
                 'explanations' => [],
             ],
@@ -116,5 +120,7 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringStartsWith('%PDF-1.4', $pdf);
         $this->assertStringContainsString('Budget Pack - Budget Founder', $pdf);
         $this->assertStringContainsString('Headline finance view', $pdf);
+        $this->assertStringContainsString('Cash and revenue trend', $pdf);
+        $this->assertStringContainsString('Annual forecast profile', $pdf);
     }
 }

@@ -138,6 +138,18 @@ final class SimpleTextPdf
                 continue;
             }
 
+            if ($type === 'line_chart') {
+                $this->addLineChart($pages, $current, $y, $block, $title);
+
+                continue;
+            }
+
+            if ($type === 'bar_chart') {
+                $this->addBarChart($pages, $current, $y, $block, $title);
+
+                continue;
+            }
+
             $this->addParagraph($pages, $current, $y, (string) ($block['text'] ?? ''), $title);
         }
 
@@ -380,12 +392,15 @@ final class SimpleTextPdf
      */
     private function addSectionHeading(array &$pages, array &$current, int &$y, string $heading, string $reportTitle): void
     {
-        $this->ensureSpace($pages, $current, $y, 44, $reportTitle);
+        $this->ensureSpace($pages, $current, $y, 58, $reportTitle);
 
-        $this->addRect($current, self::MARGIN, $y - 17, 4, 26, self::ACCENT);
-        $this->addLineShape($current, self::MARGIN + 12, $y - 17, 545, $y - 17, [238, 231, 219]);
+        $startY = $y;
         $this->addWrapped($pages, $current, $y, $heading, 15, 18, 'F2', self::MARGIN + 14, self::NAVY, $reportTitle);
-        $this->addLine($pages, $current, $y, '', 10, 4, reportTitle: $reportTitle);
+        $ruleY = $y + 4;
+
+        $this->addRect($current, self::MARGIN, $ruleY, 4, max(26, ($startY - $ruleY) + 11), self::ACCENT);
+        $this->addLineShape($current, self::MARGIN + 12, $ruleY, 545, $ruleY, [238, 231, 219]);
+        $y = min($y, $ruleY - 13);
     }
 
     /**
@@ -444,13 +459,7 @@ final class SimpleTextPdf
         }
 
         $this->ensureSpace($pages, $current, $y, 30, $reportTitle);
-        $this->addRect($current, self::MARGIN, $y - 14, $tableWidth, 21, self::PAPER);
-
-        foreach ($headers as $index => $header) {
-            $this->addText($current, $header, $xPositions[$index] + 4, $y - 6, 7, 'F2', self::NAVY);
-        }
-
-        $y -= 24;
+        $this->addTableHeader($current, $y, $headers, $xPositions, $tableWidth);
 
         foreach ($rows as $row) {
             $row = array_values(array_map('strval', $row));
@@ -464,7 +473,13 @@ final class SimpleTextPdf
             }
 
             $rowHeight = max(18, 9 + ($maxLines * 10));
+            $pageCount = count($pages);
             $this->ensureSpace($pages, $current, $y, $rowHeight + 6, $reportTitle);
+
+            if (count($pages) > $pageCount) {
+                $this->addTableHeader($current, $y, $headers, $xPositions, $tableWidth);
+            }
+
             $this->addLineShape($current, self::MARGIN, $y + 4, 545, $y + 4, [228, 232, 226]);
 
             for ($i = 0; $i < $columnCount; $i++) {
@@ -477,6 +492,203 @@ final class SimpleTextPdf
         }
 
         $this->addLine($pages, $current, $y, '', 10, 8, reportTitle: $reportTitle);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $current
+     * @param  array<int, string>  $headers
+     * @param  array<int, float>  $xPositions
+     */
+    private function addTableHeader(array &$current, int &$y, array $headers, array $xPositions, float $tableWidth): void
+    {
+        $this->addRect($current, self::MARGIN, $y - 14, $tableWidth, 21, self::PAPER);
+
+        foreach ($headers as $index => $header) {
+            $this->addText($current, $header, $xPositions[$index] + 4, $y - 6, 7, 'F2', self::NAVY);
+        }
+
+        $y -= 24;
+    }
+
+    /**
+     * @param  array<int, array<int, array<string, mixed>>>  $pages
+     * @param  array<int, array<string, mixed>>  $current
+     * @param  array<string, mixed>  $block
+     */
+    private function addLineChart(array &$pages, array &$current, int &$y, array $block, string $reportTitle): void
+    {
+        $series = $this->chartSeries((array) ($block['series'] ?? []));
+
+        if ($series === []) {
+            return;
+        }
+
+        $pointCount = collect($series)
+            ->map(fn (array $entry): int => count((array) $entry['values']))
+            ->max() ?? 0;
+
+        if ($pointCount < 2) {
+            return;
+        }
+
+        $this->ensureSpace($pages, $current, $y, 205, $reportTitle);
+        $title = (string) ($block['title'] ?? 'Trend');
+        $note = (string) ($block['note'] ?? '');
+        $labels = array_values(array_map('strval', (array) ($block['x_labels'] ?? [])));
+        $values = collect($series)
+            ->flatMap(fn (array $entry): array => (array) $entry['values'])
+            ->map(fn (mixed $value): float => (float) $value)
+            ->values()
+            ->all();
+        [$min, $max] = $this->chartRange($values);
+
+        $this->addText($current, $title, self::MARGIN, $y, 11, 'F2', self::NAVY);
+        $legendX = 360;
+        foreach ($series as $entry) {
+            $this->addRect($current, $legendX, $y - 5, 8, 8, (array) $entry['color']);
+            $this->addText($current, (string) $entry['label'], $legendX + 12, $y - 3, 7, 'F1', self::MUTED);
+            $legendX += 78;
+        }
+        $y -= 14;
+
+        if ($note !== '') {
+            $this->addWrapped($pages, $current, $y, $note, 8, 10, 'F1', self::MARGIN, self::MUTED, $reportTitle);
+            $y -= 2;
+        }
+
+        $plotX = self::MARGIN + 34;
+        $plotWidth = 430;
+        $plotHeight = 108;
+        $plotTop = $y - 8;
+        $plotBottom = $plotTop - $plotHeight;
+        $range = max(1.0, $max - $min);
+        $xFor = fn (int $index): float => $pointCount === 1
+            ? $plotX + ($plotWidth / 2)
+            : $plotX + (($index / max(1, $pointCount - 1)) * $plotWidth);
+        $yFor = fn (float $value): float => $plotBottom + ((($value - $min) / $range) * $plotHeight);
+
+        $this->addRect($current, $plotX, $plotBottom, $plotWidth, $plotHeight, [252, 250, 244]);
+        $this->addLineShape($current, $plotX, $plotBottom, $plotX, $plotTop, [198, 204, 196], 0.7);
+        $this->addLineShape($current, $plotX, $plotBottom, $plotX + $plotWidth, $plotBottom, [198, 204, 196], 0.7);
+
+        foreach ($this->chartTicks($min, $max) as $tick) {
+            $tickY = $yFor($tick);
+            $this->addLineShape($current, $plotX, $tickY, $plotX + $plotWidth, $tickY, [228, 232, 226], 0.4);
+            $this->addText($current, $this->shortNumber($tick), self::MARGIN, $tickY - 2, 6, 'F1', self::MUTED);
+        }
+
+        if ($min < 0 && $max > 0) {
+            $zeroY = $yFor(0);
+            $this->addLineShape($current, $plotX, $zeroY, $plotX + $plotWidth, $zeroY, self::GOLD, 0.8);
+        }
+
+        foreach ($series as $entry) {
+            $points = array_values((array) $entry['values']);
+            $previous = null;
+
+            for ($index = 0; $index < $pointCount; $index++) {
+                if (! array_key_exists($index, $points) || ! is_numeric($points[$index])) {
+                    continue;
+                }
+
+                $point = [$xFor($index), $yFor((float) $points[$index])];
+                if ($previous !== null) {
+                    $this->addLineShape($current, $previous[0], $previous[1], $point[0], $point[1], (array) $entry['color'], 1.4);
+                }
+
+                $previous = $point;
+            }
+        }
+
+        foreach ($this->chartLabelIndexes($pointCount) as $index) {
+            $label = $labels[$index] ?? 'M'.($index + 1);
+            $x = $xFor($index);
+
+            $this->addLineShape($current, $x, $plotBottom, $x, $plotBottom - 4, [198, 204, 196], 0.5);
+            $this->addText($current, $label, $x - 6, $plotBottom - 14, 6, 'F1', self::MUTED);
+        }
+
+        $y = (int) floor($plotBottom - 28);
+    }
+
+    /**
+     * @param  array<int, array<int, array<string, mixed>>>  $pages
+     * @param  array<int, array<string, mixed>>  $current
+     * @param  array<string, mixed>  $block
+     */
+    private function addBarChart(array &$pages, array &$current, int &$y, array $block, string $reportTitle): void
+    {
+        $series = $this->chartSeries((array) ($block['series'] ?? []));
+        $labels = array_values(array_map('strval', (array) ($block['x_labels'] ?? [])));
+        $categoryCount = count($labels);
+
+        if ($series === [] || $categoryCount === 0) {
+            return;
+        }
+
+        $this->ensureSpace($pages, $current, $y, 205, $reportTitle);
+        $title = (string) ($block['title'] ?? 'Chart');
+        $note = (string) ($block['note'] ?? '');
+        $values = collect($series)
+            ->flatMap(fn (array $entry): array => array_slice((array) $entry['values'], 0, $categoryCount))
+            ->map(fn (mixed $value): float => (float) $value)
+            ->values()
+            ->all();
+        [$min, $max] = $this->chartRange($values);
+
+        $this->addText($current, $title, self::MARGIN, $y, 11, 'F2', self::NAVY);
+        $legendX = 320;
+        foreach ($series as $entry) {
+            $this->addRect($current, $legendX, $y - 5, 8, 8, (array) $entry['color']);
+            $this->addText($current, (string) $entry['label'], $legendX + 12, $y - 3, 7, 'F1', self::MUTED);
+            $legendX += 54;
+        }
+        $y -= 14;
+
+        if ($note !== '') {
+            $this->addWrapped($pages, $current, $y, $note, 8, 10, 'F1', self::MARGIN, self::MUTED, $reportTitle);
+            $y -= 2;
+        }
+
+        $plotX = self::MARGIN + 34;
+        $plotWidth = 430;
+        $plotHeight = 108;
+        $plotTop = $y - 8;
+        $plotBottom = $plotTop - $plotHeight;
+        $range = max(1.0, $max - $min);
+        $yFor = fn (float $value): float => $plotBottom + ((($value - $min) / $range) * $plotHeight);
+        $zeroY = $yFor(0);
+        $seriesCount = max(1, count($series));
+        $groupWidth = $plotWidth / max(1, $categoryCount);
+        $barWidth = min(11.0, max(4.0, ($groupWidth - 12) / $seriesCount));
+
+        $this->addRect($current, $plotX, $plotBottom, $plotWidth, $plotHeight, [252, 250, 244]);
+        $this->addLineShape($current, $plotX, $zeroY, $plotX + $plotWidth, $zeroY, [198, 204, 196], 0.8);
+
+        foreach ($this->chartTicks($min, $max) as $tick) {
+            $tickY = $yFor($tick);
+            $this->addLineShape($current, $plotX, $tickY, $plotX + $plotWidth, $tickY, [228, 232, 226], 0.4);
+            $this->addText($current, $this->shortNumber($tick), self::MARGIN, $tickY - 2, 6, 'F1', self::MUTED);
+        }
+
+        foreach ($labels as $categoryIndex => $label) {
+            $groupX = $plotX + ($categoryIndex * $groupWidth) + (($groupWidth - ($barWidth * $seriesCount)) / 2);
+
+            foreach ($series as $seriesIndex => $entry) {
+                $value = (float) (((array) $entry['values'])[$categoryIndex] ?? 0);
+                $valueY = $yFor($value);
+                $barX = $groupX + ($seriesIndex * $barWidth);
+                $barY = min($zeroY, $valueY);
+                $height = max(1.0, abs($valueY - $zeroY));
+
+                $this->addRect($current, $barX, $barY, $barWidth - 1, $height, (array) $entry['color']);
+            }
+
+            $labelX = $plotX + ($categoryIndex * $groupWidth) + ($groupWidth / 2) - 6;
+            $this->addText($current, $label, $labelX, $plotBottom - 14, 6, 'F1', self::MUTED);
+        }
+
+        $y = (int) floor($plotBottom - 28);
     }
 
     /**
@@ -493,6 +705,116 @@ final class SimpleTextPdf
         }
 
         return $values;
+    }
+
+    /**
+     * @param  array<int, mixed>  $series
+     * @return array<int, array{label:string,values:array<int, float>,color:array<int, int>}>
+     */
+    private function chartSeries(array $series): array
+    {
+        $palette = [
+            self::ACCENT,
+            self::GOLD,
+            self::NAVY,
+            [95, 151, 135],
+        ];
+
+        return collect($series)
+            ->filter(fn (mixed $entry): bool => is_array($entry))
+            ->map(function (array $entry, int $index) use ($palette): array {
+                $color = array_values((array) ($entry['color'] ?? $palette[$index % count($palette)]));
+
+                return [
+                    'label' => (string) ($entry['label'] ?? 'Series '.($index + 1)),
+                    'values' => collect((array) ($entry['values'] ?? []))
+                        ->map(fn (mixed $value): float => is_numeric($value) ? (float) $value : 0.0)
+                        ->values()
+                        ->all(),
+                    'color' => [
+                        (int) ($color[0] ?? $palette[$index % count($palette)][0]),
+                        (int) ($color[1] ?? $palette[$index % count($palette)][1]),
+                        (int) ($color[2] ?? $palette[$index % count($palette)][2]),
+                    ],
+                ];
+            })
+            ->filter(fn (array $entry): bool => $entry['values'] !== [])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, float>  $values
+     * @return array{0:float,1:float}
+     */
+    private function chartRange(array $values): array
+    {
+        $min = min(array_merge([0.0], $values));
+        $max = max(array_merge([0.0], $values));
+
+        if ($min === $max) {
+            $padding = max(1.0, abs($max) * 0.2);
+
+            return [$min - $padding, $max + $padding];
+        }
+
+        $padding = max(1.0, ($max - $min) * 0.08);
+
+        return [$min - $padding, $max + $padding];
+    }
+
+    /**
+     * @return array<int, float>
+     */
+    private function chartTicks(float $min, float $max): array
+    {
+        $range = max(1.0, $max - $min);
+        $step = $range / 4;
+
+        return [
+            $min,
+            $min + $step,
+            $min + ($step * 2),
+            $min + ($step * 3),
+            $max,
+        ];
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function chartLabelIndexes(int $count): array
+    {
+        if ($count <= 6) {
+            return range(0, max(0, $count - 1));
+        }
+
+        $indexes = [0, $count - 1];
+        $step = max(1, (int) floor(($count - 1) / 4));
+
+        for ($index = $step; $index < $count - 1; $index += $step) {
+            $indexes[] = $index;
+        }
+
+        sort($indexes);
+
+        return array_values(array_unique($indexes));
+    }
+
+    private function shortNumber(float $value): string
+    {
+        $prefix = $value < 0 ? '-' : '';
+        $absolute = abs($value);
+
+        if ($absolute >= 1_000_000) {
+            return $prefix.'$'.rtrim(rtrim(number_format($absolute / 1_000_000, 1), '0'), '.').'m';
+        }
+
+        if ($absolute >= 1_000) {
+            return $prefix.'$'.rtrim(rtrim(number_format($absolute / 1_000, 1), '0'), '.').'k';
+        }
+
+        return $prefix.'$'.number_format($absolute, 0);
     }
 
     /**

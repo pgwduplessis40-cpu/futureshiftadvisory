@@ -194,6 +194,11 @@ HTML,
             $blocks[] = ['type' => 'bullets', 'items' => array_values(array_map('strval', $warnings))];
         }
 
+        $cashTrendChart = $this->fallbackCashTrendChart((array) ($payload['monthly_by_year'] ?? []));
+        if ($cashTrendChart !== null) {
+            $blocks[] = $cashTrendChart;
+        }
+
         $annual = collect((array) ($payload['annual_totals'] ?? []))
             ->map(fn (array $row): array => [
                 (string) ($row['year'] ?? '-'),
@@ -206,6 +211,11 @@ HTML,
             ])
             ->values()
             ->all();
+
+        $annualChart = $this->fallbackAnnualForecastChart((array) ($payload['annual_totals'] ?? []));
+        if ($annualChart !== null) {
+            $blocks[] = $annualChart;
+        }
 
         $blocks[] = ['type' => 'section', 'text' => 'Annual forecast'];
         $blocks[] = $annual === []
@@ -276,6 +286,103 @@ HTML,
         }
 
         return $this->fallbackPdf->renderStructured('Budget Pack - '.($profile->name ?: 'Entrepreneur'), $blocks);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $monthlyByYear
+     * @return array<string, mixed>|null
+     */
+    private function fallbackCashTrendChart(array $monthlyByYear): ?array
+    {
+        $rows = collect($monthlyByYear)
+            ->flatMap(fn (array $year): array => (array) ($year['rows'] ?? []))
+            ->filter(fn (mixed $row): bool => is_array($row) && is_numeric($row['month'] ?? null))
+            ->take(36)
+            ->values();
+
+        if ($rows->count() < 2) {
+            return null;
+        }
+
+        return [
+            'type' => 'line_chart',
+            'title' => 'Cash and revenue trend',
+            'note' => 'Monthly revenue and cumulative cash across the saved forecast.',
+            'x_labels' => $rows
+                ->map(fn (array $row): string => 'M'.((string) ($row['month'] ?? '')))
+                ->all(),
+            'series' => [
+                [
+                    'label' => 'Revenue',
+                    'values' => $rows
+                        ->map(fn (array $row): float => (float) ($row['revenue'] ?? 0))
+                        ->all(),
+                    'color' => [184, 134, 11],
+                ],
+                [
+                    'label' => 'Cash',
+                    'values' => $rows
+                        ->map(fn (array $row): float => (float) ($row['cumulative_cash'] ?? 0))
+                        ->all(),
+                    'color' => [13, 122, 122],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $annualTotals
+     * @return array<string, mixed>|null
+     */
+    private function fallbackAnnualForecastChart(array $annualTotals): ?array
+    {
+        $rows = collect($annualTotals)
+            ->filter(fn (mixed $row): bool => is_array($row))
+            ->take(5)
+            ->values();
+
+        if ($rows->isEmpty()) {
+            return null;
+        }
+
+        return [
+            'type' => 'bar_chart',
+            'title' => 'Annual forecast profile',
+            'note' => 'Revenue, gross profit, fixed costs, and ending cash by year.',
+            'x_labels' => $rows
+                ->map(fn (array $row): string => 'Y'.((string) ($row['year'] ?? '')))
+                ->all(),
+            'series' => [
+                [
+                    'label' => 'Revenue',
+                    'values' => $rows
+                        ->map(fn (array $row): float => (float) ($row['revenue'] ?? 0))
+                        ->all(),
+                    'color' => [13, 122, 122],
+                ],
+                [
+                    'label' => 'GP',
+                    'values' => $rows
+                        ->map(fn (array $row): float => (float) ($row['gross_profit'] ?? 0))
+                        ->all(),
+                    'color' => [95, 151, 135],
+                ],
+                [
+                    'label' => 'Costs',
+                    'values' => $rows
+                        ->map(fn (array $row): float => (float) ($row['fixed_costs'] ?? 0))
+                        ->all(),
+                    'color' => [28, 47, 74],
+                ],
+                [
+                    'label' => 'Cash',
+                    'values' => $rows
+                        ->map(fn (array $row): float => (float) ($row['ending_cash'] ?? 0))
+                        ->all(),
+                    'color' => [184, 134, 11],
+                ],
+            ],
+        ];
     }
 
     /**
