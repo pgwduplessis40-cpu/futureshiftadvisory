@@ -54,6 +54,11 @@ type PaymentTermsPayload = {
     cadence: string;
     cadence_label: string;
     term_months: number;
+    strategic_plan_duration_months: number;
+    strategic_plan_duration_label: string;
+    strategic_plan_complexity_band: string;
+    strategic_plan_complexity_label: string;
+    strategic_plan_duration_rationale: string[];
     monthly_amount: number;
     monthly_amount_including_gst: number;
     total_amount: number | null;
@@ -218,15 +223,30 @@ export default function ProposalSignoff({ proposal, signoff }: Props) {
                 <section className="rounded-md border bg-background p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="space-y-2">
-                            <Badge
-                                variant={
-                                    proposal.status === 'signed'
-                                        ? 'secondary'
-                                        : 'outline'
-                                }
-                            >
-                                {proposal.status_label}
-                            </Badge>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Badge
+                                    variant={
+                                        proposal.status === 'signed'
+                                            ? 'secondary'
+                                            : 'outline'
+                                    }
+                                >
+                                    {proposal.status_label}
+                                </Badge>
+                                <Badge variant="outline">
+                                    {
+                                        proposal.payment_terms
+                                            .strategic_plan_duration_label
+                                    }{' '}
+                                    strategic plan
+                                </Badge>
+                                <Badge variant="outline">
+                                    {
+                                        proposal.payment_terms
+                                            .strategic_plan_complexity_label
+                                    }
+                                </Badge>
+                            </div>
                             <p className="max-w-3xl text-sm text-muted-foreground">
                                 {proposal.brief || proposal.scope_summary}
                             </p>
@@ -797,8 +817,8 @@ function PaymentTermsSummary({ terms }: { terms: PaymentTermsPayload }) {
                 }
             />
             <PaymentTermItem
-                label="Term"
-                value={`${terms.term_months} ${terms.term_months === 1 ? 'month' : 'months'}`}
+                label="Strategic plan"
+                value={`${terms.strategic_plan_duration_label} / ${terms.strategic_plan_complexity_label}`}
             />
             <PaymentTermItem
                 label={terms.cadence_label}

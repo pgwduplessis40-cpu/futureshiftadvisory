@@ -549,10 +549,12 @@ function portalServiceNavItems(
                 item.service_type === option.service_type &&
                 !closedStatuses.has(item.status),
         );
-        const href =
-            option.service_type === 'due_diligence'
-                ? option.start_url
-                : (current?.workspace_url ?? current?.url ?? option.start_url);
+
+        if (current && option.service_type !== 'due_diligence') {
+            return;
+        }
+
+        const href = option.start_url;
 
         if (!href) {
             return;
@@ -598,22 +600,16 @@ function portalServiceIcon(serviceType: PortalServiceType) {
     return FileText;
 }
 
-function workspaceNavItem(
+function activeWorkspaceNavItems(
     workspaces: WorkspaceSwitcherPayload | null | undefined,
-    key: string,
-    icon: NavItem['icon'],
-): NavItem | null {
-    const workspace = workspaces?.items.find((item) => item.key === key);
-
-    if (!workspace) {
-        return null;
-    }
-
-    return {
-        title: workspace.label,
-        href: workspace.href,
-        icon,
-    };
+): NavItem[] {
+    return (workspaces?.items ?? [])
+        .filter((workspace) => !workspace.primary)
+        .map((workspace) => ({
+            title: workspace.label,
+            href: workspace.href,
+            icon: portalServiceIcon(workspace.service_type),
+        }));
 }
 
 function navGroupsFor(
@@ -622,20 +618,14 @@ function navGroupsFor(
     portalServices?: PortalServices | null,
     workspaces?: WorkspaceSwitcherPayload | null,
 ): NavGroup[] {
-    const activeDueDiligenceNavItem = workspaceNavItem(
-        workspaces,
-        'due_diligence',
-        Scale,
-    );
+    const secondaryWorkspaceNavItems = activeWorkspaceNavItems(workspaces);
 
     if (userType === 'entrepreneur') {
         return portalNavGroups({
             platformItems: [
                 entrepreneurDashboardNavItem,
                 entrepreneurBusinessPlanNavItem,
-                ...(activeDueDiligenceNavItem
-                    ? [activeDueDiligenceNavItem]
-                    : []),
+                ...secondaryWorkspaceNavItems,
                 portalInspirationNavItem,
                 entrepreneurSurveysNavItem,
             ],
@@ -659,9 +649,7 @@ function navGroupsFor(
                         href: '/portal/entrepreneur',
                     },
                     entrepreneurBusinessPlanNavItem,
-                    ...(activeDueDiligenceNavItem
-                        ? [activeDueDiligenceNavItem]
-                        : []),
+                    ...secondaryWorkspaceNavItems,
                     portalInspirationNavItem,
                     portalSurveysNavItem,
                 ],
@@ -677,15 +665,15 @@ function navGroupsFor(
                     : 'Business Plan & Budget',
         };
         const dueDiligenceWorkspaceNavItem =
-            activeDueDiligenceNavItem ??
-            (portalClient?.engagement_type === 'due_diligence'
+            portalClient?.engagement_type === 'due_diligence'
                 ? acquisitionPlanNavItem
-                : null);
+                : null;
         const activePathItems = [
             planBudgetNavItem,
             ...(dueDiligenceWorkspaceNavItem
                 ? [dueDiligenceWorkspaceNavItem]
                 : []),
+            ...secondaryWorkspaceNavItems,
         ];
         const supportingItems = [
             portalWellbeingNavItem,

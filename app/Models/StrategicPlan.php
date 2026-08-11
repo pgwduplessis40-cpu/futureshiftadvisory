@@ -20,6 +20,8 @@ final class StrategicPlan extends Model
     protected $guarded = [];
 
     protected $casts = [
+        'duration_months' => 'integer',
+        'duration_rationale' => 'array',
         'sections' => 'array',
         'generated_at' => 'datetime',
         'deployed_at' => 'datetime',

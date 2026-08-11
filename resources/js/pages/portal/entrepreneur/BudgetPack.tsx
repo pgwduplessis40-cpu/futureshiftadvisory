@@ -44,11 +44,37 @@ type ScenarioRow = {
     key: string | null;
     name: string;
     type: string;
+    sensitivity_label?: string;
+    lowest_cash_month?: number | null;
+    lowest_cash?: number | null;
+    additional_funding_needed?: number;
+    implication?: string;
     summary: {
         break_even_year?: number | null;
         first_profitable_year?: number | null;
         cash_flow_positive_year?: number | null;
     };
+};
+
+type FundingDecision = {
+    readiness_label: string;
+    readiness_tone: 'good' | 'medium' | 'high' | string;
+    headline: string;
+    lowest_cash_month?: number | null;
+    lowest_cash?: number | null;
+    additional_funding_needed: number;
+    available_funding: number;
+    recommended_funding_target: number;
+    funding_gap_or_surplus: number;
+    operating_cover_months: number;
+    risk_reasons: string[];
+};
+
+type UseOfFundsRow = {
+    label: string;
+    amount: number;
+    display_amount?: string;
+    note: string;
 };
 
 type PackPayload = {
@@ -70,9 +96,15 @@ type PackPayload = {
         runway_open_ended?: boolean;
         available_after_launch?: number;
     };
+    funding_decision: FundingDecision | null;
+    use_of_funds: UseOfFundsRow[];
+    cash_story: string[];
     assumptions: {
         label: string;
         value: string;
+        basis?: string;
+        review_note?: string;
+        provided?: boolean;
     }[];
     explanations: Record<string, string>;
     annual_totals: AnnualRow[];
@@ -167,6 +199,10 @@ export default function BudgetPack({ pack, urls }: Props) {
                     </section>
                 ) : null}
 
+                {pack.funding_decision ? (
+                    <FundingDecisionPanel decision={pack.funding_decision} />
+                ) : null}
+
                 <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <Metric
                         label="Break-even"
@@ -236,6 +272,30 @@ export default function BudgetPack({ pack, urls }: Props) {
                         why: 'Cash timing is often the constraint that stops a good idea from becoming a viable business.',
                     }}
                 />
+
+                {pack.cash_story.length > 0 ? (
+                    <section className="space-y-2 rounded-md border bg-background p-4">
+                        <ExplainedSectionHeader
+                            title="Cash story"
+                            description="Plain-English interpretation of the monthly cash curve."
+                            explanation={{
+                                title: 'Cash story',
+                                what: 'This reads the cash curve as a funding decision rather than only a chart.',
+                                action: 'Resolve any negative cash point, missing cash-positive timing, or downside failure before external issue.',
+                                why: 'Banks and investors need to understand how much cash is needed, when it is needed, and what changes under stress.',
+                            }}
+                        />
+                        <div className="space-y-2 text-sm text-muted-foreground">
+                            {pack.cash_story.map((line) => (
+                                <p key={line}>{line}</p>
+                            ))}
+                        </div>
+                    </section>
+                ) : null}
+
+                {pack.use_of_funds.length > 0 ? (
+                    <UseOfFundsTable rows={pack.use_of_funds} />
+                ) : null}
 
                 <section className="space-y-3 rounded-md border bg-background p-4">
                     <ExplainedSectionHeader
@@ -317,70 +377,114 @@ export default function BudgetPack({ pack, urls }: Props) {
                     <section className="space-y-3 rounded-md border bg-background p-4">
                         <ExplainedSectionHeader
                             icon={Scale}
-                            title="Assumptions"
+                            title="Assumption quality"
                             explanation={{
-                                title: 'Assumptions',
-                                what: 'The key planning inputs used to calculate the budget pack.',
-                                action: 'Check assumptions for values that are guessed, stale, or no longer true before relying on the forecast.',
-                                why: 'The forecast is only as reliable as the assumptions behind revenue, costs, tax, and funding.',
+                                title: 'Assumption quality',
+                                what: 'The key planning inputs, their basis, and the review needed before relying on them.',
+                                action: 'Replace weak assumptions with quotes, evidence, advisor-reviewed estimates, or current reference data.',
+                                why: 'A professional pack needs to show why the numbers can be trusted, not only what the numbers are.',
                             }}
                         />
-                        <div className="divide-y rounded-md border text-sm">
-                            {pack.assumptions.map((row) => (
-                                <div
-                                    key={row.label}
-                                    className="grid grid-cols-[minmax(0,1fr)_120px] gap-3 p-3"
-                                >
-                                    <span className="text-muted-foreground">
-                                        {row.label}
-                                    </span>
-                                    <span className="text-right font-medium">
-                                        {row.value}
-                                    </span>
-                                </div>
-                            ))}
+                        <div className="overflow-x-auto rounded-md border">
+                            <table className="w-full min-w-[760px] border-collapse text-sm">
+                                <thead>
+                                    <tr className="border-b bg-muted/30 text-left">
+                                        <Th>Assumption</Th>
+                                        <Th>Value</Th>
+                                        <Th>Basis</Th>
+                                        <Th>Review note</Th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pack.assumptions.map((row) => (
+                                        <tr
+                                            key={row.label}
+                                            className="border-b last:border-b-0"
+                                        >
+                                            <Td>{row.label}</Td>
+                                            <Td>{row.value}</Td>
+                                            <Td>{row.basis ?? '-'}</Td>
+                                            <Td>
+                                                <span className="text-muted-foreground">
+                                                    {row.review_note ?? '-'}
+                                                </span>
+                                            </Td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </section>
 
                     <section className="space-y-3 rounded-md border bg-background p-4">
                         <ExplainedSectionHeader
-                            title="Scenario summary"
+                            title="Scenario comparison"
                             explanation={packExplanation(
                                 pack,
                                 'automatic_scenarios',
-                                'Scenario summary',
-                                'Scenario summary compares base case and sensitivity cases such as revenue downside or cost upside.',
-                                'Use this to see whether break-even or cash-positive timing changes under less favourable assumptions.',
+                                'Scenario comparison',
+                                'Scenario comparison reads base case and downside cases against break-even, cash-positive timing, lowest cash point, and funding need.',
+                                'Use this to decide whether the plan still works when revenue softens or costs rise.',
                                 'Sensitivity scenarios show whether the plan is robust or only works in the base case.',
                             )}
                         />
-                        <div className="divide-y rounded-md border text-sm">
-                            {pack.scenarios.map((scenario) => (
-                                <div
-                                    key={scenario.key ?? scenario.name}
-                                    className="grid gap-2 p-3 sm:grid-cols-4"
-                                >
-                                    <div className="font-medium">
-                                        {scenario.name}
-                                    </div>
-                                    <div className="text-muted-foreground">
-                                        {formatLabel(scenario.type)}
-                                    </div>
-                                    <div>
-                                        Break-even:{' '}
-                                        {formatYear(
-                                            scenario.summary.break_even_year,
-                                        )}
-                                    </div>
-                                    <div>
-                                        Cash positive:{' '}
-                                        {formatYear(
-                                            scenario.summary
-                                                .cash_flow_positive_year,
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
+                        <div className="overflow-x-auto rounded-md border">
+                            <table className="w-full min-w-[900px] border-collapse text-sm">
+                                <thead>
+                                    <tr className="border-b bg-muted/30 text-left">
+                                        <Th>Scenario</Th>
+                                        <Th>Test</Th>
+                                        <Th>Break-even</Th>
+                                        <Th>Cash positive</Th>
+                                        <Th>Lowest cash</Th>
+                                        <Th>Cash need</Th>
+                                        <Th>Implication</Th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pack.scenarios.map((scenario) => (
+                                        <tr
+                                            key={scenario.key ?? scenario.name}
+                                            className="border-b last:border-b-0"
+                                        >
+                                            <Td>{scenario.name}</Td>
+                                            <Td>
+                                                {scenario.sensitivity_label ??
+                                                    formatLabel(scenario.type)}
+                                            </Td>
+                                            <Td>
+                                                {formatYear(
+                                                    scenario.summary
+                                                        .break_even_year,
+                                                )}
+                                            </Td>
+                                            <Td>
+                                                {formatYear(
+                                                    scenario.summary
+                                                        .cash_flow_positive_year,
+                                                )}
+                                            </Td>
+                                            <Td>
+                                                {formatCashMonth(
+                                                    scenario.lowest_cash,
+                                                    scenario.lowest_cash_month,
+                                                )}
+                                            </Td>
+                                            <Td>
+                                                {formatCurrency(
+                                                    scenario.additional_funding_needed,
+                                                )}
+                                            </Td>
+                                            <Td>
+                                                <span className="text-muted-foreground">
+                                                    {scenario.implication ??
+                                                        '-'}
+                                                </span>
+                                            </Td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </section>
                 </div>
@@ -426,6 +530,129 @@ function Metric({
             helper={helper}
             explanation={explanation}
         />
+    );
+}
+
+function FundingDecisionPanel({ decision }: { decision: FundingDecision }) {
+    return (
+        <section
+            className={`space-y-4 rounded-md border p-4 ${decisionToneClass(
+                decision.readiness_tone,
+            )}`}
+        >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <div className="text-sm font-medium">
+                        Funding decision view
+                    </div>
+                    <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                        {decision.headline}
+                    </p>
+                </div>
+                <Badge
+                    variant={
+                        decision.readiness_tone === 'good'
+                            ? 'secondary'
+                            : 'outline'
+                    }
+                >
+                    {decision.readiness_label}
+                </Badge>
+            </div>
+
+            <dl className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+                <DecisionMetric
+                    label="Lowest cash point"
+                    value={formatCashMonth(
+                        decision.lowest_cash,
+                        decision.lowest_cash_month,
+                    )}
+                />
+                <DecisionMetric
+                    label="Additional cash need"
+                    value={formatCurrency(decision.additional_funding_needed)}
+                />
+                <DecisionMetric
+                    label="Recommended target"
+                    value={formatCurrency(decision.recommended_funding_target)}
+                />
+                <DecisionMetric
+                    label="Funding gap / surplus"
+                    value={formatSignedCurrency(
+                        decision.funding_gap_or_surplus,
+                    )}
+                />
+            </dl>
+
+            {decision.risk_reasons.length > 0 ? (
+                <div className="rounded-md border bg-background/70 p-3 text-sm">
+                    <div className="font-medium">Review points</div>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
+                        {decision.risk_reasons.map((reason) => (
+                            <li key={reason}>{reason}</li>
+                        ))}
+                    </ul>
+                </div>
+            ) : null}
+        </section>
+    );
+}
+
+function DecisionMetric({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-md border bg-background p-3">
+            <dt className="text-xs font-medium text-muted-foreground">
+                {label}
+            </dt>
+            <dd className="mt-1 font-medium">{value}</dd>
+        </div>
+    );
+}
+
+function UseOfFundsTable({ rows }: { rows: UseOfFundsRow[] }) {
+    return (
+        <section className="space-y-3 rounded-md border bg-background p-4">
+            <ExplainedSectionHeader
+                title="Use of funds"
+                description="Funding target, cash already available, and any remaining gap."
+                explanation={{
+                    title: 'Use of funds',
+                    what: 'This converts the saved costs and funding sources into a lender-style funding need.',
+                    action: 'Check whether launch costs, operating cover, contingency, and available funding tell a defensible funding story.',
+                    why: 'A funding pack should explain what money is needed for, not only whether the cash curve survives.',
+                }}
+            />
+            <div className="overflow-x-auto rounded-md border">
+                <table className="w-full min-w-[760px] border-collapse text-sm">
+                    <thead>
+                        <tr className="border-b bg-muted/30 text-left">
+                            <Th>Item</Th>
+                            <Th>Amount</Th>
+                            <Th>Why it matters</Th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((row) => (
+                            <tr
+                                key={row.label}
+                                className="border-b last:border-b-0"
+                            >
+                                <Td>{row.label}</Td>
+                                <Td>
+                                    {row.display_amount ??
+                                        formatCurrency(row.amount)}
+                                </Td>
+                                <Td>
+                                    <span className="text-muted-foreground">
+                                        {row.note}
+                                    </span>
+                                </Td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </section>
     );
 }
 
@@ -493,6 +720,35 @@ function formatPercent(value: number | null | undefined): string {
 
 function formatYear(value: number | null | undefined): string {
     return value ? `Year ${value}` : 'Not reached';
+}
+
+function formatCashMonth(
+    value: number | null | undefined,
+    month: number | null | undefined,
+): string {
+    if (value === null || value === undefined) {
+        return 'Not calculated';
+    }
+
+    return `${formatCurrency(value)} in ${month ? `Month ${month}` : 'unknown month'}`;
+}
+
+function formatSignedCurrency(value: number | null | undefined): string {
+    const amount = value ?? 0;
+
+    return amount > 0 ? `+${formatCurrency(amount)}` : formatCurrency(amount);
+}
+
+function decisionToneClass(tone: FundingDecision['readiness_tone']): string {
+    if (tone === 'good') {
+        return 'bg-emerald-50 text-emerald-950';
+    }
+
+    if (tone === 'medium') {
+        return 'bg-amber-50 text-amber-950';
+    }
+
+    return 'bg-red-50 text-red-950';
 }
 
 function formatLabel(value: string): string {

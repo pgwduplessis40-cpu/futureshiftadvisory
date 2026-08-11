@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::generate
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:32
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:34
  * @route '/advisor/proposals/{proposal}/strategic-plan'
  */
 export const generate = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ generate.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::generate
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:32
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:34
  * @route '/advisor/proposals/{proposal}/strategic-plan'
  */
 generate.url = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ generate.url = (args: { proposal: string | { id: string } } | [proposal: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::generate
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:32
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:34
  * @route '/advisor/proposals/{proposal}/strategic-plan'
  */
 generate.post = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ generate.post = (args: { proposal: string | { id: string } } | [proposal: string
 
     /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::generate
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:32
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:34
  * @route '/advisor/proposals/{proposal}/strategic-plan'
  */
     const generateForm = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ generate.post = (args: { proposal: string | { id: string } } | [proposal: string
 
             /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::generate
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:32
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:34
  * @route '/advisor/proposals/{proposal}/strategic-plan'
  */
         generateForm.post = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -80,7 +80,7 @@ generate.post = (args: { proposal: string | { id: string } } | [proposal: string
     generate.form = generateForm
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::pdf
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:101
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:103
  * @route '/advisor/strategic-plans/{strategicPlan}/pdf'
  */
 export const pdf = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -95,7 +95,7 @@ pdf.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::pdf
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:101
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:103
  * @route '/advisor/strategic-plans/{strategicPlan}/pdf'
  */
 pdf.url = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -128,7 +128,7 @@ pdf.url = (args: { strategicPlan: string | { id: string } } | [strategicPlan: st
 
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::pdf
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:101
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:103
  * @route '/advisor/strategic-plans/{strategicPlan}/pdf'
  */
 pdf.get = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -137,7 +137,7 @@ pdf.get = (args: { strategicPlan: string | { id: string } } | [strategicPlan: st
 })
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::pdf
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:101
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:103
  * @route '/advisor/strategic-plans/{strategicPlan}/pdf'
  */
 pdf.head = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -147,7 +147,7 @@ pdf.head = (args: { strategicPlan: string | { id: string } } | [strategicPlan: s
 
     /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::pdf
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:101
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:103
  * @route '/advisor/strategic-plans/{strategicPlan}/pdf'
  */
     const pdfForm = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -157,7 +157,7 @@ pdf.head = (args: { strategicPlan: string | { id: string } } | [strategicPlan: s
 
             /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::pdf
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:101
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:103
  * @route '/advisor/strategic-plans/{strategicPlan}/pdf'
  */
         pdfForm.get = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -166,7 +166,7 @@ pdf.head = (args: { strategicPlan: string | { id: string } } | [strategicPlan: s
         })
             /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::pdf
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:101
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:103
  * @route '/advisor/strategic-plans/{strategicPlan}/pdf'
  */
         pdfForm.head = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -182,7 +182,7 @@ pdf.head = (args: { strategicPlan: string | { id: string } } | [strategicPlan: s
     pdf.form = pdfForm
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::update
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:51
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:53
  * @route '/advisor/strategic-plans/{strategicPlan}'
  */
 export const update = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -197,7 +197,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::update
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:51
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:53
  * @route '/advisor/strategic-plans/{strategicPlan}'
  */
 update.url = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -230,7 +230,7 @@ update.url = (args: { strategicPlan: string | { id: string } } | [strategicPlan:
 
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::update
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:51
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:53
  * @route '/advisor/strategic-plans/{strategicPlan}'
  */
 update.patch = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -240,7 +240,7 @@ update.patch = (args: { strategicPlan: string | { id: string } } | [strategicPla
 
     /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::update
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:51
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:53
  * @route '/advisor/strategic-plans/{strategicPlan}'
  */
     const updateForm = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -255,7 +255,7 @@ update.patch = (args: { strategicPlan: string | { id: string } } | [strategicPla
 
             /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::update
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:51
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:53
  * @route '/advisor/strategic-plans/{strategicPlan}'
  */
         updateForm.patch = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -271,7 +271,7 @@ update.patch = (args: { strategicPlan: string | { id: string } } | [strategicPla
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::deploy
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:87
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:89
  * @route '/advisor/strategic-plans/{strategicPlan}/deploy'
  */
 export const deploy = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -286,7 +286,7 @@ deploy.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::deploy
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:87
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:89
  * @route '/advisor/strategic-plans/{strategicPlan}/deploy'
  */
 deploy.url = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -319,7 +319,7 @@ deploy.url = (args: { strategicPlan: string | { id: string } } | [strategicPlan:
 
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::deploy
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:87
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:89
  * @route '/advisor/strategic-plans/{strategicPlan}/deploy'
  */
 deploy.patch = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -329,7 +329,7 @@ deploy.patch = (args: { strategicPlan: string | { id: string } } | [strategicPla
 
     /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::deploy
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:87
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:89
  * @route '/advisor/strategic-plans/{strategicPlan}/deploy'
  */
     const deployForm = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -344,7 +344,7 @@ deploy.patch = (args: { strategicPlan: string | { id: string } } | [strategicPla
 
             /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::deploy
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:87
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:89
  * @route '/advisor/strategic-plans/{strategicPlan}/deploy'
  */
         deployForm.patch = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

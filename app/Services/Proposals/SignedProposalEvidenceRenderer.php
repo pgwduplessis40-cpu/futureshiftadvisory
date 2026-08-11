@@ -9,6 +9,7 @@ use App\Models\ProposalSignoffStep;
 use App\Models\User;
 use App\Services\Fees\ProposalPricingTerms;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\StrategicPlans\StrategicPlanDurationPolicy;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 
@@ -18,6 +19,7 @@ final class SignedProposalEvidenceRenderer
         private readonly PdfRenderer $renderer,
         private readonly ProposalBuilder $proposals,
         private readonly ProposalPricingTerms $pricing,
+        private readonly StrategicPlanDurationPolicy $durations,
     ) {}
 
     /**
@@ -114,7 +116,8 @@ CSS;
         $method = $this->stepPayload($proposal, ProposalSignoffStep::STEP_PAYMENT_METHOD);
         $authorityPayload = $this->stepPayload($proposal, ProposalSignoffStep::STEP_AUTHORITY);
         $collectionDay = $this->validCollectionDay($authorityPayload['collection_day'] ?? $method['collection_day'] ?? null);
-        $termMonths = $this->proposalTermMonths($proposal);
+        $duration = $this->durations->forProposal($proposal);
+        $termMonths = $duration['months'];
         $paymentRequired = $this->pricing->requiresPayment($proposal);
         $monthlyAmount = $this->pricing->monthlyAmount($proposal, $termMonths);
         $paymentRows = $paymentRequired
@@ -138,7 +141,7 @@ CSS;
 <dt>Client</dt><dd>%s</dd>
 <dt>Proposal</dt><dd>Proposal v%s</dd>
 <dt>Total proposal</dt><dd>NZD %s</dd>
-<dt>Term</dt><dd>%s months</dd>
+<dt>Strategic plan duration</dt><dd>%s (%s)</dd>
 %s
 </dl>
 <h2>Signature</h2>
@@ -162,7 +165,8 @@ HTML,
             $this->escape($proposal->client?->legal_name ?? 'Client'),
             $proposal->version,
             number_format($this->pricing->totalAmount($proposal, $termMonths), 0),
-            $termMonths,
+            $this->escape($duration['label']),
+            $this->escape($duration['complexity_label']),
             $paymentRows,
             $this->escape($signedAt->format('j M Y, g:i A T')),
             $this->escape($actor->name),
@@ -220,12 +224,7 @@ HTML,
 
     private function proposalTermMonths(Proposal $proposal): int
     {
-        $months = data_get($proposal->scope, 'term_months')
-            ?? data_get($proposal->acceptance_terms, 'term_months')
-            ?? data_get($proposal->feeCalculation?->justification, 'retainer.months')
-            ?? data_get($proposal->feeCalculation?->justification, 'retainer_months');
-
-        return max(1, (int) (is_numeric($months) ? $months : 6));
+        return $this->durations->termMonthsForProposal($proposal);
     }
 
     /**

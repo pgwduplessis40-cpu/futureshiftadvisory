@@ -980,7 +980,7 @@ final class AddEntrepreneurTest extends TestCase
 
         self::assertStringStartsWith('%PDF-1.4', $response->getContent());
         self::assertStringContainsString('Budget Pack - Budget Founder', $response->getContent());
-        self::assertStringContainsString('Headline finance view', $response->getContent());
+        self::assertStringContainsString('Funding decision view', $response->getContent());
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.entrepreneurs.plans.budget-pack.pdf', [$profile, $plan]))

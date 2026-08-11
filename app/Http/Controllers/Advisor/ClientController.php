@@ -59,6 +59,7 @@ use App\Services\Npo\SocialEnterpriseAssessment;
 use App\Services\Proposals\ProposalBrief;
 use App\Services\Security\InviteIssuer;
 use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
+use App\Services\StrategicPlans\StrategicPlanDurationPolicy;
 use App\Services\StrategicPlans\StrategicPlanService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -85,6 +86,7 @@ final class ClientController extends Controller
         private readonly ProposalBrief $proposalBriefs,
         private readonly ProposalPricingTerms $pricing,
         private readonly CanonicalEntrepreneurWorkspace $entrepreneurWorkspaces,
+        private readonly StrategicPlanDurationPolicy $durations,
     ) {}
 
     public function index(Request $request, EconomicExposureMapper $economicExposure): Response
@@ -749,14 +751,22 @@ final class ClientController extends Controller
             ->latest()
             ->limit(5)
             ->get()
-            ->map(fn (FeeCalculation $calculation): array => [
-                'id' => $calculation->id,
-                'method' => $calculation->method->value,
-                'suggested_mid' => $calculation->suggested_mid,
-                'roi_ratio' => $calculation->roi_ratio,
-                'created_at' => $calculation->created_at?->toIso8601String(),
-                'proposal_scope_summary' => $this->proposalScopeSummary($calculation),
-            ])
+            ->map(function (FeeCalculation $calculation): array {
+                $duration = $this->durations->forFeeCalculation($calculation);
+
+                return [
+                    'id' => $calculation->id,
+                    'method' => $calculation->method->value,
+                    'suggested_mid' => $calculation->suggested_mid,
+                    'roi_ratio' => $calculation->roi_ratio,
+                    'created_at' => $calculation->created_at?->toIso8601String(),
+                    'proposal_scope_summary' => $this->proposalScopeSummary($calculation),
+                    'strategic_plan_duration_months' => $duration['months'],
+                    'strategic_plan_duration_label' => $duration['label'],
+                    'strategic_plan_complexity_band' => $duration['complexity_band'],
+                    'strategic_plan_complexity_label' => $duration['complexity_label'],
+                ];
+            })
             ->values()
             ->all();
     }
@@ -828,7 +838,7 @@ final class ClientController extends Controller
     private function proposalSummaries(Client $client): array
     {
         return Proposal::query()
-            ->with('feeCalculation')
+            ->with('feeCalculation.integrationScope')
             ->where('client_id', $client->getKey())
             ->latest()
             ->limit(8)
@@ -836,6 +846,8 @@ final class ClientController extends Controller
             ->map(function (Proposal $proposal): array {
                 $status = $proposal->status;
                 $method = $proposal->feeCalculation?->method?->value ?? 'advisory';
+
+                $duration = $this->durations->forProposal($proposal);
 
                 return [
                     'id' => $proposal->id,
@@ -846,6 +858,10 @@ final class ClientController extends Controller
                     'brief' => $this->proposalBriefs->for($proposal),
                     'suggested_mid' => $this->pricing->payableMid($proposal),
                     'roi_ratio' => $proposal->roi_ratio,
+                    'strategic_plan_duration_months' => $duration['months'],
+                    'strategic_plan_duration_label' => $duration['label'],
+                    'strategic_plan_complexity_band' => $duration['complexity_band'],
+                    'strategic_plan_complexity_label' => $duration['complexity_label'],
                     'released_at' => $proposal->released_at?->toIso8601String(),
                     'expires_at' => $proposal->expires_at?->toIso8601String(),
                     'days_to_expiry' => $proposal->expires_at === null

@@ -50,6 +50,7 @@ use App\Services\Proposals\ProposalBrief;
 use App\Services\ScreenShare\ClientPortalContextTokens;
 use App\Services\ServiceActivations\ServiceActivationNavigation;
 use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
+use App\Services\StrategicPlans\StrategicPlanDurationPolicy;
 use App\Services\StrategicPlans\StrategicPlanService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -79,6 +80,7 @@ final class DashboardController extends Controller
         private readonly StrategicPlanService $strategicPlans,
         private readonly ProposalBrief $proposalBriefs,
         private readonly ProposalPricingTerms $pricing,
+        private readonly StrategicPlanDurationPolicy $durations,
         private readonly ClientPortalContextTokens $screenShareContexts,
     ) {}
 
@@ -190,7 +192,6 @@ final class DashboardController extends Controller
             'serviceJourney' => $this->serviceJourneyPayload(
                 client: $client,
                 progress: $progress,
-                serviceActivations: $serviceActivations,
                 standardAdvisory: $standardAdvisory,
                 ddPlan: $ddPlanPayload,
                 postAcquisition: $postAcquisitionPayload,
@@ -302,7 +303,6 @@ final class DashboardController extends Controller
 
     /**
      * @param  array<string, mixed>  $progress
-     * @param  array<string, mixed>  $serviceActivations
      * @param  array<string, mixed>|null  $standardAdvisory
      * @param  array<string, mixed>|null  $ddPlan
      * @param  array<string, mixed>|null  $postAcquisition
@@ -316,7 +316,6 @@ final class DashboardController extends Controller
     private function serviceJourneyPayload(
         Client $client,
         array $progress,
-        array $serviceActivations,
         ?array $standardAdvisory,
         ?array $ddPlan,
         ?array $postAcquisition,
@@ -327,15 +326,7 @@ final class DashboardController extends Controller
         array $outcomeFollowUps,
         string $onboardingUrl,
     ): array {
-        $openActivation = collect((array) ($serviceActivations['items'] ?? []))
-            ->first(fn (array $activation): bool => ! in_array((string) ($activation['status'] ?? ''), [
-                ServiceActivation::STATUS_CANCELLED,
-                ServiceActivation::STATUS_CLOSED,
-                ServiceActivation::STATUS_REJECTED,
-            ], true));
-        $primary = is_array($openActivation)
-            ? $this->activationJourneyPrimary($openActivation)
-            : $this->engagementJourneyPrimary($client, $standardAdvisory, $ddPlan, $postAcquisition, $npoPortal, $onboardingUrl);
+        $primary = $this->engagementJourneyPrimary($client, $standardAdvisory, $ddPlan, $postAcquisition, $npoPortal, $onboardingUrl);
 
         $documentCount = count($documents);
         $reportCount = count($reports);
@@ -349,11 +340,6 @@ final class DashboardController extends Controller
             ->count();
         $followUpCount = (int) ($surveys['total_open'] ?? 0) + (int) ($outcomeFollowUps['total_open'] ?? 0);
         $scopeComplete = (int) ($progress['percentage'] ?? 0) >= 100
-            || (is_array($openActivation) && in_array((string) ($openActivation['status'] ?? ''), [
-                ServiceActivation::STATUS_PACKAGE_SELECTED,
-                ServiceActivation::STATUS_ACTIVE,
-                ServiceActivation::STATUS_CLOSED,
-            ], true))
             || (bool) data_get($standardAdvisory, 'questionnaire_submitted', false)
             || (bool) data_get($postAcquisition, 'gap_questionnaire.submitted', false)
             || (bool) data_get($npoPortal, 'questionnaire_completion.completed', false);
@@ -440,79 +426,6 @@ final class DashboardController extends Controller
                 ],
             ],
         ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $activation
-     * @return array<string, mixed>
-     */
-    private function activationJourneyPrimary(array $activation): array
-    {
-        $status = (string) ($activation['status'] ?? ServiceActivation::STATUS_REQUESTED);
-        $serviceType = (string) ($activation['service_type'] ?? 'service');
-        $statusLabel = (string) ($activation['status_label'] ?? str($status)->replace('_', ' ')->title()->toString());
-        $actionUrl = (string) (($activation['workspace_url'] ?? null) ?: ($activation['url'] ?? route('portal.messages.index', absolute: false)));
-        $packageLabel = $activation['package_label'] ?? null;
-
-        if ($status === ServiceActivation::STATUS_REQUESTED) {
-            return $this->journeyPrimary(
-                serviceType: $serviceType,
-                serviceLabel: (string) ($activation['client_label'] ?? 'Service workspace'),
-                statusLabel: $statusLabel,
-                owner: 'fsa',
-                nextAction: 'FSA is reviewing the request and will confirm the scope, package, and next advisory step.',
-                actionUrl: $actionUrl,
-                actionLabel: 'Review request',
-                clientNext: 'Watch for the scope and pricing update, and reply to any advisor questions.',
-                fsaNext: 'Confirm the right package, fee, and workspace path from the Admin Service Rates table.',
-                timeframe: 'Next advisor review cycle',
-            );
-        }
-
-        if ($status === ServiceActivation::STATUS_PACKAGE_SELECTED) {
-            return $this->journeyPrimary(
-                serviceType: $serviceType,
-                serviceLabel: (string) ($activation['client_label'] ?? 'Service workspace'),
-                statusLabel: $statusLabel,
-                owner: 'client',
-                nextAction: $packageLabel
-                    ? 'Review the selected scope and fee, then complete the required payment or acknowledgement step.'
-                    : 'Review the advisor-selected scope and fee before workspace access opens.',
-                actionUrl: $actionUrl,
-                actionLabel: 'Review scope',
-                clientNext: 'Complete the payment and fee/scope acknowledgement so the workspace can open.',
-                fsaNext: 'Hold workspace access until the selected package, payment, and acknowledgement are complete.',
-                timeframe: 'Actionable now',
-            );
-        }
-
-        if ($status === ServiceActivation::STATUS_ACTIVE) {
-            return $this->journeyPrimary(
-                serviceType: $serviceType,
-                serviceLabel: (string) ($activation['client_label'] ?? 'Service workspace'),
-                statusLabel: $statusLabel,
-                owner: 'shared',
-                nextAction: 'The workspace is active. Use the workspace and messages to complete current evidence, review, and delivery steps.',
-                actionUrl: $actionUrl,
-                actionLabel: ($activation['workspace_url'] ?? null) !== null ? 'Open workspace' : 'Open service',
-                clientNext: 'Keep the workspace inputs, evidence, and advisor messages current.',
-                fsaNext: 'Review inputs, produce the agreed outputs, and keep the next step visible.',
-                timeframe: 'Current workspace',
-            );
-        }
-
-        return $this->journeyPrimary(
-            serviceType: $serviceType,
-            serviceLabel: (string) ($activation['client_label'] ?? 'Service workspace'),
-            statusLabel: $statusLabel,
-            owner: 'fsa',
-            nextAction: 'FSA is managing the current service state and will confirm any client action through the portal.',
-            actionUrl: $actionUrl,
-            actionLabel: 'Open service',
-            clientNext: 'Review any visible messages or requests from FSA.',
-            fsaNext: 'Confirm the next service step and keep the client-facing status current.',
-            timeframe: 'Next advisor update',
-        );
     }
 
     /**
@@ -751,22 +664,29 @@ final class DashboardController extends Controller
     private function proposalPayload(Client $client): array
     {
         return Proposal::query()
-            ->with('feeCalculation')
+            ->with('feeCalculation.integrationScope')
             ->where('client_id', $client->getKey())
             ->whereIn('status', ['released', 'awaiting_signature', 'signed'])
             ->latest()
             ->limit(5)
             ->get()
-            ->map(fn (Proposal $proposal): array => [
-                'id' => $proposal->id,
-                'version' => $proposal->version,
-                'status' => $proposal->status->value,
-                'status_label' => str($proposal->status->value)->replace('_', ' ')->title()->toString(),
-                'suggested_mid' => $this->pricing->payableMid($proposal),
-                'brief' => $this->proposalBriefs->for($proposal),
-                'signed_at' => $proposal->signed_at?->toIso8601String(),
-                'signoff_url' => route('portal.proposals.signoff.show', $proposal, absolute: false),
-            ])
+            ->map(function (Proposal $proposal): array {
+                $duration = $this->durations->forProposal($proposal);
+
+                return [
+                    'id' => $proposal->id,
+                    'version' => $proposal->version,
+                    'status' => $proposal->status->value,
+                    'status_label' => str($proposal->status->value)->replace('_', ' ')->title()->toString(),
+                    'suggested_mid' => $this->pricing->payableMid($proposal),
+                    'brief' => $this->proposalBriefs->for($proposal),
+                    'strategic_plan_duration_months' => $duration['months'],
+                    'strategic_plan_duration_label' => $duration['label'],
+                    'strategic_plan_complexity_label' => $duration['complexity_label'],
+                    'signed_at' => $proposal->signed_at?->toIso8601String(),
+                    'signoff_url' => route('portal.proposals.signoff.show', $proposal, absolute: false),
+                ];
+            })
             ->values()
             ->all();
     }

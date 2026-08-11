@@ -36,6 +36,7 @@ final class StrategicPlanService
         private readonly AuditWriter $audit,
         private readonly PublicHolidayCalendar $publicHolidays,
         private readonly ClientAvailabilityCalendar $availability,
+        private readonly StrategicPlanDurationPolicy $durations,
     ) {}
 
     public function generateForProposal(Proposal $proposal, User $actor): StrategicPlan
@@ -52,8 +53,9 @@ final class StrategicPlanService
         }
 
         $budget = $this->budgetForProposal($proposal);
+        $duration = $this->durations->forProposal($proposal);
 
-        return DB::transaction(function () use ($proposal, $client, $budget, $actor): StrategicPlan {
+        return DB::transaction(function () use ($proposal, $client, $budget, $duration, $actor): StrategicPlan {
             $plan = StrategicPlan::query()->firstOrNew([
                 'proposal_id' => $proposal->getKey(),
             ]);
@@ -68,8 +70,11 @@ final class StrategicPlanService
                 'strategic_budget_id' => $budget?->getKey(),
                 'title' => 'Strategic Plan - '.($client->trading_name ?: $client->legal_name),
                 'status' => StrategicPlan::STATUS_DRAFT,
-                'summary' => $this->summary($client, $proposal, $budget),
-                'sections' => $this->sections($client, $proposal, $budget),
+                'duration_months' => $duration['months'],
+                'complexity_band' => $duration['complexity_band'],
+                'duration_rationale' => $duration['rationale'],
+                'summary' => $this->summary($client, $proposal, $budget, $duration),
+                'sections' => $this->sections($client, $proposal, $budget, $duration),
                 'generated_at' => now(),
                 'generated_by_user_id' => $actor->getKey(),
             ])->save();
@@ -81,6 +86,8 @@ final class StrategicPlanService
             $this->audit->record('strategic_plan.generated', subject: $plan, actor: $actor, after: [
                 'client_id' => $client->getKey(),
                 'proposal_id' => $proposal->getKey(),
+                'duration_months' => $duration['months'],
+                'complexity_band' => $duration['complexity_band'],
             ]);
 
             return $plan->refresh()->load('milestones');
@@ -227,12 +234,19 @@ final class StrategicPlanService
         $averageProgress = $total > 0
             ? (int) round($milestones->avg('progress_percent'))
             : 0;
+        $durationMonths = max(StrategicPlanDurationPolicy::MIN_MONTHS, (int) ($plan->duration_months ?: StrategicPlanDurationPolicy::MIN_MONTHS));
+        $complexityBand = (string) ($plan->complexity_band ?: StrategicPlanDurationPolicy::BAND_STANDARD);
 
         return [
             'id' => $plan->id,
             'title' => $plan->title,
             'status' => $plan->status,
             'status_label' => str($plan->status)->replace('_', ' ')->title()->toString(),
+            'duration_months' => $durationMonths,
+            'duration_label' => $this->durations->labelForMonths($durationMonths),
+            'complexity_band' => $complexityBand,
+            'complexity_label' => $this->durations->complexityLabel($complexityBand),
+            'duration_rationale' => is_array($plan->duration_rationale) ? $plan->duration_rationale : [],
             'summary' => $plan->summary,
             'sections' => $plan->sections ?? [],
             'generated_at' => $plan->generated_at?->toIso8601String(),
@@ -291,7 +305,10 @@ final class StrategicPlanService
             ->first();
     }
 
-    private function summary(Client $client, Proposal $proposal, ?StrategicBudget $budget): string
+    /**
+     * @param  array{months:int,label:string,complexity_band:string,complexity_label:string,rationale:array<int,string>}  $duration
+     */
+    private function summary(Client $client, Proposal $proposal, ?StrategicBudget $budget, array $duration): string
     {
         $fee = $proposal->feeCalculation?->suggested_mid;
         $focusAreaCount = count($this->proposalFocusAreas($proposal));
@@ -304,10 +321,12 @@ final class StrategicPlanService
         $focusAreaLine = $focusAreaCount > 0
             ? "Proposal fix priorities carried into this plan: {$focusAreaCount}."
             : 'No proposal fix priorities are attached to this plan.';
+        $durationLine = $duration['label'].' strategic plan recommended from '.$duration['complexity_label'].' scope and proposal fee duration.';
 
         return trim(sprintf(
-            "%s strategic plan generated after proposal acceptance.\n%s\n%s\n%s",
+            "%s strategic plan generated after proposal acceptance.\n%s\n%s\n%s\n%s",
             $client->trading_name ?: $client->legal_name,
+            $durationLine,
             $feeLine,
             $budgetLine,
             $focusAreaLine,
@@ -315,9 +334,10 @@ final class StrategicPlanService
     }
 
     /**
+     * @param  array{months:int,label:string,complexity_band:string,complexity_label:string,rationale:array<int,string>}  $duration
      * @return array<int, array{key:string,title:string,body:string}>
      */
-    private function sections(Client $client, Proposal $proposal, ?StrategicBudget $budget): array
+    private function sections(Client $client, Proposal $proposal, ?StrategicBudget $budget, array $duration): array
     {
         $planSections = collect((array) ($budget?->business_plan_sections ?? []))
             ->filter(fn (mixed $section): bool => is_array($section))
@@ -335,7 +355,9 @@ final class StrategicPlanService
             [
                 'key' => 'outcomes',
                 'title' => 'Target outcomes',
-                'body' => $goals !== '' ? $goals : "Confirm the {$engagement} outcomes from the accepted proposal meeting.",
+                'body' => $goals !== ''
+                    ? "Target outcomes for the {$duration['label']} strategic plan:\n".$goals
+                    : "Confirm the {$engagement} outcomes for the {$duration['label']} strategic plan from the accepted proposal meeting.",
             ],
             [
                 'key' => 'priorities',
@@ -349,7 +371,7 @@ final class StrategicPlanService
             [
                 'key' => 'milestones',
                 'title' => 'Milestone approach',
-                'body' => 'Milestone due dates are set from the agreed start date and owned by the client, advisor, or both.',
+                'body' => 'Milestones should cover the first implementation actions and the full '.$duration['label'].' horizon. Each due date is set from the agreed start date and owned by the client, advisor, or both.',
             ],
             [
                 'key' => 'budget',
@@ -364,7 +386,7 @@ final class StrategicPlanService
             [
                 'key' => 'governance',
                 'title' => 'Review rhythm',
-                'body' => 'Advisor reviews progress with the client, updates milestone status, and records evidence before each proposal-success review.',
+                'body' => 'Advisor reviews progress with the client, updates milestone status, and records only decision-ready evidence before each proposal-success review.',
             ],
         ]);
     }
@@ -402,7 +424,7 @@ final class StrategicPlanService
 
     private function seedMilestones(StrategicPlan $plan, Client $client, Proposal $proposal): void
     {
-        foreach ([...$this->defaultMilestones($client), ...$this->proposalFocusAreaMilestones($proposal)] as $milestone) {
+        foreach ([...$this->defaultMilestones($client, (int) $plan->duration_months), ...$this->proposalFocusAreaMilestones($proposal)] as $milestone) {
             $plan->milestones()->create([
                 'client_id' => $client->getKey(),
                 ...$milestone,
@@ -416,6 +438,7 @@ final class StrategicPlanService
     private function syncMilestones(StrategicPlan $plan, array $milestones): void
     {
         $seen = [];
+        $maxDueOffsetDays = $this->durationDays($plan);
 
         foreach ($milestones as $input) {
             if (! is_array($input)) {
@@ -447,7 +470,7 @@ final class StrategicPlanService
                     StrategicPlanMilestone::OWNER_ADVISOR,
                     StrategicPlanMilestone::OWNER_JOINT,
                 ], true) ? $owner : StrategicPlanMilestone::OWNER_JOINT,
-                'due_offset_days' => min(365, max(1, (int) ($input['due_offset_days'] ?? 30))),
+                'due_offset_days' => min($maxDueOffsetDays, max(1, (int) ($input['due_offset_days'] ?? 30))),
                 'status' => in_array($status, [
                     StrategicPlanMilestone::STATUS_PENDING,
                     StrategicPlanMilestone::STATUS_IN_PROGRESS,
@@ -469,11 +492,13 @@ final class StrategicPlanService
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function defaultMilestones(Client $client): array
+    private function defaultMilestones(Client $client, int $durationMonths): array
     {
         $prefix = $client->engagement_type instanceof EngagementType && $client->engagement_type === EngagementType::DUE_DILIGENCE
             ? 'acquisition'
             : 'advisory';
+        $durationDays = $this->durationDaysFromMonths($durationMonths);
+        $midHorizonDays = min(max(180, (int) floor($durationDays / 2)), max(90, $durationDays - 30));
 
         return [
             [
@@ -486,27 +511,47 @@ final class StrategicPlanService
                 'title' => 'Confirm '.$prefix.' priorities',
                 'description' => 'Advisor confirms the final workstreams, priority order, and success measures with the client.',
                 'owner' => StrategicPlanMilestone::OWNER_ADVISOR,
-                'due_offset_days' => 14,
+                'due_offset_days' => 30,
             ],
             [
                 'title' => 'Complete client evidence actions',
                 'description' => 'Client uploads or confirms evidence needed for the first implementation phase.',
                 'owner' => StrategicPlanMilestone::OWNER_CLIENT,
-                'due_offset_days' => 21,
+                'due_offset_days' => 45,
             ],
             [
                 'title' => 'Execute first implementation sprint',
                 'description' => 'Joint delivery of the first agreed actions and status evidence.',
                 'owner' => StrategicPlanMilestone::OWNER_JOINT,
-                'due_offset_days' => 45,
-            ],
-            [
-                'title' => 'Review progress and reset next milestones',
-                'description' => 'Advisor and client review progress, evidence, blockers, and next-step adjustments.',
-                'owner' => StrategicPlanMilestone::OWNER_JOINT,
                 'due_offset_days' => 90,
             ],
+            [
+                'title' => 'Mid-horizon progress review',
+                'description' => 'Advisor and client review outcomes, evidence, blockers, and the next delivery sequence.',
+                'owner' => StrategicPlanMilestone::OWNER_JOINT,
+                'due_offset_days' => $midHorizonDays,
+            ],
+            [
+                'title' => 'Strategic horizon review',
+                'description' => 'Review whether the accepted proposal outcomes were achieved and decide the next strategic-plan term.',
+                'owner' => StrategicPlanMilestone::OWNER_JOINT,
+                'due_offset_days' => $durationDays,
+            ],
         ];
+    }
+
+    private function durationDays(StrategicPlan $plan): int
+    {
+        return $this->durationDaysFromMonths((int) ($plan->duration_months ?: StrategicPlanDurationPolicy::MIN_MONTHS));
+    }
+
+    private function durationDaysFromMonths(int $months): int
+    {
+        $months = max(StrategicPlanDurationPolicy::MIN_MONTHS, $months);
+
+        return $months === StrategicPlanDurationPolicy::MIN_MONTHS
+            ? 365
+            : (int) ceil($months * 30.5);
     }
 
     private function actionPrioritiesBody(string $budgetPriorities, string $proposalPriorities, string $websitePriorities = ''): string

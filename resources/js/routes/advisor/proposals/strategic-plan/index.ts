@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::generate
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:32
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:34
  * @route '/advisor/proposals/{proposal}/strategic-plan'
  */
 export const generate = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ generate.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::generate
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:32
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:34
  * @route '/advisor/proposals/{proposal}/strategic-plan'
  */
 generate.url = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ generate.url = (args: { proposal: string | { id: string } } | [proposal: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::generate
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:32
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:34
  * @route '/advisor/proposals/{proposal}/strategic-plan'
  */
 generate.post = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ generate.post = (args: { proposal: string | { id: string } } | [proposal: string
 
     /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::generate
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:32
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:34
  * @route '/advisor/proposals/{proposal}/strategic-plan'
  */
     const generateForm = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ generate.post = (args: { proposal: string | { id: string } } | [proposal: string
 
             /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::generate
- * @see app/Http/Controllers/Advisor/StrategicPlanController.php:32
+ * @see app/Http/Controllers/Advisor/StrategicPlanController.php:34
  * @route '/advisor/proposals/{proposal}/strategic-plan'
  */
         generateForm.post = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

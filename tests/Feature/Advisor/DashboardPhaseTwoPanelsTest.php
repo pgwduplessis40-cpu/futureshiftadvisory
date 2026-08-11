@@ -14,6 +14,7 @@ use App\Models\LearningUpdate;
 use App\Models\PanelMember;
 use App\Models\Proposal;
 use App\Models\Referral;
+use App\Models\StrategicPlan;
 use App\Models\User;
 use App\Services\Questionnaires\QuestionnaireOptimisationLayer;
 use App\Support\RequestContext;
@@ -88,6 +89,52 @@ final class DashboardPhaseTwoPanelsTest extends TestCase
                 ->where('panelOperations.learning.queue_url', route('admin.learning-updates.index', absolute: false))
                 ->has('panelOperations.learning.items', 1)
                 ->where('panelOperations.learning.items.0.id', $learningUpdate->id));
+    }
+
+    public function test_dashboard_strategic_plan_deployments_merges_generate_and_deploy_items(): void
+    {
+        [$advisor, $client] = $this->clientWithAdvisor('strategic-plan-dashboard@example.test', 'Strategic Plan Queue Limited');
+        $proposal = $this->releasedProposal($client, now()->addDays(14));
+
+        Proposal::allowSignoffStatusTransition(function () use ($proposal, $advisor): void {
+            $proposal->forceFill([
+                'status' => ProposalStatus::AwaitingSignature,
+                'awaiting_signature_at' => now()->subMinutes(10),
+            ])->save();
+
+            $proposal->forceFill([
+                'status' => ProposalStatus::Signed,
+                'signed_at' => now()->subMinutes(5),
+                'signed_by_user_id' => $advisor->getKey(),
+            ])->save();
+        });
+
+        $plan = StrategicPlan::query()->create([
+            'client_id' => $client->getKey(),
+            'title' => 'Draft deployment plan',
+            'status' => StrategicPlan::STATUS_DRAFT,
+            'summary' => 'Ready for advisor deployment.',
+            'sections' => [],
+            'generated_at' => now()->subMinute(),
+            'generated_by_user_id' => $advisor->getKey(),
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/Dashboard')
+                ->where('strategicPlanDeployments.summary.total', 2)
+                ->where('strategicPlanDeployments.summary.ready_to_generate', 1)
+                ->where('strategicPlanDeployments.summary.ready_to_deploy', 1)
+                ->where('strategicPlanDeployments.items', function ($items) use ($proposal, $plan): bool {
+                    $ids = collect($items)->pluck('id')->all();
+                    $types = collect($items)->pluck('type')->sort()->values()->all();
+
+                    return in_array($proposal->id, $ids, true)
+                        && in_array($plan->id, $ids, true)
+                        && $types === ['deploy', 'generate'];
+                }));
     }
 
     /**

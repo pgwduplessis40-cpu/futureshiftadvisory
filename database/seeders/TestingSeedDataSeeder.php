@@ -49,6 +49,7 @@ use App\Models\StrategicPlanMilestone;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\Budgets\StrategicBudgetService;
+use App\Services\Entrepreneurs\EntrepreneurBudgetService;
 use App\Services\Fees\FeeCalculator;
 use App\Services\Fees\ProposalPricingTerms;
 use App\Services\Integrations\IntegrationScopeService;
@@ -2485,6 +2486,8 @@ XML);
             }
         }
 
+        $this->seedEntrepreneurBudget($planId);
+
         $ratingFrameworkId = DB::table('rating_frameworks')
             ->where('production_ready', true)
             ->whereNull('industry_variant')
@@ -2567,6 +2570,79 @@ XML);
             entrepreneurProfileId: (string) $profileId,
             planSectionId: (string) ($this->ids['entrepreneur_customer_section'] ?? ''),
         );
+    }
+
+    private function seedEntrepreneurBudget(string|int $planId): void
+    {
+        $plan = BusinessPlan::query()->whereKey($planId)->first();
+
+        if (! $plan instanceof BusinessPlan) {
+            return;
+        }
+
+        $budget = app(EntrepreneurBudgetService::class)->update($plan, [
+            'expected_runway_months' => 9,
+            'forecast_years' => 3,
+            'assumptions' => [
+                'opening_cash_balance' => 7_500,
+                'revenue_growth_percent' => 24,
+                'cost_inflation_percent' => 3,
+                'target_gross_profit_percent' => 72,
+                'target_net_profit_before_tax_percent' => 18,
+                'target_net_profit_after_tax_percent' => 13,
+                'debtor_days' => 30,
+                'creditor_days' => 14,
+            ],
+            'launch_costs' => [
+                ['label' => 'Prototype build and analytics model', 'amount' => 28_000, 'month' => 1, 'confidence' => 'estimate'],
+                ['label' => 'Brand, website, and sales collateral', 'amount' => 16_000, 'month' => 1, 'confidence' => 'known'],
+                ['label' => 'Legal setup and data-processing terms', 'amount' => 9_000, 'month' => 2, 'confidence' => 'estimate'],
+                ['label' => 'Pilot integration support', 'amount' => 18_000, 'month' => 3, 'confidence' => 'guess'],
+            ],
+            'monthly_fixed_costs' => [
+                ['label' => 'Founder draw', 'amount' => 7_000, 'month' => 1, 'confidence' => 'estimate'],
+                ['label' => 'Cloud platform and software stack', 'amount' => 2_800, 'month' => 1, 'confidence' => 'known'],
+                ['label' => 'Contract analyst support', 'amount' => 5_200, 'month' => 3, 'confidence' => 'estimate'],
+                ['label' => 'Marketing and export-partner outreach', 'amount' => 3_500, 'month' => 4, 'confidence' => 'guess'],
+                ['label' => 'Accounting and advisory support', 'amount' => 1_400, 'month' => 1, 'confidence' => 'known'],
+            ],
+            'future_costs' => [
+                ['label' => 'Security assurance review', 'amount' => 14_000, 'year' => 2, 'recurring' => false, 'confidence' => 'estimate'],
+                ['label' => 'Advisor-channel enablement', 'amount' => 9_500, 'year' => 2, 'recurring' => true, 'confidence' => 'estimate'],
+            ],
+            'revenue_forecast' => [
+                ['label' => 'Pilot subscriptions', 'amount' => 7_500, 'month' => 4, 'monthly_growth_percent' => 11, 'variable_cost_percent' => 18, 'confidence' => 'estimate'],
+                ['label' => 'Implementation sprints', 'amount' => 8_500, 'month' => 5, 'monthly_growth_percent' => 7, 'variable_cost_percent' => 32, 'confidence' => 'estimate'],
+                ['label' => 'Advisor-channel referrals', 'amount' => 4_500, 'month' => 9, 'monthly_growth_percent' => 6, 'variable_cost_percent' => 22, 'confidence' => 'guess'],
+            ],
+            'funding_sources' => [
+                ['label' => 'Founder savings committed', 'amount' => 50_000, 'month' => 1, 'confidence' => 'known'],
+                ['label' => 'Innovation grant expected', 'amount' => 35_000, 'month' => 3, 'confidence' => 'estimate'],
+                ['label' => 'Bridge note under negotiation', 'amount' => 85_000, 'month' => 6, 'confidence' => 'guess'],
+            ],
+            'funding_scenarios' => [
+                [
+                    'name' => 'Bank working-capital facility',
+                    'type' => 'bank_loan',
+                    'amount' => 120_000,
+                    'year' => 1,
+                    'interest_rate_percent' => 9.5,
+                    'term_years' => 4,
+                    'interest_only_months' => 6,
+                    'confidence' => 'estimate',
+                ],
+                [
+                    'name' => 'Investor bridge round',
+                    'type' => 'investor',
+                    'amount' => 150_000,
+                    'year' => 1,
+                    'investor_equity_percent' => 8,
+                    'confidence' => 'estimate',
+                ],
+            ],
+        ], $this->users['entrepreneur']);
+
+        $this->ids['entrepreneur_budget'] = $budget->getKey();
     }
 
     private function seedIdeaValidationTestScenarios(): void

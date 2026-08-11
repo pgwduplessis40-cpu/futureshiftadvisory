@@ -20,6 +20,7 @@ use App\Services\Payments\AuthorityCapture;
 use App\Services\Payments\PaymentGatewayException;
 use App\Services\Payments\ScheduleBuilder;
 use App\Services\Storage\KeyEnvelope;
+use App\Services\StrategicPlans\StrategicPlanDurationPolicy;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,7 @@ final class SignoffFlow
         private readonly AuditWriter $audit,
         private readonly IntegrationActivationResolver $integrations,
         private readonly ProposalPricingTerms $pricing,
+        private readonly StrategicPlanDurationPolicy $durations,
     ) {}
 
     /**
@@ -667,12 +669,7 @@ final class SignoffFlow
 
     private function proposalTermMonths(Proposal $proposal): int
     {
-        $months = data_get($proposal->scope, 'term_months')
-            ?? data_get($proposal->acceptance_terms, 'term_months')
-            ?? data_get($proposal->feeCalculation?->justification, 'retainer.months')
-            ?? data_get($proposal->feeCalculation?->justification, 'retainer_months');
-
-        return max(1, (int) (is_numeric($months) ? $months : 6));
+        return $this->durations->termMonthsForProposal($proposal);
     }
 
     private function proposalMonthlyAmount(Proposal $proposal, int $termMonths): float

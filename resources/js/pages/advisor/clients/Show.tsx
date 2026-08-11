@@ -552,6 +552,10 @@ type FeeCalculationSummary = {
     roi_ratio: number;
     created_at: string | null;
     proposal_scope_summary: string | null;
+    strategic_plan_duration_months: number;
+    strategic_plan_duration_label: string;
+    strategic_plan_complexity_band: string;
+    strategic_plan_complexity_label: string;
 };
 
 type ProposalSummary = {
@@ -563,6 +567,10 @@ type ProposalSummary = {
     brief: string;
     suggested_mid: number | null;
     roi_ratio: number;
+    strategic_plan_duration_months: number;
+    strategic_plan_duration_label: string;
+    strategic_plan_complexity_band: string;
+    strategic_plan_complexity_label: string;
     released_at: string | null;
     expires_at: string | null;
     days_to_expiry: number | null;
@@ -604,6 +612,11 @@ type StrategicPlanSummary = {
     title: string;
     status: string;
     status_label: string;
+    duration_months: number;
+    duration_label: string;
+    complexity_band: string;
+    complexity_label: string;
+    duration_rationale: string[];
     summary: string | null;
     sections: StrategicPlanSection[];
     generated_at: string | null;
@@ -4154,11 +4167,16 @@ function StrategicPlanEditor({
                 </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-5">
                 <Metric label="Progress" value={`${plan.progress_percent}%`} />
                 <Metric
                     label="Milestones"
                     value={`${plan.completed_milestones}/${plan.total_milestones}`}
+                />
+                <Metric
+                    label="Duration"
+                    value={plan.duration_label}
+                    hint={plan.complexity_label}
                 />
                 <Metric
                     label="Generated"
@@ -4959,6 +4977,23 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                             />
                         </div>
 
+                        {selectedCalculation ? (
+                            <div className="rounded-md border bg-muted/30 p-3">
+                                <div className="text-xs text-muted-foreground">
+                                    Strategic plan
+                                </div>
+                                <div className="mt-1 text-sm font-medium">
+                                    {
+                                        selectedCalculation.strategic_plan_duration_label
+                                    }{' '}
+                                    /{' '}
+                                    {
+                                        selectedCalculation.strategic_plan_complexity_label
+                                    }
+                                </div>
+                            </div>
+                        ) : null}
+
                         {requiresReferralConsents ? (
                             <div className="grid grid-cols-2 gap-3">
                                 <ConsentSelect
@@ -5110,6 +5145,11 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                                         <Badge variant="outline">
                                             {proposal.fee_method_label}
                                         </Badge>
+                                        <Badge variant="secondary">
+                                            {
+                                                proposal.strategic_plan_duration_label
+                                            }
+                                        </Badge>
                                         {proposal.days_to_expiry !== null && (
                                             <Badge variant="outline">
                                                 {proposal.days_to_expiry}d
@@ -5120,7 +5160,8 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                                         {formatCurrency(
                                             proposal.suggested_mid ?? 0,
                                         )}{' '}
-                                        mid fee ex GST
+                                        mid fee ex GST /{' '}
+                                        {proposal.strategic_plan_complexity_label}
                                     </div>
                                     <p className="max-w-3xl text-sm leading-5 text-muted-foreground">
                                         {proposal.brief}
@@ -5204,7 +5245,7 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                                 </div>
                             </div>
 
-                            <dl className="grid gap-2 text-sm md:grid-cols-3">
+                            <dl className="grid gap-2 text-sm md:grid-cols-4">
                                 <Metric
                                     label="Released"
                                     value={formatDate(proposal.released_at)}
@@ -5216,6 +5257,12 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                                 <Metric
                                     label="ROI"
                                     value={formatMetric(proposal.roi_ratio)}
+                                />
+                                <Metric
+                                    label="Plan duration"
+                                    value={
+                                        proposal.strategic_plan_duration_label
+                                    }
                                 />
                             </dl>
                         </article>

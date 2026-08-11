@@ -17,6 +17,7 @@ use App\Services\Analytics\FunnelTracker;
 use App\Services\Audit\AuditWriter;
 use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Proposals\ProposalBuilder;
+use App\Services\StrategicPlans\StrategicPlanDurationPolicy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -34,6 +35,7 @@ final class ProposalController extends Controller
         ProposalBuilder $proposals,
         FunnelTracker $funnels,
         StrategicBudgetService $strategicBudgets,
+        StrategicPlanDurationPolicy $durations,
     ): RedirectResponse {
         Gate::authorize('view', $client);
 
@@ -87,7 +89,7 @@ final class ProposalController extends Controller
 
         $scopeSummary = trim((string) ($validated['scope_summary'] ?? ''));
         $scope = $scopeSummary === '' ? [] : ['summary' => $scopeSummary];
-        $scope['term_months'] = $this->recommendedTermMonths((float) $feeCalculation->suggested_mid);
+        $scope = $durations->applyToScope($feeCalculation, $scope);
         $scope['budget'] = [
             ...$strategicBudgets->proposalGuardPayload($budget),
             'override' => $budget->isApprovedForProposal() ? null : [
@@ -109,15 +111,6 @@ final class ProposalController extends Controller
         $funnels->complete(FunnelEvent::FLOW_PROPOSAL, 'generate', $client, $user);
 
         return to_route('advisor.clients.show', $client)->with('status', 'proposal-generated');
-    }
-
-    private function recommendedTermMonths(float $amount): int
-    {
-        return match (true) {
-            $amount >= 40000 => 36,
-            $amount >= 18000 => 24,
-            default => 12,
-        };
     }
 
     public function release(Request $request, Proposal $proposal, ProposalBuilder $proposals, FunnelTracker $funnels): RedirectResponse

@@ -151,7 +151,7 @@ final class ProposalSignoffFlowTest extends TestCase
             'payment_authority_id' => PaymentAuthority::query()->where('proposal_id', $proposal->id)->value('id'),
             'cadence' => PaymentSchedule::CADENCE_MONTHLY_RETAINER,
             'collection_day' => 15,
-            'amount' => '1666.67',
+            'amount' => '833.33',
         ]);
 
         $flow->complete($proposal, ProposalSignoffStep::STEP_CONFIRMATION, [], $clientUser);
@@ -513,6 +513,7 @@ final class ProposalSignoffFlowTest extends TestCase
                 ->component('portal/Dashboard')
                 ->where('proposals.0.id', $proposal->id)
                 ->where('proposals.0.status', ProposalStatus::Released->value)
+                ->where('proposals.0.strategic_plan_duration_label', '12 months')
                 ->where('proposals.0.brief', (string) $proposal->scope['summary']));
 
         $this->actingAsMfa($clientUser)
@@ -526,9 +527,11 @@ final class ProposalSignoffFlowTest extends TestCase
                 ->where('proposal.download_url', route('portal.proposals.download', $proposal, absolute: false))
                 ->where('proposal.payment_terms.currency', 'NZD')
                 ->where('proposal.payment_terms.cadence', 'monthly')
-                ->where('proposal.payment_terms.term_months', 6)
-                ->where('proposal.payment_terms.monthly_amount', 1666.67)
-                ->where('proposal.payment_terms.monthly_amount_including_gst', 1916.67)
+                ->where('proposal.payment_terms.term_months', 12)
+                ->where('proposal.payment_terms.strategic_plan_duration_label', '12 months')
+                ->where('proposal.payment_terms.strategic_plan_complexity_label', 'Standard complexity')
+                ->where('proposal.payment_terms.monthly_amount', 833.33)
+                ->where('proposal.payment_terms.monthly_amount_including_gst', 958.33)
                 ->where('proposal.payment_terms.total_amount', 10000)
                 ->where('proposal.payment_terms.total_amount_including_gst', 11500)
                 ->where('proposal.payment_terms.gst_rate_percent', 15)

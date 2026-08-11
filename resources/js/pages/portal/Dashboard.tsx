@@ -364,6 +364,11 @@ type StrategicPlanPayload = {
     title: string;
     status: string;
     status_label: string;
+    duration_months: number;
+    duration_label: string;
+    complexity_band: string;
+    complexity_label: string;
+    duration_rationale: string[];
     summary: string | null;
     generated_at: string | null;
     deployed_at: string | null;
@@ -522,6 +527,9 @@ type ProposalPayload = {
     status_label: string;
     suggested_mid: number | null;
     brief: string;
+    strategic_plan_duration_months: number;
+    strategic_plan_duration_label: string;
+    strategic_plan_complexity_label: string;
     signed_at: string | null;
     signoff_url: string;
 };
@@ -664,6 +672,7 @@ export default function PortalDashboard({
     proposals,
     reports,
     messageSummary,
+    messagesUrl,
     surveys,
     outcomeFollowUps,
     welcomeMessage,
@@ -819,8 +828,56 @@ export default function PortalDashboard({
                   strategicPlan.completed_milestones,
           )
         : 0;
+    const showStrategicPlanAction =
+        strategicPlan !== null && strategicPlanOpenMilestoneCount > 0;
     const nextSurvey = surveys.items[0] ?? null;
     const nextOutcomeFollowUp = outcomeFollowUps.items[0] ?? null;
+    const activeWorkspaceKey = workspaces.active_key;
+    const actionableActivations = serviceActivations.items.filter(
+        isActionableActivation,
+    );
+    const showOnboardingAction = progress.percentage < 100;
+    const showStandardAdvisoryAction =
+        activeWorkspaceKey === 'standard_advisory' &&
+        standardAdvisory !== null &&
+        (standardAdvisory.status === 'waiting_questionnaire' ||
+            standardAdvisoryReport !== undefined);
+    const showDueDiligenceAction =
+        activeWorkspaceKey === 'due_diligence' && ddPlan !== null;
+    const showPostAcquisitionAction =
+        activeWorkspaceKey === 'post_acquisition_advisory' &&
+        postAcquisition !== null;
+    const showStrategicBudgetAction =
+        activeWorkspaceKey === 'standard_advisory' &&
+        (strategicBudget.locked ||
+            strategicBudget.readiness_score < 100 ||
+            strategicBudget.progress_score < 100);
+    const showWellbeingAction = wellbeing.prompt_due;
+    const showNotificationsAction =
+        notificationSummary.urgent > 0 || notificationSummary.unread > 0;
+    const showProposalAction = unsignedProposalCount > 0;
+    const showDocumentAction = documentReviewCount > 0;
+    const showDataQualityAction = ['insufficient', 'low'].includes(
+        client.data_quality_summary.level,
+    );
+    const showHealthFindingsAction = highHealthFindingCount > 0;
+    const hasPriorityActions =
+        showOnboardingAction ||
+        surveys.total_open > 0 ||
+        outcomeFollowUps.total_open > 0 ||
+        showStandardAdvisoryAction ||
+        showDueDiligenceAction ||
+        showStrategicBudgetAction ||
+        showStrategicPlanAction ||
+        showPostAcquisitionAction ||
+        actionableActivations.length > 0 ||
+        showWellbeingAction ||
+        showNotificationsAction ||
+        messageSummary.unread_count > 0 ||
+        showProposalAction ||
+        showDocumentAction ||
+        showDataQualityAction ||
+        showHealthFindingsAction;
     const focusDashboardSection = (
         sectionId: string,
         tab: PortalDashboardTab,
@@ -891,15 +948,17 @@ export default function PortalDashboard({
                             <span>NZBN {client.nzbn ?? '-'}</span>
                         </div>
                     </div>
-                    <Button asChild>
-                        <Link href={onboardingUrl}>
-                            <ClipboardList
-                                className="size-4"
-                                aria-hidden="true"
-                            />
-                            Continue onboarding
-                        </Link>
-                    </Button>
+                    {showOnboardingAction ? (
+                        <Button asChild>
+                            <Link href={onboardingUrl}>
+                                <ClipboardList
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Continue onboarding
+                            </Link>
+                        </Button>
+                    ) : null}
                 </div>
 
                 <WorkspaceSwitcher workspaces={workspaces} />
@@ -912,6 +971,8 @@ export default function PortalDashboard({
                     <InspirationCard post={inspirationBoard} />
                 ) : null}
 
+                <ServiceJourneyPanel journey={serviceJourney} />
+
                 <DashboardTabList
                     activeTab={activeTab}
                     onChange={setActiveTab}
@@ -919,165 +980,170 @@ export default function PortalDashboard({
 
                 {activeTab === 'actions' ? (
                     <>
-                        <ServiceJourneyPanel
-                            journey={serviceJourney}
-                            services={serviceActivations}
-                        />
-
                         <DashboardSection
                             title="Priority actions"
                             description="Start with the tiles that can block progress or need a response."
                         >
-                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                                <StatusPanel
-                                    icon={ClipboardList}
-                                    label="Onboarding"
-                                    value={`${progress.percentage}% complete`}
-                                    explanation="Onboarding collects the client details and evidence needed before advisor work can progress."
-                                    href={onboardingUrl}
-                                    actionLabel="Continue"
-                                />
-                                {surveys.total_open > 0 && nextSurvey ? (
-                                    <StatusPanel
-                                        icon={ClipboardList}
-                                        label="Feedback survey"
-                                        value={`${surveys.total_open} pending`}
-                                        explanation={`Please complete ${nextSurvey.survey_title}. Your feedback helps us understand whether the work delivered was received, accessible, and useful.`}
-                                        href={nextSurvey.url}
-                                        actionLabel={
-                                            surveys.total_open > 1
-                                                ? 'Start first'
-                                                : 'Start'
-                                        }
-                                    />
-                                ) : null}
-                                {outcomeFollowUps.total_open > 0 &&
-                                nextOutcomeFollowUp ? (
-                                    <StatusPanel
-                                        icon={TrendingUp}
-                                        label="Outcome follow-up"
-                                        value={`${outcomeFollowUps.total_open} pending`}
-                                        explanation={`Please complete the ${nextOutcomeFollowUp.cadence_month} month ${nextOutcomeFollowUp.subject_label.toLowerCase()} for ${nextOutcomeFollowUp.subject_name}. This lets us measure whether the advice changed the commercial outcome.`}
-                                        href={nextOutcomeFollowUp.url}
-                                        actionLabel={
-                                            outcomeFollowUps.total_open > 1
-                                                ? 'Start first'
-                                                : 'Complete'
-                                        }
-                                    />
-                                ) : null}
-                                {standardAdvisory && (
-                                    <StatusPanel
-                                        icon={FileText}
-                                        label="Advisory journey"
-                                        value={`${standardAdvisory.momentum.percent}% complete`}
-                                        explanation={
-                                            standardAdvisory.momentum
-                                                .next_action
-                                        }
-                                        href={standardAdvisoryActionUrl}
-                                        actionLabel={
-                                            standardAdvisoryActionLabel
-                                        }
-                                        onAction={
-                                            standardAdvisoryActionUrl ===
-                                            '#section-reports'
-                                                ? (event) =>
-                                                      showInformationSection(
-                                                          'section-reports',
-                                                          event,
-                                                      )
-                                                : undefined
-                                        }
-                                    />
-                                )}
-                                {ddPlan && (
-                                    <StatusPanel
-                                        icon={PieChart}
-                                        label="Prepare Due Diligence"
-                                        value={
-                                            ddPlan.business_advice_requested
-                                                ? 'Advice requested'
-                                                : ddPlan.plan_completed
-                                                  ? 'Plan completed'
-                                                  : ddPlan.generated
-                                                    ? `Updated ${formatDate(ddPlan.updated_at)}`
-                                                    : 'Not generated'
-                                        }
-                                        explanation={`Builds the due diligence plan for the target acquisition (${ddPlan.target_name}) from DD questionnaire answers, uploaded evidence, workstream findings, and valuation context.`}
-                                        href={ddPlan.url}
-                                        actionLabel={
-                                            ddPlan.generated
-                                                ? 'Open'
-                                                : 'Prepare'
-                                        }
-                                    />
-                                )}
-                                <StatusPanel
-                                    icon={FileSpreadsheet}
-                                    label={strategicBudget.label}
-                                    value={
-                                        strategicBudget.locked
-                                            ? 'Locked'
-                                            : `${strategicBudget.readiness_score}/100 ready`
-                                    }
-                                    explanation={
-                                        strategicBudget.locked
-                                            ? (strategicBudget.source_financials
-                                                  .system_review ??
-                                              'Upload a P&L or management accounts file to unlock the budget.')
-                                            : `Status: ${strategicBudget.status_label}. Progress ${strategicBudget.progress_score}%.`
-                                    }
-                                    href="/portal/business-plan-budget"
-                                    actionLabel={
-                                        strategicBudget.locked
-                                            ? 'Unlock'
-                                            : 'Open'
-                                    }
-                                />
-                                {strategicPlan && (
-                                    <StatusPanel
-                                        icon={ClipboardList}
-                                        label="Strategic Plan milestones"
-                                        value={
-                                            strategicPlanOpenMilestoneCount > 0
-                                                ? `${strategicPlanOpenMilestoneCount} open`
-                                                : 'All complete'
-                                        }
-                                        explanation={`Track the deployed Strategic Plan. ${strategicPlan.completed_milestones}/${strategicPlan.total_milestones} milestones are complete and progress is ${strategicPlan.progress_percent}%.`}
-                                        href="#section-strategic-plan-milestones"
-                                        actionLabel="Update"
-                                        onAction={(event) =>
-                                            showInformationSection(
-                                                'section-strategic-plan-milestones',
-                                                event,
-                                            )
-                                        }
-                                    />
-                                )}
-                                {postAcquisition && (
-                                    <StatusPanel
-                                        icon={TrendingUp}
-                                        label="Post-acquisition"
-                                        value={postAcquisitionStatus}
-                                        explanation="This handoff uses DD evidence, the DD valuation baseline, and the post-close gap questionnaire to start the advisory engagement."
-                                        href={postAcquisitionActionUrl}
-                                        actionLabel={postAcquisitionActionLabel}
-                                        onAction={
-                                            postAcquisitionActionUrl ===
-                                            '#section-post-acquisition'
-                                                ? (event) =>
-                                                      showActionSection(
-                                                          'section-post-acquisition',
-                                                          event,
-                                                      )
-                                                : undefined
-                                        }
-                                    />
-                                )}
-                                {serviceActivations.items
-                                    .slice(0, 2)
-                                    .map((activation) => (
+                            {hasPriorityActions ? (
+                                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                    {showOnboardingAction ? (
+                                        <StatusPanel
+                                            icon={ClipboardList}
+                                            label="Onboarding"
+                                            value={`${progress.percentage}% complete`}
+                                            explanation="Onboarding collects the client details and evidence needed before advisor work can progress."
+                                            href={onboardingUrl}
+                                            actionLabel="Continue"
+                                        />
+                                    ) : null}
+                                    {surveys.total_open > 0 && nextSurvey ? (
+                                        <StatusPanel
+                                            icon={ClipboardList}
+                                            label="Feedback survey"
+                                            value={`${surveys.total_open} pending`}
+                                            explanation={`Please complete ${nextSurvey.survey_title}. Your feedback helps us understand whether the work delivered was received, accessible, and useful.`}
+                                            href={nextSurvey.url}
+                                            actionLabel={
+                                                surveys.total_open > 1
+                                                    ? 'Start first'
+                                                    : 'Start'
+                                            }
+                                        />
+                                    ) : null}
+                                    {outcomeFollowUps.total_open > 0 &&
+                                    nextOutcomeFollowUp ? (
+                                        <StatusPanel
+                                            icon={TrendingUp}
+                                            label="Outcome follow-up"
+                                            value={`${outcomeFollowUps.total_open} pending`}
+                                            explanation={`Please complete the ${nextOutcomeFollowUp.cadence_month} month ${nextOutcomeFollowUp.subject_label.toLowerCase()} for ${nextOutcomeFollowUp.subject_name}. This lets us measure whether the advice changed the commercial outcome.`}
+                                            href={nextOutcomeFollowUp.url}
+                                            actionLabel={
+                                                outcomeFollowUps.total_open > 1
+                                                    ? 'Start first'
+                                                    : 'Complete'
+                                            }
+                                        />
+                                    ) : null}
+                                    {showStandardAdvisoryAction &&
+                                    standardAdvisory ? (
+                                        <StatusPanel
+                                            icon={FileText}
+                                            label="Advisory journey"
+                                            value={`${standardAdvisory.momentum.percent}% complete`}
+                                            explanation={
+                                                standardAdvisory.momentum
+                                                    .next_action
+                                            }
+                                            href={standardAdvisoryActionUrl}
+                                            actionLabel={
+                                                standardAdvisoryActionLabel
+                                            }
+                                            onAction={
+                                                standardAdvisoryActionUrl ===
+                                                '#section-reports'
+                                                    ? (event) =>
+                                                          showInformationSection(
+                                                              'section-reports',
+                                                              event,
+                                                          )
+                                                    : undefined
+                                            }
+                                        />
+                                    ) : null}
+                                    {showDueDiligenceAction && ddPlan ? (
+                                        <StatusPanel
+                                            icon={PieChart}
+                                            label="Prepare Due Diligence"
+                                            value={
+                                                ddPlan.business_advice_requested
+                                                    ? 'Advice requested'
+                                                    : ddPlan.plan_completed
+                                                      ? 'Plan completed'
+                                                      : ddPlan.generated
+                                                        ? `Updated ${formatDate(ddPlan.updated_at)}`
+                                                        : 'Not generated'
+                                            }
+                                            explanation={`Builds the due diligence plan for the target acquisition (${ddPlan.target_name}) from DD questionnaire answers, uploaded evidence, workstream findings, and valuation context.`}
+                                            href={ddPlan.url}
+                                            actionLabel={
+                                                ddPlan.generated
+                                                    ? 'Open'
+                                                    : 'Prepare'
+                                            }
+                                        />
+                                    ) : null}
+                                    {showStrategicBudgetAction ? (
+                                        <StatusPanel
+                                            icon={FileSpreadsheet}
+                                            label={strategicBudget.label}
+                                            value={
+                                                strategicBudget.locked
+                                                    ? 'Locked'
+                                                    : `${strategicBudget.readiness_score}/100 ready`
+                                            }
+                                            explanation={
+                                                strategicBudget.locked
+                                                    ? (strategicBudget
+                                                          .source_financials
+                                                          .system_review ??
+                                                      'Upload a P&L or management accounts file to unlock the budget.')
+                                                    : `Status: ${strategicBudget.status_label}. Progress ${strategicBudget.progress_score}%.`
+                                            }
+                                            href="/portal/business-plan-budget"
+                                            actionLabel={
+                                                strategicBudget.locked
+                                                    ? 'Unlock'
+                                                    : 'Open'
+                                            }
+                                        />
+                                    ) : null}
+                                    {showStrategicPlanAction &&
+                                    strategicPlan ? (
+                                        <StatusPanel
+                                            icon={ClipboardList}
+                                            label="Strategic Plan milestones"
+                                            value={
+                                                strategicPlanOpenMilestoneCount >
+                                                0
+                                                    ? `${strategicPlanOpenMilestoneCount} open`
+                                                    : 'All complete'
+                                            }
+                                            explanation={`Track the deployed Strategic Plan. ${strategicPlan.completed_milestones}/${strategicPlan.total_milestones} milestones are complete and progress is ${strategicPlan.progress_percent}%.`}
+                                            href="#section-strategic-plan-milestones"
+                                            actionLabel="Update"
+                                            onAction={(event) =>
+                                                showInformationSection(
+                                                    'section-strategic-plan-milestones',
+                                                    event,
+                                                )
+                                            }
+                                        />
+                                    ) : null}
+                                    {showPostAcquisitionAction &&
+                                    postAcquisition ? (
+                                        <StatusPanel
+                                            icon={TrendingUp}
+                                            label="Post-acquisition"
+                                            value={postAcquisitionStatus}
+                                            explanation="This handoff uses DD evidence, the DD valuation baseline, and the post-close gap questionnaire to start the advisory engagement."
+                                            href={postAcquisitionActionUrl}
+                                            actionLabel={
+                                                postAcquisitionActionLabel
+                                            }
+                                            onAction={
+                                                postAcquisitionActionUrl ===
+                                                '#section-post-acquisition'
+                                                    ? (event) =>
+                                                          showActionSection(
+                                                              'section-post-acquisition',
+                                                              event,
+                                                          )
+                                                    : undefined
+                                            }
+                                        />
+                                    ) : null}
+                                    {actionableActivations.map((activation) => (
                                         <StatusPanel
                                             key={activation.id}
                                             icon={serviceIconFor(
@@ -1101,212 +1167,211 @@ export default function PortalDashboard({
                                             }
                                         />
                                     ))}
-                                <StatusPanel
-                                    icon={HeartPulse}
-                                    label="Wellbeing"
-                                    value={
-                                        wellbeing.prompt_due
-                                            ? 'Pulse due'
-                                            : `Shared ${formatDate(wellbeing.submitted_at)}`
-                                    }
-                                    explanation="Wellbeing prompts help the advisory team understand founder pressure and support needs."
-                                    href="#section-wellbeing"
-                                    actionLabel={
-                                        wellbeing.prompt_due ? 'Open' : 'View'
-                                    }
-                                    onAction={(event) =>
-                                        showActionSection(
-                                            'section-wellbeing',
-                                            event,
-                                        )
-                                    }
-                                />
-                                <StatusPanel
-                                    icon={Bell}
-                                    label="Notifications"
-                                    value={
-                                        notificationSummary.urgent > 0
-                                            ? `${notificationSummary.urgent} urgent`
-                                            : `${notificationSummary.unread} unread`
-                                    }
-                                    explanation="Notifications include advisor updates, document checks, terms prompts, and other portal alerts."
-                                    href="/notifications"
-                                    actionLabel="Open"
-                                />
-                                {messageSummary.unread_count > 0 && (
-                                    <StatusPanel
-                                        icon={MessageSquare}
-                                        label="Messages"
-                                        value={`${messageSummary.unread_count} unread`}
-                                        explanation="Unread advisor messages may need a response before the next advisory step can move forward."
-                                        href={messageSummary.latest_url}
-                                        actionLabel="Open"
-                                    />
-                                )}
-                                <StatusPanel
-                                    icon={FileText}
-                                    label="Proposals"
-                                    value={
-                                        unsignedProposalCount > 0
-                                            ? `${unsignedProposalCount} awaiting review`
-                                            : `${proposals.length} released`
-                                    }
-                                    explanation="Proposal tiles link to released proposals that may need sign-off or review."
-                                    href={
-                                        unsignedProposalCount > 0 &&
-                                        actionProposal?.signoff_url
-                                            ? actionProposal.signoff_url
-                                            : '#section-proposals'
-                                    }
-                                    actionLabel={
-                                        unsignedProposalCount > 0
-                                            ? 'Open'
-                                            : 'View'
-                                    }
-                                    onAction={
-                                        unsignedProposalCount > 0 &&
-                                        actionProposal?.signoff_url
-                                            ? undefined
-                                            : (event) =>
-                                                  showActionSection(
-                                                      'section-proposals',
-                                                      event,
-                                                  )
-                                    }
-                                />
-                                <StatusPanel
-                                    icon={Upload}
-                                    label="Documents"
-                                    value={
-                                        documentReviewCount > 0
-                                            ? `${documentReviewCount} need review`
-                                            : `${documents.length} uploaded`
-                                    }
-                                    explanation="Documents include uploaded evidence and any verification outcomes that need attention."
-                                    href="#section-documents"
-                                    actionLabel="Review"
-                                    onAction={(event) =>
-                                        showActionSection(
-                                            'section-documents',
-                                            event,
-                                        )
-                                    }
-                                />
-                                <StatusPanel
-                                    icon={TrendingUp}
-                                    label="Data quality"
-                                    value={
-                                        <DataQualityBadge
-                                            summary={
-                                                client.data_quality_summary
+                                    {showWellbeingAction ? (
+                                        <StatusPanel
+                                            icon={HeartPulse}
+                                            label="Wellbeing"
+                                            value="Pulse due"
+                                            explanation="Wellbeing prompts help the advisory team understand founder pressure and support needs."
+                                            href="#section-wellbeing"
+                                            actionLabel="Open"
+                                            onAction={(event) =>
+                                                showActionSection(
+                                                    'section-wellbeing',
+                                                    event,
+                                                )
                                             }
                                         />
-                                    }
-                                    explanation="Data quality reflects how complete and usable the evidence in your client workspace is for advisory analysis."
-                                    href="#section-health"
-                                    actionLabel="Review"
-                                    onAction={(event) =>
-                                        showInformationSection(
-                                            'section-health',
-                                            event,
-                                        )
-                                    }
-                                />
-                                <StatusPanel
-                                    icon={Activity}
-                                    label="Health findings"
-                                    value={`${highHealthFindingCount} high priority`}
-                                    explanation="High-priority health findings are critical or high severity analysis signals surfaced by the advisory engine."
-                                    href="#section-health"
-                                    actionLabel="Open"
-                                    onAction={(event) =>
-                                        showInformationSection(
-                                            'section-health',
-                                            event,
-                                        )
-                                    }
-                                />
-                            </div>
+                                    ) : null}
+                                    {showNotificationsAction ? (
+                                        <StatusPanel
+                                            icon={Bell}
+                                            label="Notifications"
+                                            value={
+                                                notificationSummary.urgent > 0
+                                                    ? `${notificationSummary.urgent} urgent`
+                                                    : `${notificationSummary.unread} unread`
+                                            }
+                                            explanation="Notifications include advisor updates, document checks, terms prompts, and other portal alerts."
+                                            href="/notifications"
+                                            actionLabel="Open"
+                                        />
+                                    ) : null}
+                                    {messageSummary.unread_count > 0 && (
+                                        <StatusPanel
+                                            icon={MessageSquare}
+                                            label="Messages"
+                                            value={`${messageSummary.unread_count} unread`}
+                                            explanation="Unread advisor messages may need a response before the next advisory step can move forward."
+                                            href={messageSummary.latest_url}
+                                            actionLabel="Open"
+                                        />
+                                    )}
+                                    {showProposalAction ? (
+                                        <StatusPanel
+                                            icon={FileText}
+                                            label="Proposals"
+                                            value={`${unsignedProposalCount} awaiting review`}
+                                            explanation="Proposal tiles link to released proposals that need sign-off or review."
+                                            href={
+                                                actionProposal?.signoff_url ??
+                                                '#section-proposals'
+                                            }
+                                            actionLabel="Open"
+                                            onAction={
+                                                actionProposal?.signoff_url
+                                                    ? undefined
+                                                    : (event) =>
+                                                          showActionSection(
+                                                              'section-proposals',
+                                                              event,
+                                                          )
+                                            }
+                                        />
+                                    ) : null}
+                                    {showDocumentAction ? (
+                                        <StatusPanel
+                                            icon={Upload}
+                                            label="Documents"
+                                            value={`${documentReviewCount} need review`}
+                                            explanation="Documents include uploaded evidence and verification outcomes that need attention."
+                                            href="#section-documents"
+                                            actionLabel="Review"
+                                            onAction={(event) =>
+                                                showActionSection(
+                                                    'section-documents',
+                                                    event,
+                                                )
+                                            }
+                                        />
+                                    ) : null}
+                                    {showDataQualityAction ? (
+                                        <StatusPanel
+                                            icon={TrendingUp}
+                                            label="Data quality"
+                                            value={
+                                                <DataQualityBadge
+                                                    summary={
+                                                        client.data_quality_summary
+                                                    }
+                                                />
+                                            }
+                                            explanation="Data quality reflects how complete and usable the evidence in your client workspace is for advisory analysis."
+                                            href="#section-health"
+                                            actionLabel="Review"
+                                            onAction={(event) =>
+                                                showInformationSection(
+                                                    'section-health',
+                                                    event,
+                                                )
+                                            }
+                                        />
+                                    ) : null}
+                                    {showHealthFindingsAction ? (
+                                        <StatusPanel
+                                            icon={Activity}
+                                            label="Health findings"
+                                            value={`${highHealthFindingCount} high priority`}
+                                            explanation="High-priority health findings are critical or high severity analysis signals surfaced by the advisory engine."
+                                            href="#section-health"
+                                            actionLabel="Open"
+                                            onAction={(event) =>
+                                                showInformationSection(
+                                                    'section-health',
+                                                    event,
+                                                )
+                                            }
+                                        />
+                                    ) : null}
+                                </div>
+                            ) : (
+                                <NoPriorityActions messagesUrl={messagesUrl} />
+                            )}
                         </DashboardSection>
 
                         <DashboardSection
                             title="Action panel"
                             description="Complete open workflow tasks before reviewing broader context."
                         >
-                            <section
-                                id="section-onboarding"
-                                className="rounded-md border bg-background p-4"
-                                data-co-browse-target="client.dashboard.progress"
-                                aria-labelledby="onboarding-progress-heading"
-                            >
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div>
-                                        <h2
-                                            id="onboarding-progress-heading"
-                                            className="text-sm font-medium"
-                                        >
-                                            Onboarding progress
-                                        </h2>
-                                        <p className="mt-1 text-sm text-muted-foreground">
-                                            {progress.completed} of{' '}
-                                            {progress.total} steps complete
-                                        </p>
-                                    </div>
-                                    <Badge variant="secondary">
-                                        {progress.percentage}%
-                                    </Badge>
-                                </div>
-                                <div
-                                    className="mt-4 h-2 rounded-full bg-muted"
-                                    role="progressbar"
-                                    aria-valuenow={progress.percentage}
-                                    aria-valuemin={0}
-                                    aria-valuemax={100}
-                                    aria-label="Onboarding completion"
+                            {showOnboardingAction ? (
+                                <section
+                                    id="section-onboarding"
+                                    className="rounded-md border bg-background p-4"
+                                    data-co-browse-target="client.dashboard.progress"
+                                    aria-labelledby="onboarding-progress-heading"
                                 >
-                                    <div
-                                        className="h-2 rounded-full bg-[var(--fs-admiralty)]"
-                                        style={{
-                                            width: `${progress.percentage}%`,
-                                        }}
-                                    />
-                                </div>
-                            </section>
-
-                            <section
-                                id="section-wellbeing"
-                                className="rounded-md border bg-background p-4"
-                                aria-labelledby="wellbeing-heading"
-                            >
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div className="flex items-start gap-3">
-                                        <HeartPulse
-                                            className="mt-0.5 size-4 text-muted-foreground"
-                                            aria-hidden="true"
-                                        />
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                         <div>
                                             <h2
-                                                id="wellbeing-heading"
+                                                id="onboarding-progress-heading"
                                                 className="text-sm font-medium"
                                             >
-                                                Wellbeing check-in
+                                                Onboarding progress
                                             </h2>
                                             <p className="mt-1 text-sm text-muted-foreground">
-                                                {wellbeing.prompt_due
-                                                    ? 'Optional monthly pulse available.'
-                                                    : `Shared ${formatDate(wellbeing.submitted_at)}.`}
+                                                {progress.completed} of{' '}
+                                                {progress.total} steps complete
                                             </p>
                                         </div>
+                                        <Badge variant="secondary">
+                                            {progress.percentage}%
+                                        </Badge>
                                     </div>
-                                    <Button asChild variant="outline" size="sm">
-                                        <Link href={wellbeing.url}>
-                                            {wellbeing.prompt_due
-                                                ? 'Open pulse'
-                                                : 'View pulse'}
-                                        </Link>
-                                    </Button>
-                                </div>
-                            </section>
+                                    <div
+                                        className="mt-4 h-2 rounded-full bg-muted"
+                                        role="progressbar"
+                                        aria-valuenow={progress.percentage}
+                                        aria-valuemin={0}
+                                        aria-valuemax={100}
+                                        aria-label="Onboarding completion"
+                                    >
+                                        <div
+                                            className="h-2 rounded-full bg-[var(--fs-admiralty)]"
+                                            style={{
+                                                width: `${progress.percentage}%`,
+                                            }}
+                                        />
+                                    </div>
+                                </section>
+                            ) : null}
+
+                            {showWellbeingAction ? (
+                                <section
+                                    id="section-wellbeing"
+                                    className="rounded-md border bg-background p-4"
+                                    aria-labelledby="wellbeing-heading"
+                                >
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div className="flex items-start gap-3">
+                                            <HeartPulse
+                                                className="mt-0.5 size-4 text-muted-foreground"
+                                                aria-hidden="true"
+                                            />
+                                            <div>
+                                                <h2
+                                                    id="wellbeing-heading"
+                                                    className="text-sm font-medium"
+                                                >
+                                                    Wellbeing check-in
+                                                </h2>
+                                                <p className="mt-1 text-sm text-muted-foreground">
+                                                    Optional monthly pulse
+                                                    available.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <Button
+                                            asChild
+                                            variant="outline"
+                                            size="sm"
+                                        >
+                                            <Link href={wellbeing.url}>
+                                                Open pulse
+                                            </Link>
+                                        </Button>
+                                    </div>
+                                </section>
+                            ) : null}
 
                             <ProposalSignoffPanel proposals={proposals} />
 
@@ -2111,6 +2176,31 @@ function DashboardTabButton({
     );
 }
 
+function NoPriorityActions({ messagesUrl }: { messagesUrl: string }) {
+    return (
+        <section className="rounded-md border bg-background p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h3 className="text-sm font-medium">
+                        No client action needed
+                    </h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        This workspace has no open task for you right now. FSA
+                        will surface the next request here when your input is
+                        needed.
+                    </p>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                    <Link href={messagesUrl}>
+                        <MessageSquare className="size-4" aria-hidden="true" />
+                        Messages
+                    </Link>
+                </Button>
+            </div>
+        </section>
+    );
+}
+
 function initialPortalDashboardTab(): PortalDashboardTab {
     if (
         typeof window !== 'undefined' &&
@@ -2126,15 +2216,8 @@ function initialPortalDashboardTab(): PortalDashboardTab {
     return 'actions';
 }
 
-function ServiceJourneyPanel({
-    journey,
-    services,
-}: {
-    journey: ServiceJourneyPayload;
-    services: ServiceActivationsPayload;
-}) {
+function ServiceJourneyPanel({ journey }: { journey: ServiceJourneyPayload }) {
     const primary = journey.primary;
-    const closedStatuses = new Set(['cancelled', 'closed', 'rejected']);
 
     return (
         <section
@@ -2240,89 +2323,6 @@ function ServiceJourneyPanel({
                         detail={metric.detail}
                     />
                 ))}
-            </div>
-
-            <div className="space-y-3">
-                <div>
-                    <h3 className="text-sm font-medium">FSA services</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Service pathways available in this portal and through
-                        FSA advisor confirmation.
-                    </p>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    {services.options.map((option) => {
-                        const current = services.items.find(
-                            (item) =>
-                                item.service_type === option.service_type &&
-                                !closedStatuses.has(item.status),
-                        );
-                        const href =
-                            current?.workspace_url ??
-                            current?.url ??
-                            option.start_url ??
-                            journey.message_url;
-                        const actionLabel = current
-                            ? 'Open'
-                            : option.start_url
-                              ? 'Start'
-                              : 'Message FSA';
-
-                        return (
-                            <article
-                                key={option.service_type}
-                                className="flex min-h-48 flex-col justify-between rounded-md border p-3"
-                            >
-                                <div className="space-y-3">
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div className="flex items-center gap-2">
-                                            <ServiceIcon
-                                                serviceType={
-                                                    option.service_type
-                                                }
-                                                className="size-4 text-muted-foreground"
-                                            />
-                                            <h4 className="text-sm font-medium">
-                                                {option.label}
-                                            </h4>
-                                        </div>
-                                        <Badge
-                                            variant={
-                                                current || option.available
-                                                    ? 'secondary'
-                                                    : 'outline'
-                                            }
-                                        >
-                                            {current
-                                                ? current.status_label
-                                                : option.availability_label}
-                                        </Badge>
-                                    </div>
-                                    <p className="text-xs leading-relaxed text-muted-foreground">
-                                        {option.description}
-                                    </p>
-                                    {option.unavailable_reason && !current ? (
-                                        <p className="text-xs text-muted-foreground">
-                                            {option.unavailable_reason}
-                                        </p>
-                                    ) : null}
-                                </div>
-                                <Button
-                                    asChild
-                                    size="sm"
-                                    variant={
-                                        current || option.start_url
-                                            ? 'default'
-                                            : 'outline'
-                                    }
-                                    className="mt-4 self-start"
-                                >
-                                    <Link href={href}>{actionLabel}</Link>
-                                </Button>
-                            </article>
-                        );
-                    })}
-                </div>
             </div>
         </section>
     );
@@ -2444,6 +2444,12 @@ function serviceIconFor(
     }
 
     return Target;
+}
+
+function isActionableActivation(
+    activation: ServiceActivationsPayload['items'][number],
+) {
+    return ['requested', 'package_selected'].includes(activation.status);
 }
 
 function NpoStat({
@@ -2830,6 +2836,9 @@ function StrategicPlanProgressPanel({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="outline">
+                        {strategicPlan.duration_label}
+                    </Badge>
+                    <Badge variant="outline">
                         {strategicPlan.completed_milestones}/
                         {strategicPlan.total_milestones} complete
                     </Badge>
@@ -3171,6 +3180,10 @@ function ProposalSignoffPanel({ proposals }: { proposals: ProposalPayload[] }) {
                                     {formatCurrency(
                                         proposal.suggested_mid ?? 0,
                                     )}
+                                    {' / '}
+                                    {proposal.strategic_plan_duration_label}{' '}
+                                    strategic plan /{' '}
+                                    {proposal.strategic_plan_complexity_label}
                                 </div>
                                 <p className="max-w-3xl text-sm leading-5 text-muted-foreground">
                                     {proposal.brief}

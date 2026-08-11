@@ -1069,7 +1069,8 @@ final class StaffDashboardController extends Controller
                     'action_label' => 'Generate strategic plan',
                     'sort_at' => $proposal->signed_at?->toIso8601String() ?? $proposal->updated_at?->toIso8601String() ?? '',
                 ];
-            });
+            })
+            ->toBase();
         $deploymentItems = (clone $deploymentQuery)
             ->latest('generated_at')
             ->latest()
@@ -1094,7 +1095,8 @@ final class StaffDashboardController extends Controller
                 'action_url' => null,
                 'action_label' => 'Open strategic plan',
                 'sort_at' => $plan->generated_at?->toIso8601String() ?? $plan->updated_at?->toIso8601String() ?? '',
-            ]);
+            ])
+            ->toBase();
 
         return [
             'summary' => [

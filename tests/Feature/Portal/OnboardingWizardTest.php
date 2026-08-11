@@ -48,7 +48,7 @@ final class OnboardingWizardTest extends TestCase
             );
     }
 
-    public function test_portal_dashboard_exposes_service_journey_and_full_fsa_catalogue(): void
+    public function test_portal_dashboard_exposes_workspace_scoped_journey_and_service_catalogue_payload(): void
     {
         $this->seed(RoleSeeder::class);
         [$user, $client] = $this->clientUserWithClient(EngagementType::STANDARD_ADVISORY);
@@ -86,6 +86,40 @@ final class OnboardingWizardTest extends TestCase
                 ->where('serviceActivations.options.4.service_type', EngagementType::NPO->value)
                 ->where('serviceActivations.options.5.service_type', ServiceActivation::SERVICE_INTEGRATION_SCOPING)
             );
+    }
+
+    public function test_portal_dashboard_keeps_original_workspace_journey_when_additional_service_is_active(): void
+    {
+        $this->seed(RoleSeeder::class);
+        [$user, $client] = $this->clientUserWithClient(EngagementType::STANDARD_ADVISORY);
+
+        ServiceActivation::query()->create([
+            'client_id' => $client->getKey(),
+            'requested_by_user_id' => $user->getKey(),
+            'service_type' => ServiceActivation::SERVICE_INTEGRATION_SCOPING,
+            'client_label' => 'Systems integration scoping',
+            'status' => ServiceActivation::STATUS_ACTIVE,
+            'intake' => [
+                'system' => 'Xero and workflow integration',
+            ],
+            'selected_package_snapshot' => [
+                'client_label' => 'Integration scoping',
+                'fixed_fee' => 1650,
+                'currency' => 'NZD',
+            ],
+        ]);
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('portal/Dashboard')
+                ->where('serviceJourney.primary.service_label', 'Standard Advisory')
+                ->where('serviceJourney.primary.service_type', EngagementType::STANDARD_ADVISORY->value)
+                ->where('workspaces.active_key', 'standard_advisory')
+                ->where('workspaces.items.0.key', 'standard_advisory')
+                ->where('workspaces.items.1.key', ServiceActivation::SERVICE_INTEGRATION_SCOPING)
+                ->where('workspaces.items.1.label', 'Integration scoping'));
     }
 
     public function test_wizard_step_order_is_enforced_server_side(): void

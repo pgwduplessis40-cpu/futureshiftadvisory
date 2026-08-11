@@ -12,6 +12,7 @@ use App\Models\StrategicPlanMilestone;
 use App\Models\User;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Reports\BrandedReportLayout;
+use App\Services\StrategicPlans\StrategicPlanDurationPolicy;
 use App\Services\StrategicPlans\StrategicPlanService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,6 +28,7 @@ final class StrategicPlanController extends Controller
         private readonly StrategicPlanService $plans,
         private readonly PdfRenderer $pdf,
         private readonly BrandedReportLayout $layout,
+        private readonly StrategicPlanDurationPolicy $durations,
     ) {}
 
     public function generate(Request $request, Proposal $proposal): RedirectResponse
@@ -67,7 +69,7 @@ final class StrategicPlanController extends Controller
             'milestones.*.title' => ['nullable', 'string', 'max:180'],
             'milestones.*.description' => ['nullable', 'string', 'max:1000'],
             'milestones.*.owner' => ['nullable', 'string', Rule::in(['client', 'advisor', 'joint'])],
-            'milestones.*.due_offset_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+            'milestones.*.due_offset_days' => ['nullable', 'integer', 'min:1', 'max:1098'],
             'milestones.*.status' => ['nullable', 'string', Rule::in(['pending', 'in_progress', 'completed', 'blocked'])],
             'milestones.*.progress_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'milestones.*.advisor_notes' => ['nullable', 'string', 'max:2000'],
@@ -141,6 +143,9 @@ final class StrategicPlanController extends Controller
         $proposal = $plan->proposal?->version ? 'Proposal v'.$plan->proposal->version : 'Accepted proposal';
         $budgetScore = data_get($plan->strategicBudget?->confidence, 'score');
         $budget = is_numeric($budgetScore) ? ((string) ((int) $budgetScore)).'/100' : '-';
+        $durationMonths = max(StrategicPlanDurationPolicy::MIN_MONTHS, (int) ($plan->duration_months ?: StrategicPlanDurationPolicy::MIN_MONTHS));
+        $durationLabel = $this->durations->labelForMonths($durationMonths);
+        $complexityLabel = $this->durations->complexityLabel((string) ($plan->complexity_band ?: StrategicPlanDurationPolicy::BAND_STANDARD));
         $summary = $this->richText((string) ($plan->summary ?? ''));
         $sections = $this->sectionsHtml($plan);
         $milestones = $this->milestonesHtml($plan);
@@ -186,13 +191,15 @@ HTML;
                 'Status' => $status,
                 'Generated' => $generated,
                 'Deployed' => $deployed,
+                'Duration' => $durationLabel,
+                'Complexity' => $complexityLabel,
                 'Proposal' => $proposal,
                 'Budget readiness' => $budget,
             ],
             contentHtml: $contentHtml,
             footer: 'Generated using the strategic plan draft in Future Shift Advisory',
             snapshotTitle: 'Plan snapshot',
-            metaColumns: 5,
+            metaColumns: 6,
             extraCss: $this->planPdfCss(),
         );
     }

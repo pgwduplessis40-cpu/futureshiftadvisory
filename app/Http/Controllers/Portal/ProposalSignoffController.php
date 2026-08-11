@@ -22,6 +22,7 @@ use App\Services\Proposals\ProposalBrief;
 use App\Services\Proposals\ProposalBuilder;
 use App\Services\Proposals\SignoffFlow;
 use App\Services\Security\MfaChallenger;
+use App\Services\StrategicPlans\StrategicPlanDurationPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,6 +41,7 @@ final class ProposalSignoffController extends Controller
     public function __construct(
         private readonly ProposalBrief $proposalBriefs,
         private readonly ProposalPricingTerms $pricing,
+        private readonly StrategicPlanDurationPolicy $durations,
     ) {}
 
     public function show(
@@ -286,7 +288,8 @@ final class ProposalSignoffController extends Controller
     private function paymentTermsPayload(Proposal $proposal): array
     {
         $gst = app(GstCalculator::class);
-        $termMonths = $this->proposalTermMonths($proposal);
+        $duration = $this->durations->forProposal($proposal);
+        $termMonths = $duration['months'];
         $monthlyAmount = $this->pricing->monthlyAmount($proposal, $termMonths);
         $totalAmount = $this->pricing->totalAmount($proposal, $termMonths);
 
@@ -295,6 +298,11 @@ final class ProposalSignoffController extends Controller
             'cadence' => 'monthly',
             'cadence_label' => 'Monthly',
             'term_months' => $termMonths,
+            'strategic_plan_duration_months' => $termMonths,
+            'strategic_plan_duration_label' => $duration['label'],
+            'strategic_plan_complexity_band' => $duration['complexity_band'],
+            'strategic_plan_complexity_label' => $duration['complexity_label'],
+            'strategic_plan_duration_rationale' => $duration['rationale'],
             'monthly_amount' => $monthlyAmount,
             'monthly_amount_including_gst' => round((float) $gst->grossFromExclusive($monthlyAmount), 2),
             'total_amount' => is_numeric($totalAmount) ? round((float) $totalAmount, 2) : null,
@@ -304,16 +312,6 @@ final class ProposalSignoffController extends Controller
             'cancellation_notice_days' => $this->positiveInteger(data_get($proposal->acceptance_terms, 'cancellation_notice_days')),
             'payment_required' => $this->pricing->requiresPayment($proposal),
         ];
-    }
-
-    private function proposalTermMonths(Proposal $proposal): int
-    {
-        $months = data_get($proposal->scope, 'term_months')
-            ?? data_get($proposal->acceptance_terms, 'term_months')
-            ?? data_get($proposal->feeCalculation?->justification, 'retainer.months')
-            ?? data_get($proposal->feeCalculation?->justification, 'retainer_months');
-
-        return max(1, (int) (is_numeric($months) ? $months : 6));
     }
 
     private function positiveInteger(mixed $value): ?int

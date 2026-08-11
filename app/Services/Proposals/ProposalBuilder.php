@@ -24,6 +24,7 @@ use App\Services\Integrations\IntegrationScopeProposalGuard;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Reports\UploadedReportTemplateRenderer;
+use App\Services\StrategicPlans\StrategicPlanDurationPolicy;
 use App\Support\Reports\SourceReferenceLabeler;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -43,6 +44,7 @@ final class ProposalBuilder
         private readonly UploadedReportTemplateRenderer $uploadedTemplates,
         private readonly IntegrationScopeProposalGuard $integrationScopeGuard,
         private readonly ProposalPricingTerms $pricing,
+        private readonly StrategicPlanDurationPolicy $durations,
     ) {}
 
     /**
@@ -346,6 +348,7 @@ final class ProposalBuilder
             };
         }
 
+        $scope = $this->durations->applyToScope($feeCalculation, $scope);
         $payload = [
             'summary' => $summary,
             'included' => array_values($included),
@@ -353,7 +356,11 @@ final class ProposalBuilder
         ];
 
         if (isset($scope['term_months']) && is_numeric($scope['term_months'])) {
-            $payload['term_months'] = max(1, (int) $scope['term_months']);
+            $payload['term_months'] = max(StrategicPlanDurationPolicy::MIN_MONTHS, (int) $scope['term_months']);
+        }
+
+        if (is_array($scope['strategic_plan_duration'] ?? null)) {
+            $payload['strategic_plan_duration'] = $scope['strategic_plan_duration'];
         }
 
         if (is_array($scope['budget'] ?? null)) {
@@ -645,11 +652,14 @@ final class ProposalBuilder
      */
     private function acceptanceTerms(FeeCalculation $feeCalculation): array
     {
+        $duration = $this->durations->forFeeCalculation($feeCalculation);
         $terms = [
             'phase' => 'client_signoff',
             'client_acceptance_section_present' => true,
             'payment_authority_capture_enabled' => true,
             'digital_signature_enabled' => true,
+            'term_months' => $duration['months'],
+            'strategic_plan_duration' => $duration,
             'signoff_managed_statuses' => [
                 ProposalStatus::AwaitingSignature->value,
                 ProposalStatus::Signed->value,
@@ -764,6 +774,8 @@ final class ProposalBuilder
         $budgetReadiness = $this->budgetReadinessHtml($proposal);
         $integrationQuotePack = $this->integrationQuotePackHtml($proposal);
         $focusAreas = $this->proposalFocusAreasHtml($proposal);
+        $duration = $this->strategicPlanDurationHtml($proposal);
+        $scopeBoundaries = $this->scopeBoundariesHtml($proposal);
         $roiLine = $this->proposalHasPositiveFee($proposal)
             ? sprintf(
                 '<p>For every NZD 1 of advisory fee, the model shows NZD %s of potential value.</p>',
@@ -777,6 +789,8 @@ final class ProposalBuilder
 <h2>Scope</h2>
 <p>%s</p>
 </section>
+%s
+%s
 %s
 %s
 <section class="proposal-panel">
@@ -805,6 +819,8 @@ final class ProposalBuilder
 </section>
 HTML,
             $this->escape((string) data_get($proposal->scope, 'summary')),
+            $duration,
+            $scopeBoundaries,
             $integrationQuotePack,
             $focusAreas,
             $this->escape(Str::headline($proposal->feeCalculation?->method?->value ?? '')),
@@ -818,6 +834,58 @@ HTML,
             number_format((float) data_get($proposal->pv_summary, 'target_pv_range.low', data_get($proposal->pv_summary, 'target_pv', 0)), 0),
             number_format((float) data_get($proposal->pv_summary, 'target_pv_range.high', data_get($proposal->pv_summary, 'target_pv', 0)), 0),
             $consents,
+        );
+    }
+
+    private function strategicPlanDurationHtml(Proposal $proposal): string
+    {
+        $duration = $this->durations->forProposal($proposal);
+        $rationale = collect($duration['rationale'])
+            ->take(3)
+            ->map(fn (string $item): string => '<li>'.$this->escape($item).'</li>')
+            ->implode('');
+
+        return sprintf(
+            <<<'HTML'
+<section class="proposal-panel">
+<h2>Strategic plan duration</h2>
+<p>%s strategic plan. Complexity: %s. The proposal fee and monthly payment terms are linked to this duration.</p>
+%s
+</section>
+HTML,
+            $this->escape($duration['label']),
+            $this->escape($duration['complexity_label']),
+            $rationale !== '' ? '<ul>'.$rationale.'</ul>' : '',
+        );
+    }
+
+    private function scopeBoundariesHtml(Proposal $proposal): string
+    {
+        $included = collect((array) data_get($proposal->scope, 'included', []))
+            ->filter(fn (mixed $item): bool => is_scalar($item) && trim((string) $item) !== '')
+            ->take(5)
+            ->map(fn (mixed $item): string => '<li>'.$this->escape((string) $item).'</li>')
+            ->implode('');
+        $excluded = collect((array) data_get($proposal->scope, 'excluded', []))
+            ->filter(fn (mixed $item): bool => is_scalar($item) && trim((string) $item) !== '')
+            ->take(5)
+            ->map(fn (mixed $item): string => '<li>'.$this->escape((string) $item).'</li>')
+            ->implode('');
+
+        if ($included === '' && $excluded === '') {
+            return '';
+        }
+
+        return sprintf(
+            <<<'HTML'
+<section class="proposal-panel">
+<h2>Scope boundaries</h2>
+%s
+%s
+</section>
+HTML,
+            $included !== '' ? '<h3>Included</h3><ul>'.$included.'</ul>' : '',
+            $excluded !== '' ? '<h3>Not included</h3><ul>'.$excluded.'</ul>' : '',
         );
     }
 
@@ -944,6 +1012,7 @@ HTML,
         $proposalDate = $this->proposalDate($proposal);
         $feeMid = $this->pricing->payableMid($proposal);
         $createdBy = $proposal->createdBy?->name ?: 'Future Shift Advisory';
+        $duration = $this->durations->forProposal($proposal);
         $roiSnapshot = $this->proposalHasPositiveFee($proposal)
             ? sprintf('<div><dt>Modelled fee return</dt><dd>NZD %s per NZD 1 fee</dd></div>', number_format($proposal->roi_ratio, 2))
             : '';
@@ -980,6 +1049,7 @@ HTML,
 <div><dt>Generated</dt><dd>%s</dd></div>
 <div><dt>Prepared by</dt><dd>%s</dd></div>
 <div><dt>Fee</dt><dd>%s</dd></div>
+<div><dt>Strategic plan</dt><dd>%s (%s)</dd></div>
 %s
 </dl>
 </section>
@@ -996,6 +1066,8 @@ HTML,
             $this->escape($proposalDate),
             $this->escape($createdBy),
             $this->money($feeMid),
+            $this->escape($duration['label']),
+            $this->escape($duration['complexity_label']),
             $roiSnapshot,
             $sections,
         );
@@ -1021,7 +1093,8 @@ HTML,
         $primaryContact = $proposal->client?->primaryContact?->name ?: $clientName;
         $createdBy = $proposal->createdBy?->name ?: 'Future Shift Advisory';
         $feeCalculation = $proposal->feeCalculation;
-        $termMonths = $this->proposalTermMonths($proposal);
+        $duration = $this->durations->forProposal($proposal);
+        $termMonths = $duration['months'];
         $monthlyInvestment = $this->proposalMonthlyInvestment($proposal, $termMonths);
         $improvementPv = $this->proposalImprovementPv($proposal);
         $expiryDate = $proposal->expires_at?->format('j M Y') ?? 'Not released';
@@ -1064,6 +1137,10 @@ HTML,
             '{{monthly_investment_plain}}' => number_format($monthlyInvestment, 0),
             '{{ engagement_months }}' => (string) $termMonths,
             '{{engagement_months}}' => (string) $termMonths,
+            '{{ strategic_plan_duration }}' => $this->escape($duration['label']),
+            '{{strategic_plan_duration}}' => $this->escape($duration['label']),
+            '{{ strategic_plan_complexity }}' => $this->escape($duration['complexity_label']),
+            '{{strategic_plan_complexity}}' => $this->escape($duration['complexity_label']),
             '{{ roi_ratio }}' => $this->proposalHasPositiveFee($proposal) ? number_format($proposal->roi_ratio, 2) : 'not applicable',
             '{{roi_ratio}}' => $this->proposalHasPositiveFee($proposal) ? number_format($proposal->roi_ratio, 2) : 'not applicable',
             '{{ improvement_pv_total }}' => $this->money($improvementPv),
@@ -1136,12 +1213,7 @@ HTML,
 
     private function proposalTermMonths(Proposal $proposal): int
     {
-        $months = data_get($proposal->scope, 'term_months')
-            ?? data_get($proposal->acceptance_terms, 'term_months')
-            ?? data_get($proposal->feeCalculation?->justification, 'retainer.months')
-            ?? data_get($proposal->feeCalculation?->justification, 'retainer_months');
-
-        return max(1, (int) (is_numeric($months) ? $months : 6));
+        return $this->durations->termMonthsForProposal($proposal);
     }
 
     private function proposalMonthlyInvestment(Proposal $proposal, int $termMonths): float
@@ -1237,6 +1309,7 @@ body { background: {$paper}; color: {$ink}; font-family: Arial, sans-serif; font
 .proposal-snapshot dd { margin: 0; overflow-wrap: anywhere; }
 .proposal-panel { background: #fff; border: 1px solid #ded6c7; border-left: 4px solid {$accent}; break-inside: avoid; margin-bottom: 14px; padding: 13px 15px; }
 .proposal-panel h2 { color: {$accentDark}; font-size: 14px; margin: 0 0 7px; }
+.proposal-panel h3 { color: {$accentDark}; font-size: 11px; margin: 8px 0 4px; }
 .proposal-panel p { margin: 0 0 6px; }
 .proposal-panel ul { margin: 0; padding-left: 18px; }
 .proposal-panel li { margin: 0 0 4px; }

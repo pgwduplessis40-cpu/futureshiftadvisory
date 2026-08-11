@@ -577,6 +577,13 @@ final class ProposalBuilderTest extends TestCase
 
         $plan = app(StrategicPlanService::class)->generateForProposal($proposal->refresh(), $advisor);
 
+        $this->assertSame(24, $plan->duration_months);
+        $this->assertSame('complex', $plan->complexity_band);
+        $this->assertTrue(
+            $plan->milestones->contains(fn (StrategicPlanMilestone $milestone): bool => (int) $milestone->due_offset_days >= 730),
+            'Complex strategic plans should include a full-horizon milestone beyond 12 months.',
+        );
+
         $actionPriorities = (string) data_get(
             collect($plan->sections)->firstWhere('key', 'priorities'),
             'body',
@@ -681,7 +688,7 @@ final class ProposalBuilderTest extends TestCase
         $this->assertStringContainsString('Proposal Client Limited', $this->renderer->html);
         $this->assertStringContainsString('Template-driven proposal scope.', $this->renderer->html);
         $this->assertStringContainsString('Validity period starts on release', $this->renderer->html);
-        $this->assertStringContainsString('$2,500 per month - 6-month engagement', $this->renderer->html);
+        $this->assertStringContainsString('$1,250 per month - 12-month engagement', $this->renderer->html);
         $this->assertStringContainsString('Estimated ROI: 4.20x return', $this->renderer->html);
         $this->assertStringContainsString('PV of $63,000', $this->renderer->html);
         $this->assertStringContainsString('proposal-generated-page', $this->renderer->html);

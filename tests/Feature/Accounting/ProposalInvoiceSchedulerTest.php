@@ -74,10 +74,16 @@ final class ProposalInvoiceSchedulerTest extends TestCase
 
         $this->assertInstanceOf(AccountingInvoiceBatch::class, $batch);
         $this->assertSame(AccountingInvoiceBatch::STATUS_CREATED, $batch->refresh()->status);
+        $this->assertSame(12, $batch->term_months);
+        $this->assertSame('1000.00', (string) $batch->monthly_amount);
         $this->assertSame($clientCode, $client->refresh()->billing_code);
+        $this->assertSame(12, AccountingInvoice::query()->where('proposal_id', $proposal->getKey())->count());
 
         /** @var AccountingInvoice $invoice */
-        $invoice = AccountingInvoice::query()->where('proposal_id', $proposal->getKey())->sole();
+        $invoice = AccountingInvoice::query()
+            ->where('proposal_id', $proposal->getKey())
+            ->orderBy('sequence')
+            ->firstOrFail();
         $this->assertStringStartsWith($clientCode.' Proposal v1', (string) data_get($invoice->payload, 'Reference'));
 
         Http::assertSent(function (Request $request) use ($billingCodes, $client): bool {

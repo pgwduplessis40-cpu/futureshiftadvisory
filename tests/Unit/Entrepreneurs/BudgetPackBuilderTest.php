@@ -64,6 +64,11 @@ final class BudgetPackBuilderTest extends TestCase
 
         $html = app(BudgetPackBuilder::class)->html($profile, $plan);
 
+        $this->assertStringContainsString('Funding decision view', $html);
+        $this->assertStringContainsString('Use of funds', $html);
+        $this->assertStringContainsString('Assumption quality', $html);
+        $this->assertStringContainsString('Scenario comparison', $html);
+        $this->assertStringContainsString('Appendix - Year 1 monthly detail', $html);
         $this->assertStringContainsString('<svg role="img" aria-label="Budget cash curve"', $html);
         $this->assertStringContainsString('Cash -- teal', $html);
         $this->assertStringContainsString('Revenue -- gold', $html);
@@ -119,7 +124,10 @@ final class BudgetPackBuilderTest extends TestCase
 
         $this->assertStringStartsWith('%PDF-1.4', $pdf);
         $this->assertStringContainsString('Budget Pack - Budget Founder', $pdf);
-        $this->assertStringContainsString('Headline finance view', $pdf);
+        $this->assertStringContainsString('Funding decision view', $pdf);
+        $this->assertStringContainsString('Use of funds', $pdf);
+        $this->assertStringContainsString('Assumption quality', $pdf);
+        $this->assertStringContainsString('Scenario comparison', $pdf);
         $this->assertStringContainsString('Cash and revenue trend', $pdf);
         $this->assertStringContainsString('Annual forecast profile', $pdf);
     }
