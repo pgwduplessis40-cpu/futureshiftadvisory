@@ -5161,7 +5161,9 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                                             proposal.suggested_mid ?? 0,
                                         )}{' '}
                                         mid fee ex GST /{' '}
-                                        {proposal.strategic_plan_complexity_label}
+                                        {
+                                            proposal.strategic_plan_complexity_label
+                                        }
                                     </div>
                                     <p className="max-w-3xl text-sm leading-5 text-muted-foreground">
                                         {proposal.brief}

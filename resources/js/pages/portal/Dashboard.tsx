@@ -3181,7 +3181,9 @@ function ProposalSignoffPanel({ proposals }: { proposals: ProposalPayload[] }) {
                                         proposal.suggested_mid ?? 0,
                                     )}
                                     {' / '}
-                                    {proposal.strategic_plan_duration_label}{' '}
+                                    {
+                                        proposal.strategic_plan_duration_label
+                                    }{' '}
                                     strategic plan /{' '}
                                     {proposal.strategic_plan_complexity_label}
                                 </div>
