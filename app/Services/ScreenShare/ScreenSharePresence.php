@@ -44,7 +44,7 @@ final class ScreenSharePresence
             ->where('client_id', $client->getKey())
             ->where('user_id', $clientUser->getKey())
             ->where('participant_type', ScreenShareConnection::TYPE_CLIENT)
-            ->where('expires_at', '>', now())
+            ->where('expires_at', '>', now()->subSeconds($this->presenceGraceSeconds()))
             ->get());
     }
 
@@ -79,12 +79,12 @@ final class ScreenSharePresence
             $connection = ScreenShareConnection::query()
                 ->whereKey($connectionId)
                 ->where('user_id', $user->getKey())
-                ->where('expires_at', '>', now())
                 ->first();
 
             abort_unless($connection instanceof ScreenShareConnection, 403);
             abort_unless($participantType === null || $connection->participant_type === $participantType, 403);
             abort_unless(hash_equals($connection->secret_hash, hash('sha256', $secret)), 403);
+            abort_unless($this->connectionIsUsable($connection), 403);
 
             return $connection;
         });
@@ -130,5 +130,20 @@ final class ScreenSharePresence
     private function ttlSeconds(): int
     {
         return max(120, (int) config('screen-share.presence_ttl_seconds', 120));
+    }
+
+    private function presenceGraceSeconds(): int
+    {
+        $heartbeat = max(5, (int) config('screen-share.heartbeat_interval_seconds', 10));
+        $reconnect = max(5, (int) config('screen-share.reconnect_grace_seconds', 15));
+
+        return min(180, max(30, $heartbeat * 2, $reconnect));
+    }
+
+    private function connectionIsUsable(ScreenShareConnection $connection): bool
+    {
+        return $connection->expires_at?->greaterThan(
+            now()->subSeconds($this->presenceGraceSeconds()),
+        ) === true;
     }
 }

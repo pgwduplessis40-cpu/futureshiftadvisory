@@ -575,7 +575,10 @@ final class SimpleTextPdf
         $kicker = (string) ($block['kicker'] ?? '');
         $body = (string) ($block['body'] ?? '');
         $note = (string) ($block['note'] ?? '');
-        $points = array_values(array_filter(array_map('strval', (array) ($block['key_points'] ?? []))));
+        $points = array_values(array_filter(
+            array_map('strval', (array) ($block['key_points'] ?? [])),
+            fn (string $point): bool => $this->hasReadableText($point),
+        ));
 
         $this->ensureSpace(
             $pages,
@@ -1267,6 +1270,13 @@ final class SimpleTextPdf
         $ascii = Str::ascii($text);
 
         return preg_replace('/[^\x09\x0A\x0D\x20-\x7E]/', '', $ascii) ?? '';
+    }
+
+    private function hasReadableText(string $text): bool
+    {
+        $text = $this->normalise($text);
+
+        return preg_match('/[A-Za-z0-9]/', $text) === 1;
     }
 
     private function truncate(string $text, int $characters): string

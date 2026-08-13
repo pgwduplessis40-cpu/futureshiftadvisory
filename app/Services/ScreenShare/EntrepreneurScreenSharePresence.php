@@ -65,7 +65,7 @@ final class EntrepreneurScreenSharePresence
             ->where('entrepreneur_profile_id', $profile->getKey())
             ->where('user_id', $entrepreneur->getKey())
             ->where('participant_type', ScreenShareConnection::TYPE_CLIENT)
-            ->where('expires_at', '>', now())
+            ->where('expires_at', '>', now()->subSeconds($this->presenceGraceSeconds()))
             ->get());
     }
 
@@ -109,5 +109,13 @@ final class EntrepreneurScreenSharePresence
     private function ttlSeconds(): int
     {
         return max(120, (int) config('screen-share.presence_ttl_seconds', 120));
+    }
+
+    private function presenceGraceSeconds(): int
+    {
+        $heartbeat = max(5, (int) config('screen-share.heartbeat_interval_seconds', 10));
+        $reconnect = max(5, (int) config('screen-share.reconnect_grace_seconds', 15));
+
+        return min(180, max(30, $heartbeat * 2, $reconnect));
     }
 }

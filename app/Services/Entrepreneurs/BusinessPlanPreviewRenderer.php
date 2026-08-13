@@ -300,8 +300,8 @@ final class BusinessPlanPreviewRenderer
             })
             ->implode('');
         $summary = $missing === []
-            ? 'The plan has no outstanding requirement gaps recorded in the workspace.'
-            : 'The plan still has '.count($missing).' open requirement'.(count($missing) === 1 ? '' : 's').' before it should be issued externally.';
+            ? 'This plan summarises the founder\'s current business model, market evidence, operating approach, strategy, and financial assumptions for review.'
+            : 'This draft summarises the founder\'s current plan and flags '.count($missing).' open requirement'.(count($missing) === 1 ? '' : 's').' before external issue.';
 
         return sprintf(
             <<<'HTML'
@@ -400,11 +400,6 @@ HTML,
         foreach ($sections as $index => $section) {
             $blocks[] = ['type' => 'page_break'];
             $blocks[] = ['type' => 'section', 'text' => str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT).' '.$section['title']];
-            $blocks[] = [
-                'type' => 'callout',
-                'title' => 'Section readout',
-                'text' => $section['title'].' includes '.count($section['entries']).' completed response'.(count($section['entries']) === 1 ? '' : 's').' from the business-plan workspace. Key points are pulled forward for quick review, with the founder detail retained below.',
-            ];
 
             foreach ($section['entries'] as $entry) {
                 $blocks[] = [
@@ -413,7 +408,9 @@ HTML,
                     'title' => $entry['title'],
                     'key_points' => $this->keyPoints($entry['body']),
                     'body' => $this->markdownPlainText($entry['body']),
-                    'note' => 'Evidence: '.$entry['evidence_count'].' supporting document'.($entry['evidence_count'] === 1 ? '' : 's').' referenced.',
+                    'note' => $entry['evidence_count'] > 0
+                        ? 'Evidence: '.$entry['evidence_count'].' supporting document'.($entry['evidence_count'] === 1 ? '' : 's').' referenced.'
+                        : 'Evidence: no supporting documents are attached to this response.',
                 ];
             }
         }
@@ -434,7 +431,7 @@ HTML,
 
     private function fallbackSummary(int $responses, int $sections, int $missing): string
     {
-        $summary = 'This business plan has been reorganised for review rather than exported as raw workspace text. ';
+        $summary = 'This business plan summarises the founder\'s current model, market evidence, strategy, operations, and financial assumptions for advisor review. ';
         $summary .= 'It contains '.$responses.' completed response'.($responses === 1 ? '' : 's').' across '.$sections.' plan section'.($sections === 1 ? '' : 's').'. ';
 
         return $summary.($missing === 0
@@ -451,8 +448,8 @@ HTML,
         $candidates = preg_split('/(?:\R+|(?<=[.!?])\s+)/', $plain) ?: [];
 
         return collect($candidates)
-            ->map(fn (string $candidate): string => trim(preg_replace('/^[-*]\s*/', '', $candidate) ?? $candidate))
-            ->filter(fn (string $candidate): bool => strlen($candidate) >= 24)
+            ->map(fn (string $candidate): string => $this->normaliseKeyPoint($candidate))
+            ->filter(fn (string $candidate): bool => $this->isUsefulKeyPoint($candidate))
             ->map(fn (string $candidate): string => Str::limit($candidate, 190, '...'))
             ->unique()
             ->take($limit)
@@ -460,11 +457,38 @@ HTML,
             ->all();
     }
 
+    private function normaliseKeyPoint(string $candidate): string
+    {
+        $candidate = preg_replace('/^\s*(?:[-*]+|\d+[.)])\s*/', '', $candidate) ?? $candidate;
+        $candidate = preg_replace('/\s+/', ' ', $candidate) ?? $candidate;
+
+        return trim($candidate, " \t\n\r\0\x0B-.,;:!?\"'`()[]{}");
+    }
+
+    private function isUsefulKeyPoint(string $candidate): bool
+    {
+        $candidate = trim($candidate);
+
+        if (strlen($candidate) < 24 || preg_match('/^[a-z]/', $candidate) === 1) {
+            return false;
+        }
+
+        $ascii = Str::ascii($candidate);
+        $letterCount = preg_match_all('/[A-Za-z]/', $ascii) ?: 0;
+        $alnumCount = preg_match_all('/[A-Za-z0-9]/', $ascii) ?: 0;
+
+        if ($letterCount < 10 || $alnumCount < 18 || str_word_count($ascii) < 4) {
+            return false;
+        }
+
+        return preg_match('/\b(?:a|an|and|as|for|from|in|is|of|or|the|to|with)$/i', $candidate) !== 1;
+    }
+
     private function businessPlanCss(): string
     {
         return <<<'CSS'
 .report-content { display: block; }
-.reader-overview { background: #f8f5ee; border: 1px solid #ded6c7; border-left: 5px solid #b8860b; break-after: page; display: grid; gap: 18px; grid-template-columns: 1.1fr 1fr; margin-bottom: 18px; padding: 18px; }
+.reader-overview { background: #f8f5ee; border: 1px solid #ded6c7; border-left: 5px solid #b8860b; display: grid; gap: 18px; grid-template-columns: 1.1fr 1fr; margin-bottom: 18px; padding: 18px; }
 .reader-overview h2 { color: #13233a; font-size: 18px; margin: 0 0 8px; }
 .reader-overview p { margin: 0; }
 .overview-copy > p:last-child { color: #39465a; font-size: 12px; line-height: 1.6; }
@@ -485,7 +509,7 @@ HTML,
 .phase-heading p { color: #0d7a7a; font-size: 8.5px; font-weight: 700; letter-spacing: 0; margin: 0 0 4px; text-transform: uppercase; }
 .phase-heading h2 { color: #13233a; font-size: 21px; margin: 0 0 4px; }
 .phase-heading span { color: #667282; font-size: 10px; }
-.plan-subsection { background: #fff; border: 1px solid #ded6c7; border-left: 4px solid #0d7a7a; break-inside: avoid; margin: 0 0 14px; padding: 13px 15px; }
+.plan-subsection { background: #fff; border: 1px solid #ded6c7; border-left: 4px solid #0d7a7a; break-inside: auto; margin: 0 0 14px; page-break-inside: auto; padding: 13px 15px; }
 .plan-subsection header { align-items: flex-start; display: flex; gap: 12px; justify-content: space-between; margin-bottom: 9px; }
 .plan-subsection h3 { color: #13233a; font-size: 14px; line-height: 1.35; margin: 0; }
 .plan-subsection header span { background: #f8f5ee; border: 1px solid #ded6c7; color: #667282; flex: 0 0 auto; font-size: 8.5px; padding: 4px 7px; }

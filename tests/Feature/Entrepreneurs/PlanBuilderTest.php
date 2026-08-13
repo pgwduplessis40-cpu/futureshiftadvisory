@@ -233,7 +233,7 @@ final class PlanBuilderTest extends TestCase
     {
         [$advisor, $profile] = $this->profile('fallback-preview-founder@example.test');
         $this->openIdeaGate($profile, $advisor);
-        app(PlanBuilder::class)->start($profile, $advisor);
+        $plan = app(PlanBuilder::class)->start($profile, $advisor);
 
         $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
         {
@@ -243,6 +243,16 @@ final class PlanBuilderTest extends TestCase
             }
         });
 
+        app(PlanBuilder::class)->upsertSection(
+            plan: $plan,
+            phaseKey: 'foundation',
+            key: 'business-type-location',
+            title: 'Business type, location, and operating model',
+            body: 'The founder operates a Hamilton-based advisory business with online delivery, defined customer segments, clear owner responsibilities, and practical implementation support for clients.',
+            actor: $advisor,
+            metadata: ['requirement_key' => 'business-type-location'],
+        );
+
         $response = $this->actingAsMfa($profile->user()->firstOrFail())
             ->get(route('portal.entrepreneur.plan.preview'))
             ->assertOk()
@@ -250,6 +260,8 @@ final class PlanBuilderTest extends TestCase
 
         $this->assertStringStartsWith('%PDF-1.4', $response->getContent());
         $this->assertStringContainsString('Business Plan - Plan Founder', $response->getContent());
+        $this->assertStringContainsString('Business type, location, and operating model', $response->getContent());
+        $this->assertStringNotContainsString('Section readout', $response->getContent());
         $this->assertStringNotContainsString('Browser-formatted PDF generation', $response->getContent());
     }
 

@@ -496,6 +496,76 @@ final class ScreenShareSessionTest extends TestCase
             ->assertJsonPath('status', ScreenShareSession::STATUS_REQUESTED);
     }
 
+    public function test_entrepreneur_request_uses_recently_expired_presence_lease(): void
+    {
+        Event::fake([ScreenSharePrompt::class]);
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'assigned_advisor_id' => $this->advisor->getKey(),
+            'name' => 'Grace Window Entrepreneur',
+            'email' => 'grace-window-entrepreneur@example.test',
+        ]);
+
+        $presence = app(EntrepreneurScreenSharePresence::class);
+        $advisorConnection = $presence->registerAdvisor($this->advisor, $profile);
+        $token = app(ClientPortalContextTokens::class)->issueForEntrepreneur(
+            $entrepreneur,
+            $profile,
+            'portal.entrepreneur.dashboard',
+        );
+        $entrepreneurConnection = $presence->registerPortalParticipant($entrepreneur, $token);
+        $entrepreneurConnection->connection->forceFill([
+            'last_seen_at' => now()->subSeconds(125),
+            'expires_at' => now()->subSeconds(5),
+        ])->save();
+
+        $response = $this->actingAs($this->advisor)
+            ->withSession([
+                'auth.mfa_user_id' => (string) $this->advisor->getKey(),
+                'auth.mfa_confirmed_at' => now()->getTimestamp(),
+            ])
+            ->postJson(
+                route('advisor.entrepreneurs.screen-share.sessions.store', $profile),
+                [
+                    'client_user_id' => (string) $entrepreneur->getKey(),
+                    'advisor_connection_id' => (string) $advisorConnection->connection->getKey(),
+                    'advisor_connection_secret' => $advisorConnection->secret,
+                ],
+            );
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('status', ScreenShareSession::STATUS_REQUESTED);
+
+        $session = ScreenShareSession::query()->findOrFail($response->json('id'));
+        $this->assertSame(
+            (string) $entrepreneurConnection->connection->getKey(),
+            (string) data_get($session->prompted_connections, '0.connection_id'),
+        );
+
+        $this->actingAs($entrepreneur)
+            ->withSession([
+                'auth.mfa_user_id' => (string) $entrepreneur->getKey(),
+                'auth.mfa_confirmed_at' => now()->getTimestamp(),
+            ])
+            ->postJson(
+                route('screen-share.connections.pending-prompt', $entrepreneurConnection->connection),
+                ['connection_secret' => $entrepreneurConnection->secret],
+            )
+            ->assertOk()
+            ->assertJsonPath('prompt.session_id', (string) $session->getKey());
+
+        $this->assertDatabaseMissing('audit_events', [
+            'action' => 'screen_share.request_failed',
+            'subject_id' => (string) $profile->getKey(),
+        ]);
+    }
+
     public function test_entrepreneur_request_failure_is_recorded_in_the_audit_trail(): void
     {
         Event::fake([ScreenSharePrompt::class]);
