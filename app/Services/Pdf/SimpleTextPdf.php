@@ -8,6 +8,8 @@ use Illuminate\Support\Str;
 
 final class SimpleTextPdf
 {
+    public const FALLBACK_MARKER = 'FSA-SIMPLE-TEXT-PDF-FALLBACK';
+
     private const PAGE_WIDTH = 595;
 
     private const PAGE_HEIGHT = 842;
@@ -62,7 +64,7 @@ final class SimpleTextPdf
     }
 
     /**
-     * @param  array<int, array{type?:string,text?:string,items?:array<int, string>,headers?:array<int, string>,rows?:array<int, array<int, string>>,widths?:array<int, float|int>}>  $blocks
+     * @param  array<int, array<string, mixed>>  $blocks
      */
     public function renderStructured(string $title, array $blocks): string
     {
@@ -95,6 +97,43 @@ final class SimpleTextPdf
 
             if ($type === 'spacer') {
                 $this->addLine($pages, $current, $y, '', 10, 8, reportTitle: $title);
+
+                continue;
+            }
+
+            if ($type === 'page_break') {
+                $this->addPageBreak($pages, $current, $y, $title);
+
+                continue;
+            }
+
+            if ($type === 'summary_cards') {
+                $this->addSummaryCards($pages, $current, $y, (array) ($block['cards'] ?? []), $title);
+
+                continue;
+            }
+
+            if ($type === 'callout') {
+                $this->addCallout(
+                    $pages,
+                    $current,
+                    $y,
+                    (string) ($block['title'] ?? ''),
+                    (string) ($block['text'] ?? ''),
+                    $title,
+                );
+
+                continue;
+            }
+
+            if ($type === 'toc') {
+                $this->addToc($pages, $current, $y, (array) ($block['items'] ?? []), $title);
+
+                continue;
+            }
+
+            if ($type === 'entry') {
+                $this->addEntry($pages, $current, $y, $block, $title);
 
                 continue;
             }
@@ -195,7 +234,7 @@ final class SimpleTextPdf
         $objects[$boldFontObjectId] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>';
         ksort($objects);
 
-        $pdf = "%PDF-1.4\n";
+        $pdf = "%PDF-1.4\n%".self::FALLBACK_MARKER."\n";
         $offsets = [0 => 0];
 
         foreach ($objects as $id => $body) {
@@ -361,6 +400,19 @@ final class SimpleTextPdf
      * @param  array<int, array<int, array<string, mixed>>>  $pages
      * @param  array<int, array<string, mixed>>  $current
      */
+    private function addPageBreak(array &$pages, array &$current, int &$y, string $reportTitle): void
+    {
+        if ($this->pageHasVisibleContent($current)) {
+            $pages[] = $current;
+        }
+
+        $y = $this->startContinuationPage($current, $reportTitle);
+    }
+
+    /**
+     * @param  array<int, array<int, array<string, mixed>>>  $pages
+     * @param  array<int, array<string, mixed>>  $current
+     */
     private function addLine(array &$pages, array &$current, int &$y, string $text, int $size, int $leading, string $font = 'F1', int $x = self::MARGIN, array $color = [19, 35, 58], ?string $reportTitle = null): void
     {
         $this->ensureSpace($pages, $current, $y, max($leading, $size + 3), $reportTitle);
@@ -406,12 +458,211 @@ final class SimpleTextPdf
     /**
      * @param  array<int, array<int, array<string, mixed>>>  $pages
      * @param  array<int, array<string, mixed>>  $current
+     * @param  array<int, mixed>  $cards
+     */
+    private function addSummaryCards(array &$pages, array &$current, int &$y, array $cards, string $reportTitle): void
+    {
+        $cards = array_values(array_filter($cards, 'is_array'));
+
+        if ($cards === []) {
+            return;
+        }
+
+        $cardWidth = 238;
+        $cardHeight = 54;
+        $gap = 19;
+
+        for ($offset = 0; $offset < count($cards); $offset += 2) {
+            $this->ensureSpace($pages, $current, $y, $cardHeight + 12, $reportTitle);
+            $rowTop = $y + 2;
+
+            foreach (array_slice($cards, $offset, 2) as $column => $card) {
+                $x = self::MARGIN + ($column * ($cardWidth + $gap));
+                $bottom = $rowTop - $cardHeight;
+                $label = (string) ($card['label'] ?? '');
+                $value = (string) ($card['value'] ?? '');
+                $note = (string) ($card['note'] ?? '');
+
+                $this->addRect($current, $x, $bottom, $cardWidth, $cardHeight, [248, 245, 238]);
+                $this->addRect($current, $x, $bottom, 4, $cardHeight, self::ACCENT);
+                $this->addText($current, $label, $x + 12, $rowTop - 14, 7, 'F2', self::MUTED);
+                $this->addText($current, $value, $x + 12, $rowTop - 29, 12, 'F2', self::NAVY);
+
+                if ($note !== '') {
+                    $this->addText($current, $this->truncate($note, 58), $x + 12, $rowTop - 43, 7, 'F1', self::MUTED);
+                }
+            }
+
+            $y -= $cardHeight + 12;
+        }
+    }
+
+    /**
+     * @param  array<int, array<int, array<string, mixed>>>  $pages
+     * @param  array<int, array<string, mixed>>  $current
+     */
+    private function addCallout(array &$pages, array &$current, int &$y, string $heading, string $text, string $reportTitle): void
+    {
+        $heading = trim($heading);
+        $lines = $text === '' ? [] : $this->wrapForCharacters($this->normalise($text), 83);
+        $height = 30 + (count($lines) * 11);
+
+        $this->ensureSpace($pages, $current, $y, $height + 14, $reportTitle);
+
+        $top = $y + 4;
+        $bottom = $top - $height;
+        $this->addRect($current, self::MARGIN, $bottom, 495, $height, [252, 250, 244]);
+        $this->addRect($current, self::MARGIN, $bottom, 5, $height, self::GOLD);
+
+        if ($heading !== '') {
+            $this->addText($current, $heading, self::MARGIN + 15, $top - 16, 10, 'F2', self::NAVY);
+        }
+
+        $lineY = $heading === '' ? $top - 14 : $top - 30;
+        foreach ($lines as $line) {
+            $this->addText($current, $line, self::MARGIN + 15, $lineY, 8, 'F1', [25, 31, 42]);
+            $lineY -= 11;
+        }
+
+        $y = (int) floor($bottom - 12);
+    }
+
+    /**
+     * @param  array<int, array<int, array<string, mixed>>>  $pages
+     * @param  array<int, array<string, mixed>>  $current
+     * @param  array<int, mixed>  $items
+     */
+    private function addToc(array &$pages, array &$current, int &$y, array $items, string $reportTitle): void
+    {
+        $items = array_values(array_filter($items, 'is_array'));
+
+        if ($items === []) {
+            return;
+        }
+
+        $this->addSectionHeading($pages, $current, $y, 'Reader roadmap', $reportTitle);
+
+        foreach ($items as $index => $item) {
+            $this->ensureSpace($pages, $current, $y, 34, $reportTitle);
+            $rowTop = $y + 3;
+            $bottom = $rowTop - 27;
+            $number = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
+            $title = (string) ($item['title'] ?? 'Plan section');
+            $detail = (string) ($item['detail'] ?? '');
+
+            $this->addLineShape($current, self::MARGIN, $rowTop, 545, $rowTop, [238, 231, 219], 0.5);
+            $this->addText($current, $number, self::MARGIN + 2, $rowTop - 15, 9, 'F2', self::ACCENT);
+            $this->addText($current, $this->truncate($title, 42), self::MARGIN + 36, $rowTop - 10, 10, 'F2', self::NAVY);
+
+            if ($detail !== '') {
+                $this->addText($current, $this->truncate($detail, 76), self::MARGIN + 36, $rowTop - 23, 7, 'F1', self::MUTED);
+            }
+
+            $y = (int) floor($bottom - 4);
+        }
+
+        $this->addLine($pages, $current, $y, '', 10, 4, reportTitle: $reportTitle);
+    }
+
+    /**
+     * @param  array<int, array<int, array<string, mixed>>>  $pages
+     * @param  array<int, array<string, mixed>>  $current
+     * @param  array<string, mixed>  $block
+     */
+    private function addEntry(array &$pages, array &$current, int &$y, array $block, string $reportTitle): void
+    {
+        $title = (string) ($block['title'] ?? 'Plan response');
+        $kicker = (string) ($block['kicker'] ?? '');
+        $body = (string) ($block['body'] ?? '');
+        $note = (string) ($block['note'] ?? '');
+        $points = array_values(array_filter(array_map('strval', (array) ($block['key_points'] ?? []))));
+
+        $this->ensureSpace(
+            $pages,
+            $current,
+            $y,
+            min(620, max(140, $this->estimateEntrySpace($title, $points, $body, $note))),
+            $reportTitle,
+        );
+        $top = $y + 3;
+        $this->addRect($current, self::MARGIN, $top - 44, 495, 44, [248, 245, 238]);
+        $this->addRect($current, self::MARGIN, $top - 44, 5, 44, self::ACCENT);
+
+        if ($kicker !== '') {
+            $this->addText($current, $this->truncate($kicker, 66), self::MARGIN + 15, $top - 13, 7, 'F2', self::MUTED);
+        }
+
+        $y = (int) floor($top - ($kicker !== '' ? 27 : 17));
+        $this->addWrapped($pages, $current, $y, $title, 12, 14, 'F2', self::MARGIN + 15, self::NAVY, $reportTitle);
+        $y = min($y, $top - 48);
+
+        if ($points !== []) {
+            $this->addText($current, 'Key points', self::MARGIN + 15, $y, 8, 'F2', self::GOLD);
+            $y -= 14;
+            $this->addBullets($pages, $current, $y, $points, $reportTitle, self::MARGIN + 15, 72);
+        }
+
+        if (trim($body) !== '') {
+            $this->addText($current, 'Detail', self::MARGIN + 15, $y, 8, 'F2', self::MUTED);
+            $y -= 13;
+            $this->addParagraphText($pages, $current, $y, $body, $reportTitle, self::MARGIN + 15, 9, 12, [25, 31, 42]);
+        }
+
+        if ($note !== '') {
+            $this->addWrapped($pages, $current, $y, $note, 8, 10, 'F1', self::MARGIN + 15, self::MUTED, $reportTitle);
+            $this->addLine($pages, $current, $y, '', 10, 4, reportTitle: $reportTitle);
+        }
+
+        $this->addLineShape($current, self::MARGIN, $y + 4, 545, $y + 4, [238, 231, 219], 0.5);
+        $this->addLine($pages, $current, $y, '', 10, 10, reportTitle: $reportTitle);
+    }
+
+    /**
+     * @param  array<int, string>  $points
+     */
+    private function estimateEntrySpace(string $title, array $points, string $body, string $note): int
+    {
+        $height = 64 + (count($this->wrapForWidth($title, 12, self::MARGIN + 15)) * 14);
+
+        if ($points !== []) {
+            $height += 14;
+            foreach ($points as $point) {
+                $height += (count($this->wrapForCharacters($point, 72)) * 12) + 2;
+            }
+        }
+
+        if (trim($body) !== '') {
+            $height += 13;
+            foreach ($this->paragraphs($body) as $paragraph) {
+                $height += (count($this->wrapForWidth($paragraph, 9, self::MARGIN + 15)) * 12) + 5;
+            }
+        }
+
+        if ($note !== '') {
+            $height += count($this->wrapForWidth($note, 8, self::MARGIN + 15)) * 10;
+        }
+
+        return $height + 18;
+    }
+
+    /**
+     * @param  array<int, array<int, array<string, mixed>>>  $pages
+     * @param  array<int, array<string, mixed>>  $current
      */
     private function addParagraph(array &$pages, array &$current, int &$y, string $text, string $reportTitle): void
     {
+        $this->addParagraphText($pages, $current, $y, $text, $reportTitle, self::MARGIN, 10, 13, [25, 31, 42]);
+    }
+
+    /**
+     * @param  array<int, array<int, array<string, mixed>>>  $pages
+     * @param  array<int, array<string, mixed>>  $current
+     */
+    private function addParagraphText(array &$pages, array &$current, int &$y, string $text, string $reportTitle, int $x, int $size, int $leading, array $color): void
+    {
         foreach ($this->paragraphs($text) as $paragraph) {
-            $this->addWrapped($pages, $current, $y, $paragraph, 10, 13, 'F1', self::MARGIN, [25, 31, 42], $reportTitle);
-            $this->addLine($pages, $current, $y, '', 10, 5, reportTitle: $reportTitle);
+            $this->addWrapped($pages, $current, $y, $paragraph, $size, $leading, 'F1', $x, $color, $reportTitle);
+            $this->addLine($pages, $current, $y, '', $size, 5, reportTitle: $reportTitle);
         }
     }
 
@@ -420,12 +671,16 @@ final class SimpleTextPdf
      * @param  array<int, array<string, mixed>>  $current
      * @param  array<int, mixed>  $items
      */
-    private function addBullets(array &$pages, array &$current, int &$y, array $items, string $reportTitle): void
+    private function addBullets(array &$pages, array &$current, int &$y, array $items, string $reportTitle, int $x = self::MARGIN, int $characters = 90): void
     {
         foreach ($items as $item) {
             $this->ensureSpace($pages, $current, $y, 18, $reportTitle);
-            $this->addText($current, '-', self::MARGIN + 2, $y, 10, 'F2', self::GOLD);
-            $this->addWrapped($pages, $current, $y, (string) $item, 9, 12, 'F1', self::MARGIN + 14, [25, 31, 42], $reportTitle);
+            $this->addText($current, '-', $x + 2, $y, 10, 'F2', self::GOLD);
+
+            foreach ($this->wrapForCharacters((string) $item, $characters) as $line) {
+                $this->addLine($pages, $current, $y, $line, 9, 12, 'F1', $x + 14, [25, 31, 42], $reportTitle);
+            }
+
             $this->addLine($pages, $current, $y, '', 10, 2, reportTitle: $reportTitle);
         }
 
@@ -1012,6 +1267,17 @@ final class SimpleTextPdf
         $ascii = Str::ascii($text);
 
         return preg_replace('/[^\x09\x0A\x0D\x20-\x7E]/', '', $ascii) ?? '';
+    }
+
+    private function truncate(string $text, int $characters): string
+    {
+        $text = trim($this->normalise($text));
+
+        if (strlen($text) <= $characters) {
+            return $text;
+        }
+
+        return rtrim(substr($text, 0, max(0, $characters - 3))).'...';
     }
 
     private function escape(string $text): string

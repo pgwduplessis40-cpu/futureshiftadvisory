@@ -204,6 +204,39 @@ final class ScreenShareSessionTest extends TestCase
             ->assertJsonPath('status', ScreenShareSession::STATUS_REQUESTED);
     }
 
+    public function test_client_request_failure_is_recorded_in_the_audit_trail(): void
+    {
+        Event::fake([ScreenSharePrompt::class]);
+        $advisorConnection = app(ScreenSharePresence::class)->registerAdvisor($this->advisor, $this->client);
+
+        $this->actingAs($this->advisor)
+            ->withSession([
+                'auth.mfa_user_id' => (string) $this->advisor->getKey(),
+                'auth.mfa_confirmed_at' => now()->getTimestamp(),
+            ])
+            ->postJson(
+                route('advisor.clients.screen-share.sessions.store', $this->client),
+                [
+                    'client_user_id' => (string) $this->clientUser->getKey(),
+                    'advisor_connection_id' => (string) $advisorConnection->connection->getKey(),
+                    'advisor_connection_secret' => $advisorConnection->secret,
+                ],
+            )
+            ->assertUnprocessable();
+
+        $event = AuditEvent::query()
+            ->where('action', 'screen_share.request_failed')
+            ->firstOrFail();
+
+        $this->assertSame((string) $this->advisor->getKey(), $event->actor_user_key);
+        $this->assertSame((string) $this->client->getKey(), $event->subject_id);
+        $this->assertSame('client', data_get($event->after, 'target_scope'));
+        $this->assertSame('no_active_client_connection', data_get($event->after, 'reason'));
+        $this->assertSame((string) $this->clientUser->getKey(), data_get($event->after, 'selected_user_id'));
+        $this->assertNull(data_get($event->after, 'latest_client_connection'));
+        $this->assertNull(data_get($event->after, 'latest_user_connection'));
+    }
+
     public function test_client_can_poll_for_a_pending_screen_support_prompt(): void
     {
         [$session, $tabs, $nonces] = $this->requestedSession();
@@ -461,6 +494,52 @@ final class ScreenShareSessionTest extends TestCase
         $response
             ->assertCreated()
             ->assertJsonPath('status', ScreenShareSession::STATUS_REQUESTED);
+    }
+
+    public function test_entrepreneur_request_failure_is_recorded_in_the_audit_trail(): void
+    {
+        Event::fake([ScreenSharePrompt::class]);
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'assigned_advisor_id' => $this->advisor->getKey(),
+            'name' => 'Offline Audit Entrepreneur',
+            'email' => 'offline-audit-entrepreneur@example.test',
+        ]);
+
+        $advisorConnection = app(EntrepreneurScreenSharePresence::class)
+            ->registerAdvisor($this->advisor, $profile);
+
+        $this->actingAs($this->advisor)
+            ->withSession([
+                'auth.mfa_user_id' => (string) $this->advisor->getKey(),
+                'auth.mfa_confirmed_at' => now()->getTimestamp(),
+            ])
+            ->postJson(
+                route('advisor.entrepreneurs.screen-share.sessions.store', $profile),
+                [
+                    'client_user_id' => (string) $entrepreneur->getKey(),
+                    'advisor_connection_id' => (string) $advisorConnection->connection->getKey(),
+                    'advisor_connection_secret' => $advisorConnection->secret,
+                ],
+            )
+            ->assertUnprocessable();
+
+        $event = AuditEvent::query()
+            ->where('action', 'screen_share.request_failed')
+            ->firstOrFail();
+
+        $this->assertSame((string) $this->advisor->getKey(), $event->actor_user_key);
+        $this->assertSame((string) $profile->getKey(), $event->subject_id);
+        $this->assertSame('entrepreneur', data_get($event->after, 'target_scope'));
+        $this->assertSame('no_active_entrepreneur_connection', data_get($event->after, 'reason'));
+        $this->assertSame((string) $entrepreneur->getKey(), data_get($event->after, 'selected_user_id'));
+        $this->assertNull(data_get($event->after, 'latest_client_connection'));
+        $this->assertNull(data_get($event->after, 'latest_user_connection'));
     }
 
     public function test_entrepreneur_can_poll_for_a_pending_screen_support_prompt(): void

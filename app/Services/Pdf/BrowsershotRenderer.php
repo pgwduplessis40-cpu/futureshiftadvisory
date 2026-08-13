@@ -73,6 +73,12 @@ final class BrowsershotRenderer implements PdfRenderer
             }
         }
 
+        $pathBinary = $this->pathBinary(str_contains($configKey, 'npm') ? 'npm' : 'node');
+
+        if ($pathBinary !== null) {
+            return $pathBinary;
+        }
+
         return null;
     }
 
@@ -91,13 +97,67 @@ final class BrowsershotRenderer implements PdfRenderer
             '/usr/bin/chromium-browser',
             '/snap/bin/chromium',
             'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+            'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+            'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+            'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
         ] as $candidate) {
             if (is_file($candidate)) {
                 return $candidate;
             }
         }
 
+        foreach (['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'chrome', 'msedge'] as $binary) {
+            $path = $this->pathBinary($binary);
+
+            if ($path !== null) {
+                return $path;
+            }
+        }
+
         return $this->puppeteerChromePath($nodeBinary);
+    }
+
+    private function pathBinary(string $binary): ?string
+    {
+        if (! function_exists('exec')) {
+            return null;
+        }
+
+        $command = PHP_OS_FAMILY === 'Windows'
+            ? 'where '.$binary
+            : 'command -v '.escapeshellarg($binary);
+        $output = [];
+        $exitCode = 1;
+
+        @exec($command, $output, $exitCode);
+
+        if ($exitCode !== 0 || $output === []) {
+            return null;
+        }
+
+        $candidates = [];
+
+        foreach ($output as $candidate) {
+            $candidate = trim((string) $candidate);
+
+            if ($candidate !== '' && is_file($candidate)) {
+                $candidates[] = $candidate;
+            }
+        }
+
+        if ($candidates === []) {
+            return null;
+        }
+
+        if (PHP_OS_FAMILY === 'Windows' && $binary === 'npm') {
+            foreach ($candidates as $candidate) {
+                if (str_ends_with(strtolower($candidate), '.cmd')) {
+                    return $candidate;
+                }
+            }
+        }
+
+        return $candidates[0];
     }
 
     private function puppeteerChromePath(?string $nodeBinary): ?string
@@ -107,13 +167,15 @@ final class BrowsershotRenderer implements PdfRenderer
         }
 
         $script = <<<'JS'
-const puppeteer = require('puppeteer');
+const path = require('path');
+const root = process.argv[1];
+const puppeteer = require(path.join(root, 'node_modules', 'puppeteer'));
 process.stdout.write(puppeteer.executablePath());
 JS;
         $output = [];
         $exitCode = 1;
 
-        @exec(escapeshellarg($nodeBinary).' -e '.escapeshellarg($script), $output, $exitCode);
+        @exec(escapeshellarg($nodeBinary).' -e '.escapeshellarg($script).' '.escapeshellarg(base_path()), $output, $exitCode);
 
         if ($exitCode !== 0 || $output === []) {
             return null;

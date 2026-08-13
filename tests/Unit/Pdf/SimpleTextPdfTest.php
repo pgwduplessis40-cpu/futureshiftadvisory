@@ -16,6 +16,7 @@ final class SimpleTextPdfTest extends TestCase
             array_fill(0, 33, 'Requirement content.'),
         );
 
+        $this->assertStringContainsString(SimpleTextPdf::FALLBACK_MARKER, $pdf);
         $this->assertSame(2, substr_count($pdf, '/Type /Page /Parent'));
     }
 }

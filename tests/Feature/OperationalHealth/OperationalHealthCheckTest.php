@@ -16,6 +16,7 @@ use App\Notifications\OperationalHealthAttentionNotification;
 use App\Services\OperationalHealth\OperationalHealthAlerter;
 use App\Services\OperationalHealth\OperationalHealthSchedule;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Pdf\SimpleTextPdf;
 use App\Services\Security\StepUpEvaluator;
 use App\Support\ReleaseVersion;
 use Database\Seeders\RoleSeeder;
@@ -252,6 +253,42 @@ final class OperationalHealthCheckTest extends TestCase
                 'status' => OperationalHealthCheckResult::STATUS_PASSED,
             ]);
         }
+    }
+
+    public function test_pdf_health_checks_warn_when_the_simple_fallback_renderer_is_served(): void
+    {
+        Storage::fake('secure_local');
+
+        $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
+        {
+            public function render(string $html): string
+            {
+                throw new \RuntimeException('Browser renderer unavailable');
+            }
+        });
+
+        $this->artisan('fsa:seed-operational-health-fixtures')
+            ->assertSuccessful();
+
+        $this->artisan(RunOperationalHealthChecks::class)
+            ->assertSuccessful();
+
+        /** @var OperationalHealthCheckRun $run */
+        $run = OperationalHealthCheckRun::query()->latest()->firstOrFail();
+
+        $this->assertSame(OperationalHealthCheckRun::STATUS_WARNING, $run->status);
+        $this->assertGreaterThanOrEqual(1, $run->warning_checks);
+
+        /** @var OperationalHealthCheckResult $result */
+        $result = OperationalHealthCheckResult::query()
+            ->where('run_id', $run->id)
+            ->where('check_key', 'portal.entrepreneur.plan.preview')
+            ->firstOrFail();
+
+        $this->assertSame(OperationalHealthCheckResult::STATUS_WARNING, $result->status);
+        $this->assertStringContainsString('simple fallback PDF renderer', (string) $result->issue_summary);
+        $this->assertTrue((bool) data_get($result->context, 'fallback_pdf_detected'));
+        $this->assertSame(SimpleTextPdf::FALLBACK_MARKER, data_get($result->context, 'fallback_pdf_marker'));
     }
 
     public function test_client_monitor_selection_ignores_suspended_configured_client_assignments(): void

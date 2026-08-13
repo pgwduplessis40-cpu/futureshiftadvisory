@@ -42,7 +42,19 @@ final class EntrepreneurScreenShareRequests
         abort_unless((string) $advisorConnection->entrepreneur_profile_id === (string) $profile->getKey(), 403);
 
         $connections = $this->presence->activeConnectionsFor($profile, $entrepreneur);
-        abort_if($connections->isEmpty(), 422, 'The selected entrepreneur is not currently online.');
+        if ($connections->isEmpty()) {
+            $this->auditRequestFailure(
+                $advisor,
+                $profile,
+                $entrepreneur,
+                $advisorConnection,
+                $this->presence->latestConnectionFor($profile, $entrepreneur),
+                $this->connections->latestClientParticipantConnectionFor($entrepreneur),
+                'no_active_entrepreneur_connection',
+            );
+
+            abort(422, 'The selected entrepreneur is not currently online.');
+        }
 
         [$session, $deliveries] = $this->context->withSystemContext(function () use ($advisor, $advisorConnection, $attachment, $connections, $entrepreneur, $profile): array {
             return DB::transaction(function () use ($advisor, $advisorConnection, $attachment, $connections, $entrepreneur, $profile): array {
@@ -118,5 +130,45 @@ final class EntrepreneurScreenShareRequests
     private function requestTimeoutSeconds(): int
     {
         return max(15, (int) config('screen-share.request_timeout_seconds', 60));
+    }
+
+    private function auditRequestFailure(
+        User $advisor,
+        EntrepreneurProfile $profile,
+        User $entrepreneur,
+        ScreenShareConnection $advisorConnection,
+        ?ScreenShareConnection $latestConnection,
+        ?ScreenShareConnection $latestUserConnection,
+        string $reason,
+    ): void {
+        $this->audit->record('screen_share.request_failed', subject: $profile, actor: $advisor, after: [
+            'reason' => $reason,
+            'target_scope' => 'entrepreneur',
+            'target_entrepreneur_profile_id' => (string) $profile->getKey(),
+            'selected_user_id' => (string) $entrepreneur->getKey(),
+            'advisor_connection_id' => (string) $advisorConnection->getKey(),
+            'latest_client_connection' => $this->connectionSnapshot($latestConnection),
+            'latest_user_connection' => $this->connectionSnapshot($latestUserConnection),
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function connectionSnapshot(?ScreenShareConnection $connection): ?array
+    {
+        if (! $connection instanceof ScreenShareConnection) {
+            return null;
+        }
+
+        return [
+            'connection_id' => (string) $connection->getKey(),
+            'client_id' => $connection->client_id === null ? null : (string) $connection->client_id,
+            'entrepreneur_profile_id' => $connection->entrepreneur_profile_id === null ? null : (string) $connection->entrepreneur_profile_id,
+            'context_key' => $connection->context_key,
+            'last_seen_at' => $connection->last_seen_at?->toIso8601String(),
+            'expires_at' => $connection->expires_at?->toIso8601String(),
+            'expired' => $connection->expires_at?->isPast(),
+        ];
     }
 }

@@ -11,6 +11,7 @@ use App\Models\OperationalHealthCheckResult;
 use App\Models\OperationalHealthCheckRun;
 use App\Models\Template;
 use App\Models\User;
+use App\Services\Pdf\SimpleTextPdf;
 use App\Services\Security\MfaChallenger;
 use App\Services\Security\StepUpEvaluator;
 use App\Support\ReleaseVersion;
@@ -364,11 +365,15 @@ final class OperationalHealthCheckRunner
         $contentTypePassed = $expectedContentType === null
             || ($actualContentType !== null && str_starts_with($actualContentType, $expectedContentType));
         $headerFailures = $this->expectedHeaderFailures($definition, $probe);
+        $fallbackPdfDetected = $this->fallbackPdfDetected($expectedContentType, $probe);
         $exceptionClass = is_string($probe['exception_class'] ?? null) ? $probe['exception_class'] : null;
         $exceptionMessage = is_string($probe['exception_message'] ?? null) ? $probe['exception_message'] : null;
-        $status = $statusPassed && $contentTypePassed && $headerFailures === [] && $exceptionClass === null
-            ? OperationalHealthCheckResult::STATUS_PASSED
-            : OperationalHealthCheckResult::STATUS_FAILED;
+        $status = OperationalHealthCheckResult::STATUS_FAILED;
+        if ($statusPassed && $contentTypePassed && $headerFailures === [] && $exceptionClass === null) {
+            $status = $fallbackPdfDetected
+                ? OperationalHealthCheckResult::STATUS_WARNING
+                : OperationalHealthCheckResult::STATUS_PASSED;
+        }
 
         $issueSummary = $status === OperationalHealthCheckResult::STATUS_PASSED
             ? null
@@ -397,6 +402,8 @@ final class OperationalHealthCheckRunner
                 'expected_content_type' => $expectedContentType,
                 'expected_headers' => $definition['expected_headers'] ?? [],
                 'header_failures' => $headerFailures,
+                'fallback_pdf_detected' => $fallbackPdfDetected,
+                'fallback_pdf_marker' => $fallbackPdfDetected ? SimpleTextPdf::FALLBACK_MARKER : null,
                 'response_headers' => $probe['headers'] ?? [],
                 'internal_request' => true,
             ],
@@ -586,8 +593,10 @@ final class OperationalHealthCheckRunner
                 'content_type' => null,
                 'redirect_url' => null,
                 'body_excerpt' => null,
+                'fallback_pdf_detected' => false,
                 'exception_class' => $exception::class,
                 'exception_message' => Str::limit($exception->getMessage(), 500, ''),
+                'headers' => [],
             ];
         } finally {
             app('auth')->forgetGuards();
@@ -617,6 +626,8 @@ final class OperationalHealthCheckRunner
             'content_type' => $response->headers->get('Content-Type'),
             'redirect_url' => $response->headers->get('Location'),
             'body_excerpt' => is_string($content) ? $this->bodyExcerpt($content) : null,
+            'fallback_pdf_detected' => is_string($content)
+                && str_contains($content, SimpleTextPdf::FALLBACK_MARKER),
             'exception_class' => null,
             'exception_message' => null,
             'headers' => $this->responseHeaders($response),
@@ -678,6 +689,18 @@ final class OperationalHealthCheckRunner
         return $text === '' ? null : Str::limit($text, 500, '');
     }
 
+    /**
+     * @param  array<string, mixed>  $probe
+     */
+    private function fallbackPdfDetected(?string $expectedContentType, array $probe): bool
+    {
+        if ($expectedContentType === null || ! str_starts_with($expectedContentType, 'application/pdf')) {
+            return false;
+        }
+
+        return (bool) ($probe['fallback_pdf_detected'] ?? false);
+    }
+
     private function documentStorageDiagnostic(Document $document): ?string
     {
         if (! is_string($document->stored_path) || trim($document->stored_path) === '') {
@@ -732,6 +755,10 @@ final class OperationalHealthCheckRunner
             return "{$name} returned unexpected headers: ".implode('; ', $headerFailures).'.';
         }
 
+        if ((bool) ($probe['fallback_pdf_detected'] ?? false)) {
+            return "{$name} used the simple fallback PDF renderer instead of the browser-formatted renderer.";
+        }
+
         return "{$name} returned content type ".($actualContentType ?? 'none')."; expected {$expectedContentType}.";
     }
 
@@ -765,6 +792,10 @@ final class OperationalHealthCheckRunner
 
         if ($documentStorageDiagnostic !== null) {
             $parts[] = $documentStorageDiagnostic;
+        }
+
+        if ((bool) ($probe['fallback_pdf_detected'] ?? false)) {
+            $parts[] = 'Detected fallback marker: '.SimpleTextPdf::FALLBACK_MARKER.'. Check the Browsershot Node/npm/Chrome configuration and renderer logs before trusting this PDF preview.';
         }
 
         foreach ([

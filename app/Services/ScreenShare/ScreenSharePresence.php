@@ -48,6 +48,27 @@ final class ScreenSharePresence
             ->get());
     }
 
+    public function latestClientConnectionFor(Client $client, User $clientUser): ?ScreenShareConnection
+    {
+        return $this->context->withSystemContext(fn (): ?ScreenShareConnection => ScreenShareConnection::query()
+            ->where('client_id', $client->getKey())
+            ->where('user_id', $clientUser->getKey())
+            ->where('participant_type', ScreenShareConnection::TYPE_CLIENT)
+            ->latest('last_seen_at')
+            ->latest()
+            ->first());
+    }
+
+    public function latestClientParticipantConnectionFor(User $user): ?ScreenShareConnection
+    {
+        return $this->context->withSystemContext(fn (): ?ScreenShareConnection => ScreenShareConnection::query()
+            ->where('user_id', $user->getKey())
+            ->where('participant_type', ScreenShareConnection::TYPE_CLIENT)
+            ->latest('last_seen_at')
+            ->latest()
+            ->first());
+    }
+
     public function assertConnection(
         User $user,
         string $connectionId,

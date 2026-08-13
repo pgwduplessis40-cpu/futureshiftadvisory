@@ -69,6 +69,19 @@ final class EntrepreneurScreenSharePresence
             ->get());
     }
 
+    public function latestConnectionFor(
+        EntrepreneurProfile $profile,
+        User $entrepreneur,
+    ): ?ScreenShareConnection {
+        return $this->context->withSystemContext(fn (): ?ScreenShareConnection => ScreenShareConnection::query()
+            ->where('entrepreneur_profile_id', $profile->getKey())
+            ->where('user_id', $entrepreneur->getKey())
+            ->where('participant_type', ScreenShareConnection::TYPE_CLIENT)
+            ->latest('last_seen_at')
+            ->latest()
+            ->first());
+    }
+
     private function create(
         User $user,
         EntrepreneurProfile $profile,
