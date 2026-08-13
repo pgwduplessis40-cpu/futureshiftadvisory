@@ -106,6 +106,8 @@ final class SurveyResponseRecorder
                     ->update([
                         'status' => SurveyAssignmentStatus::Completed->value,
                         'completed_at' => now(),
+                        'draft_answers' => null,
+                        'draft_saved_at' => null,
                     ]);
             });
 
@@ -124,6 +126,97 @@ final class SurveyResponseRecorder
             $this->feedback->evaluate($response);
 
             return $response;
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    public function saveDraft(SurveyAssignment $assignment, array $input): SurveyAssignment
+    {
+        return DB::transaction(function () use ($assignment, $input): SurveyAssignment {
+            /** @var SurveyAssignment $locked */
+            $locked = SurveyAssignment::query()
+                ->with('survey.questions')
+                ->whereKey($assignment->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! $locked->isActive() || $locked->response()->exists()) {
+                throw ValidationException::withMessages([
+                    'assignment' => 'This survey is no longer open for draft responses.',
+                ]);
+            }
+
+            $savedAt = now();
+            $draft = $this->normaliseDraftAnswers($locked, $input);
+            $status = $locked->status === SurveyAssignmentStatus::Pending
+                ? SurveyAssignmentStatus::InProgress
+                : $locked->status;
+
+            $this->context->withSystemContext(function () use ($draft, $locked, $savedAt, $status): void {
+                SurveyAssignment::query()
+                    ->whereKey($locked->getKey())
+                    ->whereIn('status', SurveyAssignmentStatus::activeValues())
+                    ->update([
+                        'status' => $status->value,
+                        'draft_answers' => $draft,
+                        'draft_saved_at' => $savedAt,
+                    ]);
+            });
+
+            return $locked->refresh();
+        });
+    }
+
+    /**
+     * Preserve a just-entered response when a resend has replaced the assignment
+     * before the founder reaches Submit. Drafts are stored by question key so a
+     * newer survey version can restore matching questions safely.
+     *
+     * @param  array<string, mixed>  $input
+     */
+    public function saveReplacementDraft(SurveyAssignment $source, SurveyAssignment $replacement, array $input): SurveyAssignment
+    {
+        return DB::transaction(function () use ($input, $replacement, $source): SurveyAssignment {
+            /** @var SurveyAssignment $lockedSource */
+            $lockedSource = SurveyAssignment::query()
+                ->with('survey.questions')
+                ->whereKey($source->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            /** @var SurveyAssignment $lockedReplacement */
+            $lockedReplacement = SurveyAssignment::query()
+                ->whereKey($replacement->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! $lockedReplacement->isActive() || $lockedReplacement->response()->exists()) {
+                return $lockedReplacement;
+            }
+
+            $draft = [
+                ...(is_array($lockedReplacement->draft_answers) ? $lockedReplacement->draft_answers : []),
+                ...$this->normaliseDraftAnswers($lockedSource, $input),
+            ];
+            if ($draft === []) {
+                return $lockedReplacement;
+            }
+
+            $savedAt = now();
+            $this->context->withSystemContext(function () use ($draft, $lockedReplacement, $savedAt): void {
+                SurveyAssignment::query()
+                    ->whereKey($lockedReplacement->getKey())
+                    ->whereIn('status', SurveyAssignmentStatus::activeValues())
+                    ->update([
+                        'status' => SurveyAssignmentStatus::InProgress->value,
+                        'draft_answers' => $draft,
+                        'draft_saved_at' => $savedAt,
+                    ]);
+            });
+
+            return $lockedReplacement->refresh();
         });
     }
 
@@ -163,6 +256,131 @@ final class SurveyResponseRecorder
         }
 
         return $normalised;
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @return array<string, array<string, mixed>>
+     */
+    private function normaliseDraftAnswers(SurveyAssignment $assignment, array $input): array
+    {
+        $answers = is_array($input['answers'] ?? null) ? $input['answers'] : [];
+        $draft = [];
+
+        /** @var Collection<int, SurveyQuestion> $questions */
+        $questions = $assignment->survey->questions;
+
+        foreach ($questions as $question) {
+            $entry = $answers[(string) $question->getKey()] ?? null;
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            if ($question->type === SurveyQuestionType::AnchoredMatrix) {
+                $anchors = $this->draftAnchors($assignment, $entry);
+                if ($anchors !== []) {
+                    $draft[$question->key] = ['anchors' => $anchors];
+                }
+
+                continue;
+            }
+
+            $answer = $this->draftFlatAnswer($question, $entry);
+            if ($answer !== null) {
+                $draft[$question->key] = $answer;
+            }
+        }
+
+        return $draft;
+    }
+
+    /**
+     * @param  array<string, mixed>  $entry
+     * @return array<string, mixed>|null
+     */
+    private function draftFlatAnswer(SurveyQuestion $question, array $entry): ?array
+    {
+        $raw = $entry['value'] ?? null;
+
+        if ($question->type === SurveyQuestionType::Text) {
+            if (! is_string($raw) || trim($raw) === '') {
+                return null;
+            }
+
+            return ['value' => mb_substr(trim($raw), 0, 4000)];
+        }
+
+        if ($question->type === SurveyQuestionType::Likert || $question->type === SurveyQuestionType::Nps) {
+            $errors = [];
+            [$value] = $this->boundedNumber(
+                $raw,
+                $question->type === SurveyQuestionType::Likert ? 1 : 0,
+                $question->type === SurveyQuestionType::Likert ? 5 : 10,
+                'draft',
+                $errors,
+                1.0,
+            );
+
+            if ($value === null) {
+                return null;
+            }
+
+            $answer = ['value' => $value];
+            if (is_string($entry['comment'] ?? null) && trim($entry['comment']) !== '') {
+                $answer['comment'] = mb_substr(trim($entry['comment']), 0, 2000);
+            }
+
+            return $answer;
+        }
+
+        if ($question->type === SurveyQuestionType::Boolean) {
+            [$value] = $this->booleanValue($raw);
+
+            return $value === null ? null : ['value' => $value];
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $entry
+     * @return array<int, array<string, bool|string>>
+     */
+    private function draftAnchors(SurveyAssignment $assignment, array $entry): array
+    {
+        $deliverables = $this->deliverableMap($assignment);
+        $anchors = is_array($entry['anchors'] ?? null) ? array_values($entry['anchors']) : [];
+        $draft = [];
+
+        foreach ($anchors as $anchor) {
+            if (! is_array($anchor)) {
+                continue;
+            }
+
+            $sourceType = trim((string) ($anchor['source_type'] ?? ''));
+            $sourceId = trim((string) ($anchor['source_id'] ?? ''));
+            if (! isset($deliverables["{$sourceType}:{$sourceId}"])) {
+                continue;
+            }
+
+            $answer = [
+                'source_type' => $sourceType,
+                'source_id' => $sourceId,
+            ];
+
+            foreach (self::ANSWER_KEYS as $answerKey) {
+                [$value] = $this->booleanValue($anchor[$answerKey] ?? null);
+                if ($value !== null) {
+                    $answer[$answerKey] = $value;
+                }
+            }
+
+            if (count($answer) > 2) {
+                $draft[] = $answer;
+            }
+        }
+
+        return $draft;
     }
 
     /**

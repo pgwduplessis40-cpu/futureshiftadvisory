@@ -101,6 +101,7 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('entrepreneur/assessments/{planAssessment}', [EntrepreneurAssessmentController::class, 'show'])->name('entrepreneur.assessments.show');
         Route::get('entrepreneur/surveys', [EntrepreneurSurveyController::class, 'index'])->name('entrepreneur.surveys.index');
         Route::get('entrepreneur/surveys/{surveyAssignment}', [EntrepreneurSurveyController::class, 'show'])->name('entrepreneur.surveys.show');
+        Route::post('entrepreneur/surveys/{surveyAssignment}/draft', [EntrepreneurSurveyController::class, 'draft'])->name('entrepreneur.surveys.draft');
         Route::post('entrepreneur/surveys/{surveyAssignment}', [EntrepreneurSurveyController::class, 'submit'])->name('entrepreneur.surveys.submit');
         Route::post('documents', DocumentController::class)->name('documents.store');
         Route::get('documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
@@ -124,6 +125,7 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::delete('wellbeing/{wellbeingCheckin}', [WellbeingController::class, 'destroy'])->name('wellbeing.destroy');
         Route::get('surveys', [SurveyController::class, 'index'])->name('surveys.index');
         Route::get('surveys/{surveyAssignment}', [SurveyController::class, 'show'])->name('surveys.show');
+        Route::post('surveys/{surveyAssignment}/draft', [SurveyController::class, 'draft'])->name('surveys.draft');
         Route::post('surveys/{surveyAssignment}', [SurveyController::class, 'submit'])->name('surveys.submit');
         Route::get('onboarding', [OnboardingController::class, 'redirect'])->name('onboarding.index');
         Route::post('onboarding/questionnaire/draft', [OnboardingController::class, 'saveQuestionnaireDraft'])->name('onboarding.questionnaire.draft');

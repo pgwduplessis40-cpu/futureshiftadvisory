@@ -11,6 +11,7 @@ use App\Models\SurveyAssignment;
 use App\Models\User;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Surveys\SurveyResponseRecorder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -46,13 +47,39 @@ final class SurveyController extends Controller
         return Inertia::render('portal/surveys/Show', [
             'assignment' => $this->assignmentPayload($surveyAssignment->load('survey.questions', 'response')),
             'storeUrl' => route('portal.surveys.submit', $surveyAssignment, absolute: false),
+            'draftUrl' => route('portal.surveys.draft', $surveyAssignment, absolute: false),
             'indexUrl' => route('portal.surveys.index', absolute: false),
+        ]);
+    }
+
+    public function draft(Request $request, SurveyAssignment $surveyAssignment, SurveyResponseRecorder $recorder): JsonResponse
+    {
+        $this->clients->resolveFor($request);
+        Gate::authorize('respond', $surveyAssignment);
+
+        $assignment = $recorder->saveDraft($surveyAssignment, $request->all());
+
+        return response()->json([
+            'saved_at' => $assignment->draft_saved_at?->toIso8601String(),
         ]);
     }
 
     public function submit(Request $request, SurveyAssignment $surveyAssignment, SurveyResponseRecorder $recorder): RedirectResponse
     {
-        $this->clients->resolveFor($request);
+        $client = $this->clients->resolveFor($request);
+        Gate::authorize('view', $surveyAssignment);
+
+        if (! $surveyAssignment->isActive()) {
+            $replacement = $this->replacementFor($surveyAssignment, $client);
+
+            if ($replacement instanceof SurveyAssignment) {
+                $recorder->saveReplacementDraft($surveyAssignment, $replacement, $request->all());
+
+                return to_route('portal.surveys.show', $replacement)
+                    ->with('status', 'survey-replaced');
+            }
+        }
+
         Gate::authorize('respond', $surveyAssignment);
 
         $user = $request->user();
@@ -61,6 +88,22 @@ final class SurveyController extends Controller
         $recorder->record($surveyAssignment, $user, $request->all());
 
         return to_route('portal.surveys.index')->with('status', 'survey-submitted');
+    }
+
+    private function replacementFor(SurveyAssignment $assignment, Client $client): ?SurveyAssignment
+    {
+        if ($assignment->status !== SurveyAssignmentStatus::Cancelled
+            || $assignment->service_activation_id === null) {
+            return null;
+        }
+
+        return SurveyAssignment::query()
+            ->where('client_id', $client->getKey())
+            ->where('service_activation_id', $assignment->service_activation_id)
+            ->whereKeyNot($assignment->getKey())
+            ->whereIn('status', SurveyAssignmentStatus::activeValues())
+            ->latest('activated_at')
+            ->first();
     }
 
     /**
@@ -88,6 +131,8 @@ final class SurveyController extends Controller
             'activated_at' => $assignment->activated_at?->toIso8601String(),
             'due_at' => $assignment->due_at?->toIso8601String(),
             'completed_at' => $assignment->completed_at?->toIso8601String(),
+            'draft_answers' => $assignment->draft_answers ?? [],
+            'draft_saved_at' => $assignment->draft_saved_at?->toIso8601String(),
             'deliverables' => $assignment->deliverable_snapshot ?? [],
             'service' => $assignment->service_snapshot,
             'url' => route('portal.surveys.show', $assignment, absolute: false),

@@ -21,8 +21,10 @@ final class SurveyAssignment extends Model
         'activated_at' => 'datetime',
         'due_at' => 'datetime',
         'completed_at' => 'datetime',
+        'draft_saved_at' => 'datetime',
         'deliverable_snapshot' => 'array',
         'service_snapshot' => 'array',
+        'draft_answers' => 'array',
     ];
 
     /**

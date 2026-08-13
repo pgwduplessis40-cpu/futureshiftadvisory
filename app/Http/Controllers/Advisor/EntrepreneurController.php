@@ -41,6 +41,7 @@ use App\Services\ScreenShare\ScreenShareAuthorizer;
 use App\Services\Security\InviteIssuer;
 use App\Services\Surveys\SurveyActivationService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -702,7 +703,15 @@ final class EntrepreneurController extends Controller
     {
         $query = EntrepreneurProfile::query()
             ->withoutOperationalHealthFixtures()
-            ->with(['assignedAdvisor', 'inviteToken', 'user']);
+            ->with([
+                'assignedAdvisor',
+                'inviteToken',
+                'user',
+                'businessPlans' => fn (HasMany $plans) => $plans
+                    ->where('source_type', BusinessPlan::SOURCE_ENTREPRENEUR)
+                    ->latest('updated_at')
+                    ->limit(1),
+            ]);
 
         if ($user->fsaRole() === User::TYPE_SUPER_ADMIN) {
             return $query;
@@ -734,6 +743,17 @@ final class EntrepreneurController extends Controller
 
     private function profileStageLabel(EntrepreneurProfile $profile, EntrepreneurStage $stage): string
     {
+        $latestPlan = $profile->relationLoaded('businessPlans')
+            ? $profile->businessPlans
+                ->where('source_type', BusinessPlan::SOURCE_ENTREPRENEUR)
+                ->sortByDesc('updated_at')
+                ->first()
+            : null;
+
+        if ($latestPlan instanceof BusinessPlan && $latestPlan->status === BusinessPlan::STATUS_REVISING) {
+            return 'Revision requested - awaiting resubmission';
+        }
+
         if ($stage === EntrepreneurStage::INVITED && $profile->inviteToken?->isAccepted()) {
             return 'Invite accepted';
         }

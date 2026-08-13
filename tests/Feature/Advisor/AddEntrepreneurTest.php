@@ -457,6 +457,35 @@ final class AddEntrepreneurTest extends TestCase
         $this->assertDatabaseHas('audit_events', ['action' => 'entrepreneur.onboarding_started']);
     }
 
+    public function test_entrepreneur_index_identifies_a_business_plan_awaiting_founder_resubmission(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => 'Tania Hassounia',
+            'email' => 'tania-resubmission@example.test',
+            'stage' => EntrepreneurStage::ASSESSMENT,
+        ]);
+        BusinessPlan::query()->create([
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'title' => 'Tania business plan',
+            'source_type' => BusinessPlan::SOURCE_ENTREPRENEUR,
+            'status' => BusinessPlan::STATUS_REVISING,
+            'current_phase' => 5,
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('advisor/entrepreneurs/Index')
+                ->where('entrepreneurs.0.id', $profile->id)
+                ->where('entrepreneurs.0.stage', EntrepreneurStage::ASSESSMENT->value)
+                ->where('entrepreneurs.0.stage_label', 'Revision requested - awaiting resubmission')
+            );
+    }
+
     public function test_advisor_can_review_and_refresh_deferred_idea_validation(): void
     {
         $this->seed(RoleSeeder::class);

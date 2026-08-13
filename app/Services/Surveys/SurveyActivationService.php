@@ -92,6 +92,8 @@ final class SurveyActivationService
                 ->lockForUpdate()
                 ->get();
 
+            $replacementDraft = $this->replacementDraft($openAssignments);
+
             if ($openAssignments->isNotEmpty() && ! $replaceOpen) {
                 throw ValidationException::withMessages([
                     'entrepreneur_profile' => 'This entrepreneur already has an open service survey.',
@@ -103,7 +105,7 @@ final class SurveyActivationService
                 'replacement_reason' => 'latest_entrepreneur_service_survey_reissued',
             ]);
 
-            return $this->createAssignmentRecord($survey, $actor, [], $dueAt, $subject);
+            return $this->createAssignmentRecord($survey, $actor, [], $dueAt, $subject, $replacementDraft);
         });
     }
 
@@ -198,6 +200,8 @@ final class SurveyActivationService
                 ->lockForUpdate()
                 ->get();
 
+            $replacementDraft = $this->replacementDraft($openAssignments);
+
             if ($openAssignments->isNotEmpty() && ! $replaceOpen) {
                 throw ValidationException::withMessages([
                     'service_activation' => 'This service already has an open survey.',
@@ -209,7 +213,7 @@ final class SurveyActivationService
                 'replacement_reason' => 'latest_service_survey_reissued',
             ]);
 
-            return $this->createAssignmentRecord($survey, $actor, [], $dueAt, $subject);
+            return $this->createAssignmentRecord($survey, $actor, [], $dueAt, $subject, $replacementDraft);
         });
     }
 
@@ -260,16 +264,20 @@ final class SurveyActivationService
      * @param  array<int, array<string, mixed>>  $snapshot
      * @param  array{client_id:string|null,entrepreneur_profile_id:string|null,service_activation_id?:string|null,service_snapshot?:array<string, mixed>|null}  $subject
      */
-    private function createAssignmentRecord(Survey $survey, User $actor, array $snapshot, ?CarbonInterface $dueAt, array $subject): SurveyAssignment
+    private function createAssignmentRecord(Survey $survey, User $actor, array $snapshot, ?CarbonInterface $dueAt, array $subject, ?array $draft = null): SurveyAssignment
     {
         $assignment = SurveyAssignment::query()->create([
             'survey_id' => $survey->getKey(),
             'client_id' => $subject['client_id'],
             'entrepreneur_profile_id' => $subject['entrepreneur_profile_id'],
-            'status' => SurveyAssignmentStatus::Pending->value,
+            'status' => $draft === null
+                ? SurveyAssignmentStatus::Pending->value
+                : SurveyAssignmentStatus::InProgress->value,
             'activated_by_user_id' => $actor->getKey(),
             'activated_at' => now(),
             'due_at' => $dueAt,
+            'draft_answers' => $draft['answers'] ?? null,
+            'draft_saved_at' => $draft['saved_at'] ?? null,
             'deliverable_snapshot' => $snapshot,
             'service_activation_id' => $subject['service_activation_id'] ?? null,
             'service_snapshot' => $subject['service_snapshot'] ?? null,
@@ -286,6 +294,24 @@ final class SurveyActivationService
         ]);
 
         return $assignment;
+    }
+
+    /**
+     * @param  iterable<int, SurveyAssignment>  $assignments
+     * @return array{answers: array<string, mixed>, saved_at: CarbonInterface|null}|null
+     */
+    private function replacementDraft(iterable $assignments): ?array
+    {
+        foreach ($assignments as $assignment) {
+            if (is_array($assignment->draft_answers) && $assignment->draft_answers !== []) {
+                return [
+                    'answers' => $assignment->draft_answers,
+                    'saved_at' => $assignment->draft_saved_at,
+                ];
+            }
+        }
+
+        return null;
     }
 
     /**

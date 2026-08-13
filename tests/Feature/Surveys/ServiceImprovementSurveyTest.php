@@ -122,7 +122,7 @@ final class ServiceImprovementSurveyTest extends TestCase
 
     public function test_super_admin_resending_service_survey_replaces_existing_open_assignment(): void
     {
-        [, $client] = $this->clientUserWithClient('service-survey-resend-client@example.test');
+        [$clientUser, $client] = $this->clientUserWithClient('service-survey-resend-client@example.test');
         $admin = $this->superAdmin('service-survey-resend-admin@example.test');
         $activation = $this->closedService($client);
 
@@ -133,6 +133,24 @@ final class ServiceImprovementSurveyTest extends TestCase
             ->assertRedirect();
 
         $first = SurveyAssignment::query()->sole();
+        $answers = $this->answersFor($first);
+        $improvementQuestion = $first->survey->questions->firstWhere('key', 'improve_next_time');
+        $this->assertInstanceOf(SurveyQuestion::class, $improvementQuestion);
+        $answers[$improvementQuestion->id] = [
+            'value' => 'Please keep this answer after the survey is resent.',
+        ];
+
+        $this->actingAsMfa($clientUser)
+            ->postJson(route('portal.surveys.draft', $first), [
+                'answers' => $answers,
+            ])
+            ->assertOk()
+            ->assertJsonPath('saved_at', fn (mixed $value): bool => is_string($value) && $value !== '');
+
+        $this->assertSame(
+            'Please keep this answer after the survey is resent.',
+            $first->refresh()->draft_answers['improve_next_time']['value'],
+        );
 
         $this->actingAsMfa($admin)
             ->post(route('admin.service-surveys.store', $activation), [
@@ -144,12 +162,56 @@ final class ServiceImprovementSurveyTest extends TestCase
         $this->assertDatabaseCount('survey_assignments', 2);
         $this->assertDatabaseHas('survey_assignments', [
             'service_activation_id' => $activation->getKey(),
-            'status' => SurveyAssignmentStatus::Pending->value,
+            'status' => SurveyAssignmentStatus::InProgress->value,
         ]);
         $this->assertDatabaseHas('audit_events', [
             'action' => 'survey_assignment.replaced',
             'subject_id' => $first->getKey(),
         ]);
+
+        $replacement = SurveyAssignment::query()
+            ->whereKeyNot($first->getKey())
+            ->sole();
+
+        $this->assertSame(
+            'Please keep this answer after the survey is resent.',
+            $replacement->draft_answers['improve_next_time']['value'],
+        );
+
+        $answers[$improvementQuestion->id] = [
+            'value' => 'Please also preserve this answer entered just before I submit.',
+        ];
+
+        $this->actingAsMfa($clientUser)
+            ->post(route('portal.surveys.submit', $first), [
+                'answers' => $answers,
+            ])
+            ->assertRedirect(route('portal.surveys.show', $replacement, absolute: false))
+            ->assertSessionHas('status', 'survey-replaced');
+
+        $this->assertSame(
+            'Please also preserve this answer entered just before I submit.',
+            $replacement->refresh()->draft_answers['improve_next_time']['value'],
+        );
+
+        $this->actingAsMfa($clientUser)
+            ->get(route('portal.surveys.show', $replacement))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where(
+                    'assignment.draft_answers.improve_next_time.value',
+                    'Please also preserve this answer entered just before I submit.',
+                )
+                ->where('draftUrl', route('portal.surveys.draft', $replacement, absolute: false)));
+
+        $this->actingAsMfa($clientUser)
+            ->post(route('portal.surveys.submit', $replacement), [
+                'answers' => $answers,
+            ])
+            ->assertRedirect(route('portal.surveys.index', absolute: false));
+
+        $this->assertNull($replacement->refresh()->draft_answers);
+        $this->assertNull($replacement->draft_saved_at);
     }
 
     public function test_builtin_service_survey_upgrade_publishes_v1_1_and_preserves_the_v1_0_template(): void

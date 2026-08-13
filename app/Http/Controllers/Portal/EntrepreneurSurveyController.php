@@ -11,6 +11,7 @@ use App\Models\SurveyAssignment;
 use App\Models\User;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Surveys\SurveyResponseRecorder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -49,7 +50,20 @@ final class EntrepreneurSurveyController extends Controller
         return Inertia::render('portal/entrepreneur/surveys/Show', [
             'assignment' => $this->assignmentPayload($surveyAssignment->load('survey.questions', 'response')),
             'storeUrl' => route('portal.entrepreneur.surveys.submit', $surveyAssignment, absolute: false),
+            'draftUrl' => route('portal.entrepreneur.surveys.draft', $surveyAssignment, absolute: false),
             'indexUrl' => route('portal.entrepreneur.surveys.index', absolute: false),
+        ]);
+    }
+
+    public function draft(Request $request, SurveyAssignment $surveyAssignment, SurveyResponseRecorder $recorder): JsonResponse
+    {
+        $this->profile($request);
+        Gate::authorize('respond', $surveyAssignment);
+
+        $assignment = $recorder->saveDraft($surveyAssignment, $request->all());
+
+        return response()->json([
+            'saved_at' => $assignment->draft_saved_at?->toIso8601String(),
         ]);
     }
 
@@ -62,6 +76,11 @@ final class EntrepreneurSurveyController extends Controller
             $replacement = $this->replacementFor($surveyAssignment, $profile);
 
             if ($replacement instanceof SurveyAssignment) {
+                $user = $request->user();
+                if ($user instanceof User) {
+                    $recorder->saveReplacementDraft($surveyAssignment, $replacement, $request->all());
+                }
+
                 return to_route('portal.entrepreneur.surveys.show', $replacement)
                     ->with('status', 'survey-replaced');
             }
@@ -121,6 +140,8 @@ final class EntrepreneurSurveyController extends Controller
             'activated_at' => $assignment->activated_at?->toIso8601String(),
             'due_at' => $assignment->due_at?->toIso8601String(),
             'completed_at' => $assignment->completed_at?->toIso8601String(),
+            'draft_answers' => $assignment->draft_answers ?? [],
+            'draft_saved_at' => $assignment->draft_saved_at?->toIso8601String(),
             'deliverables' => $assignment->deliverable_snapshot ?? [],
             'service' => $assignment->service_snapshot,
             'url' => route('portal.entrepreneur.surveys.show', $assignment, absolute: false),

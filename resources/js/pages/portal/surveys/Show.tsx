@@ -1,5 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Check } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +47,8 @@ type Assignment = {
     status: string;
     is_open: boolean;
     due_at: string | null;
+    draft_answers: Record<string, FormAnswer>;
+    draft_saved_at: string | null;
     deliverables: Deliverable[];
     service: {
         service_label?: string;
@@ -58,8 +61,11 @@ type Assignment = {
 type Props = {
     assignment: Assignment;
     storeUrl: string;
+    draftUrl: string;
     indexUrl: string;
 };
+
+type DraftStatus = 'idle' | 'saving' | 'saved' | 'local';
 
 type ScaleOption = {
     value: number;
@@ -77,15 +83,75 @@ const defaultLikertOptions: ScaleOption[] = [
 export default function PortalSurveyShow({
     assignment,
     storeUrl,
+    draftUrl,
     indexUrl,
 }: Props) {
     const form = useForm<{ answers: Record<string, FormAnswer> }>({
         answers: initialAnswers(assignment),
     });
+    const savedAnswers = useRef(JSON.stringify(form.data.answers));
+    const resettingAssignment = useRef(false);
+    const [draftStatus, setDraftStatus] = useState<DraftStatus>(
+        assignment.draft_saved_at ? 'saved' : 'idle',
+    );
+
+    useEffect(() => {
+        const answers = initialAnswers(assignment);
+
+        resettingAssignment.current = true;
+        form.setData('answers', answers);
+        savedAnswers.current = JSON.stringify(answers);
+        // Reset only when Inertia replaces this assignment with another survey.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [assignment.id]);
+
+    const answerSignature = JSON.stringify(form.data.answers);
+
+    useEffect(() => {
+        if (!assignment.is_open) {
+            return;
+        }
+
+        if (resettingAssignment.current) {
+            if (answerSignature === savedAnswers.current) {
+                resettingAssignment.current = false;
+            }
+
+            return;
+        }
+
+        saveLocalDraft(assignment.id, form.data.answers);
+
+        if (answerSignature === savedAnswers.current) {
+            return;
+        }
+
+        const timer = window.setTimeout(() => {
+            setDraftStatus('saving');
+
+            void saveServerDraft(draftUrl, form.data.answers)
+                .then(() => {
+                    savedAnswers.current = JSON.stringify(form.data.answers);
+                    setDraftStatus('saved');
+                })
+                .catch(() => {
+                    setDraftStatus('local');
+                });
+        }, 750);
+
+        return () => window.clearTimeout(timer);
+    }, [answerSignature, assignment.id, assignment.is_open, draftUrl, form.data.answers]);
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        form.post(storeUrl, { preserveScroll: true });
+        form.post(storeUrl, {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                if (page.url === indexUrl || page.url.startsWith(`${indexUrl}?`)) {
+                    clearLocalDraft(assignment.id);
+                }
+            },
+        });
     };
 
     const setFlat = (questionId: string, value: number | boolean | string) => {
@@ -378,6 +444,15 @@ export default function PortalSurveyShow({
 
                     <div className="flex justify-end">
                         <div className="space-y-2 text-right">
+                            {assignment.is_open && draftStatus !== 'idle' && (
+                                <p className="text-sm text-muted-foreground">
+                                    {draftStatus === 'saving'
+                                        ? 'Saving draft...'
+                                        : draftStatus === 'saved'
+                                          ? 'Draft saved'
+                                          : 'Draft is saved on this device until it can be uploaded.'}
+                                </p>
+                            )}
                             <p className="text-sm text-muted-foreground">
                                 Please answer honestly; your feedback helps
                                 improve the service and will never be held
@@ -571,19 +646,22 @@ const ratingQuestionGuidance: Record<string, string> = {
 };
 
 function initialAnswers(assignment: Assignment): Record<string, FormAnswer> {
+    const browserDraft = readLocalDraft(assignment.id);
+
     return Object.fromEntries(
         assignment.questions.map((question) => {
+            const serverDraft = assignment.draft_answers[question.key];
+            const localDraft = browserDraft[question.id];
+
             if (question.type === 'anchored_matrix') {
                 return [
                     question.id,
                     {
-                        anchors: assignment.deliverables.map((deliverable) => ({
-                            source_type: deliverable.source_type,
-                            source_id: deliverable.source_id,
-                            received: null,
-                            accessible: null,
-                            met_objective: null,
-                        })),
+                        anchors: mergeAnchorAnswers(
+                            assignment.deliverables,
+                            serverDraft?.anchors,
+                            localDraft?.anchors,
+                        ),
                     },
                 ];
             }
@@ -591,11 +669,107 @@ function initialAnswers(assignment: Assignment): Record<string, FormAnswer> {
             return [
                 question.id,
                 {
-                    value: null,
+                    value: localDraft?.value ?? serverDraft?.value ?? null,
+                    ...(typeof (localDraft?.comment ?? serverDraft?.comment) ===
+                    'string'
+                        ? {
+                              comment:
+                                  localDraft?.comment ?? serverDraft?.comment,
+                          }
+                        : {}),
                 },
             ];
         }),
     );
+}
+
+function mergeAnchorAnswers(
+    deliverables: Deliverable[],
+    serverAnchors: AnchorAnswer[] | undefined,
+    localAnchors: AnchorAnswer[] | undefined,
+): AnchorAnswer[] {
+    return deliverables.map((deliverable) => {
+        const server = serverAnchors?.find(
+            (anchor) =>
+                anchor.source_type === deliverable.source_type &&
+                anchor.source_id === deliverable.source_id,
+        );
+        const local = localAnchors?.find(
+            (anchor) =>
+                anchor.source_type === deliverable.source_type &&
+                anchor.source_id === deliverable.source_id,
+        );
+
+        return {
+            source_type: deliverable.source_type,
+            source_id: deliverable.source_id,
+            received: local?.received ?? server?.received ?? null,
+            accessible: local?.accessible ?? server?.accessible ?? null,
+            met_objective: local?.met_objective ?? server?.met_objective ?? null,
+        };
+    });
+}
+
+function draftStorageKey(assignmentId: string): string {
+    return `fsa:survey-draft:${assignmentId}`;
+}
+
+function readLocalDraft(assignmentId: string): Record<string, FormAnswer> {
+    if (typeof window === 'undefined') {
+        return {};
+    }
+
+    try {
+        const value = window.localStorage.getItem(draftStorageKey(assignmentId));
+        const parsed: unknown = value ? JSON.parse(value) : null;
+
+        return isRecord(parsed) ? (parsed as Record<string, FormAnswer>) : {};
+    } catch {
+        return {};
+    }
+}
+
+function saveLocalDraft(
+    assignmentId: string,
+    answers: Record<string, FormAnswer>,
+): void {
+    try {
+        window.localStorage.setItem(draftStorageKey(assignmentId), JSON.stringify(answers));
+    } catch {
+        // The server draft remains available when browser storage is unavailable.
+    }
+}
+
+function clearLocalDraft(assignmentId: string): void {
+    try {
+        window.localStorage.removeItem(draftStorageKey(assignmentId));
+    } catch {
+        // A private browser mode can reject storage operations.
+    }
+}
+
+async function saveServerDraft(
+    draftUrl: string,
+    answers: Record<string, FormAnswer>,
+): Promise<void> {
+    const csrfToken = document
+        .querySelector('meta[name="csrf-token"]')
+        ?.getAttribute('content');
+    const response = await window.fetch(draftUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}),
+        },
+        body: JSON.stringify({ answers }),
+    });
+
+    if (!response.ok) {
+        throw new Error('Unable to save survey draft.');
+    }
 }
 
 function ScaleButton({
