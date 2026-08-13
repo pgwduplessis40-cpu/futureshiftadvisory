@@ -140,14 +140,23 @@ export default function PortalSurveyShow({
         }, 750);
 
         return () => window.clearTimeout(timer);
-    }, [answerSignature, assignment.id, assignment.is_open, draftUrl, form.data.answers]);
+    }, [
+        answerSignature,
+        assignment.id,
+        assignment.is_open,
+        draftUrl,
+        form.data.answers,
+    ]);
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         form.post(storeUrl, {
             preserveScroll: true,
             onSuccess: (page) => {
-                if (page.url === indexUrl || page.url.startsWith(`${indexUrl}?`)) {
+                if (
+                    page.url === indexUrl ||
+                    page.url.startsWith(`${indexUrl}?`)
+                ) {
                     clearLocalDraft(assignment.id);
                 }
             },
@@ -705,7 +714,8 @@ function mergeAnchorAnswers(
             source_id: deliverable.source_id,
             received: local?.received ?? server?.received ?? null,
             accessible: local?.accessible ?? server?.accessible ?? null,
-            met_objective: local?.met_objective ?? server?.met_objective ?? null,
+            met_objective:
+                local?.met_objective ?? server?.met_objective ?? null,
         };
     });
 }
@@ -720,7 +730,9 @@ function readLocalDraft(assignmentId: string): Record<string, FormAnswer> {
     }
 
     try {
-        const value = window.localStorage.getItem(draftStorageKey(assignmentId));
+        const value = window.localStorage.getItem(
+            draftStorageKey(assignmentId),
+        );
         const parsed: unknown = value ? JSON.parse(value) : null;
 
         return isRecord(parsed) ? (parsed as Record<string, FormAnswer>) : {};
@@ -734,7 +746,10 @@ function saveLocalDraft(
     answers: Record<string, FormAnswer>,
 ): void {
     try {
-        window.localStorage.setItem(draftStorageKey(assignmentId), JSON.stringify(answers));
+        window.localStorage.setItem(
+            draftStorageKey(assignmentId),
+            JSON.stringify(answers),
+        );
     } catch {
         // The server draft remains available when browser storage is unavailable.
     }
