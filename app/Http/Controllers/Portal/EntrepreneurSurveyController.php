@@ -55,7 +55,18 @@ final class EntrepreneurSurveyController extends Controller
 
     public function submit(Request $request, SurveyAssignment $surveyAssignment, SurveyResponseRecorder $recorder): RedirectResponse
     {
-        $this->profile($request);
+        $profile = $this->profile($request);
+        Gate::authorize('view', $surveyAssignment);
+
+        if (! $surveyAssignment->isActive()) {
+            $replacement = $this->replacementFor($surveyAssignment, $profile);
+
+            if ($replacement instanceof SurveyAssignment) {
+                return to_route('portal.entrepreneur.surveys.show', $replacement)
+                    ->with('status', 'survey-replaced');
+            }
+        }
+
         Gate::authorize('respond', $surveyAssignment);
 
         $user = $request->user();
@@ -76,6 +87,24 @@ final class EntrepreneurSurveyController extends Controller
         return EntrepreneurProfile::query()
             ->where('user_id', $user->getKey())
             ->firstOrFail();
+    }
+
+    private function replacementFor(SurveyAssignment $assignment, EntrepreneurProfile $profile): ?SurveyAssignment
+    {
+        if ($assignment->status !== SurveyAssignmentStatus::Cancelled
+            || $assignment->service_activation_id !== null
+            || ! is_array($assignment->service_snapshot)) {
+            return null;
+        }
+
+        return SurveyAssignment::query()
+            ->where('entrepreneur_profile_id', $profile->getKey())
+            ->whereNull('service_activation_id')
+            ->whereNotNull('service_snapshot')
+            ->whereKeyNot($assignment->getKey())
+            ->whereIn('status', SurveyAssignmentStatus::activeValues())
+            ->latest('activated_at')
+            ->first();
     }
 
     /**

@@ -301,6 +301,10 @@ final class ServiceImprovementSurveyTest extends TestCase
             'subject_id' => $assignment->getKey(),
         ]);
 
+        $replacement = SurveyAssignment::query()
+            ->whereKeyNot($assignment->getKey())
+            ->sole();
+
         $this->actingAsMfa($entrepreneurUser)
             ->get(route('portal.entrepreneur.surveys.show', $assignment))
             ->assertOk()
@@ -312,7 +316,26 @@ final class ServiceImprovementSurveyTest extends TestCase
             ->post(route('portal.entrepreneur.surveys.submit', $assignment), [
                 'answers' => $this->answersFor($assignment),
             ])
-            ->assertForbidden();
+            ->assertRedirect(route('portal.entrepreneur.surveys.show', $replacement, absolute: false))
+            ->assertSessionHas('status', 'survey-replaced');
+
+        $this->actingAsMfa($entrepreneurUser)
+            ->get(route('portal.entrepreneur.surveys.show', $replacement))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('assignment.is_open', true)
+                ->where(
+                    'storeUrl',
+                    route('portal.entrepreneur.surveys.submit', $replacement, absolute: false),
+                ));
+
+        $this->actingAsMfa($entrepreneurUser)
+            ->post(route('portal.entrepreneur.surveys.submit', $replacement), [
+                'answers' => $this->answersFor($replacement),
+            ])
+            ->assertRedirect(route('portal.entrepreneur.surveys.index', absolute: false));
+
+        $this->assertSame(SurveyAssignmentStatus::Completed, $replacement->refresh()->status);
     }
 
     public function test_super_admin_can_issue_an_idea_validation_service_survey_after_builder_gate_approval(): void
