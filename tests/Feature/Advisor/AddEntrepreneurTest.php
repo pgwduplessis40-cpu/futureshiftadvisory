@@ -936,11 +936,14 @@ final class AddEntrepreneurTest extends TestCase
             'entrepreneur_profile_id' => $profile->getKey(),
             'title' => 'Business plan: Tania Hassounia',
             'source_type' => BusinessPlan::SOURCE_ENTREPRENEUR,
-            'status' => BusinessPlan::STATUS_SUBMITTED,
+            'status' => BusinessPlan::STATUS_BUILDING,
             'current_phase' => 5,
-            'submitted_at' => now()->subWeeks(2),
             'created_by_user_id' => $entrepreneur->getKey(),
         ]);
+        $plan->forceFill([
+            'status' => BusinessPlan::STATUS_SUBMITTED,
+            'submitted_at' => now()->subWeeks(2),
+        ])->save();
         $assessment = PlanAssessment::query()->create([
             'business_plan_id' => $plan->getKey(),
             'rating_framework_id' => RatingFramework::query()->firstOrFail()->getKey(),

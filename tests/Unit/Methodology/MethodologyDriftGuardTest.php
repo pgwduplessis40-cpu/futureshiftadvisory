@@ -30,10 +30,12 @@ use App\Services\Entrepreneurs\AdvisoryConversion;
 use App\Services\Entrepreneurs\AssessmentFeedback;
 use App\Services\Entrepreneurs\AssessmentScoring;
 use App\Services\Entrepreneurs\Benchmarking;
+use App\Services\Entrepreneurs\BudgetFundingReadiness;
 use App\Services\Entrepreneurs\BudgetPackBuilder;
 use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
 use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
 use App\Services\Entrepreneurs\EntrepreneurBudgetService;
+use App\Services\Entrepreneurs\EntrepreneurDocumentTemplate;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
@@ -46,6 +48,7 @@ use App\Services\Entrepreneurs\IdeaViabilityGate;
 use App\Services\Entrepreneurs\LivingPlan;
 use App\Services\Entrepreneurs\PlanAiContext;
 use App\Services\Entrepreneurs\PlanDocuments;
+use App\Services\Entrepreneurs\PlanIssueReadiness;
 use App\Services\Entrepreneurs\PlanRequirements;
 use App\Services\Fees\PilotFeeWaiverManager;
 use App\Services\Fees\ProposalPricingTerms;
@@ -135,10 +138,12 @@ final class MethodologyDriftGuardTest extends TestCase
         AssessmentFeedback::class => 'Advisor and founder assessment-feedback drafting workflow, not a methodology calculation.',
         AssessmentScoring::class => 'Shared scoring helper; owned methodology services disclose the scoring formula.',
         Benchmarking::class => 'Privacy-gated cohort report; excluded until a client-safe aggregate methodology is surfaced.',
+        BudgetFundingReadiness::class => 'Funding-readiness presentation state; the budget formula is owned by BudgetCalculator.',
         BudgetPackBuilder::class => 'Budget-pack renderer; forecast formula is owned by BudgetCalculator.',
         BusinessPlanPreviewRenderer::class => 'Business-plan PDF renderer; requirement completion is presentation state, not an advisory methodology surface.',
         CanonicalEntrepreneurWorkspace::class => 'Selects the canonical existing entrepreneur workspace for a client; it does not calculate or disclose advisory methodology.',
         EntrepreneurBudgetService::class => 'Budget persistence workflow; forecast formula is owned by BudgetCalculator.',
+        EntrepreneurDocumentTemplate::class => 'Document-template selection helper, not an advisory methodology surface.',
         EntrepreneurGamification::class => 'Gamification payload renderer; requirement and milestone rules are not advisor methodology disclosures.',
         EntrepreneurInviteReconciler::class => 'Invite reconciliation workflow.',
         EntrepreneurMilestones::class => 'Milestone-award persistence workflow.',
@@ -152,6 +157,7 @@ final class MethodologyDriftGuardTest extends TestCase
         PlanAiContext::class => 'AI drafting-context assembler, not a calculation method.',
         \App\Services\Entrepreneurs\PlanBuilder::class => 'Plan scaffolding workflow.',
         PlanDocuments::class => 'Document verification helper.',
+        PlanIssueReadiness::class => 'External-issue status presentation state; budget and plan rules are owned elsewhere.',
         PlanRequirements::class => 'Static plan requirement checklist; completion is presentation state, not an advisory methodology surface.',
         CoachPanel::class => 'Coach referral workflow orchestration.',
         PilotFeeWaiverManager::class => 'Pilot waiver lifecycle workflow; it does not calculate advisory fees.',

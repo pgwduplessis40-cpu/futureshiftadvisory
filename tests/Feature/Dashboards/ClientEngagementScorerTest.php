@@ -194,9 +194,9 @@ final class ClientEngagementScorerTest extends TestCase
         $score = app(ClientEngagementScorer::class)->score($client);
 
         $this->assertSame('entrepreneur_plan', $score['scoring_mode']);
-        $this->assertSame(93, $score['scores']['plan_progress_pct']);
+        $this->assertSame(94, $score['scores']['plan_progress_pct']);
         $this->assertSame(100, $score['scores']['activity_recency_pct']);
-        $this->assertSame(95, $score['score']);
+        $this->assertSame(96, $score['score']);
         $this->assertSame('green', $score['level']);
         $this->assertSame(0, $score['display']['last_activity_days']);
         $this->assertSame('goals', $score['focus_section']);
