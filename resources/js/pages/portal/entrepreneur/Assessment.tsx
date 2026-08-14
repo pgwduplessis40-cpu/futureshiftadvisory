@@ -59,6 +59,9 @@ type Assessment = {
         business_plan_status: string | null;
         business_plan_submitted_at: string | null;
         business_plan_updated_at: string | null;
+        plan_snapshot_available: boolean;
+        plan_snapshot_url: string | null;
+        plan_snapshot_captured_at: string | null;
         summary: string;
     };
     rating_framework: {
@@ -282,9 +285,32 @@ export default function EntrepreneurAssessment({
                                 Score summary
                             </h2>
                         </div>
-                        <Badge variant="outline">
-                            {assessment.basis.label}
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline">
+                                {assessment.basis.label}
+                            </Badge>
+                            {assessment.basis.plan_snapshot_url ? (
+                                <Button asChild size="sm" variant="outline">
+                                    <a
+                                        href={
+                                            assessment.basis.plan_snapshot_url
+                                        }
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        <FileText
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Submitted plan
+                                    </a>
+                                </Button>
+                            ) : (
+                                <Badge variant="secondary">
+                                    Snapshot unavailable
+                                </Badge>
+                            )}
+                        </div>
                     </div>
                     <dl className="grid gap-3 text-sm md:grid-cols-2">
                         <Detail
@@ -313,6 +339,12 @@ export default function EntrepreneurAssessment({
                             label="Plan updated"
                             value={formatDateTime(
                                 assessment.basis.business_plan_updated_at,
+                            )}
+                        />
+                        <Detail
+                            label="Snapshot captured"
+                            value={formatDateTime(
+                                assessment.basis.plan_snapshot_captured_at,
                             )}
                         />
                     </dl>

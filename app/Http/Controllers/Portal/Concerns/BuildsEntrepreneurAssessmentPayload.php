@@ -25,6 +25,8 @@ trait BuildsEntrepreneurAssessmentPayload
         $isCurrentFramework = ! $framework instanceof RatingFramework
             || ! $currentFramework instanceof RatingFramework
             || (string) $framework->getKey() === (string) $currentFramework->getKey();
+        $planSnapshot = $assessment->plan_snapshot;
+        $snapshotAvailable = is_array($planSnapshot) && is_array($planSnapshot['phases'] ?? null);
 
         return [
             'id' => $assessment->id,
@@ -42,8 +44,13 @@ trait BuildsEntrepreneurAssessmentPayload
                 'business_plan_status' => $assessment->businessPlan?->status,
                 'business_plan_submitted_at' => $assessment->businessPlan?->submitted_at?->toIso8601String(),
                 'business_plan_updated_at' => $assessment->businessPlan?->updated_at?->toIso8601String(),
+                'plan_snapshot_available' => $snapshotAvailable,
+                'plan_snapshot_url' => null,
+                'plan_snapshot_captured_at' => is_array($planSnapshot) ? data_get($planSnapshot, 'captured_at') : null,
                 'summary' => sprintf(
-                    'Round %d was scored from the business plan sections and budget saved for this assessment round. Advisor-reviewed scores override the automated score only where an advisor has added a review score.',
+                    $snapshotAvailable
+                        ? 'Round %d was scored from the submitted plan snapshot captured for this assessment round. Advisor-reviewed scores override the automated score only where an advisor has added a review score.'
+                        : 'Round %d was scored from the business plan evidence available when this assessment was created. A submitted-plan snapshot is not available for this historical round.',
                     max(1, (int) $assessment->round),
                 ),
             ],

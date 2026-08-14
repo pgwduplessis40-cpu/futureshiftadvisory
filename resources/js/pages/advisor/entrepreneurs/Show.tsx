@@ -100,6 +100,8 @@ export default function EntrepreneursShow({
     coBrowse,
 }: Props) {
     const latestAssessment = entrepreneur.latest_plan?.latest_assessment;
+    const assessmentHistory =
+        entrepreneur.latest_plan?.assessment_history ?? [];
     const latestAssessmentUsesCurrentRubric =
         latestAssessment?.rating_framework.is_current ?? true;
     const canRunAssessment = entrepreneur.latest_plan?.can_assess ?? false;
@@ -2352,6 +2354,131 @@ export default function EntrepreneursShow({
                                 }
                             />
                         </div>
+
+                        {assessmentHistory.length > 0 ? (
+                            <div className="space-y-3">
+                                <div className="flex flex-wrap items-end justify-between gap-3">
+                                    <div>
+                                        <h3 className="text-sm font-medium">
+                                            Submitted plan versions
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Open the plan snapshot that each
+                                            assessment round was scored against.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="overflow-x-auto rounded-md border">
+                                    <table className="w-full min-w-[780px] text-sm">
+                                        <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+                                            <tr>
+                                                <th className="px-3 py-2 font-medium">
+                                                    Round
+                                                </th>
+                                                <th className="px-3 py-2 font-medium">
+                                                    Submitted
+                                                </th>
+                                                <th className="px-3 py-2 font-medium">
+                                                    Snapshot
+                                                </th>
+                                                <th className="px-3 py-2 font-medium">
+                                                    Score
+                                                </th>
+                                                <th className="px-3 py-2 font-medium">
+                                                    Grade
+                                                </th>
+                                                <th className="px-3 py-2 font-medium">
+                                                    Actions
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                            {assessmentHistory.map((round) => (
+                                                <tr key={round.id}>
+                                                    <td className="px-3 py-3 font-medium">
+                                                        Round {round.round}
+                                                    </td>
+                                                    <td className="px-3 py-3 text-muted-foreground">
+                                                        {formatDate(
+                                                            round.submitted_at,
+                                                        )}
+                                                    </td>
+                                                    <td className="px-3 py-3">
+                                                        {round.snapshot_available ? (
+                                                            <span className="text-muted-foreground">
+                                                                Captured{' '}
+                                                                {formatDate(
+                                                                    round.snapshot_captured_at,
+                                                                )}
+                                                            </span>
+                                                        ) : (
+                                                            <Badge variant="secondary">
+                                                                Snapshot
+                                                                unavailable
+                                                            </Badge>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-3 py-3 tabular-nums">
+                                                        {round.weighted_score.toFixed(
+                                                            1,
+                                                        )}
+                                                        /100
+                                                    </td>
+                                                    <td className="px-3 py-3">
+                                                        {gradeLabel(
+                                                            round.overall_grade,
+                                                        )}
+                                                    </td>
+                                                    <td className="px-3 py-3">
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {round.plan_snapshot_url ? (
+                                                                <Button
+                                                                    asChild
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                >
+                                                                    <a
+                                                                        href={
+                                                                            round.plan_snapshot_url
+                                                                        }
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                    >
+                                                                        <FileText
+                                                                            className="size-4"
+                                                                            aria-hidden="true"
+                                                                        />
+                                                                        Submitted
+                                                                        plan
+                                                                    </a>
+                                                                </Button>
+                                                            ) : null}
+                                                            <Button
+                                                                asChild
+                                                                size="sm"
+                                                                variant="ghost"
+                                                            >
+                                                                <Link
+                                                                    href={
+                                                                        round.assessment_url
+                                                                    }
+                                                                >
+                                                                    <ArrowUpRight
+                                                                        className="size-4"
+                                                                        aria-hidden="true"
+                                                                    />
+                                                                    Assessment
+                                                                </Link>
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        ) : null}
 
                         {entrepreneur.latest_plan.latest_revision ? (
                             <div className="grid gap-6 lg:grid-cols-2">

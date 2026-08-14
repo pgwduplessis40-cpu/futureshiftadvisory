@@ -477,6 +477,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}', [EntrepreneurAssessmentController::class, 'show'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.assessments.show');
+        Route::get('entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/plan-preview', [EntrepreneurAssessmentController::class, 'planPreview'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
+            ->name('entrepreneurs.assessments.plan-preview');
         Route::get('entrepreneurs/{entrepreneurProfile}/surveys', [SurveyResultController::class, 'entrepreneur'])
             ->middleware('permission:'.Permission::SURVEYS_VIEW->value)
             ->name('entrepreneurs.surveys');

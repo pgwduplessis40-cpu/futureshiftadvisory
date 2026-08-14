@@ -6,18 +6,25 @@ namespace App\Http\Controllers\Advisor;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\BuildsEntrepreneurAssessmentPayload;
+use App\Models\BusinessPlan;
 use App\Models\EntrepreneurProfile;
 use App\Models\PlanAssessment;
 use App\Services\Entrepreneurs\AssessmentFeedback;
+use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 final class EntrepreneurAssessmentController extends Controller
 {
     use BuildsEntrepreneurAssessmentPayload;
 
-    public function __construct(private readonly AssessmentFeedback $feedbacks) {}
+    public function __construct(
+        private readonly AssessmentFeedback $feedbacks,
+        private readonly BusinessPlanPreviewRenderer $planPreview,
+    ) {}
 
     public function show(EntrepreneurProfile $entrepreneurProfile, PlanAssessment $planAssessment): Response
     {
@@ -51,6 +58,15 @@ final class EntrepreneurAssessmentController extends Controller
             $proposedReply = $suggestedReply;
         }
 
+        $assessmentPayload = $this->assessmentPayload($planAssessment);
+        if ((bool) data_get($assessmentPayload, 'basis.plan_snapshot_available')) {
+            $assessmentPayload['basis']['plan_snapshot_url'] = route(
+                'advisor.entrepreneurs.assessments.plan-preview',
+                [$profile, $planAssessment],
+                absolute: false,
+            );
+        }
+
         return Inertia::render('portal/entrepreneur/Assessment', [
             'profile' => [
                 'id' => $profile->id,
@@ -62,7 +78,7 @@ final class EntrepreneurAssessmentController extends Controller
                     'email' => $profile->assignedAdvisor->email,
                 ] : null,
             ],
-            'assessment' => $this->assessmentPayload($planAssessment),
+            'assessment' => $assessmentPayload,
             'advisorFeedback' => [
                 'feedback' => $feedback,
                 'proposed_reply' => $proposedReply,
@@ -78,6 +94,33 @@ final class EntrepreneurAssessmentController extends Controller
             'reassessUrl' => $plan
                 ? route('advisor.entrepreneurs.plans.assessments.store', [$profile, $plan], absolute: false)
                 : null,
+        ]);
+    }
+
+    public function planPreview(EntrepreneurProfile $entrepreneurProfile, PlanAssessment $planAssessment): SymfonyResponse
+    {
+        Gate::authorize('view', $entrepreneurProfile);
+
+        $planAssessment->loadMissing('businessPlan.entrepreneurProfile');
+        $profile = $planAssessment->businessPlan?->entrepreneurProfile;
+        $plan = $planAssessment->businessPlan;
+        abort_unless(
+            $profile instanceof EntrepreneurProfile
+                && $plan instanceof BusinessPlan
+                && (string) $profile->getKey() === (string) $entrepreneurProfile->getKey(),
+            404,
+        );
+
+        $snapshot = $planAssessment->plan_snapshot;
+        abort_unless(is_array($snapshot) && is_array($snapshot['phases'] ?? null), 404, 'No submitted plan snapshot is available for this assessment round.');
+
+        $pdf = $this->planPreview->pdfFromSnapshot($profile, $plan, $snapshot, (int) $planAssessment->round);
+        $filename = Str::slug($profile->name ?: 'entrepreneur').'-submitted-plan-round-'.$planAssessment->round.'.pdf';
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Cache-Control' => 'no-store, max-age=0',
         ]);
     }
 }

@@ -163,6 +163,9 @@ final class AssessmentTest extends TestCase
         $this->assertStringContainsString('Revised second-round evidence names six paid pilots', $capturedPromptInput);
         $this->assertStringNotContainsString('Original first-round evidence only mentions vague market interest', $capturedPromptInput);
         $this->assertContains($updatedSection->getKey(), $sourceSectionIds);
+        $snapshotJson = json_encode($latest->plan_snapshot, JSON_THROW_ON_ERROR);
+        $this->assertStringContainsString('Revised second-round evidence names six paid pilots', $snapshotJson);
+        $this->assertStringNotContainsString('Original first-round evidence only mentions vague market interest', $snapshotJson);
 
         $this->actingAsMfa($admin)
             ->get(route('advisor.entrepreneurs.show', $profile))
@@ -172,6 +175,9 @@ final class AssessmentTest extends TestCase
                 ->where('entrepreneur.latest_plan.assessment_count', 2)
                 ->where('entrepreneur.latest_plan.latest_round', 2)
                 ->where('entrepreneur.latest_plan.latest_assessment.id', $latest->id)
+                ->where('entrepreneur.latest_plan.assessment_history.0.round', 2)
+                ->where('entrepreneur.latest_plan.assessment_history.0.snapshot_available', true)
+                ->where('entrepreneur.latest_plan.assessment_history.0.plan_snapshot_url', route('advisor.entrepreneurs.assessments.plan-preview', [$profile, $latest], absolute: false))
             );
 
         $this->actingAsMfa($admin)
@@ -180,6 +186,8 @@ final class AssessmentTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('portal/entrepreneur/Assessment')
                 ->where('assessment.basis.label', 'Resubmitted business plan')
+                ->where('assessment.basis.plan_snapshot_available', true)
+                ->where('assessment.basis.plan_snapshot_url', route('advisor.entrepreneurs.assessments.plan-preview', [$profile, $latest], absolute: false))
                 ->where('assessment.criteria.0.source_label', 'Round 2 automated score')
                 ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'assessment round 2')
                     && str_contains($value, 'automated score generated for this round')
@@ -281,6 +289,64 @@ final class AssessmentTest extends TestCase
         $this->assertTrue($feedbacks->isLegacyReply('The IP section is directionally aware but materially underdeveloped for launch decision-making...'));
     }
 
+    public function test_assessment_feedback_draft_shows_round_movement_and_current_source_evidence(): void
+    {
+        $this->app->instance(AiClient::class, new CapturingScoreAiClient(82));
+        [$advisor, $plan] = $this->plan('assessment-feedback-evidence@example.test');
+        $first = app(Assessment::class)->firstPass($plan, $advisor);
+        $first->forceFill([
+            'ai_scores' => $this->scoresWithOverrides($first, [
+                4 => 34,
+                8 => 32,
+                9 => 38,
+            ], 88),
+        ])->save();
+
+        app(PlanBuilder::class)->upsertSection(
+            plan: $plan->refresh(),
+            phaseKey: 'legal_operations',
+            key: 'founder-legal_operations-intellectual-property',
+            title: 'Intellectual property',
+            body: 'Updated second-round IP register lists the Drawer Full of Giants brand, facilitation methods, content library, contracts, copyright ownership, and protection steps.',
+            actor: $advisor,
+            metadata: ['requirement_key' => 'intellectual-property'],
+        );
+        app(PlanBuilder::class)->upsertSection(
+            plan: $plan->refresh(),
+            phaseKey: 'market',
+            key: 'founder-market-industry-context',
+            title: 'Industry and customer demand',
+            body: 'Updated second-round industry evidence names six paid pilots, current competitor pricing, customer interviews, and demand signals from the founder resubmission.',
+            actor: $advisor,
+            metadata: ['requirement_key' => 'industry-context'],
+        );
+        app(PlanBuilder::class)->upsertSection(
+            plan: $plan->refresh(),
+            phaseKey: 'strategy',
+            key: 'founder-strategy-goals-objectives',
+            title: 'Goals and objectives',
+            body: 'Updated second-round goals include dated launch milestones, owners, success measures, and the decision each milestone will support.',
+            actor: $advisor,
+            metadata: ['requirement_key' => 'goals-objectives'],
+        );
+
+        $second = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+        $second->forceFill([
+            'ai_scores' => $this->scoresWithOverrides($second, [
+                4 => 36,
+                8 => 45,
+                9 => 42,
+            ], 88),
+        ])->save();
+
+        $feedback = app(AssessmentFeedback::class)->draft($second->refresh());
+
+        $this->assertStringContainsString('Round movement: previous round 1 was 32.0/100; current round is 45.0/100 (+13.0).', $feedback);
+        $this->assertStringContainsString('Scored from current source excerpts:', $feedback);
+        $this->assertStringContainsString('Updated second-round IP register', $feedback);
+        $this->assertStringNotContainsString('target cust...', $feedback);
+    }
+
     public function test_advisor_can_save_and_send_assessment_feedback_to_the_founder(): void
     {
         [$advisor, $plan] = $this->plan('assessment-feedback-founder@example.test');
@@ -369,6 +435,21 @@ final class AssessmentTest extends TestCase
 
         $this->assertTrue(app(Assessment::class)->criteriaVisible($plan));
         $this->assertSame(BusinessPlan::STATUS_FINALISED, $plan->refresh()->status);
+    }
+
+    /**
+     * @param  array<int, int>  $overrides
+     * @return array<int, array<string, mixed>>
+     */
+    private function scoresWithOverrides(PlanAssessment $assessment, array $overrides, int $defaultScore): array
+    {
+        return collect($assessment->ai_scores)
+            ->map(fn (array $row): array => [
+                ...$row,
+                'score' => $overrides[(int) $row['criterion_number']] ?? $defaultScore,
+            ])
+            ->values()
+            ->all();
     }
 
     /**

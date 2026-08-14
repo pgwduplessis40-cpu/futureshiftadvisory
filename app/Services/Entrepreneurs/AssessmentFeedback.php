@@ -79,20 +79,36 @@ final class AssessmentFeedback
     ];
 
     /**
-     * @return array<int, array{title:string,score:float,what_is_missing:string,what_to_add_or_change:string,where_in_plan:string,scoring_rationale:string,source_sections:array<int, array<string, mixed>>}>
+     * @return array<int, array<string, mixed>>
      */
     public function priorities(PlanAssessment $assessment): array
     {
+        $assessment->loadMissing('ratingFramework.criteria');
+        $previous = $this->previousAssessment($assessment);
+        $previousCriteria = $previous instanceof PlanAssessment
+            ? collect(AssessmentScoring::criteriaPayload($previous))->keyBy('criterion_number')
+            : collect();
+
         return collect(AssessmentScoring::criteriaPayload($assessment))
             ->sortBy('score')
             ->take(3)
-            ->map(function (array $criterion): array {
+            ->map(function (array $criterion) use ($previous, $previousCriteria): array {
                 $name = (string) ($criterion['name'] ?? 'Plan requirement');
                 $guidance = self::PRIORITY_GUIDANCE[strtolower(trim($name))] ?? $this->defaultGuidance($name);
+                $criterionNumber = (int) ($criterion['criterion_number'] ?? 0);
+                $score = round((float) ($criterion['score'] ?? 0), 1);
+                $previousRow = $previousCriteria->get($criterionNumber);
+                $previousScore = is_array($previousRow) && is_numeric($previousRow['score'] ?? null)
+                    ? round((float) $previousRow['score'], 1)
+                    : null;
 
                 return [
+                    'criterion_number' => $criterionNumber,
                     'title' => $name,
-                    'score' => round((float) ($criterion['score'] ?? 0), 1),
+                    'score' => $score,
+                    'previous_round' => $previous?->round,
+                    'previous_score' => $previousScore,
+                    'score_delta' => $previousScore === null ? null : round($score - $previousScore, 1),
                     'what_is_missing' => $guidance['what_is_missing'],
                     'what_to_add_or_change' => $guidance['what_to_add_or_change'],
                     'where_in_plan' => $guidance['where_in_plan'],
@@ -170,7 +186,7 @@ final class AssessmentFeedback
         return implode("\n\n", [
             $intro,
             'Ask the founder to update these three areas next:',
-            $this->formatPriorities($priorities, includeScores: true),
+            $this->formatPriorities($priorities, includeScores: true, includeEvidence: true),
             'These changes will give the next assessment clearer evidence to review.',
         ]);
     }
@@ -188,7 +204,7 @@ final class AssessmentFeedback
 
         return $this->changeRequestMessages->build($profile, [
             'You have made progress on your business plan. You do not need to start again. Please update the three areas below before you send it back.',
-            "Please work through these updates:\n\n".$this->formatPriorities($priorities, includeScores: false),
+            "Please work through these updates:\n\n".$this->formatPriorities($priorities, includeScores: false, includeEvidence: false),
             'When these updates are done, send the plan back. We will review what changed. Please reply if you would like to talk through any item before you begin.',
         ]);
     }
@@ -199,6 +215,9 @@ final class AssessmentFeedback
 
         return (str_starts_with($feedback, 'I have completed the assessment. The current score is')
             && str_contains($feedback, 'The most useful priorities for the next revision are:'))
+            || (str_starts_with($feedback, 'Assessment completed:')
+                && str_contains($feedback, 'Ask the founder to update these three areas next:')
+                && ! str_contains($feedback, 'Scored from current source excerpts:'))
             || $this->containsRetiredFounderLanguage($feedback);
     }
 
@@ -212,26 +231,120 @@ final class AssessmentFeedback
     }
 
     /**
-     * @param  array<int, array{title:string,score:float,what_is_missing:string,what_to_add_or_change:string,where_in_plan:string}>  $priorities
+     * @param  array<int, array<string, mixed>>  $priorities
      */
-    private function formatPriorities(array $priorities, bool $includeScores): string
+    private function formatPriorities(array $priorities, bool $includeScores, bool $includeEvidence): string
     {
         return collect($priorities)
             ->values()
-            ->map(function (array $priority, int $index) use ($includeScores): string {
+            ->map(function (array $priority, int $index) use ($includeScores, $includeEvidence): string {
                 $heading = sprintf('%d. %s', $index + 1, $priority['title']);
                 if ($includeScores) {
                     $heading .= sprintf(' (%.0f/100)', $priority['score']);
                 }
 
-                return implode("\n", [
+                $lines = [
                     $heading,
                     'What is missing: '.$priority['what_is_missing'],
                     'What to add/change: '.$priority['what_to_add_or_change'],
                     'Where in the plan: '.$priority['where_in_plan'],
-                ]);
+                ];
+
+                if ($includeScores) {
+                    $movement = $this->movementLine($priority);
+                    if ($movement !== null) {
+                        $lines[] = $movement;
+                    }
+                }
+
+                if ($includeEvidence) {
+                    $rationale = $this->rationaleLine($priority);
+                    if ($rationale !== null) {
+                        $lines[] = $rationale;
+                    }
+
+                    $evidence = $this->sourceEvidenceLine($priority);
+                    if ($evidence !== null) {
+                        $lines[] = $evidence;
+                    }
+                }
+
+                return implode("\n", $lines);
             })
             ->implode("\n\n");
+    }
+
+    private function movementLine(array $priority): ?string
+    {
+        if (! is_numeric($priority['previous_score'] ?? null) || ! is_numeric($priority['previous_round'] ?? null)) {
+            return null;
+        }
+
+        $delta = (float) ($priority['score_delta'] ?? 0);
+        $deltaText = $delta > 0
+            ? '+'.number_format($delta, 1)
+            : number_format($delta, 1);
+
+        return sprintf(
+            'Round movement: previous round %d was %.1f/100; current round is %.1f/100 (%s).',
+            (int) $priority['previous_round'],
+            (float) $priority['previous_score'],
+            (float) $priority['score'],
+            $deltaText,
+        );
+    }
+
+    private function rationaleLine(array $priority): ?string
+    {
+        $rationale = trim((string) ($priority['scoring_rationale'] ?? ''));
+
+        if ($rationale === '') {
+            return null;
+        }
+
+        return 'Assessment rationale: '.Str::limit(Str::squish($rationale), 420);
+    }
+
+    private function sourceEvidenceLine(array $priority): ?string
+    {
+        $sections = collect((array) ($priority['source_sections'] ?? []))
+            ->map(function (mixed $section): ?string {
+                if (! is_array($section)) {
+                    return null;
+                }
+
+                $title = trim((string) ($section['title'] ?? 'Plan section'));
+                $excerpt = trim((string) ($section['body_excerpt'] ?? ''));
+
+                if ($excerpt === '') {
+                    return null;
+                }
+
+                $updatedAt = trim((string) ($section['updated_at'] ?? ''));
+                $label = $updatedAt !== '' ? "{$title} updated {$updatedAt}" : $title;
+
+                return $label.': '.Str::limit(Str::squish($excerpt), 220);
+            })
+            ->filter()
+            ->take(2)
+            ->values()
+            ->all();
+
+        if ($sections === []) {
+            return null;
+        }
+
+        return 'Scored from current source excerpts: '.implode(' | ', $sections);
+    }
+
+    private function previousAssessment(PlanAssessment $assessment): ?PlanAssessment
+    {
+        return PlanAssessment::query()
+            ->with('ratingFramework.criteria')
+            ->where('business_plan_id', $assessment->business_plan_id)
+            ->where('round', '<', (int) $assessment->round)
+            ->orderByDesc('round')
+            ->first();
     }
 
     /**

@@ -807,6 +807,7 @@ final class EntrepreneurController extends Controller
                 ? route('advisor.entrepreneurs.plans.latest.budget-pack.pdf', $profile, absolute: false)
                 : null,
             'assess_url' => route('advisor.entrepreneurs.plans.assessments.store', [$profile, $plan], absolute: false),
+            'assessment_history' => $this->assessmentHistory($plan, $profile),
             'latest_revision' => $latestRevision instanceof PlanRevision ? [
                 'id' => $latestRevision->id,
                 'round' => $latestRevision->round,
@@ -817,6 +818,54 @@ final class EntrepreneurController extends Controller
                 'remaining_gaps' => data_get($latestRevision->progress_comparison, 'remaining_gaps', []),
             ] : null,
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function assessmentHistory(BusinessPlan $plan, EntrepreneurProfile $profile): array
+    {
+        return $plan->assessments
+            ->sortByDesc('round')
+            ->map(function (PlanAssessment $assessment) use ($plan, $profile): array {
+                $payload = $this->assessmentPayload($assessment);
+                $snapshot = $assessment->plan_snapshot;
+                $snapshotAvailable = is_array($snapshot) && is_array($snapshot['phases'] ?? null);
+
+                return [
+                    'id' => $assessment->id,
+                    'round' => $assessment->round,
+                    'status' => $payload['status'],
+                    'overall_grade' => $payload['overall_grade'],
+                    'weighted_score' => $payload['weighted_score'],
+                    'created_at' => $assessment->created_at?->toIso8601String(),
+                    'submitted_at' => $this->submittedAtForAssessment($plan, $assessment),
+                    'snapshot_available' => $snapshotAvailable,
+                    'snapshot_captured_at' => is_array($snapshot) ? data_get($snapshot, 'captured_at') : null,
+                    'assessment_url' => route('advisor.entrepreneurs.assessments.show', [$profile, $assessment], absolute: false),
+                    'plan_snapshot_url' => $snapshotAvailable
+                        ? route('advisor.entrepreneurs.assessments.plan-preview', [$profile, $assessment], absolute: false)
+                        : null,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function submittedAtForAssessment(BusinessPlan $plan, PlanAssessment $assessment): ?string
+    {
+        if ((int) $assessment->round > 1) {
+            $revision = $plan->revisions->first(
+                fn (PlanRevision $candidate): bool => (int) $candidate->round === (int) $assessment->round,
+            );
+
+            if ($revision instanceof PlanRevision) {
+                return $revision->submitted_at?->toIso8601String();
+            }
+        }
+
+        return $plan->submitted_at?->toIso8601String()
+            ?? $assessment->created_at?->toIso8601String();
     }
 
     private function canAssessPlan(BusinessPlan $plan): bool

@@ -37,11 +37,12 @@ final class Assessment implements ProvidesMethodology
         private readonly AuditWriter $audit,
         private readonly EntrepreneurMilestones $milestones,
         private readonly PlanAiContext $contexts,
+        private readonly BusinessPlanSnapshot $snapshots,
     ) {}
 
     public function firstPass(BusinessPlan $plan, User $actor): PlanAssessment
     {
-        $plan->loadMissing('sections', 'entrepreneurProfile', 'budgetRunway');
+        $plan = $plan->refresh()->load('sections', 'entrepreneurProfile', 'budgetRunway', 'phases.sections');
         foreach ($plan->sections as $section) {
             if ($section instanceof PlanSection) {
                 $this->documents->ensureScoringClear($section);
@@ -62,9 +63,10 @@ final class Assessment implements ProvidesMethodology
             ->values()
             ->all();
         $documentSupport = $this->documentSupport($plan);
+        $planSnapshot = $this->snapshots->capture($plan);
         $weighted = AssessmentScoring::weightedScoreForFramework($framework, $aiScores);
 
-        return DB::transaction(function () use ($plan, $actor, $framework, $aiScores, $documentSupport, $weighted): PlanAssessment {
+        return DB::transaction(function () use ($plan, $actor, $framework, $aiScores, $documentSupport, $planSnapshot, $weighted): PlanAssessment {
             $lockedPlan = BusinessPlan::query()
                 ->whereKey($plan->getKey())
                 ->lockForUpdate()
@@ -82,6 +84,7 @@ final class Assessment implements ProvidesMethodology
                 'advisor_scores' => [],
                 'mentor_notes' => [],
                 'document_support' => $documentSupport,
+                'plan_snapshot' => $planSnapshot,
                 'overall_grade' => $framework->gradeFor($weighted),
             ]);
             $lockedPlan->forceFill([

@@ -46,6 +46,40 @@ final class BusinessPlanPreviewRenderer
         }
     }
 
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    public function pdfFromSnapshot(EntrepreneurProfile $profile, BusinessPlan $plan, array $snapshot, int $round): string
+    {
+        $capturedAt = (string) ($snapshot['captured_at'] ?? '');
+        $documentMeta = [
+            'document_tag' => 'Submitted plan',
+            'eyebrow' => 'Plan snapshot captured for assessment round '.$round,
+            'heading' => 'Submitted business plan',
+            'plan_status' => (string) data_get($snapshot, 'business_plan.status', $plan->status),
+            'footer' => $capturedAt !== ''
+                ? 'Snapshot captured '.$capturedAt.' from the submitted entrepreneur workspace'
+                : 'Snapshot captured from the submitted entrepreneur workspace',
+            'meta' => [
+                'Assessment round' => (string) $round,
+                'Snapshot captured' => $capturedAt !== '' ? $capturedAt : 'Recorded with assessment',
+            ],
+        ];
+        $phases = $this->snapshotPhases($snapshot);
+        $issueReadiness = is_array($snapshot['issue_readiness'] ?? null)
+            ? $snapshot['issue_readiness']
+            : $this->emptyIssueReadiness();
+        $html = $this->html($profile, $plan, $phases, $issueReadiness, $documentMeta);
+
+        try {
+            return $this->pdf->render($html);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return $this->fallbackPdf($profile, $plan, $phases, $issueReadiness, $documentMeta);
+        }
+    }
+
     public function filename(EntrepreneurProfile $profile): string
     {
         return Str::slug($profile->name ?: 'entrepreneur').'-business-plan.pdf';
@@ -163,16 +197,23 @@ final class BusinessPlanPreviewRenderer
     /**
      * @param  array<int, array<string, mixed>>  $phases
      */
-    private function html(EntrepreneurProfile $profile, ?BusinessPlan $plan, array $phases): string
-    {
+    private function html(
+        EntrepreneurProfile $profile,
+        ?BusinessPlan $plan,
+        array $phases,
+        ?array $issueReadinessOverride = null,
+        array $documentMeta = [],
+    ): string {
         $requirements = collect($phases)->flatMap(fn (array $phase): array => $phase['requirements'] ?? []);
         $total = $requirements->count();
         $completed = $requirements->filter(fn (array $requirement): bool => (bool) ($requirement['complete'] ?? false))->count();
         $documentSections = $this->documentSections($phases);
         $missingItems = $this->missingRequirements($requirements);
-        $issueReadiness = $plan instanceof BusinessPlan
-            ? $this->issueReadiness->evaluate($plan)
-            : $this->emptyIssueReadiness();
+        $issueReadiness = is_array($issueReadinessOverride)
+            ? $issueReadinessOverride
+            : ($plan instanceof BusinessPlan
+                ? $this->issueReadiness->evaluate($plan)
+                : $this->emptyIssueReadiness());
         $sectionHtml = collect($documentSections)
             ->map(fn (array $section, int $index): string => $this->documentSectionHtml($section, $index + 1))
             ->implode('');
@@ -189,26 +230,34 @@ final class BusinessPlanPreviewRenderer
             );
         $generatedAt = now()->format('M j, Y g:i A');
         $template = $this->templates->businessPlan();
+        $planStatus = (string) ($documentMeta['plan_status'] ?? ($plan?->status ?? 'not started'));
+        $meta = [
+            'Plan status' => $this->formatLabel($planStatus),
+            'Requirements' => "{$completed}/{$total} complete",
+            'Evidence coverage' => ($issueReadiness['evidence_supported_responses'] ?? 0).'/'.($issueReadiness['completed_responses'] ?? 0).' responses',
+            'External issue' => (string) ($issueReadiness['label'] ?? 'Not ready for external issue'),
+            'Stage' => $this->formatLabel($profile->currentStageValue()),
+            'Template' => $this->templateLabel($template),
+        ];
+        $extraMeta = $documentMeta['meta'] ?? [];
+        if (is_array($extraMeta)) {
+            foreach ($extraMeta as $label => $value) {
+                $meta[(string) $label] = (string) $value;
+            }
+        }
 
         return $this->layout->document(
             title: 'Business plan - '.$profile->name,
             templateKey: $template?->getKey() ?? EntrepreneurDocumentTemplate::BUSINESS_PLAN,
-            documentTag: 'Business plan',
-            eyebrow: (bool) ($issueReadiness['external_issue_ready'] ?? false)
+            documentTag: (string) ($documentMeta['document_tag'] ?? 'Business plan'),
+            eyebrow: (string) ($documentMeta['eyebrow'] ?? ((bool) ($issueReadiness['external_issue_ready'] ?? false)
                 ? 'Prepared for lender and investor review'
-                : 'Advisor working copy - not for external issue',
-            heading: 'Business plan',
+                : 'Advisor working copy - not for external issue')),
+            heading: (string) ($documentMeta['heading'] ?? 'Business plan'),
             subheading: $profile->name,
-            meta: [
-                'Plan status' => $this->formatLabel($plan?->status ?? 'not started'),
-                'Requirements' => "{$completed}/{$total} complete",
-                'Evidence coverage' => ($issueReadiness['evidence_supported_responses'] ?? 0).'/'.($issueReadiness['completed_responses'] ?? 0).' responses',
-                'External issue' => (string) ($issueReadiness['label'] ?? 'Not ready for external issue'),
-                'Stage' => $this->formatLabel($profile->currentStageValue()),
-                'Template' => $this->templateLabel($template),
-            ],
+            meta: $meta,
             contentHtml: $contentHtml,
-            footer: 'Generated '.$generatedAt.' using Future Shift Advisory business-plan workspace',
+            footer: (string) ($documentMeta['footer'] ?? 'Generated '.$generatedAt.' using Future Shift Advisory business-plan workspace'),
             template: $template,
             metaColumns: 5,
             extraCss: $this->businessPlanCss(),
@@ -391,29 +440,47 @@ HTML,
     /**
      * @param  array<int, array<string, mixed>>  $phases
      */
-    private function fallbackPdf(EntrepreneurProfile $profile, ?BusinessPlan $plan, array $phases): string
-    {
+    private function fallbackPdf(
+        EntrepreneurProfile $profile,
+        ?BusinessPlan $plan,
+        array $phases,
+        ?array $issueReadinessOverride = null,
+        array $documentMeta = [],
+    ): string {
         $requirements = collect($phases)->flatMap(fn (array $phase): array => $phase['requirements'] ?? []);
         $total = $requirements->count();
         $completed = $requirements->filter(fn (array $requirement): bool => (bool) ($requirement['complete'] ?? false))->count();
         $sections = $this->documentSections($phases);
         $missing = $this->missingRequirements($requirements);
-        $issueReadiness = $plan instanceof BusinessPlan
-            ? $this->issueReadiness->evaluate($plan)
-            : $this->emptyIssueReadiness();
+        $issueReadiness = is_array($issueReadinessOverride)
+            ? $issueReadinessOverride
+            : ($plan instanceof BusinessPlan
+                ? $this->issueReadiness->evaluate($plan)
+                : $this->emptyIssueReadiness());
         $responses = collect($sections)->sum(fn (array $section): int => count($section['entries']));
         $evidence = collect($sections)
             ->flatMap(fn (array $section): array => $section['entries'])
             ->sum(fn (array $entry): int => $entry['evidence_count']);
+        $planStatus = (string) ($documentMeta['plan_status'] ?? ($plan?->status ?? 'not started'));
         $blocks = [
             ['type' => 'meta', 'text' => 'Prepared by Future Shift Advisory'],
             ['type' => 'meta', 'text' => 'Rendering mode: Fallback PDF - not for external issue'],
             ['type' => 'meta', 'text' => 'Founder: '.$profile->name],
-            ['type' => 'meta', 'text' => 'Plan status: '.$this->formatLabel($plan?->status ?? 'not started')],
+            ['type' => 'meta', 'text' => 'Plan status: '.$this->formatLabel($planStatus)],
             ['type' => 'meta', 'text' => 'Requirements: '.$completed.'/'.$total.' complete'],
             ['type' => 'meta', 'text' => 'Evidence coverage: '.($issueReadiness['evidence_supported_responses'] ?? 0).'/'.($issueReadiness['completed_responses'] ?? 0).' responses'],
             ['type' => 'meta', 'text' => 'External issue: '.($issueReadiness['label'] ?? 'Not ready for external issue')],
             ['type' => 'meta', 'text' => 'Stage: '.$this->formatLabel($profile->currentStageValue())],
+        ];
+        $extraMeta = $documentMeta['meta'] ?? [];
+        if (is_array($extraMeta)) {
+            foreach ($extraMeta as $label => $value) {
+                $blocks[] = ['type' => 'meta', 'text' => (string) $label.': '.(string) $value];
+            }
+        }
+
+        $blocks = [
+            ...$blocks,
             ['type' => 'spacer'],
             [
                 'type' => 'callout',
@@ -476,6 +543,24 @@ HTML,
         }
 
         return $this->fallbackPdf->renderStructured('Business Plan - '.($profile->name ?: 'Entrepreneur'), $blocks);
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @return array<int, array<string, mixed>>
+     */
+    private function snapshotPhases(array $snapshot): array
+    {
+        $phases = $snapshot['phases'] ?? [];
+
+        if (! is_array($phases)) {
+            return [];
+        }
+
+        return collect($phases)
+            ->filter(fn (mixed $phase): bool => is_array($phase))
+            ->values()
+            ->all();
     }
 
     private function fallbackSummary(int $responses, int $sections, int $missing): string

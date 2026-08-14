@@ -82,6 +82,19 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         preview_pdf_url: string;
         budget_pdf_url: string | null;
         assess_url: string;
+        assessment_history: {
+            id: string;
+            round: number;
+            status: string;
+            overall_grade: string;
+            weighted_score: number;
+            created_at: string | null;
+            submitted_at: string | null;
+            snapshot_available: boolean;
+            snapshot_captured_at: string | null;
+            assessment_url: string;
+            plan_snapshot_url: string | null;
+        }[];
         latest_revision: {
             id: string;
             round: number;

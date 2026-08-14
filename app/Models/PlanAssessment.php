@@ -20,6 +20,7 @@ final class PlanAssessment extends Model
         'advisor_scores' => 'array',
         'mentor_notes' => 'array',
         'document_support' => 'array',
+        'plan_snapshot' => 'array',
         'finalised_at' => 'datetime',
     ];
 
