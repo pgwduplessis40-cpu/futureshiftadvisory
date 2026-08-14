@@ -18,7 +18,6 @@ import { InspirationCard } from '@/components/inspiration/InspirationCard';
 import type { InspirationPost } from '@/components/inspiration/InspirationCard';
 import { WorkspaceSwitcher } from '@/components/portal/WorkspaceSwitcher';
 import type { WorkspaceSwitcherPayload } from '@/components/portal/WorkspaceSwitcher';
-import { ClientSupport } from '@/components/screen-share/ClientSupport';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -179,23 +178,6 @@ type WelcomeMessage = {
     version: number | null;
 };
 
-type ScreenShareConfig = {
-    portal_context_token: string;
-    connection_url: string;
-    prompt_url: string;
-    connection_heartbeat_url: string;
-    response_url: string;
-    browser_permission_url: string;
-    ice_servers_url: string;
-    active_url: string;
-    signal_url: string;
-    pending_signals_url: string;
-    heartbeat_url: string;
-    end_url: string;
-    heartbeat_seconds: number;
-    warning_at_minutes: number;
-} | null;
-
 type Props = {
     profile: EntrepreneurProfile;
     inspirationBoard: InspirationPost | null;
@@ -208,7 +190,6 @@ type Props = {
     outcomeFollowUps: PendingOutcomeFollowUpsPayload;
     gamification: GamificationPayload;
     welcomeMessage: WelcomeMessage;
-    screenShare: ScreenShareConfig;
     coBrowse: ClientCoBrowseConfig | null;
 };
 
@@ -224,7 +205,6 @@ export default function EntrepreneurDashboard({
     outcomeFollowUps,
     gamification,
     welcomeMessage,
-    screenShare,
     coBrowse,
 }: Props) {
     const [activeTab, setActiveTab] =
@@ -259,7 +239,6 @@ export default function EntrepreneurDashboard({
     return (
         <>
             <Head title="Entrepreneur dashboard" />
-            <ClientSupport config={screenShare} />
             <ClientCoBrowse config={coBrowse} />
 
             <div className="space-y-6">

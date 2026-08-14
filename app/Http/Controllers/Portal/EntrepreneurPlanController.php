@@ -36,6 +36,7 @@ use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanAiContext;
 use App\Services\Entrepreneurs\PlanBuilder;
 use App\Services\Entrepreneurs\PlanDocuments;
+use App\Services\Entrepreneurs\PlanIssueReadiness;
 use App\Services\Entrepreneurs\PlanRequirements;
 use App\Services\Entrepreneurs\Readiness;
 use App\Services\Entrepreneurs\Revision;
@@ -87,6 +88,7 @@ final class EntrepreneurPlanController extends Controller
         private readonly BudgetPackBuilder $budgetPack,
         private readonly AuditWriter $audit,
         private readonly EntrepreneurBudgetService $budgets,
+        private readonly PlanIssueReadiness $planIssueReadiness,
         private readonly EntrepreneurMilestones $milestones,
         private readonly EntrepreneurGamification $gamification,
         private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
@@ -963,6 +965,7 @@ final class EntrepreneurPlanController extends Controller
             'updated_at' => $plan->updated_at?->toIso8601String(),
             'requirements_complete' => $completion['complete'],
             'missing_requirements' => $completion['missing'],
+            'external_issue_readiness' => $this->planIssueReadiness->evaluate($plan),
             'budget' => $this->budgetPayload($plan, $plan->budgetRunway),
             'latest_assessment' => $latestAssessment ? [
                 'id' => $latestAssessment->id,

@@ -37,7 +37,6 @@ import { NpoHealthPanel } from '@/components/npo/NpoHealthPanel';
 import type { NpoHealthPayload } from '@/components/npo/NpoHealthPanel';
 import { WorkspaceSwitcher } from '@/components/portal/WorkspaceSwitcher';
 import type { WorkspaceSwitcherPayload } from '@/components/portal/WorkspaceSwitcher';
-import { ClientSupport } from '@/components/screen-share/ClientSupport';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,22 +78,6 @@ type Progress = {
 
 type Props = {
     client: ClientPayload;
-    screenShare: {
-        portal_context_token: string;
-        connection_url: string;
-        prompt_url: string;
-        connection_heartbeat_url: string;
-        response_url: string;
-        browser_permission_url: string;
-        ice_servers_url: string;
-        active_url: string;
-        signal_url: string;
-        pending_signals_url: string;
-        heartbeat_url: string;
-        end_url: string;
-        heartbeat_seconds: number;
-        warning_at_minutes: number;
-    } | null;
     coBrowse: ClientCoBrowseConfig | null;
     progress: Progress;
     currentStep: string;
@@ -646,7 +629,6 @@ function WelcomeBanner({ welcomeMessage }: { welcomeMessage: WelcomeMessage }) {
 
 export default function PortalDashboard({
     client,
-    screenShare,
     coBrowse,
     progress,
     onboardingUrl,
@@ -930,7 +912,6 @@ export default function PortalDashboard({
     return (
         <>
             <Head title="Client portal" />
-            <ClientSupport config={screenShare} />
             <ClientCoBrowse config={coBrowse} />
 
             <main

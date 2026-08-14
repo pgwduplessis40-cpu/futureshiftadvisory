@@ -72,6 +72,10 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringContainsString('<svg role="img" aria-label="Budget cash curve"', $html);
         $this->assertStringContainsString('Cash -- teal', $html);
         $this->assertStringContainsString('Revenue -- gold', $html);
+        $this->assertStringContainsString('Budget inputs', $html);
+        $this->assertStringContainsString('External issue', $html);
+        $this->assertStringContainsString('Monthly fixed-cost trace', $html);
+        $this->assertStringContainsString('Lowest cash M1', $html);
         $this->assertStringContainsString('Break-even M2', $html);
         $this->assertStringContainsString('Runway M3', $html);
     }
@@ -130,5 +134,6 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringContainsString('Scenario comparison', $pdf);
         $this->assertStringContainsString('Cash and revenue trend', $pdf);
         $this->assertStringContainsString('Annual forecast profile', $pdf);
+        $this->assertStringContainsString('FALLBACK PDF', $pdf);
     }
 }

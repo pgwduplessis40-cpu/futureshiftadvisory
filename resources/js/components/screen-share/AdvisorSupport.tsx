@@ -291,11 +291,7 @@ export function AdvisorSupport({
             );
             setSession(result.id);
         } catch (caught) {
-            setError(
-                caught instanceof Error
-                    ? caught.message
-                    : 'Unable to request screen support.',
-            );
+            setError(messageForRequestFailure(caught));
         }
     }
 
@@ -774,6 +770,17 @@ function messageForNegotiationFailure(caught: unknown): string {
         detail +
         ' It will retry while the client keeps sharing.'
     );
+}
+
+function messageForRequestFailure(caught: unknown): string {
+    const fallback = 'Unable to request screen support.';
+    const message = caught instanceof Error ? caught.message : fallback;
+
+    if (message.includes('not connected to screen support')) {
+        return message.replace(/\s+\(HTTP\s+\d+\)$/i, '');
+    }
+
+    return message;
 }
 
 function formatDuration(seconds: number): string {

@@ -53,7 +53,7 @@ final class EntrepreneurScreenShareRequests
                 'no_active_entrepreneur_connection',
             );
 
-            abort(422, 'The selected entrepreneur is not currently online.');
+            abort(422, $this->offlineMessage('entrepreneur', $entrepreneur));
         }
 
         [$session, $deliveries] = $this->context->withSystemContext(function () use ($advisor, $advisorConnection, $attachment, $connections, $entrepreneur, $profile): array {
@@ -130,6 +130,13 @@ final class EntrepreneurScreenShareRequests
     private function requestTimeoutSeconds(): int
     {
         return max(15, (int) config('screen-share.request_timeout_seconds', 60));
+    }
+
+    private function offlineMessage(string $role, User $user): string
+    {
+        $name = trim($user->name ?: $user->email ?: 'The selected '.$role);
+
+        return $name.' is not connected to screen support. Ask them to open or refresh the Future Shift portal and keep the tab visible, then request view again.';
     }
 
     private function auditRequestFailure(

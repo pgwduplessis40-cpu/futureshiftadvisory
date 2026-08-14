@@ -42,6 +42,8 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         assessment_count: number;
         latest_round: number | null;
         latest_grade: string | null;
+        can_assess: boolean;
+        assessment_action_label: string;
         latest_assessment: {
             id: string;
             round: number;

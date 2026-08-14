@@ -102,9 +102,10 @@ export default function EntrepreneursShow({
     const latestAssessment = entrepreneur.latest_plan?.latest_assessment;
     const latestAssessmentUsesCurrentRubric =
         latestAssessment?.rating_framework.is_current ?? true;
-    const canRunAssessment =
-        !!entrepreneur.latest_plan &&
-        (!latestAssessment || !latestAssessmentUsesCurrentRubric);
+    const canRunAssessment = entrepreneur.latest_plan?.can_assess ?? false;
+    const assessmentActionLabel =
+        entrepreneur.latest_plan?.assessment_action_label ??
+        (latestAssessment ? 'Run reassessment' : 'Run assessment');
     const gamification = entrepreneur.gamification;
     const [gamificationEnabled, setGamificationEnabled] = useState(
         gamification.enabled,
@@ -912,9 +913,7 @@ export default function EntrepreneursShow({
                                         )}
                                         {assessmentPending
                                             ? 'Running assessment'
-                                            : latestAssessment
-                                              ? 'Run reassessment'
-                                              : 'Run assessment'}
+                                            : assessmentActionLabel}
                                     </Button>
                                 ) : null}
                                 {latestAssessment &&
@@ -1042,7 +1041,7 @@ export default function EntrepreneursShow({
                                     />
                                     {assessmentPending
                                         ? 'Running assessment'
-                                        : 'Run reassessment'}
+                                        : assessmentActionLabel}
                                 </Button>
                             </div>
                         ) : null}
@@ -2145,6 +2144,34 @@ export default function EntrepreneursShow({
                                             />
                                             View assessment
                                         </Link>
+                                    </Button>
+                                ) : null}
+                                {canRunAssessment ? (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={assessmentPending}
+                                        onClick={runAssessment}
+                                    >
+                                        {latestAssessment ? (
+                                            <RefreshCw
+                                                className={cn(
+                                                    'size-4',
+                                                    assessmentPending &&
+                                                        'animate-spin',
+                                                )}
+                                                aria-hidden="true"
+                                            />
+                                        ) : (
+                                            <ClipboardCheck
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                        )}
+                                        {assessmentPending
+                                            ? 'Running assessment'
+                                            : assessmentActionLabel}
                                     </Button>
                                 ) : null}
                             </div>

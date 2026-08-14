@@ -58,7 +58,7 @@ final class ScreenShareSessions
                 'no_active_client_connection',
             );
 
-            abort(422, 'The selected client is not currently online.');
+            abort(422, $this->offlineMessage('client', $clientUser));
         }
 
         [$session, $deliveries] = $this->context->withSystemContext(function () use ($advisor, $advisorConnection, $attachment, $client, $clientUser, $connections): array {
@@ -647,6 +647,13 @@ final class ScreenShareSessions
     private function requestTimeoutSeconds(): int
     {
         return max(15, (int) config('screen-share.request_timeout_seconds', 60));
+    }
+
+    private function offlineMessage(string $role, User $user): string
+    {
+        $name = trim($user->name ?: $user->email ?: 'The selected '.$role);
+
+        return $name.' is not connected to screen support. Ask them to open or refresh the Future Shift portal and keep the tab visible, then request view again.';
     }
 
     private function pickerTimeoutSeconds(): int

@@ -40,6 +40,11 @@ final class PlanRequirements
                     'title' => 'What sets the business apart',
                     'description' => 'Describe competitors, alternatives, and why customers would choose this business.',
                 ],
+                [
+                    'key' => 'competitor-comparison',
+                    'title' => 'Competitor comparison',
+                    'description' => 'Compare three to five named competitors or alternatives: their offer, price or positioning, strengths, gaps, and the evidence for this business to win customers.',
+                ],
             ],
         ],
         'strategy' => [
@@ -59,6 +64,11 @@ final class PlanRequirements
                     'key' => 'culture',
                     'title' => 'Culture',
                     'description' => 'Explain the team culture, values, operating behaviours, and customer promise.',
+                ],
+                [
+                    'key' => 'organisation-management',
+                    'title' => 'Organisation and management',
+                    'description' => 'Set out founder and team responsibilities, relevant experience, decision rights, critical capability gaps, and the hiring or advisor plan for the next 12 months.',
                 ],
             ],
         ],
@@ -106,6 +116,11 @@ final class PlanRequirements
                     'description' => 'Enter launch costs, monthly costs, revenue assumptions, funding sources, and expected runway.',
                     'type' => 'budget',
                 ],
+                [
+                    'key' => 'executive-summary',
+                    'title' => 'Executive summary',
+                    'description' => 'Complete this last. Summarise the business, customer problem, market evidence, competitive advantage, leadership, funding request, and the decision a lender or investor should make.',
+                ],
             ],
         ],
     ];
@@ -131,7 +146,7 @@ final class PlanRequirements
     }
 
     /**
-     * @return array{total:int, completed:int, percent:int}
+     * @return array{total:int, completed:int, percent:int, complete:bool}
      */
     public static function completion(BusinessPlan $plan): array
     {
@@ -153,6 +168,7 @@ final class PlanRequirements
             'total' => $total,
             'completed' => $completed,
             'percent' => $total > 0 ? (int) round(($completed / $total) * 100) : 0,
+            'complete' => $total > 0 && $completed === $total,
         ];
     }
 

@@ -28,6 +28,7 @@ use App\Models\OperationalHealthCheckRun;
 use App\Models\PanelAgreement;
 use App\Models\PanelMember;
 use App\Models\PlanAssessment;
+use App\Models\PlanRevision;
 use App\Models\Proposal;
 use App\Models\ProspectLead;
 use App\Models\RedFlag;
@@ -854,6 +855,7 @@ final class StaffDashboardController extends Controller
             ->with([
                 'entrepreneurProfile',
                 'assessments' => fn ($query) => $query->latest('round')->latest(),
+                'revisions' => fn ($query) => $query->latest('submitted_at')->latest(),
             ])
             ->where('source_type', BusinessPlan::SOURCE_ENTREPRENEUR)
             ->whereIn('status', [
@@ -865,19 +867,15 @@ final class StaffDashboardController extends Controller
                 'entrepreneurProfile',
                 fn (Builder $query): Builder => $this->visibleEntrepreneurQuery($query, $user),
             );
+        $planRecords = (clone $planQuery)->get();
+        $actionablePlanCount = $planRecords
+            ->filter(fn (BusinessPlan $plan): bool => $this->entrepreneurPlanNeedsAdvisorAction($plan))
+            ->count();
         $actionableIdeaQuery = (clone $ideaQuery)
             ->where(function (Builder $query): void {
                 $query
                     ->whereNull('ai_evaluation->metadata->advisor_gate_status')
                     ->orWhere('ai_evaluation->metadata->advisor_gate_status', '!=', 'changes_requested');
-            });
-        $actionablePlanQuery = (clone $planQuery)
-            ->whereIn('status', [
-                BusinessPlan::STATUS_SUBMITTED,
-                BusinessPlan::STATUS_ASSESSING,
-            ])
-            ->whereDoesntHave('assessments', function (Builder $query): void {
-                $query->whereNotNull('mentor_notes->feedback_sent_at');
             });
 
         $ideaItems = (clone $ideaQuery)
@@ -888,20 +886,18 @@ final class StaffDashboardController extends Controller
             ->map(fn (IdeaValidation $validation): array => $this->entrepreneurIdeaReviewItem($validation))
             ->values()
             ->all();
-        $planItems = (clone $planQuery)
-            ->latest('submitted_at')
-            ->latest()
-            ->limit(5)
-            ->get()
+        $planItems = $planRecords
+            ->sortByDesc(fn (BusinessPlan $plan): string => $this->entrepreneurPlanSortTimestamp($plan))
+            ->take(5)
             ->map(fn (BusinessPlan $plan): array => $this->entrepreneurPlanReviewItem($plan))
             ->values()
             ->all();
 
         return [
             'summary' => [
-                'total' => (clone $actionableIdeaQuery)->count() + (clone $actionablePlanQuery)->count(),
+                'total' => (clone $actionableIdeaQuery)->count() + $actionablePlanCount,
                 'idea_validations' => (clone $actionableIdeaQuery)->count(),
-                'business_plans' => (clone $actionablePlanQuery)->count(),
+                'business_plans' => $actionablePlanCount,
             ],
             'items' => [
                 ...$ideaItems,
@@ -953,19 +949,16 @@ final class StaffDashboardController extends Controller
     private function entrepreneurPlanReviewItem(BusinessPlan $plan): array
     {
         $profile = $plan->entrepreneurProfile;
-        $assessment = $plan->assessments->first();
+        $assessment = $this->latestPlanAssessment($plan);
         $assessmentReady = $assessment instanceof PlanAssessment;
-        $assessmentFeedbackSent = $assessmentReady
-            && data_get($assessment->mentor_notes, 'feedback_sent_at') !== null;
-        $awaitingResubmission = $plan->status === BusinessPlan::STATUS_REVISING
-            || $assessmentFeedbackSent;
+        $awaitingResubmission = $this->entrepreneurPlanAwaitingResubmission($plan, $assessment);
         $status = 'Submitted for assessment';
         $detailUrl = $profile instanceof EntrepreneurProfile
             ? route('advisor.entrepreneurs.show', $profile, absolute: false)
             : null;
-        $actionLabel = 'Run assessment';
+        $actionLabel = $assessmentReady ? 'Run reassessment' : 'Run assessment';
 
-        if ($assessmentReady) {
+        if ($assessmentReady && $plan->status !== BusinessPlan::STATUS_SUBMITTED) {
             $status = 'Assessment ready for feedback';
             $detailUrl = $profile instanceof EntrepreneurProfile
                 ? route('advisor.entrepreneurs.assessments.show', [$profile, $assessment], absolute: false)
@@ -989,10 +982,116 @@ final class StaffDashboardController extends Controller
             'entrepreneur_name' => $profile?->name ?? 'Entrepreneur',
             'entrepreneur_email' => $profile?->email,
             'status' => $status,
-            'submitted_at' => $plan->submitted_at?->toIso8601String() ?? $plan->updated_at?->toIso8601String(),
+            'submitted_at' => $this->latestFounderPlanHandoffAt($plan)?->toIso8601String()
+                ?? $plan->updated_at?->toIso8601String(),
             'detail_url' => $detailUrl,
             'action_label' => $actionLabel,
         ];
+    }
+
+    private function entrepreneurPlanNeedsAdvisorAction(BusinessPlan $plan): bool
+    {
+        if ($plan->status === BusinessPlan::STATUS_SUBMITTED) {
+            return true;
+        }
+
+        if ($plan->status !== BusinessPlan::STATUS_ASSESSING) {
+            return false;
+        }
+
+        return ! $this->entrepreneurPlanAwaitingResubmission($plan);
+    }
+
+    private function entrepreneurPlanAwaitingResubmission(
+        BusinessPlan $plan,
+        ?PlanAssessment $assessment = null,
+    ): bool {
+        if ($plan->status === BusinessPlan::STATUS_SUBMITTED) {
+            return false;
+        }
+
+        if ($plan->status === BusinessPlan::STATUS_REVISING) {
+            return true;
+        }
+
+        $feedbackSentAt = $this->assessmentFeedbackSentAt($assessment ?? $this->latestPlanAssessment($plan));
+
+        if (! $feedbackSentAt instanceof Carbon) {
+            return false;
+        }
+
+        $latestFounderHandoffAt = $this->latestFounderPlanHandoffAt($plan);
+
+        return ! $latestFounderHandoffAt instanceof Carbon
+            || $feedbackSentAt->greaterThanOrEqualTo($latestFounderHandoffAt);
+    }
+
+    private function latestPlanAssessment(BusinessPlan $plan): ?PlanAssessment
+    {
+        if ($plan->relationLoaded('assessments')) {
+            $assessment = $plan->assessments->first();
+
+            return $assessment instanceof PlanAssessment ? $assessment : null;
+        }
+
+        return $plan->assessments()->latest('round')->latest()->first();
+    }
+
+    private function latestPlanRevision(BusinessPlan $plan): ?PlanRevision
+    {
+        if ($plan->relationLoaded('revisions')) {
+            $revision = $plan->revisions->first();
+
+            return $revision instanceof PlanRevision ? $revision : null;
+        }
+
+        return $plan->revisions()->latest('submitted_at')->latest()->first();
+    }
+
+    private function assessmentFeedbackSentAt(?PlanAssessment $assessment): ?Carbon
+    {
+        if (! $assessment instanceof PlanAssessment) {
+            return null;
+        }
+
+        $feedbackSentAt = data_get($assessment->mentor_notes, 'feedback_sent_at');
+
+        if ($feedbackSentAt instanceof DateTimeInterface) {
+            return Carbon::parse($feedbackSentAt);
+        }
+
+        if (! is_string($feedbackSentAt) || trim($feedbackSentAt) === '') {
+            return null;
+        }
+
+        return Carbon::parse($feedbackSentAt);
+    }
+
+    private function latestFounderPlanHandoffAt(BusinessPlan $plan): ?Carbon
+    {
+        $latestRevision = $this->latestPlanRevision($plan);
+        $timestamps = collect([
+            $latestRevision?->submitted_at,
+            $plan->submitted_at,
+        ]);
+
+        if ($plan->status === BusinessPlan::STATUS_SUBMITTED) {
+            $timestamps->push($plan->updated_at);
+        }
+
+        return $timestamps
+            ->filter(fn (mixed $timestamp): bool => $timestamp instanceof DateTimeInterface)
+            ->map(fn (DateTimeInterface $timestamp): Carbon => Carbon::parse($timestamp))
+            ->sortByDesc(fn (Carbon $timestamp): int => $timestamp->getTimestamp())
+            ->values()
+            ->first();
+    }
+
+    private function entrepreneurPlanSortTimestamp(BusinessPlan $plan): string
+    {
+        return $this->latestFounderPlanHandoffAt($plan)?->toIso8601String()
+            ?? $plan->updated_at?->toIso8601String()
+            ?? '';
     }
 
     /**

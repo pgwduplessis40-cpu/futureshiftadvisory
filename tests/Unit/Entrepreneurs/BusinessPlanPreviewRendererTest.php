@@ -26,6 +26,43 @@ final class BusinessPlanPreviewRendererTest extends TestCase
         ], $points);
     }
 
+    public function test_completed_executive_summary_is_rendered_before_other_plan_sections(): void
+    {
+        $renderer = app(BusinessPlanPreviewRenderer::class);
+        $method = new ReflectionMethod($renderer, 'documentSections');
+        $method->setAccessible(true);
+        $sections = $method->invoke($renderer, [
+            [
+                'title' => 'Foundation',
+                'requirements' => [[
+                    'key' => 'mission-vision',
+                    'title' => 'Mission and vision',
+                ]],
+                'sections' => [[
+                    'requirement_key' => 'mission-vision',
+                    'body' => 'A focused mission and vision statement for the business.',
+                    'attached_document_ids' => [],
+                ]],
+            ],
+            [
+                'title' => 'Financial',
+                'requirements' => [[
+                    'key' => 'executive-summary',
+                    'title' => 'Executive summary',
+                ]],
+                'sections' => [[
+                    'requirement_key' => 'executive-summary',
+                    'body' => 'A concise lender-ready overview of the business, funding need, and decision.',
+                    'attached_document_ids' => ['document-1'],
+                ]],
+            ],
+        ]);
+
+        $this->assertSame('Executive summary', $sections[0]['title']);
+        $this->assertSame('executive-summary', $sections[0]['entries'][0]['key']);
+        $this->assertSame('Foundation', $sections[1]['title']);
+    }
+
     /**
      * @return array<int, string>
      */

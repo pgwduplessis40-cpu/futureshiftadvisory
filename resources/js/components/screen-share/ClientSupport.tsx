@@ -17,23 +17,25 @@ import {
     screenSharePost,
 } from '@/lib/screen-share';
 
+export type ClientScreenShareConfig = {
+    portal_context_token: string;
+    connection_url: string;
+    prompt_url: string;
+    connection_heartbeat_url: string;
+    response_url: string;
+    browser_permission_url: string;
+    ice_servers_url: string;
+    active_url: string;
+    signal_url: string;
+    pending_signals_url: string;
+    heartbeat_url: string;
+    end_url: string;
+    heartbeat_seconds: number;
+    warning_at_minutes: number;
+} | null;
+
 type Props = {
-    config: {
-        portal_context_token: string;
-        connection_url: string;
-        prompt_url: string;
-        connection_heartbeat_url: string;
-        response_url: string;
-        browser_permission_url: string;
-        ice_servers_url: string;
-        active_url: string;
-        signal_url: string;
-        pending_signals_url: string;
-        heartbeat_url: string;
-        end_url: string;
-        heartbeat_seconds: number;
-        warning_at_minutes: number;
-    } | null;
+    config: ClientScreenShareConfig;
 };
 
 type Credentials = {

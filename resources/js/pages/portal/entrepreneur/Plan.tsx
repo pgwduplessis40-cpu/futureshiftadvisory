@@ -115,6 +115,13 @@ type BusinessPlanPayload = {
     updated_at: string | null;
     requirements_complete: boolean;
     missing_requirements: string[];
+    external_issue_readiness: {
+        external_issue_ready: boolean;
+        label: string;
+        reasons: string[];
+        evidence_supported_responses: number;
+        completed_responses: number;
+    };
     budget: BudgetPayload;
     latest_assessment: {
         id: string;
@@ -1214,6 +1221,34 @@ export default function EntrepreneurPlan({
                         </Button>
                     </div>
                 </div>
+
+                {plan && !plan.external_issue_readiness.external_issue_ready ? (
+                    <section className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-950">
+                        <div className="flex items-start gap-3">
+                            <AlertTriangle
+                                className="mt-0.5 size-4 shrink-0"
+                                aria-hidden="true"
+                            />
+                            <div>
+                                <div className="font-medium">
+                                    {plan.external_issue_readiness.label}
+                                </div>
+                                <p className="mt-1 text-red-900">
+                                    Evidence coverage: {plan.external_issue_readiness.evidence_supported_responses}/
+                                    {plan.external_issue_readiness.completed_responses}{' '}
+                                    completed responses.
+                                </p>
+                                <ul className="mt-2 list-disc space-y-1 pl-5 text-red-900">
+                                    {plan.external_issue_readiness.reasons.map(
+                                        (reason) => (
+                                            <li key={reason}>{reason}</li>
+                                        ),
+                                    )}
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+                ) : null}
 
                 <TabList activeTab={activeTab} onChange={setActiveTab} />
 
@@ -3397,7 +3432,7 @@ function BudgetRowsEditor({
                                     }
                                 />
                                 <BudgetInput
-                                    label="Growth %"
+                                    label="Monthly growth %"
                                     type="number"
                                     min={-100}
                                     value={row.monthly_growth_percent ?? 0}
@@ -3511,8 +3546,8 @@ function BudgetAssumptionsEditor({
     }[] = [
         {
             key: 'revenue_growth_percent',
-            label: 'Revenue growth %',
-            helper: 'How annual sales should grow after year one.',
+            label: 'Annual revenue growth %',
+            helper: 'Applied from year two onward; use Monthly growth % on a revenue row for the first-year ramp.',
         },
         {
             key: 'cost_inflation_percent',

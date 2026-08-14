@@ -209,7 +209,7 @@ final class ScreenShareSessionTest extends TestCase
         Event::fake([ScreenSharePrompt::class]);
         $advisorConnection = app(ScreenSharePresence::class)->registerAdvisor($this->advisor, $this->client);
 
-        $this->actingAs($this->advisor)
+        $response = $this->actingAs($this->advisor)
             ->withSession([
                 'auth.mfa_user_id' => (string) $this->advisor->getKey(),
                 'auth.mfa_confirmed_at' => now()->getTimestamp(),
@@ -223,6 +223,9 @@ final class ScreenShareSessionTest extends TestCase
                 ],
             )
             ->assertUnprocessable();
+
+        $this->assertStringContainsString('not connected to screen support', (string) $response->json('message'));
+        $this->assertStringContainsString('open or refresh the Future Shift portal', (string) $response->json('message'));
 
         $event = AuditEvent::query()
             ->where('action', 'screen_share.request_failed')
@@ -584,7 +587,7 @@ final class ScreenShareSessionTest extends TestCase
         $advisorConnection = app(EntrepreneurScreenSharePresence::class)
             ->registerAdvisor($this->advisor, $profile);
 
-        $this->actingAs($this->advisor)
+        $response = $this->actingAs($this->advisor)
             ->withSession([
                 'auth.mfa_user_id' => (string) $this->advisor->getKey(),
                 'auth.mfa_confirmed_at' => now()->getTimestamp(),
@@ -598,6 +601,9 @@ final class ScreenShareSessionTest extends TestCase
                 ],
             )
             ->assertUnprocessable();
+
+        $this->assertStringContainsString('not connected to screen support', (string) $response->json('message'));
+        $this->assertStringContainsString('open or refresh the Future Shift portal', (string) $response->json('message'));
 
         $event = AuditEvent::query()
             ->where('action', 'screen_share.request_failed')

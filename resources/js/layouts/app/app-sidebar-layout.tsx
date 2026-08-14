@@ -1,16 +1,25 @@
+import { usePage } from '@inertiajs/react';
 import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
+import { ClientSupport } from '@/components/screen-share/ClientSupport';
+import type { ClientScreenShareConfig } from '@/components/screen-share/ClientSupport';
 import type { AppLayoutProps } from '@/types';
+
+type SharedPortalProps = {
+    portalScreenShare?: ClientScreenShareConfig;
+};
 
 export default function AppSidebarLayout({
     children,
     breadcrumbs = [],
     brandHeader = true,
 }: AppLayoutProps) {
+    const { portalScreenShare } = usePage<SharedPortalProps>().props;
+
     return (
         <AppShell variant="sidebar">
             <AppSidebar />
@@ -22,6 +31,7 @@ export default function AppSidebarLayout({
                 />
                 {children}
                 <PwaInstallPrompt />
+                <ClientSupport config={portalScreenShare ?? null} />
             </AppContent>
         </AppShell>
     );

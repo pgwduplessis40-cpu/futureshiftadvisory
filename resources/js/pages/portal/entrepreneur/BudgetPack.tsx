@@ -57,6 +57,7 @@ type ScenarioRow = {
 };
 
 type FundingDecision = {
+    input_status_label: string;
     readiness_label: string;
     readiness_tone: 'good' | 'medium' | 'high' | string;
     headline: string;
@@ -75,6 +76,13 @@ type UseOfFundsRow = {
     amount: number;
     display_amount?: string;
     note: string;
+};
+
+type FixedCostRow = {
+    label: string;
+    monthly_amount: number;
+    start_month_label: string;
+    confidence: string;
 };
 
 type PackPayload = {
@@ -98,6 +106,7 @@ type PackPayload = {
     };
     funding_decision: FundingDecision | null;
     use_of_funds: UseOfFundsRow[];
+    fixed_costs: FixedCostRow[];
     cash_story: string[];
     assumptions: {
         label: string;
@@ -174,6 +183,11 @@ export default function BudgetPack({ pack, urls }: Props) {
                                 ? 'Tax configured'
                                 : 'Tax not configured'}
                         </Badge>
+                        {pack.funding_decision ? (
+                            <Badge variant="outline">
+                                Inputs: {pack.funding_decision.input_status_label}
+                            </Badge>
+                        ) : null}
                         <Button asChild size="sm">
                             <a href={urls.pdf} target="_blank" rel="noreferrer">
                                 <Download
@@ -295,6 +309,10 @@ export default function BudgetPack({ pack, urls }: Props) {
 
                 {pack.use_of_funds.length > 0 ? (
                     <UseOfFundsTable rows={pack.use_of_funds} />
+                ) : null}
+
+                {pack.fixed_costs.length > 0 ? (
+                    <FixedCostsTable rows={pack.fixed_costs} />
                 ) : null}
 
                 <section className="space-y-3 rounded-md border bg-background p-4">
@@ -656,7 +674,51 @@ function UseOfFundsTable({ rows }: { rows: UseOfFundsRow[] }) {
     );
 }
 
+function FixedCostsTable({ rows }: { rows: FixedCostRow[] }) {
+    return (
+        <section className="space-y-3 rounded-md border bg-background p-4">
+            <ExplainedSectionHeader
+                title="Monthly fixed-cost trace"
+                description="Itemised costs used to calculate operating cover and the funding target."
+                explanation={{
+                    title: 'Monthly fixed-cost trace',
+                    what: 'Each saved fixed-cost item is shown with its monthly amount, start month, and confidence level.',
+                    action: 'Check large items against quotes, contracts, staffing plans, and the revenue ramp.',
+                    why: 'A single unexplained overhead can materially change runway and the funding request.',
+                }}
+            />
+            <div className="overflow-x-auto rounded-md border">
+                <table className="w-full min-w-[680px] border-collapse text-sm">
+                    <thead>
+                        <tr className="border-b bg-muted/30 text-left">
+                            <Th>Cost item</Th>
+                            <Th>Monthly amount</Th>
+                            <Th>Starts</Th>
+                            <Th>Confidence</Th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((row) => (
+                            <tr
+                                key={`${row.label}-${row.start_month_label}`}
+                                className="border-b last:border-b-0"
+                            >
+                                <Td>{row.label}</Td>
+                                <Td>{formatCurrency(row.monthly_amount)}</Td>
+                                <Td>{row.start_month_label}</Td>
+                                <Td>{formatLabel(row.confidence)}</Td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    );
+}
+
 function MonthlyTable({ year, rows }: { year: number; rows: MonthlyRow[] }) {
+    const lowestCash = Math.min(...rows.map((row) => row.cumulative_cash));
+
     return (
         <section className="rounded-md border bg-background p-4">
             <h3 className="text-sm font-medium">Year {year}</h3>
@@ -677,8 +739,22 @@ function MonthlyTable({ year, rows }: { year: number; rows: MonthlyRow[] }) {
                     </thead>
                     <tbody>
                         {rows.map((row) => (
-                            <tr key={row.month} className="border-b">
-                                <Td>Month {row.month_in_year}</Td>
+                            <tr
+                                key={row.month}
+                                className={`border-b ${
+                                    row.cumulative_cash === lowestCash
+                                        ? 'bg-red-50'
+                                        : ''
+                                }`}
+                            >
+                                <Td>
+                                    Month {row.month_in_year}
+                                    {row.cumulative_cash === lowestCash ? (
+                                        <span className="ml-2 text-xs font-medium text-red-700">
+                                            Lowest cash
+                                        </span>
+                                    ) : null}
+                                </Td>
                                 <Td>{formatCurrency(row.revenue)}</Td>
                                 <Td>{formatCurrency(row.variable_costs)}</Td>
                                 <Td>{formatCurrency(row.gross_profit)}</Td>

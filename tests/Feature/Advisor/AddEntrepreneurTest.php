@@ -22,6 +22,7 @@ use App\Models\User;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Plans\PlanBuilder as SharedPlanBuilder;
 use App\Services\Security\InviteIssuer;
+use Database\Seeders\RatingFrameworkSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
@@ -821,7 +822,7 @@ final class AddEntrepreneurTest extends TestCase
             ->assertHeader('Content-Type', 'application/pdf');
 
         self::assertStringContainsString('inline; filename=', (string) $response->headers->get('Content-Disposition'));
-        self::assertStringContainsString('Prepared for lender and investor review', $pdfRenderer->html);
+        self::assertStringContainsString('Advisor working copy - not for external issue', $pdfRenderer->html);
         self::assertStringContainsString('Portal Founder', $pdfRenderer->html);
 
         $this->actingAsMfa($advisor)
@@ -911,6 +912,58 @@ final class AddEntrepreneurTest extends TestCase
         $this->actingAsMfa($advisor)
             ->get(route('advisor.entrepreneurs.documents.show', [$profile, $document]))
             ->assertNotFound();
+    }
+
+    public function test_advisor_profile_allows_reassessment_for_submitted_plan_with_prior_feedback(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $this->seed(RatingFrameworkSeeder::class);
+        $advisor = $this->advisor();
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => 'Tania Hassounia',
+            'email' => $entrepreneur->email,
+            'stage' => EntrepreneurStage::SUBMITTED,
+            'concept_summary' => 'A founder who resubmitted after advisor feedback.',
+        ]);
+        $plan = BusinessPlan::query()->create([
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'title' => 'Business plan: Tania Hassounia',
+            'source_type' => BusinessPlan::SOURCE_ENTREPRENEUR,
+            'status' => BusinessPlan::STATUS_SUBMITTED,
+            'current_phase' => 5,
+            'submitted_at' => now()->subWeeks(2),
+            'created_by_user_id' => $entrepreneur->getKey(),
+        ]);
+        $assessment = PlanAssessment::query()->create([
+            'business_plan_id' => $plan->getKey(),
+            'rating_framework_id' => RatingFramework::query()->firstOrFail()->getKey(),
+            'round' => 1,
+            'ai_scores' => [],
+            'advisor_scores' => [],
+            'mentor_notes' => [
+                'advisor_feedback' => 'Strengthen the opening evidence before the next assessment.',
+                'feedback_sent_at' => now()->subDay()->toIso8601String(),
+            ],
+            'document_support' => [],
+            'overall_grade' => 'needs_work',
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/entrepreneurs/Show')
+                ->where('entrepreneur.latest_plan.status', BusinessPlan::STATUS_SUBMITTED)
+                ->where('entrepreneur.latest_plan.can_assess', true)
+                ->where('entrepreneur.latest_plan.assessment_action_label', 'Run reassessment')
+                ->where('entrepreneur.latest_plan.latest_assessment.url', route('advisor.entrepreneurs.assessments.show', [$profile, $assessment], absolute: false)));
     }
 
     public function test_advisor_budget_pdf_returns_fallback_when_browser_renderer_fails(): void

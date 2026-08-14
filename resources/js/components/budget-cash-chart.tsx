@@ -77,7 +77,16 @@ export function BudgetCashChart({
     const markers = [
         markerForMonth(points, breakEvenMonth, 'Break-even'),
         markerForRunway(points, runwayMonths, runwayOpenEnded),
+        lowestCashMarker(points),
     ].filter((marker): marker is ChartMarker => marker !== null);
+    const lowestCashIndex = points.reduce(
+        (lowestIndex, point, index) =>
+            point.cumulative_cash < points[lowestIndex]!.cumulative_cash
+                ? index
+                : lowestIndex,
+        0,
+    );
+    const lowestCashPoint = points[lowestCashIndex]!;
 
     return (
         <section className="rounded-md border bg-background p-4">
@@ -171,6 +180,14 @@ export function BudgetCashChart({
                     strokeWidth="3"
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                />
+                <circle
+                    cx={xForIndex(lowestCashIndex)}
+                    cy={cashY(lowestCashPoint.cumulative_cash)}
+                    r="5"
+                    fill="#b42318"
+                    stroke="white"
+                    strokeWidth="2"
                 />
                 <polyline
                     points={revenuePoints}
@@ -276,6 +293,25 @@ function markerForRunway(
     }
 
     return markerForMonth(points, runwayMonths, 'Runway');
+}
+
+function lowestCashMarker(points: BudgetChartPoint[]): ChartMarker | null {
+    if (points.length === 0) {
+        return null;
+    }
+
+    const index = points.reduce(
+        (lowestIndex, point, currentIndex) =>
+            point.cumulative_cash < points[lowestIndex]!.cumulative_cash
+                ? currentIndex
+                : lowestIndex,
+        0,
+    );
+
+    return {
+        index,
+        label: `Lowest cash M${points[index]?.month ?? index + 1}`,
+    };
 }
 
 function tickIndexes(length: number): number[] {

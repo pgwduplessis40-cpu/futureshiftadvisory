@@ -128,7 +128,7 @@ final class BudgetCalculator implements ProvidesMethodology
                 $amount = $this->number($row['amount'] ?? $row['value'] ?? 0);
                 $quantity = max(1.0, $this->number($row['quantity'] ?? 1));
                 $month = $this->month($row['month'] ?? 1);
-                $monthlyGrowthPercent = $this->signedPercent($row['monthly_growth_percent'] ?? $row['growth'] ?? 0);
+                $monthlyGrowthPercent = $this->signedPercent($row['monthly_growth_percent'] ?? 0);
                 $variableCostPercent = $this->number($row['variable_cost_percent'] ?? 0);
                 $unitCost = $this->number($row['unit_cost'] ?? 0);
                 $grossProfitPercent = $this->nullablePercent($row['gross_profit_percent'] ?? $row['gp_percent'] ?? null);
@@ -215,7 +215,7 @@ final class BudgetCalculator implements ProvidesMethodology
     public function normaliseAssumptions(array $assumptions, ?float $companyTaxRatePercent, ?float $defaultCostInflationPercent): array
     {
         $fields = [
-            'revenue_growth_percent' => 'Revenue growth %',
+            'revenue_growth_percent' => 'Annual revenue growth %',
             'cost_inflation_percent' => 'Cost inflation / CPI %',
             'target_gross_profit_percent' => 'Target GP %',
             'target_net_profit_before_tax_percent' => 'Target net profit before tax %',

@@ -73,6 +73,29 @@ final class BudgetCalculatorTest extends TestCase
         $this->assertStringContainsString('month 13 can be lower than month 12', $computed['explanations']['year_two_revenue_basis']);
     }
 
+    public function test_annual_revenue_growth_does_not_compound_the_first_year_monthly_forecast(): void
+    {
+        $computed = $this->calculator()->compute(
+            launchCosts: [],
+            monthlyFixedCosts: [],
+            revenueForecast: [[
+                'label' => 'Subscriptions',
+                'amount' => 1_000,
+                'quantity' => 1,
+                'month' => 1,
+                'monthly_growth_percent' => 0,
+            ]],
+            fundingSources: [],
+            expectedRunwayMonths: null,
+            forecastYears: 2,
+            assumptions: ['revenue_growth_percent' => 25],
+        );
+
+        $this->assertSame(1_000.0, $computed['monthly_detail'][0]['revenue']);
+        $this->assertSame(1_000.0, $computed['monthly_detail'][11]['revenue']);
+        $this->assertSame(1_250.0, $computed['monthly_detail'][12]['revenue']);
+    }
+
     public function test_tax_carries_losses_forward_within_forecast_year(): void
     {
         $computed = $this->calculator()->compute(

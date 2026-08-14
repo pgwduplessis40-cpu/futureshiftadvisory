@@ -122,6 +122,8 @@ final class PlanBuilderTest extends TestCase
             ->get(route('portal.entrepreneur.plan.show'))
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
+                ->has('portalScreenShare.portal_context_token')
+                ->where('portalScreenShare.connection_url', route('portal.entrepreneur-screen-share.connections.store', absolute: false))
                 ->where('planTemplate.3.title', 'Legal & Operations')
                 ->where('planTemplate.3.requirements.2.key', 'systems-software-processes')
                 ->where('planTemplate.3.requirements.2.title', 'What systems/software/processes will be required to run this business if viable?')

@@ -336,10 +336,10 @@ final class SimpleTextPdf
         $current = [];
         $this->addRect($current, self::MARGIN, 792, 495, 6, self::NAVY);
         $this->addBrand($current, 50, 744);
-        $this->addBadge($current, 430, 754, 'REPORT PDF');
+        $this->addBadge($current, 410, 754, 'FALLBACK PDF');
         $this->addLineShape($current, self::MARGIN, 732, 545, 732, [216, 209, 194]);
         $this->addText($current, $title, 22, 692, 24, 'F2', self::NAVY);
-        $this->addText($current, 'Prepared for lender and investor review', 50, 672, 10, 'F2', self::ACCENT);
+        $this->addText($current, 'Fallback rendering - verify before external issue', 50, 672, 10, 'F2', self::ACCENT);
 
         $y = 634;
         $columns = min(2, max(1, $meta === [] ? 1 : 2));

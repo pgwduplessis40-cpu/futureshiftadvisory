@@ -79,7 +79,14 @@ final class EntrepreneurBudgetService
                 $futureCosts,
                 $fundingScenarios,
             );
-            $flags = $this->flags($computed, $expectedRunwayMonths, $existingFlags, $confidence);
+            $flags = $this->flags(
+                $computed,
+                $expectedRunwayMonths,
+                $existingFlags,
+                $confidence,
+                $monthlyFixedCosts,
+                $revenueForecast,
+            );
 
             $budget->forceFill([
                 'business_plan_id' => $plan->getKey(),
@@ -224,8 +231,14 @@ final class EntrepreneurBudgetService
      * @param  array<int, array<string, mixed>>  $existingFlags
      * @return array<int, array<string, mixed>>
      */
-    private function flags(array $computed, ?int $expectedRunwayMonths, array $existingFlags, array $confidence): array
-    {
+    private function flags(
+        array $computed,
+        ?int $expectedRunwayMonths,
+        array $existingFlags,
+        array $confidence,
+        array $monthlyFixedCosts,
+        array $revenueForecast,
+    ): array {
         $flags = [];
         $existingByKey = collect($existingFlags)->keyBy('key');
         $availableAfterLaunch = (float) ($computed['available_after_launch'] ?? 0);
@@ -298,6 +311,43 @@ final class EntrepreneurBudgetService
             );
         }
 
+        $monthlyFixedCostBase = (float) ($computed['monthly_fixed_costs'] ?? 0);
+        $fixedCostReviewThreshold = max(0.0, (float) config('entrepreneurs.budget.monthly_fixed_cost_review_threshold', 50_000));
+        if ($fixedCostReviewThreshold > 0 && $monthlyFixedCostBase >= $fixedCostReviewThreshold) {
+            $largestCosts = collect($monthlyFixedCosts)
+                ->sortByDesc(fn (array $row): float => (float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1))
+                ->take(3)
+                ->map(fn (array $row): string => (string) ($row['label'] ?? 'Unlabelled cost'))
+                ->filter()
+                ->implode(', ');
+            $flags[] = $this->flag(
+                'large_monthly_fixed_cost_base',
+                'Large monthly fixed-cost base',
+                'Monthly fixed costs total '.$this->money($monthlyFixedCostBase).'. Recheck the largest items'.($largestCosts !== '' ? ' ('.$largestCosts.')' : '').' against quotes, contracts, staffing plans, and the revenue ramp before external issue.',
+                'high',
+                $existingByKey->get('large_monthly_fixed_cost_base'),
+            );
+        }
+
+        $monthlyGrowthReviewThreshold = max(0.0, (float) config('entrepreneurs.budget.monthly_growth_review_threshold_percent', 15));
+        $highGrowthRows = collect($revenueForecast)
+            ->filter(fn (array $row): bool => abs((float) ($row['monthly_growth_percent'] ?? 0)) > $monthlyGrowthReviewThreshold)
+            ->map(fn (array $row): string => sprintf(
+                '%s (%s%% per month)',
+                (string) ($row['label'] ?? 'Unlabelled revenue'),
+                number_format((float) ($row['monthly_growth_percent'] ?? 0), 1, '.', ''),
+            ))
+            ->values();
+        if ($highGrowthRows->isNotEmpty()) {
+            $flags[] = $this->flag(
+                'monthly_revenue_growth_needs_review',
+                'Monthly revenue growth needs review',
+                'Monthly compounding above '.$monthlyGrowthReviewThreshold.'% can make the first-year forecast grow very quickly. Recheck '.$highGrowthRows->implode(', ').' against pipeline, capacity, and signed demand evidence.',
+                'medium',
+                $existingByKey->get('monthly_revenue_growth_needs_review'),
+            );
+        }
+
         $latestAnnual = $annualTotals->last();
         if (is_array($latestAnnual) && (float) ($latestAnnual['revenue'] ?? 0) > 0) {
             $targetGpp = (float) data_get($computed, 'assumptions.target_gross_profit_percent', 0);
@@ -355,6 +405,11 @@ final class EntrepreneurBudgetService
     private function runwayMismatchToleranceMonths(): int
     {
         return max(0, (int) config('entrepreneurs.budget.runway_mismatch_tolerance_months', 2));
+    }
+
+    private function money(float $amount): string
+    {
+        return '$'.number_format($amount, 0, '.', ',');
     }
 
     private function changeFingerprint(EntrepreneurBudget $budget): string

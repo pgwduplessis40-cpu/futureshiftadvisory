@@ -142,6 +142,42 @@ final class BudgetRunwayTest extends TestCase
         $this->assertContains('missing_financial_assumptions', collect($budget->flags)->pluck('key')->all());
     }
 
+    public function test_large_fixed_costs_and_high_monthly_growth_are_flagged_for_review(): void
+    {
+        config()->set('entrepreneurs.budget.monthly_fixed_cost_review_threshold', 50_000);
+        config()->set('entrepreneurs.budget.monthly_growth_review_threshold_percent', 15);
+        [$actor, $plan] = $this->plan();
+
+        $budget = app(EntrepreneurBudgetService::class)->update($plan, [
+            'expected_runway_months' => 6,
+            'forecast_years' => 1,
+            'assumptions' => [
+                'revenue_growth_percent' => 10,
+                'cost_inflation_percent' => 3,
+                'target_gross_profit_percent' => 55,
+                'target_net_profit_before_tax_percent' => 10,
+                'target_net_profit_after_tax_percent' => 7,
+            ],
+            'launch_costs' => [
+                ['label' => 'Fit out', 'amount' => 20_000, 'confidence' => 'known'],
+            ],
+            'monthly_fixed_costs' => [
+                ['label' => 'Premises and staffing', 'amount' => 51_573, 'confidence' => 'estimate'],
+            ],
+            'revenue_forecast' => [
+                ['label' => 'Subscriptions', 'amount' => 10_000, 'month' => 1, 'monthly_growth_percent' => 25, 'confidence' => 'estimate'],
+            ],
+            'funding_sources' => [
+                ['label' => 'Founder cash', 'amount' => 500_000, 'confidence' => 'known'],
+            ],
+        ], $actor);
+
+        $flags = collect($budget->flags)->pluck('key')->all();
+
+        $this->assertContains('large_monthly_fixed_cost_base', $flags);
+        $this->assertContains('monthly_revenue_growth_needs_review', $flags);
+    }
+
     public function test_budget_cannot_be_saved_before_business_setup_requirement_is_complete(): void
     {
         [$actor, $plan] = $this->plan();

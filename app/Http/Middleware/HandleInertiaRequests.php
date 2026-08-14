@@ -4,9 +4,11 @@ namespace App\Http\Middleware;
 
 use App\Enums\ClientStatus;
 use App\Models\Client;
+use App\Models\EntrepreneurProfile;
 use App\Models\User;
 use App\Services\Notifications\NotificationCenter;
 use App\Services\Portal\OnboardingWizard;
+use App\Services\ScreenShare\ClientPortalContextTokens;
 use App\Services\ServiceActivations\ServiceActivationNavigation;
 use App\Support\ReleaseVersion;
 use Illuminate\Http\Request;
@@ -71,6 +73,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'portalClient' => fn () => $this->portalClient($request),
             'portalServices' => fn () => $this->portalServices($request),
+            'portalScreenShare' => fn () => $this->portalScreenShare($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }
@@ -132,5 +135,75 @@ class HandleInertiaRequests extends Middleware
         }
 
         return app(ServiceActivationNavigation::class)->payload($client);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function portalScreenShare(Request $request): ?array
+    {
+        $user = $request->user();
+
+        if (! $user instanceof User || ! $request->routeIs('portal.*')) {
+            return null;
+        }
+
+        if ($user->user_type === User::TYPE_ENTREPRENEUR) {
+            $profile = EntrepreneurProfile::query()
+                ->where('user_id', $user->getKey())
+                ->latest()
+                ->first();
+
+            if (! $profile instanceof EntrepreneurProfile) {
+                return null;
+            }
+
+            return $this->screenSharePayload(
+                app(ClientPortalContextTokens::class)->issueForEntrepreneur(
+                    $user,
+                    $profile,
+                    'portal.entrepreneur.dashboard',
+                ),
+                route('portal.entrepreneur-screen-share.connections.store', absolute: false),
+            );
+        }
+
+        if (! in_array($user->user_type, [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM], true)) {
+            return null;
+        }
+
+        $client = $this->portalClientModel($request);
+
+        if (! $client instanceof Client) {
+            return null;
+        }
+
+        return $this->screenSharePayload(
+            app(ClientPortalContextTokens::class)->issue($user, $client, 'portal.dashboard'),
+            route('portal.screen-share.connections.store', absolute: false),
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function screenSharePayload(string $portalContextToken, string $connectionUrl): array
+    {
+        return [
+            'portal_context_token' => $portalContextToken,
+            'connection_url' => $connectionUrl,
+            'prompt_url' => route('screen-share.connections.pending-prompt', ['connection' => '__connection__'], absolute: false),
+            'connection_heartbeat_url' => route('screen-share.connections.heartbeat', ['connection' => '__connection__'], absolute: false),
+            'response_url' => route('portal.screen-share.sessions.response', ['session' => '__session__'], absolute: false),
+            'browser_permission_url' => route('portal.screen-share.sessions.browser-permission', ['session' => '__session__'], absolute: false),
+            'ice_servers_url' => route('screen-share.sessions.ice-servers', ['session' => '__session__'], absolute: false),
+            'active_url' => route('screen-share.sessions.active', ['session' => '__session__'], absolute: false),
+            'signal_url' => route('screen-share.sessions.signal', ['session' => '__session__'], absolute: false),
+            'pending_signals_url' => route('screen-share.sessions.pending-signals', ['session' => '__session__'], absolute: false),
+            'heartbeat_url' => route('screen-share.sessions.heartbeat', ['session' => '__session__'], absolute: false),
+            'end_url' => route('screen-share.sessions.end', ['session' => '__session__'], absolute: false),
+            'heartbeat_seconds' => max(5, (int) config('screen-share.heartbeat_interval_seconds', 10)),
+            'warning_at_minutes' => max(0, (int) config('screen-share.warning_at_minutes', 25)),
+        ];
     }
 }
