@@ -79,7 +79,7 @@ final class AssessmentFeedback
     ];
 
     /**
-     * @return array<int, array{title:string,score:float,what_is_missing:string,what_to_add_or_change:string,where_in_plan:string}>
+     * @return array<int, array{title:string,score:float,what_is_missing:string,what_to_add_or_change:string,where_in_plan:string,scoring_rationale:string,source_sections:array<int, array<string, mixed>>}>
      */
     public function priorities(PlanAssessment $assessment): array
     {
@@ -96,6 +96,10 @@ final class AssessmentFeedback
                     'what_is_missing' => $guidance['what_is_missing'],
                     'what_to_add_or_change' => $guidance['what_to_add_or_change'],
                     'where_in_plan' => $guidance['where_in_plan'],
+                    'scoring_rationale' => (string) ($criterion['rationale'] ?? ''),
+                    'source_sections' => is_array($criterion['source_sections'] ?? null)
+                        ? $criterion['source_sections']
+                        : [],
                 ];
             })
             ->values()

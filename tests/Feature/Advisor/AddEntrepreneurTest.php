@@ -967,6 +967,17 @@ final class AddEntrepreneurTest extends TestCase
                 ->where('entrepreneur.latest_plan.can_assess', true)
                 ->where('entrepreneur.latest_plan.assessment_action_label', 'Run reassessment')
                 ->where('entrepreneur.latest_plan.latest_assessment.url', route('advisor.entrepreneurs.assessments.show', [$profile, $assessment], absolute: false)));
+
+        $plan->forceFill(['status' => BusinessPlan::STATUS_ASSESSING])->save();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/entrepreneurs/Show')
+                ->where('entrepreneur.latest_plan.status', BusinessPlan::STATUS_ASSESSING)
+                ->where('entrepreneur.latest_plan.can_assess', true)
+                ->where('entrepreneur.latest_plan.assessment_action_label', 'Run reassessment'));
     }
 
     public function test_advisor_budget_pdf_returns_fallback_when_browser_renderer_fails(): void

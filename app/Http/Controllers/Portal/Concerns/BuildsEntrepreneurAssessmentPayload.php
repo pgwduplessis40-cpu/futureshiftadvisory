@@ -35,6 +35,18 @@ trait BuildsEntrepreneurAssessmentPayload
             'threshold' => AdvisoryReadiness::THRESHOLD,
             'finalised_at' => $assessment->finalised_at?->toIso8601String(),
             'created_at' => $assessment->created_at?->toIso8601String(),
+            'basis' => [
+                'label' => $assessment->round > 1 ? 'Resubmitted business plan' : 'Submitted business plan',
+                'business_plan_id' => $assessment->business_plan_id,
+                'business_plan_title' => $assessment->businessPlan?->title,
+                'business_plan_status' => $assessment->businessPlan?->status,
+                'business_plan_submitted_at' => $assessment->businessPlan?->submitted_at?->toIso8601String(),
+                'business_plan_updated_at' => $assessment->businessPlan?->updated_at?->toIso8601String(),
+                'summary' => sprintf(
+                    'Round %d was scored from the business plan sections and budget saved for this assessment round. Advisor-reviewed scores override the automated score only where an advisor has added a review score.',
+                    max(1, (int) $assessment->round),
+                ),
+            ],
             'rating_framework' => [
                 'id' => $framework?->id,
                 'version' => $framework?->version,
@@ -59,7 +71,8 @@ trait BuildsEntrepreneurAssessmentPayload
             'mentor_notes' => $this->entrepreneurVisibleMentorNotes($assessment),
             'criteria' => $criteria,
             'explanation' => sprintf(
-                'This score is the weighted total from the latest plan assessment. Advisor-reviewed scores are used where present; otherwise the first-pass score is used. A score of %.0f or above marks the plan as advisory ready.',
+                'This score is the weighted total from assessment round %d. Advisor-reviewed scores are used where present; otherwise the automated score generated for this round is used. A score of %.0f or above marks the plan as advisory ready.',
+                max(1, (int) $assessment->round),
                 AdvisoryReadiness::THRESHOLD,
             ),
         ];

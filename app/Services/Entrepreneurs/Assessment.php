@@ -326,7 +326,7 @@ final class Assessment implements ProvidesMethodology
 
     /**
      * @param  array{relevant_sections?:array<int, array<string, mixed>>,supporting_section_summaries?:array<int, array<string, mixed>>}  $planContext
-     * @return array<int, array{section_id:string,title:string,requirement_key:string|null,updated_at:string|null}>
+     * @return array<int, array{section_id:string,title:string,requirement_key:string|null,updated_at:string|null,body_excerpt:string}>
      */
     private function sourceSectionsFromContext(array $planContext): array
     {
@@ -339,6 +339,7 @@ final class Assessment implements ProvidesMethodology
                 'title' => (string) ($section['title'] ?? ''),
                 'requirement_key' => isset($section['requirement_key']) ? (string) $section['requirement_key'] : null,
                 'updated_at' => isset($section['updated_at']) ? (string) $section['updated_at'] : null,
+                'body_excerpt' => Str::limit((string) ($section['body_excerpt'] ?? ''), 700),
             ])
             ->filter(fn (array $section): bool => $section['section_id'] !== '' || $section['title'] !== '')
             ->values()

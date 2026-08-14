@@ -26,7 +26,7 @@ final class AssessmentScoring
         $totalWeight = self::totalWeight($framework);
 
         return $framework->criteria
-            ->map(function ($criterion) use ($framework, $aiScores, $advisorScores, $totalWeight): array {
+            ->map(function ($criterion) use ($assessment, $framework, $aiScores, $advisorScores, $totalWeight): array {
                 $advisor = $advisorScores->get((int) $criterion->number);
                 $ai = $aiScores->get((int) $criterion->number);
                 $hasAdvisorScore = is_array($advisor) && is_numeric($advisor['score'] ?? null);
@@ -52,12 +52,18 @@ final class AssessmentScoring
                     'advisor_score' => $hasAdvisorScore ? (float) $advisor['score'] : null,
                     'grade' => $framework->gradeFor($score),
                     'contribution' => round($score * $normalisedWeight, 2),
-                    'source' => $hasAdvisorScore ? 'advisor_review' : 'first_pass',
-                    'source_label' => $hasAdvisorScore ? 'Advisor reviewed' : 'First pass',
+                    'source' => $hasAdvisorScore ? 'advisor_review' : 'automated_assessment',
+                    'source_label' => $hasAdvisorScore
+                        ? 'Advisor reviewed'
+                        : sprintf('Round %d automated score', max(1, (int) $assessment->round)),
                     'rationale' => $hasAdvisorScore
                         ? (string) ($advisor['note'] ?? '')
                         : (string) (is_array($ai) ? ($ai['rationale'] ?? '') : ''),
                     'attributions' => is_array($ai) && is_array($ai['attributions'] ?? null) ? $ai['attributions'] : [],
+                    'context_hash' => is_array($ai) ? data_get($ai, 'metadata.context_hash') : null,
+                    'source_sections' => is_array($ai) && is_array(data_get($ai, 'metadata.source_sections'))
+                        ? array_values(data_get($ai, 'metadata.source_sections'))
+                        : [],
                 ];
             })
             ->values()

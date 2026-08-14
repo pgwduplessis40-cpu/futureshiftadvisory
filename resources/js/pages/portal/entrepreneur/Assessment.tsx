@@ -23,6 +23,16 @@ type Criterion = {
     contribution: number;
     source_label: string;
     rationale: string;
+    context_hash: string | null;
+    source_sections: SourceSection[];
+};
+
+type SourceSection = {
+    section_id: string;
+    title: string;
+    requirement_key: string | null;
+    updated_at: string | null;
+    body_excerpt: string;
 };
 
 type RevisionPriority = {
@@ -42,6 +52,15 @@ type Assessment = {
     threshold: number;
     finalised_at: string | null;
     created_at: string | null;
+    basis: {
+        label: string;
+        business_plan_id: string | null;
+        business_plan_title: string | null;
+        business_plan_status: string | null;
+        business_plan_submitted_at: string | null;
+        business_plan_updated_at: string | null;
+        summary: string;
+    };
     rating_framework: {
         id: string | null;
         version: number | null;
@@ -256,9 +275,16 @@ export default function EntrepreneurAssessment({
                 ) : null}
 
                 <section className="space-y-4 rounded-md border bg-background p-4">
-                    <div className="flex items-center gap-2">
-                        <Scale className="size-4" aria-hidden="true" />
-                        <h2 className="text-sm font-medium">Score summary</h2>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                            <Scale className="size-4" aria-hidden="true" />
+                            <h2 className="text-sm font-medium">
+                                Score summary
+                            </h2>
+                        </div>
+                        <Badge variant="outline">
+                            {assessment.basis.label}
+                        </Badge>
                     </div>
                     <dl className="grid gap-3 text-sm md:grid-cols-2">
                         <Detail
@@ -277,9 +303,24 @@ export default function EntrepreneurAssessment({
                             label="Completed"
                             value={formatDate(assessment.finalised_at)}
                         />
+                        <Detail
+                            label="Plan submitted"
+                            value={formatDate(
+                                assessment.basis.business_plan_submitted_at,
+                            )}
+                        />
+                        <Detail
+                            label="Plan updated"
+                            value={formatDateTime(
+                                assessment.basis.business_plan_updated_at,
+                            )}
+                        />
                     </dl>
                     <p className="max-w-4xl text-sm text-muted-foreground">
                         {assessment.explanation}
+                    </p>
+                    <p className="max-w-4xl text-sm text-muted-foreground">
+                        {assessment.basis.summary}
                     </p>
                 </section>
 
@@ -551,6 +592,53 @@ export default function EntrepreneurAssessment({
                                             {criterion.rationale}
                                         </p>
                                     ) : null}
+                                    {criterion.source_sections.length > 0 ? (
+                                        <div className="mt-3 space-y-2">
+                                            <div className="text-xs font-medium text-foreground">
+                                                Scored from plan sections
+                                            </div>
+                                            <div className="grid gap-2">
+                                                {criterion.source_sections
+                                                    .slice(0, 3)
+                                                    .map((section, index) => (
+                                                        <div
+                                                            key={`${criterion.number}-${section.section_id || index}`}
+                                                            className="rounded-md border bg-muted/30 p-2"
+                                                        >
+                                                            <div className="flex flex-wrap items-center gap-2 text-xs">
+                                                                <span className="font-medium text-foreground">
+                                                                    {
+                                                                        section.title
+                                                                    }
+                                                                </span>
+                                                                {section.requirement_key ? (
+                                                                    <Badge variant="outline">
+                                                                        {
+                                                                            section.requirement_key
+                                                                        }
+                                                                    </Badge>
+                                                                ) : null}
+                                                                {section.updated_at ? (
+                                                                    <span className="text-muted-foreground">
+                                                                        Updated{' '}
+                                                                        {formatDateTime(
+                                                                            section.updated_at,
+                                                                        )}
+                                                                    </span>
+                                                                ) : null}
+                                                            </div>
+                                                            {section.body_excerpt ? (
+                                                                <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
+                                                                    {
+                                                                        section.body_excerpt
+                                                                    }
+                                                                </p>
+                                                            ) : null}
+                                                        </div>
+                                                    ))}
+                                            </div>
+                                        </div>
+                                    ) : null}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                                     <Badge variant="outline">
@@ -594,6 +682,17 @@ function formatDate(value: string | null): string {
 
     return new Intl.DateTimeFormat(undefined, {
         dateStyle: 'medium',
+    }).format(new Date(value));
+}
+
+function formatDateTime(value: string | null): string {
+    if (!value) {
+        return '-';
+    }
+
+    return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
     }).format(new Date(value));
 }
 

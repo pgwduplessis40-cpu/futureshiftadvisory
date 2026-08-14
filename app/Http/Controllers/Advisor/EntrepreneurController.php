@@ -786,7 +786,7 @@ final class EntrepreneurController extends Controller
             'assessment_count' => $plan->assessments->count(),
             'latest_round' => $latestAssessment?->round,
             'latest_grade' => $latestAssessment?->overall_grade,
-            'can_assess' => $this->canAssessPlan($plan, $latestAssessmentPayload),
+            'can_assess' => $this->canAssessPlan($plan),
             'assessment_action_label' => $latestAssessment instanceof PlanAssessment
                 ? 'Run reassessment'
                 : 'Run assessment',
@@ -819,24 +819,13 @@ final class EntrepreneurController extends Controller
         ];
     }
 
-    /**
-     * @param  array<string, mixed>|null  $latestAssessmentPayload
-     */
-    private function canAssessPlan(BusinessPlan $plan, ?array $latestAssessmentPayload): bool
+    private function canAssessPlan(BusinessPlan $plan): bool
     {
         if ($plan->status === BusinessPlan::STATUS_REVISING) {
             return false;
         }
 
-        if ($plan->status === BusinessPlan::STATUS_SUBMITTED) {
-            return true;
-        }
-
-        if ($latestAssessmentPayload === null) {
-            return true;
-        }
-
-        return data_get($latestAssessmentPayload, 'rating_framework.is_current') === false;
+        return true;
     }
 
     private function assertPlanBelongsToProfile(BusinessPlan $plan, EntrepreneurProfile $profile): void

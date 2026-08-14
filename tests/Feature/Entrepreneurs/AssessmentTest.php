@@ -173,6 +173,18 @@ final class AssessmentTest extends TestCase
                 ->where('entrepreneur.latest_plan.latest_round', 2)
                 ->where('entrepreneur.latest_plan.latest_assessment.id', $latest->id)
             );
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.entrepreneurs.assessments.show', [$profile, $latest]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('portal/entrepreneur/Assessment')
+                ->where('assessment.basis.label', 'Resubmitted business plan')
+                ->where('assessment.criteria.0.source_label', 'Round 2 automated score')
+                ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'assessment round 2')
+                    && str_contains($value, 'automated score generated for this round')
+                    && ! str_contains(strtolower($value), 'first-pass'))
+            );
     }
 
     public function test_advisor_adjustment_requires_note_and_queues_governed_learning(): void
