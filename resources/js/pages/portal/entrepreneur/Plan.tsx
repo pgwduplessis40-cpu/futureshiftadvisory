@@ -1234,8 +1234,16 @@ export default function EntrepreneurPlan({
                                     {plan.external_issue_readiness.label}
                                 </div>
                                 <p className="mt-1 text-red-900">
-                                    Evidence coverage: {plan.external_issue_readiness.evidence_supported_responses}/
-                                    {plan.external_issue_readiness.completed_responses}{' '}
+                                    Evidence coverage:{' '}
+                                    {
+                                        plan.external_issue_readiness
+                                            .evidence_supported_responses
+                                    }
+                                    /
+                                    {
+                                        plan.external_issue_readiness
+                                            .completed_responses
+                                    }{' '}
                                     completed responses.
                                 </p>
                                 <ul className="mt-2 list-disc space-y-1 pl-5 text-red-900">

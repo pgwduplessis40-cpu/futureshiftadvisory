@@ -185,7 +185,8 @@ export default function BudgetPack({ pack, urls }: Props) {
                         </Badge>
                         {pack.funding_decision ? (
                             <Badge variant="outline">
-                                Inputs: {pack.funding_decision.input_status_label}
+                                Inputs:{' '}
+                                {pack.funding_decision.input_status_label}
                             </Badge>
                         ) : null}
                         <Button asChild size="sm">
