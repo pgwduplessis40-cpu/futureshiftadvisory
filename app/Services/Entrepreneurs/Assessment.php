@@ -65,9 +65,17 @@ final class Assessment implements ProvidesMethodology
         $weighted = AssessmentScoring::weightedScoreForFramework($framework, $aiScores);
 
         return DB::transaction(function () use ($plan, $actor, $framework, $aiScores, $documentSupport, $weighted): PlanAssessment {
-            $round = ((int) PlanAssessment::query()->where('business_plan_id', $plan->getKey())->max('round')) + 1;
+            $lockedPlan = BusinessPlan::query()
+                ->whereKey($plan->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+            $round = ((int) PlanAssessment::query()
+                ->where('business_plan_id', $lockedPlan->getKey())
+                ->orderByDesc('round')
+                ->lockForUpdate()
+                ->value('round')) + 1;
             $assessment = PlanAssessment::query()->create([
-                'business_plan_id' => $plan->getKey(),
+                'business_plan_id' => $lockedPlan->getKey(),
                 'round' => max(1, $round),
                 'rating_framework_id' => $framework->getKey(),
                 'ai_scores' => $aiScores,
@@ -76,12 +84,13 @@ final class Assessment implements ProvidesMethodology
                 'document_support' => $documentSupport,
                 'overall_grade' => $framework->gradeFor($weighted),
             ]);
-            $plan->forceFill([
+            $lockedPlan->forceFill([
                 'status' => BusinessPlan::STATUS_ASSESSING,
             ])->save();
 
             $this->audit->record('entrepreneur.plan_first_pass_scored', subject: $assessment, actor: $actor, after: [
-                'business_plan_id' => $plan->getKey(),
+                'business_plan_id' => $lockedPlan->getKey(),
+                'round' => $assessment->round,
                 'criterion_count' => count($aiScores),
                 'weighted_score' => $weighted,
                 'overall_grade' => $assessment->overall_grade,
@@ -256,7 +265,7 @@ final class Assessment implements ProvidesMethodology
     }
 
     /**
-     * @param  array{relevant_sections:array<int, array{title:string,body_excerpt:string,requirement_key:string|null}>,supporting_section_summaries:array<int, array{title:string,body_excerpt:string,requirement_key:string|null}>,budget_summary:string}  $planContext
+     * @param  array{relevant_sections:array<int, array<string, mixed>>,supporting_section_summaries:array<int, array<string, mixed>>,budget_summary:string}  $planContext
      */
     private function scoreCriterion(RatingCriterion $criterion, BusinessPlan $plan, array $planContext): array
     {
@@ -280,7 +289,8 @@ final class Assessment implements ProvidesMethodology
             sourceReferences: ['business_plan:'.$plan->getKey(), 'rating_criterion:'.$criterion->getKey()],
         );
         $response = $this->ai->scoreCriterion($prompt);
-        $fallbackScore = $this->heuristicScore($criterion, $plan, $this->contexts->assessmentText($planContext));
+        $assessmentText = $this->contexts->assessmentText($planContext);
+        $fallbackScore = $this->heuristicScore($criterion, $plan, $assessmentText);
         $aiScore = $this->scoreFromResponse($response);
         $score = $aiScore ?? $fallbackScore;
         $scoreSource = $aiScore === null ? 'deterministic_fallback' : 'ai_assessment';
@@ -307,9 +317,32 @@ final class Assessment implements ProvidesMethodology
                 'fallback_score' => $fallbackScore,
                 'score_source' => $scoreSource,
                 'uncertainty' => $response->uncertainty->value,
-                'context_characters' => Str::length($this->contexts->assessmentText($planContext)),
+                'context_characters' => Str::length($assessmentText),
+                'context_hash' => hash('sha256', $assessmentText),
+                'source_sections' => $this->sourceSectionsFromContext($planContext),
             ],
         ];
+    }
+
+    /**
+     * @param  array{relevant_sections?:array<int, array<string, mixed>>,supporting_section_summaries?:array<int, array<string, mixed>>}  $planContext
+     * @return array<int, array{section_id:string,title:string,requirement_key:string|null,updated_at:string|null}>
+     */
+    private function sourceSectionsFromContext(array $planContext): array
+    {
+        return collect([
+            ...($planContext['relevant_sections'] ?? []),
+            ...($planContext['supporting_section_summaries'] ?? []),
+        ])
+            ->map(fn (array $section): array => [
+                'section_id' => (string) ($section['section_id'] ?? ''),
+                'title' => (string) ($section['title'] ?? ''),
+                'requirement_key' => isset($section['requirement_key']) ? (string) $section['requirement_key'] : null,
+                'updated_at' => isset($section['updated_at']) ? (string) $section['updated_at'] : null,
+            ])
+            ->filter(fn (array $section): bool => $section['section_id'] !== '' || $section['title'] !== '')
+            ->values()
+            ->all();
     }
 
     private function scoreFromResponse(AiResponse $response): ?int

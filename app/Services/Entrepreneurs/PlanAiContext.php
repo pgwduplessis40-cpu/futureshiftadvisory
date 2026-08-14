@@ -53,7 +53,7 @@ final class PlanAiContext
 
     /**
      * @param  array<string, mixed>  $requirement
-     * @return array{idea_validation:array<string, string>|null,current_draft:string,existing_sections:array<int, array{title:string,body_excerpt:string,requirement_key:string|null}>}
+     * @return array{idea_validation:array<string, string>|null,current_draft:string,existing_sections:array<int, array{section_id:string,title:string,body_excerpt:string,requirement_key:string|null,updated_at:string|null}>}
      */
     public function requirementAssistance(
         BusinessPlan $plan,
@@ -120,7 +120,7 @@ final class PlanAiContext
     }
 
     /**
-     * @return array{relevant_sections:array<int, array{title:string,body_excerpt:string,requirement_key:string|null}>,supporting_section_summaries:array<int, array{title:string,body_excerpt:string,requirement_key:string|null}>,budget_summary:string}
+     * @return array{relevant_sections:array<int, array{section_id:string,title:string,body_excerpt:string,requirement_key:string|null,updated_at:string|null}>,supporting_section_summaries:array<int, array{section_id:string,title:string,body_excerpt:string,requirement_key:string|null,updated_at:string|null}>,budget_summary:string}
      */
     public function criterionAssessment(
         BusinessPlan $plan,
@@ -218,7 +218,7 @@ final class PlanAiContext
     /**
      * @param  Collection<int, PlanSection>  $sections
      * @param  array<int, int>  $limits
-     * @return array<int, array{title:string,body_excerpt:string,requirement_key:string|null}>
+     * @return array<int, array{section_id:string,title:string,body_excerpt:string,requirement_key:string|null,updated_at:string|null}>
      */
     private function sectionCards(Collection $sections, array $limits, int $totalExcerptLimit): array
     {
@@ -244,9 +244,11 @@ final class PlanAiContext
             }
 
             $cards[] = [
+                'section_id' => (string) $section->getKey(),
                 'title' => (string) $section->title,
                 'body_excerpt' => $excerpt,
                 'requirement_key' => $this->requirementKey($section),
+                'updated_at' => $section->updated_at?->toIso8601String(),
             ];
             $remaining -= Str::length($excerpt);
         }

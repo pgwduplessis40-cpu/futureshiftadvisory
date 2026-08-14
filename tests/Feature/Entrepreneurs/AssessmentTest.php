@@ -104,6 +104,77 @@ final class AssessmentTest extends TestCase
             );
     }
 
+    public function test_workspace_reassessment_uses_resubmitted_plan_content_and_advances_latest_round(): void
+    {
+        $ai = new CapturingScoreAiClient(82);
+        $this->app->instance(AiClient::class, $ai);
+        [$advisor, $plan] = $this->plan('workspace-reassessment-founder@example.test');
+        $profile = $plan->entrepreneurProfile()->firstOrFail();
+        $admin = User::factory()->superAdmin()->withTwoFactor()->create();
+        $admin->assignRole(User::TYPE_SUPER_ADMIN);
+
+        app(PlanBuilder::class)->upsertSection(
+            plan: $plan->refresh(),
+            phaseKey: 'market',
+            key: 'market-demand',
+            title: 'Market demand',
+            body: 'Original first-round evidence only mentions vague market interest and does not name paid pilots.',
+            actor: $advisor,
+        );
+        $first = app(Assessment::class)->firstPass($plan->refresh()->load('sections'), $advisor);
+
+        $updatedSection = app(PlanBuilder::class)->upsertSection(
+            plan: $plan->refresh(),
+            phaseKey: 'market',
+            key: 'market-demand',
+            title: 'Market demand',
+            body: 'Revised second-round evidence names six paid pilots, updated competitor pricing, and current demand signals from the founder resubmission.',
+            actor: $advisor,
+        );
+        $plan->forceFill(['status' => BusinessPlan::STATUS_SUBMITTED])->save();
+        $ai->scorePrompts = [];
+
+        $response = $this->actingAsMfa($admin)
+            ->post(route('advisor.entrepreneurs.plans.assessments.store', [
+                'entrepreneurProfile' => $profile,
+                'businessPlan' => $plan,
+            ]));
+
+        $latest = PlanAssessment::query()
+            ->where('business_plan_id', $plan->getKey())
+            ->orderByDesc('round')
+            ->firstOrFail();
+        $capturedPromptInput = json_encode(
+            array_map(fn (PromptEnvelope $prompt): array => $prompt->input, $ai->scorePrompts),
+            JSON_THROW_ON_ERROR
+        );
+        $sourceSectionIds = collect($latest->ai_scores)
+            ->flatMap(fn (array $score): array => collect(data_get($score, 'metadata.source_sections', []))
+                ->pluck('section_id')
+                ->all())
+            ->unique()
+            ->values()
+            ->all();
+
+        $response->assertRedirect(route('advisor.entrepreneurs.show', $profile, absolute: false));
+        $this->assertSame(2, PlanAssessment::query()->where('business_plan_id', $plan->getKey())->count());
+        $this->assertSame(2, $latest->round);
+        $this->assertNotSame($first->getKey(), $latest->getKey());
+        $this->assertStringContainsString('Revised second-round evidence names six paid pilots', $capturedPromptInput);
+        $this->assertStringNotContainsString('Original first-round evidence only mentions vague market interest', $capturedPromptInput);
+        $this->assertContains($updatedSection->getKey(), $sourceSectionIds);
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('advisor/entrepreneurs/Show')
+                ->where('entrepreneur.latest_plan.assessment_count', 2)
+                ->where('entrepreneur.latest_plan.latest_round', 2)
+                ->where('entrepreneur.latest_plan.latest_assessment.id', $latest->id)
+            );
+    }
+
     public function test_advisor_adjustment_requires_note_and_queues_governed_learning(): void
     {
         [$advisor, $plan] = $this->plan('adjustment-founder@example.test');
@@ -388,6 +459,67 @@ final class StructuredScoreAiClient implements AiClient
             uncertainty: Uncertainty::Low,
             biasSignals: [],
             model: 'structured-score-ai-client',
+            promptVersion: $prompt->version,
+            promptHash: $prompt->hash(),
+            tokensIn: 1,
+            tokensOut: 1,
+            metadata: $metadata,
+        );
+    }
+}
+
+final class CapturingScoreAiClient implements AiClient
+{
+    /**
+     * @var array<int, PromptEnvelope>
+     */
+    public array $scorePrompts = [];
+
+    public function __construct(private readonly int $score) {}
+
+    public function analyse(PromptEnvelope $prompt): AiResponse
+    {
+        return $this->response($prompt);
+    }
+
+    public function verifyDocument(PromptEnvelope $prompt): AiResponse
+    {
+        return $this->response($prompt);
+    }
+
+    public function scoreCriterion(PromptEnvelope $prompt): AiResponse
+    {
+        $this->scorePrompts[] = $prompt;
+
+        return $this->response($prompt, ['score' => $this->score]);
+    }
+
+    public function summarise(PromptEnvelope $prompt): AiResponse
+    {
+        return $this->response($prompt);
+    }
+
+    public function redFlag(PromptEnvelope $prompt): AiResponse
+    {
+        return $this->response($prompt);
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    private function response(PromptEnvelope $prompt, array $metadata = []): AiResponse
+    {
+        return new AiResponse(
+            text: 'AI rationale tied to the supplied resubmitted plan evidence.',
+            attributions: [
+                [
+                    'claim' => 'AI score derived from supplied plan context.',
+                    'source_reference' => 'test:capturing-score-ai-client',
+                ],
+            ],
+            uncertainty: Uncertainty::Low,
+            biasSignals: [],
+            model: 'capturing-score-ai-client',
             promptVersion: $prompt->version,
             promptHash: $prompt->hash(),
             tokensIn: 1,
