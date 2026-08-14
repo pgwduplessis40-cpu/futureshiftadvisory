@@ -650,15 +650,20 @@ clear_orphaned_git_index_lock
 restore_generated_wayfinder_checkout
 require_clean_checkout "before pulling code"
 
-log "Pulling latest code"
-# Do not use `git pull`: a server can have more than one branch.*.merge value,
-# which makes pull attempt to fast-forward multiple branches despite a branch
-# argument. FETCH_HEAD always represents this one explicit fetch.
-GIT_REMOTE="${GIT_REMOTE:-origin}"
-GIT_BRANCH="${GIT_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
-git fetch --tags "$GIT_REMOTE" "$GIT_BRANCH"
-git merge --ff-only FETCH_HEAD
-verify_expected_release
+if [ "${DEPLOY_SKIP_GIT_PULL:-no}" = "yes" ]; then
+    log "Using preloaded release checkout"
+    verify_expected_release
+else
+    log "Pulling latest code"
+    # Do not use `git pull`: a server can have more than one branch.*.merge value,
+    # which makes pull attempt to fast-forward multiple branches despite a branch
+    # argument. FETCH_HEAD always represents this one explicit fetch.
+    GIT_REMOTE="${GIT_REMOTE:-origin}"
+    GIT_BRANCH="${GIT_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
+    git fetch --tags "$GIT_REMOTE" "$GIT_BRANCH"
+    git merge --ff-only FETCH_HEAD
+    verify_expected_release
+fi
 
 log "Installing PHP dependencies"
 composer install --no-dev --optimize-autoloader --no-interaction
