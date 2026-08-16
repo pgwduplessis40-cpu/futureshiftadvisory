@@ -10,14 +10,6 @@ declare module 'react' {
 }
 
 declare module '@inertiajs/core' {
-    export interface PageProps {
-        name: string;
-        publicUrl: string;
-        auth: Auth;
-        aiNotice?: AiNotice | null;
-        sidebarOpen: boolean;
-    }
-
     export interface InertiaConfig {
         sharedPageProps: {
             name: string;
