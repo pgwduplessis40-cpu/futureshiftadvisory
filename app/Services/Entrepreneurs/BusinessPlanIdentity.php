@@ -19,9 +19,13 @@ final class BusinessPlanIdentity
     {
         $profile->loadMissing('client');
 
-        $linkedClientName = trim((string) ($profile->client?->trading_name ?: $profile->client?->legal_name ?: ''));
-        if ($this->usableName($linkedClientName)) {
-            return $linkedClientName;
+        foreach ([
+            trim((string) ($profile->client?->trading_name ?? '')),
+            trim((string) ($profile->client?->legal_name ?? '')),
+        ] as $linkedClientName) {
+            if ($this->usableName($linkedClientName, $profile->name)) {
+                return $linkedClientName;
+            }
         }
 
         if ($plan instanceof BusinessPlan) {
@@ -48,9 +52,11 @@ final class BusinessPlanIdentity
         return $this->usablePlanTitle($planTitle, $profile->name) ? $planTitle : null;
     }
 
-    private function usableName(string $name): bool
+    private function usableName(string $name, string $founderName): bool
     {
-        return $name !== '' && ! str_starts_with(strtolower($name), 'invited client -');
+        return $name !== ''
+            && ! str_starts_with(strtolower($name), 'invited client -')
+            && strcasecmp($name, trim($founderName)) !== 0;
     }
 
     private function usablePlanTitle(string $title, string $founderName): bool

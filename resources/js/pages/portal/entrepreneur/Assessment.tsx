@@ -50,6 +50,7 @@ type Assessment = {
     overall_grade: string;
     weighted_score: number;
     threshold: number;
+    requires_full_reassessment: boolean;
     finalised_at: string | null;
     created_at: string | null;
     basis: {
@@ -355,6 +356,49 @@ export default function EntrepreneurAssessment({
                         {assessment.basis.summary}
                     </p>
                 </section>
+
+                {assessment.requires_full_reassessment ? (
+                    <section className="flex flex-wrap items-center justify-between gap-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-950">
+                        <div className="flex min-w-0 items-start gap-3">
+                            <AlertTriangle
+                                className="mt-0.5 size-5 shrink-0"
+                                aria-hidden="true"
+                            />
+                            <div className="space-y-1">
+                                <h2 className="text-sm font-medium">
+                                    Full reassessment recommended
+                                </h2>
+                                <p className="max-w-4xl text-sm">
+                                    This historical round reused criterion-level
+                                    scores. The submitted-plan snapshot is
+                                    correct, but a new round is needed to score
+                                    the complete submitted plan.
+                                </p>
+                            </div>
+                        </div>
+                        {reassessUrl ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
+                                onClick={() =>
+                                    router.post(
+                                        reassessUrl,
+                                        {},
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                <RefreshCw
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Run full reassessment
+                            </Button>
+                        ) : null}
+                    </section>
+                ) : null}
 
                 {advisorFeedback ? (
                     <section className="space-y-4 rounded-md border bg-background p-4">

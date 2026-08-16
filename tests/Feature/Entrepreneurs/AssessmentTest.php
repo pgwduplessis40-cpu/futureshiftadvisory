@@ -217,6 +217,7 @@ final class AssessmentTest extends TestCase
         $this->assertSame([], $ai->scorePrompts);
         $this->assertTrue(collect($second->ai_scores)->every(
             fn (array $score): bool => $score['score_source'] === 'reused_identical_context'
+                && (string) data_get($score, 'metadata.reuse_basis') === 'submitted_plan_snapshot'
                 && (int) data_get($score, 'metadata.reused_from_round') === 1,
         ));
 
@@ -226,6 +227,41 @@ final class AssessmentTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->where('assessment.criteria.0.source_label', 'Round 2 score reused from identical submitted-plan evidence (originally scored in round 1)')
                 ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'reused rather than regenerated'))
+            );
+    }
+
+    public function test_legacy_criterion_context_reuse_is_flagged_for_a_full_reassessment(): void
+    {
+        $ai = new CapturingScoreAiClient(82);
+        $this->app->instance(AiClient::class, $ai);
+        [$advisor, $plan] = $this->plan('legacy-partial-reuse-founder@example.test');
+
+        app(Assessment::class)->firstPass($plan, $advisor);
+        $assessment = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+        $assessment->forceFill([
+            'ai_scores' => collect($assessment->ai_scores)
+                ->map(function (array $score): array {
+                    $metadata = is_array($score['metadata'] ?? null) ? $score['metadata'] : [];
+
+                    return [
+                        ...$score,
+                        'metadata' => [
+                            ...$metadata,
+                            'reuse_basis' => 'criterion_context_hash',
+                        ],
+                    ];
+                })
+                ->values()
+                ->all(),
+        ])->save();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.assessments.show', [$plan->entrepreneurProfile()->firstOrFail(), $assessment]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('assessment.requires_full_reassessment', true)
+                ->where('assessment.criteria.0.source_label', fn (string $value): bool => str_contains($value, 'matching criterion context'))
+                ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'per-criterion comparison')),
             );
     }
 

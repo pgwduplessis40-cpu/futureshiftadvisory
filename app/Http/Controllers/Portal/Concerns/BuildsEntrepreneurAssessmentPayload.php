@@ -31,9 +31,14 @@ trait BuildsEntrepreneurAssessmentPayload
             ->filter(fn (mixed $score): bool => is_array($score)
                 && (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'reused_identical_context');
         $reusedIdenticalContext = $reusedScores->isNotEmpty();
-        $automatedScoreDescription = $reusedIdenticalContext
-            ? 'The submitted-plan evidence is unchanged from the matched earlier assessment, so the original automatic scores were reused rather than asking the AI to score the same evidence again.'
-            : 'Advisor-reviewed scores override the automated score only where an advisor has added a review score.';
+        $requiresFullReassessment = $reusedScores->contains(
+            fn (array $score): bool => (string) data_get($score, 'metadata.reuse_basis') !== 'submitted_plan_snapshot',
+        );
+        $automatedScoreDescription = $requiresFullReassessment
+            ? 'This historical round reused automatic scores from matching criterion contexts rather than an identical full submitted-plan snapshot. The snapshot shown is the plan for this round, but run a full reassessment before relying on the automatic score.'
+            : ($reusedIdenticalContext
+                ? 'The full submitted-plan snapshot is unchanged from the matched earlier assessment, so the original automatic scores were reused rather than asking the AI to score the same evidence again.'
+                : 'Advisor-reviewed scores override the automated score only where an advisor has added a review score.');
 
         return [
             'id' => $assessment->id,
@@ -42,6 +47,7 @@ trait BuildsEntrepreneurAssessmentPayload
             'overall_grade' => $framework?->gradeFor($weightedScore) ?? $assessment->overall_grade,
             'weighted_score' => $weightedScore,
             'threshold' => AdvisoryReadiness::THRESHOLD,
+            'requires_full_reassessment' => $requiresFullReassessment,
             'finalised_at' => $assessment->finalised_at?->toIso8601String(),
             'created_at' => $assessment->created_at?->toIso8601String(),
             'basis' => [
@@ -89,9 +95,11 @@ trait BuildsEntrepreneurAssessmentPayload
             'mentor_notes' => $this->entrepreneurVisibleMentorNotes($assessment),
             'criteria' => $criteria,
             'explanation' => sprintf(
-                $reusedIdenticalContext
+                $requiresFullReassessment
+                    ? 'This score is the weighted total from assessment round %d. The submitted plan snapshot is correct for this round, but automatic scores were reused by a per-criterion comparison instead of a full-plan snapshot comparison. Run a full reassessment to score all submitted plan evidence. A score of %.0f or above marks the plan as advisory ready.'
+                    : ($reusedIdenticalContext
                     ? 'This score is the weighted total from assessment round %d. The submitted-plan evidence matched an earlier scored version, so the original automatic score was reused rather than regenerated. Advisor-reviewed scores are used where present. A score of %.0f or above marks the plan as advisory ready.'
-                    : 'This score is the weighted total from assessment round %d. Advisor-reviewed scores are used where present; otherwise the automated score generated for this round is used. A score of %.0f or above marks the plan as advisory ready.',
+                    : 'This score is the weighted total from assessment round %d. Advisor-reviewed scores are used where present; otherwise the automated score generated for this round is used. A score of %.0f or above marks the plan as advisory ready.'),
                 max(1, (int) $assessment->round),
                 AdvisoryReadiness::THRESHOLD,
             ),

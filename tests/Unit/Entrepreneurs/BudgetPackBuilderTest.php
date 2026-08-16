@@ -80,6 +80,8 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringContainsString('Lowest cash M1', $html);
         $this->assertStringContainsString('Break-even M2', $html);
         $this->assertStringContainsString('Runway M3', $html);
+        $this->assertStringContainsString('class="report-section annual-forecast page"', $html);
+        $this->assertStringContainsString('class="report-section assumption-quality page"', $html);
     }
 
     public function test_budget_pack_fallback_pdf_is_structured_without_browser_renderer(): void

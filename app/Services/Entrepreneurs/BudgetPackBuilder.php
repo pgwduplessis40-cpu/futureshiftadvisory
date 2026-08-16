@@ -210,7 +210,7 @@ HTML,
         );
         $annualForecast = sprintf(
             <<<'HTML'
-<article class="report-section annual-forecast">
+<article class="report-section annual-forecast page">
 <h2>Annual forecast</h2>
 <table>
 <thead><tr><th>Year</th><th>Revenue</th><th>Gross profit</th><th>GP %%</th><th>Fixed costs</th><th>Net profit before tax</th><th>NPBT %%</th><th>Tax</th><th>Net profit after tax</th><th>Ending cash</th></tr></thead>
@@ -222,7 +222,7 @@ HTML,
             $annualRows === '' ? '<tr><td colspan="10">No annual forecast saved.</td></tr>' : $annualRows,
         );
         $assumptionsSection = sprintf(
-            '<article class="report-section"><h2>Assumption quality</h2><table class="decision-table"><thead><tr><th>Assumption</th><th>Value</th><th>Basis</th><th>Review note</th></tr></thead><tbody>%s</tbody></table></article>',
+            '<article class="report-section assumption-quality page"><h2>Assumption quality</h2><table class="decision-table"><thead><tr><th>Assumption</th><th>Value</th><th>Basis</th><th>Review note</th></tr></thead><tbody>%s</tbody></table></article>',
             $assumptions === '' ? '<tr><td colspan="4">No assumptions saved.</td></tr>' : $assumptions,
         );
         $scenariosSection = sprintf(
@@ -370,6 +370,7 @@ HTML,
             ->values()
             ->all();
 
+        $blocks[] = ['type' => 'page_break'];
         $annualChart = $this->fallbackAnnualForecastChart((array) ($payload['annual_totals'] ?? []));
         if ($annualChart !== null) {
             $blocks[] = $annualChart;
@@ -385,6 +386,7 @@ HTML,
                 'widths' => [0.55, 1, 1, 0.65, 1, 1, 1],
             ];
 
+        $blocks[] = ['type' => 'page_break'];
         $assumptions = collect((array) ($payload['assumptions'] ?? []))
             ->map(fn (array $row): array => [
                 (string) ($row['label'] ?? ''),
@@ -419,6 +421,7 @@ HTML,
                 ->all();
 
             if ($rows !== []) {
+                $blocks[] = ['type' => 'page_break'];
                 $blocks[] = ['type' => 'section', 'text' => 'Year '.((string) ($year['year'] ?? '-')).' monthly detail'];
                 $blocks[] = [
                     'type' => 'table',

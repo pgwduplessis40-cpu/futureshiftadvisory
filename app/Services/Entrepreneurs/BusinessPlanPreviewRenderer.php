@@ -309,12 +309,12 @@ final class BusinessPlanPreviewRenderer
      */
     private function overviewHtml(array $sections, ?array $executiveSummary): string
     {
-        $roadmap = collect($sections)
-            ->map(function (array $section, int $index): string {
+        $index = collect($this->indexEntries($sections, $executiveSummary))
+            ->map(function (array $entry, int $index): string {
                 return sprintf(
                     '<li><span>%02d</span><div><strong>%s</strong></div></li>',
                     $index + 1,
-                    $this->escape($section['title']),
+                    $this->escape($entry['title']),
                 );
             })
             ->implode('');
@@ -333,16 +333,33 @@ final class BusinessPlanPreviewRenderer
 </div>
 </article>
 <article class="reader-roadmap">
-<p class="question-label">Contents</p>
-<h2>Business plan contents</h2>
+<h2>Index</h2>
 <ol>%s</ol>
 </article>
 HTML,
             $this->escape($summaryHeading),
             $this->escape($summaryHeading),
             $summaryBody,
-            $roadmap,
+            $index,
         );
+    }
+
+    /**
+     * @param  array<int, array{title:string,entries:array<int, array{key:string,title:string,body:string,evidence_count:int}>}>  $sections
+     * @param  array{key:string,title:string,body:string,evidence_count:int}|null  $executiveSummary
+     * @return array<int, array{key:string,title:string,body:string,evidence_count:int}>
+     */
+    private function indexEntries(array $sections, ?array $executiveSummary): array
+    {
+        $entries = collect($sections)
+            ->flatMap(fn (array $section): array => $section['entries'])
+            ->values();
+
+        if ($executiveSummary !== null) {
+            $entries->prepend($executiveSummary);
+        }
+
+        return $entries->all();
     }
 
     /**
@@ -353,7 +370,7 @@ HTML,
     {
         foreach ($phases as $phase) {
             $section = collect($phase['sections'] ?? [])
-                ->first(fn (array $candidate): bool => (string) ($candidate['requirement_key'] ?? '') === 'executive-summary');
+                ->first(fn (array $candidate): bool => $this->isExecutiveSummary($candidate));
 
             if (! is_array($section)) {
                 continue;
@@ -373,6 +390,25 @@ HTML,
         }
 
         return null;
+    }
+
+    /**
+     * Snapshots created before requirement metadata was normalised can still
+     * contain the executive summary under the legacy section key or title.
+     *
+     * @param  array<string, mixed>  $section
+     */
+    private function isExecutiveSummary(array $section): bool
+    {
+        if ((string) ($section['requirement_key'] ?? '') === 'executive-summary') {
+            return true;
+        }
+
+        if ((string) ($section['key'] ?? '') === 'founder-financial-executive-summary') {
+            return true;
+        }
+
+        return strcasecmp(trim((string) ($section['title'] ?? '')), 'Executive summary') === 0;
     }
 
     /**
@@ -433,8 +469,9 @@ HTML,
             ['type' => 'page_break'],
             [
                 'type' => 'toc',
-                'items' => collect($sections)
-                    ->map(fn (array $section): array => ['title' => $section['title']])
+                'heading' => 'Index',
+                'items' => collect($this->indexEntries($sections, $executiveSummary))
+                    ->map(fn (array $entry): array => ['title' => $entry['title']])
                     ->values()
                     ->all(),
             ],

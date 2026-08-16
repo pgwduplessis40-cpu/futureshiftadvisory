@@ -110,9 +110,9 @@ final class Assessment implements ProvidesMethodology
     }
 
     /**
-     * Reassessing an unchanged scored context must not turn model variation into
-     * a change in the founder's result. Reuse the oldest matching automatic
-     * result so the source is stable and the later assessment round is auditable.
+     * Reassessing an identical submitted plan must not turn model variation into
+     * a change in the founder's result. Reuse is only safe when the whole
+     * captured plan and budget evidence match an earlier submitted snapshot.
      *
      * @param  array<string, array{relevant_sections:array<int, array<string, mixed>>,supporting_section_summaries:array<int, array<string, mixed>>,budget_summary:string}>  $criterionContexts
      * @param  array<string, mixed>  $planSnapshot
@@ -131,10 +131,10 @@ final class Assessment implements ProvidesMethodology
             ->whereNotNull('ai_scores')
             ->orderBy('round')
             ->get()
-            ->map(function (PlanAssessment $assessment) use ($contextHashes, $snapshotFingerprint): array {
+            ->map(function (PlanAssessment $assessment) use ($snapshotFingerprint): array {
                 return [
                     'assessment' => $assessment,
-                    'basis' => $this->reuseBasisFor($assessment, $contextHashes, $snapshotFingerprint),
+                    'basis' => $this->reuseBasisFor($assessment, $snapshotFingerprint),
                 ];
             })
             ->first(fn (array $candidate): bool => $candidate['basis'] !== null);
@@ -171,34 +171,8 @@ final class Assessment implements ProvidesMethodology
             ->all();
     }
 
-    /**
-     * @param  array<string, string>  $contextHashes
-     */
-    private function reuseBasisFor(PlanAssessment $assessment, array $contextHashes, ?string $snapshotFingerprint): ?string
+    private function reuseBasisFor(PlanAssessment $assessment, ?string $snapshotFingerprint): ?string
     {
-        $scores = collect($assessment->ai_scores ?? [])
-            ->filter(fn (mixed $score): bool => is_array($score))
-            ->keyBy(fn (array $score): string => (string) ($score['criterion_number'] ?? ''));
-
-        if ($scores->count() !== count($contextHashes)) {
-            return null;
-        }
-
-        $hasContextHashes = $scores->contains(
-            fn (array $score): bool => trim((string) data_get($score, 'metadata.context_hash')) !== '',
-        );
-
-        if ($hasContextHashes) {
-            foreach ($contextHashes as $criterionNumber => $contextHash) {
-                $score = $scores->get((string) $criterionNumber);
-                if (! is_array($score) || (string) data_get($score, 'metadata.context_hash') !== $contextHash) {
-                    return null;
-                }
-            }
-
-            return 'criterion_context_hash';
-        }
-
         $assessmentFingerprint = $this->snapshotContentFingerprint($assessment->plan_snapshot);
 
         return $snapshotFingerprint !== null

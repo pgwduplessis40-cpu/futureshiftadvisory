@@ -76,6 +76,50 @@ final class BusinessPlanPreviewRendererTest extends TestCase
         $this->assertSame('Executive summary', $summary['title']);
     }
 
+    public function test_executive_summary_is_recovered_from_a_legacy_snapshot_key(): void
+    {
+        $renderer = app(BusinessPlanPreviewRenderer::class);
+        $method = new ReflectionMethod($renderer, 'executiveSummaryEntry');
+        $method->setAccessible(true);
+
+        $summary = $method->invoke($renderer, [[
+            'sections' => [[
+                'key' => 'founder-financial-executive-summary',
+                'title' => 'Executive summary',
+                'body' => 'A concise summary retained from the submitted plan snapshot.',
+                'attached_document_ids' => [],
+            ]],
+        ]]);
+
+        $this->assertSame('Executive summary', $summary['title']);
+        $this->assertSame('A concise summary retained from the submitted plan snapshot.', $summary['body']);
+    }
+
+    public function test_index_lists_each_rendered_requirement_instead_of_phase_headings(): void
+    {
+        $renderer = app(BusinessPlanPreviewRenderer::class);
+        $method = new ReflectionMethod($renderer, 'indexEntries');
+        $method->setAccessible(true);
+        $entries = array_map(
+            fn (int $position): array => [
+                'key' => 'requirement-'.$position,
+                'title' => 'Plan response '.$position,
+                'body' => 'Completed plan response '.$position,
+                'evidence_count' => 0,
+            ],
+            range(1, 12),
+        );
+
+        $index = $method->invoke($renderer, [[
+            'title' => 'Foundation',
+            'entries' => $entries,
+        ]], null);
+
+        $this->assertCount(12, $index);
+        $this->assertSame('Plan response 1', $index[0]['title']);
+        $this->assertSame('Plan response 12', $index[11]['title']);
+    }
+
     public function test_document_sections_clean_punctuation_fragments_from_detail_copy(): void
     {
         $renderer = app(BusinessPlanPreviewRenderer::class);
@@ -121,6 +165,19 @@ final class BusinessPlanPreviewRendererTest extends TestCase
                     'body' => 'Plan Founder operates a specialist advisory business from Hamilton with validated demand from paid pilots.',
                     'attached_document_ids' => [],
                 ]],
+            ], [
+                'title' => 'Financial',
+                'requirements' => [[
+                    'key' => 'executive-summary',
+                    'title' => 'Executive summary',
+                    'complete' => true,
+                ]],
+                'sections' => [[
+                    'key' => 'founder-financial-executive-summary',
+                    'title' => 'Executive summary',
+                    'body' => 'A lender-ready summary of the business, its funding need, and the decision requested.',
+                    'attached_document_ids' => [],
+                ]],
             ]],
             [
                 'external_issue_ready' => false,
@@ -135,7 +192,10 @@ final class BusinessPlanPreviewRendererTest extends TestCase
         $this->assertStringContainsString('BUSINESS PLAN', $pdf);
         $this->assertStringContainsString('Business Plan', $pdf);
         $this->assertStringContainsString('Founder - Plan Founder', $pdf);
-        $this->assertStringContainsString('Plan overview', $pdf);
+        $this->assertStringContainsString('Executive summary', $pdf);
+        $this->assertStringContainsString('Index', $pdf);
+        $this->assertStringContainsString('Business type, location, and operating model', $pdf);
+        $this->assertStringNotContainsString('Reader roadmap', $pdf);
         $this->assertStringNotContainsString('FALLBACK PDF', $pdf);
         $this->assertStringNotContainsString('Fallback rendering', $pdf);
         $this->assertStringNotContainsString('External issue', $pdf);

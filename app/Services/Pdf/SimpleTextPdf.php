@@ -134,7 +134,14 @@ final class SimpleTextPdf
             }
 
             if ($type === 'toc') {
-                $this->addToc($pages, $current, $y, (array) ($block['items'] ?? []), $title);
+                $this->addToc(
+                    $pages,
+                    $current,
+                    $y,
+                    (array) ($block['items'] ?? []),
+                    $title,
+                    (string) ($block['heading'] ?? 'Index'),
+                );
 
                 continue;
             }
@@ -565,7 +572,7 @@ final class SimpleTextPdf
      * @param  array<int, array<string, mixed>>  $current
      * @param  array<int, mixed>  $items
      */
-    private function addToc(array &$pages, array &$current, int &$y, array $items, string $reportTitle): void
+    private function addToc(array &$pages, array &$current, int &$y, array $items, string $reportTitle, string $heading): void
     {
         $items = array_values(array_filter($items, 'is_array'));
 
@@ -573,7 +580,7 @@ final class SimpleTextPdf
             return;
         }
 
-        $this->addSectionHeading($pages, $current, $y, 'Reader roadmap', $reportTitle);
+        $this->addSectionHeading($pages, $current, $y, $heading, $reportTitle);
 
         foreach ($items as $index => $item) {
             $this->ensureSpace($pages, $current, $y, 34, $reportTitle);

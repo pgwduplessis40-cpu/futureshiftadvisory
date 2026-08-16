@@ -39,6 +39,7 @@ final class AssessmentScoring
                 $weight = (float) $criterion->weight;
                 $normalisedWeight = $totalWeight > 0 ? $weight / $totalWeight : 0;
                 $reused = is_array($ai) && (string) ($ai['score_source'] ?? data_get($ai, 'metadata.score_source')) === 'reused_identical_context';
+                $reusedFromFullSnapshot = $reused && (string) data_get($ai, 'metadata.reuse_basis') === 'submitted_plan_snapshot';
 
                 return [
                     'criterion_id' => (string) $criterion->getKey(),
@@ -57,11 +58,17 @@ final class AssessmentScoring
                     'source_label' => $hasAdvisorScore
                         ? 'Advisor reviewed'
                         : ($reused
-                            ? sprintf(
-                                'Round %d score reused from identical submitted-plan evidence (originally scored in round %d)',
-                                max(1, (int) $assessment->round),
-                                max(1, (int) data_get($ai, 'metadata.reused_from_round', $assessment->round)),
-                            )
+                            ? ($reusedFromFullSnapshot
+                                ? sprintf(
+                                    'Round %d score reused from identical submitted-plan evidence (originally scored in round %d)',
+                                    max(1, (int) $assessment->round),
+                                    max(1, (int) data_get($ai, 'metadata.reused_from_round', $assessment->round)),
+                                )
+                                : sprintf(
+                                    'Round %d score reused from a matching criterion context (originally scored in round %d)',
+                                    max(1, (int) $assessment->round),
+                                    max(1, (int) data_get($ai, 'metadata.reused_from_round', $assessment->round)),
+                                ))
                             : sprintf('Round %d automated score', max(1, (int) $assessment->round))),
                     'rationale' => $hasAdvisorScore
                         ? (string) ($advisor['note'] ?? '')
