@@ -33,6 +33,7 @@ use App\Services\Entrepreneurs\Benchmarking;
 use App\Services\Entrepreneurs\BudgetFundingReadiness;
 use App\Services\Entrepreneurs\BudgetPackBuilder;
 use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
+use App\Services\Entrepreneurs\BusinessPlanSnapshot;
 use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
 use App\Services\Entrepreneurs\EntrepreneurBudgetService;
 use App\Services\Entrepreneurs\EntrepreneurDocumentTemplate;
@@ -141,6 +142,7 @@ final class MethodologyDriftGuardTest extends TestCase
         BudgetFundingReadiness::class => 'Funding-readiness presentation state; the budget formula is owned by BudgetCalculator.',
         BudgetPackBuilder::class => 'Budget-pack renderer; forecast formula is owned by BudgetCalculator.',
         BusinessPlanPreviewRenderer::class => 'Business-plan PDF renderer; requirement completion is presentation state, not an advisory methodology surface.',
+        BusinessPlanSnapshot::class => 'Submitted-plan snapshot serializer; assessment scoring methodology is owned by Assessment.',
         CanonicalEntrepreneurWorkspace::class => 'Selects the canonical existing entrepreneur workspace for a client; it does not calculate or disclose advisory methodology.',
         EntrepreneurBudgetService::class => 'Budget persistence workflow; forecast formula is owned by BudgetCalculator.',
         EntrepreneurDocumentTemplate::class => 'Document-template selection helper, not an advisory methodology surface.',
