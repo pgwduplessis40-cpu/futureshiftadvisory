@@ -8,7 +8,9 @@ use App\Models\LearningUpdate;
 use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 final class BiasDetector
@@ -121,12 +123,22 @@ final class BiasDetector
         }
 
         try {
+            $signalKey = $this->signalKey($prompt, $signals);
+            $existing = $this->openLearningCandidate($prompt, $signalKey);
+
+            if ($existing instanceof LearningUpdate) {
+                $this->recordAdditionalOccurrence($existing, $response, $signals, $subjectMetadata);
+
+                return;
+            }
+
             LearningUpdate::query()->create([
                 'layer_id' => self::LAYER_ID,
                 'source' => [
                     'type' => 'bias_detector',
                     'prompt_id' => $prompt->id,
                     'prompt_hash' => $prompt->hash(),
+                    'signal_key' => $signalKey,
                     'subject_metadata' => $subjectMetadata,
                 ],
                 'summary' => 'Bias detector heuristic flagged AI output for governed review.',
@@ -144,6 +156,7 @@ final class BiasDetector
                 'evidence' => [
                     'response_excerpt' => mb_substr($response->text, 0, 500),
                     'signals' => $signals,
+                    'occurrences' => 1,
                 ],
                 'status' => LearningUpdate::STATUS_DETECTED,
             ]);
@@ -152,5 +165,110 @@ final class BiasDetector
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    private function openLearningCandidate(PromptEnvelope $prompt, string $signalKey): ?LearningUpdate
+    {
+        return LearningUpdate::query()
+            ->where('layer_id', self::LAYER_ID)
+            ->whereIn('status', [
+                LearningUpdate::STATUS_DETECTED,
+                LearningUpdate::STATUS_STAGED,
+                LearningUpdate::STATUS_DEFERRED,
+            ])
+            ->where('source->type', 'bias_detector')
+            ->where(function ($query) use ($prompt, $signalKey): void {
+                $query
+                    ->where('source->signal_key', $signalKey)
+                    ->orWhere(function ($fallback) use ($prompt): void {
+                        $fallback
+                            ->where('source->prompt_id', $prompt->id)
+                            ->where('source->prompt_hash', $prompt->hash());
+                    });
+            })
+            ->latest()
+            ->first();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $signals
+     * @param  array<string, mixed>  $subjectMetadata
+     */
+    private function recordAdditionalOccurrence(
+        LearningUpdate $update,
+        AiResponse $response,
+        array $signals,
+        array $subjectMetadata,
+    ): void {
+        $evidence = $update->evidence ?? [];
+        $occurrences = max(1, (int) data_get($evidence, 'occurrences', 1)) + 1;
+        $excerpt = mb_substr($response->text, 0, 500);
+        $sampleExcerpts = collect(Arr::wrap(data_get($evidence, 'sample_excerpts', [])))
+            ->push(data_get($evidence, 'response_excerpt'))
+            ->push($excerpt)
+            ->filter(fn (mixed $value): bool => is_string($value) && trim($value) !== '')
+            ->unique()
+            ->take(5)
+            ->values()
+            ->all();
+
+        $update->forceFill([
+            'source' => array_merge($update->source ?? [], [
+                'last_seen_at' => now()->toIso8601String(),
+                'latest_subject_metadata' => $subjectMetadata,
+            ]),
+            'proposed_change' => array_merge($update->proposed_change ?? [], [
+                'signals' => $this->mergeSignals((array) data_get($update->proposed_change, 'signals', []), $signals),
+            ]),
+            'evidence' => array_merge($evidence, [
+                'signals' => $this->mergeSignals((array) data_get($evidence, 'signals', []), $signals),
+                'occurrences' => $occurrences,
+                'latest_response_excerpt' => $excerpt,
+                'last_seen_at' => now()->toIso8601String(),
+                'sample_excerpts' => $sampleExcerpts,
+            ]),
+        ])->save();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $existing
+     * @param  array<int, array<string, mixed>>  $incoming
+     * @return array<int, array<string, mixed>>
+     */
+    private function mergeSignals(array $existing, array $incoming): array
+    {
+        return collect([...$existing, ...$incoming])
+            ->filter(fn (mixed $signal): bool => is_array($signal))
+            ->unique(fn (array $signal): string => implode('|', [
+                (string) ($signal['type'] ?? ''),
+                (string) ($signal['term'] ?? ''),
+                (string) ($signal['severity'] ?? ''),
+                Str::limit((string) ($signal['reason'] ?? ''), 120, ''),
+            ]))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $signals
+     */
+    private function signalKey(PromptEnvelope $prompt, array $signals): string
+    {
+        $signalFingerprint = collect($signals)
+            ->map(fn (array $signal): array => [
+                'type' => (string) ($signal['type'] ?? ''),
+                'term' => (string) ($signal['term'] ?? ''),
+                'severity' => (string) ($signal['severity'] ?? ''),
+            ])
+            ->sortBy(fn (array $signal): string => implode('|', $signal))
+            ->values()
+            ->all();
+
+        return hash('sha256', json_encode([
+            'bias_detector',
+            $prompt->id,
+            $prompt->hash(),
+            $signalFingerprint,
+        ], JSON_THROW_ON_ERROR));
     }
 }

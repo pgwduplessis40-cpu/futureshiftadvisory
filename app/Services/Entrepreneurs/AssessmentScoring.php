@@ -38,6 +38,7 @@ final class AssessmentScoring
                     : (float) ($aiScore ?? 0);
                 $weight = (float) $criterion->weight;
                 $normalisedWeight = $totalWeight > 0 ? $weight / $totalWeight : 0;
+                $reused = is_array($ai) && (string) ($ai['score_source'] ?? data_get($ai, 'metadata.score_source')) === 'reused_identical_context';
 
                 return [
                     'criterion_id' => (string) $criterion->getKey(),
@@ -52,10 +53,16 @@ final class AssessmentScoring
                     'advisor_score' => $hasAdvisorScore ? (float) $advisor['score'] : null,
                     'grade' => $framework->gradeFor($score),
                     'contribution' => round($score * $normalisedWeight, 2),
-                    'source' => $hasAdvisorScore ? 'advisor_review' : 'automated_assessment',
+                    'source' => $hasAdvisorScore ? 'advisor_review' : ($reused ? 'reused_assessment' : 'automated_assessment'),
                     'source_label' => $hasAdvisorScore
                         ? 'Advisor reviewed'
-                        : sprintf('Round %d automated score', max(1, (int) $assessment->round)),
+                        : ($reused
+                            ? sprintf(
+                                'Round %d score reused from identical submitted-plan evidence (originally scored in round %d)',
+                                max(1, (int) $assessment->round),
+                                max(1, (int) data_get($ai, 'metadata.reused_from_round', $assessment->round)),
+                            )
+                            : sprintf('Round %d automated score', max(1, (int) $assessment->round))),
                     'rationale' => $hasAdvisorScore
                         ? (string) ($advisor['note'] ?? '')
                         : (string) (is_array($ai) ? ($ai['rationale'] ?? '') : ''),

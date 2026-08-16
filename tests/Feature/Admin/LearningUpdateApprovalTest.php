@@ -258,6 +258,13 @@ final class LearningUpdateApprovalTest extends TestCase
                 ->has('impact_reviews', 1)
                 ->where('impact_reviews.0.id', $implementation->id)
                 ->where('impact_reviews.0.summary', 'Adjust prompt calibration')
+                ->where('impact_reviews.0.source.type', 'analysis_feedback')
+                ->where('impact_reviews.0.proposed_change.action', 'revise_prompt')
+                ->where('impact_reviews.0.plain_english.what_we_learnt', 'The analysis feedback signal found a possible prompt update for financial analysis.')
+                ->where('impact_reviews.0.target_type', 'prompt')
+                ->where('impact_reviews.0.target_id', 'analysis.financial')
+                ->where('impact_reviews.0.before_state.status', LearningUpdate::STATUS_APPROVED)
+                ->where('impact_reviews.0.after_state.status', LearningUpdate::STATUS_IMPLEMENTED)
                 ->where('impact_reviews.0.suggested_metrics.impact_outcome', 'neutral')
                 ->where('impact_reviews.0.suggested_metrics.affected_surface', 'financial')
                 ->where('impact_reviews.0.suggested_metrics.rollback_required', false));

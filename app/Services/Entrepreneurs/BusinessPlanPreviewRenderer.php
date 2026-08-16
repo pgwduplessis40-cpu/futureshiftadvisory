@@ -8,11 +8,9 @@ use App\Models\BusinessPlan;
 use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
 use App\Models\PlanSection;
-use App\Models\Template;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pdf\SimpleTextPdf;
 use App\Services\Reports\BrandedReportLayout;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -26,7 +24,7 @@ final class BusinessPlanPreviewRenderer
         private readonly PdfRenderer $pdf,
         private readonly SimpleTextPdf $fallbackPdf,
         private readonly BrandedReportLayout $layout,
-        private readonly PlanIssueReadiness $issueReadiness,
+        private readonly BusinessPlanIdentity $identity,
         private readonly EntrepreneurDocumentTemplate $templates,
     ) {}
 
@@ -55,28 +53,19 @@ final class BusinessPlanPreviewRenderer
         $documentMeta = [
             'document_tag' => 'Submitted plan',
             'eyebrow' => 'Plan snapshot captured for assessment round '.$round,
-            'heading' => 'Submitted business plan',
-            'plan_status' => (string) data_get($snapshot, 'business_plan.status', $plan->status),
             'footer' => $capturedAt !== ''
                 ? 'Snapshot captured '.$capturedAt.' from the submitted entrepreneur workspace'
                 : 'Snapshot captured from the submitted entrepreneur workspace',
-            'meta' => [
-                'Assessment round' => (string) $round,
-                'Snapshot captured' => $capturedAt !== '' ? $capturedAt : 'Recorded with assessment',
-            ],
         ];
         $phases = $this->snapshotPhases($snapshot);
-        $issueReadiness = is_array($snapshot['issue_readiness'] ?? null)
-            ? $snapshot['issue_readiness']
-            : $this->emptyIssueReadiness();
-        $html = $this->html($profile, $plan, $phases, $issueReadiness, $documentMeta);
+        $html = $this->html($profile, $plan, $phases, $documentMeta);
 
         try {
             return $this->pdf->render($html);
         } catch (Throwable $exception) {
             report($exception);
 
-            return $this->fallbackPdf($profile, $plan, $phases, $issueReadiness, $documentMeta);
+            return $this->fallbackPdf($profile, $plan, $phases, $documentMeta);
         }
     }
 
@@ -201,65 +190,36 @@ final class BusinessPlanPreviewRenderer
         EntrepreneurProfile $profile,
         ?BusinessPlan $plan,
         array $phases,
-        ?array $issueReadinessOverride = null,
         array $documentMeta = [],
     ): string {
-        $requirements = collect($phases)->flatMap(fn (array $phase): array => $phase['requirements'] ?? []);
-        $total = $requirements->count();
-        $completed = $requirements->filter(fn (array $requirement): bool => (bool) ($requirement['complete'] ?? false))->count();
         $documentSections = $this->documentSections($phases);
-        $missingItems = $this->missingRequirements($requirements);
-        $issueReadiness = is_array($issueReadinessOverride)
-            ? $issueReadinessOverride
-            : ($plan instanceof BusinessPlan
-                ? $this->issueReadiness->evaluate($plan)
-                : $this->emptyIssueReadiness());
         $sectionHtml = collect($documentSections)
             ->map(fn (array $section, int $index): string => $this->documentSectionHtml($section, $index + 1))
             ->implode('');
-        $missingHtml = $missingItems === []
-            ? ''
-            : '<article class="report-section missing-panel"><h2>Items still to complete before external issue</h2><ul>'.collect($missingItems)->map(fn (string $item): string => '<li>'.$this->escape($item).'</li>')->implode('').'</ul></article>';
-        $issueWarningHtml = $this->externalIssueWarningHtml($issueReadiness);
         $contentHtml = $sectionHtml !== ''
-            ? $issueWarningHtml.$this->overviewHtml($documentSections, $completed, $total, $missingItems, $issueReadiness).$sectionHtml.$missingHtml
+            ? $this->overviewHtml($documentSections, $this->executiveSummaryEntry($phases)).$sectionHtml
             : $this->layout->section(
                 'Plan content not completed yet',
-                $issueWarningHtml.'<p class="body">No completed business-plan sections are available yet. Complete the founder plan sections before issuing this document externally.</p>'.$missingHtml,
+                '<p class="body">No completed business-plan sections are available yet.</p>',
                 'missing-panel',
             );
         $generatedAt = now()->format('M j, Y g:i A');
         $template = $this->templates->businessPlan();
-        $planStatus = (string) ($documentMeta['plan_status'] ?? ($plan?->status ?? 'not started'));
-        $meta = [
-            'Plan status' => $this->formatLabel($planStatus),
-            'Requirements' => "{$completed}/{$total} complete",
-            'Evidence coverage' => ($issueReadiness['evidence_supported_responses'] ?? 0).'/'.($issueReadiness['completed_responses'] ?? 0).' responses',
-            'External issue' => (string) ($issueReadiness['label'] ?? 'Not ready for external issue'),
-            'Stage' => $this->formatLabel($profile->currentStageValue()),
-            'Template' => $this->templateLabel($template),
-        ];
-        $extraMeta = $documentMeta['meta'] ?? [];
-        if (is_array($extraMeta)) {
-            foreach ($extraMeta as $label => $value) {
-                $meta[(string) $label] = (string) $value;
-            }
-        }
+        $businessName = $this->identity->businessName($profile, $plan, $this->sectionBodies($phases));
+        $title = 'Business Plan'.($businessName === null ? '' : ' - '.$businessName);
 
         return $this->layout->document(
-            title: 'Business plan - '.$profile->name,
+            title: $title,
             templateKey: $template?->getKey() ?? EntrepreneurDocumentTemplate::BUSINESS_PLAN,
             documentTag: (string) ($documentMeta['document_tag'] ?? 'Business plan'),
-            eyebrow: (string) ($documentMeta['eyebrow'] ?? ((bool) ($issueReadiness['external_issue_ready'] ?? false)
-                ? 'Prepared for lender and investor review'
-                : 'Advisor working copy - not for external issue')),
-            heading: (string) ($documentMeta['heading'] ?? 'Business plan'),
-            subheading: $profile->name,
-            meta: $meta,
+            eyebrow: (string) ($documentMeta['eyebrow'] ?? ''),
+            heading: (string) ($documentMeta['heading'] ?? $title),
+            subheading: (string) ($documentMeta['subheading'] ?? 'Founder - '.$profile->name),
+            meta: [],
             contentHtml: $contentHtml,
             footer: (string) ($documentMeta['footer'] ?? 'Generated '.$generatedAt.' using Future Shift Advisory business-plan workspace'),
             template: $template,
-            metaColumns: 5,
+            snapshotTitle: '',
             extraCss: $this->businessPlanCss(),
         );
     }
@@ -274,6 +234,7 @@ final class BusinessPlanPreviewRenderer
             ->map(function (array $phase): ?array {
                 $sections = collect($phase['sections'] ?? []);
                 $entries = collect($phase['requirements'] ?? [])
+                    ->reject(fn (array $requirement): bool => (string) ($requirement['key'] ?? '') === 'executive-summary')
                     ->map(function (array $requirement) use ($sections): ?array {
                         $section = $sections->first(fn (array $candidate): bool => (string) ($candidate['requirement_key'] ?? '') === (string) $requirement['key']);
 
@@ -305,27 +266,8 @@ final class BusinessPlanPreviewRenderer
             })
             ->filter()
             ->values();
-        $executiveSummary = $documentSections
-            ->flatMap(fn (array $section): array => $section['entries'])
-            ->first(fn (array $entry): bool => $entry['key'] === 'executive-summary');
 
-        if (! is_array($executiveSummary)) {
-            return $documentSections->all();
-        }
-
-        return $documentSections
-            ->map(function (array $section): ?array {
-                $entries = collect($section['entries'])
-                    ->reject(fn (array $entry): bool => $entry['key'] === 'executive-summary')
-                    ->values()
-                    ->all();
-
-                return $entries === [] ? null : [...$section, 'entries' => $entries];
-            })
-            ->filter()
-            ->values()
-            ->prepend(['title' => 'Executive summary', 'entries' => [$executiveSummary]])
-            ->all();
+        return $documentSections->all();
     }
 
     /**
@@ -335,9 +277,6 @@ final class BusinessPlanPreviewRenderer
     {
         $entries = collect($section['entries'])
             ->map(function (array $entry): string {
-                $evidence = $entry['evidence_count'] === 1
-                    ? '1 supporting document referenced'
-                    : $entry['evidence_count'].' supporting documents referenced';
                 $keyPoints = $this->keyPoints($entry['body']);
                 $keyPointHtml = $keyPoints === []
                     ? ''
@@ -346,9 +285,8 @@ final class BusinessPlanPreviewRenderer
                         ->implode('').'</ul></aside>';
 
                 return sprintf(
-                    '<section class="plan-subsection"><header><div><p class="question-label">Plan response</p><h3>%s</h3></div><span>%s</span></header>%s<div class="detail-copy">%s</div></section>',
+                    '<section class="plan-subsection"><header><div><p class="question-label">Business-plan requirement</p><h3>%s</h3></div></header>%s<div class="detail-copy">%s</div></section>',
                     $this->escape($entry['title']),
-                    $this->escape($evidence),
                     $keyPointHtml,
                     $this->markdownBodyHtml($entry['body']),
                 );
@@ -367,75 +305,101 @@ final class BusinessPlanPreviewRenderer
 
     /**
      * @param  array<int, array{title:string,entries:array<int, array{key:string,title:string,body:string,evidence_count:int}>}>  $sections
-     * @param  array<int, string>  $missing
+     * @param  array{key:string,title:string,body:string,evidence_count:int}|null  $executiveSummary
      */
-    private function overviewHtml(array $sections, int $completed, int $total, array $missing, array $issueReadiness): string
+    private function overviewHtml(array $sections, ?array $executiveSummary): string
     {
-        $responses = collect($sections)->sum(fn (array $section): int => count($section['entries']));
-        $evidence = collect($sections)
-            ->flatMap(fn (array $section): array => $section['entries'])
-            ->sum(fn (array $entry): int => $entry['evidence_count']);
         $roadmap = collect($sections)
             ->map(function (array $section, int $index): string {
                 return sprintf(
-                    '<li><span>%02d</span><div><strong>%s</strong><p>%d completed response%s</p></div></li>',
+                    '<li><span>%02d</span><div><strong>%s</strong></div></li>',
                     $index + 1,
                     $this->escape($section['title']),
-                    count($section['entries']),
-                    count($section['entries']) === 1 ? '' : 's',
                 );
             })
             ->implode('');
-        $summary = $this->executiveSummaryText($sections, $missing, $issueReadiness);
+        $summaryHeading = $executiveSummary === null ? 'Plan overview' : 'Executive summary';
+        $summaryBody = $executiveSummary === null
+            ? '<p>'.$this->escape($this->planOverviewText($sections)).'</p>'
+            : $this->markdownBodyHtml($executiveSummary['body']);
 
         return sprintf(
             <<<'HTML'
 <article class="reader-overview">
 <div class="overview-copy">
-<p class="question-label">Executive summary</p>
-<h2>Executive summary</h2>
-<p>%s</p>
-<p>It contains %d completed response%s across %d plan section%s.</p>
-</div>
-<div class="overview-cards">
-<div><span>Requirements</span><strong>%d/%d</strong><p>completed</p></div>
-<div><span>Plan responses</span><strong>%d</strong><p>included</p></div>
-<div><span>Evidence coverage</span><strong>%d/%d</strong><p>%d document references</p></div>
-<div><span>Open items</span><strong>%d</strong><p>before issue</p></div>
+<p class="question-label">%s</p>
+<h2>%s</h2>
+<div class="summary-copy">%s</div>
 </div>
 </article>
 <article class="reader-roadmap">
-<h2>Reader roadmap</h2>
+<p class="question-label">Contents</p>
+<h2>Business plan contents</h2>
 <ol>%s</ol>
 </article>
 HTML,
-            $this->escape($summary),
-            $responses,
-            $responses === 1 ? '' : 's',
-            count($sections),
-            count($sections) === 1 ? '' : 's',
-            $completed,
-            $total,
-            $responses,
-            $issueReadiness['evidence_supported_responses'] ?? 0,
-            $issueReadiness['completed_responses'] ?? 0,
-            $evidence,
-            count($missing),
+            $this->escape($summaryHeading),
+            $this->escape($summaryHeading),
+            $summaryBody,
             $roadmap,
         );
     }
 
     /**
-     * @param  Collection<int, array<string, mixed>>  $requirements
+     * @param  array<int, array<string, mixed>>  $phases
+     * @return array{key:string,title:string,body:string,evidence_count:int}|null
+     */
+    private function executiveSummaryEntry(array $phases): ?array
+    {
+        foreach ($phases as $phase) {
+            $section = collect($phase['sections'] ?? [])
+                ->first(fn (array $candidate): bool => (string) ($candidate['requirement_key'] ?? '') === 'executive-summary');
+
+            if (! is_array($section)) {
+                continue;
+            }
+
+            $body = $this->cleanResponseBody((string) ($section['body'] ?? ''));
+            if ($body === '') {
+                continue;
+            }
+
+            return [
+                'key' => 'executive-summary',
+                'title' => 'Executive summary',
+                'body' => $body,
+                'evidence_count' => count((array) ($section['attached_document_ids'] ?? [])),
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $phases
      * @return array<int, string>
      */
-    private function missingRequirements(Collection $requirements): array
+    private function sectionBodies(array $phases): array
     {
-        return $requirements
-            ->reject(fn (array $requirement): bool => (bool) ($requirement['complete'] ?? false))
-            ->map(fn (array $requirement): string => (string) (($requirement['phase_title'] ?? 'Plan').': '.$requirement['title']))
-            ->values()
+        return collect($phases)
+            ->flatMap(fn (array $phase): array => (array) ($phase['sections'] ?? []))
+            ->map(fn (array $section): string => (string) ($section['body'] ?? ''))
             ->all();
+    }
+
+    /**
+     * @param  array<int, array{title:string,entries:array<int, array{key:string,title:string,body:string,evidence_count:int}>}>  $sections
+     */
+    private function planOverviewText(array $sections): string
+    {
+        $sectionNames = collect($sections)
+            ->pluck('title')
+            ->filter()
+            ->implode(', ');
+
+        return $sectionNames === ''
+            ? 'This document presents the founder\'s current business plan.'
+            : 'This document presents the founder\'s current plan across '.$sectionNames.'.';
     }
 
     /**
@@ -445,69 +409,32 @@ HTML,
         EntrepreneurProfile $profile,
         ?BusinessPlan $plan,
         array $phases,
-        ?array $issueReadinessOverride = null,
         array $documentMeta = [],
     ): string {
-        $requirements = collect($phases)->flatMap(fn (array $phase): array => $phase['requirements'] ?? []);
-        $total = $requirements->count();
-        $completed = $requirements->filter(fn (array $requirement): bool => (bool) ($requirement['complete'] ?? false))->count();
         $sections = $this->documentSections($phases);
-        $missing = $this->missingRequirements($requirements);
-        $issueReadiness = is_array($issueReadinessOverride)
-            ? $issueReadinessOverride
-            : ($plan instanceof BusinessPlan
-                ? $this->issueReadiness->evaluate($plan)
-                : $this->emptyIssueReadiness());
-        $responses = collect($sections)->sum(fn (array $section): int => count($section['entries']));
-        $evidence = collect($sections)
-            ->flatMap(fn (array $section): array => $section['entries'])
-            ->sum(fn (array $entry): int => $entry['evidence_count']);
-        $planStatus = (string) ($documentMeta['plan_status'] ?? ($plan?->status ?? 'not started'));
+        $executiveSummary = $this->executiveSummaryEntry($phases);
+        $businessName = $this->identity->businessName($profile, $plan, $this->sectionBodies($phases));
+        $title = 'Business Plan'.($businessName === null ? '' : ' - '.$businessName);
         $blocks = [
-            ['type' => 'meta', 'text' => 'Prepared by Future Shift Advisory'],
-            ['type' => 'meta', 'text' => 'Founder: '.$profile->name],
-            ['type' => 'meta', 'text' => 'Plan status: '.$this->formatLabel($planStatus)],
-            ['type' => 'meta', 'text' => 'Requirements: '.$completed.'/'.$total.' complete'],
-            ['type' => 'meta', 'text' => 'Evidence coverage: '.($issueReadiness['evidence_supported_responses'] ?? 0).'/'.($issueReadiness['completed_responses'] ?? 0).' responses'],
-            ['type' => 'meta', 'text' => 'External issue: '.($issueReadiness['label'] ?? 'Not ready for external issue')],
-            ['type' => 'meta', 'text' => 'Stage: '.$this->formatLabel($profile->currentStageValue())],
-        ];
-        $extraMeta = $documentMeta['meta'] ?? [];
-        if (is_array($extraMeta)) {
-            foreach ($extraMeta as $label => $value) {
-                $blocks[] = ['type' => 'meta', 'text' => (string) $label.': '.(string) $value];
-            }
-        }
-
-        $blocks = [
-            ...$blocks,
-            ['type' => 'spacer'],
             [
-                'type' => 'callout',
-                'title' => 'Executive summary',
-                'text' => $this->executiveSummaryText($sections, $missing, $issueReadiness),
+                'type' => 'cover',
+                'document_tag' => (string) ($documentMeta['document_tag'] ?? 'Business plan'),
+                'title' => $title,
+                'subtitle' => 'Founder - '.$profile->name,
             ],
+            ['type' => 'page_break'],
+            ['type' => 'section', 'text' => $executiveSummary === null ? 'Plan overview' : 'Executive summary'],
             [
-                'type' => 'callout',
-                'title' => 'External issue status',
-                'text' => (string) ($issueReadiness['label'] ?? 'Not ready for external issue').'. '.implode(' ', (array) ($issueReadiness['reasons'] ?? [])),
+                'type' => 'paragraph',
+                'text' => $executiveSummary === null
+                    ? $this->planOverviewText($sections)
+                    : $this->markdownPlainText($executiveSummary['body']),
             ],
-            [
-                'type' => 'summary_cards',
-                'cards' => [
-                    ['label' => 'Requirements', 'value' => $completed.'/'.$total, 'note' => 'completed in the workspace'],
-                    ['label' => 'Plan responses', 'value' => (string) $responses, 'note' => 'founder-written sections included'],
-                    ['label' => 'Evidence coverage', 'value' => ($issueReadiness['evidence_supported_responses'] ?? 0).'/'.($issueReadiness['completed_responses'] ?? 0), 'note' => $evidence.' document references'],
-                    ['label' => 'Open items', 'value' => (string) count($missing), 'note' => 'resolve before external issue'],
-                ],
-            ],
+            ['type' => 'page_break'],
             [
                 'type' => 'toc',
                 'items' => collect($sections)
-                    ->map(fn (array $section): array => [
-                        'title' => $section['title'],
-                        'detail' => count($section['entries']).' completed response'.(count($section['entries']) === 1 ? '' : 's'),
-                    ])
+                    ->map(fn (array $section): array => ['title' => $section['title']])
                     ->values()
                     ->all(),
             ],
@@ -524,25 +451,12 @@ HTML,
                     'title' => $entry['title'],
                     'key_points' => $this->keyPoints($entry['body']),
                     'body' => $this->markdownPlainText($entry['body']),
-                    'note' => $entry['evidence_count'] > 0
-                        ? 'Evidence: '.$entry['evidence_count'].' supporting document'.($entry['evidence_count'] === 1 ? '' : 's').' referenced.'
-                        : 'Evidence: no supporting documents are attached to this response.',
+                    'note' => '',
                 ];
             }
         }
 
-        if ($missing !== []) {
-            $blocks[] = ['type' => 'page_break'];
-            $blocks[] = ['type' => 'section', 'text' => 'Items still to complete before external issue'];
-            $blocks[] = [
-                'type' => 'callout',
-                'title' => 'Advisor action',
-                'text' => 'These gaps should be closed or clearly marked before the plan is shared with a lender, investor, or external partner.',
-            ];
-            $blocks[] = ['type' => 'bullets', 'items' => $missing];
-        }
-
-        return $this->fallbackPdf->renderStructured('Business Plan - '.($profile->name ?: 'Entrepreneur'), $blocks);
+        return $this->fallbackPdf->renderStructured('Business Plan', $blocks);
     }
 
     /**
@@ -561,92 +475,6 @@ HTML,
             ->filter(fn (mixed $phase): bool => is_array($phase))
             ->values()
             ->all();
-    }
-
-    private function fallbackSummary(int $responses, int $sections, int $missing): string
-    {
-        $summary = 'This business plan summarises the founder\'s current model, market evidence, strategy, operations, and financial assumptions for advisor review. ';
-        $summary .= 'It contains '.$responses.' completed response'.($responses === 1 ? '' : 's').' across '.$sections.' plan section'.($sections === 1 ? '' : 's').'. ';
-
-        return $summary.($missing === 0
-            ? 'No open plan requirements are recorded.'
-            : $missing.' open requirement'.($missing === 1 ? '' : 's').' still need attention before external issue.');
-    }
-
-    /**
-     * @param  array<int, array{title:string,entries:array<int, array{key:string,title:string,body:string,evidence_count:int}>}>  $sections
-     * @param  array<int, string>  $missing
-     * @param  array<string, mixed>  $issueReadiness
-     */
-    private function executiveSummaryText(array $sections, array $missing, array $issueReadiness): string
-    {
-        $signals = collect($sections)
-            ->flatMap(fn (array $section): array => $section['entries'])
-            ->flatMap(fn (array $entry): array => $this->keyPoints($entry['body'], 1))
-            ->unique()
-            ->take(3)
-            ->values();
-        $readiness = (string) ($issueReadiness['label'] ?? 'Not ready for external issue');
-        $evidenceSupported = (int) ($issueReadiness['evidence_supported_responses'] ?? 0);
-        $completedResponses = (int) ($issueReadiness['completed_responses'] ?? 0);
-
-        $summary = $signals->isNotEmpty()
-            ? 'The strongest current reviewer signals are '.$signals->implode('; ').'.'
-            : 'The plan summarises the founder\'s current model, market evidence, operating approach, strategy, and financial assumptions for advisor review.';
-
-        $summary .= ' External issue status is '.$readiness.'.';
-
-        if ($missing !== []) {
-            $summary .= ' '.count($missing).' plan requirement'.(count($missing) === 1 ? '' : 's').' still need attention before lender or investor issue.';
-        }
-
-        if ($completedResponses > 0) {
-            $summary .= ' Evidence coverage is '.$evidenceSupported.'/'.$completedResponses.' completed response'.($completedResponses === 1 ? '' : 's').'.';
-        }
-
-        return $summary;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function emptyIssueReadiness(): array
-    {
-        return [
-            'external_issue_ready' => false,
-            'label' => 'Not ready for external issue',
-            'tone' => 'high',
-            'reasons' => ['No completed business plan is available yet.'],
-            'evidence_supported_responses' => 0,
-            'completed_responses' => 0,
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $issueReadiness
-     */
-    private function externalIssueWarningHtml(array $issueReadiness): string
-    {
-        if ((bool) ($issueReadiness['external_issue_ready'] ?? false)) {
-            return '';
-        }
-
-        $reasons = collect((array) ($issueReadiness['reasons'] ?? []))
-            ->map(fn (mixed $reason): string => '<li>'.$this->escape($reason).'</li>')
-            ->implode('');
-
-        return sprintf(
-            '<article class="report-section external-issue-warning"><p class="question-label">External issue gate</p><h2>%s</h2><p>This document is an advisor working copy. It must not be framed as lender or investor ready until the following items are resolved.</p><ul>%s</ul></article>',
-            $this->escape($issueReadiness['label'] ?? 'Not ready for external issue'),
-            $reasons,
-        );
-    }
-
-    private function templateLabel(?Template $template): string
-    {
-        return $template instanceof Template
-            ? $template->title.' v'.$template->version
-            : 'Meridian standard layout';
     }
 
     /**
@@ -715,22 +543,22 @@ HTML,
     {
         return <<<'CSS'
 .report-content { display: block; }
-.reader-overview { background: #f8f5ee; border: 1px solid #ded6c7; border-left: 5px solid #b8860b; display: grid; gap: 18px; grid-template-columns: 1.1fr 1fr; margin-bottom: 18px; padding: 18px; }
-.reader-overview h2 { color: #13233a; font-size: 18px; margin: 0 0 8px; }
+.report-hero { background: #fff; border: 0; border-left: 0; break-after: page; margin: 68px 0 0; min-height: 430px; padding: 0; }
+.report-hero .eyebrow:empty { display: none; }
+.report-hero h1 { font-size: 31px; margin: 0 0 12px; }
+.report-hero p { color: #39465a; font-size: 16px; }
+.reader-overview { background: #f8f5ee; border: 1px solid #ded6c7; border-left: 5px solid #b8860b; break-inside: avoid; margin-bottom: 24px; padding: 25px 28px; }
+.reader-overview h2 { color: #13233a; font-size: 24px; margin: 0 0 14px; }
 .reader-overview p { margin: 0; }
-.overview-copy > p:last-child { color: #39465a; font-size: 12px; line-height: 1.6; }
-.overview-cards { display: grid; gap: 9px; grid-template-columns: repeat(2, 1fr); }
-.overview-cards div { background: #fff; border: 1px solid #ded6c7; padding: 10px; }
-.overview-cards span, .question-label { color: #667282; display: block; font-size: 8.5px; font-weight: 700; letter-spacing: 0; margin: 0 0 4px; text-transform: uppercase; }
-.overview-cards strong { color: #0d7a7a; display: block; font-size: 18px; line-height: 1.1; }
-.overview-cards p { color: #667282; font-size: 9px; margin: 3px 0 0; }
-.reader-roadmap { break-after: page; }
+.summary-copy { color: #1f2937; font-size: 12px; line-height: 1.7; max-width: 74ch; }
+.summary-copy p { margin: 0 0 11px; }
+.question-label { color: #667282; display: block; font-size: 8.5px; font-weight: 700; letter-spacing: 0; margin: 0 0 6px; text-transform: uppercase; }
+.reader-roadmap { border-top: 1px solid #ded6c7; break-after: page; padding-top: 18px; }
 .reader-roadmap h2 { color: #1c2f4a; font-size: 18px; margin: 0 0 12px; }
 .reader-roadmap ol { display: grid; gap: 8px; list-style: none; margin: 0; padding: 0; }
 .reader-roadmap li { align-items: flex-start; border-top: 1px solid #eee7db; display: grid; gap: 12px; grid-template-columns: 32px 1fr; padding: 10px 0; }
 .reader-roadmap li span { color: #0d7a7a; font-weight: 700; }
 .reader-roadmap li strong { color: #13233a; display: block; font-size: 12px; }
-.reader-roadmap li p { color: #667282; margin: 2px 0 0; }
 .plan-phase { border: 0; border-left: 0; break-before: page; padding: 0; }
 .phase-heading { border-bottom: 1px solid #ded6c7; margin-bottom: 14px; padding-bottom: 9px; }
 .phase-heading p { color: #0d7a7a; font-size: 8.5px; font-weight: 700; letter-spacing: 0; margin: 0 0 4px; text-transform: uppercase; }
@@ -783,11 +611,6 @@ CSS;
         $text = html_entity_decode(strip_tags($withBreaks), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
         return trim(preg_replace('/[\t ]+/', ' ', $text) ?? $text);
-    }
-
-    private function formatLabel(string $value): string
-    {
-        return Str::of($value)->replace('_', ' ')->title()->toString();
     }
 
     private function escape(mixed $value): string

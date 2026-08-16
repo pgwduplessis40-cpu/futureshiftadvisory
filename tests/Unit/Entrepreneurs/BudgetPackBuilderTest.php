@@ -65,7 +65,7 @@ final class BudgetPackBuilderTest extends TestCase
         $html = app(BudgetPackBuilder::class)->html($profile, $plan);
 
         $this->assertStringContainsString('Financial story', $html);
-        $this->assertStringContainsString('Funding decision view', $html);
+        $this->assertStringContainsString('Funding position', $html);
         $this->assertStringContainsString('Use of funds', $html);
         $this->assertStringContainsString('Assumption quality', $html);
         $this->assertStringContainsString('Scenario comparison', $html);
@@ -73,8 +73,9 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringContainsString('<svg role="img" aria-label="Budget cash curve"', $html);
         $this->assertStringContainsString('Cash -- teal', $html);
         $this->assertStringContainsString('Revenue -- gold', $html);
-        $this->assertStringContainsString('Budget inputs', $html);
-        $this->assertStringContainsString('External issue', $html);
+        $this->assertStringContainsString('Founder - Budget Founder', $html);
+        $this->assertStringNotContainsString('Budget inputs', $html);
+        $this->assertStringNotContainsString('External issue', $html);
         $this->assertStringContainsString('Monthly fixed-cost trace', $html);
         $this->assertStringContainsString('Lowest cash M1', $html);
         $this->assertStringContainsString('Break-even M2', $html);
@@ -128,10 +129,11 @@ final class BudgetPackBuilderTest extends TestCase
         $pdf = app(BudgetPackBuilder::class)->fallbackPdf($profile, $plan);
 
         $this->assertStringStartsWith('%PDF-1.4', $pdf);
-        $this->assertStringContainsString('Budget Pack - Budget Founder', $pdf);
-        $this->assertStringContainsString('REPORT PDF', $pdf);
-        $this->assertStringContainsString('Executive finance summary', $pdf);
-        $this->assertStringContainsString('Funding decision view', $pdf);
+        $this->assertStringContainsString('Budget Pack', $pdf);
+        $this->assertStringContainsString('Founder - Budget Founder', $pdf);
+        $this->assertStringContainsString('BUDGET PACK', $pdf);
+        $this->assertStringContainsString('Financial story', $pdf);
+        $this->assertStringContainsString('Funding position', $pdf);
         $this->assertStringContainsString('Use of funds', $pdf);
         $this->assertStringContainsString('Assumption quality', $pdf);
         $this->assertStringContainsString('Scenario comparison', $pdf);
@@ -139,5 +141,6 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringContainsString('Annual forecast profile', $pdf);
         $this->assertStringNotContainsString('FALLBACK PDF', $pdf);
         $this->assertStringNotContainsString('Fallback rendering', $pdf);
+        $this->assertStringNotContainsString('External issue', $pdf);
     }
 }

@@ -27,6 +27,7 @@ type ImpactOutcome = 'improved' | 'neutral' | 'regressed' | 'inconclusive';
 type LearningUpdateCard = {
     id: string;
     layer_id: number;
+    created_at: string | null;
     source: Record<string, unknown> | null;
     summary: string;
     proposed_change: Record<string, unknown> | null;
@@ -74,10 +75,18 @@ type ImpactReviewCard = {
     learning_update_id: string;
     summary: string;
     layer_id: number | null;
+    source: Record<string, unknown> | null;
+    proposed_change: Record<string, unknown> | null;
+    impact_scope: Record<string, unknown> | null;
+    evidence: Record<string, unknown> | null;
+    plain_english: PlainEnglishSummary | null;
     implemented_at: string | null;
     review_due: string | null;
     review_url: string;
-    proposed_change: Record<string, unknown> | null;
+    target_type: string | null;
+    target_id: string | null;
+    before_state: Record<string, unknown> | null;
+    after_state: Record<string, unknown> | null;
     capability_profile: CapabilityProfile | null;
     suggested_metrics: {
         impact_outcome: ImpactOutcome;
@@ -299,10 +308,11 @@ function ImpactReviewCardItem({ review }: { review: ImpactReviewCard }) {
     const [rollbackRequired, setRollbackRequired] = useState(
         review.suggested_metrics.rollback_required,
     );
+    const canSave = outcome.trim().length > 0;
 
     return (
         <article className="grid gap-3 rounded-md border p-3 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.7fr)]">
-            <div className="space-y-1">
+            <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                     {review.layer_id !== null && (
                         <Badge variant="outline">Layer {review.layer_id}</Badge>
@@ -311,16 +321,61 @@ function ImpactReviewCardItem({ review }: { review: ImpactReviewCard }) {
                         Due {formatDate(review.review_due)}
                     </Badge>
                 </div>
-                <h3 className="text-sm font-medium">{review.summary}</h3>
-                <p className="text-xs text-muted-foreground">
-                    Implemented {formatDate(review.implemented_at)}
-                </p>
+                <div>
+                    <h3 className="text-sm font-medium">{review.summary}</h3>
+                    <p className="text-xs text-muted-foreground">
+                        Confirm the implemented change is still acceptable
+                        before leaving it active.
+                    </p>
+                </div>
+                <div className="grid gap-2 text-sm sm:grid-cols-2">
+                    <TableStat
+                        label="Implemented"
+                        value={formatDate(review.implemented_at)}
+                    />
+                    <TableStat
+                        label="Target"
+                        value={implementationTargetLabel(review)}
+                    />
+                </div>
                 {review.capability_profile && (
                     <CapabilityStrip
                         profile={review.capability_profile}
                         compact
                     />
                 )}
+                {review.plain_english && (
+                    <PlainEnglishSummaryBlock summary={review.plain_english} />
+                )}
+                <LearningEvidenceSummary
+                    context={{
+                        source: review.source,
+                        proposed_change: review.proposed_change,
+                        impact_scope: review.impact_scope,
+                        evidence: review.evidence,
+                    }}
+                />
+                <details>
+                    <summary className="cursor-pointer text-xs font-medium text-primary">
+                        Full implementation evidence
+                    </summary>
+                    <div className="mt-3 grid gap-3 xl:grid-cols-2">
+                        <JsonPanel title="Source" value={review.source} />
+                        <JsonPanel
+                            title="Proposed change"
+                            value={review.proposed_change}
+                        />
+                        <JsonPanel title="Evidence" value={review.evidence} />
+                        <JsonPanel
+                            title="Before state"
+                            value={review.before_state}
+                        />
+                        <JsonPanel
+                            title="After state"
+                            value={review.after_state}
+                        />
+                    </div>
+                </details>
             </div>
             <div className="grid gap-2">
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -411,14 +466,21 @@ function ImpactReviewCardItem({ review }: { review: ImpactReviewCard }) {
                     onChange={(event) => setOutcome(event.target.value)}
                     placeholder="Record observed impact, exceptions, or rollback decision."
                 />
+                <p className="text-xs text-muted-foreground">
+                    Add what you checked and what happened after the change. The
+                    review cannot be saved from an empty note.
+                </p>
                 <Button
                     type="button"
                     size="sm"
-                    onClick={() =>
+                    disabled={!canSave}
+                    onClick={() => {
+                        if (!canSave) {
+                            return;
+                        }
+
                         router.patch(review.review_url, {
-                            review_outcome:
-                                outcome ||
-                                'Impact review completed with no exceptions recorded.',
+                            review_outcome: outcome.trim(),
                             impact_outcome: impactOutcome,
                             affected_surface: affectedSurface || null,
                             metric_name: metricName || null,
@@ -426,8 +488,8 @@ function ImpactReviewCardItem({ review }: { review: ImpactReviewCard }) {
                             after_metric: numericMetric(afterMetric),
                             sample_size: integerMetric(sampleSize),
                             rollback_required: rollbackRequired,
-                        })
-                    }
+                        });
+                    }}
                 >
                     <CheckCircle2 className="size-4" aria-hidden="true" />
                     Save impact review
@@ -669,6 +731,8 @@ function PendingLearningTable({
     cards: LearningUpdateCard[];
     decisions: Decision[];
 }) {
+    const similarCounts = similarLearningCounts(cards);
+
     return (
         <section className="space-y-3">
             <div className="flex flex-wrap items-end justify-between gap-3">
@@ -714,6 +778,9 @@ function PendingLearningTable({
                                 <PendingLearningRow
                                     key={card.id}
                                     card={card}
+                                    similarCount={
+                                        similarCounts.get(card.id) ?? 1
+                                    }
                                     decisions={decisions}
                                 />
                             ))}
@@ -727,9 +794,11 @@ function PendingLearningTable({
 
 function PendingLearningRow({
     card,
+    similarCount,
     decisions,
 }: {
     card: LearningUpdateCard;
+    similarCount: number;
     decisions: Decision[];
 }) {
     const [effectiveDate, setEffectiveDate] = useState(
@@ -751,7 +820,7 @@ function PendingLearningRow({
     return (
         <tr className="border-t align-top">
             <td className="px-3 py-3" data-label="Learning">
-                <LearningIdentity card={card} />
+                <LearningIdentity card={card} similarCount={similarCount} />
                 <details className="mt-3">
                     <summary className="cursor-pointer text-xs font-medium text-primary">
                         Evidence and review focus
@@ -783,6 +852,10 @@ function PendingLearningRow({
                     <TableStat
                         label="Review due"
                         value={formatDate(card.review_due_at)}
+                    />
+                    <TableStat
+                        label="Detected"
+                        value={formatDate(card.created_at)}
                     />
                 </div>
             </td>
@@ -959,7 +1032,13 @@ function ApprovedLearningRow({ card }: { card: LearningUpdateCard }) {
     );
 }
 
-function LearningIdentity({ card }: { card: LearningUpdateCard }) {
+function LearningIdentity({
+    card,
+    similarCount = 1,
+}: {
+    card: LearningUpdateCard;
+    similarCount?: number;
+}) {
     return (
         <div className="min-w-0 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -968,8 +1047,14 @@ function LearningIdentity({ card }: { card: LearningUpdateCard }) {
                     {label(card.status)}
                 </Badge>
                 <Badge variant="secondary">{card.magnitude}</Badge>
+                {similarCount > 1 && (
+                    <Badge variant="outline">
+                        {similarCount} similar open detections
+                    </Badge>
+                )}
             </div>
             <h3 className="text-sm leading-6 font-semibold">{card.summary}</h3>
+            <LearningEvidenceSummary context={card} compact />
             <CapabilityStrip profile={card.capability_profile} compact />
             {card.capability_profile.business_value && (
                 <p className="text-xs leading-5 text-muted-foreground">
@@ -995,6 +1080,14 @@ function PlainEnglishSummaryBlock({
             <p className="mt-2 text-xs leading-5 text-muted-foreground">
                 {compact ? summary.review_decision : summary.why_it_matters}
             </p>
+            {!compact && (
+                <p className="mt-2 rounded-md border bg-muted/30 px-3 py-2 text-xs leading-5 text-muted-foreground">
+                    <span className="font-medium text-foreground">
+                        Decision needed:{' '}
+                    </span>
+                    {summary.review_decision}
+                </p>
+            )}
             {summary.signals.length > 0 && !compact && (
                 <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                     {summary.signals.map((signal) => (
@@ -1004,6 +1097,195 @@ function PlainEnglishSummaryBlock({
             )}
         </div>
     );
+}
+
+type LearningEvidenceContext = {
+    source?: Record<string, unknown> | null;
+    proposed_change?: Record<string, unknown> | null;
+    impact_scope?: Record<string, unknown> | null;
+    evidence?: Record<string, unknown> | null;
+};
+
+type EvidenceHighlight = {
+    label: string;
+    value: string;
+};
+
+function LearningEvidenceSummary({
+    context,
+    compact = false,
+}: {
+    context: LearningEvidenceContext;
+    compact?: boolean;
+}) {
+    const highlights = evidenceHighlights(context).slice(0, compact ? 4 : 6);
+
+    if (highlights.length === 0) {
+        return null;
+    }
+
+    return (
+        <dl className="grid gap-2 rounded-md border bg-muted/30 p-3 text-xs sm:grid-cols-2">
+            {highlights.map((highlight) => (
+                <div key={`${highlight.label}:${highlight.value}`}>
+                    <dt className="font-medium text-muted-foreground">
+                        {highlight.label}
+                    </dt>
+                    <dd className="mt-1 leading-5 break-words text-foreground">
+                        {highlight.value}
+                    </dd>
+                </div>
+            ))}
+        </dl>
+    );
+}
+
+function evidenceHighlights(
+    context: LearningEvidenceContext,
+): EvidenceHighlight[] {
+    const sourceType = stringValue(context.source?.type);
+    const prompt = stringValue(
+        context.source?.prompt_id ?? context.impact_scope?.prompt_id,
+    );
+    const target = targetLabelFromContext(context);
+    const signal = signalLabel(primarySignal(context));
+    const occurrences = stringValue(context.evidence?.occurrences);
+    const sampleSize = stringValue(
+        context.evidence?.sample_size ?? context.evidence?.samples,
+    );
+    const subject = metadataSummary(
+        asRecord(context.source?.latest_subject_metadata) ??
+            asRecord(context.source?.subject_metadata),
+    );
+    const excerpt = stringValue(
+        context.evidence?.latest_response_excerpt ??
+            context.evidence?.response_excerpt,
+    );
+
+    return [
+        sourceType ? { label: 'Source', value: label(sourceType) } : null,
+        prompt ? { label: 'Prompt', value: prompt } : null,
+        target ? { label: 'Surface', value: target } : null,
+        signal ? { label: 'Observed signal', value: signal } : null,
+        occurrences
+            ? { label: 'Occurrences', value: occurrences }
+            : sampleSize
+              ? { label: 'Sample', value: sampleSize }
+              : null,
+        subject ? { label: 'Subject', value: subject } : null,
+        excerpt ? { label: 'Evidence sample', value: excerpt } : null,
+    ].filter((highlight): highlight is EvidenceHighlight => highlight !== null);
+}
+
+function implementationTargetLabel(review: ImpactReviewCard): string {
+    if (review.target_type || review.target_id) {
+        return [review.target_type, review.target_id]
+            .filter((value): value is string => Boolean(value))
+            .join(': ');
+    }
+
+    return targetLabelFromContext(review) || 'No target recorded';
+}
+
+function targetLabelFromContext(context: LearningEvidenceContext): string {
+    const target = asRecord(context.proposed_change?.target);
+    const targetType = stringValue(
+        target?.type ?? context.proposed_change?.target_type,
+    );
+    const targetId = stringValue(
+        target?.id ?? context.proposed_change?.target_id,
+    );
+    const module = stringValue(
+        context.proposed_change?.module ?? context.impact_scope?.module,
+    );
+    const modules = scalarArraySummary(context.impact_scope?.modules);
+    const surface = stringValue(context.impact_scope?.surface);
+
+    if (targetType || targetId) {
+        return [targetType, targetId]
+            .filter((value) => value !== '')
+            .join(': ');
+    }
+
+    return module || modules || surface;
+}
+
+function primarySignal(
+    context: LearningEvidenceContext,
+): Record<string, unknown> | null {
+    return (
+        firstRecord(context.evidence?.signals) ??
+        firstRecord(context.proposed_change?.signals)
+    );
+}
+
+function signalLabel(signal: Record<string, unknown> | null): string {
+    if (!signal) {
+        return '';
+    }
+
+    const type = label(stringValue(signal.type) || 'signal');
+    const term = stringValue(signal.term);
+    const severity = stringValue(signal.severity);
+
+    return [
+        type,
+        term ? `"${term}"` : '',
+        severity ? `Severity: ${severity}` : '',
+    ]
+        .filter((value) => value !== '')
+        .join(' - ');
+}
+
+function metadataSummary(record: Record<string, unknown> | null): string {
+    if (!record) {
+        return '';
+    }
+
+    return Object.entries(record)
+        .map(([key, value]) => {
+            const text = stringValue(value) || scalarArraySummary(value);
+
+            return text ? `${label(key)}: ${text}` : '';
+        })
+        .filter((value) => value !== '')
+        .slice(0, 3)
+        .join(' - ');
+}
+
+function firstRecord(value: unknown): Record<string, unknown> | null {
+    return Array.isArray(value)
+        ? ((value.find((item) => asRecord(item) !== null) as
+              Record<string, unknown> | undefined) ?? null)
+        : null;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+    return value !== null && typeof value === 'object' && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : null;
+}
+
+function scalarArraySummary(value: unknown): string {
+    return Array.isArray(value)
+        ? value
+              .map((item) => stringValue(item))
+              .filter((item) => item !== '')
+              .slice(0, 4)
+              .join(', ')
+        : '';
+}
+
+function stringValue(value: unknown): string {
+    if (typeof value === 'string') {
+        return value.trim();
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        return String(value);
+    }
+
+    return '';
 }
 
 function TableStat({ label, value }: { label: string; value: string }) {
@@ -1108,6 +1390,36 @@ function CapabilityStrip({
 
 function isApprovedLearning(card: LearningUpdateCard): boolean {
     return approvedLearningStatuses.has(card.status);
+}
+
+function similarLearningCounts(
+    cards: LearningUpdateCard[],
+): Map<string, number> {
+    const groups = cards.reduce((carry, card) => {
+        const signature = learningSignature(card);
+        const ids = carry.get(signature) ?? [];
+
+        carry.set(signature, [...ids, card.id]);
+
+        return carry;
+    }, new Map<string, string[]>());
+
+    return cards.reduce((carry, card) => {
+        carry.set(card.id, groups.get(learningSignature(card))?.length ?? 1);
+
+        return carry;
+    }, new Map<string, number>());
+}
+
+function learningSignature(card: LearningUpdateCard): string {
+    return [
+        card.layer_id,
+        stringValue(card.source?.type),
+        stringValue(card.source?.prompt_id ?? card.impact_scope?.prompt_id),
+        signalLabel(primarySignal(card)),
+        targetLabelFromContext(card),
+        card.summary,
+    ].join('|');
 }
 
 function ReviewFocusPanel({ profile }: { profile: CapabilityProfile }) {

@@ -822,7 +822,8 @@ final class AddEntrepreneurTest extends TestCase
             ->assertHeader('Content-Type', 'application/pdf');
 
         self::assertStringContainsString('inline; filename=', (string) $response->headers->get('Content-Disposition'));
-        self::assertStringContainsString('Advisor working copy - not for external issue', $pdfRenderer->html);
+        self::assertStringContainsString('Founder - Portal Founder', $pdfRenderer->html);
+        self::assertStringNotContainsString('Advisor working copy - not for external issue', $pdfRenderer->html);
         self::assertStringContainsString('Portal Founder', $pdfRenderer->html);
 
         $this->actingAsMfa($advisor)
@@ -1075,8 +1076,9 @@ final class AddEntrepreneurTest extends TestCase
             ->assertHeader('Content-Type', 'application/pdf');
 
         self::assertStringStartsWith('%PDF-1.4', $response->getContent());
-        self::assertStringContainsString('Budget Pack - Budget Founder', $response->getContent());
-        self::assertStringContainsString('Funding decision view', $response->getContent());
+        self::assertStringContainsString('Budget Pack', $response->getContent());
+        self::assertStringContainsString('Founder - Budget Founder', $response->getContent());
+        self::assertStringContainsString('Funding position', $response->getContent());
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.entrepreneurs.plans.budget-pack.pdf', [$profile, $plan]))

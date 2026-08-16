@@ -876,15 +876,24 @@ final class EntrepreneurController extends Controller
             return 'No criterion score metadata recorded.';
         }
 
+        $reused = $scores->filter(fn (array $score): bool => (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'reused_identical_context')->count();
         $ai = $scores->filter(fn (array $score): bool => (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'ai_assessment')->count();
         $fallback = $scores->filter(fn (array $score): bool => (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'deterministic_fallback')->count();
+
+        if ($reused === $total) {
+            return 'Reused from an identical scored plan context; no new AI score was generated.';
+        }
 
         if ($fallback === $total) {
             return 'Deterministic fallback scoring; review manually before relying on the result.';
         }
 
         if ($fallback > 0) {
-            return $ai.' AI-scored criteria, '.$fallback.' fallback-scored criteria.';
+            return $ai.' AI-scored criteria, '.$fallback.' fallback-scored criteria, '.$reused.' reused from identical context.';
+        }
+
+        if ($reused > 0) {
+            return $ai.' AI-scored criteria and '.$reused.' reused from identical context.';
         }
 
         return 'AI-scored against the captured plan context.';

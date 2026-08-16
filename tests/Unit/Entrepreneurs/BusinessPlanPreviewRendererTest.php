@@ -27,7 +27,7 @@ final class BusinessPlanPreviewRendererTest extends TestCase
         ], $points);
     }
 
-    public function test_completed_executive_summary_is_rendered_before_other_plan_sections(): void
+    public function test_completed_executive_summary_is_held_for_the_dedicated_reader_summary_page(): void
     {
         $renderer = app(BusinessPlanPreviewRenderer::class);
         $method = new ReflectionMethod($renderer, 'documentSections');
@@ -59,9 +59,21 @@ final class BusinessPlanPreviewRendererTest extends TestCase
             ],
         ]);
 
-        $this->assertSame('Executive summary', $sections[0]['title']);
-        $this->assertSame('executive-summary', $sections[0]['entries'][0]['key']);
-        $this->assertSame('Foundation', $sections[1]['title']);
+        $this->assertCount(1, $sections);
+        $this->assertSame('Foundation', $sections[0]['title']);
+        $this->assertSame('mission-vision', $sections[0]['entries'][0]['key']);
+
+        $summaryMethod = new ReflectionMethod($renderer, 'executiveSummaryEntry');
+        $summaryMethod->setAccessible(true);
+        $summary = $summaryMethod->invoke($renderer, [[
+            'sections' => [[
+                'requirement_key' => 'executive-summary',
+                'body' => 'A concise lender-ready overview of the business, funding need, and decision.',
+                'attached_document_ids' => ['document-1'],
+            ]],
+        ]]);
+
+        $this->assertSame('Executive summary', $summary['title']);
     }
 
     public function test_document_sections_clean_punctuation_fragments_from_detail_copy(): void
@@ -120,10 +132,14 @@ final class BusinessPlanPreviewRendererTest extends TestCase
         );
 
         $this->assertStringStartsWith('%PDF-1.4', $pdf);
-        $this->assertStringContainsString('REPORT PDF', $pdf);
-        $this->assertStringContainsString('Executive summary', $pdf);
+        $this->assertStringContainsString('BUSINESS PLAN', $pdf);
+        $this->assertStringContainsString('Business Plan', $pdf);
+        $this->assertStringContainsString('Founder - Plan Founder', $pdf);
+        $this->assertStringContainsString('Plan overview', $pdf);
         $this->assertStringNotContainsString('FALLBACK PDF', $pdf);
         $this->assertStringNotContainsString('Fallback rendering', $pdf);
+        $this->assertStringNotContainsString('External issue', $pdf);
+        $this->assertStringNotContainsString('Evidence coverage', $pdf);
     }
 
     /**

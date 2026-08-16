@@ -71,6 +71,11 @@ final class SimpleTextPdf
         $pages = [];
         $current = [];
         $meta = [];
+        $cover = null;
+
+        if (($blocks[0]['type'] ?? null) === 'cover') {
+            $cover = array_shift($blocks);
+        }
 
         while ($blocks !== []) {
             $first = $blocks[0];
@@ -90,7 +95,9 @@ final class SimpleTextPdf
             break;
         }
 
-        $y = $this->startReportPage($current, $title, $meta);
+        $y = is_array($cover)
+            ? $this->startCoverPage($current, $cover)
+            : $this->startReportPage($current, $title, $meta);
 
         foreach ($blocks as $block) {
             $type = (string) ($block['type'] ?? 'paragraph');
@@ -360,6 +367,33 @@ final class SimpleTextPdf
         $rows = (int) ceil(count($meta) / max(1, $columns));
 
         return $rows === 0 ? 636 : $y - ($rows * ($rowHeight + 8)) - 14;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $current
+     * @param  array<string, mixed>  $cover
+     */
+    private function startCoverPage(array &$current, array $cover): int
+    {
+        $current = [];
+        $this->addRect($current, self::MARGIN, 792, 495, 6, self::NAVY);
+        $this->addBrand($current, 50, 744);
+        $this->addBadge($current, 410, 754, strtoupper((string) ($cover['document_tag'] ?? 'Report')));
+        $this->addLineShape($current, self::MARGIN, 732, 545, 732, [216, 209, 194]);
+
+        $titleLines = $this->wrapForWidth((string) ($cover['title'] ?? 'Report'), 22, self::MARGIN);
+        $titleY = 625;
+        foreach ($titleLines as $line) {
+            $this->addText($current, $line, self::MARGIN, $titleY, 22, 'F2', self::NAVY);
+            $titleY -= 28;
+        }
+
+        $subtitle = trim((string) ($cover['subtitle'] ?? ''));
+        if ($subtitle !== '') {
+            $this->addText($current, $subtitle, self::MARGIN, $titleY - 8, 13, 'F1', [57, 70, 90]);
+        }
+
+        return 320;
     }
 
     /**

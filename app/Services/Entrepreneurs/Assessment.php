@@ -50,15 +50,20 @@ final class Assessment implements ProvidesMethodology
         }
 
         $framework = $this->frameworks->published();
-        $aiScores = $framework->criteria
-            ->map(fn (RatingCriterion $criterion): array => $this->scoreCriterion(
-                criterion: $criterion,
-                plan: $plan,
-                planContext: $this->contexts->criterionAssessment(
+        $criterionContexts = $framework->criteria
+            ->mapWithKeys(fn (RatingCriterion $criterion): array => [
+                (string) $criterion->number => $this->contexts->criterionAssessment(
                     plan: $plan,
                     criterion: $criterion,
                     budgetSummary: $this->budgetAssessmentText($plan->budgetRunway),
                 ),
+            ]);
+        $reusedScores = $this->reusableScores($plan, $framework, $criterionContexts->all());
+        $aiScores = $reusedScores ?? $framework->criteria
+            ->map(fn (RatingCriterion $criterion): array => $this->scoreCriterion(
+                criterion: $criterion,
+                plan: $plan,
+                planContext: $criterionContexts->get((string) $criterion->number, []),
             ))
             ->values()
             ->all();
@@ -66,7 +71,7 @@ final class Assessment implements ProvidesMethodology
         $planSnapshot = $this->snapshots->capture($plan);
         $weighted = AssessmentScoring::weightedScoreForFramework($framework, $aiScores);
 
-        return DB::transaction(function () use ($plan, $actor, $framework, $aiScores, $documentSupport, $planSnapshot, $weighted): PlanAssessment {
+        return DB::transaction(function () use ($plan, $actor, $framework, $aiScores, $documentSupport, $planSnapshot, $weighted, $reusedScores): PlanAssessment {
             $lockedPlan = BusinessPlan::query()
                 ->whereKey($plan->getKey())
                 ->lockForUpdate()
@@ -97,10 +102,78 @@ final class Assessment implements ProvidesMethodology
                 'criterion_count' => count($aiScores),
                 'weighted_score' => $weighted,
                 'overall_grade' => $assessment->overall_grade,
+                'score_reused_from_identical_context' => $reusedScores !== null,
             ]);
 
             return $assessment->refresh()->load('ratingFramework.criteria');
         });
+    }
+
+    /**
+     * Reassessing an unchanged scored context must not turn model variation into
+     * a change in the founder's result. Reuse the oldest matching automatic
+     * result so the source is stable and the later assessment round is auditable.
+     *
+     * @param  array<string, array{relevant_sections:array<int, array<string, mixed>>,supporting_section_summaries:array<int, array<string, mixed>>,budget_summary:string}>  $criterionContexts
+     * @return array<int, array<string, mixed>>|null
+     */
+    private function reusableScores(BusinessPlan $plan, RatingFramework $framework, array $criterionContexts): ?array
+    {
+        $contextHashes = collect($criterionContexts)
+            ->map(fn (array $context): string => hash('sha256', $this->contexts->assessmentText($context)))
+            ->all();
+
+        $matchingAssessment = PlanAssessment::query()
+            ->where('business_plan_id', $plan->getKey())
+            ->where('rating_framework_id', $framework->getKey())
+            ->whereNotNull('ai_scores')
+            ->orderBy('round')
+            ->get()
+            ->first(function (PlanAssessment $assessment) use ($contextHashes): bool {
+                $scores = collect($assessment->ai_scores ?? [])
+                    ->filter(fn (mixed $score): bool => is_array($score))
+                    ->keyBy(fn (array $score): string => (string) ($score['criterion_number'] ?? ''));
+
+                if ($scores->count() !== count($contextHashes)) {
+                    return false;
+                }
+
+                foreach ($contextHashes as $criterionNumber => $contextHash) {
+                    $score = $scores->get((string) $criterionNumber);
+                    if (! is_array($score) || (string) data_get($score, 'metadata.context_hash') !== $contextHash) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+
+        if (! $matchingAssessment instanceof PlanAssessment) {
+            return null;
+        }
+
+        return collect($matchingAssessment->ai_scores ?? [])
+            ->filter(fn (mixed $score): bool => is_array($score))
+            ->map(function (array $score) use ($matchingAssessment, $contextHashes): array {
+                $criterionNumber = (string) ($score['criterion_number'] ?? '');
+                $metadata = is_array($score['metadata'] ?? null) ? $score['metadata'] : [];
+                $originalSource = (string) ($score['score_source'] ?? data_get($metadata, 'score_source', ''));
+
+                return [
+                    ...$score,
+                    'score_source' => 'reused_identical_context',
+                    'metadata' => [
+                        ...$metadata,
+                        'context_hash' => $contextHashes[$criterionNumber] ?? ($metadata['context_hash'] ?? null),
+                        'score_source' => 'reused_identical_context',
+                        'original_score_source' => $originalSource,
+                        'reused_from_assessment_id' => $matchingAssessment->getKey(),
+                        'reused_from_round' => $matchingAssessment->round,
+                    ],
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     public function adjustScore(PlanAssessment $assessment, int $criterionNumber, int $score, string $note, User $advisor): PlanAssessment

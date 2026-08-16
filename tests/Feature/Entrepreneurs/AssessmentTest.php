@@ -198,6 +198,37 @@ final class AssessmentTest extends TestCase
             );
     }
 
+    public function test_reassessment_reuses_scores_when_the_scored_plan_context_has_not_changed(): void
+    {
+        $ai = new CapturingScoreAiClient(82);
+        $this->app->instance(AiClient::class, $ai);
+        [$advisor, $plan] = $this->plan('stable-reassessment-founder@example.test');
+
+        $first = app(Assessment::class)->firstPass($plan, $advisor);
+        $firstScores = collect($first->ai_scores)
+            ->pluck('score', 'criterion_number')
+            ->all();
+        $ai->scorePrompts = [];
+
+        $second = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+
+        $this->assertSame(2, $second->round);
+        $this->assertSame($firstScores, collect($second->ai_scores)->pluck('score', 'criterion_number')->all());
+        $this->assertSame([], $ai->scorePrompts);
+        $this->assertTrue(collect($second->ai_scores)->every(
+            fn (array $score): bool => $score['score_source'] === 'reused_identical_context'
+                && (int) data_get($score, 'metadata.reused_from_round') === 1,
+        ));
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.assessments.show', [$plan->entrepreneurProfile()->firstOrFail(), $second]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('assessment.criteria.0.source_label', 'Round 2 score reused from identical submitted-plan evidence (originally scored in round 1)')
+                ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'reused rather than regenerated'))
+            );
+    }
+
     public function test_advisor_adjustment_requires_note_and_queues_governed_learning(): void
     {
         [$advisor, $plan] = $this->plan('adjustment-founder@example.test');

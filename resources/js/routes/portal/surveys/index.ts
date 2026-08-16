@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\SurveyController::index
- * @see app/Http/Controllers/Portal/SurveyController.php:24
+ * @see app/Http/Controllers/Portal/SurveyController.php:25
  * @route '/portal/surveys'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\SurveyController::index
- * @see app/Http/Controllers/Portal/SurveyController.php:24
+ * @see app/Http/Controllers/Portal/SurveyController.php:25
  * @route '/portal/surveys'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\SurveyController::index
- * @see app/Http/Controllers/Portal/SurveyController.php:24
+ * @see app/Http/Controllers/Portal/SurveyController.php:25
  * @route '/portal/surveys'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Portal\SurveyController::index
- * @see app/Http/Controllers/Portal/SurveyController.php:24
+ * @see app/Http/Controllers/Portal/SurveyController.php:25
  * @route '/portal/surveys'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\SurveyController::index
- * @see app/Http/Controllers/Portal/SurveyController.php:24
+ * @see app/Http/Controllers/Portal/SurveyController.php:25
  * @route '/portal/surveys'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\SurveyController::index
- * @see app/Http/Controllers/Portal/SurveyController.php:24
+ * @see app/Http/Controllers/Portal/SurveyController.php:25
  * @route '/portal/surveys'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Portal\SurveyController::index
- * @see app/Http/Controllers/Portal/SurveyController.php:24
+ * @see app/Http/Controllers/Portal/SurveyController.php:25
  * @route '/portal/surveys'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Portal\SurveyController::show
- * @see app/Http/Controllers/Portal/SurveyController.php:41
+ * @see app/Http/Controllers/Portal/SurveyController.php:42
  * @route '/portal/surveys/{surveyAssignment}'
  */
 export const show = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -94,7 +94,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\SurveyController::show
- * @see app/Http/Controllers/Portal/SurveyController.php:41
+ * @see app/Http/Controllers/Portal/SurveyController.php:42
  * @route '/portal/surveys/{surveyAssignment}'
  */
 show.url = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -127,7 +127,7 @@ show.url = (args: { surveyAssignment: string | { id: string } } | [surveyAssignm
 
 /**
 * @see \App\Http\Controllers\Portal\SurveyController::show
- * @see app/Http/Controllers/Portal/SurveyController.php:41
+ * @see app/Http/Controllers/Portal/SurveyController.php:42
  * @route '/portal/surveys/{surveyAssignment}'
  */
 show.get = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -136,7 +136,7 @@ show.get = (args: { surveyAssignment: string | { id: string } } | [surveyAssignm
 })
 /**
 * @see \App\Http\Controllers\Portal\SurveyController::show
- * @see app/Http/Controllers/Portal/SurveyController.php:41
+ * @see app/Http/Controllers/Portal/SurveyController.php:42
  * @route '/portal/surveys/{surveyAssignment}'
  */
 show.head = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -146,7 +146,7 @@ show.head = (args: { surveyAssignment: string | { id: string } } | [surveyAssign
 
     /**
 * @see \App\Http\Controllers\Portal\SurveyController::show
- * @see app/Http/Controllers/Portal/SurveyController.php:41
+ * @see app/Http/Controllers/Portal/SurveyController.php:42
  * @route '/portal/surveys/{surveyAssignment}'
  */
     const showForm = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -156,7 +156,7 @@ show.head = (args: { surveyAssignment: string | { id: string } } | [surveyAssign
 
             /**
 * @see \App\Http\Controllers\Portal\SurveyController::show
- * @see app/Http/Controllers/Portal/SurveyController.php:41
+ * @see app/Http/Controllers/Portal/SurveyController.php:42
  * @route '/portal/surveys/{surveyAssignment}'
  */
         showForm.get = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -165,7 +165,7 @@ show.head = (args: { surveyAssignment: string | { id: string } } | [surveyAssign
         })
             /**
 * @see \App\Http\Controllers\Portal\SurveyController::show
- * @see app/Http/Controllers/Portal/SurveyController.php:41
+ * @see app/Http/Controllers/Portal/SurveyController.php:42
  * @route '/portal/surveys/{surveyAssignment}'
  */
         showForm.head = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -180,8 +180,87 @@ show.head = (args: { surveyAssignment: string | { id: string } } | [surveyAssign
 
     show.form = showForm
 /**
+* @see \App\Http\Controllers\Portal\SurveyController::draft
+ * @see app/Http/Controllers/Portal/SurveyController.php:55
+ * @route '/portal/surveys/{surveyAssignment}/draft'
+ */
+export const draft = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: draft.url(args, options),
+    method: 'post',
+})
+
+draft.definition = {
+    methods: ["post"],
+    url: '/portal/surveys/{surveyAssignment}/draft',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \App\Http\Controllers\Portal\SurveyController::draft
+ * @see app/Http/Controllers/Portal/SurveyController.php:55
+ * @route '/portal/surveys/{surveyAssignment}/draft'
+ */
+draft.url = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { surveyAssignment: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { surveyAssignment: args.id }
+        }
+
+    if (Array.isArray(args)) {
+        args = {
+                    surveyAssignment: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        surveyAssignment: typeof args.surveyAssignment === 'object'
+                ? args.surveyAssignment.id
+                : args.surveyAssignment,
+                }
+
+    return draft.definition.url
+            .replace('{surveyAssignment}', parsedArgs.surveyAssignment.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Portal\SurveyController::draft
+ * @see app/Http/Controllers/Portal/SurveyController.php:55
+ * @route '/portal/surveys/{surveyAssignment}/draft'
+ */
+draft.post = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: draft.url(args, options),
+    method: 'post',
+})
+
+    /**
+* @see \App\Http\Controllers\Portal\SurveyController::draft
+ * @see app/Http/Controllers/Portal/SurveyController.php:55
+ * @route '/portal/surveys/{surveyAssignment}/draft'
+ */
+    const draftForm = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: draft.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Portal\SurveyController::draft
+ * @see app/Http/Controllers/Portal/SurveyController.php:55
+ * @route '/portal/surveys/{surveyAssignment}/draft'
+ */
+        draftForm.post = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: draft.url(args, options),
+            method: 'post',
+        })
+
+    draft.form = draftForm
+/**
 * @see \App\Http\Controllers\Portal\SurveyController::submit
- * @see app/Http/Controllers/Portal/SurveyController.php:53
+ * @see app/Http/Controllers/Portal/SurveyController.php:67
  * @route '/portal/surveys/{surveyAssignment}'
  */
 export const submit = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -196,7 +275,7 @@ submit.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\SurveyController::submit
- * @see app/Http/Controllers/Portal/SurveyController.php:53
+ * @see app/Http/Controllers/Portal/SurveyController.php:67
  * @route '/portal/surveys/{surveyAssignment}'
  */
 submit.url = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -229,7 +308,7 @@ submit.url = (args: { surveyAssignment: string | { id: string } } | [surveyAssig
 
 /**
 * @see \App\Http\Controllers\Portal\SurveyController::submit
- * @see app/Http/Controllers/Portal/SurveyController.php:53
+ * @see app/Http/Controllers/Portal/SurveyController.php:67
  * @route '/portal/surveys/{surveyAssignment}'
  */
 submit.post = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -239,7 +318,7 @@ submit.post = (args: { surveyAssignment: string | { id: string } } | [surveyAssi
 
     /**
 * @see \App\Http\Controllers\Portal\SurveyController::submit
- * @see app/Http/Controllers/Portal/SurveyController.php:53
+ * @see app/Http/Controllers/Portal/SurveyController.php:67
  * @route '/portal/surveys/{surveyAssignment}'
  */
     const submitForm = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -249,7 +328,7 @@ submit.post = (args: { surveyAssignment: string | { id: string } } | [surveyAssi
 
             /**
 * @see \App\Http\Controllers\Portal\SurveyController::submit
- * @see app/Http/Controllers/Portal/SurveyController.php:53
+ * @see app/Http/Controllers/Portal/SurveyController.php:67
  * @route '/portal/surveys/{surveyAssignment}'
  */
         submitForm.post = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -261,6 +340,7 @@ submit.post = (args: { surveyAssignment: string | { id: string } } | [surveyAssi
 const surveys = {
     index: Object.assign(index, index),
 show: Object.assign(show, show),
+draft: Object.assign(draft, draft),
 submit: Object.assign(submit, submit),
 }
 

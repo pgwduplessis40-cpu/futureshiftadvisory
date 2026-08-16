@@ -27,6 +27,13 @@ final class BrandedReportLayout
         string $extraCss = '',
     ): string {
         $metaHtml = $this->metaHtml($meta);
+        $snapshotHtml = trim($snapshotTitle) === '' && $metaHtml === ''
+            ? ''
+            : sprintf(
+                '<section class="report-snapshot"><h2>%s</h2><dl class="report-meta">%s</dl></section>',
+                $this->escape($snapshotTitle),
+                $metaHtml,
+            );
         $css = $this->css($template, $metaColumns);
 
         if ($extraCss !== '') {
@@ -55,12 +62,7 @@ final class BrandedReportLayout
 <h1>%s</h1>
 <p>%s</p>
 </section>
-<section class="report-snapshot">
-<h2>%s</h2>
-<dl class="report-meta">
 %s
-</dl>
-</section>
 <main class="report-content">
 %s
 </main>
@@ -75,8 +77,7 @@ HTML,
             $this->escape($eyebrow),
             $this->escape($heading),
             $this->escape($subheading),
-            $this->escape($snapshotTitle),
-            $metaHtml,
+            $snapshotHtml,
             $contentHtml,
             $this->escape($footer),
         );

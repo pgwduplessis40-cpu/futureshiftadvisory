@@ -182,19 +182,30 @@ final class ApprovalFlow
             ->get()
             ->map(function (LearningUpdateImplementation $implementation): array {
                 $update = $implementation->learningUpdate;
+                $capabilityProfile = $update instanceof LearningUpdate
+                    ? $this->capabilityProfile->forUpdate($update)
+                    : null;
 
                 return [
                     'id' => $implementation->id,
                     'learning_update_id' => $implementation->learning_update_id,
                     'summary' => $update?->summary ?? 'Learning update',
                     'layer_id' => $update?->layer_id,
-                    'capability_profile' => $update instanceof LearningUpdate
-                        ? $this->capabilityProfile->forUpdate($update)
+                    'source' => $update?->source ?? [],
+                    'proposed_change' => $update?->proposed_change ?? [],
+                    'impact_scope' => $update?->impact_scope ?? [],
+                    'evidence' => $update?->evidence ?? [],
+                    'capability_profile' => $capabilityProfile,
+                    'plain_english' => $update instanceof LearningUpdate && is_array($capabilityProfile)
+                        ? $this->plainEnglishSummary->forUpdate($update, $capabilityProfile)
                         : null,
                     'implemented_at' => $implementation->implemented_at?->toIso8601String(),
                     'review_due' => $implementation->review_due?->toIso8601String(),
                     'review_url' => route('admin.learning-update-implementations.review', $implementation, absolute: false),
-                    'proposed_change' => $update?->proposed_change ?? [],
+                    'target_type' => $implementation->target_type,
+                    'target_id' => $implementation->target_id,
+                    'before_state' => $implementation->before_state ?? [],
+                    'after_state' => $implementation->after_state ?? [],
                     'suggested_metrics' => $this->suggestedImpactMetrics($implementation),
                 ];
             })
@@ -404,6 +415,7 @@ final class ApprovalFlow
         return [
             'id' => $update->id,
             'layer_id' => $update->layer_id,
+            'created_at' => $update->created_at?->toIso8601String(),
             'source' => $update->source,
             'summary' => $update->summary,
             'proposed_change' => $update->proposed_change,
