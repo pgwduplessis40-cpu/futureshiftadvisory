@@ -453,7 +453,10 @@ final class RecordingAiClient implements AiClient
             promptHash: $prompt->hash(),
             tokensIn: str_word_count(json_encode($prompt->toArray(), JSON_THROW_ON_ERROR)),
             tokensOut: 3,
-            metadata: ['method' => $method],
+            metadata: [
+                'method' => $method,
+                ...($method === 'scoreCriterion' ? ['score' => 70] : []),
+            ],
         );
     }
 }

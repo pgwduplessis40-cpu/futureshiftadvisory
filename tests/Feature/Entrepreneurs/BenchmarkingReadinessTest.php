@@ -14,7 +14,6 @@ use App\Models\RatingFramework;
 use App\Models\User;
 use App\Notifications\AdvisoryReadinessNotification;
 use App\Services\Ai\Contracts\AiClient;
-use App\Services\Ai\Fake\FakeAiClient;
 use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\Benchmarking;
 use App\Services\Entrepreneurs\LivingPlan;
@@ -24,6 +23,7 @@ use Database\Seeders\RatingFrameworkSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Tests\Fakes\ScoringAiClient;
 use Tests\TestCase;
 
 final class BenchmarkingReadinessTest extends TestCase
@@ -37,7 +37,7 @@ final class BenchmarkingReadinessTest extends TestCase
         $this->seed(RoleSeeder::class);
         $this->seed(RatingFrameworkSeeder::class);
         $this->seed(FoundingRatingFrameworkValuesSeeder::class);
-        $this->app->bind(AiClient::class, FakeAiClient::class);
+        $this->app->bind(AiClient::class, ScoringAiClient::class);
         app(RequestContext::class)->apply('system', []);
     }
 

@@ -44,6 +44,7 @@ use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Entrepreneurs\EntrepreneurPoints;
 use App\Services\Entrepreneurs\EntrepreneurPromptRegistry;
 use App\Services\Entrepreneurs\EntrepreneurStreak;
+use App\Services\Entrepreneurs\ExternalIssueReview;
 use App\Services\Entrepreneurs\FounderChangeRequestMessage;
 use App\Services\Entrepreneurs\Guidance;
 use App\Services\Entrepreneurs\IdeaViabilityGate;
@@ -154,6 +155,7 @@ final class MethodologyDriftGuardTest extends TestCase
         EntrepreneurPoints::class => 'Gamification reward allocation is operational engagement logic, not an advisor methodology disclosure.',
         EntrepreneurPromptRegistry::class => 'Prompt id registry, not a calculation method.',
         EntrepreneurStreak::class => 'Gamification streak persistence workflow.',
+        ExternalIssueReview::class => 'External-issue document-quality gate; plan and budget methodologies are owned elsewhere.',
         FounderChangeRequestMessage::class => 'Founder change-request message workflow.',
         Guidance::class => 'AI guidance workflow; formula-like predictive score is not exposed by the methodology surface yet.',
         IdeaViabilityGate::class => 'Advisor approval gate over the IdeaValidationService methodology, not a separate methodology.',

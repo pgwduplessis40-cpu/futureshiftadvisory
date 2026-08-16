@@ -11,7 +11,6 @@ use App\Models\PlanAssessment;
 use App\Models\PlanRevision;
 use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
-use App\Services\Ai\Fake\FakeAiClient;
 use App\Services\Entrepreneurs\Assessment;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBuilder;
@@ -23,6 +22,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\Concerns\MakesIdeaReviewEligible;
+use Tests\Fakes\ScoringAiClient;
 use Tests\TestCase;
 
 final class RevisionTest extends TestCase
@@ -40,7 +40,7 @@ final class RevisionTest extends TestCase
         $this->seed(RoleSeeder::class);
         $this->seed(RatingFrameworkSeeder::class);
         $this->seed(FoundingRatingFrameworkValuesSeeder::class);
-        $this->app->bind(AiClient::class, FakeAiClient::class);
+        $this->app->bind(AiClient::class, ScoringAiClient::class);
         app(RequestContext::class)->apply('system', []);
 
         if (DB::connection()->getDriverName() === 'pgsql') {

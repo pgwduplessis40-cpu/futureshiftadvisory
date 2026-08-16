@@ -13,7 +13,6 @@ use App\Models\PlanAssessment;
 use App\Models\Report;
 use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
-use App\Services\Ai\Fake\FakeAiClient;
 use App\Services\Entrepreneurs\Assessment;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBuilder;
@@ -29,6 +28,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\Concerns\MakesIdeaReviewEligible;
+use Tests\Fakes\ScoringAiClient;
 use Tests\TestCase;
 
 final class AssessmentReportTest extends TestCase
@@ -45,7 +45,7 @@ final class AssessmentReportTest extends TestCase
         $this->seed(RatingFrameworkSeeder::class);
         $this->seed(FoundingRatingFrameworkValuesSeeder::class);
         $this->seed(NzResourceSeeder::class);
-        $this->app->bind(AiClient::class, FakeAiClient::class);
+        $this->app->bind(AiClient::class, ScoringAiClient::class);
         app(RequestContext::class)->apply('system', []);
         Storage::fake('secure_local');
 

@@ -16,7 +16,6 @@ use App\Models\PlanRevision;
 use App\Models\RatingFramework;
 use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
-use App\Services\Ai\Fake\FakeAiClient;
 use App\Services\Entrepreneurs\Assessment;
 use App\Services\Entrepreneurs\EntrepreneurBudgetService;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
@@ -32,6 +31,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\MakesIdeaReviewEligible;
+use Tests\Fakes\ScoringAiClient;
 use Tests\TestCase;
 
 final class GamificationTest extends TestCase
@@ -43,7 +43,7 @@ final class GamificationTest extends TestCase
         parent::setUp();
 
         $this->seed(RoleSeeder::class);
-        $this->app->bind(AiClient::class, FakeAiClient::class);
+        $this->app->bind(AiClient::class, ScoringAiClient::class);
         app(RequestContext::class)->apply('system', []);
     }
 
