@@ -1256,7 +1256,8 @@ function metadataSummary(record: Record<string, unknown> | null): string {
 function firstRecord(value: unknown): Record<string, unknown> | null {
     return Array.isArray(value)
         ? ((value.find((item) => asRecord(item) !== null) as
-              Record<string, unknown> | undefined) ?? null)
+              | Record<string, unknown>
+              | undefined) ?? null)
         : null;
 }
 

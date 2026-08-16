@@ -110,7 +110,11 @@ type SupportProfileForm = {
     preferred_guidance: string;
 };
 type WorkflowKey =
-    'questions' | 'evidence' | 'financials' | 'review' | 'plan_budget';
+    | 'questions'
+    | 'evidence'
+    | 'financials'
+    | 'review'
+    | 'plan_budget';
 type WorkflowStatus = 'complete' | 'current' | 'locked';
 
 type WorkflowStep = {
