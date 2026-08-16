@@ -51,6 +51,7 @@ type Assessment = {
     weighted_score: number;
     threshold: number;
     requires_full_reassessment: boolean;
+    automated_score_available: boolean;
     finalised_at: string | null;
     created_at: string | null;
     basis: {
@@ -316,11 +317,19 @@ export default function EntrepreneurAssessment({
                     <dl className="grid gap-3 text-sm md:grid-cols-2">
                         <Detail
                             label="Weighted score"
-                            value={`${assessment.weighted_score.toFixed(1)}/100`}
+                            value={
+                                assessment.automated_score_available
+                                    ? `${assessment.weighted_score.toFixed(1)}/100`
+                                    : 'Unavailable'
+                            }
                         />
                         <Detail
                             label="Grade"
-                            value={formatLabel(assessment.overall_grade)}
+                            value={
+                                assessment.automated_score_available
+                                    ? formatLabel(assessment.overall_grade)
+                                    : 'Unavailable'
+                            }
                         />
                         <Detail
                             label="Threshold"
@@ -366,13 +375,14 @@ export default function EntrepreneurAssessment({
                             />
                             <div className="space-y-1">
                                 <h2 className="text-sm font-medium">
-                                    Fresh assessment required
+                                    {assessment.automated_score_available
+                                        ? 'Fresh assessment required'
+                                        : 'Invalid automated result'}
                                 </h2>
                                 <p className="max-w-4xl text-sm">
-                                    This historical round carried scores forward
-                                    from an earlier assessment. The submitted
-                                    plan snapshot is correct, but no new AI
-                                    score was generated for it.
+                                    {assessment.automated_score_available
+                                        ? 'This historical round carried scores forward from an earlier assessment. The submitted plan snapshot is correct, but no new AI score was generated for it.'
+                                        : 'No valid AI score was returned for this historical round. Its fallback values are retained only for audit and cannot be used for advice or progression.'}
                                 </p>
                             </div>
                         </div>
@@ -717,8 +727,16 @@ export default function EntrepreneurAssessment({
                                     ) : null}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                                    <Badge variant="outline">
-                                        {criterion.score.toFixed(1)}/100
+                                    <Badge
+                                        variant={
+                                            assessment.automated_score_available
+                                                ? 'outline'
+                                                : 'destructive'
+                                        }
+                                    >
+                                        {assessment.automated_score_available
+                                            ? `${criterion.score.toFixed(1)}/100`
+                                            : 'Unavailable'}
                                     </Badge>
                                     <span className="text-xs text-muted-foreground">
                                         {criterion.weight.toFixed(1)}% weight

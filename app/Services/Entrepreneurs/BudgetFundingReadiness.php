@@ -24,6 +24,7 @@ final class BudgetFundingReadiness
                 'lowest_cash_month' => null,
                 'lowest_cash' => null,
                 'additional_funding_needed' => 0.0,
+                'required_additional_funding' => 0.0,
                 'available_funding' => 0.0,
                 'launch_costs' => 0.0,
                 'monthly_fixed_costs' => 0.0,
@@ -53,6 +54,7 @@ final class BudgetFundingReadiness
         $contingency = round(($launchCosts + $operatingCover) * 0.10, 2);
         $recommendedFundingTarget = round($launchCosts + $operatingCover + $contingency, 2);
         $fundingGapOrSurplus = round($availableFunding - $recommendedFundingTarget, 2);
+        $requiredAdditionalFunding = round(max($additionalFunding, max(0.0, -$fundingGapOrSurplus)), 2);
         $warnings = $this->warnings($budget);
         $riskReasons = [];
 
@@ -60,8 +62,8 @@ final class BudgetFundingReadiness
             $riskReasons[] = 'Budget inputs are not complete.';
         }
 
-        if ($additionalFunding > 0) {
-            $riskReasons[] = 'The monthly cash curve falls below zero.';
+        if ($requiredAdditionalFunding > 0) {
+            $riskReasons[] = 'The forecast requires additional funding or revised assumptions before external issue.';
         }
 
         if (data_get($computed, 'break_even_year') === null) {
@@ -77,7 +79,7 @@ final class BudgetFundingReadiness
         }
 
         $notReady = $budget->status !== EntrepreneurBudget::STATUS_COMPLETE
-            || $additionalFunding > 0
+            || $requiredAdditionalFunding > 0
             || data_get($computed, 'cash_flow_positive_year') === null;
         $needsReview = ! $notReady && ($warnings !== [] || data_get($computed, 'break_even_year') === null);
         $readinessLabel = $notReady
@@ -90,10 +92,11 @@ final class BudgetFundingReadiness
             'external_issue_ready' => ! $notReady && ! $needsReview,
             'readiness_label' => $readinessLabel,
             'readiness_tone' => $notReady ? 'high' : ($needsReview ? 'medium' : 'good'),
-            'headline' => $this->decisionHeadline($readinessLabel, $additionalFunding, $fundingGapOrSurplus),
+            'headline' => $this->decisionHeadline($readinessLabel, $requiredAdditionalFunding, $fundingGapOrSurplus),
             'lowest_cash_month' => $trough['month'],
             'lowest_cash' => $trough['value'],
             'additional_funding_needed' => $additionalFunding,
+            'required_additional_funding' => $requiredAdditionalFunding,
             'available_funding' => $availableFunding,
             'launch_costs' => $launchCosts,
             'monthly_fixed_costs' => $monthlyFixedCosts,
@@ -169,13 +172,13 @@ final class BudgetFundingReadiness
         };
     }
 
-    private function decisionHeadline(string $readinessLabel, float $additionalFunding, float $fundingGapOrSurplus): string
+    private function decisionHeadline(string $readinessLabel, float $requiredAdditionalFunding, float $fundingGapOrSurplus): string
     {
-        if ($readinessLabel === 'Not ready for external issue') {
-            if ($additionalFunding > 0) {
-                return 'The cash curve falls below zero, so funding action or revised assumptions are needed before lender or investor issue.';
-            }
+        if ($requiredAdditionalFunding > 0) {
+            return 'The forecast requires '.number_format($requiredAdditionalFunding, 2).' of additional funding or equivalent assumption changes before external issue.';
+        }
 
+        if ($readinessLabel === 'Not ready for external issue') {
             return 'Complete the funding case and reach a positive cumulative cash position before presenting this budget externally.';
         }
 
@@ -184,7 +187,7 @@ final class BudgetFundingReadiness
         }
 
         return $fundingGapOrSurplus >= 0
-            ? 'The forecast covers the recommended funding target and has no open budget quality warnings.'
-            : 'The forecast is cash-positive, but the funding buffer remains below the recommended target and should be discussed with an advisor.';
+            ? 'Current funding covers the planned costs, operating buffer, contingency, and the monthly cash curve.'
+            : 'The forecast is cash-positive, but its planned funding buffer should be discussed with an advisor.';
     }
 }

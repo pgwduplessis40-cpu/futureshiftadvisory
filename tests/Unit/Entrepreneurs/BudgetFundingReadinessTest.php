@@ -37,6 +37,7 @@ final class BudgetFundingReadinessTest extends TestCase
         $this->assertSame('Not ready for external issue', $decision['readiness_label']);
         $this->assertFalse($decision['external_issue_ready']);
         $this->assertSame(3_500.0, $decision['additional_funding_needed']);
+        $this->assertSame(4_200.0, $decision['required_additional_funding']);
         $this->assertSame(2, $decision['lowest_cash_month']);
     }
 }

@@ -20,6 +20,7 @@ use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 use Throwable;
 
 final class Assessment implements ProvidesMethodology
@@ -339,6 +340,13 @@ final class Assessment implements ProvidesMethodology
     public function finalise(PlanAssessment $assessment, User $advisor): PlanAssessment
     {
         $assessment->loadMissing('ratingFramework.criteria');
+
+        if (AssessmentScoring::hasFallbackScores($assessment)) {
+            throw ValidationException::withMessages([
+                'assessment' => 'This historical round has no valid AI score and cannot be finalised. Run a fresh assessment first.',
+            ]);
+        }
+
         $weighted = $assessment->ratingFramework instanceof RatingFramework
             ? AssessmentScoring::weightedScoreForFramework($assessment->ratingFramework, $assessment->ai_scores ?? [], $assessment->advisor_scores ?? [])
             : 0.0;
@@ -381,21 +389,28 @@ final class Assessment implements ProvidesMethodology
             sourceReferences: ['business_plan:'.$plan->getKey(), 'rating_criterion:'.$criterion->getKey()],
         );
         $response = $this->ai->scoreCriterion($prompt);
-        $assessmentText = $this->contexts->assessmentText($planContext);
-        $fallbackScore = $this->heuristicScore($criterion, $plan, $assessmentText);
         $aiScore = $this->scoreFromResponse($response);
-        $score = $aiScore ?? $fallbackScore;
-        $scoreSource = $aiScore === null ? 'deterministic_fallback' : 'ai_assessment';
+        $assessmentText = $this->contexts->assessmentText($planContext);
+
+        if ((bool) data_get($response->metadata, 'degraded') || $aiScore === null) {
+            $reason = trim((string) data_get($response->metadata, 'unavailable_reason'));
+            $reasonSuffix = $reason === '' ? '' : ' Reason: '.Str::limit($reason, 180, '');
+
+            throw new RuntimeException(sprintf(
+                'No valid AI score was returned for criterion %d (%s). No assessment round was saved; retry the assessment once the AI service is available.%s',
+                $criterion->number,
+                $criterion->name,
+                $reasonSuffix,
+            ));
+        }
 
         return [
             'criterion_id' => $criterion->getKey(),
             'criterion_number' => $criterion->number,
             'criterion_name' => $criterion->name,
-            'score' => $score,
-            'score_source' => $scoreSource,
-            'rationale' => $scoreSource === 'ai_assessment'
-                ? $this->rationaleFromResponse($response, $score)
-                : $this->fallbackRationale($fallbackScore),
+            'score' => $aiScore,
+            'score_source' => 'ai_assessment',
+            'rationale' => $this->rationaleFromResponse($response, $aiScore),
             'attributions' => [
                 ...$response->attributions,
                 [
@@ -405,9 +420,9 @@ final class Assessment implements ProvidesMethodology
             ],
             'model' => $response->model,
             'metadata' => [
+                ...$response->metadata,
                 'ai_score' => $aiScore,
-                'fallback_score' => $fallbackScore,
-                'score_source' => $scoreSource,
+                'score_source' => 'ai_assessment',
                 'uncertainty' => $response->uncertainty->value,
                 'context_characters' => Str::length($assessmentText),
                 'context_hash' => hash('sha256', $assessmentText),
@@ -462,72 +477,6 @@ final class Assessment implements ProvidesMethodology
         return $score < 60
             ? 'AI first-pass score is conservative because draft evidence is incomplete.'
             : 'AI first-pass score reflects current draft evidence and framework descriptors.';
-    }
-
-    private function fallbackRationale(int $score): string
-    {
-        return $score < 60
-            ? 'Deterministic first-pass fallback used because the AI response did not include a valid score; draft evidence is incomplete.'
-            : 'Deterministic first-pass fallback used because the AI response did not include a valid score; review before relying on this criterion.';
-    }
-
-    private function heuristicScore(RatingCriterion $criterion, BusinessPlan $plan, string $sectionsText): int
-    {
-        if (strtolower((string) $criterion->name) === 'budget') {
-            return $this->budgetHeuristicScore($plan->budgetRunway);
-        }
-
-        $haystack = strtolower($sectionsText);
-        $needles = collect(explode(' ', strtolower($criterion->name)))
-            ->map(fn (string $word): string => trim($word))
-            ->filter(fn (string $word): bool => strlen($word) > 3);
-        $matches = $needles->filter(fn (string $word): bool => str_contains($haystack, $word))->count();
-        $wordCount = str_word_count($sectionsText);
-
-        return max(35, min(82, 48 + ($matches * 8) + min(18, (int) floor($wordCount / 25))));
-    }
-
-    private function budgetHeuristicScore(?EntrepreneurBudget $budget): int
-    {
-        if (! $budget instanceof EntrepreneurBudget) {
-            return 35;
-        }
-
-        $score = match ($budget->status) {
-            EntrepreneurBudget::STATUS_COMPLETE => 70,
-            EntrepreneurBudget::STATUS_PARTIAL => 52,
-            default => 35,
-        };
-        $computed = (array) ($budget->computed ?? []);
-        $activeFlags = collect((array) ($budget->flags ?? []))
-            ->filter(fn (array $flag): bool => empty($flag['acknowledged_at']))
-            ->count();
-
-        if (($computed['break_even_reached'] ?? false) === true || data_get($computed, 'break_even_year') !== null) {
-            $score += 5;
-        }
-
-        if (data_get($computed, 'cash_flow_positive_year') !== null) {
-            $score += 5;
-        }
-
-        if (data_get($computed, 'first_profitable_year') !== null) {
-            $score += 3;
-        }
-
-        if ($budget->expected_runway_months !== null && is_int($computed['runway_months'] ?? null)) {
-            $score += 5;
-        }
-
-        if ((array) data_get($computed, 'missing_assumptions', []) !== []) {
-            $score -= 8;
-        }
-
-        if (! (bool) data_get($computed, 'assumptions.company_tax_configured', false)) {
-            $score -= 3;
-        }
-
-        return max(35, min(88, $score - ($activeFlags * 6)));
     }
 
     private function budgetAssessmentText(?EntrepreneurBudget $budget): string

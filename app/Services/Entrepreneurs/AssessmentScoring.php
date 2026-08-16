@@ -38,7 +38,11 @@ final class AssessmentScoring
                     : (float) ($aiScore ?? 0);
                 $weight = (float) $criterion->weight;
                 $normalisedWeight = $totalWeight > 0 ? $weight / $totalWeight : 0;
-                $reused = is_array($ai) && (string) ($ai['score_source'] ?? data_get($ai, 'metadata.score_source')) === 'reused_identical_context';
+                $scoreSource = is_array($ai)
+                    ? (string) ($ai['score_source'] ?? data_get($ai, 'metadata.score_source'))
+                    : '';
+                $reused = $scoreSource === 'reused_identical_context';
+                $fallback = $scoreSource === 'deterministic_fallback';
 
                 return [
                     'criterion_id' => (string) $criterion->getKey(),
@@ -53,16 +57,20 @@ final class AssessmentScoring
                     'advisor_score' => $hasAdvisorScore ? (float) $advisor['score'] : null,
                     'grade' => $framework->gradeFor($score),
                     'contribution' => round($score * $normalisedWeight, 2),
-                    'source' => $hasAdvisorScore ? 'advisor_review' : ($reused ? 'reused_assessment' : 'automated_assessment'),
+                    'source' => $hasAdvisorScore
+                        ? 'advisor_review'
+                        : ($fallback ? 'invalid_fallback' : ($reused ? 'reused_assessment' : 'automated_assessment')),
                     'source_label' => $hasAdvisorScore
                         ? 'Advisor reviewed'
-                        : ($reused
+                        : ($fallback
+                            ? 'No valid AI score was returned; this historical fallback is unavailable for advice or progression'
+                            : ($reused
                             ? sprintf(
                                 'Round %d carried forward from round %d; no fresh AI score was generated',
                                 max(1, (int) $assessment->round),
                                 max(1, (int) data_get($ai, 'metadata.reused_from_round', $assessment->round)),
                             )
-                            : sprintf('Round %d automated score', max(1, (int) $assessment->round))),
+                            : sprintf('Round %d automated score', max(1, (int) $assessment->round)))),
                     'rationale' => $hasAdvisorScore
                         ? (string) ($advisor['note'] ?? '')
                         : (string) (is_array($ai) ? ($ai['rationale'] ?? '') : ''),
@@ -80,6 +88,13 @@ final class AssessmentScoring
     public static function weightedScore(PlanAssessment $assessment): float
     {
         return round(collect(self::criteriaPayload($assessment))->sum('contribution'), 2);
+    }
+
+    public static function hasFallbackScores(PlanAssessment $assessment): bool
+    {
+        return collect($assessment->ai_scores ?? [])
+            ->contains(fn (mixed $score): bool => is_array($score)
+                && (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'deterministic_fallback');
     }
 
     /**

@@ -787,7 +787,9 @@ final class EntrepreneurController extends Controller
             'status' => $plan->status,
             'assessment_count' => $plan->assessments->count(),
             'latest_round' => $latestAssessment?->round,
-            'latest_grade' => $latestAssessment?->overall_grade,
+            'latest_grade' => ($latestAssessmentPayload['automated_score_available'] ?? true)
+                ? $latestAssessment?->overall_grade
+                : null,
             'can_assess' => $this->canAssessPlan($plan) && ! $assessmentRunInFlight,
             'assessment_action_label' => match ($assessmentRunStatus) {
                 'queued' => 'Assessment queued',
@@ -809,6 +811,7 @@ final class EntrepreneurController extends Controller
                 'status' => $latestAssessmentPayload['status'],
                 'overall_grade' => $latestAssessmentPayload['overall_grade'],
                 'weighted_score' => $latestAssessmentPayload['weighted_score'],
+                'automated_score_available' => $latestAssessmentPayload['automated_score_available'],
                 'finalised_at' => $latestAssessmentPayload['finalised_at'],
                 'rating_framework' => $latestAssessmentPayload['rating_framework'],
                 'url' => route('advisor.entrepreneurs.assessments.show', [$profile, $latestAssessment], absolute: false),
@@ -847,18 +850,22 @@ final class EntrepreneurController extends Controller
                 $payload = $this->assessmentPayload($assessment);
                 $snapshot = $assessment->plan_snapshot;
                 $snapshotAvailable = is_array($snapshot) && is_array($snapshot['phases'] ?? null);
-                $weightedScore = (float) $payload['weighted_score'];
-                $scoreDelta = $previousWeightedScore === null
+                $automatedScoreAvailable = (bool) ($payload['automated_score_available'] ?? true);
+                $weightedScore = $automatedScoreAvailable ? (float) $payload['weighted_score'] : null;
+                $scoreDelta = $weightedScore === null || $previousWeightedScore === null
                     ? null
                     : round($weightedScore - $previousWeightedScore, 1);
-                $previousWeightedScore = $weightedScore;
+                if ($weightedScore !== null) {
+                    $previousWeightedScore = $weightedScore;
+                }
 
                 return [
                     'id' => $assessment->id,
                     'round' => $assessment->round,
                     'status' => $payload['status'],
-                    'overall_grade' => $payload['overall_grade'],
+                    'overall_grade' => $automatedScoreAvailable ? $payload['overall_grade'] : null,
                     'weighted_score' => $weightedScore,
+                    'automated_score_available' => $automatedScoreAvailable,
                     'score_delta' => $scoreDelta,
                     'score_source_summary' => $this->scoreSourceSummary($assessment),
                     'created_at' => $assessment->created_at?->toIso8601String(),
@@ -898,11 +905,11 @@ final class EntrepreneurController extends Controller
         }
 
         if ($fallback === $total) {
-            return 'Deterministic fallback scoring; review manually before relying on the result.';
+            return 'Invalid automated result: no AI score was returned. Retained for audit only and excluded from progression.';
         }
 
         if ($fallback > 0) {
-            return $ai.' AI-scored criteria, '.$fallback.' fallback-scored criteria, '.$reused.' carried forward from an earlier assessment.';
+            return 'Invalid automated result: '.$fallback.' criterion scores were fallback values. Retained for audit only and excluded from progression.';
         }
 
         if ($reused > 0) {

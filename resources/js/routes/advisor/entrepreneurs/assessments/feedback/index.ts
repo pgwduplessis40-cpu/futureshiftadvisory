@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::update
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:140
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:144
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/feedback'
  */
 export const update = (args: { entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } } | [entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -16,7 +16,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::update
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:140
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:144
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/feedback'
  */
 update.url = (args: { entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } } | [entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -46,7 +46,7 @@ update.url = (args: { entrepreneurProfile: string | { id: string }, planAssessme
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::update
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:140
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:144
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/feedback'
  */
 update.patch = (args: { entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } } | [entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -56,7 +56,7 @@ update.patch = (args: { entrepreneurProfile: string | { id: string }, planAssess
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::update
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:140
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:144
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/feedback'
  */
     const updateForm = (args: { entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } } | [entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -71,7 +71,7 @@ update.patch = (args: { entrepreneurProfile: string | { id: string }, planAssess
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::update
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:140
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:144
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/feedback'
  */
         updateForm.patch = (args: { entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } } | [entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

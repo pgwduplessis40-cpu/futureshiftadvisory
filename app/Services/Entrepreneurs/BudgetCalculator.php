@@ -262,9 +262,13 @@ final class BudgetCalculator implements ProvidesMethodology
         }
 
         $taxConfigured = $companyTaxRatePercent !== null;
+        $yearTwoRevenueBasis = ($assumptions['year_two_revenue_basis'] ?? null) === 'year_one_average'
+            ? 'year_one_average'
+            : 'exit_run_rate';
 
         return [
             ...$normalised,
+            'year_two_revenue_basis' => $yearTwoRevenueBasis,
             'opening_cash_balance' => round($openingCash, 2),
             'debtor_days' => $debtorDays ?? 0,
             'creditor_days' => $creditorDays ?? 0,
@@ -282,6 +286,7 @@ final class BudgetCalculator implements ProvidesMethodology
             'missing_fields' => $missing,
             'field_labels' => [
                 ...$fields,
+                'year_two_revenue_basis' => 'Revenue basis after year 1',
                 'opening_cash_balance' => 'Opening cash balance',
                 'debtor_days' => 'Debtor days',
                 'creditor_days' => 'Creditor days',
@@ -497,9 +502,16 @@ final class BudgetCalculator implements ProvidesMethodology
                 return $total;
             }
 
-            $yearOneAverage = $this->yearOneAverageRevenue($row);
+            if (($assumptions['year_two_revenue_basis'] ?? 'exit_run_rate') === 'year_one_average') {
+                return $total + ($this->yearOneAverageRevenue($row) * $this->growthFactor((float) $assumptions['revenue_growth_percent'], $year - 1));
+            }
 
-            return $total + ($yearOneAverage * $this->growthFactor((float) $assumptions['revenue_growth_percent'], $year - 1));
+            $yearOneExitRunRate = $this->yearOneExitRunRate($row);
+
+            return $total + ($yearOneExitRunRate * $this->annualGrowthForMonths(
+                (float) $assumptions['revenue_growth_percent'],
+                $month - self::MONTHS_PER_YEAR,
+            ));
         }, 0.0);
     }
 
@@ -759,6 +771,17 @@ final class BudgetCalculator implements ProvidesMethodology
     }
 
     /**
+     * @param  array<string, mixed>  $row
+     */
+    private function yearOneExitRunRate(array $row): float
+    {
+        $elapsed = max(0, self::MONTHS_PER_YEAR - (int) $row['month']);
+        $base = ((float) $row['amount']) * ((float) $row['quantity']);
+
+        return $base * $this->growthFactor((float) $row['monthly_growth_percent'], $elapsed);
+    }
+
+    /**
      * @param  array<int, array<string, mixed>>  $rows
      */
     private function sumRows(array $rows): float
@@ -857,6 +880,17 @@ final class BudgetCalculator implements ProvidesMethodology
         return $factor <= 0 ? 0.0 : $factor ** $periods;
     }
 
+    private function annualGrowthForMonths(float $annualPercent, int $months): float
+    {
+        if ($months <= 0) {
+            return 1.0;
+        }
+
+        $factor = 1 + ($annualPercent / 100);
+
+        return $factor <= 0 ? 0.0 : $factor ** ($months / self::MONTHS_PER_YEAR);
+    }
+
     private function nullablePercent(mixed $value): ?float
     {
         if ($value === null || $value === '' || ! is_numeric($value)) {
@@ -901,7 +935,7 @@ final class BudgetCalculator implements ProvidesMethodology
             'break_even_year' => 'Break-even year is the first forecast year where net profit before tax is zero or positive.',
             'first_profitable_year' => 'First profitable year is the first forecast year where net profit after tax is positive.',
             'cash_flow_positive_year' => 'Cash-flow-positive year is the first year where cumulative cash becomes zero or positive after startup losses and funding movements.',
-            'year_two_revenue_basis' => 'From year 2 onward, monthly revenue uses the average monthly revenue achieved in year 1, then applies annual revenue growth. If year 1 ramps quickly, month 13 can be lower than month 12.',
+            'year_two_revenue_basis' => 'By default, month 13 carries forward the Year 1 exit run-rate and applies annual revenue growth smoothly month by month. Choose the Year 1 average only when it is a deliberate seasonal or averaging assumption.',
             'tax_simplification' => 'Company tax is estimated month by month after carrying earlier losses forward within the same forecast year. Losses are reset at each year boundary unless tax reference data is extended later.',
             'downside_growth' => 'Revenue growth, monthly revenue growth, and cost/CPI assumptions can be negative down to -100%, so downside and deflation cases are modelled instead of silently flattened to zero growth.',
             'automatic_scenarios' => 'Automatic sensitivity scenarios compare base case against revenue downside, cost upside, and combined downside cases.',

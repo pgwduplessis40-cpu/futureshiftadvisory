@@ -42,7 +42,7 @@ final class BudgetCalculatorTest extends TestCase
         $this->assertEqualsWithDelta(1158.45, $scenario['monthly_detail'][3]['loan_principal'], 0.01);
     }
 
-    public function test_year_two_revenue_uses_year_one_average_not_final_ramp_month(): void
+    public function test_year_two_revenue_carries_forward_the_year_one_exit_run_rate_by_default(): void
     {
         $computed = $this->calculator()->compute(
             launchCosts: [],
@@ -60,17 +60,41 @@ final class BudgetCalculatorTest extends TestCase
             assumptions: ['revenue_growth_percent' => 0],
         );
 
+        $month12Revenue = $computed['monthly_detail'][11]['revenue'];
+        $month13Revenue = $computed['monthly_detail'][12]['revenue'];
+
+        $this->assertEqualsWithDelta($month12Revenue, $month13Revenue, 0.01);
+        $this->assertStringContainsString('exit run-rate', $computed['explanations']['year_two_revenue_basis']);
+    }
+
+    public function test_year_two_revenue_can_use_the_year_one_average_for_a_deliberate_seasonal_assumption(): void
+    {
+        $computed = $this->calculator()->compute(
+            launchCosts: [],
+            monthlyFixedCosts: [],
+            revenueForecast: [[
+                'label' => 'Subscriptions',
+                'amount' => 1_000,
+                'quantity' => 1,
+                'month' => 1,
+                'monthly_growth_percent' => 10,
+            ]],
+            fundingSources: [],
+            expectedRunwayMonths: null,
+            forecastYears: 2,
+            assumptions: [
+                'revenue_growth_percent' => 0,
+                'year_two_revenue_basis' => 'year_one_average',
+            ],
+        );
+
         $expectedYearOneAverage = array_sum(array_map(
             fn (int $elapsed): float => 1_000 * (1.1 ** $elapsed),
             range(0, 11),
         )) / 12;
 
-        $month12Revenue = $computed['monthly_detail'][11]['revenue'];
-        $month13Revenue = $computed['monthly_detail'][12]['revenue'];
-
-        $this->assertEqualsWithDelta(round($expectedYearOneAverage, 2), $month13Revenue, 0.01);
-        $this->assertGreaterThan($month13Revenue, $month12Revenue);
-        $this->assertStringContainsString('month 13 can be lower than month 12', $computed['explanations']['year_two_revenue_basis']);
+        $this->assertEqualsWithDelta($expectedYearOneAverage, $computed['monthly_detail'][12]['revenue'], 0.01);
+        $this->assertGreaterThan($computed['monthly_detail'][12]['revenue'], $computed['monthly_detail'][11]['revenue']);
     }
 
     public function test_annual_revenue_growth_does_not_compound_the_first_year_monthly_forecast(): void
@@ -93,7 +117,8 @@ final class BudgetCalculatorTest extends TestCase
 
         $this->assertSame(1_000.0, $computed['monthly_detail'][0]['revenue']);
         $this->assertSame(1_000.0, $computed['monthly_detail'][11]['revenue']);
-        $this->assertSame(1_250.0, $computed['monthly_detail'][12]['revenue']);
+        $this->assertEqualsWithDelta(1_000 * (1.25 ** (1 / 12)), $computed['monthly_detail'][12]['revenue'], 0.01);
+        $this->assertEqualsWithDelta(1_250.0, $computed['monthly_detail'][23]['revenue'], 0.01);
     }
 
     public function test_tax_carries_losses_forward_within_forecast_year(): void
@@ -184,13 +209,12 @@ final class BudgetCalculatorTest extends TestCase
             ],
         );
 
-        $expectedYearOneAverage = array_sum(array_map(
-            fn (int $elapsed): float => 1_000 * (0.9 ** $elapsed),
-            range(0, 11),
-        )) / 12;
-
         $this->assertSame(900.0, $computed['monthly_detail'][1]['revenue']);
-        $this->assertEqualsWithDelta(round($expectedYearOneAverage * 0.8, 2), $computed['monthly_detail'][12]['revenue'], 0.01);
+        $this->assertEqualsWithDelta(
+            $computed['monthly_detail'][11]['revenue'] * (0.8 ** (1 / 12)),
+            $computed['monthly_detail'][12]['revenue'],
+            0.01,
+        );
         $this->assertSame(900.0, $computed['monthly_detail'][12]['fixed_costs']);
         $this->assertSame(-20.0, $computed['assumptions']['revenue_growth_percent']);
         $this->assertSame(-10.0, $computed['assumptions']['cost_inflation_percent']);

@@ -251,8 +251,8 @@ final class EntrepreneurBudgetService
         if ($availableAfterLaunch < 0) {
             $flags[] = $this->flag(
                 'funding_shortfall',
-                'Launch funding gap',
-                'Launch costs are higher than available funding. Consider reducing setup costs, adding funding, or delaying some spend.',
+                'Funding gap',
+                'Planned one-off costs are higher than available funding. Consider reducing costs, adding funding, or delaying some spend.',
                 'high',
                 $existingByKey->get('funding_shortfall'),
             );

@@ -20,6 +20,7 @@ final class BusinessPlanIdentity
         $profile->loadMissing('client');
 
         foreach ([
+            trim((string) ($profile->company_name ?? '')),
             trim((string) ($profile->client?->trading_name ?? '')),
             trim((string) ($profile->client?->legal_name ?? '')),
         ] as $linkedClientName) {

@@ -737,9 +737,12 @@ export default function EntrepreneursShow({
                         <ActionMetric
                             label="Assessment"
                             value={
-                                latestAssessment
+                                latestAssessment?.automated_score_available &&
+                                latestAssessment.weighted_score !== null
                                     ? `${latestAssessment.weighted_score.toFixed(1)}/100`
-                                    : 'Not started'
+                                    : latestAssessment
+                                      ? 'Unavailable'
+                                      : 'Not started'
                             }
                             href={
                                 latestAssessment?.url ?? '#business-plan-budget'
@@ -773,11 +776,13 @@ export default function EntrepreneursShow({
                                 },
                                 {
                                     label: 'Grade',
-                                    value: latestAssessment
-                                        ? gradeLabel(
-                                              latestAssessment.overall_grade,
-                                          )
-                                        : '-',
+                                    value:
+                                        latestAssessment?.automated_score_available &&
+                                        latestAssessment.overall_grade
+                                            ? gradeLabel(
+                                                  latestAssessment.overall_grade,
+                                              )
+                                            : '-',
                                 },
                                 {
                                     label: 'Completed',
@@ -2130,9 +2135,14 @@ export default function EntrepreneursShow({
                                             },
                                             {
                                                 label: 'Score',
-                                                value: latestAssessment
-                                                    ? `${latestAssessment.weighted_score.toFixed(1)}/100`
-                                                    : '-',
+                                                value:
+                                                    latestAssessment?.automated_score_available &&
+                                                    latestAssessment.weighted_score !==
+                                                        null
+                                                        ? `${latestAssessment.weighted_score.toFixed(1)}/100`
+                                                        : latestAssessment
+                                                          ? 'Unavailable'
+                                                          : '-',
                                             },
                                         ]}
                                     />
@@ -2470,12 +2480,20 @@ export default function EntrepreneursShow({
                                                     </td>
                                                     <td className="px-3 py-3">
                                                         <div className="space-y-1">
-                                                            <span className="block tabular-nums">
-                                                                {round.weighted_score.toFixed(
-                                                                    1,
-                                                                )}
-                                                                /100
-                                                            </span>
+                                                            {round.automated_score_available &&
+                                                            round.weighted_score !==
+                                                                null ? (
+                                                                <span className="block tabular-nums">
+                                                                    {round.weighted_score.toFixed(
+                                                                        1,
+                                                                    )}
+                                                                    /100
+                                                                </span>
+                                                            ) : (
+                                                                <Badge variant="destructive">
+                                                                    Unavailable
+                                                                </Badge>
+                                                            )}
                                                             {round.score_delta !==
                                                             null ? (
                                                                 <span
@@ -2504,8 +2522,15 @@ export default function EntrepreneursShow({
                                                         </div>
                                                     </td>
                                                     <td className="px-3 py-3">
-                                                        {gradeLabel(
-                                                            round.overall_grade,
+                                                        {round.automated_score_available &&
+                                                        round.overall_grade ? (
+                                                            gradeLabel(
+                                                                round.overall_grade,
+                                                            )
+                                                        ) : (
+                                                            <Badge variant="destructive">
+                                                                Unavailable
+                                                            </Badge>
                                                         )}
                                                     </td>
                                                     <td className="px-3 py-3">

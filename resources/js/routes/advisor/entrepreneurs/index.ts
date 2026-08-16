@@ -355,7 +355,7 @@ storeManual.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     storeManual.form = storeManualForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:193
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:197
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/convert'
  */
 export const convert = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -370,7 +370,7 @@ convert.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:193
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:197
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/convert'
  */
 convert.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -403,7 +403,7 @@ convert.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepr
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:193
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:197
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/convert'
  */
 convert.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -413,7 +413,7 @@ convert.post = (args: { entrepreneurProfile: string | { id: string } } | [entrep
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:193
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:197
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/convert'
  */
     const convertForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -423,7 +423,7 @@ convert.post = (args: { entrepreneurProfile: string | { id: string } } | [entrep
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:193
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:197
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/convert'
  */
         convertForm.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

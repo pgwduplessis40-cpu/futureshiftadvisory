@@ -9,7 +9,10 @@ use App\Models\PlanSection;
 
 final class PlanIssueReadiness
 {
-    public function __construct(private readonly BudgetFundingReadiness $budgetReadiness) {}
+    public function __construct(
+        private readonly BudgetFundingReadiness $budgetReadiness,
+        private readonly ExternalIssueReview $externalIssueReview,
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -25,6 +28,7 @@ final class PlanIssueReadiness
         $evidenceCount = $completedSections
             ->sum(fn (PlanSection $section): int => count((array) $section->attached_document_ids));
         $budget = $this->budgetReadiness->evaluate($plan->budgetRunway);
+        $contentReview = $this->externalIssueReview->evaluate($plan);
         $reasons = [];
 
         if (! $completion['complete']) {
@@ -39,9 +43,12 @@ final class PlanIssueReadiness
             $reasons[] = 'Budget funding readiness: '.(string) ($budget['readiness_label'] ?? 'Not ready for external issue').'.';
         }
 
+        $reasons = [...$reasons, ...(array) ($contentReview['blocking_reasons'] ?? []), ...(array) ($contentReview['warnings'] ?? [])];
+
         $ready = $completion['complete']
             && $evidencedSections->isNotEmpty()
-            && (bool) ($budget['external_issue_ready'] ?? false);
+            && (bool) ($budget['external_issue_ready'] ?? false)
+            && ((array) ($contentReview['blocking_reasons'] ?? [])) === [];
 
         return [
             'external_issue_ready' => $ready,
@@ -55,6 +62,7 @@ final class PlanIssueReadiness
             'completed_responses' => $completedSections->count(),
             'evidence_count' => $evidenceCount,
             'budget' => $budget,
+            'content_review' => $contentReview,
         ];
     }
 }

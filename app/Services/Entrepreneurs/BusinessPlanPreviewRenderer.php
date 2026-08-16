@@ -26,6 +26,7 @@ final class BusinessPlanPreviewRenderer
         private readonly BrandedReportLayout $layout,
         private readonly BusinessPlanIdentity $identity,
         private readonly EntrepreneurDocumentTemplate $templates,
+        private readonly PlanIssueReadiness $issueReadiness,
     ) {}
 
     public function pdf(EntrepreneurProfile $profile, ?BusinessPlan $plan): string
@@ -193,14 +194,19 @@ final class BusinessPlanPreviewRenderer
         array $documentMeta = [],
     ): string {
         $documentSections = $this->documentSections($phases);
+        $executiveSummary = $this->executiveSummary($profile, $plan, $phases, $documentSections);
+        $issueReadiness = $plan instanceof BusinessPlan
+            ? $this->issueReadiness->evaluate($plan)
+            : ['external_issue_ready' => false, 'reasons' => ['No saved plan is available yet.']];
+        $draftNotice = $this->draftNoticeHtml($issueReadiness);
         $sectionHtml = collect($documentSections)
             ->map(fn (array $section, int $index): string => $this->documentSectionHtml($section, $index + 1))
             ->implode('');
         $contentHtml = $sectionHtml !== ''
-            ? $this->overviewHtml($documentSections, $this->executiveSummaryEntry($phases)).$sectionHtml
+            ? $draftNotice.$this->overviewHtml($documentSections, $executiveSummary).$sectionHtml
             : $this->layout->section(
                 'Plan content not completed yet',
-                '<p class="body">No completed business-plan sections are available yet.</p>',
+                $draftNotice.'<p class="body">No completed business-plan sections are available yet.</p>',
                 'missing-panel',
             );
         $generatedAt = now()->format('M j, Y g:i A');
@@ -393,6 +399,48 @@ HTML,
     }
 
     /**
+     * @param  array<int, array<string, mixed>>  $phases
+     * @param  array<int, array{title:string,entries:array<int, array{key:string,title:string,body:string,evidence_count:int}>}>  $sections
+     * @return array{key:string,title:string,body:string,evidence_count:int}
+     */
+    private function executiveSummary(EntrepreneurProfile $profile, ?BusinessPlan $plan, array $phases, array $sections): array
+    {
+        $authored = $this->executiveSummaryEntry($phases);
+        if ($authored !== null) {
+            return $authored;
+        }
+
+        $businessName = $this->identity->businessName($profile, $plan, $this->sectionBodies($phases));
+        $opening = $businessName === null
+            ? 'This business plan is prepared by '.$profile->name.'.'
+            : 'This business plan is prepared for '.$businessName.', led by '.$profile->name.'.';
+        $summary = [$opening];
+
+        if (filled($profile->concept_summary)) {
+            $summary[] = Str::limit(trim((string) $profile->concept_summary), 360, '...');
+        }
+
+        $sectionNames = collect($sections)->pluck('title')->filter()->implode(', ');
+        if ($sectionNames !== '') {
+            $summary[] = 'It sets out the current operating, market, strategy, legal, and financial case across '.$sectionNames.'.';
+        }
+
+        $computed = (array) ($plan?->budgetRunway?->computed ?? []);
+        if ($computed !== []) {
+            $breakEven = data_get($computed, 'break_even_year');
+            $cashPositive = data_get($computed, 'cash_flow_positive_year');
+            $summary[] = 'The forecast currently shows break-even in '.($breakEven === null ? 'the forecast horizon not yet confirmed' : 'Year '.$breakEven).' and cash-positive timing in '.($cashPositive === null ? 'the forecast horizon not yet confirmed' : 'Year '.$cashPositive).'.';
+        }
+
+        return [
+            'key' => 'executive-summary',
+            'title' => 'Executive summary',
+            'body' => implode("\n\n", $summary),
+            'evidence_count' => 0,
+        ];
+    }
+
+    /**
      * Snapshots created before requirement metadata was normalised can still
      * contain the executive summary under the legacy section key or title.
      *
@@ -448,7 +496,10 @@ HTML,
         array $documentMeta = [],
     ): string {
         $sections = $this->documentSections($phases);
-        $executiveSummary = $this->executiveSummaryEntry($phases);
+        $executiveSummary = $this->executiveSummary($profile, $plan, $phases, $sections);
+        $issueReadiness = $plan instanceof BusinessPlan
+            ? $this->issueReadiness->evaluate($plan)
+            : ['external_issue_ready' => false, 'reasons' => ['No saved plan is available yet.']];
         $businessName = $this->identity->businessName($profile, $plan, $this->sectionBodies($phases));
         $title = 'Business Plan'.($businessName === null ? '' : ' - '.$businessName);
         $blocks = [
@@ -456,15 +507,13 @@ HTML,
                 'type' => 'cover',
                 'document_tag' => (string) ($documentMeta['document_tag'] ?? 'Business plan'),
                 'title' => $title,
-                'subtitle' => 'Founder - '.$profile->name,
+                'subtitle' => 'Founder - '.$profile->name.((bool) ($issueReadiness['external_issue_ready'] ?? false) ? '' : ' | INTERNAL DRAFT - NOT FOR EXTERNAL ISSUE'),
             ],
             ['type' => 'page_break'],
-            ['type' => 'section', 'text' => $executiveSummary === null ? 'Plan overview' : 'Executive summary'],
+            ['type' => 'section', 'text' => 'Executive summary'],
             [
                 'type' => 'paragraph',
-                'text' => $executiveSummary === null
-                    ? $this->planOverviewText($sections)
-                    : $this->markdownPlainText($executiveSummary['body']),
+                'text' => $this->markdownPlainText($executiveSummary['body']),
             ],
             ['type' => 'page_break'],
             [
@@ -549,6 +598,23 @@ HTML,
         return trim($body);
     }
 
+    /**
+     * @param  array<string, mixed>  $issueReadiness
+     */
+    private function draftNoticeHtml(array $issueReadiness): string
+    {
+        if ((bool) ($issueReadiness['external_issue_ready'] ?? false)) {
+            return '';
+        }
+
+        $reasons = collect((array) ($issueReadiness['reasons'] ?? []))
+            ->take(4)
+            ->map(fn (string $reason): string => '<li>'.$this->escape($reason).'</li>')
+            ->implode('');
+
+        return '<div class="internal-draft-watermark">INTERNAL DRAFT</div><article class="report-section external-issue-warning"><h2>Internal draft - not for external issue</h2><p>Resolve the listed readiness items before sharing this document with a lender, investor, or other external audience.</p>'.($reasons === '' ? '' : '<ul>'.$reasons.'</ul>').'</article>';
+    }
+
     private function normaliseKeyPoint(string $candidate): string
     {
         $candidate = preg_replace('/^\s*(?:[-*]+|\d+[.)])\s*/', '', $candidate) ?? $candidate;
@@ -617,6 +683,7 @@ HTML,
 .external-issue-warning h2 { color: #8a1c16; }
 .external-issue-warning p { margin: 0 0 8px; }
 .external-issue-warning ul { margin: 0; padding-left: 18px; }
+.internal-draft-watermark { color: #b42318; font-size: 42px; font-weight: 700; left: 19%; letter-spacing: 0; opacity: 0.11; pointer-events: none; position: fixed; top: 46%; transform: rotate(-28deg); z-index: 0; }
 CSS;
     }
 

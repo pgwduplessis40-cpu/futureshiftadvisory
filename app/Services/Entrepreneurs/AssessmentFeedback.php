@@ -74,7 +74,7 @@ final class AssessmentFeedback
         'budget' => [
             'what_is_missing' => 'The financial assumptions need more evidence before the plan can show whether the business is viable.',
             'what_to_add_or_change' => 'Update the customer, price, margin, costs, cash timing, funding, and runway assumptions, and show what evidence supports each important number.',
-            'where_in_plan' => 'Financial > Financial assumptions, Revenue model, Launch funding and support, and Budget',
+            'where_in_plan' => 'Financial > Financial assumptions, Revenue model, Funding and support, and Budget',
         ],
     ];
 

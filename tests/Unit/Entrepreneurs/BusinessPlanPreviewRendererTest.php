@@ -198,7 +198,7 @@ final class BusinessPlanPreviewRendererTest extends TestCase
         $this->assertStringNotContainsString('Reader roadmap', $pdf);
         $this->assertStringNotContainsString('FALLBACK PDF', $pdf);
         $this->assertStringNotContainsString('Fallback rendering', $pdf);
-        $this->assertStringNotContainsString('External issue', $pdf);
+        $this->assertStringContainsString('INTERNAL DRAFT - NOT FOR EXTERNAL ISSUE', $pdf);
         $this->assertStringNotContainsString('Evidence coverage', $pdf);
     }
 

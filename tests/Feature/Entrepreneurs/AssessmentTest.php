@@ -42,7 +42,7 @@ final class AssessmentTest extends TestCase
         $this->seed(RoleSeeder::class);
         $this->seed(RatingFrameworkSeeder::class);
         $this->seed(FoundingRatingFrameworkValuesSeeder::class);
-        $this->app->bind(AiClient::class, FakeAiClient::class);
+        $this->app->instance(AiClient::class, new StructuredScoreAiClient(70));
         app(RequestContext::class)->apply('system', []);
     }
 
@@ -248,6 +248,21 @@ final class AssessmentTest extends TestCase
         ]);
     }
 
+    public function test_degraded_ai_scoring_fails_without_saving_a_formula_based_assessment(): void
+    {
+        [$advisor, $plan] = $this->plan('degraded-assessment@example.test');
+        $this->app->instance(AiClient::class, new FakeAiClient);
+
+        $this->assertTrue(app(Assessment::class)->queueFirstPass($plan, $advisor));
+
+        (new RunEntrepreneurPlanAssessment((string) $plan->getKey(), (int) $advisor->getKey()))
+            ->handle(app(RequestContext::class), app(Assessment::class));
+
+        $this->assertSame('failed', $plan->refresh()->assessment_run_status);
+        $this->assertStringContainsString('No valid AI score was returned', (string) $plan->assessment_run_failure);
+        $this->assertDatabaseCount('plan_assessments', 0);
+    }
+
     public function test_reassessment_generates_fresh_scores_when_the_submitted_plan_has_not_changed(): void
     {
         $firstAi = new CapturingScoreAiClient(82);
@@ -277,6 +292,56 @@ final class AssessmentTest extends TestCase
                 ->where('assessment.requires_full_reassessment', false)
                 ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'automated score generated for this round'))
             );
+    }
+
+    public function test_historical_fallback_scores_are_unavailable_and_do_not_affect_score_movement(): void
+    {
+        $this->app->instance(AiClient::class, new StructuredScoreAiClient(50));
+        [$advisor, $plan] = $this->plan('fallback-history-founder@example.test');
+        $profile = $plan->entrepreneurProfile()->firstOrFail();
+
+        app(Assessment::class)->firstPass($plan, $advisor);
+        $fallback = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+        $fallback->forceFill([
+            'ai_scores' => collect($fallback->ai_scores)
+                ->map(function (array $score): array {
+                    $metadata = is_array($score['metadata'] ?? null) ? $score['metadata'] : [];
+
+                    return [
+                        ...$score,
+                        'score' => 95,
+                        'score_source' => 'deterministic_fallback',
+                        'metadata' => [
+                            ...$metadata,
+                            'score_source' => 'deterministic_fallback',
+                        ],
+                    ];
+                })
+                ->values()
+                ->all(),
+        ])->save();
+        $third = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('entrepreneur.latest_plan.assessment_history.0.round', $third->round)
+                ->where('entrepreneur.latest_plan.assessment_history.0.weighted_score', 50)
+                ->where('entrepreneur.latest_plan.assessment_history.0.score_delta', 0)
+                ->where('entrepreneur.latest_plan.assessment_history.1.round', $fallback->round)
+                ->where('entrepreneur.latest_plan.assessment_history.1.automated_score_available', false)
+                ->where('entrepreneur.latest_plan.assessment_history.1.weighted_score', null)
+                ->where('entrepreneur.latest_plan.assessment_history.1.overall_grade', null)
+                ->where('entrepreneur.latest_plan.assessment_history.1.score_source_summary', 'Invalid automated result: no AI score was returned. Retained for audit only and excluded from progression.'),
+            );
+
+        try {
+            app(Assessment::class)->finalise($fallback->refresh(), $advisor);
+            $this->fail('Expected an invalid fallback assessment to be blocked from finalisation.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('assessment', $exception->errors());
+        }
     }
 
     public function test_carried_forward_historical_scores_are_flagged_for_a_fresh_assessment(): void

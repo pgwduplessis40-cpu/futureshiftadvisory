@@ -122,6 +122,7 @@ final class EntrepreneurPlanController extends Controller
                 'ideaValidation' => route('portal.entrepreneur.idea-validation.store', absolute: false),
                 'recallIdeaValidation' => route('portal.entrepreneur.idea-validation.recall', absolute: false),
                 'startPlan' => route('portal.entrepreneur.plan.start', absolute: false),
+                'companyNameUpdate' => route('portal.entrepreneur.plan.company-name.update', absolute: false),
                 'sectionStore' => route('portal.entrepreneur.plan.sections.store', absolute: false),
                 'budgetUpdate' => route('portal.entrepreneur.plan.budget.update', absolute: false),
                 'budgetPack' => route('portal.entrepreneur.plan.budget-pack.show', absolute: false),
@@ -318,6 +319,27 @@ final class EntrepreneurPlanController extends Controller
         return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-plan-started');
     }
 
+    public function updateCompanyName(Request $request): RedirectResponse
+    {
+        $user = $this->entrepreneurUser($request);
+        $profile = $this->profileFor($user);
+        if (! $this->packageIncludesPlanBudget($profile)) {
+            return $this->packageLockedResponse('Business plan and budget are not included in your selected package.');
+        }
+
+        $validated = $request->validate([
+            'company_name' => ['nullable', 'string', 'max:160'],
+        ]);
+
+        $profile->forceFill([
+            'company_name' => filled($validated['company_name'] ?? null)
+                ? trim((string) $validated['company_name'])
+                : null,
+        ])->save();
+
+        return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-company-name-saved');
+    }
+
     public function section(Request $request): RedirectResponse|JsonResponse
     {
         $user = $this->entrepreneurUser($request);
@@ -430,6 +452,7 @@ final class EntrepreneurPlanController extends Controller
             'assumptions' => ['array'],
             'assumptions.opening_cash_balance' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'assumptions.revenue_growth_percent' => ['nullable', 'numeric', 'min:-100', 'max:500'],
+            'assumptions.year_two_revenue_basis' => ['nullable', 'string', Rule::in(['exit_run_rate', 'year_one_average'])],
             'assumptions.cost_inflation_percent' => ['nullable', 'numeric', 'min:-100', 'max:100'],
             'assumptions.target_gross_profit_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'assumptions.target_net_profit_before_tax_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -828,6 +851,7 @@ final class EntrepreneurPlanController extends Controller
         return [
             'id' => $profile->id,
             'name' => $profile->name,
+            'company_name' => $profile->company_name,
             'email' => $profile->email,
             'stage' => $stage->value,
             'stage_label' => $stage->label(),

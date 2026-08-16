@@ -64,6 +64,7 @@ type FundingDecision = {
     lowest_cash_month?: number | null;
     lowest_cash?: number | null;
     additional_funding_needed: number;
+    required_additional_funding: number;
     available_funding: number;
     recommended_funding_target: number;
     funding_gap_or_surplus: number;
@@ -263,10 +264,10 @@ export default function BudgetPack({ pack, urls }: Props) {
                         value={formatCurrency(summary.available_after_launch)}
                         helper="Funding left after one-off setup costs."
                         explanation={{
-                            title: 'After launch',
-                            what: 'The estimated cash left after funding and opening cash are reduced by one-off launch costs.',
+                            title: 'After planned one-off costs',
+                            what: 'The estimated cash left after funding and opening cash are reduced by planned one-off costs.',
                             action: 'Check whether this amount is enough to cover early trading losses and timing gaps.',
-                            why: 'A positive launch balance does not guarantee runway; it is only the starting cash position after setup costs.',
+                            why: 'A positive starting balance does not guarantee runway; it is only the cash position after planned one-off costs.',
                         }}
                     />
                 </section>
@@ -588,18 +589,16 @@ function FundingDecisionPanel({ decision }: { decision: FundingDecision }) {
                     )}
                 />
                 <DecisionMetric
-                    label="Additional cash need"
-                    value={formatCurrency(decision.additional_funding_needed)}
+                    label="Required additional funding"
+                    value={formatCurrency(decision.required_additional_funding)}
                 />
                 <DecisionMetric
-                    label="Recommended target"
+                    label="Funding available"
+                    value={formatCurrency(decision.available_funding)}
+                />
+                <DecisionMetric
+                    label="Recommended funding target"
                     value={formatCurrency(decision.recommended_funding_target)}
-                />
-                <DecisionMetric
-                    label="Funding gap / surplus"
-                    value={formatSignedCurrency(
-                        decision.funding_gap_or_surplus,
-                    )}
                 />
             </dl>
 
@@ -632,12 +631,12 @@ function UseOfFundsTable({ rows }: { rows: UseOfFundsRow[] }) {
     return (
         <section className="space-y-3 rounded-md border bg-background p-4">
             <ExplainedSectionHeader
-                title="Use of funds"
-                description="Funding target, cash already available, and any remaining gap."
+                title="Funding build-up"
+                description="Funding target, cash already available, and one required-additional-funding figure."
                 explanation={{
-                    title: 'Use of funds',
+                    title: 'Funding build-up',
                     what: 'This converts the saved costs and funding sources into a lender-style funding need.',
-                    action: 'Check whether launch costs, operating cover, contingency, and available funding tell a defensible funding story.',
+                    action: 'Check whether planned one-off costs, operating cover, contingency, and available funding tell a defensible funding story.',
                     why: 'A funding pack should explain what money is needed for, not only whether the cash curve survives.',
                 }}
             />
@@ -808,12 +807,6 @@ function formatCashMonth(
     }
 
     return `${formatCurrency(value)} in ${month ? `Month ${month}` : 'unknown month'}`;
-}
-
-function formatSignedCurrency(value: number | null | undefined): string {
-    const amount = value ?? 0;
-
-    return amount > 0 ? `+${formatCurrency(amount)}` : formatCurrency(amount);
 }
 
 function decisionToneClass(tone: FundingDecision['readiness_tone']): string {

@@ -19,6 +19,7 @@ final class BudgetPackBuilder
         private readonly BudgetFundingReadiness $readiness,
         private readonly BusinessPlanIdentity $identity,
         private readonly EntrepreneurDocumentTemplate $templates,
+        private readonly PlanIssueReadiness $issueReadiness,
     ) {}
 
     /**
@@ -91,6 +92,7 @@ final class BudgetPackBuilder
             'monthly_by_year' => $monthlyByYear,
             'scenarios' => $scenarios,
             'fixed_costs' => $this->fixedCosts($budget),
+            'future_costs' => $this->futureCosts($budget),
             'active_flags' => collect((array) ($budget->flags ?? []))
                 ->filter(fn (array $flag): bool => empty($flag['acknowledged_at']))
                 ->values()
@@ -102,6 +104,8 @@ final class BudgetPackBuilder
     {
         $payload = $this->payload($profile, $plan);
         $decision = (array) ($payload['funding_decision'] ?? []);
+        $issueReadiness = $this->issueReadiness->evaluate($plan);
+        $draftNotice = $this->draftNoticeHtml($issueReadiness);
         $annualRows = collect((array) $payload['annual_totals'])
             ->map(fn (array $row): string => $this->annualRowHtml($row))
             ->implode('');
@@ -135,6 +139,15 @@ final class BudgetPackBuilder
                 $this->escape($this->formatLabel((string) ($row['confidence'] ?? 'estimate'))),
             ))
             ->implode('');
+        $futureCostRows = collect((array) ($payload['future_costs'] ?? []))
+            ->map(fn (array $row): string => sprintf(
+                '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+                $this->escape($row['label'] ?? ''),
+                $this->money($row['amount'] ?? 0),
+                $this->escape($row['timing'] ?? ''),
+                $this->escape($this->formatLabel((string) ($row['confidence'] ?? 'estimate'))),
+            ))
+            ->implode('');
         $scenarioRows = collect((array) ($payload['scenarios'] ?? []))
             ->map(fn (array $scenario): string => sprintf(
                 '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
@@ -151,19 +164,7 @@ final class BudgetPackBuilder
         $cashStory = collect((array) ($payload['cash_story'] ?? []))
             ->map(fn (string $line): string => '<p>'.$this->escape($line).'</p>')
             ->implode('');
-        $financeSummary = $this->financeSummary($payload, $decision, $summary);
-
         $generatedAt = now()->format('M j, Y g:i A');
-        $financeSummarySection = sprintf(
-            <<<'HTML'
-<article class="report-section finance-summary">
-<div class="decision-kicker">Executive finance summary</div>
-<h2>Financial story</h2>
-<div class="finance-summary-copy"><p>%s</p></div>
-</article>
-HTML,
-            $this->escape($financeSummary),
-        );
         $decisionView = sprintf(
             <<<'HTML'
 <article class="report-section decision-view">
@@ -176,14 +177,14 @@ HTML,
             'Funding position',
             $this->escape($this->fundingPositionHeadline($decision)),
             $this->metricHtml('Lowest cash point', $this->moneyWithMonth($decision['lowest_cash'] ?? null, $decision['lowest_cash_month'] ?? null)),
-            $this->metricHtml('Additional cash need', $this->money($decision['additional_funding_needed'] ?? 0)),
-            $this->metricHtml('Funding gap / surplus', $this->signedMoney($decision['funding_gap_or_surplus'] ?? 0)),
+            $this->metricHtml('Required additional funding', $this->money($decision['required_additional_funding'] ?? 0)),
+            $this->metricHtml('Funding available', $this->money($decision['available_funding'] ?? 0)),
             $this->metricHtml('Runway', $this->runwayText($summary)),
         );
         $cashStorySection = sprintf(
             <<<'HTML'
 <article class="report-section cash-story">
-<h2>Cash story</h2>
+<h2>Cash and downside checks</h2>
 <div class="story">%s</div>
 %s
 </article>
@@ -194,8 +195,8 @@ HTML,
         $useOfFundsSection = sprintf(
             <<<'HTML'
 <article class="report-section">
-<h2>Use of funds</h2>
-<p class="section-intro">Funding need is calculated from launch costs, an operating-cover buffer, contingency, and the cash already available in the forecast.</p>
+<h2>Funding build-up</h2>
+<p class="section-intro">The funding position is built from planned one-off costs, an operating-cover buffer, contingency, and cash already available in the forecast.</p>
 <table class="decision-table">
 <thead><tr><th>Item</th><th>Amount</th><th>Why it matters</th></tr></thead>
 <tbody>%s</tbody>
@@ -205,8 +206,13 @@ HTML,
             $useOfFundsRows === '' ? '<tr><td colspan="3">No funding inputs saved.</td></tr>' : $useOfFundsRows,
         );
         $fixedCostsSection = sprintf(
-            '<article class="report-section"><h2>Monthly fixed-cost trace</h2><p class="section-intro">These are the itemised monthly fixed costs that underpin operating cover and the funding target.</p><table class="decision-table"><thead><tr><th>Cost item</th><th>Monthly amount</th><th>Starts</th><th>Confidence</th></tr></thead><tbody>%s</tbody></table></article>',
+            '<article class="report-section"><h2>Monthly fixed-cost trace</h2><p class="section-intro">These itemised costs total %s per month once all saved rows are active, and underpin the operating-cover calculation.</p><table class="decision-table"><thead><tr><th>Cost item</th><th>Monthly amount</th><th>Starts</th><th>Confidence</th></tr></thead><tbody>%s</tbody></table></article>',
+            $this->money($decision['monthly_fixed_costs'] ?? 0),
             $fixedCostRows === '' ? '<tr><td colspan="4">No monthly fixed costs saved.</td></tr>' : $fixedCostRows,
+        );
+        $futureCostsSection = sprintf(
+            '<article class="report-section"><h2>Later-year cost trace</h2><p class="section-intro">These costs are applied in the stated Year 2+ month. One-off items land in Month 1 of that year; recurring items continue from that point.</p><table class="decision-table"><thead><tr><th>Cost item</th><th>Amount</th><th>Timing</th><th>Confidence</th></tr></thead><tbody>%s</tbody></table></article>',
+            $futureCostRows === '' ? '<tr><td colspan="4">No later-year costs saved.</td></tr>' : $futureCostRows,
         );
         $annualForecast = sprintf(
             <<<'HTML'
@@ -242,7 +248,7 @@ HTML,
             heading: $title,
             subheading: 'Founder - '.$profile->name,
             meta: [],
-            contentHtml: $financeSummarySection.$decisionView.$cashStorySection.$useOfFundsSection.$fixedCostsSection.$scenariosSection.$assumptionsSection.$annualForecast.$monthlyPages,
+            contentHtml: $draftNotice.$decisionView.$cashStorySection.$useOfFundsSection.$fixedCostsSection.$futureCostsSection.$scenariosSection.$assumptionsSection.$annualForecast.$monthlyPages,
             footer: 'Generated '.$generatedAt.' using Future Shift Advisory budget pack',
             snapshotTitle: '',
             template: $template,
@@ -255,6 +261,7 @@ HTML,
         $payload = $this->payload($profile, $plan);
         $summary = (array) ($payload['summary'] ?? []);
         $decision = (array) ($payload['funding_decision'] ?? []);
+        $issueReadiness = $this->issueReadiness->evaluate($plan);
         $businessName = $this->identity->businessName($profile, $plan);
         $title = 'Budget Pack'.($businessName === null ? '' : ' - '.$businessName);
         $blocks = [
@@ -262,14 +269,8 @@ HTML,
                 'type' => 'cover',
                 'document_tag' => 'Budget pack',
                 'title' => $title,
-                'subtitle' => 'Founder - '.$profile->name,
+                'subtitle' => 'Founder - '.$profile->name.((bool) ($issueReadiness['external_issue_ready'] ?? false) ? '' : ' | INTERNAL DRAFT - NOT FOR EXTERNAL ISSUE'),
             ],
-            ['type' => 'page_break'],
-            [
-                'type' => 'section',
-                'text' => 'Financial story',
-            ],
-            ['type' => 'paragraph', 'text' => $this->financeSummary($payload, $decision, $summary)],
             ['type' => 'page_break'],
             ['type' => 'section', 'text' => 'Funding position'],
             ['type' => 'paragraph', 'text' => $this->fundingPositionHeadline($decision)],
@@ -278,8 +279,8 @@ HTML,
                 'headers' => ['Metric', 'Value'],
                 'rows' => [
                     ['Lowest cash point', $this->moneyWithMonth($decision['lowest_cash'] ?? null, $decision['lowest_cash_month'] ?? null)],
-                    ['Additional cash need', $this->money($decision['additional_funding_needed'] ?? 0)],
-                    ['Funding gap / surplus', $this->signedMoney($decision['funding_gap_or_surplus'] ?? 0)],
+                    ['Required additional funding', $this->money($decision['required_additional_funding'] ?? 0)],
+                    ['Funding available', $this->money($decision['available_funding'] ?? 0)],
                     ['Runway', $this->runwayText($summary)],
                 ],
                 'widths' => [1.2, 1],
@@ -288,7 +289,7 @@ HTML,
 
         $cashStory = array_values(array_map('strval', (array) ($payload['cash_story'] ?? [])));
         if ($cashStory !== []) {
-            $blocks[] = ['type' => 'section', 'text' => 'Cash story'];
+            $blocks[] = ['type' => 'section', 'text' => 'Cash and downside checks'];
             foreach ($cashStory as $line) {
                 $blocks[] = ['type' => 'paragraph', 'text' => $line];
             }
@@ -307,7 +308,7 @@ HTML,
             ])
             ->values()
             ->all();
-        $blocks[] = ['type' => 'section', 'text' => 'Use of funds'];
+        $blocks[] = ['type' => 'section', 'text' => 'Funding build-up'];
         $blocks[] = $useOfFunds === []
             ? ['type' => 'paragraph', 'text' => 'No funding inputs have been saved yet.']
             : [
@@ -334,6 +335,25 @@ HTML,
                 'headers' => ['Cost item', 'Monthly amount', 'Starts', 'Confidence'],
                 'rows' => $fixedCosts,
                 'widths' => [1.6, 1, 0.8, 0.9],
+            ];
+
+        $futureCosts = collect((array) ($payload['future_costs'] ?? []))
+            ->map(fn (array $row): array => [
+                (string) ($row['label'] ?? ''),
+                $this->money($row['amount'] ?? 0),
+                (string) ($row['timing'] ?? ''),
+                $this->formatLabel((string) ($row['confidence'] ?? 'estimate')),
+            ])
+            ->values()
+            ->all();
+        $blocks[] = ['type' => 'section', 'text' => 'Later-year cost trace'];
+        $blocks[] = $futureCosts === []
+            ? ['type' => 'paragraph', 'text' => 'No later-year costs have been saved yet.']
+            : [
+                'type' => 'table',
+                'headers' => ['Cost item', 'Amount', 'Timing', 'Confidence'],
+                'rows' => $futureCosts,
+                'widths' => [1.6, 1, 1.1, 0.9],
             ];
 
         $scenarios = collect((array) ($payload['scenarios'] ?? []))
@@ -482,19 +502,42 @@ HTML,
     }
 
     /**
+     * @return array<int, array{label:string,amount:float,timing:string,confidence:string}>
+     */
+    private function futureCosts(EntrepreneurBudget $budget): array
+    {
+        return collect((array) ($budget->future_costs ?? []))
+            ->map(function (array $row): array {
+                $year = max(2, (int) ($row['year'] ?? 2));
+                $recurring = (bool) ($row['recurring'] ?? false);
+
+                return [
+                    'label' => (string) ($row['label'] ?? 'Unlabelled later-year cost'),
+                    'amount' => round((float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1), 2),
+                    'timing' => $recurring
+                        ? 'From Year '.$year.', monthly'
+                        : 'Year '.$year.', Month 1 once',
+                    'confidence' => (string) ($row['confidence'] ?? 'estimate'),
+                ];
+            })
+            ->sortBy('timing')
+            ->values()
+            ->all();
+    }
+
+    /**
      * @param  array<string, mixed>  $decision
      * @return array<int, array<string, mixed>>
      */
     private function useOfFunds(EntrepreneurBudget $budget, array $decision): array
     {
         $operatingCoverMonths = (int) ($decision['operating_cover_months'] ?? 0);
-        $gapOrSurplus = (float) ($decision['funding_gap_or_surplus'] ?? 0);
 
         return [
             [
-                'label' => 'Launch costs',
+                'label' => 'Planned one-off costs',
                 'amount' => (float) ($decision['launch_costs'] ?? 0),
-                'note' => 'One-off setup costs entered in the budget.',
+                'note' => 'One-off costs entered in the budget, whether for setup, replacement, or growth.',
             ],
             [
                 'label' => 'Operating cover',
@@ -504,7 +547,7 @@ HTML,
             [
                 'label' => 'Contingency reserve',
                 'amount' => (float) ($decision['contingency_amount'] ?? 0),
-                'note' => '10% buffer on launch costs and operating cover for timing, pricing, and setup variance.',
+                'note' => '10% buffer on planned one-off costs and operating cover for timing and pricing variance.',
             ],
             [
                 'label' => 'Recommended funding target',
@@ -517,17 +560,9 @@ HTML,
                 'note' => 'Saved funding sources plus opening cash balance in the forecast.',
             ],
             [
-                'label' => 'Funding gap / surplus',
-                'amount' => $gapOrSurplus,
-                'display_amount' => $this->signedMoney($gapOrSurplus),
-                'note' => $gapOrSurplus >= 0
-                    ? 'The recommended target is covered by current funding inputs.'
-                    : 'Additional funding should be addressed before planned launch.',
-            ],
-            [
-                'label' => 'Minimum cash-curve cover',
-                'amount' => (float) ($decision['additional_funding_needed'] ?? 0),
-                'note' => 'Lowest extra cash required to stop the monthly forecast falling below zero.',
+                'label' => 'Required additional funding',
+                'amount' => (float) ($decision['required_additional_funding'] ?? 0),
+                'note' => 'The single funding action figure: the larger of the planned funding-target shortfall and the monthly cash-curve deficit.',
             ],
         ];
     }
@@ -546,18 +581,13 @@ HTML,
 
         if (is_numeric($lowestCash) && is_numeric($lowestMonth)) {
             if ((float) $lowestCash < 0) {
-                $story[] = 'The base forecast reaches its lowest cash point in Month '.((int) $lowestMonth).' at '.$this->money($lowestCash).', so the plan needs at least '.$this->money($decision['additional_funding_needed'] ?? 0).' of cash cover to keep cumulative cash above zero.';
+                $story[] = 'The base forecast reaches its lowest cash point in Month '.((int) $lowestMonth).' at '.$this->money($lowestCash).'. The funding position reflects this cash-curve deficit alongside the planned funding buffer.';
             } else {
                 $story[] = 'The base forecast stays above zero, with the lowest cash point in Month '.((int) $lowestMonth).' at '.$this->money($lowestCash).'.';
             }
         }
 
         $story[] = 'Break-even is '.$this->yearValue(data_get($computed, 'break_even_year')).' and cash-positive timing is '.$this->yearValue(data_get($computed, 'cash_flow_positive_year')).'. These should be read alongside the monthly cash curve rather than the annual profit table alone.';
-
-        $gapOrSurplus = (float) ($decision['funding_gap_or_surplus'] ?? 0);
-        $story[] = $gapOrSurplus >= 0
-            ? 'The recommended funding target is covered by current funding and opening cash, leaving a modelled surplus of '.$this->money($gapOrSurplus).'.'
-            : 'The recommended funding target is short by '.$this->money(abs($gapOrSurplus)).' after launch costs, operating cover, and contingency are included.';
 
         $downside = collect($scenarios)
             ->filter(fn (array $scenario): bool => (string) ($scenario['type'] ?? '') === 'sensitivity')
@@ -580,8 +610,7 @@ HTML,
     {
         $lowestCash = $decision['lowest_cash'] ?? null;
         $lowestMonth = $decision['lowest_cash_month'] ?? null;
-        $fundingGap = (float) ($decision['funding_gap_or_surplus'] ?? 0);
-        $additionalNeed = (float) ($decision['additional_funding_needed'] ?? 0);
+        $requiredAdditionalFunding = (float) ($decision['required_additional_funding'] ?? 0);
         $scenarioCount = (int) ($decision['scenario_count'] ?? count((array) ($payload['scenarios'] ?? [])));
         $sentences = [];
 
@@ -589,13 +618,13 @@ HTML,
             $sentences[] = 'The cash low point is '.$this->money($lowestCash).' in Month '.((int) $lowestMonth).', which is the first lender-read check because annual profit can hide short-term cash pressure.';
         }
 
-        if ($additionalNeed > 0) {
-            $sentences[] = 'The forecast needs '.$this->money($additionalNeed).' of cash cover to keep cumulative cash above zero.';
+        if ($requiredAdditionalFunding > 0) {
+            $sentences[] = 'The forecast requires '.$this->money($requiredAdditionalFunding).' of additional funding or equivalent assumption changes before external issue.';
         }
 
-        $sentences[] = $fundingGap >= 0
-            ? 'Current funding inputs cover the recommended launch, operating-cover, and contingency target with '.$this->money($fundingGap).' surplus.'
-            : 'Current funding inputs are '.$this->money(abs($fundingGap)).' below the recommended launch, operating-cover, and contingency target.';
+        $sentences[] = $requiredAdditionalFunding === 0.0
+            ? 'Current funding inputs cover the planned one-off costs, operating-cover, contingency, and monthly cash curve.'
+            : 'The funding build-up and cash curve should be read together so this remains one clear funding decision.';
 
         $sentences[] = 'Break-even is '.$this->yearValue($summary['break_even_year'] ?? null).', cash-positive timing is '.$this->yearValue($summary['cash_flow_positive_year'] ?? null).', and runway is '.$this->runwayText($summary).'.';
 
@@ -613,18 +642,13 @@ HTML,
      */
     private function fundingPositionHeadline(array $decision): string
     {
-        $gapOrSurplus = (float) ($decision['funding_gap_or_surplus'] ?? 0);
-        $additionalNeed = (float) ($decision['additional_funding_needed'] ?? 0);
+        $requiredAdditionalFunding = (float) ($decision['required_additional_funding'] ?? 0);
 
-        if ($gapOrSurplus < 0) {
-            return 'The current forecast is short by '.$this->money(abs($gapOrSurplus)).' against its recommended funding target. Closing that gap protects planned launch costs, operating cover, and contingency.';
+        if ($requiredAdditionalFunding > 0) {
+            return 'Required additional funding is '.$this->money($requiredAdditionalFunding).'. This single figure covers whichever is larger: the planned funding-target shortfall or the cash-curve deficit.';
         }
 
-        if ($additionalNeed > 0) {
-            return 'The forecast needs '.$this->money($additionalNeed).' of cash cover to keep cumulative cash above zero, even though the current funding target is otherwise covered.';
-        }
-
-        return 'Current funding and opening cash cover the modelled launch, operating-cover, and contingency target.';
+        return 'Current funding and opening cash cover the planned one-off costs, operating cover, contingency, and the monthly cash curve.';
     }
 
     /**
@@ -890,6 +914,7 @@ HTML,
 
         return collect([
             'revenue_growth_percent',
+            'year_two_revenue_basis',
             'cost_inflation_percent',
             'target_gross_profit_percent',
             'target_net_profit_before_tax_percent',
@@ -898,7 +923,11 @@ HTML,
         ])
             ->map(fn (string $key): array => [
                 'label' => (string) ($labels[$key] ?? $this->formatLabel($key)),
-                'value' => ((float) ($assumptions[$key] ?? 0)).'%',
+                'value' => $key === 'year_two_revenue_basis'
+                    ? (($assumptions[$key] ?? 'exit_run_rate') === 'year_one_average'
+                        ? 'Year 1 average monthly revenue'
+                        : 'Year 1 exit run-rate')
+                    : ((float) ($assumptions[$key] ?? 0)).'%',
                 'basis' => $this->assumptionBasis($key, $assumptions, $provided, $missing),
                 'review_note' => $this->assumptionReviewNote($key),
                 'provided' => ! in_array($key, $missing, true),
@@ -924,6 +953,10 @@ HTML,
                 : 'Not configured';
         }
 
+        if ($key === 'year_two_revenue_basis') {
+            return 'Founder/advisor selection';
+        }
+
         if (in_array($key, $provided, true)) {
             return 'Founder/advisor input';
         }
@@ -939,6 +972,7 @@ HTML,
     {
         return match ($key) {
             'revenue_growth_percent' => 'Check against pipeline, pricing tests, signed work, or demand evidence.',
+            'year_two_revenue_basis' => 'Use the Year 1 average only for an intentional seasonal or averaged forecast.',
             'cost_inflation_percent' => 'Check against current supplier pricing, rent, wages, software, and CPI context.',
             'target_gross_profit_percent' => 'Check price, direct delivery cost, capacity, and product or service mix.',
             'target_net_profit_before_tax_percent' => 'Check whether overheads and owner capacity support the target.',
@@ -1022,6 +1056,23 @@ HTML,
         );
     }
 
+    /**
+     * @param  array<string, mixed>  $issueReadiness
+     */
+    private function draftNoticeHtml(array $issueReadiness): string
+    {
+        if ((bool) ($issueReadiness['external_issue_ready'] ?? false)) {
+            return '';
+        }
+
+        $reasons = collect((array) ($issueReadiness['reasons'] ?? []))
+            ->take(4)
+            ->map(fn (string $reason): string => '<li>'.$this->escape($reason).'</li>')
+            ->implode('');
+
+        return '<div class="internal-draft-watermark">INTERNAL DRAFT</div><article class="report-section external-issue-warning"><h2>Internal draft - not for external issue</h2><p>Resolve the listed readiness items before sharing this document with a lender, investor, or other external audience.</p>'.($reasons === '' ? '' : '<ul>'.$reasons.'</ul>').'</article>';
+    }
+
     private function budgetPackCss(): string
     {
         return <<<'CSS'
@@ -1061,6 +1112,11 @@ HTML,
 .cash-trough-row { background: #fff1f0; }
 .cash-trough-label { color: #b42318; font-size: 8px; font-weight: 700; text-transform: uppercase; }
 .page { break-before: page; }
+.internal-draft-watermark { color: #b42318; font-size: 42px; font-weight: 700; left: 19%; letter-spacing: 0; opacity: 0.11; pointer-events: none; position: fixed; top: 46%; transform: rotate(-28deg); z-index: 0; }
+.external-issue-warning { background: #fff1f0; border-left-color: #b42318; margin-bottom: 16px; }
+.external-issue-warning h2 { color: #8a1c16; }
+.external-issue-warning p { margin: 0 0 8px; }
+.external-issue-warning ul { margin: 0; padding-left: 18px; }
 CSS;
     }
 

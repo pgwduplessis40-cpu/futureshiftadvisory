@@ -64,9 +64,8 @@ final class BudgetPackBuilderTest extends TestCase
 
         $html = app(BudgetPackBuilder::class)->html($profile, $plan);
 
-        $this->assertStringContainsString('Financial story', $html);
         $this->assertStringContainsString('Funding position', $html);
-        $this->assertStringContainsString('Use of funds', $html);
+        $this->assertStringContainsString('Funding build-up', $html);
         $this->assertStringContainsString('Assumption quality', $html);
         $this->assertStringContainsString('Scenario comparison', $html);
         $this->assertStringContainsString('Appendix - Year 1 monthly detail', $html);
@@ -75,8 +74,9 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringContainsString('Revenue -- gold', $html);
         $this->assertStringContainsString('Founder - Budget Founder', $html);
         $this->assertStringNotContainsString('Budget inputs', $html);
-        $this->assertStringNotContainsString('External issue', $html);
+        $this->assertStringContainsString('Internal draft - not for external issue', $html);
         $this->assertStringContainsString('Monthly fixed-cost trace', $html);
+        $this->assertStringContainsString('Later-year cost trace', $html);
         $this->assertStringContainsString('Lowest cash M1', $html);
         $this->assertStringContainsString('Break-even M2', $html);
         $this->assertStringContainsString('Runway M3', $html);
@@ -134,15 +134,14 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringContainsString('Budget Pack', $pdf);
         $this->assertStringContainsString('Founder - Budget Founder', $pdf);
         $this->assertStringContainsString('BUDGET PACK', $pdf);
-        $this->assertStringContainsString('Financial story', $pdf);
         $this->assertStringContainsString('Funding position', $pdf);
-        $this->assertStringContainsString('Use of funds', $pdf);
+        $this->assertStringContainsString('Funding build-up', $pdf);
         $this->assertStringContainsString('Assumption quality', $pdf);
         $this->assertStringContainsString('Scenario comparison', $pdf);
         $this->assertStringContainsString('Cash and revenue trend', $pdf);
         $this->assertStringContainsString('Annual forecast profile', $pdf);
         $this->assertStringNotContainsString('FALLBACK PDF', $pdf);
         $this->assertStringNotContainsString('Fallback rendering', $pdf);
-        $this->assertStringNotContainsString('External issue', $pdf);
+        $this->assertStringContainsString('INTERNAL DRAFT - NOT FOR EXTERNAL ISSUE', $pdf);
     }
 }

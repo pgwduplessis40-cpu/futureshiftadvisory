@@ -107,13 +107,13 @@ final class PlanRequirements
                 ],
                 [
                     'key' => 'launch-funding',
-                    'title' => 'Launch funding and support',
-                    'description' => 'Describe start-up funding, support needed, runway, and financial risk controls.',
+                    'title' => 'Funding and support',
+                    'description' => 'Describe planned funding, support needed, runway, and financial risk controls.',
                 ],
                 [
                     'key' => 'budget-runway',
                     'title' => 'Budget',
-                    'description' => 'Enter launch costs, monthly costs, revenue assumptions, funding sources, and expected runway.',
+                    'description' => 'Enter planned one-off costs, monthly costs, revenue assumptions, funding sources, and expected runway.',
                     'type' => 'budget',
                 ],
                 [

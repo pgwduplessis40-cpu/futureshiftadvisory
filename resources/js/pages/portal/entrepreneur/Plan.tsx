@@ -46,6 +46,7 @@ import { cn } from '@/lib/utils';
 type ProfilePayload = {
     id: string;
     name: string;
+    company_name: string | null;
     email: string;
     stage: string;
     stage_label: string;
@@ -176,6 +177,7 @@ type BudgetRow = {
 
 type BudgetAssumptions = {
     revenue_growth_percent: string | number;
+    year_two_revenue_basis: 'exit_run_rate' | 'year_one_average';
     cost_inflation_percent: string | number;
     target_gross_profit_percent: string | number;
     target_net_profit_before_tax_percent: string | number;
@@ -418,6 +420,7 @@ type Props = {
         ideaValidation: string;
         recallIdeaValidation: string;
         startPlan: string;
+        companyNameUpdate: string;
         sectionStore: string;
         budgetUpdate: string;
         budgetPack: string;
@@ -448,6 +451,9 @@ export default function EntrepreneurPlan({
     urls,
 }: Props) {
     const [activeTab, setActiveTab] = useState<Tab>('actions');
+    const companyNameForm = useForm({
+        company_name: profile.company_name ?? '',
+    });
     const ideaForm = useForm<IdeaValidationForm>({
         problem: ideaValidation?.problem ?? '',
         target_customer: ideaValidation?.target_customer ?? '',
@@ -1198,6 +1204,39 @@ export default function EntrepreneurPlan({
                                 profile.stage_label,
                             )}
                         </div>
+                        {includesPlanBudget ? (
+                            <form
+                                className="mt-3 flex max-w-xl flex-col gap-2 sm:flex-row sm:items-end"
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    companyNameForm.post(urls.companyNameUpdate, {
+                                        preserveScroll: true,
+                                    });
+                                }}
+                            >
+                                <label className="grid flex-1 gap-1 text-xs font-medium text-muted-foreground">
+                                    Company / proposed company name
+                                    <input
+                                        className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                                        value={companyNameForm.data.company_name}
+                                        onChange={(event) =>
+                                            companyNameForm.setData(
+                                                'company_name',
+                                                event.target.value,
+                                            )
+                                        }
+                                        placeholder="e.g. Harbour Studio Limited"
+                                    />
+                                </label>
+                                <Button
+                                    type="submit"
+                                    size="sm"
+                                    disabled={companyNameForm.processing}
+                                >
+                                    Save name
+                                </Button>
+                            </form>
+                        ) : null}
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <Button asChild size="sm" variant="outline">
@@ -2850,7 +2889,7 @@ function BudgetEditor({
                     />
                     <span className="text-muted-foreground">
                         Budget progress counts toward the Financial phase
-                        milestone once the revenue model and launch funding
+                        milestone once the revenue model and funding
                         requirements are also complete.
                     </span>
                 </div>
@@ -3049,8 +3088,8 @@ function BudgetEditor({
 
                     <div className="grid gap-4">
                         <BudgetRowsEditor
-                            title="What do you need before your first sale?"
-                            helper="Include one-off setup items such as equipment, website, deposits, signage, licences, stock, or launch marketing."
+                            title="What one-off costs need funding?"
+                            helper="Include setup, replacement, or growth items such as equipment, website, deposits, signage, licences, stock, or marketing."
                             group="launch_costs"
                             rows={form.launch_costs}
                             onFormChange={onFormChange}
@@ -3075,7 +3114,7 @@ function BudgetEditor({
                             revenue
                         />
                         <BudgetRowsEditor
-                            title="What money can you use to start?"
+                            title="What funding or cash is available?"
                             helper="Include founder cash, confirmed grants, loans, family support, customer deposits, or pre-sales."
                             group="funding_sources"
                             rows={form.funding_sources}
@@ -3140,7 +3179,7 @@ function BudgetEditor({
 
                     <div className="grid gap-4">
                         <BudgetRowsEditor
-                            title="Launch costs"
+                            title="Planned one-off costs"
                             group="launch_costs"
                             rows={form.launch_costs}
                             onFormChange={onFormChange}
@@ -3181,7 +3220,7 @@ function BudgetEditor({
                 <>
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         <BudgetMetric
-                            label="Launch costs"
+                            label="Planned one-off costs"
                             value={formatCurrency(computed.total_launch_costs)}
                         />
                         <BudgetMetric
@@ -3580,7 +3619,33 @@ function BudgetAssumptionsEditor({
     ];
 
     return (
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
+        <div className="space-y-3">
+            <label className="grid max-w-md gap-1 text-xs">
+                <span className="text-muted-foreground">Revenue after Year 1</span>
+                <select
+                    value={assumptions.year_two_revenue_basis}
+                    onChange={(event) =>
+                        onFormChange((current) => ({
+                            ...current,
+                            assumptions: {
+                                ...current.assumptions,
+                                year_two_revenue_basis:
+                                    event.target.value === 'year_one_average'
+                                        ? 'year_one_average'
+                                        : 'exit_run_rate',
+                            },
+                        }))
+                    }
+                    className="h-9 rounded-md border bg-background px-2 text-sm"
+                >
+                    <option value="exit_run_rate">Carry forward the Year 1 exit run-rate</option>
+                    <option value="year_one_average">Use the Year 1 average monthly revenue</option>
+                </select>
+                <span className="text-[11px] leading-snug text-muted-foreground">
+                    Carry-forward avoids an artificial Month 12 to Month 13 drop. Use the average only for a deliberate seasonal or averaged forecast.
+                </span>
+            </label>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
             {fields.map((field) => (
                 <label key={field.key} className="grid min-w-0 gap-1 text-xs">
                     <span className="text-muted-foreground">{field.label}</span>
@@ -3610,6 +3675,7 @@ function BudgetAssumptionsEditor({
                     </span>
                 </label>
             ))}
+            </div>
         </div>
     );
 }
@@ -4375,6 +4441,7 @@ function mergeBudgetAssumptions(
             current.revenue_growth_percent ||
             suggested.revenue_growth_percent ||
             '',
+        year_two_revenue_basis: current.year_two_revenue_basis,
         cost_inflation_percent:
             current.cost_inflation_percent ||
             suggested.cost_inflation_percent ||
@@ -4648,6 +4715,10 @@ function cleanBudgetForm(form: BudgetFormState) {
             revenue_growth_percent: signedNumberFromInput(
                 form.assumptions.revenue_growth_percent,
             ),
+            year_two_revenue_basis:
+                form.assumptions.year_two_revenue_basis === 'year_one_average'
+                    ? 'year_one_average'
+                    : 'exit_run_rate',
             cost_inflation_percent: signedNumberFromInput(
                 form.assumptions.cost_inflation_percent,
                 -100,
@@ -4818,6 +4889,10 @@ function normaliseBudgetAssumptions(
 ): BudgetAssumptions {
     return {
         revenue_growth_percent: assumptions?.revenue_growth_percent ?? '',
+        year_two_revenue_basis:
+            assumptions?.year_two_revenue_basis === 'year_one_average'
+                ? 'year_one_average'
+                : 'exit_run_rate',
         cost_inflation_percent: assumptions?.cost_inflation_percent ?? '',
         target_gross_profit_percent:
             assumptions?.target_gross_profit_percent ?? '',

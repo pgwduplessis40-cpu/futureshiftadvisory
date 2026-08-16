@@ -62,8 +62,9 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             id: string;
             round: number;
             status: string;
-            overall_grade: string;
-            weighted_score: number;
+            overall_grade: string | null;
+            weighted_score: number | null;
+            automated_score_available: boolean;
             finalised_at: string | null;
             rating_framework: {
                 id: string | null;
@@ -100,8 +101,9 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             id: string;
             round: number;
             status: string;
-            overall_grade: string;
-            weighted_score: number;
+            overall_grade: string | null;
+            weighted_score: number | null;
+            automated_score_available: boolean;
             score_delta: number | null;
             score_source_summary: string;
             created_at: string | null;

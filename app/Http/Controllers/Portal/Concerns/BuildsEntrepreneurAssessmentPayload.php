@@ -30,10 +30,30 @@ trait BuildsEntrepreneurAssessmentPayload
         $reusedScores = collect($assessment->ai_scores ?? [])
             ->filter(fn (mixed $score): bool => is_array($score)
                 && (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'reused_identical_context');
-        $requiresFullReassessment = $reusedScores->isNotEmpty();
-        $automatedScoreDescription = $requiresFullReassessment
-            ? 'This historical round carried forward automatic scores from an earlier assessment. The submitted-plan snapshot is correct for this round, but no new AI score was generated. Run a fresh assessment before relying on the automatic score.'
-            : 'Advisor-reviewed scores override the automated score only where an advisor has added a review score.';
+        $hasFallbackScores = AssessmentScoring::hasFallbackScores($assessment);
+        $requiresFullReassessment = $reusedScores->isNotEmpty() || $hasFallbackScores;
+        $automatedScoreAvailable = ! $hasFallbackScores;
+        $automatedScoreDescription = match (true) {
+            $hasFallbackScores => 'No valid AI score was returned for this historical round. Its calculated fallback values are retained only for audit and must not be used for advice or progression.',
+            $reusedScores->isNotEmpty() => 'This historical round carried forward automatic scores from an earlier assessment. The submitted-plan snapshot is correct for this round, but no new AI score was generated. Run a fresh assessment before relying on the automatic score.',
+            default => 'Advisor-reviewed scores override the automated score only where an advisor has added a review score.',
+        };
+        $explanation = match (true) {
+            $hasFallbackScores => sprintf(
+                'Assessment round %d has no valid AI score. It is retained as an audit record only and is excluded from progression. Run a fresh assessment before relying on it.',
+                max(1, (int) $assessment->round),
+            ),
+            $requiresFullReassessment => sprintf(
+                'This score is the weighted total from assessment round %d. The plan snapshot belongs to this round, but the automatic scores were carried forward from an earlier round instead of being generated again. Run a fresh assessment to score all submitted plan evidence. A score of %.0f or above marks the plan as advisory ready.',
+                max(1, (int) $assessment->round),
+                AdvisoryReadiness::THRESHOLD,
+            ),
+            default => sprintf(
+                'This score is the weighted total from assessment round %d. Advisor-reviewed scores are used where present; otherwise the automated score generated for this round is used. A score of %.0f or above marks the plan as advisory ready.',
+                max(1, (int) $assessment->round),
+                AdvisoryReadiness::THRESHOLD,
+            ),
+        };
 
         return [
             'id' => $assessment->id,
@@ -43,6 +63,7 @@ trait BuildsEntrepreneurAssessmentPayload
             'weighted_score' => $weightedScore,
             'threshold' => AdvisoryReadiness::THRESHOLD,
             'requires_full_reassessment' => $requiresFullReassessment,
+            'automated_score_available' => $automatedScoreAvailable,
             'finalised_at' => $assessment->finalised_at?->toIso8601String(),
             'created_at' => $assessment->created_at?->toIso8601String(),
             'basis' => [
@@ -89,13 +110,7 @@ trait BuildsEntrepreneurAssessmentPayload
             ],
             'mentor_notes' => $this->entrepreneurVisibleMentorNotes($assessment),
             'criteria' => $criteria,
-            'explanation' => sprintf(
-                $requiresFullReassessment
-                    ? 'This score is the weighted total from assessment round %d. The plan snapshot belongs to this round, but the automatic scores were carried forward from an earlier round instead of being generated again. Run a fresh assessment to score all submitted plan evidence. A score of %.0f or above marks the plan as advisory ready.'
-                    : 'This score is the weighted total from assessment round %d. Advisor-reviewed scores are used where present; otherwise the automated score generated for this round is used. A score of %.0f or above marks the plan as advisory ready.',
-                max(1, (int) $assessment->round),
-                AdvisoryReadiness::THRESHOLD,
-            ),
+            'explanation' => $explanation,
         ];
     }
 

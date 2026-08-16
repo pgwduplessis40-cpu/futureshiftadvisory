@@ -131,6 +131,27 @@ final class PlanBuilderTest extends TestCase
             );
     }
 
+    public function test_entrepreneur_can_save_a_company_or_proposed_company_name_for_plan_exports(): void
+    {
+        [, $profile] = $this->profile('company-name-founder@example.test');
+        $entrepreneur = $profile->user()->firstOrFail();
+
+        $this->actingAsMfa($entrepreneur)
+            ->post(route('portal.entrepreneur.plan.company-name.update'), [
+                'company_name' => 'Harbour Studio Limited',
+            ])
+            ->assertRedirect(route('portal.entrepreneur.plan.show'));
+
+        $this->assertSame('Harbour Studio Limited', $profile->refresh()->company_name);
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.plan.show'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('profile.company_name', 'Harbour Studio Limited')
+            );
+    }
+
     public function test_jump_ahead_dependency_warning_is_stored_on_section_metadata(): void
     {
         [$advisor, $profile] = $this->profile('jump-plan-founder@example.test');
