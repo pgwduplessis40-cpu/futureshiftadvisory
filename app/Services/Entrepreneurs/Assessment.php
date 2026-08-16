@@ -20,6 +20,7 @@ use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 final class Assessment implements ProvidesMethodology
 {
@@ -93,6 +94,10 @@ final class Assessment implements ProvidesMethodology
             ]);
             $lockedPlan->forceFill([
                 'status' => BusinessPlan::STATUS_ASSESSING,
+                'assessment_run_status' => 'completed',
+                'assessment_run_completed_at' => now(),
+                'assessment_run_failed_at' => null,
+                'assessment_run_failure' => null,
             ])->save();
 
             $this->audit->record('entrepreneur.plan_first_pass_scored', subject: $assessment, actor: $actor, after: [
@@ -105,6 +110,85 @@ final class Assessment implements ProvidesMethodology
             ]);
 
             return $assessment->refresh()->load('ratingFramework.criteria');
+        });
+    }
+
+    public function queueFirstPass(BusinessPlan $plan, User $actor): bool
+    {
+        return DB::transaction(function () use ($plan, $actor): bool {
+            $lockedPlan = BusinessPlan::query()
+                ->whereKey($plan->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (in_array($lockedPlan->assessment_run_status, ['queued', 'running'], true)) {
+                return false;
+            }
+
+            $lockedPlan->forceFill([
+                'status' => BusinessPlan::STATUS_ASSESSING,
+                'assessment_run_status' => 'queued',
+                'assessment_run_requested_at' => now(),
+                'assessment_run_started_at' => null,
+                'assessment_run_completed_at' => null,
+                'assessment_run_failed_at' => null,
+                'assessment_run_failure' => null,
+                'assessment_run_requested_by_user_id' => $actor->getKey(),
+            ])->save();
+
+            $this->audit->record('entrepreneur.plan_assessment_queued', subject: $lockedPlan, actor: $actor, after: [
+                'business_plan_id' => $lockedPlan->getKey(),
+            ]);
+
+            return true;
+        });
+    }
+
+    public function markQueuedFirstPassRunning(BusinessPlan $plan, User $actor): ?BusinessPlan
+    {
+        return DB::transaction(function () use ($plan, $actor): ?BusinessPlan {
+            $lockedPlan = BusinessPlan::query()
+                ->whereKey($plan->getKey())
+                ->lockForUpdate()
+                ->first();
+
+            if (! $lockedPlan instanceof BusinessPlan || $lockedPlan->assessment_run_status !== 'queued') {
+                return null;
+            }
+
+            $lockedPlan->forceFill([
+                'assessment_run_status' => 'running',
+                'assessment_run_started_at' => now(),
+            ])->save();
+
+            $this->audit->record('entrepreneur.plan_assessment_started', subject: $lockedPlan, actor: $actor, after: [
+                'business_plan_id' => $lockedPlan->getKey(),
+            ]);
+
+            return $lockedPlan->refresh();
+        });
+    }
+
+    public function markQueuedFirstPassFailed(BusinessPlan $plan, User $actor, Throwable $exception): BusinessPlan
+    {
+        return DB::transaction(function () use ($plan, $actor, $exception): BusinessPlan {
+            $lockedPlan = BusinessPlan::query()
+                ->whereKey($plan->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $lockedPlan->forceFill([
+                'assessment_run_status' => 'failed',
+                'assessment_run_failed_at' => now(),
+                'assessment_run_failure' => Str::limit($exception->getMessage(), 300),
+            ])->save();
+
+            $this->audit->record('entrepreneur.plan_assessment_failed', subject: $lockedPlan, actor: $actor, after: [
+                'business_plan_id' => $lockedPlan->getKey(),
+                'exception' => $exception::class,
+            ]);
+
+            return $lockedPlan->refresh();
         });
     }
 

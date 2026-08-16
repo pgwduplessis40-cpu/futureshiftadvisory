@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Entrepreneurs;
 
 use App\Enums\EntrepreneurStage;
+use App\Jobs\RunEntrepreneurPlanAssessment;
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurProfile;
 use App\Models\LearningUpdate;
@@ -24,6 +25,7 @@ use Database\Seeders\FoundingRatingFrameworkValuesSeeder;
 use Database\Seeders\RatingFrameworkSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\MakesIdeaReviewEligible;
@@ -73,12 +75,13 @@ final class AssessmentTest extends TestCase
         $this->assertSame('exceptional', $assessment->overall_grade);
     }
 
-    public function test_super_admin_assessment_from_the_workspace_persists_and_returns_to_the_workspace(): void
+    public function test_super_admin_assessment_from_the_workspace_queues_a_durable_background_run(): void
     {
         [$advisor, $plan] = $this->plan('workspace-assessment-founder@example.test');
         $profile = $plan->entrepreneurProfile()->firstOrFail();
         $admin = User::factory()->superAdmin()->withTwoFactor()->create();
         $admin->assignRole(User::TYPE_SUPER_ADMIN);
+        Queue::fake();
 
         $response = $this->actingAsMfa($admin)
             ->post(route('advisor.entrepreneurs.plans.assessments.store', [
@@ -86,12 +89,34 @@ final class AssessmentTest extends TestCase
                 'businessPlan' => $plan,
             ]));
 
+        $response->assertRedirect(route('advisor.entrepreneurs.show', $profile, absolute: false));
+        Queue::assertPushed(
+            RunEntrepreneurPlanAssessment::class,
+            fn (RunEntrepreneurPlanAssessment $job): bool => $job->businessPlanId === (string) $plan->getKey()
+                && $job->advisorId === (int) $admin->getKey(),
+        );
+        $this->assertSame('queued', $plan->refresh()->assessment_run_status);
+        $this->assertDatabaseCount('plan_assessments', 0);
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('advisor/entrepreneurs/Show')
+                ->where('entrepreneur.latest_plan.assessment_count', 0)
+                ->where('entrepreneur.latest_plan.assessment_run.status', 'queued')
+                ->where('entrepreneur.latest_plan.can_assess', false)
+            );
+
+        (new RunEntrepreneurPlanAssessment((string) $plan->getKey(), (int) $admin->getKey()))
+            ->handle(app(RequestContext::class), app(Assessment::class));
+
         $assessment = PlanAssessment::query()
             ->where('business_plan_id', $plan->getKey())
             ->firstOrFail();
 
-        $response->assertRedirect(route('advisor.entrepreneurs.show', $profile, absolute: false));
         $this->assertSame(EntrepreneurStage::ASSESSMENT, $profile->refresh()->stage);
+        $this->assertSame('completed', $plan->refresh()->assessment_run_status);
 
         $this->actingAsMfa($admin)
             ->get(route('advisor.entrepreneurs.show', $profile))
@@ -133,12 +158,18 @@ final class AssessmentTest extends TestCase
         );
         $plan->forceFill(['status' => BusinessPlan::STATUS_SUBMITTED])->save();
         $ai->scorePrompts = [];
+        Queue::fake();
 
         $response = $this->actingAsMfa($admin)
             ->post(route('advisor.entrepreneurs.plans.assessments.store', [
                 'entrepreneurProfile' => $profile,
                 'businessPlan' => $plan,
             ]));
+
+        Queue::assertPushed(RunEntrepreneurPlanAssessment::class);
+        $this->assertSame('queued', $plan->refresh()->assessment_run_status);
+        (new RunEntrepreneurPlanAssessment((string) $plan->getKey(), (int) $admin->getKey()))
+            ->handle(app(RequestContext::class), app(Assessment::class));
 
         $latest = PlanAssessment::query()
             ->where('business_plan_id', $plan->getKey())
@@ -196,6 +227,25 @@ final class AssessmentTest extends TestCase
                     && str_contains($value, 'automated score generated for this round')
                     && ! str_contains(strtolower($value), 'first-pass'))
             );
+    }
+
+    public function test_queued_assessment_records_a_failure_without_creating_a_partial_round(): void
+    {
+        [$advisor, $plan] = $this->plan('queued-assessment-failure@example.test');
+        $this->app->instance(AiClient::class, new FailingScoreAiClient);
+
+        $this->assertTrue(app(Assessment::class)->queueFirstPass($plan, $advisor));
+
+        (new RunEntrepreneurPlanAssessment((string) $plan->getKey(), (int) $advisor->getKey()))
+            ->handle(app(RequestContext::class), app(Assessment::class));
+
+        $this->assertSame('failed', $plan->refresh()->assessment_run_status);
+        $this->assertStringContainsString('provider did not respond', (string) $plan->assessment_run_failure);
+        $this->assertDatabaseCount('plan_assessments', 0);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.plan_assessment_failed',
+            'subject_id' => $plan->getKey(),
+        ]);
     }
 
     public function test_reassessment_generates_fresh_scores_when_the_submitted_plan_has_not_changed(): void
@@ -695,5 +745,33 @@ final class CapturingScoreAiClient implements AiClient
             tokensOut: 1,
             metadata: $metadata,
         );
+    }
+}
+
+final class FailingScoreAiClient implements AiClient
+{
+    public function analyse(PromptEnvelope $prompt): AiResponse
+    {
+        throw new \RuntimeException('AI provider did not respond while scoring the plan.');
+    }
+
+    public function verifyDocument(PromptEnvelope $prompt): AiResponse
+    {
+        throw new \RuntimeException('AI provider did not respond while scoring the plan.');
+    }
+
+    public function scoreCriterion(PromptEnvelope $prompt): AiResponse
+    {
+        throw new \RuntimeException('AI provider did not respond while scoring the plan.');
+    }
+
+    public function summarise(PromptEnvelope $prompt): AiResponse
+    {
+        throw new \RuntimeException('AI provider did not respond while scoring the plan.');
+    }
+
+    public function redFlag(PromptEnvelope $prompt): AiResponse
+    {
+        throw new \RuntimeException('AI provider did not respond while scoring the plan.');
     }
 }

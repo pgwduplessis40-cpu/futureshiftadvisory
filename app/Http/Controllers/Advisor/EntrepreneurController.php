@@ -775,6 +775,8 @@ final class EntrepreneurController extends Controller
     {
         $latestAssessment = $plan->assessments->sortByDesc('round')->first();
         $latestRevision = $plan->revisions->sortByDesc('round')->first();
+        $assessmentRunStatus = $plan->assessment_run_status;
+        $assessmentRunInFlight = in_array($assessmentRunStatus, ['queued', 'running'], true);
         $latestAssessmentPayload = $latestAssessment instanceof PlanAssessment
             ? $this->assessmentPayload($latestAssessment)
             : null;
@@ -786,10 +788,21 @@ final class EntrepreneurController extends Controller
             'assessment_count' => $plan->assessments->count(),
             'latest_round' => $latestAssessment?->round,
             'latest_grade' => $latestAssessment?->overall_grade,
-            'can_assess' => $this->canAssessPlan($plan),
-            'assessment_action_label' => $latestAssessment instanceof PlanAssessment
-                ? 'Run reassessment'
-                : 'Run assessment',
+            'can_assess' => $this->canAssessPlan($plan) && ! $assessmentRunInFlight,
+            'assessment_action_label' => match ($assessmentRunStatus) {
+                'queued' => 'Assessment queued',
+                'running' => 'Assessment running',
+                'failed' => 'Retry assessment',
+                default => $latestAssessment instanceof PlanAssessment ? 'Run reassessment' : 'Run assessment',
+            },
+            'assessment_run' => [
+                'status' => $assessmentRunStatus,
+                'requested_at' => $plan->assessment_run_requested_at?->toIso8601String(),
+                'started_at' => $plan->assessment_run_started_at?->toIso8601String(),
+                'completed_at' => $plan->assessment_run_completed_at?->toIso8601String(),
+                'failed_at' => $plan->assessment_run_failed_at?->toIso8601String(),
+                'failure' => $plan->assessment_run_failure,
+            ],
             'latest_assessment' => $latestAssessmentPayload ? [
                 'id' => $latestAssessmentPayload['id'],
                 'round' => $latestAssessmentPayload['round'],

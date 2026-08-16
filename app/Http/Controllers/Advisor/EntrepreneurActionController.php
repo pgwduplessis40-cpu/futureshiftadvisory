@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Advisor;
 use App\Enums\EntrepreneurStage;
 use App\Http\Controllers\Controller;
 use App\Jobs\RefreshIdeaValidationAiReview;
+use App\Jobs\RunEntrepreneurPlanAssessment;
 use App\Models\AdvisoryReadinessSignal;
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurProfile;
@@ -95,19 +96,22 @@ final class EntrepreneurActionController extends Controller
         $advisor = $this->advisor($request);
 
         try {
-            $assessments->firstPass($businessPlan->refresh()->load('sections'), $advisor);
-            $entrepreneurProfile->forceFill(['stage' => EntrepreneurStage::ASSESSMENT])->save();
+            $queued = $assessments->queueFirstPass($businessPlan, $advisor);
+            if ($queued) {
+                RunEntrepreneurPlanAssessment::dispatch((string) $businessPlan->getKey(), (int) $advisor->getKey());
+            }
         } catch (Throwable $exception) {
+            $assessments->markQueuedFirstPassFailed($businessPlan, $advisor, $exception);
             report($exception);
 
             return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)
                 ->withErrors([
-                    'assessment' => 'The assessment could not be saved, so no new assessment round was created. Please retry after the issue has been resolved.',
+                    'assessment' => 'The assessment could not be queued. Please retry after the issue has been resolved.',
                 ]);
         }
 
         return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)
-            ->with('status', 'entrepreneur-plan-assessed');
+            ->with('status', $queued ? 'entrepreneur-plan-assessment-queued' : 'entrepreneur-plan-assessment-running');
     }
 
     public function finalise(

@@ -44,6 +44,15 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         latest_grade: string | null;
         can_assess: boolean;
         assessment_action_label: string;
+        assessment_run: {
+            status:
+                'queued' | 'running' | 'completed' | 'failed' | string | null;
+            requested_at: string | null;
+            started_at: string | null;
+            completed_at: string | null;
+            failed_at: string | null;
+            failure: string | null;
+        };
         latest_assessment: {
             id: string;
             round: number;

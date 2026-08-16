@@ -105,6 +105,10 @@ export default function EntrepreneursShow({
     const latestAssessmentUsesCurrentRubric =
         latestAssessment?.rating_framework.is_current ?? true;
     const canRunAssessment = entrepreneur.latest_plan?.can_assess ?? false;
+    const assessmentRun = entrepreneur.latest_plan?.assessment_run;
+    const assessmentRunInFlight =
+        assessmentRun?.status === 'queued' ||
+        assessmentRun?.status === 'running';
     const assessmentActionLabel =
         entrepreneur.latest_plan?.assessment_action_label ??
         (latestAssessment ? 'Run reassessment' : 'Run assessment');
@@ -118,6 +122,7 @@ export default function EntrepreneursShow({
         useState(false);
     const [assessmentPending, setAssessmentPending] = useState(false);
     const [assessmentError, setAssessmentError] = useState<string | null>(null);
+    const assessmentBusy = assessmentPending || assessmentRunInFlight;
     const [gateNote, setGateNote] = useState('');
     const [changeRequestNote, setChangeRequestNote] = useState('');
     const [ideaRefreshPending, setIdeaRefreshPending] = useState(false);
@@ -176,7 +181,7 @@ export default function EntrepreneursShow({
     const runAssessment = () => {
         const assessUrl = entrepreneur.latest_plan?.assess_url;
 
-        if (!assessUrl || assessmentPending) {
+        if (!assessUrl || assessmentBusy) {
             return;
         }
 
@@ -201,6 +206,20 @@ export default function EntrepreneursShow({
             },
         );
     };
+
+    useEffect(() => {
+        if (!assessmentRunInFlight) {
+            return;
+        }
+
+        const refreshId = window.setInterval(() => {
+            router.reload({
+                only: ['entrepreneur'],
+            });
+        }, 5000);
+
+        return () => window.clearInterval(refreshId);
+    }, [assessmentRunInFlight]);
     const submittedIdeaFields = ideaValidation
         ? [
               { label: 'Problem', value: ideaValidation.problem },
@@ -889,20 +908,19 @@ export default function EntrepreneursShow({
                                         </Link>
                                     </Button>
                                 ) : null}
-                                {canRunAssessment ? (
+                                {canRunAssessment || assessmentRunInFlight ? (
                                     <Button
                                         type="button"
                                         size="sm"
                                         variant="outline"
-                                        disabled={assessmentPending}
+                                        disabled={assessmentBusy}
                                         onClick={runAssessment}
                                     >
-                                        {assessmentPending ||
-                                        latestAssessment ? (
+                                        {assessmentBusy || latestAssessment ? (
                                             <RefreshCw
                                                 className={cn(
                                                     'size-4',
-                                                    assessmentPending &&
+                                                    assessmentBusy &&
                                                         'animate-spin',
                                                 )}
                                                 aria-hidden="true"
@@ -913,8 +931,10 @@ export default function EntrepreneursShow({
                                                 aria-hidden="true"
                                             />
                                         )}
-                                        {assessmentPending
-                                            ? 'Running assessment'
+                                        {assessmentBusy
+                                            ? assessmentRun?.status === 'queued'
+                                                ? 'Assessment queued'
+                                                : 'Assessment running'
                                             : assessmentActionLabel}
                                     </Button>
                                 ) : null}
@@ -970,14 +990,26 @@ export default function EntrepreneursShow({
                             </div>
                         </div>
 
-                        {assessmentPending ? (
+                        {assessmentBusy ? (
                             <p
                                 className="text-sm text-muted-foreground"
                                 role="status"
                             >
-                                Scoring the current plan and saving the next
-                                assessment round. This can take a moment.
+                                {assessmentRun?.status === 'queued'
+                                    ? 'Assessment queued. The current plan will be scored in the background, and this page will refresh when it is complete.'
+                                    : 'Scoring the current plan and saving the next assessment round. This page will refresh when it is complete.'}
                             </p>
+                        ) : null}
+                        {assessmentRun?.status === 'failed' ? (
+                            <div
+                                className="border-l-4 border-red-500 bg-red-50 px-3 py-2 text-sm text-red-950"
+                                role="alert"
+                            >
+                                Assessment failed before a new round was saved.
+                                {assessmentRun.failure
+                                    ? ` ${assessmentRun.failure}`
+                                    : ' Retry the assessment to create a fresh score.'}
+                            </div>
                         ) : null}
                         <InputError message={assessmentError ?? undefined} />
 
@@ -1031,18 +1063,20 @@ export default function EntrepreneursShow({
                                     size="sm"
                                     variant="outline"
                                     className="border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
-                                    disabled={assessmentPending}
+                                    disabled={assessmentBusy}
                                     onClick={runAssessment}
                                 >
                                     <RefreshCw
                                         className={cn(
                                             'size-4',
-                                            assessmentPending && 'animate-spin',
+                                            assessmentBusy && 'animate-spin',
                                         )}
                                         aria-hidden="true"
                                     />
-                                    {assessmentPending
-                                        ? 'Running assessment'
+                                    {assessmentBusy
+                                        ? assessmentRun?.status === 'queued'
+                                            ? 'Assessment queued'
+                                            : 'Assessment running'
                                         : assessmentActionLabel}
                                 </Button>
                             </div>
@@ -2148,19 +2182,19 @@ export default function EntrepreneursShow({
                                         </Link>
                                     </Button>
                                 ) : null}
-                                {canRunAssessment ? (
+                                {canRunAssessment || assessmentRunInFlight ? (
                                     <Button
                                         type="button"
                                         size="sm"
                                         variant="outline"
-                                        disabled={assessmentPending}
+                                        disabled={assessmentBusy}
                                         onClick={runAssessment}
                                     >
                                         {latestAssessment ? (
                                             <RefreshCw
                                                 className={cn(
                                                     'size-4',
-                                                    assessmentPending &&
+                                                    assessmentBusy &&
                                                         'animate-spin',
                                                 )}
                                                 aria-hidden="true"
@@ -2171,8 +2205,10 @@ export default function EntrepreneursShow({
                                                 aria-hidden="true"
                                             />
                                         )}
-                                        {assessmentPending
-                                            ? 'Running assessment'
+                                        {assessmentBusy
+                                            ? assessmentRun?.status === 'queued'
+                                                ? 'Assessment queued'
+                                                : 'Assessment running'
                                             : assessmentActionLabel}
                                     </Button>
                                 ) : null}
