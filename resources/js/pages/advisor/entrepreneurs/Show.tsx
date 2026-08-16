@@ -2405,24 +2405,67 @@ export default function EntrepreneursShow({
                                                     </td>
                                                     <td className="px-3 py-3">
                                                         {round.snapshot_available ? (
-                                                            <span className="text-muted-foreground">
-                                                                Captured{' '}
-                                                                {formatDate(
-                                                                    round.snapshot_captured_at,
-                                                                )}
-                                                            </span>
+                                                            <div className="space-y-1">
+                                                                <span className="block text-muted-foreground">
+                                                                    Captured{' '}
+                                                                    {formatDate(
+                                                                        round.snapshot_captured_at,
+                                                                    )}
+                                                                </span>
+                                                                <span className="block text-xs text-muted-foreground">
+                                                                    {
+                                                                        round.snapshot_note
+                                                                    }
+                                                                </span>
+                                                            </div>
                                                         ) : (
-                                                            <Badge variant="secondary">
-                                                                Snapshot
-                                                                unavailable
-                                                            </Badge>
+                                                            <div className="space-y-1">
+                                                                <Badge variant="secondary">
+                                                                    Historical
+                                                                    round
+                                                                </Badge>
+                                                                <span className="block max-w-[260px] text-xs text-muted-foreground">
+                                                                    {
+                                                                        round.snapshot_note
+                                                                    }
+                                                                </span>
+                                                            </div>
                                                         )}
                                                     </td>
-                                                    <td className="px-3 py-3 tabular-nums">
-                                                        {round.weighted_score.toFixed(
-                                                            1,
-                                                        )}
-                                                        /100
+                                                    <td className="px-3 py-3">
+                                                        <div className="space-y-1">
+                                                            <span className="block tabular-nums">
+                                                                {round.weighted_score.toFixed(
+                                                                    1,
+                                                                )}
+                                                                /100
+                                                            </span>
+                                                            {round.score_delta !==
+                                                            null ? (
+                                                                <span
+                                                                    className={cn(
+                                                                        'block text-xs tabular-nums',
+                                                                        round.score_delta >
+                                                                            0
+                                                                            ? 'text-emerald-700'
+                                                                            : round.score_delta <
+                                                                                0
+                                                                              ? 'text-destructive'
+                                                                              : 'text-muted-foreground',
+                                                                    )}
+                                                                >
+                                                                    {formatDelta(
+                                                                        round.score_delta,
+                                                                    )}{' '}
+                                                                    from prior
+                                                                </span>
+                                                            ) : null}
+                                                            <span className="block max-w-[240px] text-xs text-muted-foreground">
+                                                                {
+                                                                    round.score_source_summary
+                                                                }
+                                                            </span>
+                                                        </div>
                                                     </td>
                                                     <td className="px-3 py-3">
                                                         {gradeLabel(

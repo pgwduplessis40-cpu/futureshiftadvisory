@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Entrepreneurs;
 
+use App\Models\EntrepreneurProfile;
 use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -61,6 +62,68 @@ final class BusinessPlanPreviewRendererTest extends TestCase
         $this->assertSame('Executive summary', $sections[0]['title']);
         $this->assertSame('executive-summary', $sections[0]['entries'][0]['key']);
         $this->assertSame('Foundation', $sections[1]['title']);
+    }
+
+    public function test_document_sections_clean_punctuation_fragments_from_detail_copy(): void
+    {
+        $renderer = app(BusinessPlanPreviewRenderer::class);
+        $method = new ReflectionMethod($renderer, 'documentSections');
+        $method->setAccessible(true);
+
+        $sections = $method->invoke($renderer, [[
+            'title' => 'Foundation',
+            'requirements' => [[
+                'key' => 'business-type-location',
+                'title' => 'Business type, location, and operating model',
+            ]],
+            'sections' => [[
+                'requirement_key' => 'business-type-location',
+                'body' => ", , Drawer Full of Giants Ltd is based in Hamilton, Waikato.\n- ,,,,,,,,,,,,,\nThe company works with purpose-led founders.",
+                'attached_document_ids' => [],
+            ]],
+        ]]);
+
+        $this->assertSame('Drawer Full of Giants Ltd is based in Hamilton, Waikato.', strtok($sections[0]['entries'][0]['body'], "\n"));
+        $this->assertStringNotContainsString(',,,,', $sections[0]['entries'][0]['body']);
+    }
+
+    public function test_fallback_pdf_uses_client_facing_report_label_and_executive_summary(): void
+    {
+        $renderer = app(BusinessPlanPreviewRenderer::class);
+        $method = new ReflectionMethod($renderer, 'fallbackPdf');
+        $method->setAccessible(true);
+
+        $pdf = $method->invoke(
+            $renderer,
+            new EntrepreneurProfile(['name' => 'Plan Founder']),
+            null,
+            [[
+                'title' => 'Foundation',
+                'requirements' => [[
+                    'key' => 'business-type-location',
+                    'title' => 'Business type, location, and operating model',
+                    'complete' => true,
+                ]],
+                'sections' => [[
+                    'requirement_key' => 'business-type-location',
+                    'body' => 'Plan Founder operates a specialist advisory business from Hamilton with validated demand from paid pilots.',
+                    'attached_document_ids' => [],
+                ]],
+            ]],
+            [
+                'external_issue_ready' => false,
+                'label' => 'Not ready for external issue',
+                'reasons' => ['Evidence coverage is incomplete.'],
+                'evidence_supported_responses' => 0,
+                'completed_responses' => 1,
+            ],
+        );
+
+        $this->assertStringStartsWith('%PDF-1.4', $pdf);
+        $this->assertStringContainsString('REPORT PDF', $pdf);
+        $this->assertStringContainsString('Executive summary', $pdf);
+        $this->assertStringNotContainsString('FALLBACK PDF', $pdf);
+        $this->assertStringNotContainsString('Fallback rendering', $pdf);
     }
 
     /**

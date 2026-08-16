@@ -176,7 +176,10 @@ final class AssessmentTest extends TestCase
                 ->where('entrepreneur.latest_plan.latest_round', 2)
                 ->where('entrepreneur.latest_plan.latest_assessment.id', $latest->id)
                 ->where('entrepreneur.latest_plan.assessment_history.0.round', 2)
+                ->where('entrepreneur.latest_plan.assessment_history.0.score_delta', 0)
+                ->where('entrepreneur.latest_plan.assessment_history.0.score_source_summary', 'AI-scored against the captured plan context.')
                 ->where('entrepreneur.latest_plan.assessment_history.0.snapshot_available', true)
+                ->where('entrepreneur.latest_plan.assessment_history.0.snapshot_note', 'Submitted-plan snapshot captured for this assessment round.')
                 ->where('entrepreneur.latest_plan.assessment_history.0.plan_snapshot_url', route('advisor.entrepreneurs.assessments.plan-preview', [$profile, $latest], absolute: false))
             );
 

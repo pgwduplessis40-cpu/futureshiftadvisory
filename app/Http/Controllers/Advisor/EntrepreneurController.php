@@ -825,31 +825,69 @@ final class EntrepreneurController extends Controller
      */
     private function assessmentHistory(BusinessPlan $plan, EntrepreneurProfile $profile): array
     {
+        $previousWeightedScore = null;
+
         return $plan->assessments
-            ->sortByDesc('round')
-            ->map(function (PlanAssessment $assessment) use ($plan, $profile): array {
+            ->sortBy('round')
+            ->values()
+            ->map(function (PlanAssessment $assessment) use ($plan, $profile, &$previousWeightedScore): array {
                 $payload = $this->assessmentPayload($assessment);
                 $snapshot = $assessment->plan_snapshot;
                 $snapshotAvailable = is_array($snapshot) && is_array($snapshot['phases'] ?? null);
+                $weightedScore = (float) $payload['weighted_score'];
+                $scoreDelta = $previousWeightedScore === null
+                    ? null
+                    : round($weightedScore - $previousWeightedScore, 1);
+                $previousWeightedScore = $weightedScore;
 
                 return [
                     'id' => $assessment->id,
                     'round' => $assessment->round,
                     'status' => $payload['status'],
                     'overall_grade' => $payload['overall_grade'],
-                    'weighted_score' => $payload['weighted_score'],
+                    'weighted_score' => $weightedScore,
+                    'score_delta' => $scoreDelta,
+                    'score_source_summary' => $this->scoreSourceSummary($assessment),
                     'created_at' => $assessment->created_at?->toIso8601String(),
                     'submitted_at' => $this->submittedAtForAssessment($plan, $assessment),
                     'snapshot_available' => $snapshotAvailable,
                     'snapshot_captured_at' => is_array($snapshot) ? data_get($snapshot, 'captured_at') : null,
+                    'snapshot_note' => $snapshotAvailable
+                        ? 'Submitted-plan snapshot captured for this assessment round.'
+                        : 'Historical round: no submitted-plan snapshot was captured for this assessment.',
                     'assessment_url' => route('advisor.entrepreneurs.assessments.show', [$profile, $assessment], absolute: false),
                     'plan_snapshot_url' => $snapshotAvailable
                         ? route('advisor.entrepreneurs.assessments.plan-preview', [$profile, $assessment], absolute: false)
                         : null,
                 ];
             })
+            ->sortByDesc('round')
             ->values()
             ->all();
+    }
+
+    private function scoreSourceSummary(PlanAssessment $assessment): string
+    {
+        $scores = collect($assessment->ai_scores ?? [])
+            ->filter(fn (mixed $score): bool => is_array($score));
+        $total = $scores->count();
+
+        if ($total === 0) {
+            return 'No criterion score metadata recorded.';
+        }
+
+        $ai = $scores->filter(fn (array $score): bool => (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'ai_assessment')->count();
+        $fallback = $scores->filter(fn (array $score): bool => (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'deterministic_fallback')->count();
+
+        if ($fallback === $total) {
+            return 'Deterministic fallback scoring; review manually before relying on the result.';
+        }
+
+        if ($fallback > 0) {
+            return $ai.' AI-scored criteria, '.$fallback.' fallback-scored criteria.';
+        }
+
+        return 'AI-scored against the captured plan context.';
     }
 
     private function submittedAtForAssessment(BusinessPlan $plan, PlanAssessment $assessment): ?string

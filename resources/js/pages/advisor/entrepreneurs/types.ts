@@ -88,10 +88,13 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             status: string;
             overall_grade: string;
             weighted_score: number;
+            score_delta: number | null;
+            score_source_summary: string;
             created_at: string | null;
             submitted_at: string | null;
             snapshot_available: boolean;
             snapshot_captured_at: string | null;
+            snapshot_note: string;
             assessment_url: string;
             plan_snapshot_url: string | null;
         }[];

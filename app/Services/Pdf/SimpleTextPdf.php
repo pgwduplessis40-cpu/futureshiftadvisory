@@ -336,10 +336,9 @@ final class SimpleTextPdf
         $current = [];
         $this->addRect($current, self::MARGIN, 792, 495, 6, self::NAVY);
         $this->addBrand($current, 50, 744);
-        $this->addBadge($current, 410, 754, 'FALLBACK PDF');
+        $this->addBadge($current, 410, 754, 'REPORT PDF');
         $this->addLineShape($current, self::MARGIN, 732, 545, 732, [216, 209, 194]);
         $this->addText($current, $title, 22, 692, 24, 'F2', self::NAVY);
-        $this->addText($current, 'Fallback rendering - verify before external issue', 50, 672, 10, 'F2', self::ACCENT);
 
         $y = 634;
         $columns = min(2, max(1, $meta === [] ? 1 : 2));
@@ -360,7 +359,7 @@ final class SimpleTextPdf
 
         $rows = (int) ceil(count($meta) / max(1, $columns));
 
-        return $rows === 0 ? 636 : max(500, $y - ($rows * ($rowHeight + 8)) - 14);
+        return $rows === 0 ? 636 : $y - ($rows * ($rowHeight + 8)) - 14;
     }
 
     /**
@@ -580,6 +579,9 @@ final class SimpleTextPdf
             fn (string $point): bool => $this->hasReadableText($point),
         ));
 
+        $titleLines = $this->wrapForWidth($title, 12, self::MARGIN + 15);
+        $headerHeight = max(50, 24 + ($kicker !== '' ? 12 : 0) + (count($titleLines) * 14));
+
         $this->ensureSpace(
             $pages,
             $current,
@@ -588,16 +590,19 @@ final class SimpleTextPdf
             $reportTitle,
         );
         $top = $y + 3;
-        $this->addRect($current, self::MARGIN, $top - 44, 495, 44, [248, 245, 238]);
-        $this->addRect($current, self::MARGIN, $top - 44, 5, 44, self::ACCENT);
+        $this->addRect($current, self::MARGIN, $top - $headerHeight, 495, $headerHeight, [248, 245, 238]);
+        $this->addRect($current, self::MARGIN, $top - $headerHeight, 5, $headerHeight, self::ACCENT);
 
         if ($kicker !== '') {
             $this->addText($current, $this->truncate($kicker, 66), self::MARGIN + 15, $top - 13, 7, 'F2', self::MUTED);
         }
 
-        $y = (int) floor($top - ($kicker !== '' ? 27 : 17));
-        $this->addWrapped($pages, $current, $y, $title, 12, 14, 'F2', self::MARGIN + 15, self::NAVY, $reportTitle);
-        $y = min($y, $top - 48);
+        $titleY = (int) floor($top - ($kicker !== '' ? 27 : 17));
+        foreach ($titleLines as $line) {
+            $this->addText($current, $line, self::MARGIN + 15, $titleY, 12, 'F2', self::NAVY);
+            $titleY -= 14;
+        }
+        $y = min($titleY - 8, $top - $headerHeight - 12);
 
         if ($points !== []) {
             $this->addText($current, 'Key points', self::MARGIN + 15, $y, 8, 'F2', self::GOLD);
@@ -625,7 +630,8 @@ final class SimpleTextPdf
      */
     private function estimateEntrySpace(string $title, array $points, string $body, string $note): int
     {
-        $height = 64 + (count($this->wrapForWidth($title, 12, self::MARGIN + 15)) * 14);
+        $titleLines = $this->wrapForWidth($title, 12, self::MARGIN + 15);
+        $height = max(64, 42 + (count($titleLines) * 14));
 
         if ($points !== []) {
             $height += 14;

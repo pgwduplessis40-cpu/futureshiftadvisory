@@ -277,14 +277,16 @@ final class BusinessPlanPreviewRenderer
                     ->map(function (array $requirement) use ($sections): ?array {
                         $section = $sections->first(fn (array $candidate): bool => (string) ($candidate['requirement_key'] ?? '') === (string) $requirement['key']);
 
-                        if (! is_array($section) || trim((string) ($section['body'] ?? '')) === '') {
+                        $body = $this->cleanResponseBody(is_array($section) ? (string) ($section['body'] ?? '') : '');
+
+                        if (! is_array($section) || $body === '') {
                             return null;
                         }
 
                         return [
                             'key' => (string) $requirement['key'],
                             'title' => (string) $requirement['title'],
-                            'body' => (string) ($section['body'] ?? ''),
+                            'body' => $body,
                             'evidence_count' => count((array) ($section['attached_document_ids'] ?? [])),
                         ];
                     })
@@ -384,17 +386,16 @@ final class BusinessPlanPreviewRenderer
                 );
             })
             ->implode('');
-        $summary = $missing === []
-            ? 'This plan summarises the founder\'s current business model, market evidence, operating approach, strategy, and financial assumptions for review.'
-            : 'This draft summarises the founder\'s current plan and flags '.count($missing).' open requirement'.(count($missing) === 1 ? '' : 's').' before external issue.';
+        $summary = $this->executiveSummaryText($sections, $missing, $issueReadiness);
 
         return sprintf(
             <<<'HTML'
 <article class="reader-overview">
 <div class="overview-copy">
-<p class="question-label">Reader summary</p>
-<h2>What this plan gives the reviewer</h2>
-<p>%s It contains %d completed response%s across %d plan section%s.</p>
+<p class="question-label">Executive summary</p>
+<h2>Executive summary</h2>
+<p>%s</p>
+<p>It contains %d completed response%s across %d plan section%s.</p>
 </div>
 <div class="overview-cards">
 <div><span>Requirements</span><strong>%d/%d</strong><p>completed</p></div>
@@ -464,7 +465,6 @@ HTML,
         $planStatus = (string) ($documentMeta['plan_status'] ?? ($plan?->status ?? 'not started'));
         $blocks = [
             ['type' => 'meta', 'text' => 'Prepared by Future Shift Advisory'],
-            ['type' => 'meta', 'text' => 'Rendering mode: Fallback PDF - not for external issue'],
             ['type' => 'meta', 'text' => 'Founder: '.$profile->name],
             ['type' => 'meta', 'text' => 'Plan status: '.$this->formatLabel($planStatus)],
             ['type' => 'meta', 'text' => 'Requirements: '.$completed.'/'.$total.' complete'],
@@ -484,13 +484,13 @@ HTML,
             ['type' => 'spacer'],
             [
                 'type' => 'callout',
-                'title' => 'External issue status',
-                'text' => (string) ($issueReadiness['label'] ?? 'Not ready for external issue').'. '.implode(' ', (array) ($issueReadiness['reasons'] ?? [])),
+                'title' => 'Executive summary',
+                'text' => $this->executiveSummaryText($sections, $missing, $issueReadiness),
             ],
             [
                 'type' => 'callout',
-                'title' => 'Reader summary',
-                'text' => $this->fallbackSummary($responses, count($sections), count($missing)),
+                'title' => 'External issue status',
+                'text' => (string) ($issueReadiness['label'] ?? 'Not ready for external issue').'. '.implode(' ', (array) ($issueReadiness['reasons'] ?? [])),
             ],
             [
                 'type' => 'summary_cards',
@@ -574,6 +574,40 @@ HTML,
     }
 
     /**
+     * @param  array<int, array{title:string,entries:array<int, array{key:string,title:string,body:string,evidence_count:int}>}>  $sections
+     * @param  array<int, string>  $missing
+     * @param  array<string, mixed>  $issueReadiness
+     */
+    private function executiveSummaryText(array $sections, array $missing, array $issueReadiness): string
+    {
+        $signals = collect($sections)
+            ->flatMap(fn (array $section): array => $section['entries'])
+            ->flatMap(fn (array $entry): array => $this->keyPoints($entry['body'], 1))
+            ->unique()
+            ->take(3)
+            ->values();
+        $readiness = (string) ($issueReadiness['label'] ?? 'Not ready for external issue');
+        $evidenceSupported = (int) ($issueReadiness['evidence_supported_responses'] ?? 0);
+        $completedResponses = (int) ($issueReadiness['completed_responses'] ?? 0);
+
+        $summary = $signals->isNotEmpty()
+            ? 'The strongest current reviewer signals are '.$signals->implode('; ').'.'
+            : 'The plan summarises the founder\'s current model, market evidence, operating approach, strategy, and financial assumptions for advisor review.';
+
+        $summary .= ' External issue status is '.$readiness.'.';
+
+        if ($missing !== []) {
+            $summary .= ' '.count($missing).' plan requirement'.(count($missing) === 1 ? '' : 's').' still need attention before lender or investor issue.';
+        }
+
+        if ($completedResponses > 0) {
+            $summary .= ' Evidence coverage is '.$evidenceSupported.'/'.$completedResponses.' completed response'.($completedResponses === 1 ? '' : 's').'.';
+        }
+
+        return $summary;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function emptyIssueReadiness(): array
@@ -631,6 +665,23 @@ HTML,
             ->take($limit)
             ->values()
             ->all();
+    }
+
+    private function cleanResponseBody(string $body): string
+    {
+        $body = str_replace(["\r\n", "\r"], "\n", trim($body));
+        $body = preg_replace('/^\s*(?:[,.;:!?]+\s*)+/', '', $body) ?? $body;
+
+        $lines = collect(preg_split('/\R/', $body) ?: [])
+            ->map(fn (string $line): string => rtrim($line))
+            ->reject(fn (string $line): bool => preg_match('/^\s*(?:[-*]\s*)?[,.;:!?"\'`()\[\]{}\s-]+\s*$/', $line) === 1)
+            ->values()
+            ->all();
+
+        $body = trim(implode("\n", $lines));
+        $body = preg_replace('/(\n\s*)([,.;:!?]+\s*)+/', '$1', $body) ?? $body;
+
+        return trim($body);
     }
 
     private function normaliseKeyPoint(string $candidate): string
