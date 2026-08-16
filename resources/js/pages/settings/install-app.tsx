@@ -16,11 +16,7 @@ import { Button } from '@/components/ui/button';
 import { usePwaInstall } from '@/lib/pwa-install';
 
 type InstallFeedback =
-    | 'accepted'
-    | 'dismissed'
-    | 'instructions'
-    | 'installed'
-    | null;
+    'accepted' | 'dismissed' | 'instructions' | 'installed' | null;
 
 export default function InstallAppSettings() {
     const installState = usePwaInstall();
