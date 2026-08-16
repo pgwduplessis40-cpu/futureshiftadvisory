@@ -97,6 +97,10 @@ final class AssessmentFeedback
                 $guidance = self::PRIORITY_GUIDANCE[strtolower(trim($name))] ?? $this->defaultGuidance($name);
                 $criterionNumber = (int) ($criterion['criterion_number'] ?? 0);
                 $score = round((float) ($criterion['score'] ?? 0), 1);
+                $rationale = trim((string) ($criterion['rationale'] ?? ''));
+                $sourceSections = is_array($criterion['source_sections'] ?? null)
+                    ? $criterion['source_sections']
+                    : [];
                 $previousRow = $previousCriteria->get($criterionNumber);
                 $previousScore = is_array($previousRow) && is_numeric($previousRow['score'] ?? null)
                     ? round((float) $previousRow['score'], 1)
@@ -109,13 +113,11 @@ final class AssessmentFeedback
                     'previous_round' => $previous?->round,
                     'previous_score' => $previousScore,
                     'score_delta' => $previousScore === null ? null : round($score - $previousScore, 1),
-                    'what_is_missing' => $guidance['what_is_missing'],
+                    'what_is_missing' => $this->assessmentFinding($rationale),
                     'what_to_add_or_change' => $guidance['what_to_add_or_change'],
-                    'where_in_plan' => $guidance['where_in_plan'],
-                    'scoring_rationale' => (string) ($criterion['rationale'] ?? ''),
-                    'source_sections' => is_array($criterion['source_sections'] ?? null)
-                        ? $criterion['source_sections']
-                        : [],
+                    'where_in_plan' => $this->reviewedSectionsLabel($sourceSections, $guidance['where_in_plan']),
+                    'scoring_rationale' => $rationale,
+                    'source_sections' => $sourceSections,
                 ];
             })
             ->values()
@@ -185,9 +187,9 @@ final class AssessmentFeedback
 
         return implode("\n\n", [
             $intro,
-            'Ask the founder to update these three areas next:',
+            'These are the three lowest-scoring criteria in this assessment:',
             $this->formatPriorities($priorities, includeScores: true, includeEvidence: true),
-            'These changes will give the next assessment clearer evidence to review.',
+            'Use the assessment finding and the reviewed plan sections to decide the next update.',
         ]);
     }
 
@@ -203,9 +205,9 @@ final class AssessmentFeedback
         }
 
         return $this->changeRequestMessages->build($profile, [
-            'You have made progress on your business plan. You do not need to start again. Please update the three areas below before you send it back.',
-            "Please work through these updates:\n\n".$this->formatPriorities($priorities, includeScores: false, includeEvidence: false),
-            'When these updates are done, send the plan back. We will review what changed. Please reply if you would like to talk through any item before you begin.',
+            'You have made progress on your business plan. You do not need to start again. The three criteria below received the lowest scores in this assessment.',
+            "Please use the assessment findings and suggested next steps below:\n\n".$this->formatPriorities($priorities, includeScores: false, includeEvidence: false),
+            'When you are ready, send the plan back. We will assess the evidence in the updated sections. Please reply if you would like to talk through any item before you begin.',
         ]);
     }
 
@@ -216,8 +218,8 @@ final class AssessmentFeedback
         return (str_starts_with($feedback, 'I have completed the assessment. The current score is')
             && str_contains($feedback, 'The most useful priorities for the next revision are:'))
             || (str_starts_with($feedback, 'Assessment completed:')
-                && str_contains($feedback, 'Ask the founder to update these three areas next:')
-                && ! str_contains($feedback, 'Scored from current source excerpts:'))
+                && (str_contains($feedback, 'Ask the founder to update these three areas next:')
+                    || str_contains($feedback, 'What is missing:')))
             || $this->containsRetiredFounderLanguage($feedback);
     }
 
@@ -225,8 +227,7 @@ final class AssessmentFeedback
     {
         $reply = trim($reply);
 
-        return (str_contains($reply, 'The most useful priorities for the next revision are:')
-            && ! str_contains($reply, 'What is missing:'))
+        return str_contains($reply, 'What is missing:')
             || $this->containsRetiredFounderLanguage($reply);
     }
 
@@ -245,9 +246,9 @@ final class AssessmentFeedback
 
                 $lines = [
                     $heading,
-                    'What is missing: '.$priority['what_is_missing'],
-                    'What to add/change: '.$priority['what_to_add_or_change'],
-                    'Where in the plan: '.$priority['where_in_plan'],
+                    'Assessment finding: '.$priority['what_is_missing'],
+                    'Suggested next step: '.$priority['what_to_add_or_change'],
+                    'Plan sections reviewed: '.$priority['where_in_plan'],
                 ];
 
                 if ($includeScores) {
@@ -258,11 +259,6 @@ final class AssessmentFeedback
                 }
 
                 if ($includeEvidence) {
-                    $rationale = $this->rationaleLine($priority);
-                    if ($rationale !== null) {
-                        $lines[] = $rationale;
-                    }
-
                     $evidence = $this->sourceEvidenceLine($priority);
                     if ($evidence !== null) {
                         $lines[] = $evidence;
@@ -292,17 +288,6 @@ final class AssessmentFeedback
             (float) $priority['score'],
             $deltaText,
         );
-    }
-
-    private function rationaleLine(array $priority): ?string
-    {
-        $rationale = trim((string) ($priority['scoring_rationale'] ?? ''));
-
-        if ($rationale === '') {
-            return null;
-        }
-
-        return 'Assessment rationale: '.Str::limit(Str::squish($rationale), 420);
     }
 
     private function sourceEvidenceLine(array $priority): ?string
@@ -335,6 +320,32 @@ final class AssessmentFeedback
         }
 
         return 'Scored from current source excerpts: '.implode(' | ', $sections);
+    }
+
+    private function assessmentFinding(string $rationale): string
+    {
+        if ($rationale !== '' && ! str_contains($rationale, '...')) {
+            return Str::limit(Str::squish($rationale), 420);
+        }
+
+        return 'The assessment did not return a complete evidence-specific finding for this criterion. An advisor should review it before asking the founder for another change.';
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $sourceSections
+     */
+    private function reviewedSectionsLabel(array $sourceSections, string $fallback): string
+    {
+        $titles = collect($sourceSections)
+            ->filter(fn (mixed $section): bool => is_array($section))
+            ->map(fn (array $section): string => trim((string) ($section['title'] ?? '')))
+            ->filter()
+            ->unique()
+            ->take(3)
+            ->values()
+            ->all();
+
+        return $titles === [] ? $fallback : implode(', ', $titles);
     }
 
     private function previousAssessment(PlanAssessment $assessment): ?PlanAssessment

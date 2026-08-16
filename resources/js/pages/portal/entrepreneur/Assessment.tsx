@@ -366,13 +366,13 @@ export default function EntrepreneurAssessment({
                             />
                             <div className="space-y-1">
                                 <h2 className="text-sm font-medium">
-                                    Full reassessment recommended
+                                    Fresh assessment required
                                 </h2>
                                 <p className="max-w-4xl text-sm">
-                                    This historical round reused criterion-level
-                                    scores. The submitted-plan snapshot is
-                                    correct, but a new round is needed to score
-                                    the complete submitted plan.
+                                    This historical round carried scores forward
+                                    from an earlier assessment. The submitted
+                                    plan snapshot is correct, but no new AI
+                                    score was generated for it.
                                 </p>
                             </div>
                         </div>
@@ -394,7 +394,7 @@ export default function EntrepreneurAssessment({
                                     className="size-4"
                                     aria-hidden="true"
                                 />
-                                Run full reassessment
+                                Run fresh assessment
                             </Button>
                         ) : null}
                     </section>

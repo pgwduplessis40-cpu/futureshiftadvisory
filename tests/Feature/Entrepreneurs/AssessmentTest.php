@@ -198,39 +198,38 @@ final class AssessmentTest extends TestCase
             );
     }
 
-    public function test_reassessment_reuses_scores_when_the_scored_plan_context_has_not_changed(): void
+    public function test_reassessment_generates_fresh_scores_when_the_submitted_plan_has_not_changed(): void
     {
-        $ai = new CapturingScoreAiClient(82);
-        $this->app->instance(AiClient::class, $ai);
+        $firstAi = new CapturingScoreAiClient(82);
+        $this->app->instance(AiClient::class, $firstAi);
         [$advisor, $plan] = $this->plan('stable-reassessment-founder@example.test');
 
         $first = app(Assessment::class)->firstPass($plan, $advisor);
-        $firstScores = collect($first->ai_scores)
-            ->pluck('score', 'criterion_number')
-            ->all();
-        $ai->scorePrompts = [];
+        $freshAi = new CapturingScoreAiClient(86);
+        $this->app->instance(AiClient::class, $freshAi);
 
         $second = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
 
         $this->assertSame(2, $second->round);
-        $this->assertSame($firstScores, collect($second->ai_scores)->pluck('score', 'criterion_number')->all());
-        $this->assertSame([], $ai->scorePrompts);
+        $this->assertSame(82, data_get($first->ai_scores, '0.score'));
+        $this->assertSame(86, data_get($second->ai_scores, '0.score'));
+        $this->assertCount(12, $freshAi->scorePrompts);
         $this->assertTrue(collect($second->ai_scores)->every(
-            fn (array $score): bool => $score['score_source'] === 'reused_identical_context'
-                && (string) data_get($score, 'metadata.reuse_basis') === 'submitted_plan_snapshot'
-                && (int) data_get($score, 'metadata.reused_from_round') === 1,
+            fn (array $score): bool => $score['score_source'] === 'ai_assessment'
+                && ! data_get($score, 'metadata.reuse_basis'),
         ));
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.entrepreneurs.assessments.show', [$plan->entrepreneurProfile()->firstOrFail(), $second]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('assessment.criteria.0.source_label', 'Round 2 score reused from identical submitted-plan evidence (originally scored in round 1)')
-                ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'reused rather than regenerated'))
+                ->where('assessment.criteria.0.source_label', 'Round 2 automated score')
+                ->where('assessment.requires_full_reassessment', false)
+                ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'automated score generated for this round'))
             );
     }
 
-    public function test_legacy_criterion_context_reuse_is_flagged_for_a_full_reassessment(): void
+    public function test_carried_forward_historical_scores_are_flagged_for_a_fresh_assessment(): void
     {
         $ai = new CapturingScoreAiClient(82);
         $this->app->instance(AiClient::class, $ai);
@@ -245,9 +244,12 @@ final class AssessmentTest extends TestCase
 
                     return [
                         ...$score,
+                        'score_source' => 'reused_identical_context',
                         'metadata' => [
                             ...$metadata,
-                            'reuse_basis' => 'criterion_context_hash',
+                            'score_source' => 'reused_identical_context',
+                            'reused_from_round' => 1,
+                            'reuse_basis' => 'submitted_plan_snapshot',
                         ],
                     ];
                 })
@@ -260,43 +262,9 @@ final class AssessmentTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('assessment.requires_full_reassessment', true)
-                ->where('assessment.criteria.0.source_label', fn (string $value): bool => str_contains($value, 'matching criterion context'))
-                ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'per-criterion comparison')),
+                ->where('assessment.criteria.0.source_label', fn (string $value): bool => str_contains($value, 'carried forward'))
+                ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'carried forward')),
             );
-    }
-
-    public function test_reassessment_reuses_a_matching_submitted_snapshot_for_legacy_scores(): void
-    {
-        $ai = new CapturingScoreAiClient(82);
-        $this->app->instance(AiClient::class, $ai);
-        [$advisor, $plan] = $this->plan('legacy-snapshot-reassessment-founder@example.test');
-
-        $first = app(Assessment::class)->firstPass($plan, $advisor);
-        $first->forceFill([
-            'ai_scores' => collect($first->ai_scores)
-                ->map(function (array $score): array {
-                    $metadata = is_array($score['metadata'] ?? null) ? $score['metadata'] : [];
-                    unset($metadata['context_hash']);
-
-                    return [
-                        ...$score,
-                        'metadata' => $metadata,
-                    ];
-                })
-                ->values()
-                ->all(),
-        ])->save();
-        $ai->scorePrompts = [];
-
-        $second = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
-
-        $this->assertSame(2, $second->round);
-        $this->assertSame([], $ai->scorePrompts);
-        $this->assertTrue(collect($second->ai_scores)->every(
-            fn (array $score): bool => $score['score_source'] === 'reused_identical_context'
-                && (string) data_get($score, 'metadata.reuse_basis') === 'submitted_plan_snapshot'
-                && (int) data_get($score, 'metadata.reused_from_round') === 1,
-        ));
     }
 
     public function test_advisor_adjustment_requires_note_and_queues_governed_learning(): void
@@ -358,11 +326,13 @@ final class AssessmentTest extends TestCase
         $this->assertArrayHasKey('what_to_add_or_change', $priorities[0]);
         $this->assertArrayHasKey('where_in_plan', $priorities[0]);
         $this->assertStringContainsString('Assessment completed:', $feedback);
-        $this->assertStringContainsString('What to add/change:', $feedback);
-        $this->assertStringContainsString('Where in the plan:', $feedback);
+        $this->assertStringContainsString('Assessment finding:', $feedback);
+        $this->assertStringContainsString('Suggested next step:', $feedback);
+        $this->assertStringContainsString('Plan sections reviewed:', $feedback);
         $this->assertStringContainsString('Dear Assessment,', $reply);
         $this->assertStringContainsString('You have made progress', $reply);
-        $this->assertStringContainsString('What is missing:', $reply);
+        $this->assertStringContainsString('Assessment finding:', $reply);
+        $this->assertStringNotContainsString('What is missing:', $reply);
         $this->assertStringNotContainsString('Assessment completed:', $reply);
     }
 
@@ -385,7 +355,7 @@ final class AssessmentTest extends TestCase
         $replyLower = strtolower($reply);
 
         $this->assertStringContainsString('You do not need to start again.', $reply);
-        $this->assertStringContainsString('Please work through these updates:', $reply);
+        $this->assertStringContainsString('Please use the assessment findings and suggested next steps below:', $reply);
         $this->assertStringNotContainsString('...', $reply);
         $this->assertStringNotContainsString('directionally', $replyLower);
         $this->assertStringNotContainsString('materially underdeveloped', $replyLower);
@@ -445,9 +415,11 @@ final class AssessmentTest extends TestCase
 
         $feedback = app(AssessmentFeedback::class)->draft($second->refresh());
 
+        $this->assertStringContainsString('Assessment finding: AI rationale tied to the supplied resubmitted plan evidence.', $feedback);
         $this->assertStringContainsString('Round movement: previous round 1 was 32.0/100; current round is 45.0/100 (+13.0).', $feedback);
         $this->assertStringContainsString('Scored from current source excerpts:', $feedback);
         $this->assertStringContainsString('Updated second-round IP register', $feedback);
+        $this->assertStringNotContainsString('What is missing:', $feedback);
         $this->assertStringNotContainsString('target cust...', $feedback);
     }
 

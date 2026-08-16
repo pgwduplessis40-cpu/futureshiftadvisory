@@ -881,7 +881,7 @@ final class EntrepreneurController extends Controller
         $fallback = $scores->filter(fn (array $score): bool => (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'deterministic_fallback')->count();
 
         if ($reused === $total) {
-            return 'Reused from an identical scored plan context; no new AI score was generated.';
+            return 'Carried forward from an earlier assessment; no fresh AI score was generated.';
         }
 
         if ($fallback === $total) {
@@ -889,11 +889,11 @@ final class EntrepreneurController extends Controller
         }
 
         if ($fallback > 0) {
-            return $ai.' AI-scored criteria, '.$fallback.' fallback-scored criteria, '.$reused.' reused from identical context.';
+            return $ai.' AI-scored criteria, '.$fallback.' fallback-scored criteria, '.$reused.' carried forward from an earlier assessment.';
         }
 
         if ($reused > 0) {
-            return $ai.' AI-scored criteria and '.$reused.' reused from identical context.';
+            return $ai.' AI-scored criteria and '.$reused.' carried forward from an earlier assessment.';
         }
 
         return 'AI-scored against the captured plan context.';

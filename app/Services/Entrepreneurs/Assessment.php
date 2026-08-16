@@ -59,8 +59,7 @@ final class Assessment implements ProvidesMethodology
                 ),
             ]);
         $planSnapshot = $this->snapshots->capture($plan);
-        $reusedScores = $this->reusableScores($plan, $framework, $criterionContexts->all(), $planSnapshot);
-        $aiScores = $reusedScores ?? $framework->criteria
+        $aiScores = $framework->criteria
             ->map(fn (RatingCriterion $criterion): array => $this->scoreCriterion(
                 criterion: $criterion,
                 plan: $plan,
@@ -71,7 +70,7 @@ final class Assessment implements ProvidesMethodology
         $documentSupport = $this->documentSupport($plan);
         $weighted = AssessmentScoring::weightedScoreForFramework($framework, $aiScores);
 
-        return DB::transaction(function () use ($plan, $actor, $framework, $aiScores, $documentSupport, $planSnapshot, $weighted, $reusedScores): PlanAssessment {
+        return DB::transaction(function () use ($plan, $actor, $framework, $aiScores, $documentSupport, $planSnapshot, $weighted): PlanAssessment {
             $lockedPlan = BusinessPlan::query()
                 ->whereKey($plan->getKey())
                 ->lockForUpdate()
@@ -102,136 +101,11 @@ final class Assessment implements ProvidesMethodology
                 'criterion_count' => count($aiScores),
                 'weighted_score' => $weighted,
                 'overall_grade' => $assessment->overall_grade,
-                'score_reused_from_identical_context' => $reusedScores !== null,
+                'new_ai_score_generated' => true,
             ]);
 
             return $assessment->refresh()->load('ratingFramework.criteria');
         });
-    }
-
-    /**
-     * Reassessing an identical submitted plan must not turn model variation into
-     * a change in the founder's result. Reuse is only safe when the whole
-     * captured plan and budget evidence match an earlier submitted snapshot.
-     *
-     * @param  array<string, array{relevant_sections:array<int, array<string, mixed>>,supporting_section_summaries:array<int, array<string, mixed>>,budget_summary:string}>  $criterionContexts
-     * @param  array<string, mixed>  $planSnapshot
-     * @return array<int, array<string, mixed>>|null
-     */
-    private function reusableScores(BusinessPlan $plan, RatingFramework $framework, array $criterionContexts, array $planSnapshot): ?array
-    {
-        $contextHashes = collect($criterionContexts)
-            ->map(fn (array $context): string => hash('sha256', $this->contexts->assessmentText($context)))
-            ->all();
-        $snapshotFingerprint = $this->snapshotContentFingerprint($planSnapshot);
-
-        $matching = PlanAssessment::query()
-            ->where('business_plan_id', $plan->getKey())
-            ->where('rating_framework_id', $framework->getKey())
-            ->whereNotNull('ai_scores')
-            ->orderBy('round')
-            ->get()
-            ->map(function (PlanAssessment $assessment) use ($snapshotFingerprint): array {
-                return [
-                    'assessment' => $assessment,
-                    'basis' => $this->reuseBasisFor($assessment, $snapshotFingerprint),
-                ];
-            })
-            ->first(fn (array $candidate): bool => $candidate['basis'] !== null);
-
-        $matchingAssessment = data_get($matching, 'assessment');
-        $reuseBasis = data_get($matching, 'basis');
-
-        if (! $matchingAssessment instanceof PlanAssessment || ! is_string($reuseBasis)) {
-            return null;
-        }
-
-        return collect($matchingAssessment->ai_scores ?? [])
-            ->filter(fn (mixed $score): bool => is_array($score))
-            ->map(function (array $score) use ($matchingAssessment, $contextHashes, $reuseBasis): array {
-                $criterionNumber = (string) ($score['criterion_number'] ?? '');
-                $metadata = is_array($score['metadata'] ?? null) ? $score['metadata'] : [];
-                $originalSource = (string) ($score['score_source'] ?? data_get($metadata, 'score_source', ''));
-
-                return [
-                    ...$score,
-                    'score_source' => 'reused_identical_context',
-                    'metadata' => [
-                        ...$metadata,
-                        'context_hash' => $contextHashes[$criterionNumber] ?? ($metadata['context_hash'] ?? null),
-                        'score_source' => 'reused_identical_context',
-                        'original_score_source' => $originalSource,
-                        'reused_from_assessment_id' => $matchingAssessment->getKey(),
-                        'reused_from_round' => $matchingAssessment->round,
-                        'reuse_basis' => $reuseBasis,
-                    ],
-                ];
-            })
-            ->values()
-            ->all();
-    }
-
-    private function reuseBasisFor(PlanAssessment $assessment, ?string $snapshotFingerprint): ?string
-    {
-        $assessmentFingerprint = $this->snapshotContentFingerprint($assessment->plan_snapshot);
-
-        return $snapshotFingerprint !== null
-            && $assessmentFingerprint !== null
-            && hash_equals($assessmentFingerprint, $snapshotFingerprint)
-            ? 'submitted_plan_snapshot'
-            : null;
-    }
-
-    /**
-     * Hash only founder-authored plan evidence and financial outcomes which can
-     * affect scoring. This lets captured historical submissions participate in
-     * stability checks without treating changing report metadata as a revision.
-     *
-     * @param  array<string, mixed>|mixed  $snapshot
-     */
-    private function snapshotContentFingerprint(mixed $snapshot): ?string
-    {
-        if (! is_array($snapshot) || ! is_array($snapshot['phases'] ?? null)) {
-            return null;
-        }
-
-        $phases = collect($snapshot['phases'])
-            ->filter(fn (mixed $phase): bool => is_array($phase))
-            ->map(function (array $phase): array {
-                return [
-                    'key' => (string) ($phase['key'] ?? ''),
-                    'sections' => collect($phase['sections'] ?? [])
-                        ->filter(fn (mixed $section): bool => is_array($section))
-                        ->map(fn (array $section): array => [
-                            'key' => (string) ($section['key'] ?? ''),
-                            'requirement_key' => (string) ($section['requirement_key'] ?? ''),
-                            'body' => trim((string) ($section['body'] ?? '')),
-                            'attached_document_ids' => collect($section['attached_document_ids'] ?? [])
-                                ->map(fn (mixed $id): string => (string) $id)
-                                ->sort()
-                                ->values()
-                                ->all(),
-                        ])
-                        ->sortBy('key')
-                        ->values()
-                        ->all(),
-                ];
-            })
-            ->sortBy('key')
-            ->values()
-            ->all();
-        $budget = is_array($snapshot['budget'] ?? null) ? $snapshot['budget'] : [];
-
-        return hash('sha256', json_encode([
-            'phases' => $phases,
-            'budget' => [
-                'status' => (string) ($budget['status'] ?? ''),
-                'expected_runway_months' => $budget['expected_runway_months'] ?? null,
-                'calculated_runway_months' => $budget['calculated_runway_months'] ?? null,
-                'break_even_year' => $budget['break_even_year'] ?? null,
-                'cash_flow_positive_year' => $budget['cash_flow_positive_year'] ?? null,
-            ],
-        ], JSON_THROW_ON_ERROR));
     }
 
     public function adjustScore(PlanAssessment $assessment, int $criterionNumber, int $score, string $note, User $advisor): PlanAssessment
