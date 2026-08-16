@@ -1209,16 +1209,21 @@ export default function EntrepreneurPlan({
                                 className="mt-3 flex max-w-xl flex-col gap-2 sm:flex-row sm:items-end"
                                 onSubmit={(event) => {
                                     event.preventDefault();
-                                    companyNameForm.post(urls.companyNameUpdate, {
-                                        preserveScroll: true,
-                                    });
+                                    companyNameForm.post(
+                                        urls.companyNameUpdate,
+                                        {
+                                            preserveScroll: true,
+                                        },
+                                    );
                                 }}
                             >
                                 <label className="grid flex-1 gap-1 text-xs font-medium text-muted-foreground">
                                     Company / proposed company name
                                     <input
                                         className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
-                                        value={companyNameForm.data.company_name}
+                                        value={
+                                            companyNameForm.data.company_name
+                                        }
                                         onChange={(event) =>
                                             companyNameForm.setData(
                                                 'company_name',
@@ -3621,7 +3626,9 @@ function BudgetAssumptionsEditor({
     return (
         <div className="space-y-3">
             <label className="grid max-w-md gap-1 text-xs">
-                <span className="text-muted-foreground">Revenue after Year 1</span>
+                <span className="text-muted-foreground">
+                    Revenue after Year 1
+                </span>
                 <select
                     value={assumptions.year_two_revenue_basis}
                     onChange={(event) =>
@@ -3638,43 +3645,58 @@ function BudgetAssumptionsEditor({
                     }
                     className="h-9 rounded-md border bg-background px-2 text-sm"
                 >
-                    <option value="exit_run_rate">Carry forward the Year 1 exit run-rate</option>
-                    <option value="year_one_average">Use the Year 1 average monthly revenue</option>
+                    <option value="exit_run_rate">
+                        Carry forward the Year 1 exit run-rate
+                    </option>
+                    <option value="year_one_average">
+                        Use the Year 1 average monthly revenue
+                    </option>
                 </select>
                 <span className="text-[11px] leading-snug text-muted-foreground">
-                    Carry-forward avoids an artificial Month 12 to Month 13 drop. Use the average only for a deliberate seasonal or averaged forecast.
+                    Carry-forward avoids an artificial Month 12 to Month 13
+                    drop. Use the average only for a deliberate seasonal or
+                    averaged forecast.
                 </span>
             </label>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
-            {fields.map((field) => (
-                <label key={field.key} className="grid min-w-0 gap-1 text-xs">
-                    <span className="text-muted-foreground">{field.label}</span>
-                    <input
-                        type="number"
-                        min={
-                            field.key === 'revenue_growth_percent' ||
-                            field.key === 'cost_inflation_percent'
-                                ? -100
-                                : 0
-                        }
-                        max={field.key === 'cost_inflation_percent' ? 100 : 500}
-                        value={assumptions[field.key]}
-                        onChange={(event) =>
-                            onFormChange((current) => ({
-                                ...current,
-                                assumptions: {
-                                    ...current.assumptions,
-                                    [field.key]: event.target.value,
-                                },
-                            }))
-                        }
-                        className="h-9 min-w-0 rounded-md border bg-background px-2 text-sm"
-                    />
-                    <span className="text-[11px] leading-snug text-muted-foreground">
-                        {field.helper}
-                    </span>
-                </label>
-            ))}
+                {fields.map((field) => (
+                    <label
+                        key={field.key}
+                        className="grid min-w-0 gap-1 text-xs"
+                    >
+                        <span className="text-muted-foreground">
+                            {field.label}
+                        </span>
+                        <input
+                            type="number"
+                            min={
+                                field.key === 'revenue_growth_percent' ||
+                                field.key === 'cost_inflation_percent'
+                                    ? -100
+                                    : 0
+                            }
+                            max={
+                                field.key === 'cost_inflation_percent'
+                                    ? 100
+                                    : 500
+                            }
+                            value={assumptions[field.key]}
+                            onChange={(event) =>
+                                onFormChange((current) => ({
+                                    ...current,
+                                    assumptions: {
+                                        ...current.assumptions,
+                                        [field.key]: event.target.value,
+                                    },
+                                }))
+                            }
+                            className="h-9 min-w-0 rounded-md border bg-background px-2 text-sm"
+                        />
+                        <span className="text-[11px] leading-snug text-muted-foreground">
+                            {field.helper}
+                        </span>
+                    </label>
+                ))}
             </div>
         </div>
     );
