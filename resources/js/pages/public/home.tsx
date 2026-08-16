@@ -16,6 +16,7 @@ import {
 } from '@/components/public/section';
 import { Seo } from '@/components/public/seo';
 import { organizationLd, webSiteLd } from '@/lib/structured-data';
+import type { SharedPageProps } from '@/types';
 
 type EngagementSummary = {
     slug: string;
@@ -38,7 +39,7 @@ export default function Home({
 }: {
     engagementTypes: EngagementSummary[];
 }) {
-    const base = usePage().props.publicUrl ?? '';
+    const base = usePage<SharedPageProps>().props.publicUrl ?? '';
 
     return (
         <>

@@ -58,9 +58,7 @@ type EngagementScoreKey =
 
 type EngagementScore = {
     scoring_mode:
-        | 'standard_advisory'
-        | 'entrepreneur_validation'
-        | 'entrepreneur_plan';
+        'standard_advisory' | 'entrepreneur_validation' | 'entrepreneur_plan';
     level: HealthLevel;
     score: number;
     scores: {

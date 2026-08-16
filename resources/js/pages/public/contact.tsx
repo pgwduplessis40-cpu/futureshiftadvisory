@@ -11,6 +11,7 @@ import {
 } from '@/components/public/section';
 import { Seo } from '@/components/public/seo';
 import { breadcrumbLd } from '@/lib/structured-data';
+import type { SharedPageProps } from '@/types';
 
 type Option = { value: string; label: string };
 
@@ -19,7 +20,7 @@ export default function Contact({
 }: {
     engagementOptions: Option[];
 }) {
-    const page = usePage();
+    const page = usePage<SharedPageProps>();
     const url = page.url;
     const base = page.props.publicUrl ?? '';
 

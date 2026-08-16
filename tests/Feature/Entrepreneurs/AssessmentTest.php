@@ -229,6 +229,40 @@ final class AssessmentTest extends TestCase
             );
     }
 
+    public function test_reassessment_reuses_a_matching_submitted_snapshot_for_legacy_scores(): void
+    {
+        $ai = new CapturingScoreAiClient(82);
+        $this->app->instance(AiClient::class, $ai);
+        [$advisor, $plan] = $this->plan('legacy-snapshot-reassessment-founder@example.test');
+
+        $first = app(Assessment::class)->firstPass($plan, $advisor);
+        $first->forceFill([
+            'ai_scores' => collect($first->ai_scores)
+                ->map(function (array $score): array {
+                    $metadata = is_array($score['metadata'] ?? null) ? $score['metadata'] : [];
+                    unset($metadata['context_hash']);
+
+                    return [
+                        ...$score,
+                        'metadata' => $metadata,
+                    ];
+                })
+                ->values()
+                ->all(),
+        ])->save();
+        $ai->scorePrompts = [];
+
+        $second = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+
+        $this->assertSame(2, $second->round);
+        $this->assertSame([], $ai->scorePrompts);
+        $this->assertTrue(collect($second->ai_scores)->every(
+            fn (array $score): bool => $score['score_source'] === 'reused_identical_context'
+                && (string) data_get($score, 'metadata.reuse_basis') === 'submitted_plan_snapshot'
+                && (int) data_get($score, 'metadata.reused_from_round') === 1,
+        ));
+    }
+
     public function test_advisor_adjustment_requires_note_and_queues_governed_learning(): void
     {
         [$advisor, $plan] = $this->plan('adjustment-founder@example.test');

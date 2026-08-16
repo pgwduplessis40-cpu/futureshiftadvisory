@@ -1,5 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 
+import type { SharedPageProps } from '@/types';
+
 type JsonLd = Record<string, unknown>;
 
 type SeoProps = {
@@ -27,7 +29,7 @@ export function Seo({
     noindex = false,
     jsonLd,
 }: SeoProps) {
-    const page = usePage();
+    const page = usePage<SharedPageProps>();
     const base = (page.props.publicUrl ?? '').replace(/\/$/, '');
     const currentPath = (path ?? page.url).split('?')[0].split('#')[0];
     const canonical =

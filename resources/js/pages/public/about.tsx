@@ -11,9 +11,10 @@ import {
 } from '@/components/public/section';
 import { Seo } from '@/components/public/seo';
 import { breadcrumbLd } from '@/lib/structured-data';
+import type { SharedPageProps } from '@/types';
 
 export default function About() {
-    const base = usePage().props.publicUrl ?? '';
+    const base = usePage<SharedPageProps>().props.publicUrl ?? '';
 
     return (
         <>

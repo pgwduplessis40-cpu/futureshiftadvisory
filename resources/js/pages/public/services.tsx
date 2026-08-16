@@ -11,6 +11,7 @@ import {
 } from '@/components/public/section';
 import { Seo } from '@/components/public/seo';
 import { breadcrumbLd, servicesLd } from '@/lib/structured-data';
+import type { SharedPageProps } from '@/types';
 
 type EngagementType = {
     slug: string;
@@ -37,7 +38,7 @@ export default function Services({
 }: {
     engagementTypes: EngagementType[];
 }) {
-    const base = usePage().props.publicUrl ?? '';
+    const base = usePage<SharedPageProps>().props.publicUrl ?? '';
 
     return (
         <>

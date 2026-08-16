@@ -1,5 +1,6 @@
 import type { AiNotice } from '@/components/ai-unavailable-notice';
 import type { Auth } from '@/types/auth';
+import '@inertiajs/core';
 
 declare module 'react' {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -9,6 +10,14 @@ declare module 'react' {
 }
 
 declare module '@inertiajs/core' {
+    export interface PageProps {
+        name: string;
+        publicUrl: string;
+        auth: Auth;
+        aiNotice?: AiNotice | null;
+        sidebarOpen: boolean;
+    }
+
     export interface InertiaConfig {
         sharedPageProps: {
             name: string;

@@ -10,11 +10,12 @@ import {
 } from '@/components/public/section';
 import { Seo } from '@/components/public/seo';
 import { breadcrumbLd } from '@/lib/structured-data';
+import type { SharedPageProps } from '@/types';
 
 type Faq = { group: string; question: string; answer: string };
 
 export default function Faq({ faqs }: { faqs: Faq[] }) {
-    const base = usePage().props.publicUrl ?? '';
+    const base = usePage<SharedPageProps>().props.publicUrl ?? '';
 
     const grouped = faqs.reduce<Record<string, Faq[]>>((acc, f) => {
         (acc[f.group] ??= []).push(f);
