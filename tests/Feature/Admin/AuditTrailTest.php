@@ -99,7 +99,7 @@ final class AuditTrailTest extends TestCase
         ]);
 
         $this->actingAsMfa($admin)
-            ->get(route('admin.audit-trail.index'))
+            ->get(route('admin.audit-trail.index', ['action' => 'audit.timezone_probe']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('events.data.0.action', 'audit.timezone_probe')

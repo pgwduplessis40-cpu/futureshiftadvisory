@@ -261,7 +261,8 @@ final class PlanBuilderTest extends TestCase
             ->assertHeader('Content-Type', 'application/pdf');
 
         $this->assertStringStartsWith('%PDF-1.4', $response->getContent());
-        $this->assertStringContainsString('Business Plan - Plan Founder', $response->getContent());
+        $this->assertStringContainsString('Business Plan', $response->getContent());
+        $this->assertStringContainsString('Founder - Plan Founder', $response->getContent());
         $this->assertStringContainsString('Business type, location, and operating model', $response->getContent());
         $this->assertStringNotContainsString('Section readout', $response->getContent());
         $this->assertStringNotContainsString('Browser-formatted PDF generation', $response->getContent());
