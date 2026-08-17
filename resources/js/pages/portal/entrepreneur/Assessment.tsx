@@ -638,7 +638,11 @@ export default function EntrepreneurAssessment({
                                 onClick={regenerateAdvisorFeedbackDraft}
                             >
                                 <RefreshCw
-                                    className={`size-4${regeneratingDraft ? ' animate-spin' : ''}`}
+                                    className={
+                                        regeneratingDraft
+                                            ? 'size-4 animate-spin'
+                                            : 'size-4'
+                                    }
                                     aria-hidden="true"
                                 />
                                 {regeneratingDraft
