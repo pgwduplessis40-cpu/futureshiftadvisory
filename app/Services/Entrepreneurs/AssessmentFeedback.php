@@ -309,7 +309,9 @@ final class AssessmentFeedback
                 $updatedAt = trim((string) ($section['updated_at'] ?? ''));
                 $label = $updatedAt !== '' ? "{$title} updated {$updatedAt}" : $title;
 
-                return $label.': '.Str::limit(Str::squish($excerpt), 220);
+                $excerpt = $this->completeSentenceExcerpt($excerpt, 220);
+
+                return $excerpt === null ? null : $label.': '.$excerpt;
             })
             ->filter()
             ->take(2)
@@ -329,11 +331,48 @@ final class AssessmentFeedback
 
     private function assessmentFinding(string $rationale): string
     {
-        if ($rationale !== '' && ! str_contains($rationale, '...')) {
-            return Str::limit(Str::squish($rationale), 420);
+        $finding = $this->completeSentenceExcerpt($rationale, 420);
+
+        if ($finding !== null) {
+            return $finding;
         }
 
-        return 'The assessment did not return a complete evidence-specific finding for this criterion. An advisor should review it before asking the founder for another change.';
+        return 'The assessment note for this criterion was incomplete. Use the suggested next step below to add the practical detail needed for the next review.';
+    }
+
+    private function completeSentenceExcerpt(string $text, int $limit): ?string
+    {
+        $text = trim(Str::squish($text));
+
+        if ($text === '' || $this->containsTruncationMarker($text)) {
+            return null;
+        }
+
+        if (Str::length($text) <= $limit) {
+            return $text;
+        }
+
+        $excerpt = '';
+        foreach (preg_split('/(?<=[.!?])\s+/u', $text) ?: [] as $sentence) {
+            $sentence = trim($sentence);
+            if ($sentence === '') {
+                continue;
+            }
+
+            $candidate = trim($excerpt.' '.$sentence);
+            if (Str::length($candidate) > $limit) {
+                break;
+            }
+
+            $excerpt = $candidate;
+        }
+
+        return $excerpt === '' ? null : $excerpt;
+    }
+
+    private function containsTruncationMarker(string $text): bool
+    {
+        return preg_match('/(?:\.{3}|\x{2026}|\[\s*(?:\.{3}|\x{2026})\s*\])/u', $text) === 1;
     }
 
     /**
@@ -384,8 +423,11 @@ final class AssessmentFeedback
     {
         $text = Str::lower($text);
 
+        if ($this->containsTruncationMarker($text)) {
+            return true;
+        }
+
         foreach ([
-            '...',
             'directionally',
             'materially underdeveloped',
             'launch decision-making',

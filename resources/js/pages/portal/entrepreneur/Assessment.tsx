@@ -10,6 +10,7 @@ import {
     Send,
 } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -166,6 +167,7 @@ export default function EntrepreneurAssessment({
         proposedReply: string;
     } | null>(null);
     const [feedbackPending, setFeedbackPending] = useState(false);
+    const [regeneratingDraft, setRegeneratingDraft] = useState(false);
     const [feedbackErrors, setFeedbackErrors] = useState<
         Record<string, string | undefined>
     >({});
@@ -222,6 +224,27 @@ export default function EntrepreneurAssessment({
                 onFinish: () => setFeedbackPending(false),
             },
         );
+    };
+
+    const regenerateAdvisorFeedbackDraft = () => {
+        if (!advisorFeedback || regeneratingDraft || feedbackPending) {
+            return;
+        }
+
+        router.reload({
+            only: ['advisorFeedback'],
+            onStart: () => setRegeneratingDraft(true),
+            onSuccess: () => {
+                setAdvisorFeedbackDraft(null);
+                setFeedbackErrors({});
+                toast.success('Plain-language draft regenerated.');
+            },
+            onError: () =>
+                toast.error(
+                    'The plain-language draft could not be regenerated. Please try again.',
+                ),
+            onFinish: () => setRegeneratingDraft(false),
+        });
     };
 
     return (
@@ -611,25 +634,22 @@ export default function EntrepreneurAssessment({
                                 type="button"
                                 size="sm"
                                 variant="outline"
-                                disabled={feedbackPending}
-                                onClick={() =>
-                                    updateAdvisorFeedbackDraft(
-                                        advisorFeedback.suggested_feedback,
-                                        advisorFeedback.suggested_reply,
-                                    )
-                                }
+                                disabled={feedbackPending || regeneratingDraft}
+                                onClick={regenerateAdvisorFeedbackDraft}
                             >
                                 <RefreshCw
-                                    className="size-4"
+                                    className={`size-4${regeneratingDraft ? ' animate-spin' : ''}`}
                                     aria-hidden="true"
                                 />
-                                Regenerate plain-language draft
+                                {regeneratingDraft
+                                    ? 'Regenerating draft'
+                                    : 'Regenerate plain-language draft'}
                             </Button>
                             <Button
                                 type="button"
                                 size="sm"
                                 variant="outline"
-                                disabled={feedbackPending}
+                                disabled={feedbackPending || regeneratingDraft}
                                 onClick={() =>
                                     updateAdvisorFeedbackDraft(
                                         feedback,
@@ -687,6 +707,7 @@ export default function EntrepreneurAssessment({
                                 variant="outline"
                                 disabled={
                                     feedbackPending ||
+                                    regeneratingDraft ||
                                     feedback.trim().length < 10
                                 }
                                 onClick={() => submitAdvisorFeedback(false)}
@@ -700,6 +721,7 @@ export default function EntrepreneurAssessment({
                                 type="button"
                                 disabled={
                                     feedbackPending ||
+                                    regeneratingDraft ||
                                     feedback.trim().length < 10 ||
                                     proposedReply.trim().length < 10
                                 }

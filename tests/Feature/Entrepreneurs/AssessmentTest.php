@@ -575,6 +575,49 @@ final class AssessmentTest extends TestCase
         $this->assertTrue($feedbacks->isLegacyReply('The IP section is directionally aware but materially underdeveloped for launch decision-making...'));
     }
 
+    public function test_assessment_feedback_uses_complete_sentences_when_ai_rationale_is_long_or_truncated(): void
+    {
+        [$advisor, $plan] = $this->plan('assessment-feedback-complete-sentences@example.test');
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $longRationale = implode(' ', [
+            'The industry discussion has a useful starting point and identifies the broad customer problem.',
+            'It needs current customer interviews, competitor pricing, and tested demand evidence before the next review.',
+            'This final sentence is deliberately long enough to fall outside the concise founder-facing summary limit while remaining complete and evidence focused.',
+            'Further supporting detail belongs in the reviewed business plan rather than in the feedback message.',
+        ]);
+
+        $assessment->forceFill([
+            'ai_scores' => collect($assessment->ai_scores)
+                ->map(fn (array $row, int $index): array => [
+                    ...$row,
+                    'score' => $index < 3 ? 35 + $index : 88,
+                    'rationale' => $index === 0 ? $longRationale : 'The criterion needs clearer supporting evidence.',
+                ])
+                ->all(),
+        ])->save();
+
+        $feedbacks = app(AssessmentFeedback::class);
+        $reply = $feedbacks->proposedReply($plan->entrepreneurProfile()->firstOrFail(), $assessment->refresh());
+        $priorities = $feedbacks->priorities($assessment->refresh());
+
+        $this->assertStringContainsString('It needs current customer interviews, competitor pricing, and tested demand evidence before the next review.', $reply);
+        $this->assertStringNotContainsString('...', $reply);
+        $this->assertStringNotContainsString('…', $reply);
+        $this->assertStringEndsWith('.', $priorities[0]['what_is_missing']);
+
+        $assessment->forceFill([
+            'ai_scores' => collect($assessment->ai_scores)
+                ->map(fn (array $row): array => [...$row, 'rationale' => "The source explanation stops here\u{2026}"])
+                ->all(),
+        ])->save();
+
+        $fallbackReply = $feedbacks->proposedReply($plan->entrepreneurProfile()->firstOrFail(), $assessment->refresh());
+
+        $this->assertStringContainsString('The assessment note for this criterion was incomplete.', $fallbackReply);
+        $this->assertStringNotContainsString("\u{2026}", $fallbackReply);
+        $this->assertTrue($feedbacks->isLegacyReply("The assessment note stops here\u{2026}"));
+    }
+
     public function test_assessment_feedback_draft_shows_round_movement_and_current_source_evidence(): void
     {
         $this->app->instance(AiClient::class, new CapturingScoreAiClient(82));
