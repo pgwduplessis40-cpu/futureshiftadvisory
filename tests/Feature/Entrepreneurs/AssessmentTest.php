@@ -166,7 +166,7 @@ final class AssessmentTest extends TestCase
             );
 
         (new RunEntrepreneurPlanAssessment((string) $plan->getKey(), (int) $admin->getKey()))
-            ->handle(app(RequestContext::class), app(Assessment::class));
+            ->handle(app(RequestContext::class));
 
         $assessment = PlanAssessment::query()
             ->where('business_plan_id', $plan->getKey())
@@ -226,7 +226,7 @@ final class AssessmentTest extends TestCase
         Queue::assertPushed(RunEntrepreneurPlanAssessment::class);
         $this->assertSame('queued', $plan->refresh()->assessment_run_status);
         (new RunEntrepreneurPlanAssessment((string) $plan->getKey(), (int) $admin->getKey()))
-            ->handle(app(RequestContext::class), app(Assessment::class));
+            ->handle(app(RequestContext::class));
 
         $latest = PlanAssessment::query()
             ->where('business_plan_id', $plan->getKey())
@@ -294,7 +294,7 @@ final class AssessmentTest extends TestCase
         $this->assertTrue(app(Assessment::class)->queueFirstPass($plan, $advisor));
 
         (new RunEntrepreneurPlanAssessment((string) $plan->getKey(), (int) $advisor->getKey()))
-            ->handle(app(RequestContext::class), app(Assessment::class));
+            ->handle(app(RequestContext::class));
 
         $this->assertSame('failed', $plan->refresh()->assessment_run_status);
         $this->assertStringContainsString('provider did not respond', (string) $plan->assessment_run_failure);
@@ -313,7 +313,7 @@ final class AssessmentTest extends TestCase
         $this->assertTrue(app(Assessment::class)->queueFirstPass($plan, $advisor));
 
         (new RunEntrepreneurPlanAssessment((string) $plan->getKey(), (int) $advisor->getKey()))
-            ->handle(app(RequestContext::class), app(Assessment::class));
+            ->handle(app(RequestContext::class));
 
         $this->assertSame('failed', $plan->refresh()->assessment_run_status);
         $this->assertStringContainsString('No valid AI rubric band was returned', (string) $plan->assessment_run_failure);

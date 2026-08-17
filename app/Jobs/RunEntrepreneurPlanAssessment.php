@@ -32,9 +32,10 @@ final class RunEntrepreneurPlanAssessment implements ShouldQueue
         public readonly int $advisorId,
     ) {}
 
-    public function handle(RequestContext $context, Assessment $assessments): void
+    public function handle(RequestContext $context): void
     {
         $context->apply('system', []);
+        $assessments = app(Assessment::class);
         $plan = BusinessPlan::query()->find($this->businessPlanId);
         $advisor = User::query()->find($this->advisorId);
 
