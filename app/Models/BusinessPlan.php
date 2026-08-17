@@ -45,6 +45,8 @@ final class BusinessPlan extends Model
         'completed_at' => 'datetime',
         'assessment_run_requested_at' => 'datetime',
         'assessment_run_started_at' => 'datetime',
+        'assessment_run_total_criteria' => 'integer',
+        'assessment_run_completed_criteria' => 'integer',
         'assessment_run_completed_at' => 'datetime',
         'assessment_run_failed_at' => 'datetime',
         'living_plan_next_update_at' => 'datetime',

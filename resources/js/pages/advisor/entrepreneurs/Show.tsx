@@ -123,6 +123,16 @@ export default function EntrepreneursShow({
     const [assessmentPending, setAssessmentPending] = useState(false);
     const [assessmentError, setAssessmentError] = useState<string | null>(null);
     const assessmentBusy = assessmentPending || assessmentRunInFlight;
+    const assessmentTotalCriteria = assessmentRun?.total_criteria ?? null;
+    const assessmentCompletedCriteria = Math.min(
+        assessmentRun?.completed_criteria ?? 0,
+        assessmentTotalCriteria ?? 0,
+    );
+    const assessmentProgressPercentage = assessmentTotalCriteria
+        ? Math.round(
+              (assessmentCompletedCriteria / assessmentTotalCriteria) * 100,
+          )
+        : null;
     const [gateNote, setGateNote] = useState('');
     const [changeRequestNote, setChangeRequestNote] = useState('');
     const [ideaRefreshPending, setIdeaRefreshPending] = useState(false);
@@ -996,14 +1006,48 @@ export default function EntrepreneursShow({
                         </div>
 
                         {assessmentBusy ? (
-                            <p
-                                className="text-sm text-muted-foreground"
-                                role="status"
-                            >
-                                {assessmentRun?.status === 'queued'
-                                    ? 'Assessment queued. The current plan will be scored in the background, and this page will refresh when it is complete.'
-                                    : 'Scoring the current plan and saving the next assessment round. This page will refresh when it is complete.'}
-                            </p>
+                            <div className="space-y-2" role="status">
+                                <p className="text-sm text-muted-foreground">
+                                    {assessmentRun?.status === 'queued'
+                                        ? 'Assessment queued. The current plan will be scored in the background.'
+                                        : 'Scoring the current plan and saving the next assessment round.'}
+                                </p>
+                                {assessmentRun?.status === 'running' &&
+                                assessmentTotalCriteria !== null ? (
+                                    <div className="space-y-1.5">
+                                        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
+                                            <span className="font-medium text-foreground">
+                                                {assessmentRun.current_criterion ??
+                                                    'Preparing assessment evidence'}
+                                            </span>
+                                            <span className="text-muted-foreground tabular-nums">
+                                                {assessmentCompletedCriteria} of{' '}
+                                                {assessmentTotalCriteria}{' '}
+                                                criteria
+                                            </span>
+                                        </div>
+                                        <div
+                                            aria-label="Assessment progress"
+                                            aria-valuemax={
+                                                assessmentTotalCriteria
+                                            }
+                                            aria-valuemin={0}
+                                            aria-valuenow={
+                                                assessmentCompletedCriteria
+                                            }
+                                            className="h-2 overflow-hidden rounded-full bg-muted"
+                                            role="progressbar"
+                                        >
+                                            <div
+                                                className="h-full bg-primary transition-[width] duration-500"
+                                                style={{
+                                                    width: `${assessmentProgressPercentage ?? 0}%`,
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </div>
                         ) : null}
                         {assessmentRun?.status === 'failed' ? (
                             <div

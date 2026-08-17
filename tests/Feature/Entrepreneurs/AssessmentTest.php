@@ -162,6 +162,9 @@ final class AssessmentTest extends TestCase
                 ->component('advisor/entrepreneurs/Show')
                 ->where('entrepreneur.latest_plan.assessment_count', 0)
                 ->where('entrepreneur.latest_plan.assessment_run.status', 'queued')
+                ->where('entrepreneur.latest_plan.assessment_run.total_criteria', null)
+                ->where('entrepreneur.latest_plan.assessment_run.completed_criteria', 0)
+                ->where('entrepreneur.latest_plan.assessment_run.current_criterion', 'Queued for assessment')
                 ->where('entrepreneur.latest_plan.can_assess', false)
             );
 
@@ -174,6 +177,9 @@ final class AssessmentTest extends TestCase
 
         $this->assertSame(EntrepreneurStage::ASSESSMENT, $profile->refresh()->stage);
         $this->assertSame('completed', $plan->refresh()->assessment_run_status);
+        $this->assertSame(12, $plan->assessment_run_total_criteria);
+        $this->assertSame(12, $plan->assessment_run_completed_criteria);
+        $this->assertNull($plan->assessment_run_current_criterion);
 
         $this->actingAsMfa($admin)
             ->get(route('advisor.entrepreneurs.show', $profile))
@@ -286,6 +292,37 @@ final class AssessmentTest extends TestCase
             );
     }
 
+    public function test_queued_assessment_persists_criterion_progress_while_scoring(): void
+    {
+        $ai = new CapturingScoreAiClient(70);
+        $this->app->instance(AiClient::class, $ai);
+        [$advisor, $plan] = $this->plan('queued-assessment-progress@example.test');
+
+        $this->assertTrue(app(Assessment::class)->queueFirstPass($plan, $advisor));
+
+        (new RunEntrepreneurPlanAssessment((string) $plan->getKey(), (int) $advisor->getKey()))
+            ->handle(app(RequestContext::class));
+
+        $this->assertCount(12, $ai->assessmentProgress);
+        $this->assertSame([
+            'total_criteria' => 12,
+            'completed_criteria' => 0,
+            'current_criterion' => 'Assessing criterion 1 of 12: Type of business',
+        ], $ai->assessmentProgress[0]);
+        $this->assertSame([
+            'total_criteria' => 12,
+            'completed_criteria' => 11,
+            'current_criterion' => 'Assessing criterion 12 of 12: Budget',
+        ], $ai->assessmentProgress[11]);
+
+        $plan->refresh();
+
+        $this->assertSame('completed', $plan->assessment_run_status);
+        $this->assertSame(12, $plan->assessment_run_total_criteria);
+        $this->assertSame(12, $plan->assessment_run_completed_criteria);
+        $this->assertNull($plan->assessment_run_current_criterion);
+    }
+
     public function test_queued_assessment_records_a_failure_without_creating_a_partial_round(): void
     {
         [$advisor, $plan] = $this->plan('queued-assessment-failure@example.test');
@@ -297,6 +334,9 @@ final class AssessmentTest extends TestCase
             ->handle(app(RequestContext::class));
 
         $this->assertSame('failed', $plan->refresh()->assessment_run_status);
+        $this->assertSame(12, $plan->assessment_run_total_criteria);
+        $this->assertSame(0, $plan->assessment_run_completed_criteria);
+        $this->assertSame('Assessing criterion 1 of 12: Type of business', $plan->assessment_run_current_criterion);
         $this->assertStringContainsString('provider did not respond', (string) $plan->assessment_run_failure);
         $this->assertDatabaseCount('plan_assessments', 0);
         $this->assertDatabaseHas('audit_events', [
@@ -826,6 +866,11 @@ final class CapturingScoreAiClient implements AiClient
      */
     public array $scorePrompts = [];
 
+    /**
+     * @var array<int, array{total_criteria:int|null,completed_criteria:int|null,current_criterion:string|null}>
+     */
+    public array $assessmentProgress = [];
+
     public function __construct(private readonly int $score) {}
 
     public function analyse(PromptEnvelope $prompt): AiResponse
@@ -841,6 +886,16 @@ final class CapturingScoreAiClient implements AiClient
     public function scoreCriterion(PromptEnvelope $prompt): AiResponse
     {
         $this->scorePrompts[] = $prompt;
+        $planId = data_get($prompt->input, 'business_plan_id');
+        $plan = is_string($planId) ? BusinessPlan::query()->find($planId) : null;
+
+        if ($plan instanceof BusinessPlan) {
+            $this->assessmentProgress[] = [
+                'total_criteria' => $plan->assessment_run_total_criteria,
+                'completed_criteria' => $plan->assessment_run_completed_criteria,
+                'current_criterion' => $plan->assessment_run_current_criterion,
+            ];
+        }
 
         return $this->response($prompt, ['band' => $this->bandForScore()]);
     }

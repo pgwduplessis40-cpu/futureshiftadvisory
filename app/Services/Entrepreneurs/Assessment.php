@@ -44,34 +44,74 @@ final class Assessment implements ProvidesMethodology
     public function firstPass(BusinessPlan $plan, User $actor): PlanAssessment
     {
         $plan = $plan->refresh()->load('sections', 'entrepreneurProfile', 'budgetRunway', 'phases.sections');
+        $framework = $this->frameworks->published();
+        $criteria = $framework->criteria->values();
+        $totalCriteria = $criteria->count();
+        $this->updateQueuedFirstPassProgress(
+            plan: $plan,
+            totalCriteria: $totalCriteria,
+            completedCriteria: 0,
+            currentCriterion: 'Preparing assessment evidence',
+        );
+
         foreach ($plan->sections as $section) {
             if ($section instanceof PlanSection) {
                 $this->documents->ensureScoringClear($section);
             }
         }
 
-        $framework = $this->frameworks->published();
         $planSnapshot = $this->snapshots->capture($plan);
-        $criterionContexts = $framework->criteria
+        $criterionContexts = $criteria
             ->mapWithKeys(fn (RatingCriterion $criterion): array => [
                 (string) $criterion->number => $this->contexts->criterionAssessmentFromSnapshot(
                     snapshot: $planSnapshot,
                     criterion: $criterion,
                 ),
             ]);
-        $aiScores = $framework->criteria
-            ->map(fn (RatingCriterion $criterion): array => $this->scoreCriterion(
-                criterion: $criterion,
-                plan: $plan,
-                framework: $framework,
-                planContext: $criterionContexts->get((string) $criterion->number, []),
-            ))
+        $aiScores = $criteria
+            ->map(function (RatingCriterion $criterion, int $index) use ($criteria, $criterionContexts, $framework, $plan, $totalCriteria): array {
+                $this->updateQueuedFirstPassProgress(
+                    plan: $plan,
+                    totalCriteria: $totalCriteria,
+                    completedCriteria: $index,
+                    currentCriterion: sprintf(
+                        'Assessing criterion %d of %d: %s',
+                        $index + 1,
+                        $totalCriteria,
+                        $criterion->name,
+                    ),
+                );
+
+                $score = $this->scoreCriterion(
+                    criterion: $criterion,
+                    plan: $plan,
+                    framework: $framework,
+                    planContext: $criterionContexts->get((string) $criterion->number, []),
+                );
+                $nextCriterion = $criteria->get($index + 1);
+
+                $this->updateQueuedFirstPassProgress(
+                    plan: $plan,
+                    totalCriteria: $totalCriteria,
+                    completedCriteria: $index + 1,
+                    currentCriterion: $nextCriterion instanceof RatingCriterion
+                        ? sprintf(
+                            'Preparing criterion %d of %d: %s',
+                            $index + 2,
+                            $totalCriteria,
+                            $nextCriterion->name,
+                        )
+                        : 'Saving assessment',
+                );
+
+                return $score;
+            })
             ->values()
             ->all();
         $documentSupport = $this->documentSupport($plan);
         $weighted = AssessmentScoring::weightedScoreForFramework($framework, $aiScores);
 
-        return DB::transaction(function () use ($plan, $actor, $framework, $aiScores, $documentSupport, $planSnapshot, $weighted): PlanAssessment {
+        return DB::transaction(function () use ($plan, $actor, $framework, $aiScores, $documentSupport, $planSnapshot, $totalCriteria, $weighted): PlanAssessment {
             $lockedPlan = BusinessPlan::query()
                 ->whereKey($plan->getKey())
                 ->lockForUpdate()
@@ -95,6 +135,9 @@ final class Assessment implements ProvidesMethodology
             $lockedPlan->forceFill([
                 'status' => BusinessPlan::STATUS_ASSESSING,
                 'assessment_run_status' => 'completed',
+                'assessment_run_total_criteria' => $totalCriteria,
+                'assessment_run_completed_criteria' => $totalCriteria,
+                'assessment_run_current_criterion' => null,
                 'assessment_run_completed_at' => now(),
                 'assessment_run_failed_at' => null,
                 'assessment_run_failure' => null,
@@ -130,6 +173,9 @@ final class Assessment implements ProvidesMethodology
                 'assessment_run_status' => 'queued',
                 'assessment_run_requested_at' => now(),
                 'assessment_run_started_at' => null,
+                'assessment_run_total_criteria' => null,
+                'assessment_run_completed_criteria' => 0,
+                'assessment_run_current_criterion' => 'Queued for assessment',
                 'assessment_run_completed_at' => null,
                 'assessment_run_failed_at' => null,
                 'assessment_run_failure' => null,
@@ -159,6 +205,7 @@ final class Assessment implements ProvidesMethodology
             $lockedPlan->forceFill([
                 'assessment_run_status' => 'running',
                 'assessment_run_started_at' => now(),
+                'assessment_run_current_criterion' => 'Preparing assessment evidence',
             ])->save();
 
             $this->audit->record('entrepreneur.plan_assessment_started', subject: $lockedPlan, actor: $actor, after: [
@@ -190,6 +237,22 @@ final class Assessment implements ProvidesMethodology
 
             return $lockedPlan->refresh();
         });
+    }
+
+    private function updateQueuedFirstPassProgress(
+        BusinessPlan $plan,
+        int $totalCriteria,
+        int $completedCriteria,
+        ?string $currentCriterion,
+    ): void {
+        BusinessPlan::query()
+            ->whereKey($plan->getKey())
+            ->where('assessment_run_status', 'running')
+            ->update([
+                'assessment_run_total_criteria' => $totalCriteria,
+                'assessment_run_completed_criteria' => $completedCriteria,
+                'assessment_run_current_criterion' => $currentCriterion,
+            ]);
     }
 
     public function adjustScore(PlanAssessment $assessment, int $criterionNumber, int $score, string $note, User $advisor): PlanAssessment

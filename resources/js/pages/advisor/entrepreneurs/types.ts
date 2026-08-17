@@ -54,6 +54,9 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
                 | null;
             requested_at: string | null;
             started_at: string | null;
+            total_criteria: number | null;
+            completed_criteria: number | null;
+            current_criterion: string | null;
             completed_at: string | null;
             failed_at: string | null;
             failure: string | null;
