@@ -44,7 +44,7 @@ final class ScoringAiClient implements AiClient
             promptHash: $prompt->hash(),
             tokensIn: 1,
             tokensOut: 1,
-            metadata: ['score' => $this->score],
+            metadata: ['band' => $this->bandForScore()],
         );
     }
 
@@ -56,5 +56,15 @@ final class ScoringAiClient implements AiClient
     public function redFlag(PromptEnvelope $prompt): AiResponse
     {
         return $this->fallback->redFlag($prompt);
+    }
+
+    private function bandForScore(): string
+    {
+        return match (true) {
+            $this->score >= 90 => 'exceptional',
+            $this->score >= 75 => 'strong',
+            $this->score >= 60 => 'developing',
+            default => 'needs_work',
+        };
     }
 }

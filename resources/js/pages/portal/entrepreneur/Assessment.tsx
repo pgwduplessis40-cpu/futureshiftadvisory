@@ -20,10 +20,16 @@ type Criterion = {
     name: string;
     weight: number;
     score: number;
+    score_band: string | null;
+    score_scale: Record<string, number> | null;
+    scoring_method: string | null;
     contribution: number;
     source_label: string;
     rationale: string;
     context_hash: string | null;
+    evidence_mode: string | null;
+    evidence_section_count: number | null;
+    budget_evidence_included: boolean;
     source_sections: SourceSection[];
 };
 
@@ -33,6 +39,15 @@ type SourceSection = {
     requirement_key: string | null;
     updated_at: string | null;
     body_excerpt: string;
+};
+
+type EvidenceSection = {
+    section_id: string;
+    phase_title: string;
+    title: string;
+    requirement_key: string | null;
+    updated_at: string | null;
+    body: string;
 };
 
 type RevisionPriority = {
@@ -52,6 +67,12 @@ type Assessment = {
     threshold: number;
     requires_full_reassessment: boolean;
     automated_score_available: boolean;
+    scoring: {
+        is_calibrated: boolean;
+        uses_complete_snapshot_evidence: boolean;
+        label: string;
+        detail: string;
+    };
     finalised_at: string | null;
     created_at: string | null;
     basis: {
@@ -80,6 +101,14 @@ type Assessment = {
     document_support: {
         attached_document_count: number;
         summary: string;
+    };
+    evidence_audit: {
+        mode: string;
+        label: string;
+        section_count: number;
+        includes_budget_evidence: boolean;
+        sections: EvidenceSection[];
+        budget_evidence: Record<string, unknown> | null;
     };
     mentor_notes: {
         overall_visible?: string;
@@ -357,6 +386,14 @@ export default function EntrepreneurAssessment({
                                 assessment.basis.plan_snapshot_captured_at,
                             )}
                         />
+                        <Detail
+                            label="Scoring method"
+                            value={assessment.scoring.label}
+                        />
+                        <Detail
+                            label="Evidence used"
+                            value={assessment.evidence_audit.label}
+                        />
                     </dl>
                     <p className="max-w-4xl text-sm text-muted-foreground">
                         {assessment.explanation}
@@ -376,12 +413,12 @@ export default function EntrepreneurAssessment({
                             <div className="space-y-1">
                                 <h2 className="text-sm font-medium">
                                     {assessment.automated_score_available
-                                        ? 'Fresh assessment required'
+                                        ? 'Calibrated reassessment required'
                                         : 'Invalid automated result'}
                                 </h2>
                                 <p className="max-w-4xl text-sm">
                                     {assessment.automated_score_available
-                                        ? 'This historical round carried scores forward from an earlier assessment. The submitted plan snapshot is correct, but no new AI score was generated for it.'
+                                        ? assessment.scoring.detail
                                         : 'No valid AI score was returned for this historical round. Its fallback values are retained only for audit and cannot be used for advice or progression.'}
                                 </p>
                             </div>
@@ -409,6 +446,81 @@ export default function EntrepreneurAssessment({
                         ) : null}
                     </section>
                 ) : null}
+
+                <section className="space-y-3 rounded-md border bg-background p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h2 className="text-sm font-medium">
+                                Assessment evidence audit
+                            </h2>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                {assessment.evidence_audit.label}
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <Badge variant="outline">
+                                {assessment.evidence_audit.section_count} plan{' '}
+                                sections
+                            </Badge>
+                            <Badge variant="outline">
+                                {assessment.evidence_audit
+                                    .includes_budget_evidence
+                                    ? 'Budget included'
+                                    : 'Budget unavailable'}
+                            </Badge>
+                        </div>
+                    </div>
+                    <details className="border-t pt-3">
+                        <summary className="cursor-pointer text-sm font-medium text-foreground">
+                            View captured evidence
+                        </summary>
+                        <div className="mt-3 space-y-4">
+                            {assessment.evidence_audit.sections.map(
+                                (section, index) => (
+                                    <div
+                                        key={`${section.section_id || section.title}-${index}`}
+                                        className="border-b pb-4 last:border-b-0 last:pb-0"
+                                    >
+                                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                                            {section.phase_title ? (
+                                                <span className="text-muted-foreground">
+                                                    {section.phase_title}
+                                                </span>
+                                            ) : null}
+                                            <span className="font-medium text-foreground">
+                                                {section.title}
+                                            </span>
+                                            {section.requirement_key ? (
+                                                <Badge variant="outline">
+                                                    {section.requirement_key}
+                                                </Badge>
+                                            ) : null}
+                                        </div>
+                                        <p className="mt-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
+                                            {section.body ||
+                                                'No text captured.'}
+                                        </p>
+                                    </div>
+                                ),
+                            )}
+                            {assessment.evidence_audit.budget_evidence ? (
+                                <div className="border-t pt-4">
+                                    <div className="text-xs font-medium text-foreground">
+                                        Budget evidence
+                                    </div>
+                                    <pre className="mt-2 max-h-96 overflow-auto bg-muted/30 p-3 text-xs break-words whitespace-pre-wrap text-muted-foreground">
+                                        {JSON.stringify(
+                                            assessment.evidence_audit
+                                                .budget_evidence,
+                                            null,
+                                            2,
+                                        )}
+                                    </pre>
+                                </div>
+                            ) : null}
+                        </div>
+                    </details>
+                </section>
 
                 {advisorFeedback ? (
                     <section className="space-y-4 rounded-md border bg-background p-4">
@@ -673,23 +785,46 @@ export default function EntrepreneurAssessment({
                                     <div className="text-xs text-muted-foreground">
                                         {criterion.source_label}
                                     </div>
+                                    {criterion.score_band ? (
+                                        <div className="text-xs text-muted-foreground">
+                                            Model-selected band:{' '}
+                                            <span className="font-medium text-foreground">
+                                                {formatLabel(
+                                                    criterion.score_band,
+                                                )}
+                                            </span>{' '}
+                                            ({formatScoreScale(criterion)})
+                                        </div>
+                                    ) : null}
                                     {criterion.rationale ? (
                                         <p className="max-w-3xl text-xs text-muted-foreground">
                                             {criterion.rationale}
                                         </p>
                                     ) : null}
                                     {criterion.source_sections.length > 0 ? (
-                                        <div className="mt-3 space-y-2">
-                                            <div className="text-xs font-medium text-foreground">
-                                                Scored from plan sections
-                                            </div>
-                                            <div className="grid gap-2">
-                                                {criterion.source_sections
-                                                    .slice(0, 3)
-                                                    .map((section, index) => (
+                                        <details className="mt-3 border-t pt-3">
+                                            <summary className="cursor-pointer text-xs font-medium text-foreground">
+                                                Focused evidence (
+                                                {
+                                                    criterion.source_sections
+                                                        .length
+                                                }{' '}
+                                                of{' '}
+                                                {criterion.evidence_section_count ??
+                                                    criterion.source_sections
+                                                        .length}{' '}
+                                                submitted plan sections
+                                                {criterion.budget_evidence_included
+                                                    ? ' and budget evidence'
+                                                    : ''}
+                                                )
+                                            </summary>
+                                            <div className="mt-2 grid gap-2">
+                                                {criterion.source_sections.map(
+                                                    (section, index) => (
                                                         <div
                                                             key={`${criterion.number}-${section.section_id || index}`}
-                                                            className="rounded-md border bg-muted/30 p-2"
+                                                            className="border-b py-2 last:border-b-0"
                                                         >
                                                             <div className="flex flex-wrap items-center gap-2 text-xs">
                                                                 <span className="font-medium text-foreground">
@@ -714,16 +849,17 @@ export default function EntrepreneurAssessment({
                                                                 ) : null}
                                                             </div>
                                                             {section.body_excerpt ? (
-                                                                <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
+                                                                <p className="mt-1 text-xs text-muted-foreground">
                                                                     {
                                                                         section.body_excerpt
                                                                     }
                                                                 </p>
                                                             ) : null}
                                                         </div>
-                                                    ))}
+                                                    ),
+                                                )}
                                             </div>
-                                        </div>
+                                        </details>
                                     ) : null}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2 lg:justify-end">
@@ -752,6 +888,18 @@ export default function EntrepreneurAssessment({
             </div>
         </>
     );
+}
+
+function formatScoreScale(criterion: Criterion): string {
+    if (!criterion.score_band || !criterion.score_scale) {
+        return `${criterion.score.toFixed(1)}/100`;
+    }
+
+    const score = criterion.score_scale[criterion.score_band];
+
+    return typeof score === 'number'
+        ? `${score}/100 approved scale`
+        : `${criterion.score.toFixed(1)}/100`;
 }
 
 function Detail({

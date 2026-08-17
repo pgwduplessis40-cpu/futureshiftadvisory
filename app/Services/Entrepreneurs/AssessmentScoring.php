@@ -36,6 +36,12 @@ final class AssessmentScoring
                 $score = $hasAdvisorScore
                     ? (float) $advisor['score']
                     : (float) ($aiScore ?? 0);
+                $scoreBand = $hasAdvisorScore || ! is_array($ai)
+                    ? null
+                    : self::normaliseBand(data_get($ai, 'metadata.score_band'));
+                $scoreScale = is_array($ai) && is_array(data_get($ai, 'metadata.score_scale'))
+                    ? data_get($ai, 'metadata.score_scale')
+                    : null;
                 $weight = (float) $criterion->weight;
                 $normalisedWeight = $totalWeight > 0 ? $weight / $totalWeight : 0;
                 $scoreSource = is_array($ai)
@@ -55,7 +61,12 @@ final class AssessmentScoring
                     'score' => $score,
                     'ai_score' => $aiScore,
                     'advisor_score' => $hasAdvisorScore ? (float) $advisor['score'] : null,
-                    'grade' => $framework->gradeFor($score),
+                    'grade' => $scoreBand ?? $framework->gradeFor($score),
+                    'score_band' => $scoreBand,
+                    'score_scale' => $scoreScale,
+                    'scoring_method' => is_array($ai)
+                        ? data_get($ai, 'metadata.scoring_method')
+                        : ($hasAdvisorScore ? 'advisor_review' : null),
                     'contribution' => round($score * $normalisedWeight, 2),
                     'source' => $hasAdvisorScore
                         ? 'advisor_review'
@@ -76,6 +87,11 @@ final class AssessmentScoring
                         : (string) (is_array($ai) ? ($ai['rationale'] ?? '') : ''),
                     'attributions' => is_array($ai) && is_array($ai['attributions'] ?? null) ? $ai['attributions'] : [],
                     'context_hash' => is_array($ai) ? data_get($ai, 'metadata.context_hash') : null,
+                    'evidence_mode' => is_array($ai) ? data_get($ai, 'metadata.evidence_mode') : null,
+                    'evidence_section_count' => is_array($ai) ? data_get($ai, 'metadata.evidence_section_count') : null,
+                    'budget_evidence_included' => is_array($ai)
+                        ? (bool) data_get($ai, 'metadata.budget_evidence_included', false)
+                        : false,
                     'source_sections' => is_array($ai) && is_array(data_get($ai, 'metadata.source_sections'))
                         ? array_values(data_get($ai, 'metadata.source_sections'))
                         : [],
@@ -167,5 +183,18 @@ final class AssessmentScoring
         }
 
         return is_numeric($key) ? (int) $key : 0;
+    }
+
+    private static function normaliseBand(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $band = strtolower(trim(str_replace([' ', '-'], '_', $value)));
+
+        return array_key_exists($band, RatingFramework::DEFAULT_CRITERION_BAND_SCORES)
+            ? $band
+            : null;
     }
 }

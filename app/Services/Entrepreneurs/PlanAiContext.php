@@ -158,10 +158,75 @@ final class PlanAiContext
     }
 
     /**
-     * @param  array{relevant_sections?:array<int, array{body_excerpt?:string}>,supporting_section_summaries?:array<int, array{body_excerpt?:string}>,budget_summary?:string}  $context
+     * Builds the immutable evidence pack used for a scored assessment round.
+     * Every criterion receives the complete submitted plan and its budget data;
+     * the criterion focus only tells the model where to apply the rubric.
+     *
+     * @param  array<string, mixed>  $snapshot
+     * @return array<string, mixed>
+     */
+    public function criterionAssessmentFromSnapshot(array $snapshot, RatingCriterion $criterion): array
+    {
+        $sections = collect($snapshot['phases'] ?? [])
+            ->flatMap(function (mixed $phase): array {
+                if (! is_array($phase)) {
+                    return [];
+                }
+
+                return collect($phase['sections'] ?? [])
+                    ->filter(fn (mixed $section): bool => is_array($section))
+                    ->map(fn (array $section): array => [
+                        'section_id' => (string) ($section['id'] ?? ''),
+                        'phase_key' => (string) ($phase['key'] ?? ''),
+                        'phase_title' => (string) ($phase['title'] ?? ''),
+                        'title' => (string) ($section['title'] ?? ''),
+                        'requirement_key' => isset($section['requirement_key'])
+                            ? (string) $section['requirement_key']
+                            : null,
+                        'updated_at' => isset($section['updated_at'])
+                            ? (string) $section['updated_at']
+                            : null,
+                        'body' => (string) ($section['body'] ?? ''),
+                    ])
+                    ->all();
+            })
+            ->values()
+            ->all();
+        $preferredRequirementKeys = self::CRITERION_REQUIREMENT_KEYS[strtolower(trim((string) $criterion->name))] ?? [];
+        $criterionFocusSections = collect($sections)
+            ->filter(fn (array $section): bool => in_array($section['requirement_key'] ?? null, $preferredRequirementKeys, true));
+
+        if ($criterionFocusSections->isEmpty()) {
+            $criterionFocusSections = collect($sections);
+        }
+
+        $budgetEvidence = data_get($snapshot, 'budget.assessment_evidence');
+
+        return [
+            'evidence_mode' => 'complete_submitted_plan_snapshot',
+            'snapshot_captured_at' => (string) ($snapshot['captured_at'] ?? ''),
+            'criterion_focus' => [
+                'name' => (string) $criterion->name,
+                'preferred_requirement_keys' => $preferredRequirementKeys,
+            ],
+            'full_plan_sections' => $sections,
+            'criterion_focus_sections' => $criterionFocusSections->take(3)->values()->all(),
+            'budget_evidence' => is_array($budgetEvidence) ? $budgetEvidence : null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
      */
     public function assessmentText(array $context): string
     {
+        if (($context['evidence_mode'] ?? null) === 'complete_submitted_plan_snapshot') {
+            return json_encode([
+                'full_plan_sections' => $context['full_plan_sections'] ?? [],
+                'budget_evidence' => $context['budget_evidence'] ?? [],
+            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        }
+
         return collect([
             ...collect($context['relevant_sections'] ?? [])->pluck('body_excerpt')->all(),
             ...collect($context['supporting_section_summaries'] ?? [])->pluck('body_excerpt')->all(),

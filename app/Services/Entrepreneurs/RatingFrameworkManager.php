@@ -51,6 +51,7 @@ final class RatingFrameworkManager implements ProvidesMethodology
                 'industry_variant' => $framework->industry_variant,
                 'production_ready' => false,
                 'grade_bands' => $framework->grade_bands ?: RatingFramework::DEFAULT_GRADE_BANDS,
+                'criterion_band_scores' => $framework->criterionBandScores(),
                 'supersedes_framework_id' => $framework->getKey(),
                 'created_by_user_id' => $actor->getKey(),
             ]);

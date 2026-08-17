@@ -58,7 +58,7 @@ final class EntrepreneurAssessmentController extends Controller
             $proposedReply = $suggestedReply;
         }
 
-        $assessmentPayload = $this->assessmentPayload($planAssessment);
+        $assessmentPayload = $this->assessmentPayload($planAssessment, includeEvidenceAudit: true);
         if ((bool) data_get($assessmentPayload, 'basis.plan_snapshot_available')) {
             $assessmentPayload['basis']['plan_snapshot_url'] = route(
                 'advisor.entrepreneurs.assessments.plan-preview',

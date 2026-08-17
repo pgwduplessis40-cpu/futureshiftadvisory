@@ -916,6 +916,12 @@ final class EntrepreneurController extends Controller
             return $ai.' AI-scored criteria and '.$reused.' carried forward from an earlier assessment.';
         }
 
+        $calibrated = $scores->every(fn (array $score): bool => data_get($score, 'metadata.scoring_method') === 'calibrated_band_v1'
+            && data_get($score, 'metadata.evidence_mode') === 'complete_submitted_plan_snapshot');
+        if ($calibrated) {
+            return 'Calibrated rubric-band assessment against the complete submitted plan snapshot, including budget evidence.';
+        }
+
         return 'AI-scored against the captured plan context.';
     }
 

@@ -48,7 +48,7 @@ final class EntrepreneurAssessmentController extends Controller
                     'email' => $profile->assignedAdvisor->email,
                 ] : null,
             ],
-            'assessment' => $this->assessmentPayload($planAssessment),
+            'assessment' => $this->assessmentPayload($planAssessment, includeEvidenceAudit: true),
             'dashboardUrl' => route('portal.entrepreneur.dashboard', absolute: false),
             'backUrl' => route('portal.entrepreneur.dashboard', absolute: false),
         ]);

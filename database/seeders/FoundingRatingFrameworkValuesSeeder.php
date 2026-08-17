@@ -30,6 +30,7 @@ final class FoundingRatingFrameworkValuesSeeder extends Seeder
                 'industry_variant' => null,
                 'production_ready' => true,
                 'grade_bands' => RatingFramework::DEFAULT_GRADE_BANDS,
+                'criterion_band_scores' => RatingFramework::DEFAULT_CRITERION_BAND_SCORES,
                 'supersedes_framework_id' => $current->getKey(),
                 'published_at' => now(),
             ]);

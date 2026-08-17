@@ -14,7 +14,7 @@ trait BuildsEntrepreneurAssessmentPayload
     /**
      * @return array<string, mixed>
      */
-    protected function assessmentPayload(PlanAssessment $assessment): array
+    protected function assessmentPayload(PlanAssessment $assessment, bool $includeEvidenceAudit = false): array
     {
         $assessment->loadMissing('businessPlan', 'ratingFramework.criteria');
 
@@ -31,25 +31,43 @@ trait BuildsEntrepreneurAssessmentPayload
             ->filter(fn (mixed $score): bool => is_array($score)
                 && (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'reused_identical_context');
         $hasFallbackScores = AssessmentScoring::hasFallbackScores($assessment);
-        $requiresFullReassessment = $reusedScores->isNotEmpty() || $hasFallbackScores;
+        $freshAiScores = collect($assessment->ai_scores ?? [])
+            ->filter(fn (mixed $score): bool => is_array($score)
+                && (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'ai_assessment');
+        $hasLegacyUncalibratedScores = $freshAiScores->isNotEmpty()
+            && $freshAiScores->contains(fn (array $score): bool => data_get($score, 'metadata.scoring_method') !== 'calibrated_band_v1');
+        $usesCompleteSnapshotEvidence = $freshAiScores->isNotEmpty()
+            && $freshAiScores->every(fn (array $score): bool => data_get($score, 'metadata.evidence_mode') === 'complete_submitted_plan_snapshot');
+        $requiresFullReassessment = $reusedScores->isNotEmpty() || $hasFallbackScores || $hasLegacyUncalibratedScores;
         $automatedScoreAvailable = ! $hasFallbackScores;
         $automatedScoreDescription = match (true) {
             $hasFallbackScores => 'No valid AI score was returned for this historical round. Its calculated fallback values are retained only for audit and must not be used for advice or progression.',
             $reusedScores->isNotEmpty() => 'This historical round carried forward automatic scores from an earlier assessment. The submitted-plan snapshot is correct for this round, but no new AI score was generated. Run a fresh assessment before relying on the automatic score.',
-            default => 'Advisor-reviewed scores override the automated score only where an advisor has added a review score.',
+            $hasLegacyUncalibratedScores => 'This historical round used model-selected raw numeric scores and selected excerpts. It is retained for audit, but it is not comparable with calibrated assessments. Run a fresh assessment before relying on it.',
+            default => 'Each automated criterion selected a rubric band from the complete submitted-plan snapshot. The server converted that band using this framework version’s approved score scale. Advisor-reviewed scores override the automated score only where an advisor has added a review score.',
         };
         $explanation = match (true) {
             $hasFallbackScores => sprintf(
                 'Assessment round %d has no valid AI score. It is retained as an audit record only and is excluded from progression. Run a fresh assessment before relying on it.',
                 max(1, (int) $assessment->round),
             ),
-            $requiresFullReassessment => sprintf(
+            $reusedScores->isNotEmpty() => sprintf(
                 'This score is the weighted total from assessment round %d. The plan snapshot belongs to this round, but the automatic scores were carried forward from an earlier round instead of being generated again. Run a fresh assessment to score all submitted plan evidence. A score of %.0f or above marks the plan as advisory ready.',
                 max(1, (int) $assessment->round),
                 AdvisoryReadiness::THRESHOLD,
             ),
+            $hasLegacyUncalibratedScores => sprintf(
+                'This score is the weighted total from assessment round %d, but it used model-selected raw numeric scores and selected excerpts. Run a calibrated assessment to score the complete submitted-plan snapshot against the current framework. A score of %.0f or above marks the plan as advisory ready.',
+                max(1, (int) $assessment->round),
+                AdvisoryReadiness::THRESHOLD,
+            ),
+            $requiresFullReassessment => sprintf(
+                'This score is the weighted total from assessment round %d, but it is not a calibrated current assessment. Run a fresh assessment to score the complete submitted-plan snapshot against the current framework. A score of %.0f or above marks the plan as advisory ready.',
+                max(1, (int) $assessment->round),
+                AdvisoryReadiness::THRESHOLD,
+            ),
             default => sprintf(
-                'This score is the weighted total from assessment round %d. Advisor-reviewed scores are used where present; otherwise the automated score generated for this round is used. A score of %.0f or above marks the plan as advisory ready.',
+                'This score is the weighted total from assessment round %d. Each automated criterion is a server-converted rubric band selected from the complete submitted-plan snapshot; advisor-reviewed scores are used where present. A score of %.0f or above marks the plan as advisory ready.',
                 max(1, (int) $assessment->round),
                 AdvisoryReadiness::THRESHOLD,
             ),
@@ -64,6 +82,16 @@ trait BuildsEntrepreneurAssessmentPayload
             'threshold' => AdvisoryReadiness::THRESHOLD,
             'requires_full_reassessment' => $requiresFullReassessment,
             'automated_score_available' => $automatedScoreAvailable,
+            'scoring' => [
+                'is_calibrated' => ! $hasLegacyUncalibratedScores && ! $hasFallbackScores && $reusedScores->isEmpty(),
+                'uses_complete_snapshot_evidence' => $usesCompleteSnapshotEvidence,
+                'label' => $hasLegacyUncalibratedScores
+                    ? 'Historical raw AI score - reassessment required'
+                    : ($usesCompleteSnapshotEvidence
+                        ? 'Calibrated rubric bands from the complete submitted snapshot'
+                        : 'Historical assessment evidence'),
+                'detail' => $automatedScoreDescription,
+            ],
             'finalised_at' => $assessment->finalised_at?->toIso8601String(),
             'created_at' => $assessment->created_at?->toIso8601String(),
             'basis' => [
@@ -108,6 +136,11 @@ trait BuildsEntrepreneurAssessmentPayload
                     'Verified documents can support criterion scores; unresolved flags block assessment finalisation.',
                 ),
             ],
+            'evidence_audit' => $this->evidenceAudit(
+                planSnapshot: is_array($planSnapshot) ? $planSnapshot : [],
+                criteria: $criteria,
+                includeContents: $includeEvidenceAudit,
+            ),
             'mentor_notes' => $this->entrepreneurVisibleMentorNotes($assessment),
             'criteria' => $criteria,
             'explanation' => $explanation,
@@ -152,5 +185,55 @@ trait BuildsEntrepreneurAssessmentPayload
         }
 
         return $query->first();
+    }
+
+    /**
+     * @param  array<string, mixed>  $planSnapshot
+     * @param  array<int, array<string, mixed>>  $criteria
+     * @return array<string, mixed>
+     */
+    private function evidenceAudit(array $planSnapshot, array $criteria, bool $includeContents): array
+    {
+        $usesCompleteSnapshot = collect($criteria)
+            ->filter(fn (array $criterion): bool => ($criterion['source'] ?? null) === 'automated_assessment')
+            ->isNotEmpty()
+            && collect($criteria)
+                ->filter(fn (array $criterion): bool => ($criterion['source'] ?? null) === 'automated_assessment')
+                ->every(fn (array $criterion): bool => ($criterion['evidence_mode'] ?? null) === 'complete_submitted_plan_snapshot');
+        $sections = collect($planSnapshot['phases'] ?? [])
+            ->flatMap(function (mixed $phase): array {
+                if (! is_array($phase)) {
+                    return [];
+                }
+
+                return collect($phase['sections'] ?? [])
+                    ->filter(fn (mixed $section): bool => is_array($section))
+                    ->map(fn (array $section): array => [
+                        'section_id' => (string) ($section['id'] ?? ''),
+                        'phase_title' => (string) ($phase['title'] ?? ''),
+                        'title' => (string) ($section['title'] ?? ''),
+                        'requirement_key' => isset($section['requirement_key'])
+                            ? (string) $section['requirement_key']
+                            : null,
+                        'updated_at' => isset($section['updated_at'])
+                            ? (string) $section['updated_at']
+                            : null,
+                        'body' => (string) ($section['body'] ?? ''),
+                    ])
+                    ->all();
+            })
+            ->values();
+        $budgetEvidence = data_get($planSnapshot, 'budget.assessment_evidence');
+
+        return [
+            'mode' => $usesCompleteSnapshot ? 'complete_submitted_plan_snapshot' : 'historical_selected_evidence',
+            'label' => $usesCompleteSnapshot
+                ? 'Complete submitted-plan snapshot, including budget evidence'
+                : 'Historical plan evidence (not a complete snapshot scoring record)',
+            'section_count' => $sections->count(),
+            'includes_budget_evidence' => is_array($budgetEvidence),
+            'sections' => $includeContents ? $sections->all() : [],
+            'budget_evidence' => $includeContents && is_array($budgetEvidence) ? $budgetEvidence : null,
+        ];
     }
 }

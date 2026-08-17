@@ -117,6 +117,7 @@ final class AssessmentFeedback
                     'what_to_add_or_change' => $guidance['what_to_add_or_change'],
                     'where_in_plan' => $this->reviewedSectionsLabel($sourceSections, $guidance['where_in_plan']),
                     'scoring_rationale' => $rationale,
+                    'evidence_mode' => $criterion['evidence_mode'] ?? null,
                     'source_sections' => $sourceSections,
                 ];
             })
@@ -319,7 +320,11 @@ final class AssessmentFeedback
             return null;
         }
 
-        return 'Scored from current source excerpts: '.implode(' | ', $sections);
+        $prefix = ($priority['evidence_mode'] ?? null) === 'complete_submitted_plan_snapshot'
+            ? 'Scored from the complete submitted-plan snapshot: '
+            : 'Scored from current source excerpts: ';
+
+        return $prefix.implode(' | ', $sections);
     }
 
     private function assessmentFinding(string $rationale): string

@@ -455,7 +455,7 @@ final class RecordingAiClient implements AiClient
             tokensOut: 3,
             metadata: [
                 'method' => $method,
-                ...($method === 'scoreCriterion' ? ['score' => 70] : []),
+                ...($method === 'scoreCriterion' ? ['band' => 'developing'] : []),
             ],
         );
     }

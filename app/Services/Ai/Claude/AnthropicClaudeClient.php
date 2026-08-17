@@ -358,12 +358,13 @@ final class AnthropicClaudeClient implements AiClient, QuoteSourceExtractionClie
             return [
                 'type' => 'object',
                 'properties' => [
-                    'score' => [
-                        'type' => 'integer',
-                        'description' => 'Score from 0 to 100.',
+                    'band' => [
+                        'type' => 'string',
+                        'enum' => ['exceptional', 'strong', 'developing', 'needs_work'],
+                        'description' => 'The one rubric band selected for this criterion. The application converts this band to its framework-owned numeric score.',
                     ],
                 ],
-                'required' => ['score'],
+                'required' => ['band'],
                 'additionalProperties' => false,
             ];
         }
@@ -492,7 +493,7 @@ final class AnthropicClaudeClient implements AiClient, QuoteSourceExtractionClie
 
         if ($task === 'score_criterion') {
             $requiredSchema['metadata'] = [
-                'score' => 'integer from 0 to 100, calibrated to the supplied rating framework descriptors',
+                'band' => 'exceptional|strong|developing|needs_work selected from the supplied rating-framework descriptors; do not return a numeric score',
             ];
         }
 

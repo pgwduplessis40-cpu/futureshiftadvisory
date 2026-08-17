@@ -7,6 +7,7 @@ namespace Tests\Feature\Entrepreneurs;
 use App\Enums\EntrepreneurStage;
 use App\Jobs\RunEntrepreneurPlanAssessment;
 use App\Models\BusinessPlan;
+use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
 use App\Models\LearningUpdate;
 use App\Models\PlanAssessment;
@@ -63,16 +64,72 @@ final class AssessmentTest extends TestCase
         ]);
     }
 
-    public function test_first_pass_uses_structured_ai_score_when_supplied(): void
+    public function test_first_pass_uses_server_calibrated_band_score_when_supplied(): void
     {
         $this->app->instance(AiClient::class, new StructuredScoreAiClient(91));
         [$advisor, $plan] = $this->plan('structured-score-founder@example.test');
 
         $assessment = app(Assessment::class)->firstPass($plan, $advisor);
 
-        $this->assertSame(91, data_get($assessment->ai_scores, '0.score'));
+        $this->assertSame(100, data_get($assessment->ai_scores, '0.score'));
+        $this->assertSame('exceptional', data_get($assessment->ai_scores, '0.metadata.score_band'));
+        $this->assertEqualsCanonicalizing(
+            ['exceptional' => 100, 'strong' => 80, 'developing' => 55, 'needs_work' => 30],
+            data_get($assessment->ai_scores, '0.metadata.score_scale'),
+        );
         $this->assertSame('ai_assessment', data_get($assessment->ai_scores, '0.score_source'));
         $this->assertSame('exceptional', $assessment->overall_grade);
+    }
+
+    public function test_first_pass_scores_the_complete_submitted_snapshot_including_budget_evidence(): void
+    {
+        $ai = new CapturingScoreAiClient(70);
+        $this->app->instance(AiClient::class, $ai);
+        [$advisor, $plan] = $this->plan('complete-snapshot-assessment@example.test');
+        app(PlanBuilder::class)->upsertSection(
+            plan: $plan->refresh(),
+            phaseKey: 'market',
+            key: 'market-complete-snapshot-evidence',
+            title: 'Complete snapshot evidence',
+            body: 'This evidence must be present for every criterion, not only the market criterion.',
+            actor: $advisor,
+            metadata: ['requirement_key' => 'industry-context'],
+        );
+        EntrepreneurBudget::query()->create([
+            'business_plan_id' => $plan->getKey(),
+            'status' => EntrepreneurBudget::STATUS_COMPLETE,
+            'forecast_years' => 3,
+            'assumptions' => ['pricing_basis' => 'Snapshot budget pricing evidence'],
+            'computed' => ['runway_months' => 12],
+        ]);
+
+        $assessment = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+        $promptInput = json_encode(
+            array_map(fn (PromptEnvelope $prompt): array => $prompt->input, $ai->scorePrompts),
+            JSON_THROW_ON_ERROR,
+        );
+
+        $this->assertSame(55, data_get($assessment->ai_scores, '0.score'));
+        $this->assertSame('developing', data_get($assessment->ai_scores, '0.metadata.score_band'));
+        $this->assertSame('calibrated_band_v1', data_get($assessment->ai_scores, '0.metadata.scoring_method'));
+        $this->assertSame('complete_submitted_plan_snapshot', data_get($assessment->ai_scores, '0.metadata.evidence_mode'));
+        $this->assertTrue((bool) data_get($assessment->ai_scores, '0.metadata.budget_evidence_included'));
+        $this->assertStringContainsString('This evidence must be present for every criterion', $promptInput);
+        $this->assertStringContainsString('Snapshot budget pricing evidence', $promptInput);
+        $this->assertSame('Snapshot budget pricing evidence', data_get($assessment->plan_snapshot, 'budget.assessment_evidence.assumptions.pricing_basis'));
+
+        $profile = $plan->entrepreneurProfile()->firstOrFail();
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.assessments.show', [$profile, $assessment]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('assessment.scoring.is_calibrated', true)
+                ->where('assessment.scoring.uses_complete_snapshot_evidence', true)
+                ->where('assessment.criteria.0.score_band', 'developing')
+                ->where('assessment.criteria.0.contribution', 4.4)
+                ->where('assessment.evidence_audit.includes_budget_evidence', true)
+                ->where('assessment.evidence_audit.section_count', 6)
+            );
     }
 
     public function test_super_admin_assessment_from_the_workspace_queues_a_durable_background_run(): void
@@ -208,7 +265,7 @@ final class AssessmentTest extends TestCase
                 ->where('entrepreneur.latest_plan.latest_assessment.id', $latest->id)
                 ->where('entrepreneur.latest_plan.assessment_history.0.round', 2)
                 ->where('entrepreneur.latest_plan.assessment_history.0.score_delta', 0)
-                ->where('entrepreneur.latest_plan.assessment_history.0.score_source_summary', 'AI-scored against the captured plan context.')
+                ->where('entrepreneur.latest_plan.assessment_history.0.score_source_summary', 'Calibrated rubric-band assessment against the complete submitted plan snapshot, including budget evidence.')
                 ->where('entrepreneur.latest_plan.assessment_history.0.snapshot_available', true)
                 ->where('entrepreneur.latest_plan.assessment_history.0.snapshot_note', 'Submitted-plan snapshot captured for this assessment round.')
                 ->where('entrepreneur.latest_plan.assessment_history.0.plan_snapshot_url', route('advisor.entrepreneurs.assessments.plan-preview', [$profile, $latest], absolute: false))
@@ -224,7 +281,7 @@ final class AssessmentTest extends TestCase
                 ->where('assessment.basis.plan_snapshot_url', route('advisor.entrepreneurs.assessments.plan-preview', [$profile, $latest], absolute: false))
                 ->where('assessment.criteria.0.source_label', 'Round 2 automated score')
                 ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'assessment round 2')
-                    && str_contains($value, 'automated score generated for this round')
+                    && str_contains($value, 'server-converted rubric band')
                     && ! str_contains(strtolower($value), 'first-pass'))
             );
     }
@@ -259,7 +316,7 @@ final class AssessmentTest extends TestCase
             ->handle(app(RequestContext::class), app(Assessment::class));
 
         $this->assertSame('failed', $plan->refresh()->assessment_run_status);
-        $this->assertStringContainsString('No valid AI score was returned', (string) $plan->assessment_run_failure);
+        $this->assertStringContainsString('No valid AI rubric band was returned', (string) $plan->assessment_run_failure);
         $this->assertDatabaseCount('plan_assessments', 0);
     }
 
@@ -270,14 +327,14 @@ final class AssessmentTest extends TestCase
         [$advisor, $plan] = $this->plan('stable-reassessment-founder@example.test');
 
         $first = app(Assessment::class)->firstPass($plan, $advisor);
-        $freshAi = new CapturingScoreAiClient(86);
+        $freshAi = new CapturingScoreAiClient(95);
         $this->app->instance(AiClient::class, $freshAi);
 
         $second = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
 
         $this->assertSame(2, $second->round);
-        $this->assertSame(82, data_get($first->ai_scores, '0.score'));
-        $this->assertSame(86, data_get($second->ai_scores, '0.score'));
+        $this->assertSame(80, data_get($first->ai_scores, '0.score'));
+        $this->assertSame(100, data_get($second->ai_scores, '0.score'));
         $this->assertCount(12, $freshAi->scorePrompts);
         $this->assertTrue(collect($second->ai_scores)->every(
             fn (array $score): bool => $score['score_source'] === 'ai_assessment'
@@ -290,7 +347,7 @@ final class AssessmentTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->where('assessment.criteria.0.source_label', 'Round 2 automated score')
                 ->where('assessment.requires_full_reassessment', false)
-                ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'automated score generated for this round'))
+                ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'server-converted rubric band'))
             );
     }
 
@@ -327,7 +384,7 @@ final class AssessmentTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('entrepreneur.latest_plan.assessment_history.0.round', $third->round)
-                ->where('entrepreneur.latest_plan.assessment_history.0.weighted_score', 50)
+                ->where('entrepreneur.latest_plan.assessment_history.0.weighted_score', 30)
                 ->where('entrepreneur.latest_plan.assessment_history.0.score_delta', 0)
                 ->where('entrepreneur.latest_plan.assessment_history.1.round', $fallback->round)
                 ->where('entrepreneur.latest_plan.assessment_history.1.automated_score_available', false)
@@ -532,7 +589,7 @@ final class AssessmentTest extends TestCase
 
         $this->assertStringContainsString('Assessment finding: AI rationale tied to the supplied resubmitted plan evidence.', $feedback);
         $this->assertStringContainsString('Round movement: previous round 1 was 32.0/100; current round is 45.0/100 (+13.0).', $feedback);
-        $this->assertStringContainsString('Scored from current source excerpts:', $feedback);
+        $this->assertStringContainsString('Scored from the complete submitted-plan snapshot:', $feedback);
         $this->assertStringContainsString('Updated second-round IP register', $feedback);
         $this->assertStringNotContainsString('What is missing:', $feedback);
         $this->assertStringNotContainsString('target cust...', $feedback);
@@ -714,7 +771,7 @@ final class StructuredScoreAiClient implements AiClient
 
     public function scoreCriterion(PromptEnvelope $prompt): AiResponse
     {
-        return $this->response($prompt, ['score' => $this->score]);
+        return $this->response($prompt, ['band' => $this->bandForScore()]);
     }
 
     public function summarise(PromptEnvelope $prompt): AiResponse
@@ -750,6 +807,16 @@ final class StructuredScoreAiClient implements AiClient
             metadata: $metadata,
         );
     }
+
+    private function bandForScore(): string
+    {
+        return match (true) {
+            $this->score >= 90 => 'exceptional',
+            $this->score >= 75 => 'strong',
+            $this->score >= 60 => 'developing',
+            default => 'needs_work',
+        };
+    }
 }
 
 final class CapturingScoreAiClient implements AiClient
@@ -775,7 +842,7 @@ final class CapturingScoreAiClient implements AiClient
     {
         $this->scorePrompts[] = $prompt;
 
-        return $this->response($prompt, ['score' => $this->score]);
+        return $this->response($prompt, ['band' => $this->bandForScore()]);
     }
 
     public function summarise(PromptEnvelope $prompt): AiResponse
@@ -810,6 +877,16 @@ final class CapturingScoreAiClient implements AiClient
             tokensOut: 1,
             metadata: $metadata,
         );
+    }
+
+    private function bandForScore(): string
+    {
+        return match (true) {
+            $this->score >= 90 => 'exceptional',
+            $this->score >= 75 => 'strong',
+            $this->score >= 60 => 'developing',
+            default => 'needs_work',
+        };
     }
 }
 

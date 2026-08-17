@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Entrepreneurs;
 
 use App\Models\BusinessPlan;
-use App\Models\EntrepreneurBudget;
 use App\Models\LearningUpdate;
 use App\Models\PlanAssessment;
 use App\Models\PlanSection;
@@ -52,19 +51,19 @@ final class Assessment implements ProvidesMethodology
         }
 
         $framework = $this->frameworks->published();
+        $planSnapshot = $this->snapshots->capture($plan);
         $criterionContexts = $framework->criteria
             ->mapWithKeys(fn (RatingCriterion $criterion): array => [
-                (string) $criterion->number => $this->contexts->criterionAssessment(
-                    plan: $plan,
+                (string) $criterion->number => $this->contexts->criterionAssessmentFromSnapshot(
+                    snapshot: $planSnapshot,
                     criterion: $criterion,
-                    budgetSummary: $this->budgetAssessmentText($plan->budgetRunway),
                 ),
             ]);
-        $planSnapshot = $this->snapshots->capture($plan);
         $aiScores = $framework->criteria
             ->map(fn (RatingCriterion $criterion): array => $this->scoreCriterion(
                 criterion: $criterion,
                 plan: $plan,
+                framework: $framework,
                 planContext: $criterionContexts->get((string) $criterion->number, []),
             ))
             ->values()
@@ -365,15 +364,19 @@ final class Assessment implements ProvidesMethodology
     }
 
     /**
-     * @param  array{relevant_sections:array<int, array<string, mixed>>,supporting_section_summaries:array<int, array<string, mixed>>,budget_summary:string}  $planContext
+     * @param  array<string, mixed>  $planContext
      */
-    private function scoreCriterion(RatingCriterion $criterion, BusinessPlan $plan, array $planContext): array
-    {
+    private function scoreCriterion(
+        RatingCriterion $criterion,
+        BusinessPlan $plan,
+        RatingFramework $framework,
+        array $planContext,
+    ): array {
         $prompt = new PromptEnvelope(
             id: EntrepreneurPromptRegistry::PLAN_SCORE_CRITERION,
-            version: '2026-07-30',
-            task: 'Score one entrepreneur business-plan criterion honestly against the current rating framework.',
-            body: 'Return JSON only. Set metadata.score to an honest integer from 0 to 100 and set text to the rationale. Score only the supplied, criterion-relevant evidence. Do not flatter weak evidence.',
+            version: '2026-08-17',
+            task: 'Select one rubric band for an entrepreneur business-plan criterion using the complete submitted plan snapshot.',
+            body: 'Return JSON only. Set metadata.band to exactly one of exceptional, strong, developing, or needs_work. Do not return a numeric score. Use the criterion descriptors, assess the complete submitted-plan snapshot (including budget evidence), and set text to a concise evidence-based rationale. Do not flatter weak evidence.',
             input: [
                 'business_plan_id' => $plan->getKey(),
                 'criterion' => [
@@ -384,25 +387,28 @@ final class Assessment implements ProvidesMethodology
                 'plan_context' => $planContext,
             ],
             dataQualitySummary: [
-                'level' => 'draft_plan',
+                'level' => 'submitted_plan_snapshot',
             ],
             sourceReferences: ['business_plan:'.$plan->getKey(), 'rating_criterion:'.$criterion->getKey()],
         );
         $response = $this->ai->scoreCriterion($prompt);
-        $aiScore = $this->scoreFromResponse($response);
+        $band = $this->bandFromResponse($response);
         $assessmentText = $this->contexts->assessmentText($planContext);
 
-        if ((bool) data_get($response->metadata, 'degraded') || $aiScore === null) {
+        if ((bool) data_get($response->metadata, 'degraded') || $band === null) {
             $reason = trim((string) data_get($response->metadata, 'unavailable_reason'));
             $reasonSuffix = $reason === '' ? '' : ' Reason: '.Str::limit($reason, 180, '');
 
             throw new RuntimeException(sprintf(
-                'No valid AI score was returned for criterion %d (%s). No assessment round was saved; retry the assessment once the AI service is available.%s',
+                'No valid AI rubric band was returned for criterion %d (%s). No assessment round was saved; retry the assessment once the AI service is available.%s',
                 $criterion->number,
                 $criterion->name,
                 $reasonSuffix,
             ));
         }
+
+        $aiScore = $framework->scoreForCriterionBand($band);
+        $scoreScale = $framework->criterionBandScores();
 
         return [
             'criterion_id' => $criterion->getKey(),
@@ -414,7 +420,7 @@ final class Assessment implements ProvidesMethodology
             'attributions' => [
                 ...$response->attributions,
                 [
-                    'claim' => 'Criterion score derived from current business plan draft.',
+                    'claim' => 'Criterion band derived from the complete submitted business-plan snapshot.',
                     'source_reference' => 'business_plan:'.$plan->getKey(),
                 ],
             ],
@@ -422,48 +428,63 @@ final class Assessment implements ProvidesMethodology
             'metadata' => [
                 ...$response->metadata,
                 'ai_score' => $aiScore,
+                'score_band' => $band,
+                'score_scale' => $scoreScale,
                 'score_source' => 'ai_assessment',
+                'scoring_method' => 'calibrated_band_v1',
                 'uncertainty' => $response->uncertainty->value,
                 'context_characters' => Str::length($assessmentText),
                 'context_hash' => hash('sha256', $assessmentText),
+                'evidence_mode' => (string) ($planContext['evidence_mode'] ?? 'selected_plan_excerpts'),
+                'evidence_section_count' => count($planContext['full_plan_sections'] ?? []),
+                'budget_evidence_included' => is_array($planContext['budget_evidence'] ?? null),
                 'source_sections' => $this->sourceSectionsFromContext($planContext),
             ],
         ];
     }
 
     /**
-     * @param  array{relevant_sections?:array<int, array<string, mixed>>,supporting_section_summaries?:array<int, array<string, mixed>>}  $planContext
+     * @param  array<string, mixed>  $planContext
      * @return array<int, array{section_id:string,title:string,requirement_key:string|null,updated_at:string|null,body_excerpt:string}>
      */
     private function sourceSectionsFromContext(array $planContext): array
     {
-        return collect([
-            ...($planContext['relevant_sections'] ?? []),
-            ...($planContext['supporting_section_summaries'] ?? []),
-        ])
+        $sections = is_array($planContext['criterion_focus_sections'] ?? null)
+            ? $planContext['criterion_focus_sections']
+            : (is_array($planContext['full_plan_sections'] ?? null)
+                ? $planContext['full_plan_sections']
+            : [
+                ...($planContext['relevant_sections'] ?? []),
+                ...($planContext['supporting_section_summaries'] ?? []),
+            ]);
+
+        return collect($sections)
             ->map(fn (array $section): array => [
                 'section_id' => (string) ($section['section_id'] ?? ''),
                 'title' => (string) ($section['title'] ?? ''),
                 'requirement_key' => isset($section['requirement_key']) ? (string) $section['requirement_key'] : null,
                 'updated_at' => isset($section['updated_at']) ? (string) $section['updated_at'] : null,
-                'body_excerpt' => Str::limit((string) ($section['body_excerpt'] ?? ''), 700),
+                'body_excerpt' => Str::limit((string) ($section['body'] ?? $section['body_excerpt'] ?? ''), 700),
             ])
             ->filter(fn (array $section): bool => $section['section_id'] !== '' || $section['title'] !== '')
             ->values()
             ->all();
     }
 
-    private function scoreFromResponse(AiResponse $response): ?int
+    private function bandFromResponse(AiResponse $response): ?string
     {
-        $candidate = data_get($response->metadata, 'score')
-            ?? data_get($response->metadata, 'criterion_score')
-            ?? data_get($response->metadata, 'score_0_100');
+        $candidate = data_get($response->metadata, 'band')
+            ?? data_get($response->metadata, 'score_band');
 
-        if (! is_numeric($candidate)) {
+        if (! is_string($candidate)) {
             return null;
         }
 
-        return max(0, min(100, (int) round((float) $candidate)));
+        $band = strtolower(trim(str_replace([' ', '-'], '_', $candidate)));
+
+        return array_key_exists($band, RatingFramework::DEFAULT_CRITERION_BAND_SCORES)
+            ? $band
+            : null;
     }
 
     private function rationaleFromResponse(AiResponse $response, int $score): string
@@ -477,32 +498,6 @@ final class Assessment implements ProvidesMethodology
         return $score < 60
             ? 'AI first-pass score is conservative because draft evidence is incomplete.'
             : 'AI first-pass score reflects current draft evidence and framework descriptors.';
-    }
-
-    private function budgetAssessmentText(?EntrepreneurBudget $budget): string
-    {
-        if (! $budget instanceof EntrepreneurBudget) {
-            return '';
-        }
-
-        $computed = (array) ($budget->computed ?? []);
-        $flags = collect((array) ($budget->flags ?? []))
-            ->filter(fn (array $flag): bool => empty($flag['acknowledged_at']))
-            ->pluck('title')
-            ->implode('; ');
-
-        return sprintf(
-            'Budget status: %s. Forecast horizon: %s years. Expected runway: %s months. Calculated runway: %s months. Break-even year: %s. First profitable year: %s. Cash-flow-positive year: %s. Available after launch: %s. Active budget warnings: %s.',
-            $budget->status,
-            $budget->forecast_years ?? data_get($computed, 'forecast_years', 3),
-            $budget->expected_runway_months ?? 'not entered',
-            data_get($computed, 'runway_months', 'not calculated'),
-            data_get($computed, 'break_even_year', 'not reached'),
-            data_get($computed, 'first_profitable_year', 'not reached'),
-            data_get($computed, 'cash_flow_positive_year', 'not reached'),
-            data_get($computed, 'available_after_launch', 0),
-            $flags !== '' ? $flags : 'none',
-        );
     }
 
     /**

@@ -22,6 +22,7 @@ final class RatingFrameworkSeeder extends Seeder
                     'status' => RatingFramework::STATUS_PUBLISHED,
                     'production_ready' => false,
                     'grade_bands' => RatingFramework::DEFAULT_GRADE_BANDS,
+                    'criterion_band_scores' => RatingFramework::DEFAULT_CRITERION_BAND_SCORES,
                     'published_at' => now(),
                 ],
             );

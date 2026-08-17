@@ -28,7 +28,7 @@ final class BusinessPlanSnapshot
         $budget = $plan->budgetRunway;
 
         return [
-            'schema_version' => 1,
+            'schema_version' => 2,
             'captured_at' => now()->toIso8601String(),
             'business_plan' => [
                 'id' => $plan->getKey(),
@@ -50,6 +50,19 @@ final class BusinessPlanSnapshot
                 'break_even_year' => data_get($budget->computed ?? [], 'break_even_year'),
                 'cash_flow_positive_year' => data_get($budget->computed ?? [], 'cash_flow_positive_year'),
                 'updated_at' => $budget->updated_at?->toIso8601String(),
+                'assessment_evidence' => [
+                    'forecast_years' => $budget->forecast_years,
+                    'expected_runway_months' => $budget->expected_runway_months,
+                    'assumptions' => $budget->assumptions ?? [],
+                    'launch_costs' => $budget->launch_costs ?? [],
+                    'monthly_fixed_costs' => $budget->monthly_fixed_costs ?? [],
+                    'future_costs' => $budget->future_costs ?? [],
+                    'revenue_forecast' => $budget->revenue_forecast ?? [],
+                    'funding_sources' => $budget->funding_sources ?? [],
+                    'funding_scenarios' => $budget->funding_scenarios ?? [],
+                    'computed' => $budget->computed ?? [],
+                    'flags' => $budget->flags ?? [],
+                ],
             ] : null,
             'phases' => collect(PlanRequirements::definitions())
                 ->map(function (array $definition, string $phaseKey) use ($plan, $requirements): array {

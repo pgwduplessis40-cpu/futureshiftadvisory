@@ -39,12 +39,24 @@ final class RatingFramework extends Model
         'needs_work' => ['min' => 0, 'label' => 'Needs Work'],
     ];
 
+    /**
+     * The owner-approved conversion used when an AI criterion response selects
+     * a rubric band. These values are stored with each framework version.
+     */
+    public const DEFAULT_CRITERION_BAND_SCORES = [
+        'exceptional' => 100,
+        'strong' => 80,
+        'developing' => 55,
+        'needs_work' => 30,
+    ];
+
     protected $guarded = [];
 
     protected $casts = [
         'version' => 'integer',
         'production_ready' => 'boolean',
         'grade_bands' => 'array',
+        'criterion_band_scores' => 'array',
         'published_at' => 'datetime',
     ];
 
@@ -84,6 +96,39 @@ final class RatingFramework extends Model
         }
 
         return 'needs_work';
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    public function criterionBandScores(): array
+    {
+        $configured = $this->criterion_band_scores;
+        if (! is_array($configured)) {
+            return self::DEFAULT_CRITERION_BAND_SCORES;
+        }
+
+        $scores = [];
+        foreach (self::DEFAULT_CRITERION_BAND_SCORES as $band => $default) {
+            $value = $configured[$band] ?? null;
+            $scores[$band] = is_numeric($value)
+                ? max(0, min(100, (int) round((float) $value)))
+                : $default;
+        }
+
+        return $scores;
+    }
+
+    public function scoreForCriterionBand(string $band): int
+    {
+        $normalised = strtolower(trim(str_replace([' ', '-'], '_', $band)));
+        $scores = $this->criterionBandScores();
+
+        if (! array_key_exists($normalised, $scores)) {
+            throw new \InvalidArgumentException("Unknown criterion score band [{$band}].");
+        }
+
+        return $scores[$normalised];
     }
 
     /**
