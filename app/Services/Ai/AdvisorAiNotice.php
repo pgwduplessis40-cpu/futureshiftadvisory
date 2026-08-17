@@ -81,7 +81,7 @@ final class AdvisorAiNotice
 
         $reason = (string) ($latest['reason'] ?? '');
         if (
-            str_contains($reason, 'not active or its credentials are missing')
+            $this->isProviderAvailabilityReason($reason)
             && app(AiProviderManager::class)->activeProviderIsLive()
         ) {
             $this->clear();
@@ -90,6 +90,13 @@ final class AdvisorAiNotice
         }
 
         return $latest;
+    }
+
+    private function isProviderAvailabilityReason(string $reason): bool
+    {
+        return str_contains($reason, 'not active or its credentials are missing')
+            || str_contains($reason, 'required generation credential is missing or revoked')
+            || str_contains($reason, 'is configured but is not active');
     }
 
     /**

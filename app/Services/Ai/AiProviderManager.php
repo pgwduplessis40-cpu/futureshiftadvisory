@@ -95,6 +95,11 @@ final class AiProviderManager
             return "AI provider [{$key}] is not marked available.";
         }
 
-        return "AI provider [{$key}] is not active or its credentials are missing.";
+        $integrationKey = (string) $provider['integration_key'];
+        if (! $this->activations->readiness($integrationKey)) {
+            return "AI provider [{$key}] cannot run because its required generation credential is missing or revoked.";
+        }
+
+        return "AI provider [{$key}] is configured but is not active.";
     }
 }

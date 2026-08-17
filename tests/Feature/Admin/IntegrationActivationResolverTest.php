@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Admin;
 
 use App\Models\User;
+use App\Services\Ai\AiProviderManager;
 use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Integration\IntegrationCredentials;
 use App\Services\Payments\PaymentWebhookVerifier;
@@ -116,6 +117,26 @@ final class IntegrationActivationResolverTest extends TestCase
         }
 
         $this->assertDatabaseCount('integration_activations', 0);
+    }
+
+    public function test_ai_provider_availability_reason_distinguishes_missing_credentials_from_an_inactive_provider(): void
+    {
+        config(['services.anthropic.key' => null]);
+
+        $providers = app(AiProviderManager::class);
+
+        $this->assertSame(
+            'AI provider [anthropic] cannot run because its required generation credential is missing or revoked.',
+            $providers->unavailableReason(),
+        );
+
+        config(['services.anthropic.key' => 'anthropic-live-key']);
+        app(IntegrationActivationResolver::class)->deactivate('anthropic', $this->admin());
+
+        $this->assertSame(
+            'AI provider [anthropic] is configured but is not active.',
+            $providers->unavailableReason(),
+        );
     }
 
     public function test_revoking_required_credential_drops_activated_integration_off_live(): void
