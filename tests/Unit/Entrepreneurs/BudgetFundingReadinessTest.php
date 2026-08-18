@@ -40,4 +40,40 @@ final class BudgetFundingReadinessTest extends TestCase
         $this->assertSame(4_200.0, $decision['required_additional_funding']);
         $this->assertSame(2, $decision['lowest_cash_month']);
     }
+
+    public function test_unconfirmed_cadence_capacity_and_forecast_start_are_external_issue_warnings(): void
+    {
+        $budget = new EntrepreneurBudget([
+            'status' => EntrepreneurBudget::STATUS_COMPLETE,
+            'expected_runway_months' => 6,
+            'computed' => [
+                'opening_cash_balance' => 20_000,
+                'total_funding' => 20_000,
+                'total_launch_costs' => 0,
+                'monthly_fixed_costs' => 1_000,
+                'break_even_year' => 1,
+                'cash_flow_positive_year' => 1,
+                'assumptions' => ['company_tax_configured' => true],
+                'monthly_detail' => [
+                    ['month' => 1, 'cumulative_cash' => 39_000],
+                ],
+                'input_quality' => [
+                    'unconfirmed_fixed_cost_cadences' => ['Annual registry fee'],
+                    'unconfirmed_revenue_growth' => ['Advisory intensives'],
+                    'revenue_without_capacity' => ['Advisory intensives'],
+                    'missing_assumptions' => ['forecast_start_month'],
+                ],
+            ],
+            'flags' => [],
+        ]);
+
+        $decision = (new BudgetFundingReadiness)->evaluate($budget);
+        $warnings = implode("\n", $decision['warnings']);
+
+        $this->assertFalse($decision['external_issue_ready']);
+        $this->assertStringContainsString('billing cadence', $warnings);
+        $this->assertStringContainsString('monthly or annual', $warnings);
+        $this->assertStringContainsString('monthly capacity', $warnings);
+        $this->assertStringContainsString('forecast start month', $warnings);
+    }
 }

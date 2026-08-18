@@ -618,6 +618,10 @@ final class SimpleTextPdf
         $title = (string) ($block['title'] ?? 'Plan response');
         $kicker = (string) ($block['kicker'] ?? '');
         $body = (string) ($block['body'] ?? '');
+        $bodyBullets = array_values(array_filter(
+            array_map('strval', (array) ($block['body_bullets'] ?? [])),
+            fn (string $item): bool => $this->hasReadableText($item),
+        ));
         $note = (string) ($block['note'] ?? '');
         $points = array_values(array_filter(
             array_map('strval', (array) ($block['key_points'] ?? [])),
@@ -631,7 +635,7 @@ final class SimpleTextPdf
             $pages,
             $current,
             $y,
-            min(620, max(140, $this->estimateEntrySpace($title, $points, $body, $note))),
+            min(620, max(140, $this->estimateEntrySpace($title, $points, $body, $bodyBullets, $note))),
             $reportTitle,
         );
         $top = $y + 3;
@@ -661,6 +665,12 @@ final class SimpleTextPdf
             $this->addParagraphText($pages, $current, $y, $body, $reportTitle, self::MARGIN + 15, 9, 12, [25, 31, 42]);
         }
 
+        if ($bodyBullets !== []) {
+            $this->addText($current, trim($body) === '' ? 'Detail' : 'Detail points', self::MARGIN + 15, $y, 8, 'F2', self::MUTED);
+            $y -= 13;
+            $this->addBullets($pages, $current, $y, $bodyBullets, $reportTitle, self::MARGIN + 15, 72);
+        }
+
         if ($note !== '') {
             $this->addWrapped($pages, $current, $y, $note, 8, 10, 'F1', self::MARGIN + 15, self::MUTED, $reportTitle);
             $this->addLine($pages, $current, $y, '', 10, 4, reportTitle: $reportTitle);
@@ -673,7 +683,7 @@ final class SimpleTextPdf
     /**
      * @param  array<int, string>  $points
      */
-    private function estimateEntrySpace(string $title, array $points, string $body, string $note): int
+    private function estimateEntrySpace(string $title, array $points, string $body, array $bodyBullets, string $note): int
     {
         $titleLines = $this->wrapForWidth($title, 12, self::MARGIN + 15);
         $height = max(64, 42 + (count($titleLines) * 14));
@@ -689,6 +699,13 @@ final class SimpleTextPdf
             $height += 13;
             foreach ($this->paragraphs($body) as $paragraph) {
                 $height += (count($this->wrapForWidth($paragraph, 9, self::MARGIN + 15)) * 12) + 5;
+            }
+        }
+
+        if ($bodyBullets !== []) {
+            $height += 14;
+            foreach ($bodyBullets as $item) {
+                $height += (count($this->wrapForCharacters($item, 72)) * 12) + 2;
             }
         }
 
@@ -789,7 +806,8 @@ final class SimpleTextPdf
                 $this->addTableHeader($current, $y, $headers, $xPositions, $tableWidth);
             }
 
-            $this->addLineShape($current, self::MARGIN, $y + 4, 545, $y + 4, [228, 232, 226]);
+            $separatorY = $y + 10;
+            $this->addLineShape($current, self::MARGIN, $separatorY, 545, $separatorY, [228, 232, 226]);
 
             for ($i = 0; $i < $columnCount; $i++) {
                 foreach ($wrappedCells[$i] as $lineIndex => $line) {

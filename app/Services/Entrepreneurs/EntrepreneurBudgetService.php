@@ -247,6 +247,7 @@ final class EntrepreneurBudgetService
         $missingAssumptions = (array) ($computed['missing_assumptions'] ?? []);
         $fieldLabels = (array) data_get($computed, 'assumptions.field_labels', []);
         $annualTotals = collect((array) ($computed['annual_totals'] ?? []));
+        $inputQuality = (array) ($computed['input_quality'] ?? []);
 
         if ($availableAfterLaunch < 0) {
             $flags[] = $this->flag(
@@ -291,6 +292,28 @@ final class EntrepreneurBudgetService
             );
         }
 
+        $unconfirmedCadences = array_values((array) ($inputQuality['unconfirmed_fixed_cost_cadences'] ?? []));
+        if ($unconfirmedCadences !== []) {
+            $flags[] = $this->flag(
+                'fixed_cost_cadences_need_confirmation',
+                'Fixed-cost cadences need confirmation',
+                'The model is using a monthly equivalent, but each of these costs still needs its billing cadence confirmed: '.implode(', ', $unconfirmedCadences).'.',
+                'high',
+                $existingByKey->get('fixed_cost_cadences_need_confirmation'),
+            );
+        }
+
+        $missingCapacity = array_values((array) ($inputQuality['revenue_without_capacity'] ?? []));
+        if ($missingCapacity !== []) {
+            $flags[] = $this->flag(
+                'revenue_capacity_needs_confirmation',
+                'Revenue capacity needs confirmation',
+                'Set and confirm a maximum monthly delivery capacity before relying on these revenue lines externally: '.implode(', ', $missingCapacity).'.',
+                'high',
+                $existingByKey->get('revenue_capacity_needs_confirmation'),
+            );
+        }
+
         if (! (bool) data_get($computed, 'assumptions.company_tax_configured', false)) {
             $flags[] = $this->flag(
                 'tax_not_configured',
@@ -331,11 +354,11 @@ final class EntrepreneurBudgetService
 
         $monthlyGrowthReviewThreshold = max(0.0, (float) config('entrepreneurs.budget.monthly_growth_review_threshold_percent', 15));
         $highGrowthRows = collect($revenueForecast)
-            ->filter(fn (array $row): bool => abs((float) ($row['monthly_growth_percent'] ?? 0)) > $monthlyGrowthReviewThreshold)
+            ->filter(fn (array $row): bool => ($row['growth_cadence'] ?? 'monthly') === 'monthly' && abs((float) ($row['growth_percent'] ?? $row['monthly_growth_percent'] ?? 0)) > $monthlyGrowthReviewThreshold)
             ->map(fn (array $row): string => sprintf(
                 '%s (%s%% per month)',
                 (string) ($row['label'] ?? 'Unlabelled revenue'),
-                number_format((float) ($row['monthly_growth_percent'] ?? 0), 1, '.', ''),
+                number_format((float) ($row['growth_percent'] ?? $row['monthly_growth_percent'] ?? 0), 1, '.', ''),
             ))
             ->values();
         if ($highGrowthRows->isNotEmpty()) {

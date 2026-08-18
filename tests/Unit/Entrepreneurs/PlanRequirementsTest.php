@@ -17,6 +17,7 @@ final class PlanRequirementsTest extends TestCase
 
         $this->assertContains('competitor-comparison', array_column($definitions['market']['requirements'], 'key'));
         $this->assertContains('organisation-management', array_column($definitions['strategy']['requirements'], 'key'));
+        $this->assertContains('risk-register', array_column($definitions['strategy']['requirements'], 'key'));
         $this->assertContains('executive-summary', array_column($definitions['financial']['requirements'], 'key'));
     }
 

@@ -73,4 +73,23 @@ final class ExternalIssueReviewTest extends TestCase
         $this->assertStringContainsString('Reconcile historical rates with current pricing', $blocking);
         $this->assertStringContainsString('Repeated narrative phrasing', $warnings);
     }
+
+    public function test_completed_industry_claims_need_a_citation_or_attached_evidence(): void
+    {
+        $plan = new BusinessPlan;
+        $plan->setRelation('sections', new EloquentCollection([
+            new PlanSection([
+                'key' => 'founder-market-industry-context',
+                'body' => 'Demand is growing quickly among the target customer segment, based on a claimed market trend.',
+                'completeness_status' => PlanSection::STATUS_COMPLETE,
+                'metadata' => ['requirement_key' => 'industry-context'],
+                'attached_document_ids' => [],
+            ]),
+        ]));
+        $plan->setRelation('budgetRunway', null);
+
+        $review = (new ExternalIssueReview)->evaluate($plan);
+
+        $this->assertStringContainsString('Cite the source or attach evidence', implode("\n", $review['blocking_reasons']));
+    }
 }

@@ -119,6 +119,7 @@ final class BudgetCalculator implements ProvidesMethodology
             'input_count' => array_sum($populatedInputs),
             'explanations' => $this->metricExplanations(),
             'missing_assumptions' => $normalisedAssumptions['missing_fields'],
+            'input_quality' => $this->inputQuality($fixedRows, $revenueRows, $normalisedAssumptions),
         ];
     }
 
@@ -134,11 +135,14 @@ final class BudgetCalculator implements ProvidesMethodology
                 $amount = $this->number($row['amount'] ?? $row['value'] ?? 0);
                 $quantity = max(1.0, $this->number($row['quantity'] ?? 1));
                 $month = $this->month($row['month'] ?? 1);
-                $monthlyGrowthPercent = $this->signedPercent($row['monthly_growth_percent'] ?? 0);
+                $growthPercent = $this->signedPercent($row['growth_percent'] ?? $row['monthly_growth_percent'] ?? 0);
                 $variableCostPercent = $this->number($row['variable_cost_percent'] ?? 0);
                 $unitCost = $this->number($row['unit_cost'] ?? 0);
                 $grossProfitPercent = $this->nullablePercent($row['gross_profit_percent'] ?? $row['gp_percent'] ?? null);
                 $confidence = $this->confidence($row['confidence'] ?? null);
+                $cadence = $this->cadence($row['cadence'] ?? null);
+                $growthCadence = $this->growthCadence($row['growth_cadence'] ?? null);
+                $monthlyCapacityUnits = $this->nullableNonNegativeNumber($row['monthly_capacity_units'] ?? null);
 
                 if ($grossProfitPercent !== null) {
                     $variableCostPercent = max(0.0, min(100.0, 100.0 - $grossProfitPercent));
@@ -152,7 +156,16 @@ final class BudgetCalculator implements ProvidesMethodology
                     'amount' => round($amount, 2),
                     'quantity' => round($quantity, 2),
                     'month' => $month,
-                    'monthly_growth_percent' => round($monthlyGrowthPercent, 2),
+                    'cadence' => $cadence,
+                    'cadence_confirmed' => (bool) ($row['cadence_confirmed'] ?? false),
+                    'growth_percent' => round($growthPercent, 2),
+                    // Kept for legacy consumers while the UI migrates to the cadence-neutral name.
+                    'monthly_growth_percent' => round($growthPercent, 2),
+                    'growth_cadence' => $growthCadence,
+                    'growth_cadence_confirmed' => (bool) ($row['growth_cadence_confirmed'] ?? false),
+                    'monthly_capacity_units' => $monthlyCapacityUnits === null ? null : round($monthlyCapacityUnits, 2),
+                    'capacity_confirmed' => (bool) ($row['capacity_confirmed'] ?? false),
+                    'unit_label' => trim((string) ($row['unit_label'] ?? 'units')),
                     'variable_cost_percent' => round($variableCostPercent, 2),
                     'unit_cost' => round($unitCost, 2),
                     'gross_profit_percent' => $grossProfitPercent === null ? null : round($grossProfitPercent, 2),
@@ -177,6 +190,8 @@ final class BudgetCalculator implements ProvidesMethodology
                 'quantity' => max(1.0, $this->number($row['quantity'] ?? 1)),
                 'year' => min(5, max(2, (int) ($row['year'] ?? 2))),
                 'recurring' => (bool) ($row['recurring'] ?? false),
+                'classification' => ($row['classification'] ?? null) === 'capital' ? 'capital' : 'operating',
+                'useful_life_years' => min(20, max(1, (int) ($row['useful_life_years'] ?? 3))),
                 'confidence' => $this->confidence($row['confidence'] ?? null),
             ])
             ->filter(fn (array $row): bool => $row['label'] !== '' || $row['amount'] > 0)
@@ -274,10 +289,18 @@ final class BudgetCalculator implements ProvidesMethodology
         if (array_key_exists('year_two_revenue_basis', $assumptions)) {
             $provided[] = 'year_two_revenue_basis';
         }
+        $forecastStartMonth = is_string($assumptions['forecast_start_month'] ?? null)
+            && preg_match('/^20\d{2}-(0[1-9]|1[0-2])$/', (string) $assumptions['forecast_start_month']) === 1
+            ? (string) $assumptions['forecast_start_month']
+            : null;
+        if ($forecastStartMonth !== null) {
+            $provided[] = 'forecast_start_month';
+        }
 
         return [
             ...$normalised,
             'year_two_revenue_basis' => $yearTwoRevenueBasis,
+            'forecast_start_month' => $forecastStartMonth,
             'opening_cash_balance' => round($openingCash, 2),
             'debtor_days' => $debtorDays ?? 0,
             'creditor_days' => $creditorDays ?? 0,
@@ -296,6 +319,7 @@ final class BudgetCalculator implements ProvidesMethodology
             'field_labels' => [
                 ...$fields,
                 'year_two_revenue_basis' => 'Revenue basis after year 1',
+                'forecast_start_month' => 'Forecast start month',
                 'opening_cash_balance' => 'Opening cash balance',
                 'debtor_days' => 'Debtor days',
                 'creditor_days' => 'Creditor days',
@@ -334,7 +358,9 @@ final class BudgetCalculator implements ProvidesMethodology
         $breakEvenMonth = null;
         $firstProfitYear = null;
         $cashPositiveYear = null;
-        $taxLossCarryByYear = [];
+        // A tax loss is a running balance. Keying it by forecast year quietly
+        // discarded a Year 1 loss when the Year 2 forecast began.
+        $taxLossCarryForward = 0.0;
         $revenueMultiplier = $this->scenarioMultiplier($scenario, 'revenue_multiplier');
         $costMultiplier = $this->scenarioMultiplier($scenario, 'cost_multiplier');
         $debtorLagMonths = $this->lagMonthsFromDays((int) ($assumptions['debtor_days'] ?? 0));
@@ -349,26 +375,32 @@ final class BudgetCalculator implements ProvidesMethodology
             $variableCostsPaid = $this->variableCostsPaidForMonth($revenueRows, $month, $assumptions, $creditorLagMonths) * $costMultiplier * $revenueMultiplier;
             $workingCapitalTimingAdjustment = ($cashCollected - $revenue) + ($variableCosts - $variableCostsPaid);
             $fixedCosts = $this->fixedCostsForMonth($fixedRows, $month, $assumptions) * $costMultiplier;
-            $futureCosts = $this->futureCostsForMonth($futureRows, $year, $monthInYear) * $costMultiplier;
+            $futureOperatingCosts = $this->futureOperatingCostsForMonth($futureRows, $year, $monthInYear) * $costMultiplier;
+            $capitalExpenditure = $this->capitalExpenditureForMonth($futureRows, $month) * $costMultiplier;
+            $depreciation = $this->depreciationForMonth($futureRows, $month) * $costMultiplier;
             $launchCosts = $this->rowsForMonth($launchRows, $month) * $costMultiplier;
             $fundingInflow = $this->fundingForMonth($fundingRows, $month) + $this->scenarioFundingForMonth($scenario, $month);
             $loanPayment = $this->loanPaymentForMonth($loan, $scenario, $month);
             $grossProfit = $revenue - $variableCosts;
-            $operatingProfit = $grossProfit - $fixedCosts - $futureCosts;
+            $operatingProfit = $grossProfit - $fixedCosts - $futureOperatingCosts - $depreciation;
             $netProfitBeforeTax = $operatingProfit - $loanPayment['interest'];
+            $taxLossUsed = 0.0;
             $taxableProfit = $netProfitBeforeTax;
             $tax = 0.0;
             if ((bool) $assumptions['company_tax_configured']) {
-                $taxableProfit += (float) ($taxLossCarryByYear[$year] ?? 0.0);
+                if ($netProfitBeforeTax > 0 && $taxLossCarryForward < 0) {
+                    $taxLossUsed = min($netProfitBeforeTax, abs($taxLossCarryForward));
+                }
+                $taxableProfit = $netProfitBeforeTax - $taxLossUsed;
                 if ($taxableProfit > 0) {
                     $tax = $taxableProfit * (((float) $assumptions['company_tax_rate_percent']) / 100);
-                    $taxLossCarryByYear[$year] = 0.0;
+                    $taxLossCarryForward = 0.0;
                 } else {
-                    $taxLossCarryByYear[$year] = $taxableProfit;
+                    $taxLossCarryForward = min(0.0, $taxLossCarryForward + $netProfitBeforeTax);
                 }
             }
             $netProfitAfterTax = $netProfitBeforeTax - $tax;
-            $netCashFlow = $netProfitAfterTax + $fundingInflow - $launchCosts - $loanPayment['principal'] + $workingCapitalTimingAdjustment;
+            $netCashFlow = $netProfitAfterTax + $depreciation + $fundingInflow - $launchCosts - $capitalExpenditure - $loanPayment['principal'] + $workingCapitalTimingAdjustment;
             $cumulativeCash += $netCashFlow;
 
             if ($breakEvenMonth === null && $netProfitBeforeTax >= 0 && $revenue > 0) {
@@ -389,7 +421,9 @@ final class BudgetCalculator implements ProvidesMethodology
                 'variable_costs_paid' => round($variableCostsPaid, 2),
                 'working_capital_timing_adjustment' => round($workingCapitalTimingAdjustment, 2),
                 'gross_profit' => round($grossProfit, 2),
-                'fixed_costs' => round($fixedCosts + $futureCosts, 2),
+                'fixed_costs' => round($fixedCosts + $futureOperatingCosts, 2),
+                'depreciation' => round($depreciation, 2),
+                'capital_expenditure' => round($capitalExpenditure, 2),
                 'interest' => round($loanPayment['interest'], 2),
                 'tax' => round($tax, 2),
                 'loan_principal' => round($loanPayment['principal'], 2),
@@ -397,7 +431,8 @@ final class BudgetCalculator implements ProvidesMethodology
                 'launch_costs' => round($launchCosts, 2),
                 'net_profit_before_tax' => round($netProfitBeforeTax, 2),
                 'taxable_profit_after_loss_offset' => round($taxableProfit, 2),
-                'tax_loss_carried_forward' => round((float) ($taxLossCarryByYear[$year] ?? 0.0), 2),
+                'tax_loss_used' => round($taxLossUsed, 2),
+                'tax_loss_carried_forward' => round($taxLossCarryForward, 2),
                 'net_profit_after_tax' => round($netProfitAfterTax, 2),
                 'net_cash_flow' => round($netCashFlow, 2),
                 'cumulative_cash' => round($cumulativeCash, 2),
@@ -415,8 +450,12 @@ final class BudgetCalculator implements ProvidesMethodology
                 'working_capital_timing_adjustment' => round((float) $yearRows->sum('working_capital_timing_adjustment'), 2),
                 'gross_profit' => round((float) $yearRows->sum('gross_profit'), 2),
                 'fixed_costs' => round((float) $yearRows->sum('fixed_costs'), 2),
+                'depreciation' => round((float) $yearRows->sum('depreciation'), 2),
+                'capital_expenditure' => round((float) $yearRows->sum('capital_expenditure'), 2),
                 'interest' => round((float) $yearRows->sum('interest'), 2),
                 'tax' => round((float) $yearRows->sum('tax'), 2),
+                'tax_loss_used' => round((float) $yearRows->sum('tax_loss_used'), 2),
+                'tax_loss_carried_forward' => round((float) ($yearRows->last()['tax_loss_carried_forward'] ?? 0), 2),
                 'loan_principal' => round((float) $yearRows->sum('loan_principal'), 2),
                 'funding_inflow' => round((float) $yearRows->sum('funding_inflow'), 2),
                 'launch_costs' => round((float) $yearRows->sum('launch_costs'), 2),
@@ -464,7 +503,7 @@ final class BudgetCalculator implements ProvidesMethodology
             'monthly_detail' => $monthly,
             'summary' => [
                 'total_launch_costs' => round($this->sumRows($launchRows), 2),
-                'year_one_monthly_fixed_costs' => round($this->sumRows($fixedRows), 2),
+                'year_one_monthly_fixed_costs' => round($this->sumMonthlyFixedRows($fixedRows), 2),
                 'total_funding' => round($this->sumRows($fundingRows) + $this->scenarioFundingTotal($scenario), 2),
                 'opening_cash_balance' => round($openingCashBalance, 2),
                 'available_after_launch' => round($openingCashBalance + $this->sumRows($fundingRows) + $this->scenarioFundingTotal($scenario) - $this->sumRows($launchRows), 2),
@@ -492,36 +531,43 @@ final class BudgetCalculator implements ProvidesMethodology
      */
     private function revenueForMonth(array $rows, int $month, array $assumptions): float
     {
-        return array_reduce($rows, function (float $total, array $row) use ($month, $assumptions): float {
-            if ((int) $row['month'] > $month) {
-                return $total;
-            }
+        return array_reduce(
+            $rows,
+            fn (float $total, array $row): float => $total + $this->revenueForRow($row, $month, $assumptions),
+            0.0,
+        );
+    }
 
-            $year = (int) ceil($month / self::MONTHS_PER_YEAR);
-            $monthInYear = (($month - 1) % self::MONTHS_PER_YEAR) + 1;
-            $base = ((float) $row['amount']) * ((float) $row['quantity']);
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  array<string, mixed>  $assumptions
+     */
+    private function revenueForRow(array $row, int $month, array $assumptions): float
+    {
+        if ((int) $row['month'] > $month) {
+            return 0.0;
+        }
 
-            if ($year === 1) {
-                $elapsed = max(0, $month - (int) $row['month']);
+        $year = (int) ceil($month / self::MONTHS_PER_YEAR);
+        if ($year === 1) {
+            $elapsed = max(0, $month - (int) $row['month']);
+            $revenue = $this->rowBaseRevenue($row) * $this->rowGrowthFactor($row, $elapsed);
 
-                return $total + ($base * $this->growthFactor((float) $row['monthly_growth_percent'], $elapsed));
-            }
+            return $this->capRevenueToCapacity($row, $revenue);
+        }
 
-            if ((int) $row['month'] > self::MONTHS_PER_YEAR) {
-                return $total;
-            }
+        if ((int) $row['month'] > self::MONTHS_PER_YEAR) {
+            return 0.0;
+        }
 
-            if (($assumptions['year_two_revenue_basis'] ?? 'exit_run_rate') === 'year_one_average') {
-                return $total + ($this->yearOneAverageRevenue($row) * $this->growthFactor((float) $assumptions['revenue_growth_percent'], $year - 1));
-            }
-
-            $yearOneExitRunRate = $this->yearOneExitRunRate($row);
-
-            return $total + ($yearOneExitRunRate * $this->annualGrowthForMonths(
+        $revenue = ($assumptions['year_two_revenue_basis'] ?? 'exit_run_rate') === 'year_one_average'
+            ? $this->yearOneAverageRevenue($row) * $this->growthFactor((float) $assumptions['revenue_growth_percent'], $year - 1)
+            : $this->yearOneExitRunRate($row) * $this->annualGrowthForMonths(
                 (float) $assumptions['revenue_growth_percent'],
                 $month - self::MONTHS_PER_YEAR,
-            ));
-        }, 0.0);
+            );
+
+        return $this->capRevenueToCapacity($row, $revenue);
     }
 
     /**
@@ -583,7 +629,7 @@ final class BudgetCalculator implements ProvidesMethodology
                 return $total;
             }
 
-            $amount = ((float) $row['amount']) * ((float) $row['quantity']);
+            $amount = $this->monthlyFixedAmount($row);
 
             return $total + ($amount * $this->growthFactor((float) $assumptions['cost_inflation_percent'], $year - 1));
         }, 0.0);
@@ -592,9 +638,13 @@ final class BudgetCalculator implements ProvidesMethodology
     /**
      * @param  array<int, array<string, mixed>>  $rows
      */
-    private function futureCostsForMonth(array $rows, int $year, int $monthInYear): float
+    private function futureOperatingCostsForMonth(array $rows, int $year, int $monthInYear): float
     {
         return array_reduce($rows, function (float $total, array $row) use ($year, $monthInYear): float {
+            if (($row['classification'] ?? 'operating') === 'capital') {
+                return $total;
+            }
+
             $rowYear = (int) $row['year'];
             $amount = ((float) $row['amount']) * ((float) $row['quantity']);
 
@@ -603,6 +653,44 @@ final class BudgetCalculator implements ProvidesMethodology
             }
 
             return $year === $rowYear && $monthInYear === 1 ? $total + $amount : $total;
+        }, 0.0);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private function capitalExpenditureForMonth(array $rows, int $month): float
+    {
+        return array_reduce($rows, function (float $total, array $row) use ($month): float {
+            if (($row['classification'] ?? 'operating') !== 'capital') {
+                return $total;
+            }
+
+            $purchaseMonth = (((int) $row['year']) - 1) * self::MONTHS_PER_YEAR + 1;
+
+            return $month === $purchaseMonth
+                ? $total + (((float) $row['amount']) * ((float) $row['quantity']))
+                : $total;
+        }, 0.0);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private function depreciationForMonth(array $rows, int $month): float
+    {
+        return array_reduce($rows, function (float $total, array $row) use ($month): float {
+            if (($row['classification'] ?? 'operating') !== 'capital') {
+                return $total;
+            }
+
+            $purchaseMonth = (((int) $row['year']) - 1) * self::MONTHS_PER_YEAR + 1;
+            $usefulLifeMonths = max(1, ((int) $row['useful_life_years']) * self::MONTHS_PER_YEAR);
+            if ($month < $purchaseMonth || $month >= $purchaseMonth + $usefulLifeMonths) {
+                return $total;
+            }
+
+            return $total + ((((float) $row['amount']) * ((float) $row['quantity'])) / $usefulLifeMonths);
         }, 0.0);
     }
 
@@ -772,8 +860,7 @@ final class BudgetCalculator implements ProvidesMethodology
             }
 
             $elapsed = max(0, $month - (int) $row['month']);
-            $base = ((float) $row['amount']) * ((float) $row['quantity']);
-            $values[] = $base * $this->growthFactor((float) $row['monthly_growth_percent'], $elapsed);
+            $values[] = $this->capRevenueToCapacity($row, $this->rowBaseRevenue($row) * $this->rowGrowthFactor($row, $elapsed));
         }
 
         return count($values) > 0 ? array_sum($values) / self::MONTHS_PER_YEAR : 0.0;
@@ -785,9 +872,8 @@ final class BudgetCalculator implements ProvidesMethodology
     private function yearOneExitRunRate(array $row): float
     {
         $elapsed = max(0, self::MONTHS_PER_YEAR - (int) $row['month']);
-        $base = ((float) $row['amount']) * ((float) $row['quantity']);
 
-        return $base * $this->growthFactor((float) $row['monthly_growth_percent'], $elapsed);
+        return $this->capRevenueToCapacity($row, $this->rowBaseRevenue($row) * $this->rowGrowthFactor($row, $elapsed));
     }
 
     /**
@@ -856,6 +942,67 @@ final class BudgetCalculator implements ProvidesMethodology
     /**
      * @param  array<int, array<string, mixed>>  $rows
      */
+    private function sumMonthlyFixedRows(array $rows): float
+    {
+        return array_reduce(
+            $rows,
+            fn (float $total, array $row): float => $total + $this->monthlyFixedAmount($row),
+            0.0,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function monthlyFixedAmount(array $row): float
+    {
+        $amount = ((float) $row['amount']) * ((float) $row['quantity']);
+
+        return match ($row['cadence'] ?? 'monthly') {
+            'weekly' => $amount * (52 / self::MONTHS_PER_YEAR),
+            'fortnightly' => $amount * (26 / self::MONTHS_PER_YEAR),
+            'quarterly' => $amount / 3,
+            'annual' => $amount / self::MONTHS_PER_YEAR,
+            default => $amount,
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function rowBaseRevenue(array $row): float
+    {
+        return ((float) $row['amount']) * ((float) $row['quantity']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function rowGrowthFactor(array $row, int $elapsedMonths): float
+    {
+        $growthPercent = (float) ($row['growth_percent'] ?? $row['monthly_growth_percent'] ?? 0);
+
+        return ($row['growth_cadence'] ?? 'monthly') === 'annual'
+            ? $this->annualGrowthForMonths($growthPercent, $elapsedMonths)
+            : $this->growthFactor($growthPercent, $elapsedMonths);
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function capRevenueToCapacity(array $row, float $revenue): float
+    {
+        $capacity = $row['monthly_capacity_units'] ?? null;
+        if (! is_numeric($capacity) || (float) $capacity <= 0) {
+            return $revenue;
+        }
+
+        return min($revenue, ((float) $row['amount']) * (float) $capacity);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     */
     private function rowsForMonth(array $rows, int $month): float
     {
         return array_reduce(
@@ -893,6 +1040,29 @@ final class BudgetCalculator implements ProvidesMethodology
     private function number(mixed $value): float
     {
         return max(0.0, $this->numericValue($value));
+    }
+
+    private function nullableNonNegativeNumber(mixed $value): ?float
+    {
+        if ($value === null || $value === '' || ! is_numeric($value)) {
+            return null;
+        }
+
+        return max(0.0, (float) $value);
+    }
+
+    private function cadence(mixed $value): string
+    {
+        return in_array($value, ['weekly', 'fortnightly', 'monthly', 'quarterly', 'annual'], true)
+            ? (string) $value
+            : 'monthly';
+    }
+
+    private function growthCadence(mixed $value): string
+    {
+        return in_array($value, ['monthly', 'annual'], true)
+            ? (string) $value
+            : 'monthly';
     }
 
     private function signedPercent(mixed $value): float
@@ -996,12 +1166,49 @@ final class BudgetCalculator implements ProvidesMethodology
             'first_profitable_year' => 'First profitable year is the first forecast year where net profit after tax is positive.',
             'cash_flow_positive_year' => 'Cash-flow-positive year is the first year where cumulative cash becomes zero or positive after startup losses and funding movements.',
             'year_two_revenue_basis' => 'By default, month 13 carries forward the Year 1 exit run-rate and applies annual revenue growth smoothly month by month. Choose the Year 1 average only when it is a deliberate seasonal or averaging assumption.',
-            'tax_simplification' => 'Company tax is estimated month by month after carrying earlier losses forward within the same forecast year. Losses are reset at each year boundary unless tax reference data is extended later.',
-            'downside_growth' => 'Revenue growth, monthly revenue growth, and cost/CPI assumptions can be negative down to -100%, so downside and deflation cases are modelled instead of silently flattened to zero growth.',
+            'tax_simplification' => 'Company tax is estimated month by month after carrying losses forward through the forecast. This remains an indicative planning estimate, not a filed tax calculation.',
+            'downside_growth' => 'Revenue growth and cost/CPI assumptions can be negative down to -100%, so downside and deflation cases are modelled instead of silently flattened to zero growth.',
             'automatic_scenarios' => 'Automatic sensitivity scenarios compare base case against revenue downside, cost upside, and combined downside cases.',
             'investor_equity' => 'Investor and mixed funding scenarios show the equity sold and remaining founder ownership so funding is not treated like free cash.',
-            'gst_exclusive' => 'The budget is GST exclusive by default, so GST collected and paid is not treated as business income or cost in this pack.',
+            'gst_exclusive' => 'The budget is GST exclusive. GST collected and paid is excluded from profit and cash movements, so a separate GST provision or cash schedule is still required when payment timing is material.',
             'working_capital_timing' => 'Debtor days delay forecast revenue into cash collected; creditor days delay direct variable-cost payments. If no timing is supplied, the budget assumes same-month cash movement.',
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $fixedRows
+     * @param  array<int, array<string, mixed>>  $revenueRows
+     * @param  array<string, mixed>  $assumptions
+     * @return array<string, array<int, string>>
+     */
+    private function inputQuality(array $fixedRows, array $revenueRows, array $assumptions): array
+    {
+        return [
+            'unconfirmed_fixed_cost_cadences' => collect($fixedRows)
+                ->filter(fn (array $row): bool => ! (bool) ($row['cadence_confirmed'] ?? false))
+                ->pluck('label')
+                ->filter()
+                ->values()
+                ->all(),
+            'unconfirmed_revenue_growth' => collect($revenueRows)
+                ->filter(fn (array $row): bool => (float) ($row['growth_percent'] ?? 0) !== 0.0 && ! (bool) ($row['growth_cadence_confirmed'] ?? false))
+                ->pluck('label')
+                ->filter()
+                ->values()
+                ->all(),
+            'revenue_without_capacity' => collect($revenueRows)
+                ->filter(fn (array $row): bool => (float) ($row['amount'] ?? 0) > 0 && (! is_numeric($row['monthly_capacity_units'] ?? null) || ! (bool) ($row['capacity_confirmed'] ?? false)))
+                ->pluck('label')
+                ->filter()
+                ->values()
+                ->all(),
+            'missing_assumptions' => collect([
+                ...(array) ($assumptions['missing_fields'] ?? []),
+                ...(($assumptions['forecast_start_month'] ?? null) === null ? ['forecast_start_month'] : []),
+            ])
+                ->unique()
+                ->values()
+                ->all(),
         ];
     }
 }

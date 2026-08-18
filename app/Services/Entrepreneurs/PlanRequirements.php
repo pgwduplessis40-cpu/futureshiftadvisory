@@ -33,7 +33,7 @@ final class PlanRequirements
                 [
                     'key' => 'industry-context',
                     'title' => 'Industry and customer demand',
-                    'description' => 'Discuss the industry, customer segment, demand evidence, and market timing.',
+                    'description' => 'Discuss the industry, customer segment, demand evidence, and market timing. Cite the source name, publication date, and link or attachment for material market claims.',
                 ],
                 [
                     'key' => 'differentiation',
@@ -69,6 +69,11 @@ final class PlanRequirements
                     'key' => 'organisation-management',
                     'title' => 'Organisation and management',
                     'description' => 'Set out founder and team responsibilities, relevant experience, decision rights, critical capability gaps, and the hiring or advisor plan for the next 12 months.',
+                ],
+                [
+                    'key' => 'risk-register',
+                    'title' => 'Risk register and mitigations',
+                    'description' => 'Set out the main market, delivery, financial, key-person, and competitor risks; for each, name the owner, early warning signal, mitigation, and review timing.',
                 ],
             ],
         ],

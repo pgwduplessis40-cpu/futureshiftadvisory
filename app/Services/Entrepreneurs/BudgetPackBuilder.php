@@ -72,6 +72,7 @@ final class BudgetPackBuilder
             'forecast_years' => $budget->forecast_years ?? data_get($computed, 'forecast_years', 3),
             'generated_at' => now()->toIso8601String(),
             'gst_exclusive' => (bool) data_get($computed, 'assumptions.gst_exclusive', true),
+            'forecast_start_month' => data_get($computed, 'assumptions.forecast_start_month'),
             'tax_configured' => (bool) data_get($computed, 'assumptions.company_tax_configured', false),
             'warnings' => (array) ($fundingDecision['warnings'] ?? []),
             'summary' => [
@@ -82,6 +83,7 @@ final class BudgetPackBuilder
                 'runway_months' => data_get($computed, 'runway_months'),
                 'runway_open_ended' => data_get($computed, 'runway_open_ended', false),
                 'available_after_launch' => data_get($computed, 'available_after_launch', 0),
+                'opening_cash_balance' => data_get($computed, 'opening_cash_balance', 0),
             ],
             'funding_decision' => $fundingDecision,
             'use_of_funds' => $this->useOfFunds($budget, $fundingDecision),
@@ -111,6 +113,9 @@ final class BudgetPackBuilder
         $annualRows = collect((array) $payload['annual_totals'])
             ->map(fn (array $row): string => $this->annualRowHtml($row))
             ->implode('');
+        $financialBridgeRows = collect((array) $payload['annual_totals'])
+            ->map(fn (array $row): string => $this->financialBridgeRowHtml($row))
+            ->implode('');
         $summary = (array) ($payload['summary'] ?? []);
         $assumptions = collect((array) ($payload['assumptions'] ?? []))
             ->map(fn (array $row): string => sprintf(
@@ -134,20 +139,22 @@ final class BudgetPackBuilder
             ->implode('');
         $fixedCostRows = collect((array) ($payload['fixed_costs'] ?? []))
             ->map(fn (array $row): string => sprintf(
-                '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+                '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
                 $this->escape($row['label'] ?? ''),
+                $this->money($row['entered_amount'] ?? 0),
+                $this->escape($row['cadence_label'] ?? ''),
                 $this->money($row['monthly_amount'] ?? 0),
                 $this->escape($row['start_month_label'] ?? ''),
-                $this->escape($this->formatLabel((string) ($row['confidence'] ?? 'estimate'))),
                 $this->escape($row['review_note'] ?? ''),
             ))
             ->implode('');
         $futureCostRows = collect((array) ($payload['future_costs'] ?? []))
             ->map(fn (array $row): string => sprintf(
-                '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+                '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
                 $this->escape($row['label'] ?? ''),
                 $this->money($row['amount'] ?? 0),
                 $this->escape($row['timing'] ?? ''),
+                $this->escape($row['classification'] ?? ''),
                 $this->escape($this->formatLabel((string) ($row['confidence'] ?? 'estimate'))),
             ))
             ->implode('');
@@ -212,15 +219,15 @@ HTML,
             $useOfFundsRows === '' ? '<tr><td colspan="3">No funding inputs saved.</td></tr>' : $useOfFundsRows,
         );
         $fixedCostsSection = sprintf(
-            '<article class="report-section"><h2>Monthly fixed-cost trace</h2><p class="section-intro">Saved fixed-cost rows total %s per month; the model base used for funding calculations is %s per month.</p>%s<table class="decision-table"><thead><tr><th>Cost item</th><th>Monthly amount</th><th>Starts</th><th>Confidence</th><th>Review note</th></tr></thead><tbody>%s</tbody></table></article>',
+            '<article class="report-section"><h2>Monthly fixed-cost trace</h2><p class="section-intro">Each row shows the entered amount, billing cadence, and monthly equivalent used by the model. The converted rows total %s per month; the model base is %s per month.</p>%s<table class="decision-table"><thead><tr><th>Cost item</th><th>Entered amount</th><th>Cadence</th><th>Monthly equivalent</th><th>Starts</th><th>Review note</th></tr></thead><tbody>%s</tbody></table></article>',
             $this->money($fixedCostReconciliation['listed_total'] ?? 0),
             $this->money($fixedCostReconciliation['model_base'] ?? ($decision['monthly_fixed_costs'] ?? 0)),
             $fixedCostReconciliationNote,
-            $fixedCostRows === '' ? '<tr><td colspan="5">No monthly fixed costs saved.</td></tr>' : $fixedCostRows,
+            $fixedCostRows === '' ? '<tr><td colspan="6">No monthly fixed costs saved.</td></tr>' : $fixedCostRows,
         );
         $futureCostsSection = sprintf(
-            '<article class="report-section"><h2>Later-year cost trace</h2><p class="section-intro">These costs are applied in the stated Year 2+ month. One-off items land in Month 1 of that year; recurring items continue from that point.</p><table class="decision-table"><thead><tr><th>Cost item</th><th>Amount</th><th>Timing</th><th>Confidence</th></tr></thead><tbody>%s</tbody></table></article>',
-            $futureCostRows === '' ? '<tr><td colspan="4">No later-year costs saved.</td></tr>' : $futureCostRows,
+            '<article class="report-section"><h2>Later-year cost trace</h2><p class="section-intro">Operating costs affect profit when incurred. Capital assets are paid in cash at purchase and depreciated over their stated useful life.</p><table class="decision-table"><thead><tr><th>Cost item</th><th>Amount</th><th>Timing</th><th>Treatment</th><th>Confidence</th></tr></thead><tbody>%s</tbody></table></article>',
+            $futureCostRows === '' ? '<tr><td colspan="5">No later-year costs saved.</td></tr>' : $futureCostRows,
         );
         $annualForecast = sprintf(
             <<<'HTML'
@@ -234,6 +241,22 @@ HTML,
 </article>
 HTML,
             $annualRows === '' ? '<tr><td colspan="10">No annual forecast saved.</td></tr>' : $annualRows,
+        );
+        $openingCash = (float) data_get($payload, 'summary.opening_cash_balance', 0);
+        $financialBridgeSection = sprintf(
+            <<<'HTML'
+<article class="report-section financial-bridge">
+<h2>Profit and cash reconciliation</h2>
+<p class="section-intro">Opening cash is carried separately from Month 1 cash movement. Amounts are NZD and GST exclusive; GST timing is not a substitute for a separate GST provision schedule.</p>
+<p class="note">Opening cash balance: %s</p>
+<table class="decision-table">
+<thead><tr><th>Year</th><th>NPBT</th><th>Loss used</th><th>Tax</th><th>Depreciation</th><th>Capex</th><th>Net cash flow</th><th>Closing cash</th></tr></thead>
+<tbody>%s</tbody>
+</table>
+</article>
+HTML,
+            $this->money($openingCash),
+            $financialBridgeRows === '' ? '<tr><td colspan="8">No annual forecast saved.</td></tr>' : $financialBridgeRows,
         );
         $assumptionsSection = sprintf(
             '<article class="report-section assumption-quality page"><h2>Assumption quality</h2><table class="decision-table"><thead><tr><th>Assumption</th><th>Value</th><th>Basis</th><th>Review note</th></tr></thead><tbody>%s</tbody></table></article>',
@@ -252,13 +275,19 @@ HTML,
             title: $title,
             templateKey: $template?->getKey() ?? EntrepreneurDocumentTemplate::BUDGET_PACK,
             documentTag: 'Budget pack',
-            eyebrow: '',
+            eyebrow: 'Lender-readiness financial forecast',
             heading: $title,
             subheading: 'Founder - '.$profile->name,
-            meta: [],
-            contentHtml: $draftNotice.$decisionView.$cashStorySection.$revenueBridgeSection.$useOfFundsSection.$fixedCostsSection.$futureCostsSection.$scenariosSection.$assumptionsSection.$annualForecast.$monthlyPages,
+            meta: [
+                'Prepared' => $generatedAt,
+                'Version' => (bool) ($issueReadiness['external_issue_ready'] ?? false) ? 'External issue ready' : 'Internal draft',
+                'Currency' => 'NZD',
+                'GST basis' => 'GST exclusive',
+                'Forecast starts' => (string) ($payload['forecast_start_month'] ?: 'Not set'),
+            ],
+            contentHtml: $draftNotice.$decisionView.$cashStorySection.$revenueBridgeSection.$useOfFundsSection.$fixedCostsSection.$futureCostsSection.$scenariosSection.$assumptionsSection.$annualForecast.$financialBridgeSection.$monthlyPages,
             footer: $this->footerText('Generated '.$generatedAt.' using Future Shift Advisory budget pack', $issueReadiness),
-            snapshotTitle: '',
+            snapshotTitle: 'Document details',
             template: $template,
             extraCss: $this->budgetPackCss(),
         );
@@ -334,9 +363,10 @@ HTML,
         $fixedCosts = collect((array) ($payload['fixed_costs'] ?? []))
             ->map(fn (array $row): array => [
                 (string) ($row['label'] ?? ''),
+                $this->money($row['entered_amount'] ?? 0),
+                (string) ($row['cadence_label'] ?? ''),
                 $this->money($row['monthly_amount'] ?? 0),
                 (string) ($row['start_month_label'] ?? ''),
-                $this->formatLabel((string) ($row['confidence'] ?? 'estimate')),
                 (string) ($row['review_note'] ?? ''),
             ])
             ->values()
@@ -345,7 +375,7 @@ HTML,
         $blocks[] = ['type' => 'section', 'text' => 'Monthly fixed-cost trace'];
         $blocks[] = [
             'type' => 'paragraph',
-            'text' => 'Saved fixed-cost rows total '.$this->money($fixedCostReconciliation['listed_total'] ?? 0).' per month; the model base used for funding calculations is '.$this->money($fixedCostReconciliation['model_base'] ?? 0).' per month.',
+            'text' => 'The converted fixed-cost rows total '.$this->money($fixedCostReconciliation['listed_total'] ?? 0).' per month; the model base used for funding calculations is '.$this->money($fixedCostReconciliation['model_base'] ?? 0).' per month.',
         ];
         if (! (bool) ($fixedCostReconciliation['reconciled'] ?? true)) {
             $blocks[] = [
@@ -358,9 +388,9 @@ HTML,
             ? ['type' => 'paragraph', 'text' => 'No monthly fixed costs have been saved yet.']
             : [
                 'type' => 'table',
-                'headers' => ['Cost item', 'Monthly amount', 'Starts', 'Confidence', 'Review note'],
+                'headers' => ['Cost item', 'Entered', 'Cadence', 'Monthly equivalent', 'Starts', 'Review note'],
                 'rows' => $fixedCosts,
-                'widths' => [1.25, 0.8, 0.65, 0.75, 1.45],
+                'widths' => [1.15, 0.7, 0.75, 0.85, 0.55, 1.25],
             ];
 
         $futureCosts = collect((array) ($payload['future_costs'] ?? []))
@@ -368,6 +398,7 @@ HTML,
                 (string) ($row['label'] ?? ''),
                 $this->money($row['amount'] ?? 0),
                 (string) ($row['timing'] ?? ''),
+                (string) ($row['classification'] ?? ''),
                 $this->formatLabel((string) ($row['confidence'] ?? 'estimate')),
             ])
             ->values()
@@ -377,9 +408,9 @@ HTML,
             ? ['type' => 'paragraph', 'text' => 'No later-year costs have been saved yet.']
             : [
                 'type' => 'table',
-                'headers' => ['Cost item', 'Amount', 'Timing', 'Confidence'],
+                'headers' => ['Cost item', 'Amount', 'Timing', 'Treatment', 'Confidence'],
                 'rows' => $futureCosts,
-                'widths' => [1.6, 1, 1.1, 0.9],
+                'widths' => [1.25, 0.75, 0.9, 1.15, 0.65],
             ];
 
         $scenarios = collect((array) ($payload['scenarios'] ?? []))
@@ -432,6 +463,30 @@ HTML,
                 'widths' => [0.55, 1, 1, 0.65, 1, 1, 1],
             ];
 
+        $financialBridge = collect((array) ($payload['annual_totals'] ?? []))
+            ->map(fn (array $row): array => [
+                'Year '.((string) ($row['year'] ?? '-')),
+                $this->money($row['net_profit_before_tax'] ?? 0),
+                $this->money($row['tax_loss_used'] ?? 0),
+                $this->money($row['tax'] ?? 0),
+                $this->money($row['depreciation'] ?? 0),
+                $this->money($row['capital_expenditure'] ?? 0),
+                $this->money($row['net_cash_flow'] ?? 0),
+                $this->money($row['ending_cash'] ?? 0),
+            ])
+            ->values()
+            ->all();
+        $blocks[] = ['type' => 'section', 'text' => 'Profit and cash reconciliation'];
+        $blocks[] = ['type' => 'paragraph', 'text' => 'Opening cash balance: '.$this->money(data_get($payload, 'summary.opening_cash_balance', 0)).'. All figures are NZD and GST exclusive.'];
+        $blocks[] = $financialBridge === []
+            ? ['type' => 'paragraph', 'text' => 'No annual forecast has been saved yet.']
+            : [
+                'type' => 'table',
+                'headers' => ['Year', 'NPBT', 'Loss used', 'Tax', 'Depn', 'Capex', 'Net cash', 'Closing cash'],
+                'rows' => $financialBridge,
+                'widths' => [0.55, 0.85, 0.8, 0.7, 0.75, 0.75, 0.9, 0.9],
+            ];
+
         $blocks[] = ['type' => 'page_break'];
         $assumptions = collect((array) ($payload['assumptions'] ?? []))
             ->map(fn (array $row): array => [
@@ -458,8 +513,10 @@ HTML,
                 ->map(fn (array $row): array => [
                     (string) ($row['month_in_year'] ?? '-'),
                     $this->money($row['revenue'] ?? 0),
+                    $this->money($row['cash_collected'] ?? 0),
                     $this->money($row['gross_profit'] ?? 0),
                     $this->money($row['fixed_costs'] ?? 0),
+                    $this->money($row['tax'] ?? 0),
                     $this->money($row['net_cash_flow'] ?? 0),
                     $this->money($row['cumulative_cash'] ?? 0),
                 ])
@@ -471,9 +528,9 @@ HTML,
                 $blocks[] = ['type' => 'section', 'text' => 'Year '.((string) ($year['year'] ?? '-')).' monthly detail'];
                 $blocks[] = [
                     'type' => 'table',
-                    'headers' => ['Month', 'Revenue', 'Gross profit', 'Fixed costs', 'Net cash flow', 'Cash'],
+                    'headers' => ['Month', 'Revenue', 'Cash collected', 'Gross profit', 'Fixed costs', 'Tax', 'Net cash flow', 'Cash'],
                     'rows' => $rows,
-                    'widths' => [0.55, 1, 1, 1, 1, 1],
+                    'widths' => [0.5, 0.8, 0.85, 0.8, 0.75, 0.6, 0.9, 0.8],
                 ];
             }
         }
@@ -511,7 +568,7 @@ HTML,
     }
 
     /**
-     * @return array<int, array{label:string,monthly_amount:float,start_month_label:string,confidence:string}>
+     * @return array<int, array{label:string,entered_amount:float,cadence_label:string,monthly_amount:float,start_month_label:string,confidence:string,review_note:string}>
      */
     private function fixedCosts(EntrepreneurBudget $budget): array
     {
@@ -522,7 +579,9 @@ HTML,
 
                 return [
                     'label' => $this->fixedCostDisplayLabel($label),
-                    'monthly_amount' => round((float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1), 2),
+                    'entered_amount' => round((float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1), 2),
+                    'cadence_label' => $this->cadenceLabel((string) ($row['cadence'] ?? 'monthly'), (bool) ($row['cadence_confirmed'] ?? false)),
+                    'monthly_amount' => round($this->monthlyEquivalent($row), 2),
                     'start_month_label' => 'Month '.$month,
                     'confidence' => (string) ($row['confidence'] ?? 'estimate'),
                     'review_note' => $this->fixedCostReviewNote($label, $row),
@@ -540,7 +599,7 @@ HTML,
     private function fixedCostReconciliation(EntrepreneurBudget $budget, array $computed): array
     {
         $listedTotal = collect((array) ($budget->monthly_fixed_costs ?? []))
-            ->sum(fn (array $row): float => (float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1));
+            ->sum(fn (array $row): float => $this->monthlyEquivalent($row));
         $modelBase = (float) ($computed['monthly_fixed_costs'] ?? data_get($computed, 'base_scenario.summary.year_one_monthly_fixed_costs', 0));
         $difference = round($modelBase - $listedTotal, 2);
         $reconciled = abs($difference) < 1.0;
@@ -551,8 +610,8 @@ HTML,
             'difference' => $difference,
             'reconciled' => $reconciled,
             'message' => $reconciled
-                ? 'The itemised fixed-cost trace reconciles to the model base.'
-                : 'The itemised fixed-cost trace differs from the model base by '.$this->money($difference).'. Add the missing rows or relabel the table if it is only a subset such as software subscriptions.',
+                ? 'The converted fixed-cost trace reconciles to the model base.'
+                : 'The converted fixed-cost trace differs from the model base by '.$this->money($difference).'. Add the missing rows or correct a cost cadence before external issue.',
         ];
     }
 
@@ -570,7 +629,11 @@ HTML,
             return 'Amount needs confirmation.';
         }
 
-        return 'Traces to saved fixed-cost row.';
+        if (! (bool) ($row['cadence_confirmed'] ?? false)) {
+            return 'Confirm the saved billing cadence before external issue.';
+        }
+
+        return 'Traces to saved fixed-cost row and converted monthly equivalent.';
     }
 
     private function fixedCostDisplayLabel(string $label): string
@@ -591,7 +654,36 @@ HTML,
     }
 
     /**
-     * @return array<int, array{label:string,amount:float,timing:string,confidence:string}>
+     * @param  array<string, mixed>  $row
+     */
+    private function monthlyEquivalent(array $row): float
+    {
+        $amount = (float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1);
+
+        return match ($row['cadence'] ?? 'monthly') {
+            'weekly' => $amount * (52 / 12),
+            'fortnightly' => $amount * (26 / 12),
+            'quarterly' => $amount / 3,
+            'annual' => $amount / 12,
+            default => $amount,
+        };
+    }
+
+    private function cadenceLabel(string $cadence, bool $confirmed): string
+    {
+        $label = match ($cadence) {
+            'weekly' => 'Weekly',
+            'fortnightly' => 'Fortnightly',
+            'quarterly' => 'Quarterly',
+            'annual' => 'Annual',
+            default => 'Monthly',
+        };
+
+        return $confirmed ? $label : $label.' - confirm';
+    }
+
+    /**
+     * @return array<int, array{label:string,amount:float,timing:string,classification:string,confidence:string}>
      */
     private function futureCosts(EntrepreneurBudget $budget): array
     {
@@ -599,6 +691,7 @@ HTML,
             ->map(function (array $row): array {
                 $year = max(2, (int) ($row['year'] ?? 2));
                 $recurring = (bool) ($row['recurring'] ?? false);
+                $classification = ($row['classification'] ?? 'operating') === 'capital' ? 'capital' : 'operating';
 
                 return [
                     'label' => (string) ($row['label'] ?? 'Unlabelled later-year cost'),
@@ -606,6 +699,9 @@ HTML,
                     'timing' => $recurring
                         ? 'From Year '.$year.', monthly'
                         : 'Year '.$year.', Month 1 once',
+                    'classification' => $classification === 'capital'
+                        ? 'Capital asset; depreciated over '.max(1, (int) ($row['useful_life_years'] ?? 3)).' years'
+                        : 'Operating cost',
                     'confidence' => (string) ($row['confidence'] ?? 'estimate'),
                 ];
             })
@@ -1083,6 +1179,10 @@ HTML,
         return collect([
             'revenue_growth_percent',
             'year_two_revenue_basis',
+            'forecast_start_month',
+            'opening_cash_balance',
+            'debtor_days',
+            'creditor_days',
             'cost_inflation_percent',
             'target_gross_profit_percent',
             'target_net_profit_before_tax_percent',
@@ -1095,7 +1195,13 @@ HTML,
                     ? (($assumptions[$key] ?? 'exit_run_rate') === 'year_one_average'
                         ? 'Year 1 average monthly revenue'
                         : 'Year 1 exit run-rate')
-                    : ((float) ($assumptions[$key] ?? 0)).'%',
+                    : ($key === 'forecast_start_month'
+                        ? ((string) ($assumptions[$key] ?? '') ?: 'Not set')
+                        : (in_array($key, ['opening_cash_balance'], true)
+                            ? $this->money($assumptions[$key] ?? 0)
+                            : (in_array($key, ['debtor_days', 'creditor_days'], true)
+                                ? ((int) ($assumptions[$key] ?? 0)).' days'
+                                : ((float) ($assumptions[$key] ?? 0)).'%'))),
                 'basis' => $this->assumptionBasis($key, $assumptions, $provided, $missing),
                 'review_note' => $this->assumptionReviewNote($key),
                 'provided' => ! in_array($key, $missing, true),
@@ -1125,6 +1231,10 @@ HTML,
             return 'Founder/advisor selection';
         }
 
+        if (in_array($key, ['forecast_start_month', 'opening_cash_balance', 'debtor_days', 'creditor_days'], true)) {
+            return in_array($key, $provided, true) ? 'Founder/advisor input' : 'Missing input';
+        }
+
         if (in_array($key, $provided, true)) {
             return 'Founder/advisor input';
         }
@@ -1141,6 +1251,10 @@ HTML,
         return match ($key) {
             'revenue_growth_percent' => 'Check against pipeline, pricing tests, signed work, or demand evidence.',
             'year_two_revenue_basis' => 'Use the Year 1 average only for an intentional seasonal or averaged forecast.',
+            'forecast_start_month' => 'Use the real first forecast month so monthly cash and written milestones reconcile.',
+            'opening_cash_balance' => 'Keep opening cash separate from Month 1 cash movement and funding inflows.',
+            'debtor_days' => 'Match deposit and invoice collection timing; zero means cash is collected in the same month.',
+            'creditor_days' => 'Match supplier-payment timing; zero means direct costs are paid in the same month.',
             'cost_inflation_percent' => 'Check against current supplier pricing, rent, wages, software, and CPI context.',
             'target_gross_profit_percent' => 'Check price, direct delivery cost, capacity, and product or service mix.',
             'target_net_profit_before_tax_percent' => 'Check whether overheads and owner capacity support the target.',
@@ -1171,6 +1285,24 @@ HTML,
     }
 
     /**
+     * @param  array<string, mixed>  $row
+     */
+    private function financialBridgeRowHtml(array $row): string
+    {
+        return sprintf(
+            '<tr><td>Year %s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+            $this->escape($row['year'] ?? ''),
+            $this->money($row['net_profit_before_tax'] ?? 0),
+            $this->money($row['tax_loss_used'] ?? 0),
+            $this->money($row['tax'] ?? 0),
+            $this->money($row['depreciation'] ?? 0),
+            $this->money($row['capital_expenditure'] ?? 0),
+            $this->money($row['net_cash_flow'] ?? 0),
+            $this->money($row['ending_cash'] ?? 0),
+        );
+    }
+
+    /**
      * @param  array<string, mixed>  $year
      */
     private function monthlyYearHtml(array $year, bool $firstMonthlyPage = false): string
@@ -1186,14 +1318,16 @@ HTML,
                     && (float) $row['cumulative_cash'] === (float) $lowestCash;
 
                 return sprintf(
-                    '<tr%s><td>Month %s%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+                    '<tr%s><td>Month %s%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
                     $isTrough ? ' class="cash-trough-row"' : '',
                     $this->escape($row['month_in_year'] ?? ''),
                     $isTrough ? ' <span class="cash-trough-label">Lowest cash</span>' : '',
                     $this->money($row['revenue'] ?? 0),
+                    $this->money($row['cash_collected'] ?? 0),
                     $this->money($row['variable_costs'] ?? 0),
                     $this->money($row['gross_profit'] ?? 0),
                     $this->money($row['fixed_costs'] ?? 0),
+                    $this->money($row['tax'] ?? 0),
                     $this->money($row['net_profit_after_tax'] ?? 0),
                     $this->money($row['net_cash_flow'] ?? 0),
                     $this->money($row['cumulative_cash'] ?? 0),
@@ -1208,7 +1342,7 @@ HTML,
             : '';
 
         return sprintf(
-            '<article class="report-section page monthly-appendix"><h2>%s</h2>%s<table><thead><tr><th>Month</th><th>Revenue</th><th>Variable costs</th><th>Gross profit</th><th>Fixed costs</th><th>NPAT</th><th>Cash flow</th><th>Cumulative cash</th></tr></thead><tbody>%s</tbody></table></article>',
+            '<article class="report-section page monthly-appendix"><h2>%s</h2>%s<table><thead><tr><th>Month</th><th>Revenue</th><th>Cash collected</th><th>Variable costs</th><th>Gross profit</th><th>Fixed costs</th><th>Tax</th><th>NPAT</th><th>Cash flow</th><th>Cumulative cash</th></tr></thead><tbody>%s</tbody></table></article>',
             $this->escape($title),
             $intro,
             $rows,

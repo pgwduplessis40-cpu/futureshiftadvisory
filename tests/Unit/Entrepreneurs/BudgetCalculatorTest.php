@@ -127,7 +127,7 @@ final class BudgetCalculatorTest extends TestCase
         $this->assertEqualsWithDelta(1_250.0, $computed['monthly_detail'][23]['revenue'], 0.01);
     }
 
-    public function test_tax_carries_losses_forward_within_forecast_year(): void
+    public function test_tax_carries_losses_forward_across_the_forecast(): void
     {
         $computed = $this->calculator()->compute(
             launchCosts: [],
@@ -145,7 +145,101 @@ final class BudgetCalculatorTest extends TestCase
         $this->assertSame(0.0, $computed['monthly_detail'][6]['tax']);
         $this->assertSame(-4_000.0, $computed['monthly_detail'][6]['tax_loss_carried_forward']);
         $this->assertSame(560.0, $computed['monthly_detail'][9]['tax']);
-        $this->assertStringContainsString('carrying earlier losses forward within the same forecast year', $computed['explanations']['tax_simplification']);
+        $this->assertStringContainsString('carrying losses forward through the forecast', $computed['explanations']['tax_simplification']);
+    }
+
+    public function test_fixed_cost_cadences_are_converted_to_a_monthly_equivalent(): void
+    {
+        $computed = $this->calculator()->compute(
+            launchCosts: [],
+            monthlyFixedCosts: [[
+                'label' => 'Annual registry fee',
+                'amount' => 1_200,
+                'cadence' => 'annual',
+                'cadence_confirmed' => true,
+            ]],
+            revenueForecast: [],
+            fundingSources: [],
+            expectedRunwayMonths: null,
+            forecastYears: 1,
+        );
+
+        $this->assertSame(100.0, $computed['monthly_detail'][0]['fixed_costs']);
+        $this->assertSame(100.0, $computed['monthly_fixed_costs']);
+        $this->assertSame(100.0, $computed['base_scenario']['summary']['year_one_monthly_fixed_costs']);
+    }
+
+    public function test_revenue_capacity_caps_a_monthly_growth_forecast(): void
+    {
+        $computed = $this->calculator()->compute(
+            launchCosts: [],
+            monthlyFixedCosts: [],
+            revenueForecast: [[
+                'label' => 'Advisory intensives',
+                'amount' => 1_500,
+                'quantity' => 10,
+                'month' => 1,
+                'growth_percent' => 25,
+                'growth_cadence' => 'monthly',
+                'growth_cadence_confirmed' => true,
+                'monthly_capacity_units' => 3,
+                'capacity_confirmed' => true,
+                'unit_label' => 'intensives',
+            ]],
+            fundingSources: [],
+            expectedRunwayMonths: null,
+            forecastYears: 2,
+        );
+
+        $this->assertSame(4_500.0, $computed['monthly_detail'][0]['revenue']);
+        $this->assertSame(4_500.0, $computed['monthly_detail'][11]['revenue']);
+        $this->assertSame(4_500.0, $computed['monthly_detail'][12]['revenue']);
+        $this->assertSame([], $computed['input_quality']['revenue_without_capacity']);
+    }
+
+    public function test_tax_losses_offset_profit_after_a_year_boundary(): void
+    {
+        $computed = $this->calculator()->compute(
+            launchCosts: [],
+            monthlyFixedCosts: [['label' => 'Rent', 'amount' => 1_000]],
+            revenueForecast: [['label' => 'Sales', 'amount' => 1_500, 'month' => 7]],
+            fundingSources: [],
+            expectedRunwayMonths: null,
+            forecastYears: 2,
+            companyTaxRatePercent: 28,
+        );
+
+        $this->assertSame(-3_000.0, $computed['monthly_detail'][11]['tax_loss_carried_forward']);
+        $this->assertSame(0.0, $computed['monthly_detail'][12]['tax']);
+        $this->assertSame(500.0, $computed['monthly_detail'][12]['tax_loss_used']);
+        $this->assertSame(-2_500.0, $computed['monthly_detail'][12]['tax_loss_carried_forward']);
+        $this->assertSame(140.0, $computed['monthly_detail'][18]['tax']);
+    }
+
+    public function test_capital_assets_are_cash_purchases_with_depreciation_not_operating_costs(): void
+    {
+        $computed = $this->calculator()->compute(
+            launchCosts: [],
+            monthlyFixedCosts: [],
+            revenueForecast: [['label' => 'Sales', 'amount' => 5_000]],
+            fundingSources: [],
+            expectedRunwayMonths: null,
+            forecastYears: 2,
+            futureCosts: [[
+                'label' => 'Workshop equipment',
+                'amount' => 12_000,
+                'year' => 2,
+                'classification' => 'capital',
+                'useful_life_years' => 3,
+            ]],
+        );
+
+        $monthThirteen = $computed['monthly_detail'][12];
+
+        $this->assertSame(0.0, $monthThirteen['fixed_costs']);
+        $this->assertEqualsWithDelta(333.33, $monthThirteen['depreciation'], 0.01);
+        $this->assertSame(12_000.0, $monthThirteen['capital_expenditure']);
+        $this->assertEqualsWithDelta(-7_000.0, $monthThirteen['net_cash_flow'], 0.01);
     }
 
     public function test_automatic_downside_scenarios_are_generated(): void

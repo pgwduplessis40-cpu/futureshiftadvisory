@@ -22,9 +22,16 @@ final class BusinessPlanPreviewRendererTest extends TestCase
         );
 
         $this->assertSame([
-            'Drawer Full of Giants Ltd will operate from Hamilton while maintaining a high quality client experience',
-            'Validate demand with five customer discovery interviews before lender issue',
+            'Drawer Full of Giants Ltd will operate from Hamilton while maintaining a high quality client experience.',
+            'Validate demand with five customer discovery interviews before lender issue.',
         ], $points);
+    }
+
+    public function test_key_points_skip_oversized_sentences_instead_of_adding_an_ellipsis(): void
+    {
+        $points = $this->keyPoints('This detailed lender-facing sentence is intentionally too long to fit in a key-point panel without truncation '.str_repeat('and evidence ', 20).'.');
+
+        $this->assertSame([], $points);
     }
 
     public function test_completed_executive_summary_is_held_for_the_dedicated_reader_summary_page(): void
@@ -287,6 +294,7 @@ final class BusinessPlanPreviewRendererTest extends TestCase
 
         $this->assertStringContainsString('.plan-phase { border: 0; border-left: 0; break-inside: auto;', $css);
         $this->assertStringContainsString('.phase-heading { border-bottom: 1px solid #ded6c7; break-after: avoid; break-inside: avoid;', $css);
+        $this->assertStringContainsString('.reader-roadmap { border-top: 1px solid #ded6c7; break-after: page; break-before: page;', $css);
         $this->assertStringNotContainsString('.plan-phase { border: 0; border-left: 0; break-before: page;', $css);
     }
 
@@ -339,6 +347,31 @@ final class BusinessPlanPreviewRendererTest extends TestCase
         $this->assertStringNotContainsString('Original launch-stage content', $body);
         $this->assertStringNotContainsString('Start-up Funding', $body);
         $this->assertStringNotContainsString('Update Aug', $body);
+    }
+
+    public function test_document_sections_collapse_date_first_patch_headings(): void
+    {
+        $renderer = app(BusinessPlanPreviewRenderer::class);
+        $method = new ReflectionMethod($renderer, 'documentSections');
+        $method->setAccessible(true);
+
+        $sections = $method->invoke($renderer, [[
+            'title' => 'Strategy',
+            'requirements' => [[
+                'key' => 'goals-objectives',
+                'title' => 'Goals and objectives',
+            ]],
+            'sections' => [[
+                'requirement_key' => 'goals-objectives',
+                'body' => "Original milestones should not sit beside a later patch.\n\nAug 13th update\n\nThe current milestones identify the owner, measurable target, review date, and funding dependency for each priority.",
+                'attached_document_ids' => [],
+            ]],
+        ]]);
+
+        $body = $sections[0]['entries'][0]['body'];
+
+        $this->assertStringContainsString('current milestones', $body);
+        $this->assertStringNotContainsString('Original milestones', $body);
     }
 
     public function test_fallback_pdf_uses_client_facing_report_label_and_executive_summary(): void

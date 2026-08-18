@@ -282,19 +282,26 @@ final class BusinessPlanPreviewRenderer
         $generatedAt = now()->format('M j, Y g:i A');
         $template = $this->templates->businessPlan();
         $title = 'Business Plan'.($businessName === null ? '' : ' - '.$businessName);
+        $computed = (array) ($plan?->budgetRunway?->computed ?? []);
 
         return $this->layout->document(
             title: $title,
             templateKey: $template?->getKey() ?? EntrepreneurDocumentTemplate::BUSINESS_PLAN,
             documentTag: (string) ($documentMeta['document_tag'] ?? 'Business plan'),
-            eyebrow: (string) ($documentMeta['eyebrow'] ?? ''),
+            eyebrow: (string) ($documentMeta['eyebrow'] ?? 'Lender-readiness business plan'),
             heading: (string) ($documentMeta['heading'] ?? $title),
             subheading: (string) ($documentMeta['subheading'] ?? 'Founder - '.$profile->name),
-            meta: [],
+            meta: [
+                'Prepared' => $generatedAt,
+                'Version' => (bool) ($issueReadiness['external_issue_ready'] ?? false) ? 'External issue ready' : 'Internal draft',
+                'Currency' => 'NZD',
+                'GST basis' => 'GST exclusive',
+                'Forecast starts' => (string) (data_get($computed, 'assumptions.forecast_start_month') ?: 'Not set'),
+            ],
             contentHtml: $contentHtml,
             footer: $this->footerText((string) ($documentMeta['footer'] ?? 'Generated '.$generatedAt.' using Future Shift Advisory business-plan workspace'), $issueReadiness),
             template: $template,
-            snapshotTitle: '',
+            snapshotTitle: 'Document details',
             extraCss: $this->businessPlanCss(),
         );
     }
@@ -352,7 +359,9 @@ final class BusinessPlanPreviewRenderer
     {
         $entries = collect($section['entries'])
             ->map(function (array $entry, int $index) use ($startPosition): string {
-                $keyPoints = $this->keyPoints($entry['body']);
+                $keyPoints = $this->markdownBulletItems($entry['body']) === []
+                    ? $this->keyPoints($entry['body'])
+                    : [];
                 $keyPointHtml = $keyPoints === []
                     ? ''
                     : '<aside class="key-points"><p>Key points</p><ul>'.collect($keyPoints)
@@ -653,7 +662,8 @@ HTML,
             return 'No completed response is captured yet.';
         }
 
-        return Str::limit($sentence, 210, '...');
+        return $this->wholeSentenceWithin($sentence, 210)
+            ?? 'No completed response is captured yet.';
     }
 
     /**
@@ -662,10 +672,11 @@ HTML,
     private function summarySentences(string $body): array
     {
         $plain = preg_replace('/\s+/', ' ', $this->markdownPlainText($body)) ?? '';
-        $sentences = preg_split('/(?<=[.!?])\s+/', trim($plain)) ?: [];
+        preg_match_all('/[^.!?]+[.!?](?=\s|$)/', trim($plain), $matches);
+        $sentences = $matches[0] ?? [];
 
         return collect($sentences)
-            ->map(fn (string $sentence): string => trim($sentence, " \t\n\r\0\x0B-.,;:!?\"'`()[]{}"))
+            ->map(fn (string $sentence): string => trim($sentence))
             ->filter(fn (string $sentence): bool => strlen($sentence) >= 24)
             ->values()
             ->all();
@@ -804,7 +815,8 @@ HTML,
                     'kicker' => 'Section '.str_pad((string) $nextSectionPosition, 2, '0', STR_PAD_LEFT).' - Business-plan requirement',
                     'title' => $entry['title'],
                     'key_points' => $this->keyPoints($entry['body']),
-                    'body' => $this->markdownPlainText($entry['body']),
+                    'body' => $this->fallbackNarrative($entry['body']),
+                    'body_bullets' => $this->markdownBulletItems($entry['body']),
                     'note' => '',
                 ];
                 $nextSectionPosition++;
@@ -845,13 +857,26 @@ HTML,
         $candidates = preg_split('/(?:\R+|(?<=[.!?])\s+)/', $plain) ?: [];
 
         return collect($candidates)
+            ->filter(fn (string $candidate): bool => preg_match('/[.!?]\s*$/', trim($candidate)) === 1)
             ->map(fn (string $candidate): string => $this->normaliseKeyPoint($candidate))
             ->filter(fn (string $candidate): bool => $this->isUsefulKeyPoint($candidate))
-            ->map(fn (string $candidate): string => Str::limit($candidate, 190, '...'))
+            ->map(fn (string $candidate): ?string => $this->wholeSentenceWithin($candidate, 190))
+            ->filter()
             ->unique()
             ->take($limit)
             ->values()
             ->all();
+    }
+
+    private function wholeSentenceWithin(string $candidate, int $limit): ?string
+    {
+        $candidate = trim($candidate);
+
+        if (strlen($candidate) > $limit) {
+            return null;
+        }
+
+        return preg_match('/[.!?]$/', $candidate) === 1 ? $candidate : null;
     }
 
     private function cleanResponseBody(string $body): string
@@ -882,7 +907,7 @@ HTML,
     private function collapseDatedUpdate(string $body): string
     {
         $monthPattern = 'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?';
-        $pattern = '/(?:^|\n)\s*(?:#{1,6}\s*)?(?:update(?:d)?|amendment|patch)\b[^\n]*(?:20\d{2}|'.$monthPattern.')[^\n]*(?:\n|$)/i';
+        $pattern = '/(?:^|\n)\s*(?:#{1,6}\s*)?(?:(?:update(?:d)?|amendment|patch)\b[^\n]*(?:20\d{2}|'.$monthPattern.')|(?:'.$monthPattern.')\s+\d{1,2}(?:st|nd|rd|th)?\s*(?:update|amendment|patch)?)[^\n]*(?:\n|$)/i';
 
         if (preg_match_all($pattern, $body, $matches, PREG_OFFSET_CAPTURE) !== 1 && count($matches[0] ?? []) === 0) {
             return $body;
@@ -963,7 +988,7 @@ HTML,
         $candidate = preg_replace('/^\s*(?:[-*]+|\d+[.)])\s*/', '', $candidate) ?? $candidate;
         $candidate = preg_replace('/\s+/', ' ', $candidate) ?? $candidate;
 
-        return trim($candidate, " \t\n\r\0\x0B-.,;:!?\"'`()[]{}");
+        return trim($candidate, " \t\n\r\0\x0B-,:;\"'`()[]{}");
     }
 
     private function isUsefulKeyPoint(string $candidate): bool
@@ -982,7 +1007,7 @@ HTML,
             return false;
         }
 
-        return preg_match('/\b(?:a|an|and|as|for|from|in|is|of|or|the|to|with)$/i', $candidate) !== 1;
+        return preg_match('/\b(?:a|an|and|as|for|from|in|is|of|or|the|to|with)(?:[.!?])?$/i', $candidate) !== 1;
     }
 
     private function businessPlanCss(): string
@@ -993,7 +1018,7 @@ HTML,
 .report-hero .eyebrow:empty { display: none; }
 .report-hero h1 { font-size: 31px; margin: 0 0 12px; }
 .report-hero p { color: #39465a; font-size: 16px; }
-.report-footer { bottom: -10mm; left: 0; position: fixed; right: 0; }
+.report-footer { bottom: 0; left: 0; position: fixed; right: 0; }
 .client-authorship-note { background: #fff; border: 1px solid #ded6c7; border-left: 4px solid #0d7a7a; break-inside: avoid; margin-bottom: 16px; padding: 13px 15px; }
 .client-authorship-note h2 { color: #1c2f4a; font-size: 14px; margin: 0 0 6px; }
 .client-authorship-note p { color: #34443c; font-size: 10.5px; line-height: 1.55; margin: 0; }
@@ -1005,7 +1030,7 @@ HTML,
 .summary-copy ul { margin: 0 0 11px; padding-left: 17px; }
 .summary-copy li { margin: 0 0 5px; }
 .question-label { color: #667282; display: block; font-size: 8.5px; font-weight: 700; letter-spacing: 0; margin: 0 0 6px; text-transform: uppercase; }
-.reader-roadmap { border-top: 1px solid #ded6c7; break-after: page; padding-top: 18px; }
+.reader-roadmap { border-top: 1px solid #ded6c7; break-after: page; break-before: page; page-break-after: always; page-break-before: always; padding-top: 18px; }
 .reader-roadmap h2 { color: #1c2f4a; font-size: 18px; margin: 0 0 12px; }
 .reader-index { border-collapse: collapse; margin: 0; width: 100%; }
 .reader-index td { border: 0; border-top: 1px solid #eee7db; padding: 9px 0; text-align: left; vertical-align: middle; }
@@ -1065,6 +1090,29 @@ CSS;
         $text = html_entity_decode(strip_tags($withBreaks), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
         return trim(preg_replace('/[\t ]+/', ' ', $text) ?? $text);
+    }
+
+    private function fallbackNarrative(string $body): string
+    {
+        $narrative = collect(preg_split('/\R/', $body) ?: [])
+            ->reject(fn (string $line): bool => preg_match('/^\s*(?:[-*+]\s+|\d+[.)]\s+)/', $line) === 1)
+            ->implode("\n");
+
+        return $this->markdownPlainText($narrative);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function markdownBulletItems(string $body): array
+    {
+        return collect(preg_split('/\R/', $body) ?: [])
+            ->filter(fn (string $line): bool => preg_match('/^\s*(?:[-*+]\s+|\d+[.)]\s+)/', $line) === 1)
+            ->map(fn (string $line): string => preg_replace('/^\s*(?:[-*+]\s+|\d+[.)]\s+)/', '', $line) ?? $line)
+            ->map(fn (string $item): string => $this->markdownPlainText($item))
+            ->filter()
+            ->values()
+            ->all();
     }
 
     private function money(mixed $value): string

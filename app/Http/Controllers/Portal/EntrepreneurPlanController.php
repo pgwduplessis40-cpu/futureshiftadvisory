@@ -366,7 +366,7 @@ final class EntrepreneurPlanController extends Controller
         $requirementKey = (string) $validated['requirement_key'];
         $requirement = $this->requirement($phaseKey, $requirementKey);
         $sectionKey = 'founder-'.$phaseKey.'-'.$requirementKey;
-        $body = (string) ($validated['body'] ?? '');
+        $body = $this->integrateDatedPlanUpdate((string) ($validated['body'] ?? ''));
         $existingSection = PlanSection::query()
             ->where('business_plan_id', $plan->getKey())
             ->where('key', $sectionKey)
@@ -451,6 +451,7 @@ final class EntrepreneurPlanController extends Controller
             'forecast_years' => ['nullable', 'integer', Rule::in([1, 2, 3, 5])],
             'assumptions' => ['array'],
             'assumptions.opening_cash_balance' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'assumptions.forecast_start_month' => ['nullable', 'date_format:Y-m'],
             'assumptions.revenue_growth_percent' => ['nullable', 'numeric', 'min:-100', 'max:500'],
             'assumptions.year_two_revenue_basis' => ['nullable', 'string', Rule::in(['exit_run_rate', 'year_one_average'])],
             'assumptions.cost_inflation_percent' => ['nullable', 'numeric', 'min:-100', 'max:100'],
@@ -467,13 +468,21 @@ final class EntrepreneurPlanController extends Controller
             'monthly_fixed_costs.*.label' => ['nullable', 'string', 'max:180'],
             'monthly_fixed_costs.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'monthly_fixed_costs.*.quantity' => ['nullable', 'numeric', 'min:0', 'max:999999'],
+            'monthly_fixed_costs.*.cadence' => ['nullable', 'string', Rule::in(['weekly', 'fortnightly', 'monthly', 'quarterly', 'annual'])],
+            'monthly_fixed_costs.*.cadence_confirmed' => ['nullable', 'boolean'],
             'monthly_fixed_costs.*.confidence' => ['nullable', 'string', Rule::in(['known', 'estimate', 'guess'])],
             'revenue_forecast' => ['array', 'max:50'],
             'revenue_forecast.*.label' => ['nullable', 'string', 'max:180'],
             'revenue_forecast.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'revenue_forecast.*.quantity' => ['nullable', 'numeric', 'min:0', 'max:999999'],
             'revenue_forecast.*.month' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'revenue_forecast.*.growth_percent' => ['nullable', 'numeric', 'min:-100', 'max:500'],
             'revenue_forecast.*.monthly_growth_percent' => ['nullable', 'numeric', 'min:-100', 'max:500'],
+            'revenue_forecast.*.growth_cadence' => ['nullable', 'string', Rule::in(['monthly', 'annual'])],
+            'revenue_forecast.*.growth_cadence_confirmed' => ['nullable', 'boolean'],
+            'revenue_forecast.*.monthly_capacity_units' => ['nullable', 'numeric', 'min:0', 'max:999999'],
+            'revenue_forecast.*.capacity_confirmed' => ['nullable', 'boolean'],
+            'revenue_forecast.*.unit_label' => ['nullable', 'string', 'max:60'],
             'revenue_forecast.*.variable_cost_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'revenue_forecast.*.unit_cost' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'revenue_forecast.*.gross_profit_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -489,6 +498,8 @@ final class EntrepreneurPlanController extends Controller
             'future_costs.*.quantity' => ['nullable', 'numeric', 'min:0', 'max:999999'],
             'future_costs.*.year' => ['nullable', 'integer', 'min:2', 'max:5'],
             'future_costs.*.recurring' => ['nullable', 'boolean'],
+            'future_costs.*.classification' => ['nullable', 'string', Rule::in(['operating', 'capital'])],
+            'future_costs.*.useful_life_years' => ['nullable', 'integer', 'min:1', 'max:20'],
             'future_costs.*.confidence' => ['nullable', 'string', Rule::in(['known', 'estimate', 'guess'])],
             'funding_scenarios' => ['array', 'max:10'],
             'funding_scenarios.*.name' => ['nullable', 'string', 'max:180'],
@@ -1186,6 +1197,26 @@ final class EntrepreneurPlanController extends Controller
                 || $section->key === 'founder-'.$phaseKey.'-'.$requirementKey
             )
         ));
+    }
+
+    private function integrateDatedPlanUpdate(string $body): string
+    {
+        $body = str_replace(["\r\n", "\r"], "\n", trim($body));
+        $monthPattern = 'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?';
+        $pattern = '/(?:^|\n)\s*(?:#{1,6}\s*)?(?:(?:update(?:d)?|amendment|patch)\b[^\n]*(?:20\d{2}|'.$monthPattern.')|(?:'.$monthPattern.')\s+\d{1,2}(?:st|nd|rd|th)?\s*(?:update|amendment|patch)?)[^\n]*(?:\n|$)/i';
+
+        if (preg_match_all($pattern, $body, $matches, PREG_OFFSET_CAPTURE) === 0 || ($matches[0] ?? []) === []) {
+            return $body;
+        }
+
+        $last = $matches[0][count($matches[0]) - 1] ?? null;
+        if (! is_array($last)) {
+            return $body;
+        }
+
+        $replacement = trim(substr($body, (int) $last[1] + strlen((string) $last[0])));
+
+        return strlen($replacement) >= 80 ? $replacement : $body;
     }
 
     /**

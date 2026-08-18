@@ -31,8 +31,20 @@ final class ExternalIssueReview
             $blocking[] = 'Resolve blank merge fields or placeholder identity details before external issue.';
         }
 
-        if (preg_match('/^\s*(?:#{1,6}\s*)?(?:update(?:d)?|amendment|patch)\b.*(?:20\d{2}|jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)/im', $content) === 1) {
+        if ($this->hasDatedUpdateHeading($content)) {
             $blocking[] = 'Integrate dated update headings into the relevant plan sections before external issue.';
+        }
+
+        if (preg_match('/\*\*[^*\n]*\s+\*\*(?:\s|[-.,;:!?]|$)/', $content) === 1) {
+            $blocking[] = 'Resolve raw Markdown emphasis markers before external issue.';
+        }
+
+        if (preg_match('/\b\w{4,}(?:\.\.\.|…)(?:\s|$)/u', $content) === 1) {
+            $blocking[] = 'Replace truncated text fragments with complete sentences before external issue.';
+        }
+
+        if (preg_match('/\bis\s+(?:a\s+)?(?:based|located|operated)\b|\bthe\s+(?:service|business|company)\s+is\s+(?:an?\s+)?(?:-\s*)?(?:immersive|based)\b/i', $content) === 1) {
+            $blocking[] = 'Resolve incomplete identity or offer wording before external issue.';
         }
 
         $budget = $plan->budgetRunway;
@@ -58,6 +70,10 @@ final class ExternalIssueReview
             if (is_array($ambiguousOwnerCompensation)) {
                 $blocking[] = 'Clarify the owner compensation row so weekly, monthly, and annual figures are not concatenated.';
             }
+        }
+
+        if (! $this->industryEvidenceIsCited($plan)) {
+            $blocking[] = 'Cite the source or attach evidence for the industry and customer-demand claims before external issue.';
         }
 
         foreach ($this->scaleMismatchReasons($content, $monthTwelveRevenue) as $reason) {
@@ -105,6 +121,35 @@ final class ExternalIssueReview
         return $sentences->contains(fn (int $count): bool => $count >= 3);
     }
 
+    private function hasDatedUpdateHeading(string $content): bool
+    {
+        $monthPattern = 'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?';
+
+        return preg_match('/^\s*(?:#{1,6}\s*)?(?:(?:update(?:d)?|amendment|patch)\b.*(?:20\d{2}|'.$monthPattern.')|(?:'.$monthPattern.')\s+\d{1,2}(?:st|nd|rd|th)?\s*(?:update|amendment|patch)?)/im', $content) === 1;
+    }
+
+    private function industryEvidenceIsCited(BusinessPlan $plan): bool
+    {
+        $industrySection = $plan->sections->first(fn (PlanSection $section): bool => (
+            (string) data_get($section->metadata, 'requirement_key') === 'industry-context'
+            || $section->key === 'founder-market-industry-context'
+        ));
+
+        if (! $industrySection instanceof PlanSection || $industrySection->completeness_status !== PlanSection::STATUS_COMPLETE) {
+            return true;
+        }
+
+        if (trim((string) $industrySection->body) === '') {
+            return false;
+        }
+
+        if (count((array) $industrySection->attached_document_ids) > 0) {
+            return true;
+        }
+
+        return preg_match('/(?:https?:\/\/|www\.|\[[^\]]+\]\([^\)]+\)|\b(?:source|sources|reference|references)\s*:)/i', (string) $industrySection->body) === 1;
+    }
+
     /**
      * @param  array<string, mixed>  $computed
      * @return array{listed_total:float,model_base:float,difference:float,reconciled:bool}
@@ -112,7 +157,7 @@ final class ExternalIssueReview
     private function fixedCostReconciliation(EntrepreneurBudget $budget, array $computed): array
     {
         $listedTotal = collect((array) ($budget->monthly_fixed_costs ?? []))
-            ->sum(fn (array $row): float => (float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1));
+            ->sum(fn (array $row): float => $this->monthlyEquivalent($row));
         $modelBase = (float) ($computed['monthly_fixed_costs'] ?? data_get($computed, 'base_scenario.summary.year_one_monthly_fixed_costs', 0));
         $difference = round($modelBase - $listedTotal, 2);
 
@@ -130,6 +175,22 @@ final class ExternalIssueReview
 
         return preg_match('/owners?\s+compensation|owner\s+draw|founder\s+pay|founder\s+salary/', $normalised) === 1
             && preg_match_all('/\$?\d[\d,]*(?:\.\d+)?\s*(?:wk|week|weekly|pa|p\.a\.|annual|annually|year|yr)?/i', $label) >= 2;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function monthlyEquivalent(array $row): float
+    {
+        $amount = (float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1);
+
+        return match ($row['cadence'] ?? 'monthly') {
+            'weekly' => $amount * (52 / 12),
+            'fortnightly' => $amount * (26 / 12),
+            'quarterly' => $amount / 3,
+            'annual' => $amount / 12,
+            default => $amount,
+        };
     }
 
     /**

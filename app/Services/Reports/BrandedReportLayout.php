@@ -121,7 +121,7 @@ HTML,
         $metaColumns = max(1, min(5, $metaColumns));
 
         return <<<CSS
-@page { margin: 15mm 15mm 18mm; }
+@page { margin: 15mm 15mm 26mm; }
 * { box-sizing: border-box; }
 body { background: {$paper}; color: {$ink}; font-family: Arial, sans-serif; font-size: 11.5px; line-height: 1.55; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .letterhead { align-items: center; border-top: 7px solid #1c2f4a; border-bottom: 1px solid #d8d1c2; display: flex; justify-content: space-between; margin-bottom: 18px; padding: 13px 0 12px; }
@@ -167,7 +167,7 @@ th, td { border: 1px solid #d8e2dc; padding: 5px 6px; text-align: right; vertica
 th:first-child, td:first-child { text-align: left; }
 th { background: #f5f8f6; color: #34443c; font-size: 10px; }
 .muted { color: {$muted}; }
-.report-footer { border-top: 1px solid #ded6c7; color: {$muted}; font-size: 9px; margin-top: 24px; padding-top: 8px; text-align: right; }
+.report-footer { border-top: 1px solid #ded6c7; bottom: 0; color: {$muted}; font-size: 9px; left: 0; margin: 0; padding-top: 8px; position: fixed; right: 0; text-align: right; }
 CSS;
     }
 

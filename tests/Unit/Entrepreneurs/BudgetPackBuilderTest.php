@@ -93,11 +93,13 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringNotContainsString('Budget inputs', $html);
         $this->assertStringContainsString('Internal draft - not for external issue', $html);
         $this->assertStringContainsString('Monthly fixed-cost trace', $html);
-        $this->assertStringContainsString('Saved fixed-cost rows total $2,000 per month; the model base used for funding calculations is $2,000 per month.', $html);
-        $this->assertStringContainsString('Traces to saved fixed-cost row.', $html);
+        $this->assertStringContainsString('Each row shows the entered amount, billing cadence, and monthly equivalent used by the model.', $html);
+        $this->assertStringContainsString('Confirm the saved billing cadence before external issue.', $html);
         $this->assertStringContainsString('Year 2 revenue bridge', $html);
         $this->assertStringContainsString('Month 13 carries forward the Year 1 exit run-rate.', $html);
         $this->assertStringContainsString('Later-year cost trace', $html);
+        $this->assertStringContainsString('Profit and cash reconciliation', $html);
+        $this->assertStringContainsString('Document details', $html);
         $this->assertStringContainsString('Lowest cash M1', $html);
         $this->assertStringContainsString('Break-even M2', $html);
         $this->assertStringContainsString('Runway M3', $html);
@@ -146,7 +148,7 @@ final class BudgetPackBuilderTest extends TestCase
         $html = app(BudgetPackBuilder::class)->html($profile, $plan);
 
         $this->assertStringContainsString('Fixed-cost reconciliation warning', $html);
-        $this->assertStringContainsString('Add the missing rows or relabel the table', $html);
+        $this->assertStringContainsString('Add the missing rows or correct a cost cadence', $html);
         $this->assertStringContainsString('Owner compensation - current', $html);
         $this->assertStringContainsString('Clarify whether the saved amount is weekly, monthly, or annual', $html);
     }

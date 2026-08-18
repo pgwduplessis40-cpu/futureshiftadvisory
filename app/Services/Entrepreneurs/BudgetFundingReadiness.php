@@ -140,6 +140,26 @@ final class BudgetFundingReadiness
             $warnings->push('Owner compensation needs clarification: split weekly, monthly, and annual figures before external issue.');
         }
 
+        $quality = (array) data_get($computed, 'input_quality', []);
+        $unconfirmedCadences = array_values((array) ($quality['unconfirmed_fixed_cost_cadences'] ?? []));
+        if ($unconfirmedCadences !== []) {
+            $warnings->push('Confirm the billing cadence for every fixed cost before external issue: '.implode(', ', $unconfirmedCadences).'.');
+        }
+
+        $unconfirmedGrowth = array_values((array) ($quality['unconfirmed_revenue_growth'] ?? []));
+        if ($unconfirmedGrowth !== []) {
+            $warnings->push('Confirm whether revenue growth is monthly or annual before external issue: '.implode(', ', $unconfirmedGrowth).'.');
+        }
+
+        $missingCapacity = array_values((array) ($quality['revenue_without_capacity'] ?? []));
+        if ($missingCapacity !== []) {
+            $warnings->push('Set and confirm a monthly capacity for every revenue line before external issue: '.implode(', ', $missingCapacity).'.');
+        }
+
+        if (in_array('forecast_start_month', (array) ($quality['missing_assumptions'] ?? []), true)) {
+            $warnings->push('Set the forecast start month before external issue so the written milestones and monthly cash forecast can be reconciled on a calendar basis.');
+        }
+
         $bridge = (array) data_get($computed, 'year_two_revenue_bridge', []);
         if ((bool) ($bridge['material_drop'] ?? false)) {
             $warnings->push('Year 2 revenue bridge needs explanation: Month 13 drops materially below Month 12.');
@@ -214,7 +234,7 @@ final class BudgetFundingReadiness
     private function fixedCostReconciliation(EntrepreneurBudget $budget, array $computed): array
     {
         $listedTotal = collect((array) ($budget->monthly_fixed_costs ?? []))
-            ->sum(fn (array $row): float => (float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1));
+            ->sum(fn (array $row): float => $this->monthlyEquivalent($row));
         $modelBase = (float) ($computed['monthly_fixed_costs'] ?? data_get($computed, 'base_scenario.summary.year_one_monthly_fixed_costs', 0));
         $difference = round($modelBase - $listedTotal, 2);
 
@@ -232,6 +252,22 @@ final class BudgetFundingReadiness
 
         return preg_match('/owners?\s+compensation|owner\s+draw|founder\s+pay|founder\s+salary/', $normalised) === 1
             && preg_match_all('/\$?\d[\d,]*(?:\.\d+)?\s*(?:wk|week|weekly|pa|p\.a\.|annual|annually|year|yr)?/i', $label) >= 2;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function monthlyEquivalent(array $row): float
+    {
+        $amount = (float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1);
+
+        return match ($row['cadence'] ?? 'monthly') {
+            'weekly' => $amount * (52 / 12),
+            'fortnightly' => $amount * (26 / 12),
+            'quarterly' => $amount / 3,
+            'annual' => $amount / 12,
+            default => $amount,
+        };
     }
 
     private function money(mixed $value): string
