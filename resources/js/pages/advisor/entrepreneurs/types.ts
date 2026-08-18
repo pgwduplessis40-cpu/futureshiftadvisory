@@ -67,6 +67,8 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             status: string;
             overall_grade: string | null;
             weighted_score: number | null;
+            threshold: number;
+            meets_advisory_threshold: boolean;
             automated_score_available: boolean;
             finalised_at: string | null;
             rating_framework: {

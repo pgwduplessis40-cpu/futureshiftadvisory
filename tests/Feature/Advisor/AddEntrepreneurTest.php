@@ -813,6 +813,8 @@ final class AddEntrepreneurTest extends TestCase
                 ->where('entrepreneur.latest_plan.budget_pdf_url', null)
                 ->where('entrepreneur.latest_plan.latest_assessment.url', route('advisor.entrepreneurs.assessments.show', [$profile, $assessment], absolute: false))
                 ->where('entrepreneur.latest_plan.latest_assessment.weighted_score', 86.3)
+                ->where('entrepreneur.latest_plan.latest_assessment.threshold', 75)
+                ->where('entrepreneur.latest_plan.latest_assessment.meets_advisory_threshold', true)
                 ->where('entrepreneur.documents.0.url', route('advisor.entrepreneurs.documents.show', [$profile, $document], absolute: false))
             );
 

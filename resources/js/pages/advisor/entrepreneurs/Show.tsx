@@ -31,6 +31,11 @@ import { AdvisorSupportAction } from '@/components/screen-share/AdvisorSupportAc
 import type { AdvisorScreenShareConfig } from '@/components/screen-share/AdvisorSupportAction';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -112,6 +117,8 @@ export default function EntrepreneursShow({
     const assessmentActionLabel =
         entrepreneur.latest_plan?.assessment_action_label ??
         (latestAssessment ? 'Run reassessment' : 'Run assessment');
+    const finaliseReportReady =
+        latestAssessment?.meets_advisory_threshold ?? false;
     const gamification = entrepreneur.gamification;
     const [gamificationEnabled, setGamificationEnabled] = useState(
         gamification.enabled,
@@ -959,6 +966,15 @@ export default function EntrepreneursShow({
                                         type="button"
                                         size="sm"
                                         variant="outline"
+                                        className={cn(
+                                            finaliseReportReady &&
+                                                'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white',
+                                        )}
+                                        title={
+                                            finaliseReportReady
+                                                ? `Score meets the ${latestAssessment.threshold}/100 advisory-readiness threshold.`
+                                                : 'Finalise the assessment report and record the advisor outcome.'
+                                        }
                                         onClick={() =>
                                             router.patch(
                                                 latestAssessment.finalise_url,
@@ -2446,186 +2462,208 @@ export default function EntrepreneursShow({
                         </div>
 
                         {assessmentHistory.length > 0 ? (
-                            <div className="space-y-3">
-                                <div className="flex flex-wrap items-end justify-between gap-3">
-                                    <div>
-                                        <h3 className="text-sm font-medium">
-                                            Submitted plan versions
-                                        </h3>
-                                        <p className="text-sm text-muted-foreground">
-                                            Open the plan snapshot that each
-                                            assessment round was scored against.
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="overflow-x-auto rounded-md border">
-                                    <table className="w-full min-w-[780px] text-sm">
-                                        <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
-                                            <tr>
-                                                <th className="px-3 py-2 font-medium">
-                                                    Round
-                                                </th>
-                                                <th className="px-3 py-2 font-medium">
-                                                    Submitted
-                                                </th>
-                                                <th className="px-3 py-2 font-medium">
-                                                    Snapshot
-                                                </th>
-                                                <th className="px-3 py-2 font-medium">
-                                                    Score
-                                                </th>
-                                                <th className="px-3 py-2 font-medium">
-                                                    Grade
-                                                </th>
-                                                <th className="px-3 py-2 font-medium">
-                                                    Actions
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y">
-                                            {assessmentHistory.map((round) => (
-                                                <tr key={round.id}>
-                                                    <td className="px-3 py-3 font-medium">
-                                                        Round {round.round}
-                                                    </td>
-                                                    <td className="px-3 py-3 text-muted-foreground">
-                                                        {formatDate(
-                                                            round.submitted_at,
-                                                        )}
-                                                    </td>
-                                                    <td className="px-3 py-3">
-                                                        {round.snapshot_available ? (
-                                                            <div className="space-y-1">
-                                                                <span className="block text-muted-foreground">
-                                                                    Captured{' '}
-                                                                    {formatDate(
-                                                                        round.snapshot_captured_at,
-                                                                    )}
-                                                                </span>
-                                                                <span className="block text-xs text-muted-foreground">
-                                                                    {
-                                                                        round.snapshot_note
-                                                                    }
-                                                                </span>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="space-y-1">
-                                                                <Badge variant="secondary">
-                                                                    Historical
-                                                                    round
-                                                                </Badge>
-                                                                <span className="block max-w-[260px] text-xs text-muted-foreground">
-                                                                    {
-                                                                        round.snapshot_note
-                                                                    }
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-3 py-3">
-                                                        <div className="space-y-1">
-                                                            {round.automated_score_available &&
-                                                            round.weighted_score !==
-                                                                null ? (
-                                                                <span className="block tabular-nums">
-                                                                    {round.weighted_score.toFixed(
-                                                                        1,
-                                                                    )}
-                                                                    /100
-                                                                </span>
-                                                            ) : (
-                                                                <Badge variant="destructive">
-                                                                    Unavailable
-                                                                </Badge>
-                                                            )}
-                                                            {round.score_delta !==
-                                                            null ? (
-                                                                <span
-                                                                    className={cn(
-                                                                        'block text-xs tabular-nums',
-                                                                        round.score_delta >
-                                                                            0
-                                                                            ? 'text-emerald-700'
-                                                                            : round.score_delta <
-                                                                                0
-                                                                              ? 'text-destructive'
-                                                                              : 'text-muted-foreground',
-                                                                    )}
-                                                                >
-                                                                    {formatDelta(
-                                                                        round.score_delta,
-                                                                    )}{' '}
-                                                                    from prior
-                                                                </span>
-                                                            ) : null}
-                                                            <span className="block max-w-[240px] text-xs text-muted-foreground">
-                                                                {
-                                                                    round.score_source_summary
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-3 py-3">
-                                                        {round.automated_score_available &&
-                                                        round.overall_grade ? (
-                                                            gradeLabel(
-                                                                round.overall_grade,
-                                                            )
-                                                        ) : (
-                                                            <Badge variant="destructive">
-                                                                Unavailable
-                                                            </Badge>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-3 py-3">
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {round.plan_snapshot_url ? (
-                                                                <Button
-                                                                    asChild
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                >
-                                                                    <a
-                                                                        href={
-                                                                            round.plan_snapshot_url
-                                                                        }
-                                                                        target="_blank"
-                                                                        rel="noreferrer"
-                                                                    >
-                                                                        <FileText
-                                                                            className="size-4"
-                                                                            aria-hidden="true"
-                                                                        />
-                                                                        Submitted
-                                                                        plan
-                                                                    </a>
-                                                                </Button>
-                                                            ) : null}
-                                                            <Button
-                                                                asChild
-                                                                size="sm"
-                                                                variant="ghost"
-                                                            >
-                                                                <Link
-                                                                    href={
-                                                                        round.assessment_url
-                                                                    }
-                                                                >
-                                                                    <ArrowUpRight
-                                                                        className="size-4"
-                                                                        aria-hidden="true"
-                                                                    />
-                                                                    Assessment
-                                                                </Link>
-                                                            </Button>
-                                                        </div>
-                                                    </td>
+                            <Collapsible className="rounded-md border">
+                                <CollapsibleTrigger asChild>
+                                    <button
+                                        type="button"
+                                        className="group flex w-full items-start justify-between gap-3 p-4 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                    >
+                                        <span className="min-w-0">
+                                            <h3 className="text-sm font-medium">
+                                                Submitted plan versions
+                                            </h3>
+                                            <p className="text-sm text-muted-foreground">
+                                                Open the plan snapshot that each
+                                                assessment round was scored
+                                                against.
+                                            </p>
+                                        </span>
+                                        <span className="flex shrink-0 items-center gap-2">
+                                            <Badge variant="secondary">
+                                                {assessmentHistory.length}{' '}
+                                                rounds
+                                            </Badge>
+                                            <ChevronDown
+                                                className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+                                                aria-hidden="true"
+                                            />
+                                        </span>
+                                    </button>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent className="border-t">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full min-w-[780px] text-sm">
+                                            <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+                                                <tr>
+                                                    <th className="px-3 py-2 font-medium">
+                                                        Round
+                                                    </th>
+                                                    <th className="px-3 py-2 font-medium">
+                                                        Submitted
+                                                    </th>
+                                                    <th className="px-3 py-2 font-medium">
+                                                        Snapshot
+                                                    </th>
+                                                    <th className="px-3 py-2 font-medium">
+                                                        Score
+                                                    </th>
+                                                    <th className="px-3 py-2 font-medium">
+                                                        Grade
+                                                    </th>
+                                                    <th className="px-3 py-2 font-medium">
+                                                        Actions
+                                                    </th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {assessmentHistory.map(
+                                                    (round) => (
+                                                        <tr key={round.id}>
+                                                            <td className="px-3 py-3 font-medium">
+                                                                Round{' '}
+                                                                {round.round}
+                                                            </td>
+                                                            <td className="px-3 py-3 text-muted-foreground">
+                                                                {formatDate(
+                                                                    round.submitted_at,
+                                                                )}
+                                                            </td>
+                                                            <td className="px-3 py-3">
+                                                                {round.snapshot_available ? (
+                                                                    <div className="space-y-1">
+                                                                        <span className="block text-muted-foreground">
+                                                                            Captured{' '}
+                                                                            {formatDate(
+                                                                                round.snapshot_captured_at,
+                                                                            )}
+                                                                        </span>
+                                                                        <span className="block text-xs text-muted-foreground">
+                                                                            {
+                                                                                round.snapshot_note
+                                                                            }
+                                                                        </span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="space-y-1">
+                                                                        <Badge variant="secondary">
+                                                                            Historical
+                                                                            round
+                                                                        </Badge>
+                                                                        <span className="block max-w-[260px] text-xs text-muted-foreground">
+                                                                            {
+                                                                                round.snapshot_note
+                                                                            }
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-3 py-3">
+                                                                <div className="space-y-1">
+                                                                    {round.automated_score_available &&
+                                                                    round.weighted_score !==
+                                                                        null ? (
+                                                                        <span className="block tabular-nums">
+                                                                            {round.weighted_score.toFixed(
+                                                                                1,
+                                                                            )}
+                                                                            /100
+                                                                        </span>
+                                                                    ) : (
+                                                                        <Badge variant="destructive">
+                                                                            Unavailable
+                                                                        </Badge>
+                                                                    )}
+                                                                    {round.score_delta !==
+                                                                    null ? (
+                                                                        <span
+                                                                            className={cn(
+                                                                                'block text-xs tabular-nums',
+                                                                                round.score_delta >
+                                                                                    0
+                                                                                    ? 'text-emerald-700'
+                                                                                    : round.score_delta <
+                                                                                        0
+                                                                                      ? 'text-destructive'
+                                                                                      : 'text-muted-foreground',
+                                                                            )}
+                                                                        >
+                                                                            {formatDelta(
+                                                                                round.score_delta,
+                                                                            )}{' '}
+                                                                            from
+                                                                            prior
+                                                                        </span>
+                                                                    ) : null}
+                                                                    <span className="block max-w-[240px] text-xs text-muted-foreground">
+                                                                        {
+                                                                            round.score_source_summary
+                                                                        }
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-3 py-3">
+                                                                {round.automated_score_available &&
+                                                                round.overall_grade ? (
+                                                                    gradeLabel(
+                                                                        round.overall_grade,
+                                                                    )
+                                                                ) : (
+                                                                    <Badge variant="destructive">
+                                                                        Unavailable
+                                                                    </Badge>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-3 py-3">
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {round.plan_snapshot_url ? (
+                                                                        <Button
+                                                                            asChild
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                        >
+                                                                            <a
+                                                                                href={
+                                                                                    round.plan_snapshot_url
+                                                                                }
+                                                                                target="_blank"
+                                                                                rel="noreferrer"
+                                                                            >
+                                                                                <FileText
+                                                                                    className="size-4"
+                                                                                    aria-hidden="true"
+                                                                                />
+                                                                                Submitted
+                                                                                plan
+                                                                            </a>
+                                                                        </Button>
+                                                                    ) : null}
+                                                                    <Button
+                                                                        asChild
+                                                                        size="sm"
+                                                                        variant="ghost"
+                                                                    >
+                                                                        <Link
+                                                                            href={
+                                                                                round.assessment_url
+                                                                            }
+                                                                        >
+                                                                            <ArrowUpRight
+                                                                                className="size-4"
+                                                                                aria-hidden="true"
+                                                                            />
+                                                                            Assessment
+                                                                        </Link>
+                                                                    </Button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ),
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </CollapsibleContent>
+                            </Collapsible>
                         ) : null}
 
                         {entrepreneur.latest_plan.latest_revision ? (

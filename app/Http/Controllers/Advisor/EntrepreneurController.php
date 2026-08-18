@@ -814,6 +814,9 @@ final class EntrepreneurController extends Controller
                 'status' => $latestAssessmentPayload['status'],
                 'overall_grade' => $latestAssessmentPayload['overall_grade'],
                 'weighted_score' => $latestAssessmentPayload['weighted_score'],
+                'threshold' => $latestAssessmentPayload['threshold'],
+                'meets_advisory_threshold' => (bool) $latestAssessmentPayload['automated_score_available']
+                    && (float) $latestAssessmentPayload['weighted_score'] >= (float) $latestAssessmentPayload['threshold'],
                 'automated_score_available' => $latestAssessmentPayload['automated_score_available'],
                 'finalised_at' => $latestAssessmentPayload['finalised_at'],
                 'rating_framework' => $latestAssessmentPayload['rating_framework'],
