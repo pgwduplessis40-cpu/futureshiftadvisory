@@ -3510,7 +3510,9 @@ function BudgetRowsEditor({
                                     className="h-9 rounded-md border bg-background px-2 text-sm"
                                 >
                                     <option value="weekly">Weekly</option>
-                                    <option value="fortnightly">Fortnightly</option>
+                                    <option value="fortnightly">
+                                        Fortnightly
+                                    </option>
                                     <option value="monthly">Monthly</option>
                                     <option value="quarterly">Quarterly</option>
                                     <option value="annual">Annual</option>
@@ -3556,20 +3558,16 @@ function BudgetRowsEditor({
                                         Growth cadence
                                     </span>
                                     <select
-                                        value={
-                                            row.growth_cadence ?? 'monthly'
-                                        }
+                                        value={row.growth_cadence ?? 'monthly'}
                                         onChange={(event) =>
                                             updateBudgetRow(
                                                 onFormChange,
                                                 group,
                                                 index,
                                                 {
-                                                    growth_cadence: event
-                                                        .target
+                                                    growth_cadence: event.target
                                                         .value as BudgetRow['growth_cadence'],
-                                                    growth_cadence_confirmed:
-                                                        true,
+                                                    growth_cadence_confirmed: true,
                                                 },
                                             )
                                         }
@@ -3761,11 +3759,13 @@ function BudgetAssumptionsEditor({
                 </span>
             </label>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
-                {([
-                    ['opening_cash_balance', 'Opening cash', 0],
-                    ['debtor_days', 'Debtor days', 0],
-                    ['creditor_days', 'Creditor days', 0],
-                ] as const).map(([key, label, min]) => (
+                {(
+                    [
+                        ['opening_cash_balance', 'Opening cash', 0],
+                        ['debtor_days', 'Debtor days', 0],
+                        ['creditor_days', 'Creditor days', 0],
+                    ] as const
+                ).map(([key, label, min]) => (
                     <label key={key} className="grid min-w-0 gap-1 text-xs">
                         <span className="text-muted-foreground">{label}</span>
                         <input
@@ -3983,7 +3983,9 @@ function FutureCostsEditor({
                                 }
                                 className="h-9 rounded-md border bg-background px-2 text-sm"
                             >
-                                <option value="operating">Operating cost</option>
+                                <option value="operating">
+                                    Operating cost
+                                </option>
                                 <option value="capital">Capital asset</option>
                             </select>
                         </label>
@@ -4919,11 +4921,11 @@ function blankBudgetRow(
                   confidence: 'estimate',
               }
             : {
-                label: '',
-                amount: '',
-                quantity: 1,
-                confidence: 'estimate',
-            };
+                  label: '',
+                  amount: '',
+                  quantity: 1,
+                  confidence: 'estimate',
+              };
 }
 
 function blankFutureCostRow(): FutureCostRow {
@@ -5037,9 +5039,7 @@ function cleanBudgetRows(
             ...(revenue
                 ? {
                       growth_percent: signedNumberFromInput(
-                          row.growth_percent ??
-                              row.monthly_growth_percent ??
-                              0,
+                          row.growth_percent ?? row.monthly_growth_percent ?? 0,
                       ),
                       growth_cadence:
                           row.growth_cadence === 'annual'
@@ -5188,9 +5188,9 @@ function normaliseFutureCostRow(row: FutureCostRow): FutureCostRow {
         quantity: numberFromInput(row.quantity ?? 1) || 1,
         year: Math.min(5, Math.max(2, numberFromInput(row.year ?? 2) || 2)),
         recurring: Boolean(row.recurring),
-        classification: row.classification === 'capital' ? 'capital' : 'operating',
-        useful_life_years:
-            numberFromInput(row.useful_life_years ?? 3) || 3,
+        classification:
+            row.classification === 'capital' ? 'capital' : 'operating',
+        useful_life_years: numberFromInput(row.useful_life_years ?? 3) || 3,
         confidence: budgetRowConfidence(row.confidence),
     };
 }
