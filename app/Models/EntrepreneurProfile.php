@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 final class EntrepreneurProfile extends Model
 {
@@ -140,6 +141,14 @@ final class EntrepreneurProfile extends Model
     public function advisoryReadinessSignals(): HasMany
     {
         return $this->hasMany(AdvisoryReadinessSignal::class);
+    }
+
+    /**
+     * @return HasOne<FoundingAdvisoryEngagement>
+     */
+    public function foundingAdvisoryEngagement(): HasOne
+    {
+        return $this->hasOne(FoundingAdvisoryEngagement::class);
     }
 
     /**

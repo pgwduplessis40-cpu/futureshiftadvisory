@@ -120,6 +120,14 @@ final class BusinessPlan extends Model
     }
 
     /**
+     * @return HasOne<FoundingAdvisoryEngagement>
+     */
+    public function foundingAdvisoryEngagement(): HasOne
+    {
+        return $this->hasOne(FoundingAdvisoryEngagement::class);
+    }
+
+    /**
      * @return HasMany<PlanAssessment>
      */
     public function assessments(): HasMany

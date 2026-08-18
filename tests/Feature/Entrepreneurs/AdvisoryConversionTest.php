@@ -6,15 +6,21 @@ namespace Tests\Feature\Entrepreneurs;
 
 use App\Enums\EngagementType;
 use App\Enums\EntrepreneurStage;
+use App\Enums\FeeMethod;
+use App\Enums\ProposalStatus;
 use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\ConflictDeclaration;
 use App\Models\DdEngagement;
 use App\Models\EntrepreneurProfile;
+use App\Models\FeeCalculation;
+use App\Models\FoundingAdvisoryEngagement;
+use App\Models\Proposal;
 use App\Models\User;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
 use App\Services\Entrepreneurs\AdvisoryConversion;
+use App\Services\Entrepreneurs\FoundingAdvisoryService;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -33,7 +39,7 @@ final class AdvisoryConversionTest extends TestCase
         app(RequestContext::class)->apply('system', []);
     }
 
-    public function test_conversion_prepopulates_standard_advisory_client_from_entrepreneur_data(): void
+    public function test_conversion_prepopulates_founding_advisory_client_and_immutable_baseline_from_entrepreneur_data(): void
     {
         [$advisor, $profile, $plan] = $this->entrepreneurPlan('convert-founder@example.test');
         $profile->forceFill([
@@ -47,7 +53,7 @@ final class AdvisoryConversionTest extends TestCase
 
         $client = app(AdvisoryConversion::class)->convert($profile, $advisor, $plan);
 
-        $this->assertSame(EngagementType::STANDARD_ADVISORY, $client->engagement_type);
+        $this->assertSame(EngagementType::FOUNDING_ADVISORY, $client->engagement_type);
         $this->assertSame($profile->name, $client->legal_name);
         $this->assertSame($profile->user_id, $client->primary_contact_user_id);
         $this->assertSame('entrepreneur', $client->registry_sources['source']);
@@ -55,6 +61,7 @@ final class AdvisoryConversionTest extends TestCase
         $this->assertSame($plan->id, $client->registry_sources['business_plan_id']);
         $this->assertSame('Retail', data_get($client->registry_sources, 'founding_advisory_payload.industry'));
         $this->assertSame($client->id, $plan->refresh()->client_id);
+        $this->assertSame(BusinessPlan::STATUS_FOUNDING, $plan->status);
         $this->assertSame($client->id, $profile->refresh()->client_id);
         $this->assertTrue($client->pilot_fee_waiver_enabled);
         $this->assertSame('Founder pilot conversion.', $client->pilot_fee_waiver_reason);
@@ -68,6 +75,12 @@ final class AdvisoryConversionTest extends TestCase
             'client_id' => $client->id,
             'user_id' => $profile->user_id,
             'role' => 'primary_contact',
+        ]);
+        $this->assertDatabaseHas('founding_advisory_engagements', [
+            'client_id' => $client->id,
+            'entrepreneur_profile_id' => $profile->id,
+            'business_plan_id' => $plan->id,
+            'status' => 'advisory_ready',
         ]);
         $this->assertDatabaseHas('audit_events', [
             'action' => 'entrepreneur.advisory_converted',
@@ -94,6 +107,63 @@ final class AdvisoryConversionTest extends TestCase
 
         $this->expectException(ValidationException::class);
         app(AdvisorEntrepreneurCapacity::class)->ensureCanAdd($advisor);
+    }
+
+    public function test_signed_founding_proposal_creates_a_draft_rolling_roadmap_and_replans_without_overwriting_history(): void
+    {
+        [$advisor, $profile, $plan] = $this->entrepreneurPlan('founding-roadmap@example.test');
+        $client = app(AdvisoryConversion::class)->convert($profile, $advisor, $plan);
+        $engagement = FoundingAdvisoryEngagement::query()->where('client_id', $client->id)->firstOrFail();
+        $feeCalculation = FeeCalculation::query()->create([
+            'client_id' => $client->id,
+            'method' => FeeMethod::Entrepreneur->value,
+            'inputs' => [],
+            'suggested_low' => 1000,
+            'suggested_mid' => 1500,
+            'suggested_high' => 2000,
+            'justification' => [],
+            'created_by_user_id' => $advisor->id,
+        ]);
+        $proposal = Proposal::query()->create([
+            'client_id' => $client->id,
+            'fee_calculation_id' => $feeCalculation->id,
+            'status' => ProposalStatus::Draft,
+            'version' => 1,
+            'scope' => [],
+            'services' => [],
+            'pv_summary' => [],
+            'acceptance_terms' => [],
+            'created_by_user_id' => $advisor->id,
+        ]);
+        $founding = app(FoundingAdvisoryService::class);
+        $founding->attachProposal($client, $proposal, $advisor);
+
+        $draft = $founding->activateSignedProposal($proposal, $profile->user);
+
+        $this->assertNotNull($draft);
+        $this->assertSame('draft', $draft->status);
+        $this->assertCount(3, data_get($draft->agenda, 'horizons', []));
+        $this->assertSame('committed', data_get($draft->agenda, 'horizons.0.commitment'));
+        $this->assertSame('provisional', data_get($draft->agenda, 'horizons.1.commitment'));
+        $this->assertSame('indicative', data_get($draft->agenda, 'horizons.2.commitment'));
+
+        $founding->publish($draft, $advisor);
+        $nextDraft = $founding->draftReplan($engagement->refresh(), [
+            'reason' => 'First paid work changed the delivery sequence.',
+            'sales_pipeline' => 'Two qualified opportunities are progressing.',
+            'cash_funding' => 'Opening cash is lower than forecast.',
+        ], $advisor);
+
+        $this->assertSame(2, $nextDraft->version);
+        $this->assertSame('draft', $nextDraft->status);
+        $this->assertDatabaseHas('founding_roadmap_versions', [
+            'id' => $draft->id,
+            'status' => 'published',
+        ]);
+        $this->assertDatabaseHas('strategic_plan_milestones', [
+            'strategic_plan_id' => $draft->strategic_plan_id,
+            'owner' => 'client',
+        ]);
     }
 
     public function test_dd_built_plan_hands_off_to_new_advisory_client(): void

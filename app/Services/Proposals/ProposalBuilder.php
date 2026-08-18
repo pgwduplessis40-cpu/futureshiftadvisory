@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Proposals;
 
 use App\Enums\AnalysisLens;
+use App\Enums\EngagementType;
 use App\Enums\FeeMethod;
 use App\Enums\ProposalStatus;
 use App\Models\AnalysisFinding;
@@ -81,7 +82,7 @@ final class ProposalBuilder
                 'status' => ProposalStatus::Draft,
                 'version' => $nextVersion,
                 'scope' => $this->scope($client, $feeCalculation, $input),
-                'services' => $this->services($feeCalculation, $input),
+                'services' => $this->services($client, $feeCalculation, $input),
                 'pv_summary' => $this->pvSummary($client, $feeCalculation, $npoEngagementId),
                 'roi_ratio' => $feeCalculation->roi_ratio,
                 'acceptance_terms' => $this->acceptanceTerms($feeCalculation),
@@ -319,17 +320,20 @@ final class ProposalBuilder
         $scope = is_array($input['scope'] ?? null) ? $input['scope'] : [];
         $isGovernanceReview = $feeCalculation->method === FeeMethod::GovernanceReview;
         $isNpoRetainer = $feeCalculation->method === FeeMethod::NpoRetainer;
+        $isFoundingAdvisory = $client->engagement_type === EngagementType::FOUNDING_ADVISORY;
         $integrationScope = $feeCalculation->method === FeeMethod::Integration
             ? $feeCalculation->integrationScope
             : null;
         $isIntegration = $integrationScope instanceof IntegrationScope;
         $includedDefault = match (true) {
+            $isFoundingAdvisory => ['Founding Baseline v1 review', 'Committed 90-day launch agenda', 'Visible 180- and 270-day planning horizons', 'Advisor-led 90-day review and replan'],
             $isIntegration => ['Integration design and delivery plan', 'Build and test the agreed system connections', 'Post-launch savings measurement'],
             $isGovernanceReview => ['Governance evidence review', 'Board-ready Governance Review Report discussion', '12-month governance action plan'],
             $isNpoRetainer => ['NPO advisory retainer', 'Funding and accountability rhythm', 'Impact measurement check-ins'],
             default => ['Advisor review', 'Implementation roadmap', 'Progress check-in'],
         };
         $excludedDefault = match (true) {
+            $isFoundingAdvisory => ['Legal, tax, accounting, employment, insurance, and third-party delivery services are not included unless separately agreed.'],
             $isIntegration => ['Third-party software subscriptions, vendor fees, and out-of-scope integrations require written approval.'],
             $isGovernanceReview => ['Ongoing retainer advisory work is not included in the fixed-fee Governance Review.'],
             $isNpoRetainer => ['Legal, audit, and trustee services are not included unless separately agreed.'],
@@ -341,6 +345,7 @@ final class ProposalBuilder
 
         if (! is_string($summary) || $summary === '') {
             $summary = match (true) {
+                $isFoundingAdvisory => 'Founding Advisory proposal for '.$client->legal_name.', built from the finalised business plan and its Founding Baseline v1.',
                 $isIntegration => 'Systems Integration Efficiency delivery proposal for '.$client->legal_name.'.',
                 $isGovernanceReview => 'Fixed-fee Governance Review proposal for '.$client->legal_name.'.',
                 $isNpoRetainer => 'NPO retainer proposal for '.$client->legal_name.'.',
@@ -390,6 +395,13 @@ final class ProposalBuilder
             $payload['social_enterprise_rate_rule'] = data_get($feeCalculation->justification, 'social_enterprise_rate_rule');
         }
 
+        if ($isFoundingAdvisory) {
+            $payload['proposal_variant'] = EngagementType::FOUNDING_ADVISORY->value;
+            $payload['founding_baseline'] = is_array($scope['founding_baseline'] ?? null)
+                ? $scope['founding_baseline']
+                : [];
+        }
+
         if ($isIntegration) {
             $computed = $integrationScope->computed ?? [];
             $payload['proposal_variant'] = FeeMethod::Integration->value;
@@ -433,7 +445,7 @@ final class ProposalBuilder
      * @param  array<string, mixed>  $input
      * @return array<int, array<string, mixed>>
      */
-    private function services(FeeCalculation $feeCalculation, array $input = []): array
+    private function services(Client $client, FeeCalculation $feeCalculation, array $input = []): array
     {
         if (is_array($input['services'] ?? null) && $input['services'] !== []) {
             return array_values(array_filter($input['services'], 'is_array'));
@@ -443,6 +455,16 @@ final class ProposalBuilder
 
         if (is_array($services) && $services !== []) {
             return array_values($services);
+        }
+
+        if ($client->engagement_type === EngagementType::FOUNDING_ADVISORY) {
+            return [[
+                'name' => 'Founding Advisory rolling roadmap',
+                'fee_method' => $feeCalculation->method->value,
+                'delivery_mode' => 'advisor_led',
+                'planning_horizons' => ['days_0_90', 'days_91_180', 'days_181_270'],
+                'suggested_mid' => $feeCalculation->suggested_mid,
+            ]];
         }
 
         if ($feeCalculation->method === FeeMethod::Integration && $feeCalculation->integrationScope instanceof IntegrationScope) {
@@ -774,6 +796,7 @@ final class ProposalBuilder
         $budgetReadiness = $this->budgetReadinessHtml($proposal);
         $integrationQuotePack = $this->integrationQuotePackHtml($proposal);
         $focusAreas = $this->proposalFocusAreasHtml($proposal);
+        $foundingBaseline = $this->foundingBaselineHtml($proposal);
         $duration = $this->strategicPlanDurationHtml($proposal);
         $scopeBoundaries = $this->scopeBoundariesHtml($proposal);
         $roiLine = $this->proposalHasPositiveFee($proposal)
@@ -789,6 +812,7 @@ final class ProposalBuilder
 <h2>Scope</h2>
 <p>%s</p>
 </section>
+%s
 %s
 %s
 %s
@@ -823,6 +847,7 @@ HTML,
             $scopeBoundaries,
             $integrationQuotePack,
             $focusAreas,
+            $foundingBaseline,
             $this->escape(Str::headline($proposal->feeCalculation?->method?->value ?? '')),
             $this->feeSummaryHtml($proposal),
             $roiLine,
@@ -834,6 +859,38 @@ HTML,
             number_format((float) data_get($proposal->pv_summary, 'target_pv_range.low', data_get($proposal->pv_summary, 'target_pv', 0)), 0),
             number_format((float) data_get($proposal->pv_summary, 'target_pv_range.high', data_get($proposal->pv_summary, 'target_pv', 0)), 0),
             $consents,
+        );
+    }
+
+    private function foundingBaselineHtml(Proposal $proposal): string
+    {
+        $baseline = data_get($proposal->scope, 'founding_baseline');
+
+        if (! is_array($baseline)) {
+            return '';
+        }
+
+        $planTitle = trim((string) ($baseline['plan_title'] ?? ''));
+        $concept = trim((string) ($baseline['concept_summary'] ?? ''));
+        $score = $baseline['assessment_score'] ?? null;
+        $scoreLine = is_numeric($score)
+            ? '<p>Business Plan &amp; Budget readiness score: '.$this->escape((string) $score).'/100.</p>'
+            : '';
+
+        return sprintf(
+            <<<'HTML'
+<section class="proposal-panel">
+<h2>Founding Baseline v%s</h2>
+<p>This engagement starts from the finalised Business Plan &amp; Budget, retained as an immutable founding baseline.</p>
+%s
+%s
+%s
+</section>
+HTML,
+            (int) ($baseline['version'] ?? 1),
+            $planTitle !== '' ? '<p>Finalised plan: '.$this->escape($planTitle).'.</p>' : '',
+            $scoreLine,
+            $concept !== '' ? '<p>Founder context: '.$this->escape($concept).'</p>' : '',
         );
     }
 

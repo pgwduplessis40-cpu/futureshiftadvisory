@@ -5,6 +5,7 @@ import clientTransfers from './client-transfers'
 import serviceActivations from './service-activations'
 import integrationScopes from './integration-scopes'
 import proposals from './proposals'
+import foundingAdvisory from './founding-advisory'
 import strategicPlans from './strategic-plans'
 import accounting from './accounting'
 import npoEngagements from './npo-engagements'
@@ -35,6 +36,7 @@ clientTransfers: Object.assign(clientTransfers, clientTransfers),
 serviceActivations: Object.assign(serviceActivations, serviceActivations),
 integrationScopes: Object.assign(integrationScopes, integrationScopes),
 proposals: Object.assign(proposals, proposals),
+foundingAdvisory: Object.assign(foundingAdvisory, foundingAdvisory),
 strategicPlans: Object.assign(strategicPlans, strategicPlans),
 accounting: Object.assign(accounting, accounting),
 npoEngagements: Object.assign(npoEngagements, npoEngagements),

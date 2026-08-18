@@ -23,6 +23,7 @@ use App\Http\Controllers\Advisor\EntrepreneurAssessmentController;
 use App\Http\Controllers\Advisor\EntrepreneurController;
 use App\Http\Controllers\Advisor\EntrepreneurDocumentController;
 use App\Http\Controllers\Advisor\EntrepreneurMessageController;
+use App\Http\Controllers\Advisor\FoundingAdvisoryController;
 use App\Http\Controllers\Advisor\GoalController;
 use App\Http\Controllers\Advisor\IntegrationScopeController;
 use App\Http\Controllers\Advisor\KnowledgeAssessmentController;
@@ -201,6 +202,15 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('proposals/{proposal}/strategic-plan', [StrategicPlanController::class, 'generate'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('proposals.strategic-plan.generate');
+        Route::post('founding-advisory-engagements/{foundingAdvisoryEngagement}/replan', [FoundingAdvisoryController::class, 'replan'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->whereUuid('foundingAdvisoryEngagement')
+            ->name('founding-advisory.replan');
+        Route::patch('founding-advisory-engagements/{foundingAdvisoryEngagement}/roadmaps/{foundingRoadmapVersion}/publish', [FoundingAdvisoryController::class, 'publish'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->whereUuid('foundingAdvisoryEngagement')
+            ->whereUuid('foundingRoadmapVersion')
+            ->name('founding-advisory.roadmaps.publish');
         Route::get('strategic-plans/{strategicPlan}/pdf', [StrategicPlanController::class, 'pdf'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('strategic-plans.pdf');

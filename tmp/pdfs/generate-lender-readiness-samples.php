@@ -5,17 +5,19 @@ declare(strict_types=1);
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
+use App\Models\PlanPhase;
 use App\Models\PlanSection;
 use App\Services\Entrepreneurs\BudgetCalculator;
 use App\Services\Entrepreneurs\BudgetPackBuilder;
 use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
 use App\Services\Entrepreneurs\PlanRequirements;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 require __DIR__.'/../../vendor/autoload.php';
 
 $app = require __DIR__.'/../../bootstrap/app.php';
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$app->make(Kernel::class)->bootstrap();
 
 $profile = new EntrepreneurProfile([
     'name' => 'Lender Readiness Sample',
@@ -95,7 +97,7 @@ $plan->setRelation('sections', new EloquentCollection);
 
 $phases = new EloquentCollection;
 foreach (PlanRequirements::definitions() as $phaseKey => $definition) {
-    $phase = new App\Models\PlanPhase(['key' => $phaseKey, 'title' => $definition['title']]);
+    $phase = new PlanPhase(['key' => $phaseKey, 'title' => $definition['title']]);
     $sections = new EloquentCollection;
     foreach ($definition['requirements'] as $requirement) {
         if (($requirement['type'] ?? null) === 'budget') {

@@ -25,6 +25,7 @@ use App\Models\User;
 use App\Services\Board\InspirationBoard;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
+use App\Services\Entrepreneurs\FoundingAdvisoryService;
 use App\Services\Portal\ServiceWorkspaces;
 use App\Services\Portal\Welcome\WelcomeMessageRenderer;
 use App\Services\ScreenShare\ClientPortalContextTokens;
@@ -40,6 +41,7 @@ final class EntrepreneurDashboardController extends Controller
         private readonly InspirationBoard $inspirationBoard,
         private readonly EntrepreneurGamification $gamification,
         private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
+        private readonly FoundingAdvisoryService $foundingAdvisory,
         private readonly ServiceWorkspaces $workspaces,
         private readonly WelcomeMessageRenderer $welcomeMessage,
         private readonly ClientPortalContextTokens $screenShareContexts,
@@ -129,6 +131,9 @@ final class EntrepreneurDashboardController extends Controller
             'planWorkspaceUrl' => route('portal.entrepreneur.plan.show', absolute: false),
             'workspaces' => $workspaceClient instanceof Client
                 ? $this->workspaces->payload($workspaceClient, ServiceWorkspaces::KEY_ENTREPRENEUR)
+                : null,
+            'foundingAdvisory' => $profile instanceof EntrepreneurProfile
+                ? $this->foundingAdvisory->founderPayload($profile)
                 : null,
             'notificationsUrl' => route('notifications.index', absolute: false),
             'settingsUrl' => route('profile.edit', absolute: false),

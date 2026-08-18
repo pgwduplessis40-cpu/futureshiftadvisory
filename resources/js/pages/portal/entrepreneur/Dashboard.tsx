@@ -178,6 +178,53 @@ type WelcomeMessage = {
     version: number | null;
 };
 
+type FoundingRoadmapHorizon = {
+    key: string;
+    label: string;
+    commitment: 'committed' | 'provisional' | 'indicative';
+    starts_on: string;
+    ends_on: string;
+    outcomes: string[];
+    milestones: Array<{
+        title: string;
+        owner: 'client' | 'advisor' | 'joint';
+        due_day: number;
+    }>;
+};
+
+type FoundingRoadmapVersion = {
+    id: string;
+    version: number;
+    status: string;
+    status_label: string;
+    agenda: {
+        generated_from?: string;
+        horizons?: FoundingRoadmapHorizon[];
+    };
+    change_summary: {
+        reason?: string;
+        changes?: string[];
+    };
+    generated_at: string | null;
+    published_at: string | null;
+};
+
+type FoundingAdvisoryPayload = {
+    status: string;
+    status_label: string;
+    baseline: {
+        version: number;
+        captured_at: string | null;
+        plan_title: string | null;
+        assessment_score: number | null;
+    };
+    replan_due_at: string | null;
+    replan_due: boolean;
+    transition_review_at: string | null;
+    current_version: FoundingRoadmapVersion | null;
+    draft_version: FoundingRoadmapVersion | null;
+};
+
 type Props = {
     profile: EntrepreneurProfile;
     inspirationBoard: InspirationPost | null;
@@ -191,6 +238,7 @@ type Props = {
     gamification: GamificationPayload;
     welcomeMessage: WelcomeMessage;
     coBrowse: ClientCoBrowseConfig | null;
+    foundingAdvisory: FoundingAdvisoryPayload | null;
 };
 
 export default function EntrepreneurDashboard({
@@ -206,6 +254,7 @@ export default function EntrepreneurDashboard({
     gamification,
     welcomeMessage,
     coBrowse,
+    foundingAdvisory,
 }: Props) {
     const [activeTab, setActiveTab] =
         useState<EntrepreneurDashboardTab>('actions');
@@ -276,6 +325,10 @@ export default function EntrepreneurDashboard({
                     prompt={journeyPrompt}
                     planWorkspaceUrl={planWorkspaceUrl}
                 />
+
+                {foundingAdvisory ? (
+                    <FoundingRoadmapPanel roadmap={foundingAdvisory} />
+                ) : null}
 
                 <DashboardTabList
                     activeTab={activeTab}
@@ -920,6 +973,121 @@ function JourneyPrompt({
                     <Link href={planWorkspaceUrl}>{prompt.action}</Link>
                 </Button>
             </div>
+        </section>
+    );
+}
+
+function FoundingRoadmapPanel({
+    roadmap,
+}: {
+    roadmap: FoundingAdvisoryPayload;
+}) {
+    const version = roadmap.draft_version ?? roadmap.current_version;
+    const horizons = version?.agenda.horizons ?? [];
+
+    return (
+        <section className="space-y-4 border bg-background p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Trophy className="size-4" aria-hidden="true" />
+                        <h2 className="text-base font-semibold">
+                            Founding Advisory roadmap
+                        </h2>
+                        <Badge variant="outline">{roadmap.status_label}</Badge>
+                        {roadmap.replan_due ? (
+                            <Badge variant="destructive">Review due</Badge>
+                        ) : null}
+                    </div>
+                    <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                        Your finalised business plan is the fixed starting
+                        point. The active 90-day agenda is agreed work; the
+                        later horizons show what can come next and will be
+                        revised with your advisor as the business develops.
+                    </p>
+                </div>
+                <div className="grid gap-1 text-right text-xs text-muted-foreground">
+                    <span>Next review {formatDate(roadmap.replan_due_at)}</span>
+                    <span>
+                        Transition review{' '}
+                        {formatDate(roadmap.transition_review_at)}
+                    </span>
+                </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+                <Detail
+                    label="Baseline"
+                    value={`v${roadmap.baseline.version} - ${roadmap.baseline.plan_title ?? 'Finalised business plan'}`}
+                />
+                <Detail
+                    label="Readiness score"
+                    value={
+                        roadmap.baseline.assessment_score === null
+                            ? '-'
+                            : `${roadmap.baseline.assessment_score.toFixed(1)}/100`
+                    }
+                />
+            </div>
+
+            {version ? (
+                <div className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="text-sm font-medium">
+                            Roadmap v{version.version}
+                        </div>
+                        <Badge variant="outline">{version.status_label}</Badge>
+                    </div>
+                    <div className="grid gap-3 xl:grid-cols-3">
+                        {horizons.map((horizon) => (
+                            <article
+                                key={horizon.key}
+                                className="space-y-3 border p-3"
+                            >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <h3 className="text-sm font-medium">
+                                        {horizon.label}
+                                    </h3>
+                                    <Badge
+                                        variant={
+                                            horizon.commitment === 'committed'
+                                                ? 'default'
+                                                : 'outline'
+                                        }
+                                    >
+                                        {formatLabel(horizon.commitment)}
+                                    </Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    {formatDate(horizon.starts_on)} to{' '}
+                                    {formatDate(horizon.ends_on)}
+                                </p>
+                                <ul className="space-y-2 text-sm text-muted-foreground">
+                                    {horizon.outcomes.map((outcome) => (
+                                        <li key={outcome}>{outcome}</li>
+                                    ))}
+                                </ul>
+                                {horizon.commitment === 'committed' ? (
+                                    <div className="border-t pt-3 text-xs text-muted-foreground">
+                                        {horizon.milestones.map((milestone) => (
+                                            <div key={milestone.title}>
+                                                Day {milestone.due_day}:{' '}
+                                                {milestone.title}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : null}
+                            </article>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <p className="text-sm text-muted-foreground">
+                    Your advisor is preparing the proposal. After it is
+                    accepted, they will review and publish the first rolling
+                    roadmap with you.
+                </p>
+            )}
         </section>
     );
 }

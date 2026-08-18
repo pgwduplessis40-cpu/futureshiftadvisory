@@ -597,7 +597,7 @@ export default function EntrepreneursShow({
                                     )
                                 }
                             >
-                                Convert to client
+                                Prepare Founding Advisory proposal
                             </Button>
                         ) : null}
                         <Button

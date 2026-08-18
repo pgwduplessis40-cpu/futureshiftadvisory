@@ -21,6 +21,7 @@ final class AdvisoryConversion
     public function __construct(
         private readonly AuditWriter $audit,
         private readonly AdvisorClientCapacity $clientCapacity,
+        private readonly FoundingAdvisoryService $foundingAdvisory,
     ) {}
 
     public function convert(EntrepreneurProfile $profile, User $actor, ?BusinessPlan $sourcePlan = null): Client
@@ -34,7 +35,7 @@ final class AdvisoryConversion
 
         return DB::transaction(function () use ($profile, $actor, $sourcePlan): Client {
             $client = Client::query()->create([
-                'engagement_type' => EngagementType::STANDARD_ADVISORY,
+                'engagement_type' => EngagementType::FOUNDING_ADVISORY,
                 'legal_name' => $profile->name,
                 'data_quality' => Client::DATA_QUALITY_LOW,
                 'registry_sources' => [
@@ -44,6 +45,7 @@ final class AdvisoryConversion
                     'business_plan_id' => $sourcePlan?->getKey(),
                     'concept_summary' => $profile->concept_summary,
                     'stage_at_conversion' => $profile->currentStageValue(),
+                    'engagement_path' => EngagementType::FOUNDING_ADVISORY->value,
                     'founding_advisory_payload' => $sourcePlan?->founding_advisory_payload ?? [],
                     'advisory_readiness_signal_id' => $profile->advisoryReadinessSignals->sortByDesc('surfaced_at')->first()?->id,
                 ],
@@ -58,14 +60,16 @@ final class AdvisoryConversion
                 'pilot_fee_waiver_approved_at' => $profile->pilot_fee_waiver_approved_at,
             ]);
 
-            $this->attachTeam($client, $actor, $profile->user);
+            $this->attachTeam($client, $actor, $profile->user, EngagementType::FOUNDING_ADVISORY);
             $profile->forceFill(['client_id' => $client->getKey()])->save();
 
             if ($sourcePlan instanceof BusinessPlan) {
                 $sourcePlan->forceFill([
                     'client_id' => $client->getKey(),
-                    'status' => BusinessPlan::STATUS_LAUNCHED,
+                    'status' => BusinessPlan::STATUS_FOUNDING,
                 ])->save();
+
+                $this->foundingAdvisory->openForConversion($client, $profile, $sourcePlan->refresh(), $actor);
             }
 
             $this->audit->record('entrepreneur.advisory_converted', subject: $client, actor: $actor, after: [
@@ -108,7 +112,7 @@ final class AdvisoryConversion
                 'engagement_type_locked_at' => now(),
             ]);
 
-            $this->attachTeam($client, $actor, $engagement->client?->primaryContact);
+            $this->attachTeam($client, $actor, $engagement->client?->primaryContact, EngagementType::STANDARD_ADVISORY);
             $plan->forceFill([
                 'client_id' => $client->getKey(),
                 'status' => BusinessPlan::STATUS_FOUNDING,
@@ -124,8 +128,12 @@ final class AdvisoryConversion
         });
     }
 
-    private function attachTeam(Client $client, User $advisor, ?User $primaryContact): void
-    {
+    private function attachTeam(
+        Client $client,
+        User $advisor,
+        ?User $primaryContact,
+        EngagementType $engagementType,
+    ): void {
         ClientTeamMember::query()->updateOrCreate(
             [
                 'client_id' => $client->getKey(),
@@ -133,7 +141,7 @@ final class AdvisoryConversion
             ],
             [
                 'role' => 'lead_advisor',
-                'granted_modules' => [EngagementType::STANDARD_ADVISORY->value],
+                'granted_modules' => [$engagementType->value],
             ],
         );
 
@@ -145,7 +153,7 @@ final class AdvisoryConversion
                 ],
                 [
                     'role' => 'primary_contact',
-                    'granted_modules' => [EngagementType::STANDARD_ADVISORY->value],
+                    'granted_modules' => [$engagementType->value],
                 ],
             );
         }

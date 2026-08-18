@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -215,6 +216,14 @@ final class Client extends Model
     public function proposals(): HasMany
     {
         return $this->hasMany(Proposal::class);
+    }
+
+    /**
+     * @return HasOne<FoundingAdvisoryEngagement>
+     */
+    public function foundingAdvisoryEngagement(): HasOne
+    {
+        return $this->hasOne(FoundingAdvisoryEngagement::class);
     }
 
     /**

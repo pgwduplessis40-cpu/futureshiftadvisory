@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\Analytics\FunnelTracker;
 use App\Services\Audit\AuditWriter;
 use App\Services\Budgets\StrategicBudgetService;
+use App\Services\Entrepreneurs\FoundingAdvisoryService;
 use App\Services\Proposals\ProposalBuilder;
 use App\Services\StrategicPlans\StrategicPlanDurationPolicy;
 use Illuminate\Http\RedirectResponse;
@@ -36,6 +37,7 @@ final class ProposalController extends Controller
         FunnelTracker $funnels,
         StrategicBudgetService $strategicBudgets,
         StrategicPlanDurationPolicy $durations,
+        FoundingAdvisoryService $foundingAdvisory,
     ): RedirectResponse {
         Gate::authorize('view', $client);
 
@@ -73,7 +75,8 @@ final class ProposalController extends Controller
                 Consent::TYPE_COACH_REFERRAL => $consentInput['coach_consent'],
             ];
         }
-        $budget = $strategicBudgets->ensureForClient($client);
+        $foundingEngagement = $foundingAdvisory->forClient($client);
+        $budget = $strategicBudgets->ensureForClient($client, $foundingEngagement?->businessPlan);
 
         if (! $budget->isApprovedForProposal()) {
             $overrideCategory = trim((string) ($validated['budget_override_category'] ?? ''));
@@ -89,6 +92,14 @@ final class ProposalController extends Controller
 
         $scopeSummary = trim((string) ($validated['scope_summary'] ?? ''));
         $scope = $scopeSummary === '' ? [] : ['summary' => $scopeSummary];
+        if ($foundingEngagement !== null) {
+            $scope['founding_baseline'] = [
+                'version' => (int) data_get($foundingEngagement->baseline, 'version', 1),
+                'plan_title' => data_get($foundingEngagement->baseline, 'business_plan_snapshot.business_plan.title'),
+                'assessment_score' => data_get($foundingEngagement->baseline, 'advisory_readiness.score'),
+                'concept_summary' => data_get($foundingEngagement->baseline, 'concept_summary'),
+            ];
+        }
         $scope = $durations->applyToScope($feeCalculation, $scope);
         $scope['budget'] = [
             ...$strategicBudgets->proposalGuardPayload($budget),
@@ -107,14 +118,20 @@ final class ProposalController extends Controller
         ], [
             'created_by_user_id' => $user->getKey(),
         ]);
+        $foundingAdvisory->attachProposal($client, $proposal, $user);
         $strategicBudgets->markUsedInProposal($budget, $proposal, $user);
         $funnels->complete(FunnelEvent::FLOW_PROPOSAL, 'generate', $client, $user);
 
         return to_route('advisor.clients.show', $client)->with('status', 'proposal-generated');
     }
 
-    public function release(Request $request, Proposal $proposal, ProposalBuilder $proposals, FunnelTracker $funnels): RedirectResponse
-    {
+    public function release(
+        Request $request,
+        Proposal $proposal,
+        ProposalBuilder $proposals,
+        FunnelTracker $funnels,
+        FoundingAdvisoryService $foundingAdvisory,
+    ): RedirectResponse {
         $proposal->loadMissing('client');
         Gate::authorize('view', $proposal->client);
 
@@ -131,10 +148,11 @@ final class ProposalController extends Controller
 
         $funnels->enter(FunnelEvent::FLOW_PROPOSAL, 'release', $proposal->client, $user);
         try {
-            $proposals->release($proposal, $user, $validated['expiry_days'] ?? null);
+            $released = $proposals->release($proposal, $user, $validated['expiry_days'] ?? null);
         } catch (InvalidArgumentException $exception) {
             return back()->withErrors(['proposal' => $exception->getMessage()]);
         }
+        $foundingAdvisory->markProposalReleased($released, $user);
         $funnels->complete(FunnelEvent::FLOW_PROPOSAL, 'release', $proposal->client, $user);
 
         return to_route('advisor.clients.show', $proposal->client)->with('status', 'proposal-released');

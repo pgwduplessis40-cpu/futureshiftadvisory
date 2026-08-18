@@ -12,6 +12,7 @@ import GoalController from './GoalController'
 import ProposalController from './ProposalController'
 import ClientStrategicBudgetController from './ClientStrategicBudgetController'
 import StrategicPlanController from './StrategicPlanController'
+import FoundingAdvisoryController from './FoundingAdvisoryController'
 import ReportController from './ReportController'
 import SurveyResultController from './SurveyResultController'
 import StandardAdvisoryController from './StandardAdvisoryController'
@@ -56,6 +57,7 @@ GoalController: Object.assign(GoalController, GoalController),
 ProposalController: Object.assign(ProposalController, ProposalController),
 ClientStrategicBudgetController: Object.assign(ClientStrategicBudgetController, ClientStrategicBudgetController),
 StrategicPlanController: Object.assign(StrategicPlanController, StrategicPlanController),
+FoundingAdvisoryController: Object.assign(FoundingAdvisoryController, FoundingAdvisoryController),
 ReportController: Object.assign(ReportController, ReportController),
 SurveyResultController: Object.assign(SurveyResultController, SurveyResultController),
 StandardAdvisoryController: Object.assign(StandardAdvisoryController, StandardAdvisoryController),

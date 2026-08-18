@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 final class StrategicPlan extends Model
 {
@@ -57,5 +58,13 @@ final class StrategicPlan extends Model
     public function milestones(): HasMany
     {
         return $this->hasMany(StrategicPlanMilestone::class);
+    }
+
+    /**
+     * @return HasOne<FoundingRoadmapVersion>
+     */
+    public function foundingRoadmapVersion(): HasOne
+    {
+        return $this->hasOne(FoundingRoadmapVersion::class);
     }
 }

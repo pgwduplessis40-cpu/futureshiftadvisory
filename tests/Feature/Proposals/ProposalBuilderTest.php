@@ -223,6 +223,36 @@ final class ProposalBuilderTest extends TestCase
         $this->assertStringNotContainsString('For every NZD 1 of advisory fee', $this->renderer->html);
     }
 
+    public function test_founding_advisory_proposal_renders_its_immutable_business_plan_baseline(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('founding-proposal-advisor@example.test');
+        $client->forceFill(['engagement_type' => EngagementType::FOUNDING_ADVISORY])->save();
+
+        $proposal = app(ProposalBuilder::class)->generate(
+            $client,
+            $this->feeCalculation($client, 12_000, 3.5),
+            [
+                'scope' => [
+                    'founding_baseline' => [
+                        'version' => 1,
+                        'plan_title' => 'Finalised launch plan',
+                        'assessment_score' => 82,
+                        'concept_summary' => 'A validated founder-led retail service.',
+                    ],
+                ],
+            ],
+            ['created_by_user_id' => $advisor->getKey()],
+        );
+
+        app(ProposalBuilder::class)->rerenderPdf($proposal);
+
+        $this->assertSame(EngagementType::FOUNDING_ADVISORY->value, $proposal->scope['proposal_variant']);
+        $this->assertSame('Finalised launch plan', $proposal->scope['founding_baseline']['plan_title']);
+        $this->assertStringContainsString('Founding Baseline v1', $this->renderer->html);
+        $this->assertStringContainsString('Finalised launch plan', $this->renderer->html);
+        $this->assertStringContainsString('82/100', $this->renderer->html);
+    }
+
     public function test_proposal_includes_analysis_fixes_from_website_audit_findings(): void
     {
         [$advisor, $client] = $this->clientWithTeam('proposal-website-fix-advisor@example.test');

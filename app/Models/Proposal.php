@@ -176,6 +176,14 @@ final class Proposal extends Model
     }
 
     /**
+     * @return HasOne<FoundingAdvisoryEngagement>
+     */
+    public function foundingAdvisoryEngagement(): HasOne
+    {
+        return $this->hasOne(FoundingAdvisoryEngagement::class);
+    }
+
+    /**
      * @return BelongsTo<User, Proposal>
      */
     public function createdBy(): BelongsTo

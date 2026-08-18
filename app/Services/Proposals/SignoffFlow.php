@@ -14,6 +14,7 @@ use App\Models\ProposalSignoffStep;
 use App\Models\User;
 use App\Services\Accounting\ProposalInvoiceScheduler;
 use App\Services\Audit\AuditWriter;
+use App\Services\Entrepreneurs\FoundingAdvisoryService;
 use App\Services\Fees\ProposalPricingTerms;
 use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Payments\AuthorityCapture;
@@ -41,6 +42,7 @@ final class SignoffFlow
         private readonly IntegrationActivationResolver $integrations,
         private readonly ProposalPricingTerms $pricing,
         private readonly StrategicPlanDurationPolicy $durations,
+        private readonly FoundingAdvisoryService $foundingAdvisory,
     ) {}
 
     /**
@@ -90,6 +92,7 @@ final class SignoffFlow
 
         if ($step === ProposalSignoffStep::STEP_SIGNATURE && $result->status === ProposalStatus::Signed) {
             $this->invoiceScheduler->sync($result, $actor);
+            $this->foundingAdvisory->activateSignedProposal($result, $actor);
         }
 
         return $result;

@@ -46,6 +46,7 @@ use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdOnboarding;
 use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
+use App\Services\Entrepreneurs\FoundingAdvisoryService;
 use App\Services\Fees\ProposalPricingTerms;
 use App\Services\Goals\GoalTracker;
 use App\Services\Integration\IntegrationActivationResolver;
@@ -524,9 +525,12 @@ final class ClientController extends Controller
         StandardAdvisoryWorkflow $standardAdvisory,
         StrategicBudgetService $strategicBudgets,
         StrategicPlanService $strategicPlans,
+        FoundingAdvisoryService $foundingAdvisory,
     ): Response|RedirectResponse {
         Gate::authorize('view', $client);
-        $entrepreneurProfile = $this->activeEntrepreneurWorkspace($client);
+        $entrepreneurProfile = $client->engagement_type === EngagementType::FOUNDING_ADVISORY
+            ? null
+            : $this->activeEntrepreneurWorkspace($client);
 
         if ($entrepreneurProfile instanceof EntrepreneurProfile) {
             return to_route('advisor.entrepreneurs.show', $entrepreneurProfile);
@@ -574,6 +578,7 @@ final class ClientController extends Controller
                 'payments' => $payments->forClient($client),
                 'analysis_findings' => $this->analysisFindingSummaries($client, $request->query('highlight')),
                 'standard_advisory' => $standardAdvisory->clientSummary($client),
+                'founding_advisory' => $foundingAdvisory->advisorPayload($client),
                 'strategic_budget' => $strategicBudgets->advisorPayload($strategicBudget),
                 'strategic_plan' => $strategicPlans->advisorPayload($client),
                 'proposal_budget_guard' => $strategicBudgets->proposalGuardPayload($strategicBudget),
