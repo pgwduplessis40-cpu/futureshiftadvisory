@@ -89,6 +89,11 @@ final class BudgetCalculator implements ProvidesMethodology
             'assumptions' => count($normalisedAssumptions['provided_fields']),
         ];
 
+        $yearTwoRevenueBridge = $this->yearTwoRevenueBridge(
+            (array) ($base['monthly_detail'] ?? []),
+            $normalisedAssumptions,
+        );
+
         return [
             'forecast_years' => $forecastYears,
             'assumptions' => $normalisedAssumptions,
@@ -96,6 +101,7 @@ final class BudgetCalculator implements ProvidesMethodology
             'base_scenario' => $base,
             'annual_totals' => $base['annual_totals'],
             'monthly_detail' => $base['monthly_detail'],
+            'year_two_revenue_bridge' => $yearTwoRevenueBridge,
             'total_launch_costs' => $base['summary']['total_launch_costs'],
             'monthly_fixed_costs' => $base['summary']['year_one_monthly_fixed_costs'],
             'total_funding' => $base['summary']['total_funding'],
@@ -265,6 +271,9 @@ final class BudgetCalculator implements ProvidesMethodology
         $yearTwoRevenueBasis = ($assumptions['year_two_revenue_basis'] ?? null) === 'year_one_average'
             ? 'year_one_average'
             : 'exit_run_rate';
+        if (array_key_exists('year_two_revenue_basis', $assumptions)) {
+            $provided[] = 'year_two_revenue_basis';
+        }
 
         return [
             ...$normalised,
@@ -779,6 +788,57 @@ final class BudgetCalculator implements ProvidesMethodology
         $base = ((float) $row['amount']) * ((float) $row['quantity']);
 
         return $base * $this->growthFactor((float) $row['monthly_growth_percent'], $elapsed);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $monthlyRows
+     * @param  array<string, mixed>  $assumptions
+     * @return array<string, mixed>
+     */
+    private function yearTwoRevenueBridge(array $monthlyRows, array $assumptions): array
+    {
+        $monthTwelve = collect($monthlyRows)
+            ->first(fn (array $row): bool => (int) ($row['month'] ?? 0) === self::MONTHS_PER_YEAR);
+        $monthThirteen = collect($monthlyRows)
+            ->first(fn (array $row): bool => (int) ($row['month'] ?? 0) === self::MONTHS_PER_YEAR + 1);
+        $yearOneRows = collect($monthlyRows)
+            ->filter(fn (array $row): bool => (int) ($row['year'] ?? 0) === 1);
+
+        $monthTwelveRevenue = is_array($monthTwelve) && is_numeric($monthTwelve['revenue'] ?? null)
+            ? (float) $monthTwelve['revenue']
+            : null;
+        $monthThirteenRevenue = is_array($monthThirteen) && is_numeric($monthThirteen['revenue'] ?? null)
+            ? (float) $monthThirteen['revenue']
+            : null;
+        $yearOneAverage = $yearOneRows->isNotEmpty()
+            ? round(((float) $yearOneRows->sum(fn (array $row): float => (float) ($row['revenue'] ?? 0))) / self::MONTHS_PER_YEAR, 2)
+            : null;
+        $changeAmount = $monthTwelveRevenue !== null && $monthThirteenRevenue !== null
+            ? round($monthThirteenRevenue - $monthTwelveRevenue, 2)
+            : null;
+        $changePercent = $changeAmount !== null && $monthTwelveRevenue !== null && $monthTwelveRevenue > 0
+            ? round(($changeAmount / $monthTwelveRevenue) * 100, 2)
+            : null;
+        $basis = (string) ($assumptions['year_two_revenue_basis'] ?? 'exit_run_rate');
+
+        return [
+            'basis' => $basis,
+            'basis_label' => $basis === 'year_one_average'
+                ? 'Year 1 average monthly revenue'
+                : 'Year 1 exit run-rate',
+            'month_12_revenue' => $monthTwelveRevenue === null ? null : round($monthTwelveRevenue, 2),
+            'month_13_revenue' => $monthThirteenRevenue === null ? null : round($monthThirteenRevenue, 2),
+            'year_one_average_monthly_revenue' => $yearOneAverage,
+            'change_amount' => $changeAmount,
+            'change_percent' => $changePercent,
+            'material_drop' => $monthTwelveRevenue !== null
+                && $monthThirteenRevenue !== null
+                && $monthTwelveRevenue > 0
+                && $monthThirteenRevenue < ($monthTwelveRevenue * 0.8),
+            'explanation' => $basis === 'year_one_average'
+                ? 'Month 13 is based on the Year 1 average monthly revenue. Use only for an intentional seasonal or averaged forecast.'
+                : 'Month 13 carries forward the Year 1 exit run-rate, then applies annual revenue growth smoothly month by month.',
+        ];
     }
 
     /**

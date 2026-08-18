@@ -95,7 +95,7 @@ final class BusinessPlanPreviewRendererTest extends TestCase
         $this->assertSame('A concise summary retained from the submitted plan snapshot.', $summary['body']);
     }
 
-    public function test_generated_executive_summary_uses_the_twelve_assessment_areas(): void
+    public function test_generated_executive_summary_is_a_lender_style_synthesis(): void
     {
         $renderer = app(BusinessPlanPreviewRenderer::class);
         $method = new ReflectionMethod($renderer, 'executiveSummary');
@@ -192,10 +192,12 @@ final class BusinessPlanPreviewRendererTest extends TestCase
             ]],
         );
 
-        $this->assertStringContainsString('12 assessment areas', $summary['body']);
-        $this->assertSame(12, substr_count($summary['body'], "\n- "));
-        $this->assertStringContainsString('- Type of business: Drawer Full of Giants Ltd is a creative-services advisory company', $summary['body']);
-        $this->assertStringContainsString('- Budget: Budget assumptions include known supplier costs', $summary['body']);
+        $this->assertStringContainsString('Drawer Full of Giants Ltd is led by Tania Hassounia', $summary['body']);
+        $this->assertStringContainsString('The industry demand is supported by early workshop feedback', $summary['body']);
+        $this->assertStringContainsString('The funding decision is not lender-ready until the budget pack is complete', $summary['body']);
+        $this->assertStringNotContainsString('12 assessment areas', $summary['body']);
+        $this->assertSame(0, substr_count($summary['body'], "\n- "));
+        $this->assertStringNotContainsString('...', $summary['body']);
         $this->assertStringNotContainsString('operating, market, strategy, legal, and financial case across', $summary['body']);
     }
 
@@ -254,6 +256,27 @@ final class BusinessPlanPreviewRendererTest extends TestCase
         $this->assertStringNotContainsString('<ol>', $html);
     }
 
+    public function test_body_sections_use_reader_index_numbers_for_requirements(): void
+    {
+        $renderer = app(BusinessPlanPreviewRenderer::class);
+        $method = new ReflectionMethod($renderer, 'documentSectionHtml');
+        $method->setAccessible(true);
+
+        $html = $method->invoke($renderer, [
+            'title' => 'Foundation',
+            'entries' => [[
+                'key' => 'business-type-location',
+                'title' => 'Business type, location, and operating model',
+                'body' => 'The founder operates a Hamilton-based advisory business.',
+                'evidence_count' => 0,
+            ]],
+        ], 2);
+
+        $this->assertStringContainsString('Plan area', $html);
+        $this->assertStringContainsString('Section 02 - Business-plan requirement', $html);
+        $this->assertStringNotContainsString('Section 01</p><h2>Foundation', $html);
+    }
+
     public function test_business_plan_css_allows_plan_sections_to_flow_across_pages(): void
     {
         $renderer = app(BusinessPlanPreviewRenderer::class);
@@ -288,6 +311,34 @@ final class BusinessPlanPreviewRendererTest extends TestCase
 
         $this->assertSame('Drawer Full of Giants Ltd is based in Hamilton, Waikato.', strtok($sections[0]['entries'][0]['body'], "\n"));
         $this->assertStringNotContainsString(',,,,', $sections[0]['entries'][0]['body']);
+    }
+
+    public function test_document_sections_collapse_dated_updates_and_normalise_funding_heading(): void
+    {
+        $renderer = app(BusinessPlanPreviewRenderer::class);
+        $method = new ReflectionMethod($renderer, 'documentSections');
+        $method->setAccessible(true);
+
+        $sections = $method->invoke($renderer, [[
+            'title' => 'Financial',
+            'requirements' => [[
+                'key' => 'launch-funding',
+                'title' => 'Funding and support',
+            ]],
+            'sections' => [[
+                'requirement_key' => 'launch-funding',
+                'body' => "Original launch-stage content that should no longer appear.\n\nUpdate Aug 14th 2026\n\n# Start-up Funding\n\nThe funding and support section now states the ask, support required, and runway context in one coherent response for external readers.",
+                'attached_document_ids' => [],
+            ]],
+        ]]);
+
+        $body = $sections[0]['entries'][0]['body'];
+
+        $this->assertStringContainsString('Funding and support', $body);
+        $this->assertStringContainsString('one coherent response', $body);
+        $this->assertStringNotContainsString('Original launch-stage content', $body);
+        $this->assertStringNotContainsString('Start-up Funding', $body);
+        $this->assertStringNotContainsString('Update Aug', $body);
     }
 
     public function test_fallback_pdf_uses_client_facing_report_label_and_executive_summary(): void

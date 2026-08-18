@@ -88,10 +88,12 @@ final class BudgetPackBuilder
             'cash_story' => $this->cashStory($computed, $fundingDecision, $scenarios),
             'assumptions' => $this->assumptions((array) data_get($computed, 'assumptions', [])),
             'explanations' => data_get($computed, 'explanations', []),
+            'year_two_revenue_bridge' => (array) data_get($computed, 'year_two_revenue_bridge', []),
             'annual_totals' => array_values((array) data_get($computed, 'annual_totals', [])),
             'monthly_by_year' => $monthlyByYear,
             'scenarios' => $scenarios,
             'fixed_costs' => $this->fixedCosts($budget),
+            'fixed_cost_reconciliation' => $this->fixedCostReconciliation($budget, $computed),
             'future_costs' => $this->futureCosts($budget),
             'active_flags' => collect((array) ($budget->flags ?? []))
                 ->filter(fn (array $flag): bool => empty($flag['acknowledged_at']))
@@ -132,11 +134,12 @@ final class BudgetPackBuilder
             ->implode('');
         $fixedCostRows = collect((array) ($payload['fixed_costs'] ?? []))
             ->map(fn (array $row): string => sprintf(
-                '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+                '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
                 $this->escape($row['label'] ?? ''),
                 $this->money($row['monthly_amount'] ?? 0),
                 $this->escape($row['start_month_label'] ?? ''),
                 $this->escape($this->formatLabel((string) ($row['confidence'] ?? 'estimate'))),
+                $this->escape($row['review_note'] ?? ''),
             ))
             ->implode('');
         $futureCostRows = collect((array) ($payload['future_costs'] ?? []))
@@ -164,6 +167,9 @@ final class BudgetPackBuilder
         $cashStory = collect((array) ($payload['cash_story'] ?? []))
             ->map(fn (string $line): string => '<p>'.$this->escape($line).'</p>')
             ->implode('');
+        $revenueBridgeSection = $this->yearTwoRevenueBridgeHtml((array) ($payload['year_two_revenue_bridge'] ?? []));
+        $fixedCostReconciliation = (array) ($payload['fixed_cost_reconciliation'] ?? []);
+        $fixedCostReconciliationNote = $this->fixedCostReconciliationHtml($fixedCostReconciliation);
         $generatedAt = now()->format('M j, Y g:i A');
         $decisionView = sprintf(
             <<<'HTML'
@@ -206,9 +212,11 @@ HTML,
             $useOfFundsRows === '' ? '<tr><td colspan="3">No funding inputs saved.</td></tr>' : $useOfFundsRows,
         );
         $fixedCostsSection = sprintf(
-            '<article class="report-section"><h2>Monthly fixed-cost trace</h2><p class="section-intro">These itemised costs total %s per month once all saved rows are active, and underpin the operating-cover calculation.</p><table class="decision-table"><thead><tr><th>Cost item</th><th>Monthly amount</th><th>Starts</th><th>Confidence</th></tr></thead><tbody>%s</tbody></table></article>',
-            $this->money($decision['monthly_fixed_costs'] ?? 0),
-            $fixedCostRows === '' ? '<tr><td colspan="4">No monthly fixed costs saved.</td></tr>' : $fixedCostRows,
+            '<article class="report-section"><h2>Monthly fixed-cost trace</h2><p class="section-intro">Saved fixed-cost rows total %s per month; the model base used for funding calculations is %s per month.</p>%s<table class="decision-table"><thead><tr><th>Cost item</th><th>Monthly amount</th><th>Starts</th><th>Confidence</th><th>Review note</th></tr></thead><tbody>%s</tbody></table></article>',
+            $this->money($fixedCostReconciliation['listed_total'] ?? 0),
+            $this->money($fixedCostReconciliation['model_base'] ?? ($decision['monthly_fixed_costs'] ?? 0)),
+            $fixedCostReconciliationNote,
+            $fixedCostRows === '' ? '<tr><td colspan="5">No monthly fixed costs saved.</td></tr>' : $fixedCostRows,
         );
         $futureCostsSection = sprintf(
             '<article class="report-section"><h2>Later-year cost trace</h2><p class="section-intro">These costs are applied in the stated Year 2+ month. One-off items land in Month 1 of that year; recurring items continue from that point.</p><table class="decision-table"><thead><tr><th>Cost item</th><th>Amount</th><th>Timing</th><th>Confidence</th></tr></thead><tbody>%s</tbody></table></article>',
@@ -248,8 +256,8 @@ HTML,
             heading: $title,
             subheading: 'Founder - '.$profile->name,
             meta: [],
-            contentHtml: $draftNotice.$decisionView.$cashStorySection.$useOfFundsSection.$fixedCostsSection.$futureCostsSection.$scenariosSection.$assumptionsSection.$annualForecast.$monthlyPages,
-            footer: 'Generated '.$generatedAt.' using Future Shift Advisory budget pack',
+            contentHtml: $draftNotice.$decisionView.$cashStorySection.$revenueBridgeSection.$useOfFundsSection.$fixedCostsSection.$futureCostsSection.$scenariosSection.$assumptionsSection.$annualForecast.$monthlyPages,
+            footer: $this->footerText('Generated '.$generatedAt.' using Future Shift Advisory budget pack', $issueReadiness),
             snapshotTitle: '',
             template: $template,
             extraCss: $this->budgetPackCss(),
@@ -300,6 +308,11 @@ HTML,
             $blocks[] = $cashTrendChart;
         }
 
+        $bridgeBlocks = $this->yearTwoRevenueBridgeBlocks((array) ($payload['year_two_revenue_bridge'] ?? []));
+        foreach ($bridgeBlocks as $block) {
+            $blocks[] = $block;
+        }
+
         $useOfFunds = collect((array) ($payload['use_of_funds'] ?? []))
             ->map(fn (array $row): array => [
                 (string) ($row['label'] ?? ''),
@@ -324,17 +337,30 @@ HTML,
                 $this->money($row['monthly_amount'] ?? 0),
                 (string) ($row['start_month_label'] ?? ''),
                 $this->formatLabel((string) ($row['confidence'] ?? 'estimate')),
+                (string) ($row['review_note'] ?? ''),
             ])
             ->values()
             ->all();
+        $fixedCostReconciliation = (array) ($payload['fixed_cost_reconciliation'] ?? []);
         $blocks[] = ['type' => 'section', 'text' => 'Monthly fixed-cost trace'];
+        $blocks[] = [
+            'type' => 'paragraph',
+            'text' => 'Saved fixed-cost rows total '.$this->money($fixedCostReconciliation['listed_total'] ?? 0).' per month; the model base used for funding calculations is '.$this->money($fixedCostReconciliation['model_base'] ?? 0).' per month.',
+        ];
+        if (! (bool) ($fixedCostReconciliation['reconciled'] ?? true)) {
+            $blocks[] = [
+                'type' => 'callout',
+                'title' => 'Fixed-cost reconciliation warning',
+                'text' => (string) ($fixedCostReconciliation['message'] ?? 'The itemised fixed-cost trace does not reconcile to the model base.'),
+            ];
+        }
         $blocks[] = $fixedCosts === []
             ? ['type' => 'paragraph', 'text' => 'No monthly fixed costs have been saved yet.']
             : [
                 'type' => 'table',
-                'headers' => ['Cost item', 'Monthly amount', 'Starts', 'Confidence'],
+                'headers' => ['Cost item', 'Monthly amount', 'Starts', 'Confidence', 'Review note'],
                 'rows' => $fixedCosts,
-                'widths' => [1.6, 1, 0.8, 0.9],
+                'widths' => [1.25, 0.8, 0.65, 0.75, 1.45],
             ];
 
         $futureCosts = collect((array) ($payload['future_costs'] ?? []))
@@ -452,7 +478,11 @@ HTML,
             }
         }
 
-        return $this->fallbackPdf->renderStructured('Budget Pack', $blocks);
+        return $this->fallbackPdf->renderStructured(
+            'Budget Pack',
+            $blocks,
+            $this->draftFooterNote($issueReadiness),
+        );
     }
 
     /**
@@ -488,17 +518,76 @@ HTML,
         return collect((array) ($budget->monthly_fixed_costs ?? []))
             ->map(function (array $row): array {
                 $month = max(1, (int) ($row['month'] ?? 1));
+                $label = (string) ($row['label'] ?? 'Unlabelled cost');
 
                 return [
-                    'label' => (string) ($row['label'] ?? 'Unlabelled cost'),
+                    'label' => $this->fixedCostDisplayLabel($label),
                     'monthly_amount' => round((float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1), 2),
                     'start_month_label' => 'Month '.$month,
                     'confidence' => (string) ($row['confidence'] ?? 'estimate'),
+                    'review_note' => $this->fixedCostReviewNote($label, $row),
                 ];
             })
             ->sortByDesc('monthly_amount')
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $computed
+     * @return array{listed_total:float,model_base:float,difference:float,reconciled:bool,message:string}
+     */
+    private function fixedCostReconciliation(EntrepreneurBudget $budget, array $computed): array
+    {
+        $listedTotal = collect((array) ($budget->monthly_fixed_costs ?? []))
+            ->sum(fn (array $row): float => (float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1));
+        $modelBase = (float) ($computed['monthly_fixed_costs'] ?? data_get($computed, 'base_scenario.summary.year_one_monthly_fixed_costs', 0));
+        $difference = round($modelBase - $listedTotal, 2);
+        $reconciled = abs($difference) < 1.0;
+
+        return [
+            'listed_total' => round($listedTotal, 2),
+            'model_base' => round($modelBase, 2),
+            'difference' => $difference,
+            'reconciled' => $reconciled,
+            'message' => $reconciled
+                ? 'The itemised fixed-cost trace reconciles to the model base.'
+                : 'The itemised fixed-cost trace differs from the model base by '.$this->money($difference).'. Add the missing rows or relabel the table if it is only a subset such as software subscriptions.',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function fixedCostReviewNote(string $label, array $row): string
+    {
+        if ($this->isAmbiguousOwnerCompensation($label)) {
+            return 'Clarify whether the saved amount is weekly, monthly, or annual before external issue.';
+        }
+
+        $amount = (float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1);
+        if ($amount <= 0) {
+            return 'Amount needs confirmation.';
+        }
+
+        return 'Traces to saved fixed-cost row.';
+    }
+
+    private function fixedCostDisplayLabel(string $label): string
+    {
+        if ($this->isAmbiguousOwnerCompensation($label)) {
+            return 'Owner compensation - current';
+        }
+
+        return trim($label) === '' ? 'Unlabelled cost' : trim($label);
+    }
+
+    private function isAmbiguousOwnerCompensation(string $label): bool
+    {
+        $normalised = strtolower($label);
+
+        return preg_match('/owners?\s+compensation|owner\s+draw|founder\s+pay|founder\s+salary/', $normalised) === 1
+            && preg_match_all('/\$?\d[\d,]*(?:\.\d+)?\s*(?:wk|week|weekly|pa|p\.a\.|annual|annually|year|yr)?/i', $label) >= 2;
     }
 
     /**
@@ -599,6 +688,85 @@ HTML,
         }
 
         return $story;
+    }
+
+    /**
+     * @param  array<string, mixed>  $bridge
+     */
+    private function yearTwoRevenueBridgeHtml(array $bridge): string
+    {
+        if (! is_numeric($bridge['month_13_revenue'] ?? null)) {
+            return '';
+        }
+
+        $warning = (bool) ($bridge['material_drop'] ?? false)
+            ? '<div class="warning"><strong>Revenue continuity warning</strong><p>Month 13 falls materially below Month 12. This is acceptable only if the Year 1 average is an intentional seasonal or averaged basis and the plan explains it.</p></div>'
+            : '';
+
+        return sprintf(
+            <<<'HTML'
+<article class="report-section revenue-bridge">
+<h2>Year 2 revenue bridge</h2>
+<p class="section-intro">%s</p>
+%s
+<table class="decision-table">
+<thead><tr><th>Bridge point</th><th>Revenue</th><th>Reader note</th></tr></thead>
+<tbody>
+<tr><td>Month 12 revenue</td><td>%s</td><td>Year 1 exit run-rate visible in the monthly forecast.</td></tr>
+<tr><td>Year 1 average monthly revenue</td><td>%s</td><td>Shown for comparison when an averaged or seasonal basis is selected.</td></tr>
+<tr><td>Month 13 revenue</td><td>%s</td><td>Uses %s.</td></tr>
+<tr><td>Month 13 change from Month 12</td><td>%s</td><td>%s</td></tr>
+</tbody>
+</table>
+</article>
+HTML,
+            $this->escape((string) ($bridge['explanation'] ?? 'Month 13 revenue is bridged from the selected Year 2 basis.')),
+            $warning,
+            $this->money($bridge['month_12_revenue'] ?? 0),
+            $this->money($bridge['year_one_average_monthly_revenue'] ?? 0),
+            $this->money($bridge['month_13_revenue'] ?? 0),
+            $this->escape((string) ($bridge['basis_label'] ?? 'the selected basis')),
+            $this->signedMoney($bridge['change_amount'] ?? 0),
+            $this->escape(is_numeric($bridge['change_percent'] ?? null) ? number_format((float) $bridge['change_percent'], 1).'% from Month 12.' : 'Change not calculated.'),
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $bridge
+     * @return array<int, array<string, mixed>>
+     */
+    private function yearTwoRevenueBridgeBlocks(array $bridge): array
+    {
+        if (! is_numeric($bridge['month_13_revenue'] ?? null)) {
+            return [];
+        }
+
+        $blocks = [
+            ['type' => 'section', 'text' => 'Year 2 revenue bridge'],
+            ['type' => 'paragraph', 'text' => (string) ($bridge['explanation'] ?? 'Month 13 revenue is bridged from the selected Year 2 basis.')],
+        ];
+
+        if ((bool) ($bridge['material_drop'] ?? false)) {
+            $blocks[] = [
+                'type' => 'callout',
+                'title' => 'Revenue continuity warning',
+                'text' => 'Month 13 falls materially below Month 12. This is acceptable only if the Year 1 average is an intentional seasonal or averaged basis and the plan explains it.',
+            ];
+        }
+
+        $blocks[] = [
+            'type' => 'table',
+            'headers' => ['Bridge point', 'Revenue', 'Reader note'],
+            'rows' => [
+                ['Month 12 revenue', $this->money($bridge['month_12_revenue'] ?? 0), 'Year 1 exit run-rate visible in the monthly forecast.'],
+                ['Year 1 average monthly revenue', $this->money($bridge['year_one_average_monthly_revenue'] ?? 0), 'Comparison point for averaged or seasonal basis.'],
+                ['Month 13 revenue', $this->money($bridge['month_13_revenue'] ?? 0), 'Uses '.(string) ($bridge['basis_label'] ?? 'the selected basis').'.'],
+                ['Month 13 change from Month 12', $this->signedMoney($bridge['change_amount'] ?? 0), is_numeric($bridge['change_percent'] ?? null) ? number_format((float) $bridge['change_percent'], 1).'% from Month 12.' : 'Change not calculated.'],
+            ],
+            'widths' => [1.25, 0.8, 1.8],
+        ];
+
+        return $blocks;
     }
 
     /**
@@ -1057,6 +1225,38 @@ HTML,
     }
 
     /**
+     * @param  array<string, mixed>  $reconciliation
+     */
+    private function fixedCostReconciliationHtml(array $reconciliation): string
+    {
+        if ((bool) ($reconciliation['reconciled'] ?? true)) {
+            return '<p class="trace-ok">'.$this->escape((string) ($reconciliation['message'] ?? 'The itemised fixed-cost trace reconciles to the model base.')).'</p>';
+        }
+
+        return '<div class="warning"><strong>Fixed-cost reconciliation warning</strong><p>'.$this->escape((string) ($reconciliation['message'] ?? 'The itemised fixed-cost trace does not reconcile to the model base.')).'</p></div>';
+    }
+
+    /**
+     * @param  array<string, mixed>  $issueReadiness
+     */
+    private function footerText(string $base, array $issueReadiness): string
+    {
+        $note = $this->draftFooterNote($issueReadiness);
+
+        return $note === '' ? $base : $base.' | '.$note;
+    }
+
+    /**
+     * @param  array<string, mixed>  $issueReadiness
+     */
+    private function draftFooterNote(array $issueReadiness): string
+    {
+        return (bool) ($issueReadiness['external_issue_ready'] ?? false)
+            ? ''
+            : 'INTERNAL DRAFT - NOT FOR EXTERNAL ISSUE';
+    }
+
+    /**
      * @param  array<string, mixed>  $issueReadiness
      */
     private function draftNoticeHtml(array $issueReadiness): string
@@ -1084,6 +1284,7 @@ HTML,
 .report-hero .eyebrow:empty { display: none; }
 .report-hero h1 { font-size: 31px; margin: 0 0 12px; }
 .report-hero p { color: #39465a; font-size: 16px; }
+.report-footer { bottom: -10mm; left: 0; position: fixed; right: 0; }
 .finance-summary { background: #f8f5ee; border-left-color: #b8860b; break-after: page; margin-top: 62px; min-height: 365px; padding: 28px 30px; }
 .finance-summary h2 { font-size: 25px; margin-bottom: 15px; }
 .finance-summary p { color: #34443c; font-size: 13px; line-height: 1.75; margin: 0; max-width: 74ch; }
@@ -1106,7 +1307,9 @@ HTML,
 .scenario-comparison td:last-child { color: #34443c; }
 .warning { background: #fff7e6; border: 1px solid #f3d08f; margin: 10px 0; padding: 8px 10px; }
 .warning strong { display: block; margin-bottom: 4px; }
+.warning p { margin: 0; }
 .warning ul { margin: 0; padding-left: 16px; }
+.trace-ok { color: #176b4d; font-size: 10.5px; margin: 0 0 10px; }
 .chart { border: 1px solid #cfded8; margin: 16px 0 2px; padding: 13px 14px 12px; page-break-inside: avoid; }
 .chart-header { align-items: flex-start; display: flex; gap: 16px; justify-content: space-between; margin-bottom: 10px; }
 .chart-title { font-size: 12px; font-weight: 700; margin: 0 0 2px; }

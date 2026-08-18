@@ -90,6 +90,7 @@ final class BusinessPlanPreviewRenderer
         private readonly BusinessPlanIdentity $identity,
         private readonly EntrepreneurDocumentTemplate $templates,
         private readonly PlanIssueReadiness $issueReadiness,
+        private readonly BudgetFundingReadiness $budgetReadiness,
     ) {}
 
     public function pdf(EntrepreneurProfile $profile, ?BusinessPlan $plan): string
@@ -265,9 +266,12 @@ final class BusinessPlanPreviewRenderer
             : ['external_issue_ready' => false, 'reasons' => ['No saved plan is available yet.']];
         $draftNotice = $this->draftNoticeHtml($issueReadiness);
         $authorshipNotice = $this->clientAuthorshipNoticeHtml($profile, $businessName);
-        $sectionHtml = collect($documentSections)
-            ->map(fn (array $section, int $index): string => $this->documentSectionHtml($section, $index + 1))
-            ->implode('');
+        $nextSectionPosition = $executiveSummary === null ? 1 : 2;
+        $sectionHtml = '';
+        foreach ($documentSections as $documentSection) {
+            $sectionHtml .= $this->documentSectionHtml($documentSection, $nextSectionPosition);
+            $nextSectionPosition += count($documentSection['entries']);
+        }
         $contentHtml = $sectionHtml !== ''
             ? $draftNotice.$authorshipNotice.$this->overviewHtml($documentSections, $executiveSummary).$sectionHtml
             : $this->layout->section(
@@ -288,7 +292,7 @@ final class BusinessPlanPreviewRenderer
             subheading: (string) ($documentMeta['subheading'] ?? 'Founder - '.$profile->name),
             meta: [],
             contentHtml: $contentHtml,
-            footer: (string) ($documentMeta['footer'] ?? 'Generated '.$generatedAt.' using Future Shift Advisory business-plan workspace'),
+            footer: $this->footerText((string) ($documentMeta['footer'] ?? 'Generated '.$generatedAt.' using Future Shift Advisory business-plan workspace'), $issueReadiness),
             template: $template,
             snapshotTitle: '',
             extraCss: $this->businessPlanCss(),
@@ -344,10 +348,10 @@ final class BusinessPlanPreviewRenderer
     /**
      * @param  array{title:string,entries:array<int, array{key:string,title:string,body:string,evidence_count:int}>}  $section
      */
-    private function documentSectionHtml(array $section, int $position): string
+    private function documentSectionHtml(array $section, int $startPosition): string
     {
         $entries = collect($section['entries'])
-            ->map(function (array $entry): string {
+            ->map(function (array $entry, int $index) use ($startPosition): string {
                 $keyPoints = $this->keyPoints($entry['body']);
                 $keyPointHtml = $keyPoints === []
                     ? ''
@@ -356,7 +360,8 @@ final class BusinessPlanPreviewRenderer
                         ->implode('').'</ul></aside>';
 
                 return sprintf(
-                    '<section class="plan-subsection"><header><div><p class="question-label">Business-plan requirement</p><h3>%s</h3></div></header>%s<div class="detail-copy">%s</div></section>',
+                    '<section class="plan-subsection"><header><div><p class="question-label">Section %02d - Business-plan requirement</p><h3>%s</h3></div></header>%s<div class="detail-copy">%s</div></section>',
+                    $startPosition + $index,
                     $this->escape($entry['title']),
                     $keyPointHtml,
                     $this->markdownBodyHtml($entry['body']),
@@ -365,8 +370,7 @@ final class BusinessPlanPreviewRenderer
             ->implode('');
 
         return sprintf(
-            '<article class="report-section plan-phase"><div class="phase-heading"><p>Section %02d</p><h2>%s</h2><span>%d completed response%s</span></div>%s</article>',
-            $position,
+            '<article class="report-section plan-phase"><div class="phase-heading"><p>Plan area</p><h2>%s</h2><span>%d completed response%s</span></div>%s</article>',
             $this->escape($section['title']),
             count($section['entries']),
             count($section['entries']) === 1 ? '' : 's',
@@ -475,29 +479,45 @@ HTML,
             return $authored;
         }
 
-        $businessName = $this->identity->businessName($profile, $plan, $this->sectionBodies($phases));
-        $opening = $businessName === null
-            ? 'This business plan is prepared by '.$profile->name.'.'
-            : 'This business plan is prepared for '.$businessName.', led by '.$profile->name.'.';
-        $summary = [$opening];
+        $sourceBodies = $this->sectionBodies($phases);
+        if ($sourceBodies === []) {
+            $sourceBodies = collect($sections)
+                ->flatMap(fn (array $section): array => $section['entries'])
+                ->map(fn (array $entry): string => (string) ($entry['body'] ?? ''))
+                ->all();
+        }
+        $businessName = $this->identity->businessName($profile, $plan, $sourceBodies);
+        $entriesByKey = $this->entriesByKey($sections);
+        $summary = [];
+        $summary[] = $businessName === null
+            ? 'This business plan is prepared by '.$profile->name.' for lender, investor, and advisor review.'
+            : $businessName.' is led by '.$profile->name.' and this plan sets out the business case, market evidence, operating model, funding position, and decision required.';
 
-        if (filled($profile->concept_summary)) {
-            $summary[] = Str::limit(trim((string) $profile->concept_summary), 360, '...');
+        $concept = $this->completeSentence((string) $profile->concept_summary);
+        if ($concept !== '') {
+            $summary[] = $concept;
         }
 
-        $areaBullets = $this->summaryAreaBullets($sections, $plan);
-        if ($areaBullets !== []) {
-            $summary[] = 'It draws on the founder\'s current responses across the 12 assessment areas used for review:';
-            $summary[] = collect($areaBullets)
-                ->map(fn (string $bullet): string => '- '.$bullet)
-                ->implode("\n");
+        $market = $this->summarySentenceForKeys($entriesByKey, ['industry-context', 'differentiation', 'competitor-comparison']);
+        if ($market !== '') {
+            $summary[] = $market;
         }
 
-        $computed = (array) ($plan?->budgetRunway?->computed ?? []);
-        if ($computed !== []) {
-            $breakEven = data_get($computed, 'break_even_year');
-            $cashPositive = data_get($computed, 'cash_flow_positive_year');
-            $summary[] = 'The forecast currently shows break-even in '.($breakEven === null ? 'the forecast horizon not yet confirmed' : 'Year '.$breakEven).' and cash-positive timing in '.($cashPositive === null ? 'the forecast horizon not yet confirmed' : 'Year '.$cashPositive).'.';
+        $model = $this->summarySentenceForKeys($entriesByKey, ['business-type-location', 'organisation-management', 'systems-software-processes']);
+        $revenue = $this->summarySentenceForKeys($entriesByKey, ['revenue-model', 'financial-assumptions']);
+        $operatingModel = trim($model.' '.$revenue);
+        if ($operatingModel !== '') {
+            $summary[] = $operatingModel;
+        }
+
+        $funding = $this->fundingSummarySentence($plan);
+        if ($funding !== '') {
+            $summary[] = $funding;
+        }
+
+        $runway = $this->runwayCaveatSentence($plan);
+        if ($runway !== '') {
+            $summary[] = $runway;
         }
 
         return [
@@ -524,6 +544,79 @@ HTML,
             ->map(fn (array $area): string => $area['title'].': '.$this->summaryAreaText($area, $entriesByKey, $computed))
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  array<int, array{title:string,entries:array<int, array{key:string,title:string,body:string,evidence_count:int}>}>  $sections
+     * @return array<string, array{key:string,title:string,body:string,evidence_count:int}>
+     */
+    private function entriesByKey(array $sections): array
+    {
+        return collect($sections)
+            ->flatMap(fn (array $section): array => $section['entries'])
+            ->keyBy('key')
+            ->all();
+    }
+
+    /**
+     * @param  array<string, array{key:string,title:string,body:string,evidence_count:int}>  $entriesByKey
+     * @param  array<int, string>  $keys
+     */
+    private function summarySentenceForKeys(array $entriesByKey, array $keys): string
+    {
+        $body = collect($keys)
+            ->map(fn (string $key): string => isset($entriesByKey[$key]) ? (string) $entriesByKey[$key]['body'] : '')
+            ->filter(fn (string $body): bool => trim($body) !== '')
+            ->implode("\n");
+
+        return $this->completeSentence($body);
+    }
+
+    private function completeSentence(string $body): string
+    {
+        $sentences = $this->summarySentences($body);
+
+        return $sentences[0] ?? '';
+    }
+
+    private function fundingSummarySentence(?BusinessPlan $plan): string
+    {
+        if (! ($plan?->budgetRunway instanceof EntrepreneurBudget)) {
+            return 'The funding decision is not lender-ready until the budget pack is complete and reconciled to the written plan.';
+        }
+
+        $decision = $this->budgetReadiness->evaluate($plan->budgetRunway);
+        $requiredFunding = (float) ($decision['required_additional_funding'] ?? 0);
+        $availableFunding = (float) ($decision['available_funding'] ?? 0);
+
+        if ($requiredFunding > 0) {
+            return 'The funding ask is '.$this->money($requiredFunding).', or equivalent assumption changes, to cover the larger of the forecast cash trough and the lender-style operating buffer.';
+        }
+
+        if ($availableFunding > 0) {
+            return 'The plan asks the reader to assess whether available funding of '.$this->money($availableFunding).' is sufficient against the budget pack, operating buffer, and cash curve.';
+        }
+
+        return 'The plan currently presents no external funding ask, so that position needs to remain consistent with the budget cash curve and support requested.';
+    }
+
+    private function runwayCaveatSentence(?BusinessPlan $plan): string
+    {
+        $computed = (array) ($plan?->budgetRunway?->computed ?? []);
+        if ($computed === []) {
+            return '';
+        }
+
+        $runwayMonths = data_get($computed, 'runway_months');
+        $breakEven = data_get($computed, 'break_even_year');
+        $cashPositive = data_get($computed, 'cash_flow_positive_year');
+        $signals = 'The forecast shows runway of '.(is_numeric($runwayMonths) ? ((int) $runwayMonths).' month'.((int) $runwayMonths === 1 ? '' : 's') : 'not calculated').', break-even in '.($breakEven === null ? 'the forecast horizon not yet confirmed' : 'Year '.$breakEven).', and cash-positive timing in '.($cashPositive === null ? 'the forecast horizon not yet confirmed' : 'Year '.$cashPositive).'.';
+
+        if ((int) ($runwayMonths ?? -1) === 0) {
+            return $signals.' A 0 months runway result should be read with the funding build-up: it reflects the model reserving cash for launch costs and operating cover, not by itself a conclusion that the business has no trading cash.';
+        }
+
+        return $signals;
     }
 
     /**
@@ -700,23 +793,29 @@ HTML,
             ],
         ];
 
-        foreach ($sections as $index => $section) {
+        $nextSectionPosition = $executiveSummary === null ? 1 : 2;
+        foreach ($sections as $section) {
             $blocks[] = ['type' => 'page_break'];
-            $blocks[] = ['type' => 'section', 'text' => str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT).' '.$section['title']];
+            $blocks[] = ['type' => 'section', 'text' => $section['title']];
 
             foreach ($section['entries'] as $entry) {
                 $blocks[] = [
                     'type' => 'entry',
-                    'kicker' => 'Business-plan requirement',
+                    'kicker' => 'Section '.str_pad((string) $nextSectionPosition, 2, '0', STR_PAD_LEFT).' - Business-plan requirement',
                     'title' => $entry['title'],
                     'key_points' => $this->keyPoints($entry['body']),
                     'body' => $this->markdownPlainText($entry['body']),
                     'note' => '',
                 ];
+                $nextSectionPosition++;
             }
         }
 
-        return $this->fallbackPdf->renderStructured('Business Plan', $blocks);
+        return $this->fallbackPdf->renderStructured(
+            'Business Plan',
+            $blocks,
+            $this->draftFooterNote($issueReadiness),
+        );
     }
 
     /**
@@ -758,6 +857,9 @@ HTML,
     private function cleanResponseBody(string $body): string
     {
         $body = str_replace(["\r\n", "\r"], "\n", trim($body));
+        $body = $this->normaliseFundingHeadings($body);
+        $body = $this->collapseDatedUpdate($body);
+        $body = $this->removeRepeatedSignaturePhrase($body);
         $body = preg_replace('/^\s*(?:[,.;:!?]+\s*)+/', '', $body) ?? $body;
 
         $lines = collect(preg_split('/\R/', $body) ?: [])
@@ -770,6 +872,40 @@ HTML,
         $body = preg_replace('/(\n\s*)([,.;:!?]+\s*)+/', '$1', $body) ?? $body;
 
         return trim($body);
+    }
+
+    private function normaliseFundingHeadings(string $body): string
+    {
+        return preg_replace('/^(\s*(?:#{1,6}\s*)?)(?:Start-up Funding|Startup Funding|Launch funding)\b/im', '$1Funding and support', $body) ?? $body;
+    }
+
+    private function collapseDatedUpdate(string $body): string
+    {
+        $monthPattern = 'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?';
+        $pattern = '/(?:^|\n)\s*(?:#{1,6}\s*)?(?:update(?:d)?|amendment|patch)\b[^\n]*(?:20\d{2}|'.$monthPattern.')[^\n]*(?:\n|$)/i';
+
+        if (preg_match_all($pattern, $body, $matches, PREG_OFFSET_CAPTURE) !== 1 && count($matches[0] ?? []) === 0) {
+            return $body;
+        }
+
+        $last = array_values($matches[0])[count($matches[0]) - 1] ?? null;
+        if (! is_array($last)) {
+            return $body;
+        }
+
+        $offset = (int) $last[1] + strlen((string) $last[0]);
+        $replacement = trim(substr($body, $offset));
+
+        return strlen($replacement) >= 80 ? $replacement : $body;
+    }
+
+    private function removeRepeatedSignaturePhrase(string $body): string
+    {
+        return str_ireplace(
+            'strategic thinking, creative problem-solving and practical implementation',
+            'clear thinking and practical delivery',
+            $body,
+        );
     }
 
     /**
@@ -800,6 +936,26 @@ HTML,
         $subject = $businessName === null ? 'This business plan' : 'This business plan for '.$businessName;
 
         return $subject.' was prepared with Future Shift Advisory assistance in the FSA workspace, based on information supplied by '.$name.'. '.$name.', as the client and founder, remains responsible for the plan content, assumptions, evidence, and decisions.';
+    }
+
+    /**
+     * @param  array<string, mixed>  $issueReadiness
+     */
+    private function footerText(string $base, array $issueReadiness): string
+    {
+        $note = $this->draftFooterNote($issueReadiness);
+
+        return $note === '' ? $base : $base.' | '.$note;
+    }
+
+    /**
+     * @param  array<string, mixed>  $issueReadiness
+     */
+    private function draftFooterNote(array $issueReadiness): string
+    {
+        return (bool) ($issueReadiness['external_issue_ready'] ?? false)
+            ? ''
+            : 'INTERNAL DRAFT - NOT FOR EXTERNAL ISSUE';
     }
 
     private function normaliseKeyPoint(string $candidate): string
@@ -837,6 +993,7 @@ HTML,
 .report-hero .eyebrow:empty { display: none; }
 .report-hero h1 { font-size: 31px; margin: 0 0 12px; }
 .report-hero p { color: #39465a; font-size: 16px; }
+.report-footer { bottom: -10mm; left: 0; position: fixed; right: 0; }
 .client-authorship-note { background: #fff; border: 1px solid #ded6c7; border-left: 4px solid #0d7a7a; break-inside: avoid; margin-bottom: 16px; padding: 13px 15px; }
 .client-authorship-note h2 { color: #1c2f4a; font-size: 14px; margin: 0 0 6px; }
 .client-authorship-note p { color: #34443c; font-size: 10.5px; line-height: 1.55; margin: 0; }
@@ -908,6 +1065,14 @@ CSS;
         $text = html_entity_decode(strip_tags($withBreaks), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
         return trim(preg_replace('/[\t ]+/', ' ', $text) ?? $text);
+    }
+
+    private function money(mixed $value): string
+    {
+        $amount = (float) $value;
+        $sign = $amount < 0 ? '-' : '';
+
+        return $sign.'$'.number_format(abs($amount), 0);
     }
 
     private function escape(mixed $value): string

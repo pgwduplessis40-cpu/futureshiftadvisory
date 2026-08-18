@@ -31,7 +31,7 @@ final class SimpleTextPdf
     /**
      * @param  array<int, string>  $paragraphs
      */
-    public function render(string $title, array $paragraphs): string
+    public function render(string $title, array $paragraphs, string $footerNote = ''): string
     {
         $pages = [];
         $current = [];
@@ -60,13 +60,13 @@ final class SimpleTextPdf
             $pages[] = $current;
         }
 
-        return $this->pdf($pages === [] ? [[]] : $pages);
+        return $this->pdf($pages === [] ? [[]] : $pages, $footerNote);
     }
 
     /**
      * @param  array<int, array<string, mixed>>  $blocks
      */
-    public function renderStructured(string $title, array $blocks): string
+    public function renderStructured(string $title, array $blocks, string $footerNote = ''): string
     {
         $pages = [];
         $current = [];
@@ -210,13 +210,13 @@ final class SimpleTextPdf
             $pages[] = $current;
         }
 
-        return $this->pdf($pages === [] ? [[]] : $pages);
+        return $this->pdf($pages === [] ? [[]] : $pages, $footerNote);
     }
 
     /**
      * @param  array<int, array<int, array<string, mixed>>>  $pages
      */
-    private function pdf(array $pages): string
+    private function pdf(array $pages, string $footerNote = ''): string
     {
         $objectCount = 2 + (count($pages) * 2) + 2;
         $fontObjectId = $objectCount - 1;
@@ -240,7 +240,7 @@ final class SimpleTextPdf
                 $boldFontObjectId,
                 $contentObjectId,
             );
-            $objects[$contentObjectId] = $this->stream($this->content($operations, $index + 1, $pageCount));
+            $objects[$contentObjectId] = $this->stream($this->content($operations, $index + 1, $pageCount, $footerNote));
         }
 
         $objects[2] = sprintf('<< /Type /Pages /Kids [%s] /Count %d >>', implode(' ', $kids), count($pages));
@@ -273,7 +273,7 @@ final class SimpleTextPdf
     /**
      * @param  array<int, array<string, mixed>>  $operations
      */
-    private function content(array $operations, int $pageNumber, int $pageCount): string
+    private function content(array $operations, int $pageNumber, int $pageCount, string $footerNote = ''): string
     {
         $content = '';
 
@@ -330,6 +330,10 @@ final class SimpleTextPdf
         }
 
         $footerText = "Future Shift Advisory    |    Confidential    |    Page {$pageNumber} of {$pageCount}";
+        $footerNote = trim($this->normalise($footerNote));
+        if ($footerNote !== '') {
+            $footerText .= '    |    '.$footerNote;
+        }
         $content .= $this->fillColor(self::MUTED);
         $content .= 'BT /F1 8 Tf '.self::MARGIN.' 34 Td ('.$this->escape($footerText).") Tj ET\n";
 

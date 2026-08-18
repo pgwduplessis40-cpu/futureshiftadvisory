@@ -129,6 +129,22 @@ final class BudgetFundingReadiness
             $warnings->push('Budget inputs are incomplete. Viability, scoring, and funding readiness may be affected.');
         }
 
+        $fixedCostReconciliation = $this->fixedCostReconciliation($budget, $computed);
+        if (! (bool) ($fixedCostReconciliation['reconciled'] ?? true)) {
+            $warnings->push('Fixed-cost trace mismatch: itemised monthly fixed costs total '.$this->money($fixedCostReconciliation['listed_total'] ?? 0).', but the model base is '.$this->money($fixedCostReconciliation['model_base'] ?? 0).'. Add the missing rows or relabel the table if it is only a subset.');
+        }
+
+        $ambiguousOwnerCompensation = collect((array) ($budget->monthly_fixed_costs ?? []))
+            ->first(fn (array $row): bool => $this->isAmbiguousOwnerCompensation((string) ($row['label'] ?? '')));
+        if (is_array($ambiguousOwnerCompensation)) {
+            $warnings->push('Owner compensation needs clarification: split weekly, monthly, and annual figures before external issue.');
+        }
+
+        $bridge = (array) data_get($computed, 'year_two_revenue_bridge', []);
+        if ((bool) ($bridge['material_drop'] ?? false)) {
+            $warnings->push('Year 2 revenue bridge needs explanation: Month 13 drops materially below Month 12.');
+        }
+
         return $warnings->unique()->values()->all();
     }
 
@@ -189,5 +205,40 @@ final class BudgetFundingReadiness
         return $fundingGapOrSurplus >= 0
             ? 'Current funding covers the planned costs, operating buffer, contingency, and the monthly cash curve.'
             : 'The forecast is cash-positive, but its planned funding buffer should be discussed with an advisor.';
+    }
+
+    /**
+     * @param  array<string, mixed>  $computed
+     * @return array{listed_total:float,model_base:float,difference:float,reconciled:bool}
+     */
+    private function fixedCostReconciliation(EntrepreneurBudget $budget, array $computed): array
+    {
+        $listedTotal = collect((array) ($budget->monthly_fixed_costs ?? []))
+            ->sum(fn (array $row): float => (float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1));
+        $modelBase = (float) ($computed['monthly_fixed_costs'] ?? data_get($computed, 'base_scenario.summary.year_one_monthly_fixed_costs', 0));
+        $difference = round($modelBase - $listedTotal, 2);
+
+        return [
+            'listed_total' => round($listedTotal, 2),
+            'model_base' => round($modelBase, 2),
+            'difference' => $difference,
+            'reconciled' => abs($difference) < 1.0,
+        ];
+    }
+
+    private function isAmbiguousOwnerCompensation(string $label): bool
+    {
+        $normalised = strtolower($label);
+
+        return preg_match('/owners?\s+compensation|owner\s+draw|founder\s+pay|founder\s+salary/', $normalised) === 1
+            && preg_match_all('/\$?\d[\d,]*(?:\.\d+)?\s*(?:wk|week|weekly|pa|p\.a\.|annual|annually|year|yr)?/i', $label) >= 2;
+    }
+
+    private function money(mixed $value): string
+    {
+        $amount = (float) $value;
+        $sign = $amount < 0 ? '-' : '';
+
+        return $sign.'$'.number_format(abs($amount), 0);
     }
 }

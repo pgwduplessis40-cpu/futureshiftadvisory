@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Entrepreneurs;
 
 use App\Models\BusinessPlan;
+use App\Models\EntrepreneurBudget;
 use App\Models\PlanSection;
 use Illuminate\Support\Str;
 
@@ -25,7 +26,7 @@ final class ExternalIssueReview
         $blocking = [];
         $warnings = [];
 
-        if (preg_match('/\{\{\s*[^}]+\s*\}\}|\[\s*(?:business type|founder(?:\'s)? name|company name)\s*\]/i', $content) === 1
+        if (preg_match('/\{\{\s*[^}]+\s*\}\}|\[\s*(?:blank|tbd|todo|insert|business type|founder(?:\'s)? name|company name|owner name|business name|location)\s*\]/i', $content) === 1
             || preg_match('/\b(?:business type|founder(?:\'s)? name|company name)\s*:\s*(?:[,.;-]*\s*)?(?:\R|$)/im', $content) === 1) {
             $blocking[] = 'Resolve blank merge fields or placeholder identity details before external issue.';
         }
@@ -46,6 +47,27 @@ final class ExternalIssueReview
             $blocking[] = 'Month 13 revenue drops materially below the Year 1 exit run-rate. Confirm a seasonal averaging basis or revise the forecast before external issue.';
         }
 
+        if ($budget instanceof EntrepreneurBudget) {
+            $fixedCostReconciliation = $this->fixedCostReconciliation($budget, $computed);
+            if (! (bool) ($fixedCostReconciliation['reconciled'] ?? true)) {
+                $blocking[] = 'Fixed-cost trace does not reconcile to the model base. Add missing fixed-cost rows or relabel the table as a subset before external issue.';
+            }
+
+            $ambiguousOwnerCompensation = collect((array) ($budget->monthly_fixed_costs ?? []))
+                ->first(fn (array $row): bool => $this->isAmbiguousOwnerCompensation((string) ($row['label'] ?? '')));
+            if (is_array($ambiguousOwnerCompensation)) {
+                $blocking[] = 'Clarify the owner compensation row so weekly, monthly, and annual figures are not concatenated.';
+            }
+        }
+
+        foreach ($this->scaleMismatchReasons($content, $monthTwelveRevenue) as $reason) {
+            $blocking[] = $reason;
+        }
+
+        if ($this->hasUnreconciledPricingEvidence($content)) {
+            $blocking[] = 'Reconcile historical rates with current pricing before relying on the revenue assumptions externally.';
+        }
+
         $cashTrough = $monthly
             ->filter(fn (mixed $row): bool => is_numeric(data_get($row, 'cumulative_cash')))
             ->min(fn (mixed $row): float => (float) data_get($row, 'cumulative_cash'));
@@ -55,7 +77,7 @@ final class ExternalIssueReview
             $blocking[] = 'The written funding position conflicts with a negative forecast cash balance.';
         }
 
-        if ($this->hasRepeatedSentence($bodies)) {
+        if ($this->hasRepeatedSentence($bodies) || $this->hasRepeatedSignaturePhrase($content)) {
             $warnings[] = 'Repeated narrative phrasing detected. Consolidate duplicated wording before sharing the plan externally.';
         }
 
@@ -81,5 +103,115 @@ final class ExternalIssueReview
             ->countBy();
 
         return $sentences->contains(fn (int $count): bool => $count >= 3);
+    }
+
+    /**
+     * @param  array<string, mixed>  $computed
+     * @return array{listed_total:float,model_base:float,difference:float,reconciled:bool}
+     */
+    private function fixedCostReconciliation(EntrepreneurBudget $budget, array $computed): array
+    {
+        $listedTotal = collect((array) ($budget->monthly_fixed_costs ?? []))
+            ->sum(fn (array $row): float => (float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1));
+        $modelBase = (float) ($computed['monthly_fixed_costs'] ?? data_get($computed, 'base_scenario.summary.year_one_monthly_fixed_costs', 0));
+        $difference = round($modelBase - $listedTotal, 2);
+
+        return [
+            'listed_total' => round($listedTotal, 2),
+            'model_base' => round($modelBase, 2),
+            'difference' => $difference,
+            'reconciled' => abs($difference) < 1.0,
+        ];
+    }
+
+    private function isAmbiguousOwnerCompensation(string $label): bool
+    {
+        $normalised = strtolower($label);
+
+        return preg_match('/owners?\s+compensation|owner\s+draw|founder\s+pay|founder\s+salary/', $normalised) === 1
+            && preg_match_all('/\$?\d[\d,]*(?:\.\d+)?\s*(?:wk|week|weekly|pa|p\.a\.|annual|annually|year|yr)?/i', $label) >= 2;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function scaleMismatchReasons(string $content, float $monthTwelveRevenue): array
+    {
+        if ($monthTwelveRevenue <= 0) {
+            return [];
+        }
+
+        $reasons = [];
+        $annualTarget = $this->writtenAnnualRevenueTarget($content);
+        if ($annualTarget !== null && $monthTwelveRevenue > $annualTarget) {
+            $reasons[] = 'Budget Year 1 December revenue exceeds the written annual revenue target. Align plan targets and forecast scale before external issue.';
+        }
+
+        $capacityRevenue = $this->writtenMonthlyCapacityRevenue($content);
+        if ($capacityRevenue !== null && $capacityRevenue > 0 && $monthTwelveRevenue > ($capacityRevenue * 5)) {
+            $reasons[] = 'Budget Year 1 December revenue materially exceeds the written monthly capacity and pricing evidence. Align capacity, pricing, and forecast scale before external issue.';
+        }
+
+        return $reasons;
+    }
+
+    private function writtenAnnualRevenueTarget(string $content): ?float
+    {
+        $matches = [];
+        preg_match_all('/(?:revenue|sales|turnover|target)[^.\n$]{0,80}\$?\s*([0-9][0-9,.]*)\s*(k|m)?\s*(?:-|to|and)\s*\$?\s*([0-9][0-9,.]*)\s*(k|m)?[^.\n]{0,80}(?:revenue|sales|turnover|target)?/i', $content, $matches, PREG_SET_ORDER);
+
+        $values = collect($matches)
+            ->map(fn (array $match): float => max(
+                $this->moneyNumber((string) $match[1], (string) ($match[2] ?? '')),
+                $this->moneyNumber((string) $match[3], (string) ($match[4] ?? '')),
+            ))
+            ->filter(fn (float $value): bool => $value > 0)
+            ->values();
+
+        return $values->isEmpty() ? null : (float) $values->max();
+    }
+
+    private function writtenMonthlyCapacityRevenue(string $content): ?float
+    {
+        $capacityMatched = preg_match('/([0-9]+)\s*(?:-|to)\s*([0-9]+)\s+(?:[A-Za-z]+\s+){0,3}(?:intensives|workshops|sessions|projects|clients)\s*(?:\/|per\s+)?month/i', $content, $capacity);
+        $priceMatched = preg_match('/\$\s*([0-9][0-9,.]*)\s*(k|m)?\s*(?:\+?\s*GST)?\s*(?:\/|per\s+)(?:day|session|intensive|workshop|project)/i', $content, $price);
+
+        if ($capacityMatched !== 1 || $priceMatched !== 1) {
+            return null;
+        }
+
+        $maxCapacity = max((float) $capacity[1], (float) $capacity[2]);
+        $unitPrice = $this->moneyNumber((string) $price[1], (string) ($price[2] ?? ''));
+
+        return $maxCapacity > 0 && $unitPrice > 0 ? round($maxCapacity * $unitPrice, 2) : null;
+    }
+
+    private function hasUnreconciledPricingEvidence(string $content): bool
+    {
+        $hasHistoricalRange = preg_match('/(?:historical|historic|previous|past|earlier)[^.\n$]{0,80}\$?\s*[0-9][0-9,.]*\s*(?:-|to)\s*\$?\s*[0-9][0-9,.]*(?:\s*\+?\s*GST)?(?:\s*\/?\s*(?:day|session|intensive|workshop))?/i', $content) === 1;
+        $hasCurrentPrice = preg_match('/(?:current|now|today|standard|stated)[^.\n$]{0,80}\$?\s*[0-9][0-9,.]*(?:\s*\+?\s*GST)?(?:\s*\/?\s*(?:day|session|intensive|workshop))?/i', $content) === 1;
+        $hasReconciliation = preg_match('/\b(?:reconcil|bridge|because|now priced|current pricing reflects|price increase|gst-exclusive|gst exclusive)\b/i', $content) === 1;
+
+        return $hasHistoricalRange && $hasCurrentPrice && ! $hasReconciliation;
+    }
+
+    private function hasRepeatedSignaturePhrase(string $content): bool
+    {
+        return substr_count(
+            strtolower($content),
+            'strategic thinking, creative problem-solving and practical implementation',
+        ) >= 2;
+    }
+
+    private function moneyNumber(string $value, string $suffix = ''): float
+    {
+        $number = (float) str_replace(',', '', $value);
+        $suffix = strtolower($suffix);
+
+        return match ($suffix) {
+            'm' => $number * 1_000_000,
+            'k' => $number * 1_000,
+            default => $number,
+        };
     }
 }

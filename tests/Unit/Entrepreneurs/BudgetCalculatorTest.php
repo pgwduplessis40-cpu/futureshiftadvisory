@@ -65,6 +65,10 @@ final class BudgetCalculatorTest extends TestCase
 
         $this->assertEqualsWithDelta($month12Revenue, $month13Revenue, 0.01);
         $this->assertStringContainsString('exit run-rate', $computed['explanations']['year_two_revenue_basis']);
+        $this->assertSame('exit_run_rate', $computed['year_two_revenue_bridge']['basis']);
+        $this->assertEqualsWithDelta($month12Revenue, $computed['year_two_revenue_bridge']['month_12_revenue'], 0.01);
+        $this->assertEqualsWithDelta($month13Revenue, $computed['year_two_revenue_bridge']['month_13_revenue'], 0.01);
+        $this->assertFalse($computed['year_two_revenue_bridge']['material_drop']);
     }
 
     public function test_year_two_revenue_can_use_the_year_one_average_for_a_deliberate_seasonal_assumption(): void
@@ -95,6 +99,8 @@ final class BudgetCalculatorTest extends TestCase
 
         $this->assertEqualsWithDelta($expectedYearOneAverage, $computed['monthly_detail'][12]['revenue'], 0.01);
         $this->assertGreaterThan($computed['monthly_detail'][12]['revenue'], $computed['monthly_detail'][11]['revenue']);
+        $this->assertSame('year_one_average', $computed['year_two_revenue_bridge']['basis']);
+        $this->assertTrue($computed['year_two_revenue_bridge']['material_drop']);
     }
 
     public function test_annual_revenue_growth_does_not_compound_the_first_year_monthly_forecast(): void
