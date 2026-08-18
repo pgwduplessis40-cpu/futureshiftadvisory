@@ -20,6 +20,69 @@ final class BusinessPlanPreviewRenderer
 
     private const BUDGET_ASSUMPTIONS_REQUIREMENT_KEY = 'financial-assumptions';
 
+    private const SUMMARY_AREA_REQUIREMENTS = [
+        [
+            'title' => 'Type of business',
+            'keys' => ['business-type-location'],
+            'terms' => ['business', 'company', 'service', 'product', 'advisory', 'consulting'],
+        ],
+        [
+            'title' => 'Location',
+            'keys' => ['business-type-location'],
+            'terms' => ['location', 'located', 'based', 'premises', 'home', 'regional', 'online', 'new zealand'],
+        ],
+        [
+            'title' => 'Means of doing business',
+            'keys' => ['business-type-location'],
+            'terms' => ['operate', 'operating', 'delivery', 'deliver', 'online', 'in-person', 'model', 'customer'],
+        ],
+        [
+            'title' => 'Discuss the industry',
+            'keys' => ['industry-context', 'differentiation'],
+            'terms' => ['industry', 'market', 'customer', 'demand', 'timing', 'trend'],
+        ],
+        [
+            'title' => 'What sets the business apart',
+            'keys' => ['differentiation', 'competitor-comparison'],
+            'terms' => ['different', 'competitor', 'alternative', 'advantage', 'choose', 'sets'],
+        ],
+        [
+            'title' => 'Describe unique success factors',
+            'keys' => ['success-factors', 'organisation-management'],
+            'terms' => ['success', 'capability', 'relationship', 'asset', 'experience', 'responsibility'],
+        ],
+        [
+            'title' => 'Mission and vision statement',
+            'keys' => ['mission-vision'],
+            'terms' => ['mission', 'vision', 'problem', 'purpose', 'exists'],
+        ],
+        [
+            'title' => 'Intellectual property',
+            'keys' => ['intellectual-property'],
+            'terms' => ['intellectual', 'property', 'brand', 'data', 'method', 'contract', 'protect'],
+        ],
+        [
+            'title' => 'Goals and objectives',
+            'keys' => ['goals-objectives'],
+            'terms' => ['goal', 'objective', 'milestone', 'measure', 'decision', 'launch'],
+        ],
+        [
+            'title' => 'Culture',
+            'keys' => ['culture'],
+            'terms' => ['culture', 'values', 'behaviour', 'promise', 'team'],
+        ],
+        [
+            'title' => 'Legal environment',
+            'keys' => ['legal-environment', 'systems-software-processes'],
+            'terms' => ['legal', 'privacy', 'compliance', 'supplier', 'employment', 'system', 'process'],
+        ],
+        [
+            'title' => 'Budget',
+            'keys' => ['financial-assumptions', 'revenue-model', 'launch-funding'],
+            'terms' => ['budget', 'revenue', 'funding', 'runway', 'cost', 'cash', 'margin', 'price'],
+        ],
+    ];
+
     public function __construct(
         private readonly PdfRenderer $pdf,
         private readonly SimpleTextPdf $fallbackPdf,
@@ -194,24 +257,26 @@ final class BusinessPlanPreviewRenderer
         array $documentMeta = [],
     ): string {
         $documentSections = $this->documentSections($phases);
+        $sectionBodies = $this->sectionBodies($phases);
+        $businessName = $this->identity->businessName($profile, $plan, $sectionBodies);
         $executiveSummary = $this->executiveSummary($profile, $plan, $phases, $documentSections);
         $issueReadiness = $plan instanceof BusinessPlan
             ? $this->issueReadiness->evaluate($plan)
             : ['external_issue_ready' => false, 'reasons' => ['No saved plan is available yet.']];
         $draftNotice = $this->draftNoticeHtml($issueReadiness);
+        $authorshipNotice = $this->clientAuthorshipNoticeHtml($profile, $businessName);
         $sectionHtml = collect($documentSections)
             ->map(fn (array $section, int $index): string => $this->documentSectionHtml($section, $index + 1))
             ->implode('');
         $contentHtml = $sectionHtml !== ''
-            ? $draftNotice.$this->overviewHtml($documentSections, $executiveSummary).$sectionHtml
+            ? $draftNotice.$authorshipNotice.$this->overviewHtml($documentSections, $executiveSummary).$sectionHtml
             : $this->layout->section(
                 'Plan content not completed yet',
-                $draftNotice.'<p class="body">No completed business-plan sections are available yet.</p>',
+                $draftNotice.$authorshipNotice.'<p class="body">No completed business-plan sections are available yet.</p>',
                 'missing-panel',
             );
         $generatedAt = now()->format('M j, Y g:i A');
         $template = $this->templates->businessPlan();
-        $businessName = $this->identity->businessName($profile, $plan, $this->sectionBodies($phases));
         $title = 'Business Plan'.($businessName === null ? '' : ' - '.$businessName);
 
         return $this->layout->document(
@@ -318,7 +383,7 @@ final class BusinessPlanPreviewRenderer
         $index = collect($this->indexEntries($sections, $executiveSummary))
             ->map(function (array $entry, int $index): string {
                 return sprintf(
-                    '<li><span>%02d</span><div><strong>%s</strong></div></li>',
+                    '<tr><td class="reader-index-number">%02d</td><td><strong>%s</strong></td></tr>',
                     $index + 1,
                     $this->escape($entry['title']),
                 );
@@ -340,7 +405,7 @@ final class BusinessPlanPreviewRenderer
 </article>
 <article class="reader-roadmap">
 <h2>Index</h2>
-<ol>%s</ol>
+<table class="reader-index"><tbody>%s</tbody></table>
 </article>
 HTML,
             $this->escape($summaryHeading),
@@ -420,9 +485,12 @@ HTML,
             $summary[] = Str::limit(trim((string) $profile->concept_summary), 360, '...');
         }
 
-        $sectionNames = collect($sections)->pluck('title')->filter()->implode(', ');
-        if ($sectionNames !== '') {
-            $summary[] = 'It sets out the current operating, market, strategy, legal, and financial case across '.$sectionNames.'.';
+        $areaBullets = $this->summaryAreaBullets($sections, $plan);
+        if ($areaBullets !== []) {
+            $summary[] = 'It draws on the founder\'s current responses across the 12 assessment areas used for review:';
+            $summary[] = collect($areaBullets)
+                ->map(fn (string $bullet): string => '- '.$bullet)
+                ->implode("\n");
         }
 
         $computed = (array) ($plan?->budgetRunway?->computed ?? []);
@@ -438,6 +506,107 @@ HTML,
             'body' => implode("\n\n", $summary),
             'evidence_count' => 0,
         ];
+    }
+
+    /**
+     * @param  array<int, array{title:string,entries:array<int, array{key:string,title:string,body:string,evidence_count:int}>}>  $sections
+     * @return array<int, string>
+     */
+    private function summaryAreaBullets(array $sections, ?BusinessPlan $plan): array
+    {
+        $entriesByKey = collect($sections)
+            ->flatMap(fn (array $section): array => $section['entries'])
+            ->keyBy('key')
+            ->all();
+        $computed = (array) ($plan?->budgetRunway?->computed ?? []);
+
+        return collect(self::SUMMARY_AREA_REQUIREMENTS)
+            ->map(fn (array $area): string => $area['title'].': '.$this->summaryAreaText($area, $entriesByKey, $computed))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array{title:string,keys:array<int, string>,terms:array<int, string>}  $area
+     * @param  array<string, array{key:string,title:string,body:string,evidence_count:int}>  $entriesByKey
+     * @param  array<string, mixed>  $computed
+     */
+    private function summaryAreaText(array $area, array $entriesByKey, array $computed): string
+    {
+        $bodies = collect($area['keys'])
+            ->map(fn (string $key): ?string => isset($entriesByKey[$key]) ? (string) $entriesByKey[$key]['body'] : null)
+            ->filter(fn (?string $body): bool => is_string($body) && trim($body) !== '')
+            ->values()
+            ->all();
+        $sentences = $this->summarySentences(implode("\n", $bodies));
+        $terms = collect($area['terms'])
+            ->map(fn (string $term): string => Str::lower($term))
+            ->filter()
+            ->values()
+            ->all();
+        $sentence = collect($sentences)
+            ->first(function (string $candidate) use ($terms): bool {
+                $candidate = Str::lower($candidate);
+
+                return collect($terms)->contains(fn (string $term): bool => str_contains($candidate, $term));
+            }) ?? ($sentences[0] ?? '');
+
+        if ((string) $area['title'] === 'Budget') {
+            $budgetSentence = $this->budgetSummarySentence($computed);
+            $sentence = trim($sentence.' '.$budgetSentence);
+        }
+
+        if ($sentence === '') {
+            return 'No completed response is captured yet.';
+        }
+
+        return Str::limit($sentence, 210, '...');
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function summarySentences(string $body): array
+    {
+        $plain = preg_replace('/\s+/', ' ', $this->markdownPlainText($body)) ?? '';
+        $sentences = preg_split('/(?<=[.!?])\s+/', trim($plain)) ?: [];
+
+        return collect($sentences)
+            ->map(fn (string $sentence): string => trim($sentence, " \t\n\r\0\x0B-.,;:!?\"'`()[]{}"))
+            ->filter(fn (string $sentence): bool => strlen($sentence) >= 24)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $computed
+     */
+    private function budgetSummarySentence(array $computed): string
+    {
+        if ($computed === []) {
+            return '';
+        }
+
+        $signals = [];
+        $runwayMonths = data_get($computed, 'runway_months');
+        $breakEvenYear = data_get($computed, 'break_even_year');
+        $cashPositiveYear = data_get($computed, 'cash_flow_positive_year');
+
+        if (is_numeric($runwayMonths)) {
+            $signals[] = 'runway of '.(int) round((float) $runwayMonths).' month'.((int) round((float) $runwayMonths) === 1 ? '' : 's');
+        }
+
+        if (is_numeric($breakEvenYear)) {
+            $signals[] = 'break-even in Year '.(int) $breakEvenYear;
+        }
+
+        if (is_numeric($cashPositiveYear)) {
+            $signals[] = 'cash-positive timing in Year '.(int) $cashPositiveYear;
+        }
+
+        return $signals === []
+            ? ''
+            : 'Forecast signals include '.implode(', ', $signals).'.';
     }
 
     /**
@@ -510,6 +679,11 @@ HTML,
                 'subtitle' => 'Founder - '.$profile->name.((bool) ($issueReadiness['external_issue_ready'] ?? false) ? '' : ' | INTERNAL DRAFT - NOT FOR EXTERNAL ISSUE'),
             ],
             ['type' => 'page_break'],
+            [
+                'type' => 'callout',
+                'title' => 'Founder responsibility note',
+                'text' => $this->clientAuthorshipNoticeText($profile, $businessName),
+            ],
             ['type' => 'section', 'text' => 'Executive summary'],
             [
                 'type' => 'paragraph',
@@ -615,6 +789,19 @@ HTML,
         return '<div class="internal-draft-watermark">INTERNAL DRAFT</div><article class="report-section external-issue-warning"><h2>Internal draft - not for external issue</h2><p>Resolve the listed readiness items before sharing this document with a lender, investor, or other external audience.</p>'.($reasons === '' ? '' : '<ul>'.$reasons.'</ul>').'</article>';
     }
 
+    private function clientAuthorshipNoticeHtml(EntrepreneurProfile $profile, ?string $businessName): string
+    {
+        return '<article class="client-authorship-note"><h2>Founder responsibility note</h2><p>'.$this->escape($this->clientAuthorshipNoticeText($profile, $businessName)).'</p></article>';
+    }
+
+    private function clientAuthorshipNoticeText(EntrepreneurProfile $profile, ?string $businessName): string
+    {
+        $name = trim($profile->name) !== '' ? trim($profile->name) : 'the founder';
+        $subject = $businessName === null ? 'This business plan' : 'This business plan for '.$businessName;
+
+        return $subject.' was prepared with Future Shift Advisory assistance in the FSA workspace, based on information supplied by '.$name.'. '.$name.', as the client and founder, remains responsible for the plan content, assumptions, evidence, and decisions.';
+    }
+
     private function normaliseKeyPoint(string $candidate): string
     {
         $candidate = preg_replace('/^\s*(?:[-*]+|\d+[.)])\s*/', '', $candidate) ?? $candidate;
@@ -650,25 +837,31 @@ HTML,
 .report-hero .eyebrow:empty { display: none; }
 .report-hero h1 { font-size: 31px; margin: 0 0 12px; }
 .report-hero p { color: #39465a; font-size: 16px; }
-.reader-overview { background: #f8f5ee; border: 1px solid #ded6c7; border-left: 5px solid #b8860b; break-inside: avoid; margin-bottom: 24px; padding: 25px 28px; }
+.client-authorship-note { background: #fff; border: 1px solid #ded6c7; border-left: 4px solid #0d7a7a; break-inside: avoid; margin-bottom: 16px; padding: 13px 15px; }
+.client-authorship-note h2 { color: #1c2f4a; font-size: 14px; margin: 0 0 6px; }
+.client-authorship-note p { color: #34443c; font-size: 10.5px; line-height: 1.55; margin: 0; }
+.reader-overview { background: #f8f5ee; border: 1px solid #ded6c7; border-left: 5px solid #b8860b; break-inside: auto; margin-bottom: 20px; padding: 22px 24px; }
 .reader-overview h2 { color: #13233a; font-size: 24px; margin: 0 0 14px; }
 .reader-overview p { margin: 0; }
 .summary-copy { color: #1f2937; font-size: 12px; line-height: 1.7; max-width: 74ch; }
 .summary-copy p { margin: 0 0 11px; }
+.summary-copy ul { margin: 0 0 11px; padding-left: 17px; }
+.summary-copy li { margin: 0 0 5px; }
 .question-label { color: #667282; display: block; font-size: 8.5px; font-weight: 700; letter-spacing: 0; margin: 0 0 6px; text-transform: uppercase; }
 .reader-roadmap { border-top: 1px solid #ded6c7; break-after: page; padding-top: 18px; }
 .reader-roadmap h2 { color: #1c2f4a; font-size: 18px; margin: 0 0 12px; }
-.reader-roadmap ol { display: grid; gap: 8px; list-style: none; margin: 0; padding: 0; }
-.reader-roadmap li { align-items: flex-start; border-top: 1px solid #eee7db; display: grid; gap: 12px; grid-template-columns: 32px 1fr; padding: 10px 0; }
-.reader-roadmap li span { color: #0d7a7a; font-weight: 700; }
-.reader-roadmap li strong { color: #13233a; display: block; font-size: 12px; }
-.plan-phase { border: 0; border-left: 0; break-before: page; padding: 0; }
-.phase-heading { border-bottom: 1px solid #ded6c7; margin-bottom: 14px; padding-bottom: 9px; }
+.reader-index { border-collapse: collapse; margin: 0; width: 100%; }
+.reader-index td { border: 0; border-top: 1px solid #eee7db; padding: 9px 0; text-align: left; vertical-align: middle; }
+.reader-index-number { color: #0d7a7a; font-weight: 700; line-height: 1.25; width: 38px; }
+.reader-index strong { color: #13233a; display: block; font-size: 12px; line-height: 1.28; overflow-wrap: anywhere; }
+.plan-phase { border: 0; border-left: 0; break-inside: auto; margin: 0 0 18px; page-break-inside: auto; padding: 0; }
+.plan-phase + .plan-phase { margin-top: 18px; }
+.phase-heading { border-bottom: 1px solid #ded6c7; break-after: avoid; break-inside: avoid; margin-bottom: 12px; page-break-after: avoid; page-break-inside: avoid; padding-bottom: 9px; }
 .phase-heading p { color: #0d7a7a; font-size: 8.5px; font-weight: 700; letter-spacing: 0; margin: 0 0 4px; text-transform: uppercase; }
 .phase-heading h2 { color: #13233a; font-size: 21px; margin: 0 0 4px; }
 .phase-heading span { color: #667282; font-size: 10px; }
-.plan-subsection { background: #fff; border: 1px solid #ded6c7; border-left: 4px solid #0d7a7a; break-inside: auto; margin: 0 0 14px; page-break-inside: auto; padding: 13px 15px; }
-.plan-subsection header { align-items: flex-start; display: flex; gap: 12px; justify-content: space-between; margin-bottom: 9px; }
+.plan-subsection { background: #fff; border: 1px solid #ded6c7; border-left: 4px solid #0d7a7a; break-inside: auto; margin: 0 0 10px; page-break-inside: auto; padding: 12px 14px; }
+.plan-subsection header { align-items: flex-start; break-after: avoid; display: flex; gap: 12px; justify-content: space-between; margin-bottom: 8px; page-break-after: avoid; }
 .plan-subsection h3 { color: #13233a; font-size: 14px; line-height: 1.35; margin: 0; }
 .plan-subsection header span { background: #f8f5ee; border: 1px solid #ded6c7; color: #667282; flex: 0 0 auto; font-size: 8.5px; padding: 4px 7px; }
 .key-points { background: #f8f5ee; border: 1px solid #eee7db; margin: 8px 0 10px; padding: 9px 11px; }

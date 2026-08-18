@@ -85,6 +85,7 @@ type ImpactReviewCard = {
     review_url: string;
     target_type: string | null;
     target_id: string | null;
+    target_label: string | null;
     before_state: Record<string, unknown> | null;
     after_state: Record<string, unknown> | null;
     capability_profile: CapabilityProfile | null;
@@ -1178,16 +1179,32 @@ function evidenceHighlights(
 }
 
 function implementationTargetLabel(review: ImpactReviewCard): string {
+    if (review.target_label) {
+        return review.target_label;
+    }
+
+    const contextLabel = targetLabelFromContext(review);
+
+    if (contextLabel) {
+        return contextLabel;
+    }
+
     if (review.target_type || review.target_id) {
         return [review.target_type, review.target_id]
             .filter((value): value is string => Boolean(value))
             .join(': ');
     }
 
-    return targetLabelFromContext(review) || 'No target recorded';
+    return 'No target recorded';
 }
 
 function targetLabelFromContext(context: LearningEvidenceContext): string {
+    const referenceLabel = referenceDataLabel(context);
+
+    if (referenceLabel) {
+        return referenceLabel;
+    }
+
     const target = asRecord(context.proposed_change?.target);
     const targetType = stringValue(
         target?.type ?? context.proposed_change?.target_type,
@@ -1208,6 +1225,76 @@ function targetLabelFromContext(context: LearningEvidenceContext): string {
     }
 
     return module || modules || surface;
+}
+
+function referenceDataLabel(context: LearningEvidenceContext): string {
+    const dataset = stringValue(
+        context.proposed_change?.dataset ??
+            context.source?.dataset ??
+            context.impact_scope?.reference_dataset,
+    );
+    const payload =
+        asRecord(context.proposed_change?.payload) ??
+        asRecord(context.evidence?.payload);
+
+    if (!payload) {
+        return '';
+    }
+
+    if (dataset === 'economic_indicator') {
+        const name =
+            stringValue(payload.label) ||
+            label(stringValue(payload.indicator) || 'economic indicator');
+        const value = stringValue(payload.value);
+        const unit = stringValue(payload.unit);
+        const period = stringValue(payload.period_date);
+
+        return [
+            name,
+            [value, unit].filter((item) => item !== '').join(' '),
+            period ? `period ${period}` : '',
+        ]
+            .filter((item) => item !== '')
+            .join(' - ');
+    }
+
+    if (dataset === 'valuation_multiple') {
+        return [
+            stringValue(payload.industry_label) ||
+                stringValue(payload.industry_code),
+            label(stringValue(payload.metric)),
+            stringValue(payload.quarter),
+        ]
+            .filter((item) => item !== '')
+            .join(' - ');
+    }
+
+    if (dataset === 'industry_wacc') {
+        return [
+            stringValue(payload.industry_label) ||
+                stringValue(payload.industry_code),
+            stringValue(payload.wacc_rate)
+                ? `WACC ${stringValue(payload.wacc_rate)}%`
+                : '',
+            stringValue(payload.quarter),
+        ]
+            .filter((item) => item !== '')
+            .join(' - ');
+    }
+
+    if (dataset === 'gst_rate') {
+        return [
+            stringValue(payload.tax_name) || 'GST',
+            stringValue(payload.jurisdiction),
+            stringValue(payload.rate_percent)
+                ? `${stringValue(payload.rate_percent)}%`
+                : '',
+        ]
+            .filter((item) => item !== '')
+            .join(' - ');
+    }
+
+    return '';
 }
 
 function primarySignal(

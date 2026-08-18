@@ -200,15 +200,15 @@ final class AssessmentFeedback
 
         if ($priorities === []) {
             return $this->changeRequestMessages->build($profile, [
-                'You have made progress on your business plan. The next step is to add a little more practical detail before we review it again.',
-                'Please reply if you would like to talk through the next update before you begin.',
+                'You have made good progress. The next step is to add a little more practical detail so we can review the plan with confidence.',
+                'Reply if you would like to talk through the next update before you start.',
             ]);
         }
 
         return $this->changeRequestMessages->build($profile, [
-            'You have made progress on your business plan. You do not need to start again. The three criteria below received the lowest scores in this assessment.',
-            "Please use the assessment findings and suggested next steps below:\n\n".$this->formatPriorities($priorities, includeScores: false, includeEvidence: false),
-            'When you are ready, send the plan back. We will assess the evidence in the updated sections. Please reply if you would like to talk through any item before you begin.',
+            'You have made real progress here. You do not need to start again. The three areas below are simply the best places to tighten the next version.',
+            "I have set out what to focus on next:\n\n".$this->formatPriorities($priorities, includeScores: false, includeEvidence: false),
+            'When you are ready, send the plan back and we will review the updated sections. Reply first if you would like to talk through any of these points.',
         ]);
     }
 

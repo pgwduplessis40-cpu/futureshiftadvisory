@@ -249,6 +249,7 @@ final class PlanBuilderTest extends TestCase
         $this->assertStringContainsString('<strong>cash timing</strong>', $renderer->html);
         $this->assertStringContainsString('<em>supplier dependency</em>', $renderer->html);
         $this->assertStringContainsString('<li>Validate weekend demand</li>', $renderer->html);
+        $this->assertStringContainsString('prepared with Future Shift Advisory assistance', $renderer->html);
         $this->assertStringNotContainsString('<script>', $renderer->html);
     }
 

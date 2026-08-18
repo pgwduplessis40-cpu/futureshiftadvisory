@@ -171,7 +171,7 @@ final class BudgetPackBuilder
 <div class="decision-kicker">Funding position</div>
 <h2>%s</h2>
 <p class="decision-headline">%s</p>
-<div class="summary">%s%s%s%s</div>
+<div class="summary funding-summary">%s%s%s%s</div>
 </article>
 HTML,
             'Funding position',
@@ -194,7 +194,7 @@ HTML,
         );
         $useOfFundsSection = sprintf(
             <<<'HTML'
-<article class="report-section">
+<article class="report-section funding-build-up page">
 <h2>Funding build-up</h2>
 <p class="section-intro">The funding position is built from planned one-off costs, an operating-cover buffer, contingency, and cash already available in the forecast.</p>
 <table class="decision-table">
@@ -766,7 +766,7 @@ HTML,
         }
 
         $width = 720;
-        $height = 260;
+        $height = 285;
         $top = 22;
         $right = 72;
         $bottom = 42;
@@ -866,7 +866,7 @@ HTML,
 <div class="chart">
 <div class="chart-header">
 <div><p class="chart-title">Budget cash curve</p><p class="chart-note">Cumulative cash and revenue use separate scales so funding does not flatten the sales curve.</p></div>
-<div class="chart-legend">Cash -- teal&nbsp;&nbsp; Revenue -- gold</div>
+<div class="chart-legend"><span><i class="legend-dot legend-dot-cash"></i>Cash</span><span><i class="legend-dot legend-dot-revenue"></i>Revenue</span></div>
 </div>
 <svg role="img" aria-label="Budget cash curve" viewBox="0 0 %s %s">
 <line x1="%s" x2="%s" y1="%s" y2="%s" stroke="#17211b" stroke-opacity="0.28" stroke-dasharray="4 4"/>
@@ -1078,6 +1078,8 @@ HTML,
         return <<<'CSS'
 :root { --chart-1: #0d7a7a; --chart-4: #b8860b; }
 .report-content { display: block; }
+.report-content .report-section { margin: 0 0 18px; }
+.report-content .report-section.page { margin-top: 0; }
 .report-hero { background: #fff; border: 0; border-left: 0; break-after: page; margin: 68px 0 0; min-height: 430px; padding: 0; }
 .report-hero .eyebrow:empty { display: none; }
 .report-hero h1 { font-size: 31px; margin: 0 0 12px; }
@@ -1086,26 +1088,34 @@ HTML,
 .finance-summary h2 { font-size: 25px; margin-bottom: 15px; }
 .finance-summary p { color: #34443c; font-size: 13px; line-height: 1.75; margin: 0; max-width: 74ch; }
 .finance-summary-copy { max-width: 76ch; }
-.decision-view { background: #f8fbfa; border-left-color: #0d7a7a; }
-.decision-kicker { color: #0d7a7a; font-size: 9px; font-weight: 700; letter-spacing: 0; margin-bottom: 4px; text-transform: uppercase; }
-.decision-headline { color: #34443c; font-size: 12px; margin: 0 0 10px; }
-.summary { display: grid; gap: 8px; grid-template-columns: repeat(4, 1fr); margin: 12px 0; }
-.metric { background: #fff; border: 1px solid #d8e2dc; padding: 8px; }
-.metric span { color: #667085; display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; }
-.metric strong { display: block; font-size: 13px; margin-top: 2px; }
-.section-intro { color: #667085; font-size: 10.5px; margin: 0 0 8px; }
-.story p { margin: 0 0 7px; }
-.decision-table th, .decision-table td { text-align: left; }
+.decision-view { background: #f8fbfa; border-left-color: #0d7a7a; padding: 18px 20px; }
+.decision-kicker { color: #0d7a7a; font-size: 9px; font-weight: 700; letter-spacing: 0; margin-bottom: 6px; text-transform: uppercase; }
+.decision-headline { color: #34443c; font-size: 13px; line-height: 1.6; margin: 0 0 14px; max-width: 82ch; }
+.summary { display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr); margin: 14px 0 2px; }
+.metric { background: #fff; border: 1px solid #cfded8; min-height: 62px; padding: 11px 12px; }
+.metric span { color: #667085; display: block; font-size: 9.5px; font-weight: 700; text-transform: uppercase; }
+.metric strong { display: block; font-size: 15px; line-height: 1.25; margin-top: 5px; }
+.section-intro { color: #667085; font-size: 11px; line-height: 1.55; margin: 0 0 12px; max-width: 86ch; }
+.cash-story { padding: 17px 20px 18px; }
+.story { margin-bottom: 14px; }
+.story p { font-size: 11.5px; line-height: 1.62; margin: 0 0 8px; max-width: 92ch; }
+.funding-build-up { break-before: page; }
+.decision-table { font-size: 10.5px; line-height: 1.45; margin-top: 12px; }
+.decision-table th, .decision-table td { padding: 7px 8px; text-align: left; }
 .decision-table th:nth-child(2), .decision-table td:nth-child(2) { text-align: right; white-space: nowrap; }
 .scenario-comparison td:last-child { color: #34443c; }
 .warning { background: #fff7e6; border: 1px solid #f3d08f; margin: 10px 0; padding: 8px 10px; }
 .warning strong { display: block; margin-bottom: 4px; }
 .warning ul { margin: 0; padding-left: 16px; }
-.chart { border: 1px solid #d8e2dc; margin: 12px 0 14px; padding: 10px; page-break-inside: avoid; }
-.chart-header { display: flex; gap: 12px; justify-content: space-between; margin-bottom: 6px; }
-.chart-title { font-weight: 700; margin: 0; }
-.chart-note { color: #667085; font-size: 10px; margin: 0; }
-.chart-legend { color: #667085; font-size: 10px; white-space: nowrap; }
+.chart { border: 1px solid #cfded8; margin: 16px 0 2px; padding: 13px 14px 12px; page-break-inside: avoid; }
+.chart-header { align-items: flex-start; display: flex; gap: 16px; justify-content: space-between; margin-bottom: 10px; }
+.chart-title { font-size: 12px; font-weight: 700; margin: 0 0 2px; }
+.chart-note { color: #667085; font-size: 10.5px; line-height: 1.45; margin: 0; max-width: 60ch; }
+.chart-legend { align-items: center; color: #667085; display: flex; font-size: 10px; gap: 12px; white-space: nowrap; }
+.chart-legend span { align-items: center; display: inline-flex; gap: 5px; }
+.legend-dot { display: inline-block; height: 8px; width: 8px; }
+.legend-dot-cash { background: var(--chart-1); }
+.legend-dot-revenue { background: var(--chart-4); }
 .chart svg { display: block; height: auto; width: 100%; }
 .annual-forecast { break-inside: avoid; }
 .monthly-appendix table { font-size: 10px; }

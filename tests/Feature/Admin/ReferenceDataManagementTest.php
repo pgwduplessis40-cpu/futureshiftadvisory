@@ -84,6 +84,7 @@ final class ReferenceDataManagementTest extends TestCase
         $this->assertSame('2026-06-01', $entry->as_at?->toDateString());
         $this->assertSame('stats-manual', $entry->source);
         $this->assertSame(LearningUpdate::STATUS_DETECTED, $update->status);
+        $this->assertSame('CPI annual manual reference data submitted for 2026-06-01.', $update->summary);
         $this->assertDatabaseCount('economic_indicators', 0);
 
         $implementation = $this->approveAndImplement($update, $admin);
@@ -92,11 +93,19 @@ final class ReferenceDataManagementTest extends TestCase
         $this->assertSame(LearningUpdate::STATUS_IMPLEMENTED, $update->refresh()->status);
         $this->assertSame(EconomicIndicator::class, $implementation->target_type);
         $this->assertSame($indicator->id, $implementation->target_id);
+        $this->assertSame('CPI annual: 3.4 percent (period 2026-06-01)', $implementation->after_state['projection']['target_label']);
         $this->assertSame('manual_admin', $indicator->source_badge);
         $this->assertSame('stats-manual', $indicator->source);
         $this->assertEqualsWithDelta(3.4, $indicator->value, 0.001);
         $this->assertSame($entry->id, $indicator->payload['reference_data_entry_id']);
         $this->assertSame(ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR, $implementation->after_state['projection']['dataset']);
+        $implementation->forceFill(['review_due' => now()->subMinute()])->save();
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.learning-updates.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('impact_reviews.0.target_label', 'CPI annual: 3.4 percent (period 2026-06-01)'));
         $this->assertDatabaseHas('audit_events', [
             'action' => 'reference_data.submitted',
             'subject_id' => $entry->id,

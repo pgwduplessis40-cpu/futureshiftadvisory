@@ -79,6 +79,7 @@ export function DocumentVerificationFlagPanel({
                                 </p>
                             </div>
                             <DiscrepancyDialog
+                                id={flag.id}
                                 outcome={flag.outcome}
                                 claim={flag.claim_text}
                                 explanation={

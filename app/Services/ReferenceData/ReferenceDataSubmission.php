@@ -342,11 +342,11 @@ final class ReferenceDataSubmission
     private function summary(string $dataset, array $payload, CarbonInterface $asAt): string
     {
         $label = match ($dataset) {
-            ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR => 'Economic indicator',
-            ReferenceDataEntry::DATASET_VALUATION_MULTIPLE => 'Valuation multiple',
-            ReferenceDataEntry::DATASET_INDUSTRY_WACC => 'Industry WACC',
+            ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR => trim((string) ($payload['label'] ?? $payload['indicator'] ?? 'Economic indicator')) ?: 'Economic indicator',
+            ReferenceDataEntry::DATASET_VALUATION_MULTIPLE => trim((string) ($payload['industry_label'] ?? $payload['industry_code'] ?? 'Valuation multiple')).' valuation multiple',
+            ReferenceDataEntry::DATASET_INDUSTRY_WACC => trim((string) ($payload['industry_label'] ?? $payload['industry_code'] ?? 'Industry')).' WACC',
             ReferenceDataEntry::DATASET_CPB_BENCHMARK => 'Cost-per-beneficiary benchmark',
-            ReferenceDataEntry::DATASET_GST_RATE => 'GST rate',
+            ReferenceDataEntry::DATASET_GST_RATE => trim((string) ($payload['tax_name'] ?? 'GST')).' rate',
             default => 'Reference data',
         };
 

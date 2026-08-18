@@ -542,7 +542,7 @@ final class AssessmentTest extends TestCase
         $this->assertStringContainsString('Suggested next step:', $feedback);
         $this->assertStringContainsString('Plan sections reviewed:', $feedback);
         $this->assertStringContainsString('Dear Assessment,', $reply);
-        $this->assertStringContainsString('You have made progress', $reply);
+        $this->assertStringContainsString('You have made real progress', $reply);
         $this->assertStringContainsString('Assessment finding:', $reply);
         $this->assertStringNotContainsString('What is missing:', $reply);
         $this->assertStringNotContainsString('Assessment completed:', $reply);
@@ -567,7 +567,7 @@ final class AssessmentTest extends TestCase
         $replyLower = strtolower($reply);
 
         $this->assertStringContainsString('You do not need to start again.', $reply);
-        $this->assertStringContainsString('Please use the assessment findings and suggested next steps below:', $reply);
+        $this->assertStringContainsString('I have set out what to focus on next:', $reply);
         $this->assertStringNotContainsString('...', $reply);
         $this->assertStringNotContainsString('directionally', $replyLower);
         $this->assertStringNotContainsString('materially underdeveloped', $replyLower);

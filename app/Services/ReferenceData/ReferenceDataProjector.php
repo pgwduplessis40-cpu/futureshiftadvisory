@@ -82,6 +82,7 @@ final class ReferenceDataProjector
         return [
             'target_type' => EconomicIndicator::class,
             'target_id' => (string) $indicator->getKey(),
+            'target_label' => $this->economicIndicatorLabel($payload),
             'projected' => true,
             'dataset' => $entry->dataset,
         ];
@@ -129,6 +130,12 @@ final class ReferenceDataProjector
         return [
             'target_type' => ValuationMultiple::class,
             'target_id' => (string) $existing->getKey(),
+            'target_label' => sprintf(
+                '%s %s multiple (%s)',
+                (string) $payload['industry_label'],
+                strtoupper((string) $payload['metric']),
+                (string) $payload['quarter'],
+            ),
             'projected' => true,
             'dataset' => $entry->dataset,
         ];
@@ -176,6 +183,12 @@ final class ReferenceDataProjector
         return [
             'target_type' => IndustryWaccData::class,
             'target_id' => (string) $existing->getKey(),
+            'target_label' => sprintf(
+                '%s WACC %s%% (%s)',
+                (string) $payload['industry_label'],
+                $this->decimalLabel((float) $payload['wacc_rate']),
+                (string) $payload['quarter'],
+            ),
             'projected' => true,
             'dataset' => $entry->dataset,
         ];
@@ -214,5 +227,29 @@ final class ReferenceDataProjector
     private function nullableFloat(mixed $value): ?float
     {
         return is_numeric($value) ? round((float) $value, 6) : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function economicIndicatorLabel(array $payload): string
+    {
+        $label = trim((string) ($payload['label'] ?? $payload['indicator'] ?? 'Economic indicator'));
+        $value = $this->decimalLabel((float) $payload['value']);
+        $unit = trim((string) ($payload['unit'] ?? ''));
+        $period = trim((string) ($payload['period_date'] ?? ''));
+
+        return sprintf(
+            '%s: %s%s%s',
+            $label,
+            $value,
+            $unit !== '' ? ' '.$unit : '',
+            $period !== '' ? ' (period '.$period.')' : '',
+        );
+    }
+
+    private function decimalLabel(float $value): string
+    {
+        return rtrim(rtrim(number_format($value, 6, '.', ''), '0'), '.');
     }
 }

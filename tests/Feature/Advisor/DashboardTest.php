@@ -68,7 +68,7 @@ final class DashboardTest extends TestCase
         $this->acceptTerms($contact, $priorTerms, now()->subDay());
         $this->acceptTerms($otherContact, $priorTerms, now()->subDay());
 
-        $this->documentFlagFor($client, 'scoped-support.pdf');
+        $documentFlag = $this->documentFlagFor($client, 'scoped-support.pdf');
         $this->documentFlagFor($otherClient, 'other-support.pdf');
         $this->redFlagFor($client, 'Scoped critical flag');
         $this->redFlagFor($otherClient, 'Other critical flag');
@@ -106,6 +106,7 @@ final class DashboardTest extends TestCase
                 ->where('redFlags.items.0.headline', 'Scoped critical flag')
                 ->where('redFlags.items.0.client_name', 'Scoped Health Limited')
                 ->has('documentVerificationFlags', 1)
+                ->where('documentVerificationFlags.0.id', $documentFlag->id)
                 ->where('documentVerificationFlags.0.client_name', 'Scoped Health Limited')
                 ->where('documentVerificationFlags.0.document_name', 'scoped-support.pdf')
                 ->where('pendingTermsReacceptance.total', 1)
@@ -148,6 +149,29 @@ final class DashboardTest extends TestCase
                 ->where('feeStatus.charging_enabled', false)
                 ->where('feeStatus.can_manage', true)
                 ->where('feeStatus.manage_url', route('admin.service-rates.index', absolute: false)));
+    }
+
+    public function test_advisor_can_resolve_dashboard_document_verification_flag(): void
+    {
+        $advisor = $this->advisor('verification-advisor@example.test');
+        $client = $this->clientFor($advisor, 'Verification Client Limited', Client::DATA_QUALITY_LOW);
+        $verification = $this->documentFlagFor($client, 'verification-support.pdf');
+        $note = 'Reviewed the uploaded file against the stated claim and requested corrected evidence before use.';
+
+        $this->from(route('dashboard', absolute: false))
+            ->actingAsMfa($advisor)
+            ->patch(route('advisor.document-verifications.update', $verification), [
+                'resolution_note' => $note,
+            ])
+            ->assertRedirect(route('dashboard', absolute: false))
+            ->assertSessionHas('status', 'document-verification-resolved');
+
+        $verification->refresh();
+
+        $this->assertNotNull($verification->resolved_at);
+        $this->assertSame($advisor->getKey(), $verification->resolved_by_user_id);
+        $this->assertSame($note, $verification->resolution_note);
+        $this->assertFalse($verification->isBlockingAnalysis());
     }
 
     public function test_advisor_dashboard_surfaces_entrepreneur_idea_and_plan_reviews(): void
@@ -686,7 +710,7 @@ final class DashboardTest extends TestCase
         ]);
     }
 
-    private function documentFlagFor(Client $client, string $filename): void
+    private function documentFlagFor(Client $client, string $filename): DocumentVerification
     {
         $document = Document::query()->create([
             'client_id' => $client->id,
@@ -698,7 +722,7 @@ final class DashboardTest extends TestCase
             'scanner_result' => Document::SCANNER_CLEAN,
         ]);
 
-        DocumentVerification::query()->create([
+        return DocumentVerification::query()->create([
             'document_id' => $document->id,
             'client_id' => $client->id,
             'claim_source' => 'dashboard_test',

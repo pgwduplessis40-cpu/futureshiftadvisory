@@ -7,6 +7,7 @@ namespace App\Services\Learning;
 use App\Models\LearningUpdate;
 use App\Models\LearningUpdateDecision;
 use App\Models\LearningUpdateImplementation;
+use App\Models\ReferenceDataEntry;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\ReferenceData\ReferenceDataProjector;
@@ -204,6 +205,7 @@ final class ApprovalFlow
                     'review_url' => route('admin.learning-update-implementations.review', $implementation, absolute: false),
                     'target_type' => $implementation->target_type,
                     'target_id' => $implementation->target_id,
+                    'target_label' => $this->implementationTargetLabel($implementation),
                     'before_state' => $implementation->before_state ?? [],
                     'after_state' => $implementation->after_state ?? [],
                     'suggested_metrics' => $this->suggestedImpactMetrics($implementation),
@@ -360,6 +362,44 @@ final class ApprovalFlow
             'sample_size' => data_get($evidence, 'sample_size'),
             'rollback_required' => false,
         ];
+    }
+
+    private function implementationTargetLabel(LearningUpdateImplementation $implementation): ?string
+    {
+        $projectionLabel = data_get($implementation->after_state, 'projection.target_label');
+        if (is_string($projectionLabel) && trim($projectionLabel) !== '') {
+            return trim($projectionLabel);
+        }
+
+        $update = $implementation->learningUpdate;
+        $dataset = $update instanceof LearningUpdate
+            ? data_get($update->proposed_change, 'dataset') ?? data_get($update->source, 'dataset')
+            : null;
+        $payload = $update instanceof LearningUpdate ? data_get($update->proposed_change, 'payload') : null;
+
+        if ($dataset === ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR && is_array($payload)) {
+            $label = trim((string) ($payload['label'] ?? $payload['indicator'] ?? 'Economic indicator'));
+            $value = is_numeric($payload['value'] ?? null)
+                ? $this->decimalMetric((float) $payload['value'])
+                : trim((string) ($payload['value'] ?? ''));
+            $unit = trim((string) ($payload['unit'] ?? ''));
+            $period = trim((string) ($payload['period_date'] ?? ''));
+
+            return sprintf(
+                '%s%s%s%s',
+                $label,
+                $value !== '' ? ': '.$value : '',
+                $unit !== '' ? ' '.$unit : '',
+                $period !== '' ? ' (period '.$period.')' : '',
+            );
+        }
+
+        return null;
+    }
+
+    private function decimalMetric(float $value): string
+    {
+        return rtrim(rtrim(number_format($value, 6, '.', ''), '0'), '.');
     }
 
     /**

@@ -191,6 +191,28 @@ export default function EntrepreneurAssessment({
         });
     };
 
+    const useSuggestedReply = () => {
+        if (!advisorFeedback) {
+            return;
+        }
+
+        updateAdvisorFeedbackDraft(feedback, advisorFeedback.suggested_reply);
+        setFeedbackErrors((errors) => ({
+            ...errors,
+            proposed_reply: undefined,
+        }));
+
+        if (proposedReply.trim() === advisorFeedback.suggested_reply.trim()) {
+            toast.message(
+                'The suggested reply is already loaded. Use Send reply to founder when you are ready.',
+            );
+
+            return;
+        }
+
+        toast.success('Suggested reply loaded into the draft.');
+    };
+
     const submitAdvisorFeedback = (sendToFounder: boolean) => {
         if (!advisorFeedback || feedbackPending) {
             return;
@@ -654,14 +676,9 @@ export default function EntrepreneurAssessment({
                                 size="sm"
                                 variant="outline"
                                 disabled={feedbackPending || regeneratingDraft}
-                                onClick={() =>
-                                    updateAdvisorFeedbackDraft(
-                                        feedback,
-                                        advisorFeedback.suggested_reply,
-                                    )
-                                }
+                                onClick={useSuggestedReply}
                             >
-                                Use suggested reply
+                                Reset reply to suggested draft
                             </Button>
                         </div>
 

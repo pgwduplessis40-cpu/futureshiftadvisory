@@ -70,8 +70,8 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringContainsString('Scenario comparison', $html);
         $this->assertStringContainsString('Appendix - Year 1 monthly detail', $html);
         $this->assertStringContainsString('<svg role="img" aria-label="Budget cash curve"', $html);
-        $this->assertStringContainsString('Cash -- teal', $html);
-        $this->assertStringContainsString('Revenue -- gold', $html);
+        $this->assertStringContainsString('legend-dot-cash', $html);
+        $this->assertStringContainsString('legend-dot-revenue', $html);
         $this->assertStringContainsString('Founder - Budget Founder', $html);
         $this->assertStringNotContainsString('Budget inputs', $html);
         $this->assertStringContainsString('Internal draft - not for external issue', $html);
@@ -80,8 +80,11 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringContainsString('Lowest cash M1', $html);
         $this->assertStringContainsString('Break-even M2', $html);
         $this->assertStringContainsString('Runway M3', $html);
+        $this->assertStringContainsString('class="summary funding-summary"', $html);
+        $this->assertStringContainsString('class="report-section funding-build-up page"', $html);
         $this->assertStringContainsString('class="report-section annual-forecast page"', $html);
         $this->assertStringContainsString('class="report-section assumption-quality page"', $html);
+        $this->assertStringContainsString('.funding-build-up { break-before: page; }', $html);
     }
 
     public function test_budget_pack_fallback_pdf_is_structured_without_browser_renderer(): void
