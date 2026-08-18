@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -104,7 +105,10 @@ final class AddClientTest extends TestCase
             ->get(route('advisor.clients.create'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('engagementTypes.4.value', EngagementType::NPO->value)
+                ->where('engagementTypes', fn (Collection $types): bool => $types->contains(
+                    'value',
+                    EngagementType::NPO->value,
+                ))
                 ->where('npoOptions.legalStructures.0.value', NpoLegalStructure::RegisteredCharity->value));
 
         $this->actingAsMfa($advisor)
