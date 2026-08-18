@@ -45,7 +45,10 @@
       "Bash(bash -c 'set -eu; if seq 1 2000000 | grep -q \"^1$\"; then echo \"MATCH \\(correct\\)\"; else echo \"NO MATCH\"; fi')",
       "Bash(bash -c 'set -euo pipefail; if systemctl cat nonexistent-unit >/dev/null 2>&1; then echo found; else echo \"not found \\(correct, and no pipefail hazard\\)\"; fi')",
       "Bash(grep -n \"no \\\\`active\\\\` or \\\\`pending\\\\` authorit\\\\|no unrevoked\\\\|no \\\\`submitted\\\\` payment\" PLAN-DIRECT-DEBIT-EZYPAY.md)",
-      "Bash(grep -n \"insert the \\\\`submitted\\\\` payment row\" PLAN-DIRECT-DEBIT-EZYPAY.md)"
+      "Bash(grep -n \"insert the \\\\`submitted\\\\` payment row\" PLAN-DIRECT-DEBIT-EZYPAY.md)",
+      "Bash(cd \"C:/Users/pgwdu/AppData/Local/Temp/claude/C--Users-pgwdu-Herd-futureshiftadvisory/be327733-b257-4d7c-aabb-3a6f1949d43b/scratchpad\" && head -c 2000 \"C:/Users/pgwdu/Downloads/tania-hassounia-budget-pack.pdf\" | strings | head -40)",
+      "Bash(grep -a -o '\\([−$-]*[0-9][0-9.,]*[km]*\\) Tj' \"C:/Users/pgwdu/Downloads/tania-hassounia-budget-pack.pdf\")",
+      "Bash(grep -a -E '\\\\$[0-9.]+[km]')"
     ]
   }
 }
