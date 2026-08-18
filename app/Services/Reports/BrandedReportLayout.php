@@ -111,7 +111,7 @@ HTML,
         );
     }
 
-    public function css(?Template $template = null, int $metaColumns = 3): string
+    public function css(?Template $template = null, int $metaColumns = 3, bool $fixedFooter = true): string
     {
         $accent = $this->templateLayoutColor($template, 'accent_color', '#0d7a7a');
         $accentDark = $this->templateLayoutColor($template, 'accent_dark', '#1c2f4a');
@@ -119,6 +119,9 @@ HTML,
         $muted = $this->templateLayoutColor($template, 'muted_color', '#667282');
         $paper = $this->templateLayoutColor($template, 'paper_color', '#ffffff');
         $metaColumns = max(1, min(5, $metaColumns));
+        $footerPlacement = $fixedFooter
+            ? 'bottom: 0; left: 0; position: fixed; right: 0;'
+            : 'margin-top: 24px;';
 
         return <<<CSS
 @page { margin: 15mm 15mm 26mm; }
@@ -167,7 +170,7 @@ th, td { border: 1px solid #d8e2dc; padding: 5px 6px; text-align: right; vertica
 th:first-child, td:first-child { text-align: left; }
 th { background: #f5f8f6; color: #34443c; font-size: 10px; }
 .muted { color: {$muted}; }
-.report-footer { border-top: 1px solid #ded6c7; bottom: 0; color: {$muted}; font-size: 9px; left: 0; margin: 0; padding-top: 8px; position: fixed; right: 0; text-align: right; }
+.report-footer { border-top: 1px solid #ded6c7; color: {$muted}; font-size: 9px; margin: 0; padding-top: 8px; {$footerPlacement} text-align: right; }
 CSS;
     }
 

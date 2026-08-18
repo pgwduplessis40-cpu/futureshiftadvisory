@@ -5299,7 +5299,7 @@ HTML,
 
     private function reportCss(?Template $template): string
     {
-        return $this->layout->css($template);
+        return $this->layout->css($template, fixedFooter: false);
     }
 
     private function templateLayoutColor(?Template $template, string $key, string $default): string
