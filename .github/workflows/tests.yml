@@ -58,7 +58,7 @@ jobs:
           node-version: '22'
 
       - name: Install Node Dependencies
-        run: npm i
+        run: npm ci
 
       - name: Copy Testing Environment File
         run: cp .env.testing .env
