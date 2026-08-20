@@ -5,6 +5,7 @@ import FaqController from './FaqController'
 import ContactController from './ContactController'
 import SitemapController from './SitemapController'
 import LlmsTxtController from './LlmsTxtController'
+
 const Public = {
     HomeController: Object.assign(HomeController, HomeController),
     ServicesController: Object.assign(ServicesController, ServicesController),

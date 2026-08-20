@@ -42,6 +42,7 @@ import DocumentVerificationController from './DocumentVerificationController'
 import RedFlagController from './RedFlagController'
 import AnalysisFeedbackController from './AnalysisFeedbackController'
 import BulkCommunicationController from './BulkCommunicationController'
+
 const Advisor = {
     CalendarController: Object.assign(CalendarController, CalendarController),
     MessageInboxController: Object.assign(MessageInboxController, MessageInboxController),

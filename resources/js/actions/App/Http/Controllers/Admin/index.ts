@@ -23,6 +23,7 @@ import InspirationBoardController from './InspirationBoardController'
 import LearningUpdateController from './LearningUpdateController'
 import PanelMemberController from './PanelMemberController'
 import SurveyAssignmentController from './SurveyAssignmentController'
+
 const Admin = {
     InvitationController: Object.assign(InvitationController, InvitationController),
     StaffController: Object.assign(StaffController, StaffController),

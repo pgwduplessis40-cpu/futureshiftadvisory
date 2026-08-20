@@ -23,6 +23,7 @@ import inspirationBoard from './inspiration-board'
 import learningUpdates from './learning-updates'
 import learningUpdateImplementations from './learning-update-implementations'
 import panelMembers from './panel-members'
+
 const admin = {
     invitations: Object.assign(invitations, invitations),
     staff: Object.assign(staff, staff),

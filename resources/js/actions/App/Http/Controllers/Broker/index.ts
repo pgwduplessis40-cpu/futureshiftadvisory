@@ -1,4 +1,5 @@
 import ReferralStageController from './ReferralStageController'
+
 const Broker = {
     ReferralStageController: Object.assign(ReferralStageController, ReferralStageController),
 }

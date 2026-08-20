@@ -19,6 +19,7 @@ import ProposalSignoffController from './ProposalSignoffController'
 import WellbeingController from './WellbeingController'
 import SurveyController from './SurveyController'
 import OnboardingController from './OnboardingController'
+
 const Portal = {
     DashboardController: Object.assign(DashboardController, DashboardController),
     StrategicBudgetController: Object.assign(StrategicBudgetController, StrategicBudgetController),

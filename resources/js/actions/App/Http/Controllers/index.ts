@@ -21,6 +21,7 @@ import Coach from './Coach'
 import PanelApplicationController from './PanelApplicationController'
 import PanelAgreementController from './PanelAgreementController'
 import Settings from './Settings'
+
 const Controllers = {
     DeploymentController: Object.assign(DeploymentController, DeploymentController),
     DdGuestUploadController: Object.assign(DdGuestUploadController, DdGuestUploadController),
