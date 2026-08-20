@@ -76,7 +76,28 @@ jobs:
         run: npm run build
 
       - name: Verify build does not dirty tracked files
-        run: git diff --exit-code
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+
+          dirty_paths="$(git diff --name-only | sed -n '1,30p' | tr '\n' ' ')"
+          echo "::error title=Build dirtied tracked files::${dirty_paths}"
+
+          echo "::group::Tracked build diff names"
+          git diff --name-only
+          echo "::endgroup::"
+
+          echo "::group::Tracked build diff stat"
+          git diff --stat
+          echo "::endgroup::"
+
+          echo "::group::Tracked build diff excerpt"
+          git diff -- package-lock.json package.json resources/js/actions resources/js/routes | sed -n '1,240p'
+          echo "::endgroup::"
+
+          exit 1
 
       - name: Verify PHP test runtime
         shell: bash

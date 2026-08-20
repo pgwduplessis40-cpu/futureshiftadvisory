@@ -2,6 +2,11 @@ import { readdir, readFile, writeFile } from 'node:fs/promises';
 
 const generatedRoots = ['resources/js/actions', 'resources/js/routes'];
 const maxNormalizePasses = 5;
+const stableStringIdRouteFiles = new Set([
+    'resources/js/actions/App/Http/Controllers/Advisor/FoundingAdvisoryController.ts',
+    'resources/js/routes/advisor/founding-advisory/index.ts',
+    'resources/js/routes/advisor/founding-advisory/roadmaps/index.ts',
+]);
 
 const stringReplacements = [
     [' ,', ','],
@@ -59,7 +64,18 @@ function collapseMatchedWhitespace(source, patterns) {
     return cleaned;
 }
 
-function normalizeWayfinderTypes(source) {
+function normalizePlatformRouteTypes(source, path) {
+    if (!stableStringIdRouteFiles.has(path)) {
+        return source;
+    }
+
+    return source.replaceAll(
+        'string | number | { id: string | number }',
+        'string | { id: string }',
+    );
+}
+
+function normalizeWayfinderTypes(source, path) {
     let cleaned = source.replace(/\r\n?/g, '\n');
 
     cleaned = collapseMatchedWhitespace(cleaned, [
@@ -103,14 +119,16 @@ function normalizeWayfinderTypes(source) {
         cleaned = cleaned.replaceAll(search, replacement);
     }
 
+    cleaned = normalizePlatformRouteTypes(cleaned, path);
+
     return `${cleaned.replace(/^[\t ]+$/gm, '').replace(/\n*$/, '')}\n`;
 }
 
-function normalizeWayfinderTypesUntilStable(source) {
+function normalizeWayfinderTypesUntilStable(source, path) {
     let cleaned = source;
 
     for (let pass = 0; pass < maxNormalizePasses; pass += 1) {
-        const next = normalizeWayfinderTypes(cleaned);
+        const next = normalizeWayfinderTypes(cleaned, path);
 
         if (next === cleaned) {
             return cleaned;
@@ -126,7 +144,7 @@ let changed = 0;
 
 for (const path of generatedFiles) {
     const source = await readFile(path, 'utf8');
-    const cleaned = normalizeWayfinderTypesUntilStable(source);
+    const cleaned = normalizeWayfinderTypesUntilStable(source, path);
 
     if (cleaned !== source) {
         await writeFile(path, cleaned);
