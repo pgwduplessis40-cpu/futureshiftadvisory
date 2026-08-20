@@ -82,6 +82,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 const pilotFeeWaivers = {
     index: Object.assign(index, index),
     program: Object.assign(program, program),

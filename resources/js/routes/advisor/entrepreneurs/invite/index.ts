@@ -88,6 +88,7 @@ updateForm.patch = (args: { entrepreneurProfile: string | { id: string } } | [en
 })
 
 update.form = updateForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::resend
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:223
@@ -167,6 +168,7 @@ resendForm.post = (args: { entrepreneurProfile: string | { id: string } } | [ent
 })
 
 resend.form = resendForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::cancel
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:333
@@ -256,6 +258,7 @@ cancelForm.delete = (args: { entrepreneurProfile: string | { id: string } } | [e
 })
 
 cancel.form = cancelForm
+
 const invite = {
     update: Object.assign(update, update),
     resend: Object.assign(resend, resend),

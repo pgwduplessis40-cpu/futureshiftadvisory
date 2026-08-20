@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::image
 * @see app/Http/Controllers/Portal/InspirationBoardController.php:43
@@ -183,6 +184,7 @@ imageForm.head = (args: { boardPost: string | { id: string } } | [boardPost: str
 })
 
 image.form = imageForm
+
 const inspirationBoard = {
     index: Object.assign(index, index),
     image: Object.assign(image, image),

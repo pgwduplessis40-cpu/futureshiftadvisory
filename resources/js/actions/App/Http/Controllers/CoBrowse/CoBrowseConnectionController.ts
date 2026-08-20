@@ -78,6 +78,7 @@ registerAdvisorForm.post = (args: { client: string | { id: string } } | [client:
 })
 
 registerAdvisor.form = registerAdvisorForm
+
 /**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseConnectionController::registerAdvisorForEntrepreneur
 * @see app/Http/Controllers/CoBrowse/CoBrowseConnectionController.php:37
@@ -157,6 +158,7 @@ registerAdvisorForEntrepreneurForm.post = (args: { entrepreneurProfile: string |
 })
 
 registerAdvisorForEntrepreneur.form = registerAdvisorForEntrepreneurForm
+
 /**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseConnectionController::registerClient
 * @see app/Http/Controllers/CoBrowse/CoBrowseConnectionController.php:23
@@ -212,6 +214,7 @@ registerClientForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'po
 })
 
 registerClient.form = registerClientForm
+
 /**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseConnectionController::pendingPrompt
 * @see app/Http/Controllers/CoBrowse/CoBrowseConnectionController.php:52
@@ -291,6 +294,7 @@ pendingPromptForm.post = (args: { connection: string | { id: string } } | [conne
 })
 
 pendingPrompt.form = pendingPromptForm
+
 /**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseConnectionController::heartbeat
 * @see app/Http/Controllers/CoBrowse/CoBrowseConnectionController.php:42
@@ -370,6 +374,7 @@ heartbeatForm.post = (args: { connection: string | { id: string } } | [connectio
 })
 
 heartbeat.form = heartbeatForm
+
 const CoBrowseConnectionController = { registerAdvisor, registerAdvisorForEntrepreneur, registerClient, pendingPrompt, heartbeat }
 
 export default CoBrowseConnectionController

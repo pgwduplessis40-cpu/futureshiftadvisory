@@ -79,6 +79,7 @@ pendingActionsForm.post = (args: { session: string | { id: string } } | [session
 })
 
 pendingActions.form = pendingActionsForm
+
 /**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseSessionController::status
 * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:122
@@ -158,6 +159,7 @@ statusForm.post = (args: { session: string | { id: string } } | [session: string
 })
 
 status.form = statusForm
+
 /**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseSessionController::heartbeat
 * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:130
@@ -237,6 +239,7 @@ heartbeatForm.post = (args: { session: string | { id: string } } | [session: str
 })
 
 heartbeat.form = heartbeatForm
+
 /**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseSessionController::end
 * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:138
@@ -316,6 +319,7 @@ endForm.post = (args: { session: string | { id: string } } | [session: string | 
 })
 
 end.form = endForm
+
 const sessions = {
     actions: Object.assign(actions, actions),
     pendingActions: Object.assign(pendingActions, pendingActions),

@@ -103,6 +103,7 @@ showForm.head = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFo
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Portal\OutcomeFollowUpController::submit
 * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:39
@@ -182,6 +183,7 @@ submitForm.post = (args: { outcomeFollowUp: string | { id: string } } | [outcome
 })
 
 submit.form = submitForm
+
 const outcomeFollowUps = {
     show: Object.assign(show, show),
     submit: Object.assign(submit, submit),

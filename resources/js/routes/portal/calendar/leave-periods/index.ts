@@ -54,6 +54,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Portal\ClientLeavePeriodController::destroy
 * @see app/Http/Controllers/Portal/ClientLeavePeriodController.php:51
@@ -143,6 +144,7 @@ destroyForm.delete = (args: { leavePeriod: string | { id: string } } | [leavePer
 })
 
 destroy.form = destroyForm
+
 const leavePeriods = {
     store: Object.assign(store, store),
     destroy: Object.assign(destroy, destroy),

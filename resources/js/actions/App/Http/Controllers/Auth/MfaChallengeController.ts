@@ -79,6 +79,7 @@ showForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Auth\MfaChallengeController::store
 * @see app/Http/Controllers/Auth/MfaChallengeController.php:44
@@ -134,6 +135,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 const MfaChallengeController = { show, store }
 
 export default MfaChallengeController

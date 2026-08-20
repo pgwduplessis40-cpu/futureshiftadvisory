@@ -80,6 +80,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\RatingFrameworkController::publish
 * @see app/Http/Controllers/Admin/RatingFrameworkController.php:60
@@ -159,6 +160,7 @@ publishForm.post = (args: { ratingFramework: string | { id: string } } | [rating
 })
 
 publish.form = publishForm
+
 const ratingFrameworks = {
     index: Object.assign(index, index),
     drafts: Object.assign(drafts, drafts),

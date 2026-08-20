@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\NotificationController::markAllRead
 * @see app/Http/Controllers/NotificationController.php:45
@@ -144,6 +145,7 @@ markAllReadForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post
 })
 
 markAllRead.form = markAllReadForm
+
 /**
 * @see \App\Http\Controllers\NotificationController::markRead
 * @see app/Http/Controllers/NotificationController.php:33
@@ -227,6 +229,7 @@ markReadForm.patch = (args: { notification: string | number } | [notification: s
 })
 
 markRead.form = markReadForm
+
 const notifications = {
     index: Object.assign(index, index),
     markAllRead: Object.assign(markAllRead, markAllRead),

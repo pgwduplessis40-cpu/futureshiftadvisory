@@ -86,6 +86,7 @@ updateForm.patch = (args: { report: string | { id: string }, reportSection: stri
 })
 
 update.form = updateForm
+
 const sections = {
     update: Object.assign(update, update),
     comments: Object.assign(comments, comments),

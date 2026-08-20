@@ -79,6 +79,7 @@ createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 create.form = createForm
+
 /**
 * @see \Laravel\Fortify\Http\Controllers\PasswordResetLinkController::store
 * @see vendor/laravel/fortify/src/Http/Controllers/PasswordResetLinkController.php:30
@@ -134,6 +135,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 const PasswordResetLinkController = { create, store }
 
 export default PasswordResetLinkController

@@ -78,6 +78,7 @@ storeForClientForm.post = (args: { client: string | { id: string } } | [client: 
 })
 
 storeForClient.form = storeForClientForm
+
 /**
 * @see \App\Http\Controllers\Admin\SurveyAssignmentController::storeForEntrepreneur
 * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:41
@@ -157,6 +158,7 @@ storeForEntrepreneurForm.post = (args: { entrepreneurProfile: string | { id: str
 })
 
 storeForEntrepreneur.form = storeForEntrepreneurForm
+
 /**
 * @see \App\Http\Controllers\Admin\SurveyAssignmentController::cancel
 * @see app/Http/Controllers/Admin/SurveyAssignmentController.php:62
@@ -246,6 +248,7 @@ cancelForm.patch = (args: { surveyAssignment: string | { id: string } } | [surve
 })
 
 cancel.form = cancelForm
+
 const SurveyAssignmentController = { storeForClient, storeForEntrepreneur, cancel }
 
 export default SurveyAssignmentController

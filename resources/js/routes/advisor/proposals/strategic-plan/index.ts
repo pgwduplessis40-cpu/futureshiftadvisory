@@ -78,6 +78,7 @@ generateForm.post = (args: { proposal: string | { id: string } } | [proposal: st
 })
 
 generate.form = generateForm
+
 const strategicPlan = {
     generate: Object.assign(generate, generate),
 }

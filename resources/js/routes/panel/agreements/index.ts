@@ -78,6 +78,7 @@ signForm.post = (args: { panelAgreement: string | { id: string } } | [panelAgree
 })
 
 sign.form = signForm
+
 /**
 * @see \App\Http\Controllers\PanelAgreementController::view
 * @see app/Http/Controllers/PanelAgreementController.php:70
@@ -182,6 +183,7 @@ viewForm.head = (args: { panelAgreement: string | { id: string } } | [panelAgree
 })
 
 view.form = viewForm
+
 /**
 * @see \App\Http\Controllers\PanelAgreementController::download
 * @see app/Http/Controllers/PanelAgreementController.php:55
@@ -286,6 +288,7 @@ downloadForm.head = (args: { panelAgreement: string | { id: string } } | [panelA
 })
 
 download.form = downloadForm
+
 const agreements = {
     sign: Object.assign(sign, sign),
     view: Object.assign(view, view),

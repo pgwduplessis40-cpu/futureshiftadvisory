@@ -79,6 +79,7 @@ brokersForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 })
 
 brokers.form = brokersForm
+
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::createBroker
 * @see app/Http/Controllers/Advisor/PartnerPanelController.php:50
@@ -159,6 +160,7 @@ createBrokerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'
 })
 
 createBroker.form = createBrokerForm
+
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::storeBroker
 * @see app/Http/Controllers/Advisor/PartnerPanelController.php:55
@@ -214,6 +216,7 @@ storeBrokerForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'
 })
 
 storeBroker.form = storeBrokerForm
+
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::coaches
 * @see app/Http/Controllers/Advisor/PartnerPanelController.php:60
@@ -294,6 +297,7 @@ coachesForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 })
 
 coaches.form = coachesForm
+
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::createCoach
 * @see app/Http/Controllers/Advisor/PartnerPanelController.php:65
@@ -374,6 +378,7 @@ createCoachForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'>
 })
 
 createCoach.form = createCoachForm
+
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::storeCoach
 * @see app/Http/Controllers/Advisor/PartnerPanelController.php:70
@@ -429,6 +434,7 @@ storeCoachForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'>
 })
 
 storeCoach.form = storeCoachForm
+
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::resendInvite
 * @see app/Http/Controllers/Advisor/PartnerPanelController.php:75
@@ -508,6 +514,7 @@ resendInviteForm.post = (args: { panelMember: string | { id: string } } | [panel
 })
 
 resendInvite.form = resendInviteForm
+
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::cancelInvite
 * @see app/Http/Controllers/Advisor/PartnerPanelController.php:129
@@ -597,6 +604,7 @@ cancelInviteForm.delete = (args: { panelMember: string | { id: string } } | [pan
 })
 
 cancelInvite.form = cancelInviteForm
+
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::show
 * @see app/Http/Controllers/Advisor/PartnerPanelController.php:174
@@ -701,6 +709,7 @@ showForm.head = (args: { panelMember: string | { id: string } } | [panelMember: 
 })
 
 show.form = showForm
+
 const PartnerPanelController = { brokers, createBroker, storeBroker, coaches, createCoach, storeCoach, resendInvite, cancelInvite, show }
 
 export default PartnerPanelController

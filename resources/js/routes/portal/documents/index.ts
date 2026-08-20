@@ -54,6 +54,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\DocumentController::show
 * @see app/Http/Controllers/DocumentController.php:68
@@ -158,6 +159,7 @@ showForm.head = (args: { document: string | { id: string } } | [document: string
 })
 
 show.form = showForm
+
 const documents = {
     store: Object.assign(store, store),
     show: Object.assign(show, show),

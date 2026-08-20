@@ -97,6 +97,7 @@ callbackForm.head = (args: { provider: string | number } | [provider: string | n
 })
 
 callback.form = callbackForm
+
 const accounting = {
     callback: Object.assign(callback, callback),
 }

@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::refreshEconomicIndicators
 * @see app/Http/Controllers/Admin/ReferenceDataController.php:53
@@ -134,6 +135,7 @@ refreshEconomicIndicatorsForm.post = (options?: RouteQueryOptions): RouteFormDef
 })
 
 refreshEconomicIndicators.form = refreshEconomicIndicatorsForm
+
 /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::store
 * @see app/Http/Controllers/Admin/ReferenceDataController.php:63
@@ -189,6 +191,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::evidence
 * @see app/Http/Controllers/Admin/ReferenceDataController.php:120
@@ -293,6 +296,7 @@ evidenceForm.head = (args: { document: string | { id: string } } | [document: st
 })
 
 evidence.form = evidenceForm
+
 const ReferenceDataController = { index, refreshEconomicIndicators, store, evidence }
 
 export default ReferenceDataController

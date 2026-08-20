@@ -97,6 +97,7 @@ acceptForm.head = (args: { token: string | number } | [token: string | number ] 
 })
 
 accept.form = acceptForm
+
 /**
 * @see \App\Http\Controllers\Auth\InviteAcceptController::store
 * @see app/Http/Controllers/Auth/InviteAcceptController.php:96
@@ -170,6 +171,7 @@ storeForm.post = (args: { token: string | number } | [token: string | number ] |
 })
 
 store.form = storeForm
+
 const invite = {
     accept: Object.assign(accept, accept),
     store: Object.assign(store, store),

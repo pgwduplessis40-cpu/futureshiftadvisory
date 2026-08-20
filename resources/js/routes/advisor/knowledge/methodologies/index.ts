@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\MethodologyController::show
 * @see app/Http/Controllers/Advisor/MethodologyController.php:57
@@ -177,6 +178,7 @@ showForm.head = (args: { methodology: string | number } | [methodology: string |
 })
 
 show.form = showForm
+
 const methodologies = {
     index: Object.assign(index, index),
     show: Object.assign(show, show),

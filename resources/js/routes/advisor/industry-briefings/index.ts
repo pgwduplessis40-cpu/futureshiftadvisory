@@ -88,6 +88,7 @@ reviewForm.patch = (args: { industryBriefing: string | { id: string } } | [indus
 })
 
 review.form = reviewForm
+
 const industryBriefings = {
     review: Object.assign(review, review),
 }

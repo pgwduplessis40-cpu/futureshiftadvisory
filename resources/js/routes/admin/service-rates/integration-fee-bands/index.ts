@@ -54,6 +54,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::importMethod
 * @see app/Http/Controllers/Admin/ServiceRateController.php:226
@@ -109,6 +110,7 @@ importMethodForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post
 })
 
 importMethod.form = importMethodForm
+
 const integrationFeeBands = {
     store: Object.assign(store, store),
     import: Object.assign(importMethod, importMethod),

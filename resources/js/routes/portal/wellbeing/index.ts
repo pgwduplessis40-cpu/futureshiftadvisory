@@ -79,6 +79,7 @@ showForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Portal\WellbeingController::store
 * @see app/Http/Controllers/Portal/WellbeingController.php:35
@@ -134,6 +135,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Portal\WellbeingController::destroy
 * @see app/Http/Controllers/Portal/WellbeingController.php:56
@@ -223,6 +225,7 @@ destroyForm.delete = (args: { wellbeingCheckin: string | { id: string } } | [wel
 })
 
 destroy.form = destroyForm
+
 const wellbeing = {
     show: Object.assign(show, show),
     store: Object.assign(store, store),

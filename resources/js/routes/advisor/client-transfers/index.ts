@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientTransferRequestController::store
 * @see app/Http/Controllers/Advisor/ClientTransferRequestController.php:67
@@ -134,6 +135,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 const clientTransfers = {
     index: Object.assign(index, index),
     store: Object.assign(store, store),

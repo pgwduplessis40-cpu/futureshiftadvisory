@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\PartnerAgreementController::update
 * @see app/Http/Controllers/Admin/PartnerAgreementController.php:32
@@ -144,6 +145,7 @@ updateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 })
 
 update.form = updateForm
+
 /**
 * @see \App\Http\Controllers\Admin\PartnerAgreementController::reset
 * @see app/Http/Controllers/Admin/PartnerAgreementController.php:68
@@ -209,6 +211,7 @@ resetForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 })
 
 reset.form = resetForm
+
 const PartnerAgreementController = { index, update, reset }
 
 export default PartnerAgreementController

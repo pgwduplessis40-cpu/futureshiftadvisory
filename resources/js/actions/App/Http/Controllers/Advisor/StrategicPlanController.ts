@@ -78,6 +78,7 @@ generateForm.post = (args: { proposal: string | { id: string } } | [proposal: st
 })
 
 generate.form = generateForm
+
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::pdf
 * @see app/Http/Controllers/Advisor/StrategicPlanController.php:103
@@ -182,6 +183,7 @@ pdfForm.head = (args: { strategicPlan: string | { id: string } } | [strategicPla
 })
 
 pdf.form = pdfForm
+
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::update
 * @see app/Http/Controllers/Advisor/StrategicPlanController.php:53
@@ -271,6 +273,7 @@ updateForm.patch = (args: { strategicPlan: string | { id: string } } | [strategi
 })
 
 update.form = updateForm
+
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::deploy
 * @see app/Http/Controllers/Advisor/StrategicPlanController.php:89
@@ -360,6 +363,7 @@ deployForm.patch = (args: { strategicPlan: string | { id: string } } | [strategi
 })
 
 deploy.form = deployForm
+
 const StrategicPlanController = { generate, pdf, update, deploy }
 
 export default StrategicPlanController

@@ -79,6 +79,7 @@ showForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::pdf
 * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:182
@@ -159,6 +160,7 @@ pdfForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 pdf.form = pdfForm
+
 const budgetPack = {
     show: Object.assign(show, show),
     pdf: Object.assign(pdf, pdf),

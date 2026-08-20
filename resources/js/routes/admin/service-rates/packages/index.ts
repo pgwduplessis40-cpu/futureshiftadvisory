@@ -54,6 +54,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::update
 * @see app/Http/Controllers/Admin/ServiceRateController.php:161
@@ -143,6 +144,7 @@ updateForm.patch = (args: { serviceRatePackage: string | { id: string } } | [ser
 })
 
 update.form = updateForm
+
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
 * @see app/Http/Controllers/Admin/ServiceRateController.php:192
@@ -232,6 +234,7 @@ toggleForm.patch = (args: { serviceRatePackage: string | { id: string } } | [ser
 })
 
 toggle.form = toggleForm
+
 const packages = {
     store: Object.assign(store, store),
     update: Object.assign(update, update),

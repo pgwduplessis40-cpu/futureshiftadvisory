@@ -72,6 +72,7 @@ retryForm.post = (args: { payment: string | number } | [payment: string | number
 })
 
 retry.form = retryForm
+
 const payments = {
     retry: Object.assign(retry, retry),
 }

@@ -75,6 +75,7 @@ storeForm.post = (args: { report: string | { id: string }, reportSection: string
 })
 
 store.form = storeForm
+
 const comments = {
     store: Object.assign(store, store),
 }

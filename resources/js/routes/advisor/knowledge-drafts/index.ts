@@ -103,6 +103,7 @@ reviewForm.head = (args: { knowledgeEntryDraft: string | { id: string } } | [kno
 })
 
 review.form = reviewForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::accept
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:144
@@ -192,6 +193,7 @@ acceptForm.patch = (args: { knowledgeEntryDraft: string | { id: string } } | [kn
 })
 
 accept.form = acceptForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::discard
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:153
@@ -281,6 +283,7 @@ discardForm.patch = (args: { knowledgeEntryDraft: string | { id: string } } | [k
 })
 
 discard.form = discardForm
+
 const knowledgeDrafts = {
     review: Object.assign(review, review),
     accept: Object.assign(accept, accept),

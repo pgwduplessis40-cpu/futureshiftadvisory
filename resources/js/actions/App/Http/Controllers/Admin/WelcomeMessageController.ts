@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\WelcomeMessageController::store
 * @see app/Http/Controllers/Admin/WelcomeMessageController.php:50
@@ -134,6 +135,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 const WelcomeMessageController = { index, store }
 
 export default WelcomeMessageController

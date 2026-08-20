@@ -54,6 +54,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::resend
 * @see app/Http/Controllers/Advisor/ClientController.php:322
@@ -133,6 +134,7 @@ resendForm.post = (args: { client: string | { id: string } } | [client: string |
 })
 
 resend.form = resendForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::cancel
 * @see app/Http/Controllers/Advisor/ClientController.php:384
@@ -222,6 +224,7 @@ cancelForm.delete = (args: { client: string | { id: string } } | [client: string
 })
 
 cancel.form = cancelForm
+
 const invite = {
     store: Object.assign(store, store),
     resend: Object.assign(resend, resend),

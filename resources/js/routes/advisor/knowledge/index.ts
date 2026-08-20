@@ -80,6 +80,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::create
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:73
@@ -160,6 +161,7 @@ createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 create.form = createForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::store
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:86
@@ -215,6 +217,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::show
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:161
@@ -319,6 +322,7 @@ showForm.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeE
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::edit
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:172
@@ -423,6 +427,7 @@ editForm.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeE
 })
 
 edit.form = editForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::update
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:189
@@ -512,6 +517,7 @@ updateForm.patch = (args: { knowledgeEntry: string | { id: string } } | [knowled
 })
 
 update.form = updateForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::destroy
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:208
@@ -601,6 +607,7 @@ destroyForm.delete = (args: { knowledgeEntry: string | { id: string } } | [knowl
 })
 
 destroy.form = destroyForm
+
 const knowledge = {
     index: Object.assign(index, index),
     create: Object.assign(create, create),

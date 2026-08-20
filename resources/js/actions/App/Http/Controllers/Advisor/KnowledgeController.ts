@@ -78,6 +78,7 @@ draftFromClientForm.post = (args: { client: string | { id: string } } | [client:
 })
 
 draftFromClient.form = draftFromClientForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::index
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:32
@@ -158,6 +159,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::create
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:73
@@ -238,6 +240,7 @@ createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 create.form = createForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::store
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:86
@@ -293,6 +296,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::reviewDraft
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:124
@@ -397,6 +401,7 @@ reviewDraftForm.head = (args: { knowledgeEntryDraft: string | { id: string } } |
 })
 
 reviewDraft.form = reviewDraftForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::acceptDraft
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:144
@@ -486,6 +491,7 @@ acceptDraftForm.patch = (args: { knowledgeEntryDraft: string | { id: string } } 
 })
 
 acceptDraft.form = acceptDraftForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::discardDraft
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:153
@@ -575,6 +581,7 @@ discardDraftForm.patch = (args: { knowledgeEntryDraft: string | { id: string } }
 })
 
 discardDraft.form = discardDraftForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::show
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:161
@@ -679,6 +686,7 @@ showForm.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeE
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::edit
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:172
@@ -783,6 +791,7 @@ editForm.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeE
 })
 
 edit.form = editForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::update
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:189
@@ -872,6 +881,7 @@ updateForm.patch = (args: { knowledgeEntry: string | { id: string } } | [knowled
 })
 
 update.form = updateForm
+
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::destroy
 * @see app/Http/Controllers/Advisor/KnowledgeController.php:208
@@ -961,6 +971,7 @@ destroyForm.delete = (args: { knowledgeEntry: string | { id: string } } | [knowl
 })
 
 destroy.form = destroyForm
+
 const KnowledgeController = { draftFromClient, index, create, store, reviewDraft, acceptDraft, discardDraft, show, edit, update, destroy }
 
 export default KnowledgeController

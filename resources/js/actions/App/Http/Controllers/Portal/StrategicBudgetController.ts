@@ -79,6 +79,7 @@ showForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::document
 * @see app/Http/Controllers/Portal/StrategicBudgetController.php:51
@@ -159,6 +160,7 @@ documentForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =>
 })
 
 document.form = documentForm
+
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::pdf
 * @see app/Http/Controllers/Portal/StrategicBudgetController.php:65
@@ -239,6 +241,7 @@ pdfForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 pdf.form = pdfForm
+
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::update
 * @see app/Http/Controllers/Portal/StrategicBudgetController.php:84
@@ -294,6 +297,7 @@ updateForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 })
 
 update.form = updateForm
+
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::submit
 * @see app/Http/Controllers/Portal/StrategicBudgetController.php:97
@@ -349,6 +353,7 @@ submitForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 })
 
 submit.form = submitForm
+
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::exportMethod
 * @see app/Http/Controllers/Portal/StrategicBudgetController.php:120
@@ -429,6 +434,7 @@ exportMethodForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'
 })
 
 exportMethod.form = exportMethodForm
+
 const StrategicBudgetController = { show, document, pdf, update, submit, exportMethod, export: exportMethod }
 
 export default StrategicBudgetController

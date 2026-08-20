@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\ClientAllocationController::reassign
 * @see app/Http/Controllers/Admin/ClientAllocationController.php:76
@@ -168,6 +169,7 @@ reassignForm.patch = (args: { client: string | { id: string } } | [client: strin
 })
 
 reassign.form = reassignForm
+
 /**
 * @see \App\Http\Controllers\Admin\ClientAllocationController::approve
 * @see app/Http/Controllers/Admin/ClientAllocationController.php:98
@@ -257,6 +259,7 @@ approveForm.patch = (args: { transfer: string | { id: string } } | [transfer: st
 })
 
 approve.form = approveForm
+
 /**
 * @see \App\Http\Controllers\Admin\ClientAllocationController::reject
 * @see app/Http/Controllers/Admin/ClientAllocationController.php:136
@@ -346,6 +349,7 @@ rejectForm.patch = (args: { transfer: string | { id: string } } | [transfer: str
 })
 
 reject.form = rejectForm
+
 const ClientAllocationController = { index, reassign, approve, reject }
 
 export default ClientAllocationController

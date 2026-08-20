@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::approve
 * @see app/Http/Controllers/Admin/PanelMemberController.php:54
@@ -168,6 +169,7 @@ approveForm.patch = (args: { panelMember: string | { id: string } } | [panelMemb
 })
 
 approve.form = approveForm
+
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::requestInfo
 * @see app/Http/Controllers/Admin/PanelMemberController.php:73
@@ -257,6 +259,7 @@ requestInfoForm.patch = (args: { panelMember: string | { id: string } } | [panel
 })
 
 requestInfo.form = requestInfoForm
+
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::decline
 * @see app/Http/Controllers/Admin/PanelMemberController.php:85
@@ -346,6 +349,7 @@ declineForm.patch = (args: { panelMember: string | { id: string } } | [panelMemb
 })
 
 decline.form = declineForm
+
 const PanelMemberController = { index, approve, requestInfo, decline }
 
 export default PanelMemberController

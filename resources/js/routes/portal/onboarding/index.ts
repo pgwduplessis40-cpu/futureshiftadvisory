@@ -80,6 +80,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::step
 * @see app/Http/Controllers/Portal/OnboardingController.php:64
@@ -178,6 +179,7 @@ stepForm.head = (args: { step: string | number } | [step: string | number ] | st
 })
 
 step.form = stepForm
+
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::store
 * @see app/Http/Controllers/Portal/OnboardingController.php:93
@@ -251,6 +253,7 @@ storeForm.post = (args: { step: string | number } | [step: string | number ] | s
 })
 
 store.form = storeForm
+
 const onboarding = {
     index: Object.assign(index, index),
     questionnaire: Object.assign(questionnaire, questionnaire),

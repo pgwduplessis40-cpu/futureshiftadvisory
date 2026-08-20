@@ -78,6 +78,7 @@ storeForm.post = (args: { client: string | { id: string } } | [client: string | 
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::respond
 * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:53
@@ -157,6 +158,7 @@ respondForm.post = (args: { session: string | { id: string } } | [session: strin
 })
 
 respond.form = respondForm
+
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::browserPermission
 * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:66
@@ -236,6 +238,7 @@ browserPermissionForm.post = (args: { session: string | { id: string } } | [sess
 })
 
 browserPermission.form = browserPermissionForm
+
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::active
 * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:79
@@ -315,6 +318,7 @@ activeForm.post = (args: { session: string | { id: string } } | [session: string
 })
 
 active.form = activeForm
+
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::signal
 * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:90
@@ -394,6 +398,7 @@ signalForm.post = (args: { session: string | { id: string } } | [session: string
 })
 
 signal.form = signalForm
+
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::pendingSignals
 * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:105
@@ -473,6 +478,7 @@ pendingSignalsForm.post = (args: { session: string | { id: string } } | [session
 })
 
 pendingSignals.form = pendingSignalsForm
+
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::iceServers
 * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:124
@@ -552,6 +558,7 @@ iceServersForm.post = (args: { session: string | { id: string } } | [session: st
 })
 
 iceServers.form = iceServersForm
+
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::heartbeat
 * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:139
@@ -631,6 +638,7 @@ heartbeatForm.post = (args: { session: string | { id: string } } | [session: str
 })
 
 heartbeat.form = heartbeatForm
+
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::end
 * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:150
@@ -710,6 +718,7 @@ endForm.post = (args: { session: string | { id: string } } | [session: string | 
 })
 
 end.form = endForm
+
 const ScreenShareSessionController = { store, respond, browserPermission, active, signal, pendingSignals, iceServers, heartbeat, end }
 
 export default ScreenShareSessionController

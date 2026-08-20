@@ -103,6 +103,7 @@ clientForm.head = (args: { client: string | { id: string } } | [client: string |
 })
 
 client.form = clientForm
+
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::entrepreneur
 * @see app/Http/Controllers/Advisor/SurveyResultController.php:41
@@ -207,6 +208,7 @@ entrepreneurForm.head = (args: { entrepreneurProfile: string | { id: string } } 
 })
 
 entrepreneur.form = entrepreneurForm
+
 const SurveyResultController = { client, entrepreneur }
 
 export default SurveyResultController

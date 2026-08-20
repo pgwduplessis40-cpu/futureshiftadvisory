@@ -88,6 +88,7 @@ updateForm.patch = (args: { npoEngagement: string | { id: string } } | [npoEngag
 })
 
 update.form = updateForm
+
 const configuration = {
     update: Object.assign(update, update),
 }

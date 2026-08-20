@@ -88,6 +88,7 @@ reportDeliveredForm.patch = (args: { npoEngagement: string | { id: string } } | 
 })
 
 reportDelivered.form = reportDeliveredForm
+
 /**
 * @see \App\Http\Controllers\Advisor\NpoConversionController::decline
 * @see app/Http/Controllers/Advisor/NpoConversionController.php:36
@@ -177,6 +178,7 @@ declineForm.patch = (args: { npoEngagement: string | { id: string } } | [npoEnga
 })
 
 decline.form = declineForm
+
 /**
 * @see \App\Http\Controllers\Advisor\NpoConversionController::convert
 * @see app/Http/Controllers/Advisor/NpoConversionController.php:50
@@ -266,6 +268,7 @@ convertForm.patch = (args: { npoEngagement: string | { id: string } } | [npoEnga
 })
 
 convert.form = convertForm
+
 const NpoConversionController = { reportDelivered, decline, convert }
 
 export default NpoConversionController

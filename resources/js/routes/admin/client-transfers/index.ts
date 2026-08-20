@@ -88,6 +88,7 @@ approveForm.patch = (args: { transfer: string | { id: string } } | [transfer: st
 })
 
 approve.form = approveForm
+
 /**
 * @see \App\Http\Controllers\Admin\ClientAllocationController::reject
 * @see app/Http/Controllers/Admin/ClientAllocationController.php:136
@@ -177,6 +178,7 @@ rejectForm.patch = (args: { transfer: string | { id: string } } | [transfer: str
 })
 
 reject.form = rejectForm
+
 const clientTransfers = {
     approve: Object.assign(approve, approve),
     reject: Object.assign(reject, reject),

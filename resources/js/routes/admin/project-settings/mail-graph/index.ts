@@ -79,6 +79,7 @@ connectForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 })
 
 connect.form = connectForm
+
 /**
 * @see \App\Http\Controllers\Admin\MicrosoftGraphMailOAuthController::callback
 * @see app/Http/Controllers/Admin/MicrosoftGraphMailOAuthController.php:39
@@ -159,6 +160,7 @@ callbackForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =>
 })
 
 callback.form = callbackForm
+
 /**
 * @see \App\Http\Controllers\Admin\MicrosoftGraphMailOAuthController::disconnect
 * @see app/Http/Controllers/Admin/MicrosoftGraphMailOAuthController.php:72
@@ -224,6 +226,7 @@ disconnectForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'
 })
 
 disconnect.form = disconnectForm
+
 const mailGraph = {
     connect: Object.assign(connect, connect),
     callback: Object.assign(callback, callback),

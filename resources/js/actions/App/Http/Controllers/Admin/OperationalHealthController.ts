@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\OperationalHealthController::run
 * @see app/Http/Controllers/Admin/OperationalHealthController.php:69
@@ -134,6 +135,7 @@ runForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
 })
 
 run.form = runForm
+
 const OperationalHealthController = { index, run }
 
 export default OperationalHealthController

@@ -78,6 +78,7 @@ storeForm.post = (args: { client: string | { id: string } } | [client: string | 
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseSessionController::storeForEntrepreneur
 * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:44
@@ -157,6 +158,7 @@ storeForEntrepreneurForm.post = (args: { entrepreneurProfile: string | { id: str
 })
 
 storeForEntrepreneur.form = storeForEntrepreneurForm
+
 /**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseSessionController::respond
 * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:63
@@ -236,6 +238,7 @@ respondForm.post = (args: { session: string | { id: string } } | [session: strin
 })
 
 respond.form = respondForm
+
 /**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseSessionController::action
 * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:83
@@ -315,6 +318,7 @@ actionForm.post = (args: { session: string | { id: string } } | [session: string
 })
 
 action.form = actionForm
+
 /**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseSessionController::pendingActions
 * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:103
@@ -394,6 +398,7 @@ pendingActionsForm.post = (args: { session: string | { id: string } } | [session
 })
 
 pendingActions.form = pendingActionsForm
+
 /**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseSessionController::status
 * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:122
@@ -473,6 +478,7 @@ statusForm.post = (args: { session: string | { id: string } } | [session: string
 })
 
 status.form = statusForm
+
 /**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseSessionController::heartbeat
 * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:130
@@ -552,6 +558,7 @@ heartbeatForm.post = (args: { session: string | { id: string } } | [session: str
 })
 
 heartbeat.form = heartbeatForm
+
 /**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseSessionController::end
 * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:138
@@ -631,6 +638,7 @@ endForm.post = (args: { session: string | { id: string } } | [session: string | 
 })
 
 end.form = endForm
+
 const CoBrowseSessionController = { store, storeForEntrepreneur, respond, action, pendingActions, status, heartbeat, end }
 
 export default CoBrowseSessionController

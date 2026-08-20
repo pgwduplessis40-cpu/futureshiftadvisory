@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::rerun
 * @see app/Http/Controllers/Admin/LearningUpdateController.php:61
@@ -134,6 +135,7 @@ rerunForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 rerun.form = rerunForm
+
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::decide
 * @see app/Http/Controllers/Admin/LearningUpdateController.php:40
@@ -223,6 +225,7 @@ decideForm.patch = (args: { learningUpdate: string | { id: string } } | [learnin
 })
 
 decide.form = decideForm
+
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::reviewImpact
 * @see app/Http/Controllers/Admin/LearningUpdateController.php:73
@@ -312,6 +315,7 @@ reviewImpactForm.patch = (args: { learningUpdateImplementation: string | { id: s
 })
 
 reviewImpact.form = reviewImpactForm
+
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::rollback
 * @see app/Http/Controllers/Admin/LearningUpdateController.php:109
@@ -401,6 +405,7 @@ rollbackForm.patch = (args: { learningUpdateImplementation: string | { id: strin
 })
 
 rollback.form = rollbackForm
+
 const LearningUpdateController = { index, rerun, decide, reviewImpact, rollback }
 
 export default LearningUpdateController

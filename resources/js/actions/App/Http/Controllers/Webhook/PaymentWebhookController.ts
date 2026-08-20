@@ -54,6 +54,7 @@ stripeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 })
 
 stripe.form = stripeForm
+
 /**
 * @see \App\Http\Controllers\Webhook\PaymentWebhookController::windcave
 * @see app/Http/Controllers/Webhook/PaymentWebhookController.php:32
@@ -109,6 +110,7 @@ windcaveForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =
 })
 
 windcave.form = windcaveForm
+
 const PaymentWebhookController = { stripe, windcave }
 
 export default PaymentWebhookController

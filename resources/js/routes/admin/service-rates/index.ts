@@ -81,6 +81,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
 * @see app/Http/Controllers/Admin/ServiceRateController.php:84
@@ -136,6 +137,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
 * @see app/Http/Controllers/Admin/ServiceRateController.php:107
@@ -225,6 +227,7 @@ toggleForm.patch = (args: { serviceRateSetting: string | { id: string } } | [ser
 })
 
 toggle.form = toggleForm
+
 const serviceRates = {
     index: Object.assign(index, index),
     store: Object.assign(store, store),

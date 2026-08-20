@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\PrinciplesRolesController::store
 * @see app/Http/Controllers/Admin/PrinciplesRolesController.php:54
@@ -134,6 +135,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 const PrinciplesRolesController = { index, store }
 
 export default PrinciplesRolesController

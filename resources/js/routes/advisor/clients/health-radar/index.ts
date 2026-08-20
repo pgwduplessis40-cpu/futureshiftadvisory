@@ -72,6 +72,7 @@ recomputeForm.post = (args: { client: string | number } | [client: string | numb
 })
 
 recompute.form = recomputeForm
+
 const healthRadar = {
     recompute: Object.assign(recompute, recompute),
 }

@@ -78,6 +78,7 @@ storeForm.post = (args: { entrepreneurProfile: string | { id: string } } | [entr
 })
 
 store.form = storeForm
+
 const sessions = {
     store: Object.assign(store, store),
 }

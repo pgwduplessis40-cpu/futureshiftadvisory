@@ -97,6 +97,7 @@ createForm.head = (args: { token: string | number } | [token: string | number ] 
 })
 
 create.form = createForm
+
 /**
 * @see \Laravel\Fortify\Http\Controllers\NewPasswordController::store
 * @see vendor/laravel/fortify/src/Http/Controllers/NewPasswordController.php:55
@@ -152,6 +153,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 const NewPasswordController = { create, store }
 
 export default NewPasswordController

@@ -54,6 +54,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Public\ContactController::thanks
 * @see app/Http/Controllers/Public/ContactController.php:60
@@ -134,6 +135,7 @@ thanksForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 thanks.form = thanksForm
+
 const contact = {
     store: Object.assign(store, store),
     thanks: Object.assign(thanks, thanks),

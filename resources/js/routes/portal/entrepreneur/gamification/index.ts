@@ -54,6 +54,7 @@ disableRequestForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'po
 })
 
 disableRequest.form = disableRequestForm
+
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurGamificationController::seen
 * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:24
@@ -109,6 +110,7 @@ seenForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
 })
 
 seen.form = seenForm
+
 const gamification = {
     disableRequest: Object.assign(disableRequest, disableRequest),
     seen: Object.assign(seen, seen),

@@ -78,6 +78,7 @@ meetingNoteForm.post = (args: { client: string | { id: string } } | [client: str
 })
 
 meetingNote.form = meetingNoteForm
+
 /**
 * @see \App\Http\Controllers\AdvisorApi\WriteController::action
 * @see app/Http/Controllers/AdvisorApi/WriteController.php:62
@@ -157,6 +158,7 @@ actionForm.post = (args: { client: string | { id: string } } | [client: string |
 })
 
 action.form = actionForm
+
 const WriteController = { meetingNote, action }
 
 export default WriteController

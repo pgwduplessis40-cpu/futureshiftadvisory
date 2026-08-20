@@ -80,6 +80,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\ServiceSurveyController::store
 * @see app/Http/Controllers/Admin/ServiceSurveyController.php:79
@@ -159,6 +160,7 @@ storeForm.post = (args: { serviceActivation: string | { id: string } } | [servic
 })
 
 store.form = storeForm
+
 const serviceSurveys = {
     index: Object.assign(index, index),
     store: Object.assign(store, store),

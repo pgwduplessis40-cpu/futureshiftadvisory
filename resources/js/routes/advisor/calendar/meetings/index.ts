@@ -54,6 +54,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::update
 * @see app/Http/Controllers/Advisor/CalendarController.php:119
@@ -143,6 +144,7 @@ updateForm.patch = (args: { meeting: string | { id: string } } | [meeting: strin
 })
 
 update.form = updateForm
+
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::cancel
 * @see app/Http/Controllers/Advisor/CalendarController.php:135
@@ -232,6 +234,7 @@ cancelForm.delete = (args: { meeting: string | { id: string } } | [meeting: stri
 })
 
 cancel.form = cancelForm
+
 const meetings = {
     store: Object.assign(store, store),
     update: Object.assign(update, update),

@@ -78,6 +78,7 @@ storeForm.post = (args: { goal: string | { id: string } } | [goal: string | { id
 })
 
 store.form = storeForm
+
 const milestones = {
     store: Object.assign(store, store),
 }

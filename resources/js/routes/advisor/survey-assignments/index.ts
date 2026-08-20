@@ -88,6 +88,7 @@ cancelForm.patch = (args: { surveyAssignment: string | { id: string } } | [surve
 })
 
 cancel.form = cancelForm
+
 const surveyAssignments = {
     cancel: Object.assign(cancel, cancel),
 }

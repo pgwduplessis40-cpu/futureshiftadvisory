@@ -54,6 +54,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::recall
 * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:245
@@ -109,6 +110,7 @@ recallForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 })
 
 recall.form = recallForm
+
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::restore
 * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:261
@@ -188,6 +190,7 @@ restoreForm.post = (args: { ideaValidation: string | { id: string } } | [ideaVal
 })
 
 restore.form = restoreForm
+
 const ideaValidation = {
     store: Object.assign(store, store),
     recall: Object.assign(recall, recall),

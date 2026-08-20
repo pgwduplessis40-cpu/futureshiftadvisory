@@ -78,6 +78,7 @@ runAnalysisForm.post = (args: { client: string | { id: string } } | [client: str
 })
 
 runAnalysis.form = runAnalysisForm
+
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::confirmWebsiteUrl
 * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:76
@@ -157,6 +158,7 @@ confirmWebsiteUrlForm.post = (args: { client: string | { id: string } } | [clien
 })
 
 confirmWebsiteUrl.form = confirmWebsiteUrlForm
+
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::generatePack
 * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:33
@@ -236,6 +238,7 @@ generatePackForm.post = (args: { client: string | { id: string } } | [client: st
 })
 
 generatePack.form = generatePackForm
+
 const StandardAdvisoryController = { runAnalysis, confirmWebsiteUrl, generatePack }
 
 export default StandardAdvisoryController

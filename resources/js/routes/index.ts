@@ -79,6 +79,7 @@ loginForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 login.form = loginForm
+
 /**
 * @see \Laravel\Fortify\Http\Controllers\AuthenticatedSessionController::logout
 * @see vendor/laravel/fortify/src/Http/Controllers/AuthenticatedSessionController.php:100
@@ -134,6 +135,7 @@ logoutForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 })
 
 logout.form = logoutForm
+
 /**
 * @see \App\Http\Controllers\Public\HomeController::__invoke
 * @see app/Http/Controllers/Public/HomeController.php:14
@@ -214,6 +216,7 @@ homeForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 home.form = homeForm
+
 /**
 * @see \App\Http\Controllers\ServiceWorkerController::__invoke
 * @see app/Http/Controllers/ServiceWorkerController.php:14
@@ -294,6 +297,7 @@ serviceWorkerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get
 })
 
 serviceWorker.form = serviceWorkerForm
+
 /**
 * @see \App\Http\Controllers\DashboardController::__invoke
 * @see app/Http/Controllers/DashboardController.php:16

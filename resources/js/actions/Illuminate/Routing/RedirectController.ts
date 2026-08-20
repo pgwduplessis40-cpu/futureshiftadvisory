@@ -199,6 +199,7 @@ RedirectController23384d69139023bcfa0cb4f527253ab0Form.options = (options?: Rout
 })
 
 RedirectController23384d69139023bcfa0cb4f527253ab0.form = RedirectController23384d69139023bcfa0cb4f527253ab0Form
+
 /**
 * @see \Illuminate\Routing\RedirectController::__invoke
 * @see vendor/laravel/framework/src/Illuminate/Routing/RedirectController.php:19

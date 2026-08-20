@@ -78,6 +78,7 @@ storeForm.post = (args: { integrationScope: string | { id: string } } | [integra
 })
 
 store.form = storeForm
+
 const feeCalculations = {
     store: Object.assign(store, store),
 }

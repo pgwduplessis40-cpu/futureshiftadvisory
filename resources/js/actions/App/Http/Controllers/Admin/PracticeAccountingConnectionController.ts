@@ -97,6 +97,7 @@ connectForm.head = (args: { provider: string | number } | [provider: string | nu
 })
 
 connect.form = connectForm
+
 /**
 * @see \App\Http\Controllers\Admin\PracticeAccountingConnectionController::callback
 * @see app/Http/Controllers/Admin/PracticeAccountingConnectionController.php:35
@@ -195,6 +196,7 @@ callbackForm.head = (args: { provider: string | number } | [provider: string | n
 })
 
 callback.form = callbackForm
+
 /**
 * @see \App\Http\Controllers\Admin\PracticeAccountingConnectionController::revoke
 * @see app/Http/Controllers/Admin/PracticeAccountingConnectionController.php:73
@@ -284,6 +286,7 @@ revokeForm.patch = (args: { practiceAccountingConnection: string | { id: string 
 })
 
 revoke.form = revokeForm
+
 const PracticeAccountingConnectionController = { connect, callback, revoke }
 
 export default PracticeAccountingConnectionController

@@ -79,6 +79,7 @@ createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 create.form = createForm
+
 /**
 * @see \Laravel\Fortify\Http\Controllers\AuthenticatedSessionController::store
 * @see vendor/laravel/fortify/src/Http/Controllers/AuthenticatedSessionController.php:58
@@ -134,6 +135,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \Laravel\Fortify\Http\Controllers\AuthenticatedSessionController::destroy
 * @see vendor/laravel/fortify/src/Http/Controllers/AuthenticatedSessionController.php:100
@@ -189,6 +191,7 @@ destroyForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 })
 
 destroy.form = destroyForm
+
 const AuthenticatedSessionController = { create, store, destroy }
 
 export default AuthenticatedSessionController

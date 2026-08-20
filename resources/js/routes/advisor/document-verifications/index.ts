@@ -88,6 +88,7 @@ updateForm.patch = (args: { documentVerification: string | { id: string } } | [d
 })
 
 update.form = updateForm
+
 const documentVerifications = {
     update: Object.assign(update, update),
 }

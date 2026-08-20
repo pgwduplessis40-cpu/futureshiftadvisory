@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::create
 * @see app/Http/Controllers/Advisor/ClientController.php:241
@@ -159,6 +160,7 @@ createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 create.form = createForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::invite
 * @see app/Http/Controllers/Advisor/ClientController.php:248
@@ -239,6 +241,7 @@ inviteForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 invite.form = inviteForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::storeInvite
 * @see app/Http/Controllers/Advisor/ClientController.php:266
@@ -294,6 +297,7 @@ storeInviteForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'
 })
 
 storeInvite.form = storeInviteForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::resendInvite
 * @see app/Http/Controllers/Advisor/ClientController.php:322
@@ -373,6 +377,7 @@ resendInviteForm.post = (args: { client: string | { id: string } } | [client: st
 })
 
 resendInvite.form = resendInviteForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::cancelInvite
 * @see app/Http/Controllers/Advisor/ClientController.php:384
@@ -462,6 +467,7 @@ cancelInviteForm.delete = (args: { client: string | { id: string } } | [client: 
 })
 
 cancelInvite.form = cancelInviteForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::lookupNzbn
 * @see app/Http/Controllers/Advisor/ClientController.php:421
@@ -517,6 +523,7 @@ lookupNzbnForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'>
 })
 
 lookupNzbn.form = lookupNzbnForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::store
 * @see app/Http/Controllers/Advisor/ClientController.php:435
@@ -572,6 +579,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::show
 * @see app/Http/Controllers/Advisor/ClientController.php:515
@@ -676,6 +684,7 @@ showForm.head = (args: { client: string | { id: string } } | [client: string | {
 })
 
 show.form = showForm
+
 const ClientController = { index, create, invite, storeInvite, resendInvite, cancelInvite, lookupNzbn, store, show }
 
 export default ClientController

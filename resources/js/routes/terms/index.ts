@@ -79,6 +79,7 @@ showForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::pending
 * @see app/Http/Controllers/Auth/TermsPendingController.php:38
@@ -159,6 +160,7 @@ pendingForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 })
 
 pending.form = pendingForm
+
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::download
 * @see app/Http/Controllers/Auth/TermsPendingController.php:61
@@ -239,6 +241,7 @@ downloadForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =>
 })
 
 download.form = downloadForm
+
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::accept
 * @see app/Http/Controllers/Auth/TermsPendingController.php:91
@@ -294,6 +297,7 @@ acceptForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 })
 
 accept.form = acceptForm
+
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::decline
 * @see app/Http/Controllers/Auth/TermsPendingController.php:141
@@ -349,6 +353,7 @@ declineForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 })
 
 decline.form = declineForm
+
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::declined
 * @see app/Http/Controllers/Auth/TermsPendingController.php:185
@@ -429,6 +434,7 @@ declinedForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =>
 })
 
 declined.form = declinedForm
+
 const terms = {
     show: Object.assign(show, show),
     pending: Object.assign(pending, pending),

@@ -103,6 +103,7 @@ showForm.head = (args: { proposal: string | { id: string } } | [proposal: string
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::paymentSetup
 * @see app/Http/Controllers/Portal/ProposalSignoffController.php:99
@@ -182,6 +183,7 @@ paymentSetupForm.post = (args: { proposal: string | { id: string } } | [proposal
 })
 
 paymentSetup.form = paymentSetupForm
+
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::step
 * @see app/Http/Controllers/Portal/ProposalSignoffController.php:70
@@ -256,6 +258,7 @@ stepForm.post = (args: { proposal: string | { id: string }, step: string | numbe
 })
 
 step.form = stepForm
+
 const signoff = {
     show: Object.assign(show, show),
     paymentSetup: Object.assign(paymentSetup, paymentSetup),

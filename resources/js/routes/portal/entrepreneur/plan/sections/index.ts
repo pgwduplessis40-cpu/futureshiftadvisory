@@ -54,6 +54,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::guidance
 * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:602
@@ -133,6 +134,7 @@ guidanceForm.post = (args: { planSection: string | { id: string } } | [planSecti
 })
 
 guidance.form = guidanceForm
+
 const sections = {
     store: Object.assign(store, store),
     guidance: Object.assign(guidance, guidance),

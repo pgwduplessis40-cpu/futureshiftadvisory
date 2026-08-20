@@ -104,6 +104,7 @@ indexForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entr
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::store
 * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:69
@@ -183,6 +184,7 @@ storeForm.post = (args: { entrepreneurProfile: string | { id: string } } | [entr
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::show
 * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:50
@@ -284,6 +286,7 @@ showForm.head = (args: { entrepreneurProfile: string | { id: string }, messageTh
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::reply
 * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:88
@@ -360,6 +363,7 @@ replyForm.post = (args: { entrepreneurProfile: string | { id: string }, messageT
 })
 
 reply.form = replyForm
+
 const messages = {
     index: Object.assign(index, index),
     store: Object.assign(store, store),

@@ -77,6 +77,7 @@ uploadForm.put = (args: { path: string | number } | [path: string | number ] | s
 })
 
 upload.form = uploadForm
+
 const local = {
     upload: Object.assign(upload, upload),
 }

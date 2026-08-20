@@ -56,6 +56,7 @@ updateForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 })
 
 update.form = updateForm
+
 const budget = {
     update: Object.assign(update, update),
     flags: Object.assign(flags, flags),

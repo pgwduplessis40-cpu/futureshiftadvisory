@@ -88,6 +88,7 @@ updateForm.patch = (args: { milestone: string | { id: string } } | [milestone: s
 })
 
 update.form = updateForm
+
 const milestones = {
     update: Object.assign(update, update),
 }

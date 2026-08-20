@@ -78,6 +78,7 @@ storeForm.post = (args: { integrationScope: string | { id: string } } | [integra
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::retry
 * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:209
@@ -154,6 +155,7 @@ retryForm.post = (args: { integrationScope: string | { id: string }, quoteSource
 })
 
 retry.form = retryForm
+
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::confirm
 * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:228
@@ -230,6 +232,7 @@ confirmForm.post = (args: { integrationScope: string | { id: string }, quoteSour
 })
 
 confirm.form = confirmForm
+
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::reject
 * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:248
@@ -306,6 +309,7 @@ rejectForm.post = (args: { integrationScope: string | { id: string }, quoteSourc
 })
 
 reject.form = rejectForm
+
 const quoteSourceExtractions = {
     store: Object.assign(store, store),
     retry: Object.assign(retry, retry),

@@ -79,6 +79,7 @@ redirectForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =>
 })
 
 redirect.form = redirectForm
+
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::saveQuestionnaireDraft
 * @see app/Http/Controllers/Portal/OnboardingController.php:108
@@ -134,6 +135,7 @@ saveQuestionnaireDraftForm.post = (options?: RouteQueryOptions): RouteFormDefini
 })
 
 saveQuestionnaireDraft.form = saveQuestionnaireDraftForm
+
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::show
 * @see app/Http/Controllers/Portal/OnboardingController.php:64
@@ -232,6 +234,7 @@ showForm.head = (args: { step: string | number } | [step: string | number ] | st
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::store
 * @see app/Http/Controllers/Portal/OnboardingController.php:93
@@ -305,6 +308,7 @@ storeForm.post = (args: { step: string | number } | [step: string | number ] | s
 })
 
 store.form = storeForm
+
 const OnboardingController = { redirect, saveQuestionnaireDraft, show, store }
 
 export default OnboardingController

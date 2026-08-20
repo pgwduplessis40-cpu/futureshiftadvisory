@@ -85,6 +85,7 @@ gateIdeaForm.patch = (args: { entrepreneurProfile: string | { id: string }, idea
 })
 
 gateIdea.form = gateIdeaForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::requestIdeaChanges
 * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:71
@@ -171,6 +172,7 @@ requestIdeaChangesForm.patch = (args: { entrepreneurProfile: string | { id: stri
 })
 
 requestIdeaChanges.form = requestIdeaChangesForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::refreshIdea
 * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:55
@@ -247,6 +249,7 @@ refreshIdeaForm.post = (args: { entrepreneurProfile: string | { id: string }, id
 })
 
 refreshIdea.form = refreshIdeaForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::assess
 * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:86
@@ -323,6 +326,7 @@ assessForm.post = (args: { entrepreneurProfile: string | { id: string }, busines
 })
 
 assess.form = assessForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::updateAssessmentFeedback
 * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:142
@@ -409,6 +413,7 @@ updateAssessmentFeedbackForm.patch = (args: { entrepreneurProfile: string | { id
 })
 
 updateAssessmentFeedback.form = updateAssessmentFeedbackForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::finalise
 * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:115
@@ -495,6 +500,7 @@ finaliseForm.patch = (args: { entrepreneurProfile: string | { id: string }, plan
 })
 
 finalise.form = finaliseForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
 * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:190
@@ -574,6 +580,7 @@ convertForm.post = (args: { entrepreneurProfile: string | { id: string } } | [en
 })
 
 convert.form = convertForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::setGamification
 * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:215
@@ -663,6 +670,7 @@ setGamificationForm.patch = (args: { entrepreneurProfile: string | { id: string 
 })
 
 setGamification.form = setGamificationForm
+
 const EntrepreneurActionController = { gateIdea, requestIdeaChanges, refreshIdea, assess, updateAssessmentFeedback, finalise, convert, setGamification }
 
 export default EntrepreneurActionController

@@ -79,6 +79,7 @@ editForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 edit.form = editForm
+
 const installApp = {
     edit: Object.assign(edit, edit),
 }

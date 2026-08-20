@@ -78,6 +78,7 @@ storeForm.post = (args: { milestone: string | { id: string } } | [milestone: str
 })
 
 store.form = storeForm
+
 const proof = {
     store: Object.assign(store, store),
 }

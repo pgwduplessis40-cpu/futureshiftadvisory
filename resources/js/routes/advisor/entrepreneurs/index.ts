@@ -89,6 +89,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:94
@@ -169,6 +170,7 @@ createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 create.form = createForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::createManual
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:105
@@ -249,6 +251,7 @@ createManualForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'
 })
 
 createManual.form = createManualForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::store
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:116
@@ -304,6 +307,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::storeManual
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:184
@@ -359,6 +363,7 @@ storeManualForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'
 })
 
 storeManual.form = storeManualForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
 * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:190
@@ -438,6 +443,7 @@ convertForm.post = (args: { entrepreneurProfile: string | { id: string } } | [en
 })
 
 convert.form = convertForm
+
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
 * @see app/Http/Controllers/Advisor/SurveyResultController.php:41
@@ -542,6 +548,7 @@ surveysForm.head = (args: { entrepreneurProfile: string | { id: string } } | [en
 })
 
 surveys.form = surveysForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:368
@@ -646,6 +653,7 @@ showForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entre
 })
 
 show.form = showForm
+
 const entrepreneurs = {
     index: Object.assign(index, index),
     create: Object.assign(create, create),

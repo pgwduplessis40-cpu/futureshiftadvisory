@@ -18,6 +18,7 @@ const regexReplacements = [
     [/=> \{\n{2,}/g, '=> {\n'],
     [/\s+\.replace/g, `\n${' '.repeat(12)}.replace`],
     [/\s+\+ queryParams\(options\)/g, ' + queryParams(options)'],
+    [/(\n[^\n]+\.form = [^\n]+)\n(?=\/\*\*|const\s)/g, '$1\n\n'],
     [/\n{3,}/g, '\n\n'],
 ];
 
@@ -31,20 +32,26 @@ async function tsFilesIn(path) {
                 return tsFilesIn(childPath);
             }
 
-            return entry.isFile() && entry.name.endsWith('.ts') ? [childPath] : [];
+            return entry.isFile() && entry.name.endsWith('.ts')
+                ? [childPath]
+                : [];
         }),
     );
 
     return files.flat();
 }
 
-const generatedFiles = (await Promise.all(generatedRoots.map(tsFilesIn))).flat();
+const generatedFiles = (
+    await Promise.all(generatedRoots.map(tsFilesIn))
+).flat();
 
 function collapseMatchedWhitespace(source, patterns) {
     let cleaned = source;
 
     for (const pattern of patterns) {
-        cleaned = cleaned.replace(pattern, (match) => match.replace(/\s+/g, ' '));
+        cleaned = cleaned.replace(pattern, (match) =>
+            match.replace(/\s+/g, ' '),
+        );
     }
 
     return cleaned;

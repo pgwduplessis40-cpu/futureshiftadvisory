@@ -103,6 +103,7 @@ pdfForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entrep
 })
 
 pdf.form = pdfForm
+
 const budgetPack = {
     pdf: Object.assign(pdf, pdf),
 }

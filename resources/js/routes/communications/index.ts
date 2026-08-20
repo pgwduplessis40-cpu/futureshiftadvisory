@@ -97,6 +97,7 @@ openForm.head = (args: { token: string | number } | [token: string | number ] | 
 })
 
 open.form = openForm
+
 const communications = {
     open: Object.assign(open, open),
 }

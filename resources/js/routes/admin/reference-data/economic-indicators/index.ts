@@ -54,6 +54,7 @@ refreshForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 })
 
 refresh.form = refreshForm
+
 const economicIndicators = {
     refresh: Object.assign(refresh, refresh),
 }

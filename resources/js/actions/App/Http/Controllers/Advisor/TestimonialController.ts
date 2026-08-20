@@ -78,6 +78,7 @@ requestFromNpsForm.post = (args: { client: string | { id: string } } | [client: 
 })
 
 requestFromNps.form = requestFromNpsForm
+
 /**
 * @see \App\Http\Controllers\Advisor\TestimonialController::index
 * @see app/Http/Controllers/Advisor/TestimonialController.php:21
@@ -158,6 +159,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\TestimonialController::capture
 * @see app/Http/Controllers/Advisor/TestimonialController.php:41
@@ -247,6 +249,7 @@ captureForm.patch = (args: { testimonial: string | { id: string } } | [testimoni
 })
 
 capture.form = captureForm
+
 const TestimonialController = { requestFromNps, index, capture }
 
 export default TestimonialController

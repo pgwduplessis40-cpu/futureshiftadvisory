@@ -54,6 +54,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \Laravel\Fortify\Http\Controllers\TwoFactorAuthenticationController::destroy
 * @see vendor/laravel/fortify/src/Http/Controllers/TwoFactorAuthenticationController.php:35
@@ -119,6 +120,7 @@ destroyForm.delete = (options?: RouteQueryOptions): RouteFormDefinition<'post'> 
 })
 
 destroy.form = destroyForm
+
 const TwoFactorAuthenticationController = { store, destroy }
 
 export default TwoFactorAuthenticationController

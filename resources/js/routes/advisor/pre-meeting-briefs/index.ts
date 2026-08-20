@@ -88,6 +88,7 @@ reviewForm.patch = (args: { preMeetingBrief: string | { id: string } } | [preMee
 })
 
 review.form = reviewForm
+
 const preMeetingBriefs = {
     review: Object.assign(review, review),
 }

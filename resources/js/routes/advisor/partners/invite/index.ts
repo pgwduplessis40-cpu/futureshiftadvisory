@@ -78,6 +78,7 @@ resendForm.post = (args: { panelMember: string | { id: string } } | [panelMember
 })
 
 resend.form = resendForm
+
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::cancel
 * @see app/Http/Controllers/Advisor/PartnerPanelController.php:129
@@ -167,6 +168,7 @@ cancelForm.delete = (args: { panelMember: string | { id: string } } | [panelMemb
 })
 
 cancel.form = cancelForm
+
 const invite = {
     resend: Object.assign(resend, resend),
     cancel: Object.assign(cancel, cancel),

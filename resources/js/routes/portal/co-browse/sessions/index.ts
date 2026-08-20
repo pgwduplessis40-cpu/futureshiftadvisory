@@ -78,6 +78,7 @@ responseForm.post = (args: { session: string | { id: string } } | [session: stri
 })
 
 response.form = responseForm
+
 const sessions = {
     response: Object.assign(response, response),
 }

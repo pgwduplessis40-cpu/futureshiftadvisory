@@ -86,6 +86,7 @@ dashboardForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =
 })
 
 dashboard.form = dashboardForm
+
 const entrepreneur = {
     dashboard: Object.assign(dashboard, dashboard),
     plan: Object.assign(plan, plan),

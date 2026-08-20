@@ -78,6 +78,7 @@ pendingPromptForm.post = (args: { connection: string | { id: string } } | [conne
 })
 
 pendingPrompt.form = pendingPromptForm
+
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::heartbeat
 * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:40
@@ -157,6 +158,7 @@ heartbeatForm.post = (args: { connection: string | { id: string } } | [connectio
 })
 
 heartbeat.form = heartbeatForm
+
 const connections = {
     pendingPrompt: Object.assign(pendingPrompt, pendingPrompt),
     heartbeat: Object.assign(heartbeat, heartbeat),

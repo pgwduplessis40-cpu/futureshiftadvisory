@@ -97,6 +97,7 @@ createForm.head = (args: { serviceType: string | number } | [serviceType: string
 })
 
 create.form = createForm
+
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::store
 * @see app/Http/Controllers/Portal/ServiceActivationController.php:62
@@ -152,6 +153,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::show
 * @see app/Http/Controllers/Portal/ServiceActivationController.php:141
@@ -256,6 +258,7 @@ showForm.head = (args: { serviceActivation: string | { id: string } } | [service
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::paymentComplete
 * @see app/Http/Controllers/Portal/ServiceActivationController.php:161
@@ -335,6 +338,7 @@ paymentCompleteForm.post = (args: { serviceActivation: string | { id: string } }
 })
 
 paymentComplete.form = paymentCompleteForm
+
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::accept
 * @see app/Http/Controllers/Portal/ServiceActivationController.php:174
@@ -414,6 +418,7 @@ acceptForm.post = (args: { serviceActivation: string | { id: string } } | [servi
 })
 
 accept.form = acceptForm
+
 const ServiceActivationController = { create, store, show, paymentComplete, accept }
 
 export default ServiceActivationController

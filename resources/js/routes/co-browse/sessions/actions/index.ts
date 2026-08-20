@@ -78,6 +78,7 @@ storeForm.post = (args: { session: string | { id: string } } | [session: string 
 })
 
 store.form = storeForm
+
 const actions = {
     store: Object.assign(store, store),
 }

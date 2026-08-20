@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\TemplateController::store
 * @see app/Http/Controllers/Advisor/TemplateController.php:83
@@ -134,6 +135,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\TemplateController::show
 * @see app/Http/Controllers/Advisor/TemplateController.php:126
@@ -238,6 +240,7 @@ showForm.head = (args: { template: string | { id: string } } | [template: string
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Advisor\TemplateController::preview
 * @see app/Http/Controllers/Advisor/TemplateController.php:179
@@ -342,6 +345,7 @@ previewForm.head = (args: { template: string | { id: string } } | [template: str
 })
 
 preview.form = previewForm
+
 /**
 * @see \App\Http\Controllers\Advisor\TemplateController::download
 * @see app/Http/Controllers/Advisor/TemplateController.php:144
@@ -446,6 +450,7 @@ downloadForm.head = (args: { template: string | { id: string } } | [template: st
 })
 
 download.form = downloadForm
+
 /**
 * @see \App\Http\Controllers\Advisor\TemplateController::update
 * @see app/Http/Controllers/Advisor/TemplateController.php:242
@@ -535,6 +540,7 @@ updateForm.patch = (args: { template: string | { id: string } } | [template: str
 })
 
 update.form = updateForm
+
 const templates = {
     index: Object.assign(index, index),
     store: Object.assign(store, store),

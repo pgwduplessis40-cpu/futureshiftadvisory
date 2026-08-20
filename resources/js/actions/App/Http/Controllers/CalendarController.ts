@@ -79,6 +79,7 @@ CalendarController9fbd95225f575cb58f4f4b347a44d932Form.head = (options?: RouteQu
 })
 
 CalendarController9fbd95225f575cb58f4f4b347a44d932.form = CalendarController9fbd95225f575cb58f4f4b347a44d932Form
+
 /**
 * @see \App\Http\Controllers\CalendarController::__invoke
 * @see app/Http/Controllers/CalendarController.php:51

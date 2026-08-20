@@ -78,6 +78,7 @@ storeForm.post = (args: { client: string | { id: string } } | [client: string | 
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::milestone
 * @see app/Http/Controllers/Advisor/GoalController.php:46
@@ -157,6 +158,7 @@ milestoneForm.post = (args: { goal: string | { id: string } } | [goal: string | 
 })
 
 milestone.form = milestoneForm
+
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::remeasure
 * @see app/Http/Controllers/Advisor/GoalController.php:68
@@ -236,6 +238,7 @@ remeasureForm.post = (args: { goal: string | { id: string } } | [goal: string | 
 })
 
 remeasure.form = remeasureForm
+
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::achieve
 * @see app/Http/Controllers/Advisor/GoalController.php:92
@@ -325,6 +328,7 @@ achieveForm.patch = (args: { goal: string | { id: string } } | [goal: string | {
 })
 
 achieve.form = achieveForm
+
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::action
 * @see app/Http/Controllers/Advisor/GoalController.php:109
@@ -404,6 +408,7 @@ actionForm.post = (args: { milestone: string | { id: string } } | [milestone: st
 })
 
 action.form = actionForm
+
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::proof
 * @see app/Http/Controllers/Advisor/GoalController.php:129
@@ -483,6 +488,7 @@ proofForm.post = (args: { milestone: string | { id: string } } | [milestone: str
 })
 
 proof.form = proofForm
+
 const GoalController = { store, milestone, remeasure, achieve, action, proof }
 
 export default GoalController

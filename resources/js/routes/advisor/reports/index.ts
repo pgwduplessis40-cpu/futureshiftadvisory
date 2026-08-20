@@ -104,6 +104,7 @@ downloadForm.head = (args: { report: string | { id: string } } | [report: string
 })
 
 download.form = downloadForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::pptx
 * @see app/Http/Controllers/Advisor/ReportController.php:67
@@ -208,6 +209,7 @@ pptxForm.head = (args: { report: string | { id: string } } | [report: string | {
 })
 
 pptx.form = pptxForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
 * @see app/Http/Controllers/Advisor/ReportController.php:138
@@ -297,6 +299,7 @@ reviewForm.patch = (args: { report: string | { id: string } } | [report: string 
 })
 
 review.form = reviewForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::release
 * @see app/Http/Controllers/Advisor/ReportController.php:157
@@ -386,6 +389,7 @@ releaseForm.patch = (args: { report: string | { id: string } } | [report: string
 })
 
 release.form = releaseForm
+
 const reports = {
     download: Object.assign(download, download),
     pptx: Object.assign(pptx, pptx),

@@ -84,6 +84,7 @@ showForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::preview
 * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:144
@@ -164,6 +165,7 @@ previewForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 })
 
 preview.form = previewForm
+
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::start
 * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:281
@@ -219,6 +221,7 @@ startForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 start.form = startForm
+
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::submit
 * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:614
@@ -274,6 +277,7 @@ submitForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 })
 
 submit.form = submitForm
+
 const plan = {
     show: Object.assign(show, show),
     preview: Object.assign(preview, preview),

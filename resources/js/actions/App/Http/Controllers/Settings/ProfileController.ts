@@ -79,6 +79,7 @@ editForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 edit.form = editForm
+
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::update
 * @see app/Http/Controllers/Settings/ProfileController.php:36
@@ -144,6 +145,7 @@ updateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 })
 
 update.form = updateForm
+
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::requestDeactivation
 * @see app/Http/Controllers/Settings/ProfileController.php:59
@@ -199,6 +201,7 @@ requestDeactivationForm.post = (options?: RouteQueryOptions): RouteFormDefinitio
 })
 
 requestDeactivation.form = requestDeactivationForm
+
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::destroy
 * @see app/Http/Controllers/Settings/ProfileController.php:54
@@ -264,6 +267,7 @@ destroyForm.delete = (options?: RouteQueryOptions): RouteFormDefinition<'post'> 
 })
 
 destroy.form = destroyForm
+
 const ProfileController = { edit, update, requestDeactivation, destroy }
 
 export default ProfileController

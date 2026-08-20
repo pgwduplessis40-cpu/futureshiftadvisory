@@ -54,6 +54,7 @@ updateForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 })
 
 update.form = updateForm
+
 const companyName = {
     update: Object.assign(update, update),
 }

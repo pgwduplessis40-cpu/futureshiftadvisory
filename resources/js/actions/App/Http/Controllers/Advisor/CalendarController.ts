@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::store
 * @see app/Http/Controllers/Advisor/CalendarController.php:104
@@ -134,6 +135,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::update
 * @see app/Http/Controllers/Advisor/CalendarController.php:119
@@ -223,6 +225,7 @@ updateForm.patch = (args: { meeting: string | { id: string } } | [meeting: strin
 })
 
 update.form = updateForm
+
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::cancel
 * @see app/Http/Controllers/Advisor/CalendarController.php:135
@@ -312,6 +315,7 @@ cancelForm.delete = (args: { meeting: string | { id: string } } | [meeting: stri
 })
 
 cancel.form = cancelForm
+
 const CalendarController = { index, store, update, cancel }
 
 export default CalendarController

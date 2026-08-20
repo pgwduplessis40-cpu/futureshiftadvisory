@@ -54,6 +54,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
 * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:222
@@ -133,6 +134,7 @@ guidanceForm.post = (args: { planSection: string | { id: string } } | [planSecti
 })
 
 guidance.form = guidanceForm
+
 const sections = {
     store: Object.assign(store, store),
     guidance: Object.assign(guidance, guidance),

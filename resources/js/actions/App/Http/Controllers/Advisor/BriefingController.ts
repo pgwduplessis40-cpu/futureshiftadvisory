@@ -88,6 +88,7 @@ reviewIndustryForm.patch = (args: { industryBriefing: string | { id: string } } 
 })
 
 reviewIndustry.form = reviewIndustryForm
+
 /**
 * @see \App\Http\Controllers\Advisor\BriefingController::reviewPreMeeting
 * @see app/Http/Controllers/Advisor/BriefingController.php:32
@@ -177,6 +178,7 @@ reviewPreMeetingForm.patch = (args: { preMeetingBrief: string | { id: string } }
 })
 
 reviewPreMeeting.form = reviewPreMeetingForm
+
 const BriefingController = { reviewIndustry, reviewPreMeeting }
 
 export default BriefingController

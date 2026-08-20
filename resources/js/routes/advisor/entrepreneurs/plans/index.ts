@@ -103,6 +103,7 @@ previewForm.head = (args: { entrepreneurProfile: string | { id: string }, busine
 })
 
 preview.form = previewForm
+
 const plans = {
     latest: Object.assign(latest, latest),
     preview: Object.assign(preview, preview),

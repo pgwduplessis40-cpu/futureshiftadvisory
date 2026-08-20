@@ -78,6 +78,7 @@ offerForm.post = (args: { client: string | { id: string } } | [client: string | 
 })
 
 offer.form = offerForm
+
 const integrationScoping = {
     offer: Object.assign(offer, offer),
 }

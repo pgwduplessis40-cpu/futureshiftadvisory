@@ -80,6 +80,7 @@ setupForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 setup.form = setupForm
+
 /**
 * @see \App\Http\Controllers\Auth\MfaChallengeController::challenge
 * @see app/Http/Controllers/Auth/MfaChallengeController.php:26
@@ -160,6 +161,7 @@ challengeForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =
 })
 
 challenge.form = challengeForm
+
 const mfa = {
     setup: Object.assign(setup, setup),
     challenge: Object.assign(challenge, challengeF9272e),

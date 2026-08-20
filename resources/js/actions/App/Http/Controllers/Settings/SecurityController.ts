@@ -79,6 +79,7 @@ editForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 edit.form = editForm
+
 /**
 * @see \App\Http\Controllers\Settings\SecurityController::update
 * @see app/Http/Controllers/Settings/SecurityController.php:57
@@ -144,6 +145,7 @@ updateForm.put = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 update.form = updateForm
+
 const SecurityController = { edit, update }
 
 export default SecurityController

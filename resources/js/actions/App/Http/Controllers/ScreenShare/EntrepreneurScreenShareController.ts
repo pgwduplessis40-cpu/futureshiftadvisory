@@ -78,6 +78,7 @@ registerAdvisorForm.post = (args: { entrepreneurProfile: string | { id: string }
 })
 
 registerAdvisor.form = registerAdvisorForm
+
 /**
 * @see \App\Http\Controllers\ScreenShare\EntrepreneurScreenShareController::store
 * @see app/Http/Controllers/ScreenShare/EntrepreneurScreenShareController.php:43
@@ -157,6 +158,7 @@ storeForm.post = (args: { entrepreneurProfile: string | { id: string } } | [entr
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\ScreenShare\EntrepreneurScreenShareController::registerPortalParticipant
 * @see app/Http/Controllers/ScreenShare/EntrepreneurScreenShareController.php:23
@@ -212,6 +214,7 @@ registerPortalParticipantForm.post = (options?: RouteQueryOptions): RouteFormDef
 })
 
 registerPortalParticipant.form = registerPortalParticipantForm
+
 const EntrepreneurScreenShareController = { registerAdvisor, store, registerPortalParticipant }
 
 export default EntrepreneurScreenShareController

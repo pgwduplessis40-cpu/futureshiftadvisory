@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\ServiceSurveyController::store
 * @see app/Http/Controllers/Admin/ServiceSurveyController.php:79
@@ -158,6 +159,7 @@ storeForm.post = (args: { serviceActivation: string | { id: string } } | [servic
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Admin\ServiceSurveyController::storeForEntrepreneur
 * @see app/Http/Controllers/Admin/ServiceSurveyController.php:113
@@ -237,6 +239,7 @@ storeForEntrepreneurForm.post = (args: { entrepreneurProfile: string | { id: str
 })
 
 storeForEntrepreneur.form = storeForEntrepreneurForm
+
 const ServiceSurveyController = { index, store, storeForEntrepreneur }
 
 export default ServiceSurveyController

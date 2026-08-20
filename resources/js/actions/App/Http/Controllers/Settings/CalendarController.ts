@@ -79,6 +79,7 @@ editForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 edit.form = editForm
+
 /**
 * @see \App\Http\Controllers\Settings\CalendarController::connect
 * @see app/Http/Controllers/Settings/CalendarController.php:75
@@ -177,6 +178,7 @@ connectForm.head = (args: { provider: string | number } | [provider: string | nu
 })
 
 connect.form = connectForm
+
 /**
 * @see \App\Http\Controllers\Settings\CalendarController::callback
 * @see app/Http/Controllers/Settings/CalendarController.php:83
@@ -275,6 +277,7 @@ callbackForm.head = (args: { provider: string | number } | [provider: string | n
 })
 
 callback.form = callbackForm
+
 /**
 * @see \App\Http\Controllers\Settings\CalendarController::sync
 * @see app/Http/Controllers/Settings/CalendarController.php:123
@@ -354,6 +357,7 @@ syncForm.post = (args: { calendarConnection: string | { id: string } } | [calend
 })
 
 sync.form = syncForm
+
 /**
 * @see \App\Http\Controllers\Settings\CalendarController::revoke
 * @see app/Http/Controllers/Settings/CalendarController.php:161
@@ -443,6 +447,7 @@ revokeForm.patch = (args: { calendarConnection: string | { id: string } } | [cal
 })
 
 revoke.form = revokeForm
+
 const CalendarController = { edit, connect, callback, sync, revoke }
 
 export default CalendarController

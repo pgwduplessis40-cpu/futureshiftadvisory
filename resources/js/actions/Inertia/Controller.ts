@@ -79,6 +79,7 @@ Controllerabfba46d2c51e09ac277d954fd911264Form.head = (options?: RouteQueryOptio
 })
 
 Controllerabfba46d2c51e09ac277d954fd911264.form = Controllerabfba46d2c51e09ac277d954fd911264Form
+
 /**
 * @see \Inertia\Controller::__invoke
 * @see vendor/inertiajs/inertia-laravel/src/Controller.php:13

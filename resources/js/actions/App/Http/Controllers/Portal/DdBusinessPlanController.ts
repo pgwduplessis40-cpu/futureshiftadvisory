@@ -79,6 +79,7 @@ showForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::preview
 * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:129
@@ -159,6 +160,7 @@ previewForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 })
 
 preview.form = previewForm
+
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
 * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:152
@@ -214,6 +216,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::supportLevel
 * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:103
@@ -269,6 +272,7 @@ supportLevelForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post
 })
 
 supportLevel.form = supportLevelForm
+
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::questionnaire
 * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:165
@@ -324,6 +328,7 @@ questionnaireForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'pos
 })
 
 questionnaire.form = questionnaireForm
+
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::section
 * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:177
@@ -379,6 +384,7 @@ sectionForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 })
 
 section.form = sectionForm
+
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
 * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:222
@@ -458,6 +464,7 @@ guidanceForm.post = (args: { planSection: string | { id: string } } | [planSecti
 })
 
 guidance.form = guidanceForm
+
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::complete
 * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:235
@@ -513,6 +520,7 @@ completeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =
 })
 
 complete.form = completeForm
+
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::requestAdvice
 * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:262
@@ -568,6 +576,7 @@ requestAdviceForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'pos
 })
 
 requestAdvice.form = requestAdviceForm
+
 const DdBusinessPlanController = { show, preview, store, supportLevel, questionnaire, section, guidance, complete, requestAdvice }
 
 export default DdBusinessPlanController

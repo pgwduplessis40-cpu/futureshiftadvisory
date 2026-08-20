@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:94
@@ -159,6 +160,7 @@ createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 create.form = createForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::createManual
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:105
@@ -239,6 +241,7 @@ createManualForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'
 })
 
 createManual.form = createManualForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::store
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:116
@@ -294,6 +297,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::storeManual
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:184
@@ -349,6 +353,7 @@ storeManualForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'
 })
 
 storeManual.form = storeManualForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestPlanPreview
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:450
@@ -453,6 +458,7 @@ latestPlanPreviewForm.head = (args: { entrepreneurProfile: string | { id: string
 })
 
 latestPlanPreview.form = latestPlanPreviewForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestBudgetPackPdf
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
@@ -557,6 +563,7 @@ latestBudgetPackPdfForm.head = (args: { entrepreneurProfile: string | { id: stri
 })
 
 latestBudgetPackPdf.form = latestBudgetPackPdfForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::planPreview
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:460
@@ -658,6 +665,7 @@ planPreviewForm.head = (args: { entrepreneurProfile: string | { id: string }, bu
 })
 
 planPreview.form = planPreviewForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::budgetPackPdf
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:479
@@ -759,6 +767,7 @@ budgetPackPdfForm.head = (args: { entrepreneurProfile: string | { id: string }, 
 })
 
 budgetPackPdf.form = budgetPackPdfForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::updateInvite
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:272
@@ -848,6 +857,7 @@ updateInviteForm.patch = (args: { entrepreneurProfile: string | { id: string } }
 })
 
 updateInvite.form = updateInviteForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::resendInvite
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:223
@@ -927,6 +937,7 @@ resendInviteForm.post = (args: { entrepreneurProfile: string | { id: string } } 
 })
 
 resendInvite.form = resendInviteForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::cancelInvite
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:333
@@ -1016,6 +1027,7 @@ cancelInviteForm.delete = (args: { entrepreneurProfile: string | { id: string } 
 })
 
 cancelInvite.form = cancelInviteForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
 * @see app/Http/Controllers/Advisor/EntrepreneurController.php:368
@@ -1120,6 +1132,7 @@ showForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entre
 })
 
 show.form = showForm
+
 const EntrepreneurController = { index, create, createManual, store, storeManual, latestPlanPreview, latestBudgetPackPdf, planPreview, budgetPackPdf, updateInvite, resendInvite, cancelInvite, show }
 
 export default EntrepreneurController

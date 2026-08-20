@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\ClientAllocationController::reassign
 * @see app/Http/Controllers/Admin/ClientAllocationController.php:76
@@ -168,6 +169,7 @@ reassignForm.patch = (args: { client: string | { id: string } } | [client: strin
 })
 
 reassign.form = reassignForm
+
 const clientAllocations = {
     index: Object.assign(index, index),
     reassign: Object.assign(reassign, reassign),

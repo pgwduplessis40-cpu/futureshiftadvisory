@@ -89,6 +89,7 @@ releaseForm.patch = (args: { proposal: string | { id: string } } | [proposal: st
 })
 
 release.form = releaseForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::recall
 * @see app/Http/Controllers/Advisor/ProposalController.php:161
@@ -178,6 +179,7 @@ recallForm.patch = (args: { proposal: string | { id: string } } | [proposal: str
 })
 
 recall.form = recallForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::renew
 * @see app/Http/Controllers/Advisor/ProposalController.php:174
@@ -267,6 +269,7 @@ renewForm.patch = (args: { proposal: string | { id: string } } | [proposal: stri
 })
 
 renew.form = renewForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::show
 * @see app/Http/Controllers/Advisor/ProposalController.php:187
@@ -371,6 +374,7 @@ showForm.head = (args: { proposal: string | { id: string } } | [proposal: string
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::download
 * @see app/Http/Controllers/Advisor/ProposalController.php:210
@@ -475,6 +479,7 @@ downloadForm.head = (args: { proposal: string | { id: string } } | [proposal: st
 })
 
 download.form = downloadForm
+
 const proposals = {
     strategicPlan: Object.assign(strategicPlan, strategicPlan),
     release: Object.assign(release, release),

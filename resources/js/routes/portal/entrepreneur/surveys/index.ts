@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::show
 * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:45
@@ -183,6 +184,7 @@ showForm.head = (args: { surveyAssignment: string | { id: string } } | [surveyAs
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::draft
 * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:58
@@ -262,6 +264,7 @@ draftForm.post = (args: { surveyAssignment: string | { id: string } } | [surveyA
 })
 
 draft.form = draftForm
+
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::submit
 * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:70
@@ -341,6 +344,7 @@ submitForm.post = (args: { surveyAssignment: string | { id: string } } | [survey
 })
 
 submit.form = submitForm
+
 const surveys = {
     index: Object.assign(index, index),
     show: Object.assign(show, show),

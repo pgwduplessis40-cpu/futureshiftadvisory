@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::create
 * @see app/Http/Controllers/Advisor/PartnerPanelController.php:50
@@ -159,6 +160,7 @@ createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 create.form = createForm
+
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::store
 * @see app/Http/Controllers/Advisor/PartnerPanelController.php:55
@@ -214,6 +216,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 const brokers = {
     index: Object.assign(index, index),
     create: Object.assign(create, create),

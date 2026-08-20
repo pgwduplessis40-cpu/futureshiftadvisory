@@ -79,6 +79,7 @@ dashboardForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =
 })
 
 dashboard.form = dashboardForm
+
 const npoBoard = {
     dashboard: Object.assign(dashboard, dashboard),
 }

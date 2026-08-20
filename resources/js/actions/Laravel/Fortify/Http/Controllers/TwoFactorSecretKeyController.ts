@@ -79,6 +79,7 @@ showForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 show.form = showForm
+
 const TwoFactorSecretKeyController = { show }
 
 export default TwoFactorSecretKeyController

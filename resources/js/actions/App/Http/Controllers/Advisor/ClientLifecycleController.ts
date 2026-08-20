@@ -88,6 +88,7 @@ updateForm.patch = (args: { client: string | { id: string } } | [client: string 
 })
 
 update.form = updateForm
+
 const ClientLifecycleController = { update }
 
 export default ClientLifecycleController

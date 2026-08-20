@@ -54,6 +54,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 const EmailVerificationNotificationController = { store }
 
 export default EmailVerificationNotificationController

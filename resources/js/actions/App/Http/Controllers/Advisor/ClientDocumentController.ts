@@ -100,6 +100,7 @@ showForm.head = (args: { client: string | { id: string }, document: string | { i
 })
 
 show.form = showForm
+
 const ClientDocumentController = { show }
 
 export default ClientDocumentController

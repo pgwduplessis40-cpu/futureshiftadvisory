@@ -79,6 +79,7 @@ editForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 edit.form = editForm
+
 const security = {
     edit: Object.assign(edit, edit),
 }

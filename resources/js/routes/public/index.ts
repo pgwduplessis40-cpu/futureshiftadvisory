@@ -80,6 +80,7 @@ servicesForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =>
 })
 
 services.form = servicesForm
+
 /**
 * @see \App\Http\Controllers\Public\AboutController::__invoke
 * @see app/Http/Controllers/Public/AboutController.php:13
@@ -160,6 +161,7 @@ aboutForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 about.form = aboutForm
+
 /**
 * @see \App\Http\Controllers\Public\FaqController::__invoke
 * @see app/Http/Controllers/Public/FaqController.php:14
@@ -240,6 +242,7 @@ faqForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 faq.form = faqForm
+
 /**
 * @see \App\Http\Controllers\Public\ContactController::contact
 * @see app/Http/Controllers/Public/ContactController.php:21
@@ -320,6 +323,7 @@ contactForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 })
 
 contact.form = contactForm
+
 /**
 * @see \App\Http\Controllers\Public\SitemapController::__invoke
 * @see app/Http/Controllers/Public/SitemapController.php:15
@@ -400,6 +404,7 @@ sitemapForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 })
 
 sitemap.form = sitemapForm
+
 /**
 * @see \App\Http\Controllers\Public\LlmsTxtController::__invoke
 * @see app/Http/Controllers/Public/LlmsTxtController.php:19
@@ -480,6 +485,7 @@ llmsForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 llms.form = llmsForm
+
 const publicMethod = {
     services: Object.assign(services, services),
     about: Object.assign(about, about),

@@ -78,6 +78,7 @@ storeForm.post = (args: { client: string | { id: string } } | [client: string | 
 })
 
 store.form = storeForm
+
 const knowledgeDrafts = {
     store: Object.assign(store, store),
 }

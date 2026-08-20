@@ -104,6 +104,7 @@ showForm.head = (args: { proposal: string | { id: string } } | [proposal: string
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
 * @see app/Http/Controllers/Portal/ProposalSignoffController.php:184
@@ -208,6 +209,7 @@ downloadForm.head = (args: { proposal: string | { id: string } } | [proposal: st
 })
 
 download.form = downloadForm
+
 const proposals = {
     show: Object.assign(show, show),
     download: Object.assign(download, download),

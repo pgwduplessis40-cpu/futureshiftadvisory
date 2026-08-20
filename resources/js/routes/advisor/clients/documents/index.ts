@@ -100,6 +100,7 @@ showForm.head = (args: { client: string | { id: string }, document: string | { i
 })
 
 show.form = showForm
+
 const documents = {
     show: Object.assign(show, show),
 }

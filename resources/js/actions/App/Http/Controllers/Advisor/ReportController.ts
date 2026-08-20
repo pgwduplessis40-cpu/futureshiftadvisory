@@ -78,6 +78,7 @@ storeForm.post = (args: { client: string | { id: string } } | [client: string | 
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::download
 * @see app/Http/Controllers/Advisor/ReportController.php:62
@@ -182,6 +183,7 @@ downloadForm.head = (args: { report: string | { id: string } } | [report: string
 })
 
 download.form = downloadForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::downloadPptx
 * @see app/Http/Controllers/Advisor/ReportController.php:67
@@ -286,6 +288,7 @@ downloadPptxForm.head = (args: { report: string | { id: string } } | [report: st
 })
 
 downloadPptx.form = downloadPptxForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
 * @see app/Http/Controllers/Advisor/ReportController.php:138
@@ -375,6 +378,7 @@ reviewForm.patch = (args: { report: string | { id: string } } | [report: string 
 })
 
 review.form = reviewForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::release
 * @see app/Http/Controllers/Advisor/ReportController.php:157
@@ -464,6 +468,7 @@ releaseForm.patch = (args: { report: string | { id: string } } | [report: string
 })
 
 release.form = releaseForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::updateSection
 * @see app/Http/Controllers/Advisor/ReportController.php:182
@@ -550,6 +555,7 @@ updateSectionForm.patch = (args: { report: string | { id: string }, reportSectio
 })
 
 updateSection.form = updateSectionForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::commentSection
 * @see app/Http/Controllers/Advisor/ReportController.php:218
@@ -626,6 +632,7 @@ commentSectionForm.post = (args: { report: string | { id: string }, reportSectio
 })
 
 commentSection.form = commentSectionForm
+
 const ReportController = { store, download, downloadPptx, review, release, updateSection, commentSection }
 
 export default ReportController

@@ -82,6 +82,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::show
 * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:87
@@ -186,6 +187,7 @@ showForm.head = (args: { integrationScope: string | { id: string } } | [integrat
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::update
 * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:123
@@ -275,6 +277,7 @@ updateForm.patch = (args: { integrationScope: string | { id: string } } | [integ
 })
 
 update.form = updateForm
+
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::recalculate
 * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:135
@@ -354,6 +357,7 @@ recalculateForm.post = (args: { integrationScope: string | { id: string } } | [i
 })
 
 recalculate.form = recalculateForm
+
 const integrationScopes = {
     index: Object.assign(index, index),
     show: Object.assign(show, show),

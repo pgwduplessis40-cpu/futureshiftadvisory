@@ -54,6 +54,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\PanelApplicationController::update
 * @see app/Http/Controllers/PanelApplicationController.php:36
@@ -119,6 +120,7 @@ updateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 })
 
 update.form = updateForm
+
 const PanelApplicationController = { store, update }
 
 export default PanelApplicationController

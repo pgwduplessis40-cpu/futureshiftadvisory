@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\TermsController::store
 * @see app/Http/Controllers/Admin/TermsController.php:59
@@ -134,6 +135,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Admin\TermsController::edit
 * @see app/Http/Controllers/Admin/TermsController.php:95
@@ -238,6 +240,7 @@ editForm.head = (args: { termsVersion: string | { id: string } } | [termsVersion
 })
 
 edit.form = editForm
+
 /**
 * @see \App\Http\Controllers\Admin\TermsController::update
 * @see app/Http/Controllers/Admin/TermsController.php:104
@@ -327,6 +330,7 @@ updateForm.put = (args: { termsVersion: string | { id: string } } | [termsVersio
 })
 
 update.form = updateForm
+
 /**
 * @see \App\Http\Controllers\Admin\TermsController::preview
 * @see app/Http/Controllers/Admin/TermsController.php:153
@@ -431,6 +435,7 @@ previewForm.head = (args: { termsVersion: string | { id: string } } | [termsVers
 })
 
 preview.form = previewForm
+
 /**
 * @see \App\Http\Controllers\Admin\TermsController::download
 * @see app/Http/Controllers/Admin/TermsController.php:162
@@ -535,6 +540,7 @@ downloadForm.head = (args: { termsVersion: string | { id: string } } | [termsVer
 })
 
 download.form = downloadForm
+
 /**
 * @see \App\Http\Controllers\Admin\TermsController::uploadSourceFile
 * @see app/Http/Controllers/Admin/TermsController.php:191
@@ -614,6 +620,7 @@ uploadSourceFileForm.post = (args: { termsVersion: string | { id: string } } | [
 })
 
 uploadSourceFile.form = uploadSourceFileForm
+
 /**
 * @see \App\Http\Controllers\Admin\TermsController::downloadSourceFile
 * @see app/Http/Controllers/Admin/TermsController.php:236
@@ -718,6 +725,7 @@ downloadSourceFileForm.head = (args: { termsVersion: string | { id: string } } |
 })
 
 downloadSourceFile.form = downloadSourceFileForm
+
 /**
 * @see \App\Http\Controllers\Admin\TermsController::confirmPublish
 * @see app/Http/Controllers/Admin/TermsController.php:268
@@ -822,6 +830,7 @@ confirmPublishForm.head = (args: { termsVersion: string | { id: string } } | [te
 })
 
 confirmPublish.form = confirmPublishForm
+
 /**
 * @see \App\Http\Controllers\Admin\TermsController::publish
 * @see app/Http/Controllers/Admin/TermsController.php:277
@@ -901,6 +910,7 @@ publishForm.post = (args: { termsVersion: string | { id: string } } | [termsVers
 })
 
 publish.form = publishForm
+
 /**
 * @see \App\Http\Controllers\Admin\TermsController::activateEnforcement
 * @see app/Http/Controllers/Admin/TermsController.php:335
@@ -956,6 +966,7 @@ activateEnforcementForm.post = (options?: RouteQueryOptions): RouteFormDefinitio
 })
 
 activateEnforcement.form = activateEnforcementForm
+
 const TermsController = { index, store, edit, update, preview, download, uploadSourceFile, downloadSourceFile, confirmPublish, publish, activateEnforcement }
 
 export default TermsController

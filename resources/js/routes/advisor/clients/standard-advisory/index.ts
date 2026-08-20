@@ -78,6 +78,7 @@ analysisForm.post = (args: { client: string | { id: string } } | [client: string
 })
 
 analysis.form = analysisForm
+
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::websiteUrl
 * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:76
@@ -157,6 +158,7 @@ websiteUrlForm.post = (args: { client: string | { id: string } } | [client: stri
 })
 
 websiteUrl.form = websiteUrlForm
+
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::pack
 * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:33
@@ -236,6 +238,7 @@ packForm.post = (args: { client: string | { id: string } } | [client: string | {
 })
 
 pack.form = packForm
+
 const standardAdvisory = {
     analysis: Object.assign(analysis, analysis),
     websiteUrl: Object.assign(websiteUrl, websiteUrl),

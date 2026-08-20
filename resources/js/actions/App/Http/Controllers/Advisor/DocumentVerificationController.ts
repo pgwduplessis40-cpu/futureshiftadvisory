@@ -88,6 +88,7 @@ updateForm.patch = (args: { documentVerification: string | { id: string } } | [d
 })
 
 update.form = updateForm
+
 const DocumentVerificationController = { update }
 
 export default DocumentVerificationController

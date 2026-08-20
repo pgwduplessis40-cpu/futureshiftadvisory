@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\AdvisorApi\ClientController::show
 * @see app/Http/Controllers/AdvisorApi/ClientController.php:31
@@ -183,6 +184,7 @@ showForm.head = (args: { client: string | { id: string } } | [client: string | {
 })
 
 show.form = showForm
+
 const ClientController = { index, show }
 
 export default ClientController

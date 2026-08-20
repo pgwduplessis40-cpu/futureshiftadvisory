@@ -78,6 +78,7 @@ storeForm.post = (args: { client: string | { id: string } } | [client: string | 
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::storeCallLog
 * @see app/Http/Controllers/Advisor/VoiceNoteController.php:61
@@ -157,6 +158,7 @@ storeCallLogForm.post = (args: { client: string | { id: string } } | [client: st
 })
 
 storeCallLog.form = storeCallLogForm
+
 const VoiceNoteController = { store, storeCallLog }
 
 export default VoiceNoteController

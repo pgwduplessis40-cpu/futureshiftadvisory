@@ -88,6 +88,7 @@ cancelForm.delete = (args: { rotationSchedule: string | { id: string } } | [rota
 })
 
 cancel.form = cancelForm
+
 const scheduleRotation = {
     cancel: Object.assign(cancel, cancel),
 }

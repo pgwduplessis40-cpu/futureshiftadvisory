@@ -103,6 +103,7 @@ showForm.head = (args: { report: string | { id: string } } | [report: string | {
 })
 
 show.form = showForm
+
 const ReportController = { show }
 
 export default ReportController

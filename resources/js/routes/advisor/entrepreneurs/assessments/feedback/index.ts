@@ -85,6 +85,7 @@ updateForm.patch = (args: { entrepreneurProfile: string | { id: string }, planAs
 })
 
 update.form = updateForm
+
 const feedback = {
     update: Object.assign(update, update),
 }

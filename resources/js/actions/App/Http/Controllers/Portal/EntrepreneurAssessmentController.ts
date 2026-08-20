@@ -103,6 +103,7 @@ showForm.head = (args: { planAssessment: string | { id: string } } | [planAssess
 })
 
 show.form = showForm
+
 const EntrepreneurAssessmentController = { show }
 
 export default EntrepreneurAssessmentController

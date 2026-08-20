@@ -78,6 +78,7 @@ storeForm.post = (args: { entrepreneurProfile: string | { id: string } } | [entr
 })
 
 store.form = storeForm
+
 const connections = {
     store: Object.assign(store, store),
 }

@@ -88,6 +88,7 @@ reviewForm.patch = (args: { learningUpdateImplementation: string | { id: string 
 })
 
 review.form = reviewForm
+
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::rollback
 * @see app/Http/Controllers/Admin/LearningUpdateController.php:109
@@ -177,6 +178,7 @@ rollbackForm.patch = (args: { learningUpdateImplementation: string | { id: strin
 })
 
 rollback.form = rollbackForm
+
 const learningUpdateImplementations = {
     review: Object.assign(review, review),
     rollback: Object.assign(rollback, rollback),

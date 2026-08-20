@@ -79,6 +79,7 @@ createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 create.form = createForm
+
 /**
 * @see \App\Http\Controllers\Public\ContactController::store
 * @see app/Http/Controllers/Public/ContactController.php:28
@@ -134,6 +135,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Public\ContactController::thanks
 * @see app/Http/Controllers/Public/ContactController.php:60
@@ -214,6 +216,7 @@ thanksForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 thanks.form = thanksForm
+
 const ContactController = { create, store, thanks }
 
 export default ContactController

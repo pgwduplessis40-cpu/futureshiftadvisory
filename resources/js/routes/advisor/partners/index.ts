@@ -106,6 +106,7 @@ showForm.head = (args: { panelMember: string | { id: string } } | [panelMember: 
 })
 
 show.form = showForm
+
 const partners = {
     brokers: Object.assign(brokers, brokers),
     coaches: Object.assign(coaches, coaches),

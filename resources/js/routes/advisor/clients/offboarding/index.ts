@@ -103,6 +103,7 @@ createForm.head = (args: { client: string | { id: string } } | [client: string |
 })
 
 create.form = createForm
+
 /**
 * @see \App\Http\Controllers\Advisor\OffboardingController::store
 * @see app/Http/Controllers/Advisor/OffboardingController.php:46
@@ -182,6 +183,7 @@ storeForm.post = (args: { client: string | { id: string } } | [client: string | 
 })
 
 store.form = storeForm
+
 const offboarding = {
     create: Object.assign(create, create),
     store: Object.assign(store, store),

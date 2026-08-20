@@ -97,6 +97,7 @@ showForm.head = (args: { token: string | number } | [token: string | number ] | 
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Auth\InviteAcceptController::store
 * @see app/Http/Controllers/Auth/InviteAcceptController.php:96
@@ -170,6 +171,7 @@ storeForm.post = (args: { token: string | number } | [token: string | number ] |
 })
 
 store.form = storeForm
+
 const InviteAcceptController = { show, store }
 
 export default InviteAcceptController

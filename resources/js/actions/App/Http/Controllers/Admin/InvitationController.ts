@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\InvitationController::create
 * @see app/Http/Controllers/Admin/InvitationController.php:45
@@ -159,6 +160,7 @@ createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 create.form = createForm
+
 /**
 * @see \App\Http\Controllers\Admin\InvitationController::store
 * @see app/Http/Controllers/Admin/InvitationController.php:55
@@ -214,6 +216,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 const InvitationController = { index, create, store }
 
 export default InvitationController

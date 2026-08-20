@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::show
 * @see app/Http/Controllers/Advisor/ServiceActivationController.php:48
@@ -183,6 +184,7 @@ showForm.head = (args: { serviceActivation: string | { id: string } } | [service
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
 * @see app/Http/Controllers/Advisor/ServiceActivationController.php:68
@@ -262,6 +264,7 @@ packageMethodForm.post = (args: { serviceActivation: string | { id: string } } |
 })
 
 packageMethod.form = packageMethodForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
 * @see app/Http/Controllers/Advisor/ServiceActivationController.php:88
@@ -341,6 +344,7 @@ balanceReceivedForm.post = (args: { serviceActivation: string | { id: string } }
 })
 
 balanceReceived.form = balanceReceivedForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::offerIntegrationScoping
 * @see app/Http/Controllers/Advisor/ServiceActivationController.php:100
@@ -420,6 +424,7 @@ offerIntegrationScopingForm.post = (args: { client: string | { id: string } } | 
 })
 
 offerIntegrationScoping.form = offerIntegrationScopingForm
+
 const ServiceActivationController = { index, show, packageMethod, balanceReceived, offerIntegrationScoping, package: packageMethod }
 
 export default ServiceActivationController

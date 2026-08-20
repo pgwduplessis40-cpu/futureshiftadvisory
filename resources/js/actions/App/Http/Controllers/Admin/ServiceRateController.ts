@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
 * @see app/Http/Controllers/Admin/ServiceRateController.php:84
@@ -134,6 +135,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
 * @see app/Http/Controllers/Admin/ServiceRateController.php:107
@@ -223,6 +225,7 @@ toggleForm.patch = (args: { serviceRateSetting: string | { id: string } } | [ser
 })
 
 toggle.form = toggleForm
+
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::storePackage
 * @see app/Http/Controllers/Admin/ServiceRateController.php:142
@@ -278,6 +281,7 @@ storePackageForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post
 })
 
 storePackage.form = storePackageForm
+
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::updatePackage
 * @see app/Http/Controllers/Admin/ServiceRateController.php:161
@@ -367,6 +371,7 @@ updatePackageForm.patch = (args: { serviceRatePackage: string | { id: string } }
 })
 
 updatePackage.form = updatePackageForm
+
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::togglePackage
 * @see app/Http/Controllers/Admin/ServiceRateController.php:192
@@ -456,6 +461,7 @@ togglePackageForm.patch = (args: { serviceRatePackage: string | { id: string } }
 })
 
 togglePackage.form = togglePackageForm
+
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::storeIntegrationFeeBand
 * @see app/Http/Controllers/Admin/ServiceRateController.php:215
@@ -511,6 +517,7 @@ storeIntegrationFeeBandForm.post = (options?: RouteQueryOptions): RouteFormDefin
 })
 
 storeIntegrationFeeBand.form = storeIntegrationFeeBandForm
+
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::importIntegrationFeeBands
 * @see app/Http/Controllers/Admin/ServiceRateController.php:226
@@ -566,6 +573,7 @@ importIntegrationFeeBandsForm.post = (options?: RouteQueryOptions): RouteFormDef
 })
 
 importIntegrationFeeBands.form = importIntegrationFeeBandsForm
+
 const ServiceRateController = { index, store, toggle, storePackage, updatePackage, togglePackage, storeIntegrationFeeBand, importIntegrationFeeBands }
 
 export default ServiceRateController

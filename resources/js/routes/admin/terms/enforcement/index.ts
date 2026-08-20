@@ -54,6 +54,7 @@ activateForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =
 })
 
 activate.form = activateForm
+
 const enforcement = {
     activate: Object.assign(activate, activate),
 }

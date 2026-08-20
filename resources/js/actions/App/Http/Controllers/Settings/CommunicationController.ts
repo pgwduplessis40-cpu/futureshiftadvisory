@@ -79,6 +79,7 @@ editForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 edit.form = editForm
+
 /**
 * @see \App\Http\Controllers\Settings\CommunicationController::update
 * @see app/Http/Controllers/Settings/CommunicationController.php:41
@@ -144,6 +145,7 @@ updateForm.put = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 update.form = updateForm
+
 const CommunicationController = { edit, update }
 
 export default CommunicationController

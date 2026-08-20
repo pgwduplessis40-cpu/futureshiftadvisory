@@ -88,6 +88,7 @@ stageForm.patch = (args: { referral: string | { id: string } } | [referral: stri
 })
 
 stage.form = stageForm
+
 const referrals = {
     stage: Object.assign(stage, stage),
 }

@@ -54,6 +54,7 @@ acknowledgeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'
 })
 
 acknowledge.form = acknowledgeForm
+
 const flags = {
     acknowledge: Object.assign(acknowledge, acknowledge),
 }

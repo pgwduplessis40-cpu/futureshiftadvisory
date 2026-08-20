@@ -100,6 +100,7 @@ showForm.head = (args: { entrepreneurProfile: string | { id: string }, planAsses
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurAssessmentController::planPreview
 * @see app/Http/Controllers/Advisor/EntrepreneurAssessmentController.php:100
@@ -201,6 +202,7 @@ planPreviewForm.head = (args: { entrepreneurProfile: string | { id: string }, pl
 })
 
 planPreview.form = planPreviewForm
+
 const EntrepreneurAssessmentController = { show, planPreview }
 
 export default EntrepreneurAssessmentController

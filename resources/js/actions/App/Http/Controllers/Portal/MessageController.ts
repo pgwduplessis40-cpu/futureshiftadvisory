@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Portal\MessageController::store
 * @see app/Http/Controllers/Portal/MessageController.php:87
@@ -134,6 +135,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Portal\MessageController::show
 * @see app/Http/Controllers/Portal/MessageController.php:59
@@ -238,6 +240,7 @@ showForm.head = (args: { messageThread: string | { id: string } } | [messageThre
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Portal\MessageController::reply
 * @see app/Http/Controllers/Portal/MessageController.php:121
@@ -317,6 +320,7 @@ replyForm.post = (args: { messageThread: string | { id: string } } | [messageThr
 })
 
 reply.form = replyForm
+
 const MessageController = { index, store, show, reply }
 
 export default MessageController

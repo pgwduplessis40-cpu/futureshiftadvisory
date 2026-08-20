@@ -78,6 +78,7 @@ registerAdvisorForm.post = (args: { client: string | { id: string } } | [client:
 })
 
 registerAdvisor.form = registerAdvisorForm
+
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::registerClient
 * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:22
@@ -133,6 +134,7 @@ registerClientForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'po
 })
 
 registerClient.form = registerClientForm
+
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::pendingPrompt
 * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:50
@@ -212,6 +214,7 @@ pendingPromptForm.post = (args: { connection: string | { id: string } } | [conne
 })
 
 pendingPrompt.form = pendingPromptForm
+
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareConnectionController::heartbeat
 * @see app/Http/Controllers/ScreenShare/ScreenShareConnectionController.php:40
@@ -291,6 +294,7 @@ heartbeatForm.post = (args: { connection: string | { id: string } } | [connectio
 })
 
 heartbeat.form = heartbeatForm
+
 const ScreenShareConnectionController = { registerAdvisor, registerClient, pendingPrompt, heartbeat }
 
 export default ScreenShareConnectionController

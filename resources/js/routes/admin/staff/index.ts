@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\StaffController::update
 * @see app/Http/Controllers/Admin/StaffController.php:66
@@ -168,6 +169,7 @@ updateForm.patch = (args: { user: number | { id: number } } | [user: number | { 
 })
 
 update.form = updateForm
+
 const staff = {
     index: Object.assign(index, index),
     update: Object.assign(update, update),

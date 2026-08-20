@@ -54,6 +54,7 @@ DocumentControllerForm.post = (options?: RouteQueryOptions): RouteFormDefinition
 })
 
 DocumentController.form = DocumentControllerForm
+
 /**
 * @see \App\Http\Controllers\DocumentController::show
 * @see app/Http/Controllers/DocumentController.php:68

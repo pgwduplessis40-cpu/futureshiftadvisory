@@ -96,6 +96,7 @@ __invokeForm.head = (args: { id: string | number, hash: string | number } | [id:
 })
 
 __invoke.form = __invokeForm
+
 const VerifyEmailController = { __invoke }
 
 export default VerifyEmailController

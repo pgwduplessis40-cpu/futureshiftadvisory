@@ -103,6 +103,7 @@ showForm.head = (args: { report: string | { id: string } } | [report: string | {
 })
 
 show.form = showForm
+
 const reports = {
     show: Object.assign(show, show),
 }

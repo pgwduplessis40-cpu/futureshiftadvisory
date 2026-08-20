@@ -54,6 +54,7 @@ assistForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 })
 
 assist.form = assistForm
+
 const requirements = {
     assist: Object.assign(assist, assist),
 }

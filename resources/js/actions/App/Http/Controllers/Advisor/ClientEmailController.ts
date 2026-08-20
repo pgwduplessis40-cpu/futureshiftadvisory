@@ -103,6 +103,7 @@ createForm.head = (args: { client: string | { id: string } } | [client: string |
 })
 
 create.form = createForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientEmailController::store
 * @see app/Http/Controllers/Advisor/ClientEmailController.php:39
@@ -182,6 +183,7 @@ storeForm.post = (args: { client: string | { id: string } } | [client: string | 
 })
 
 store.form = storeForm
+
 const ClientEmailController = { create, store }
 
 export default ClientEmailController

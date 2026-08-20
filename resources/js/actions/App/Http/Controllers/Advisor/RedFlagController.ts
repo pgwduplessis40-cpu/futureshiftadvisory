@@ -88,6 +88,7 @@ acknowledgeForm.patch = (args: { redFlag: string | { id: string } } | [redFlag: 
 })
 
 acknowledge.form = acknowledgeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\RedFlagController::resolve
 * @see app/Http/Controllers/Advisor/RedFlagController.php:42
@@ -177,6 +178,7 @@ resolveForm.patch = (args: { redFlag: string | { id: string } } | [redFlag: stri
 })
 
 resolve.form = resolveForm
+
 const RedFlagController = { acknowledge, resolve }
 
 export default RedFlagController

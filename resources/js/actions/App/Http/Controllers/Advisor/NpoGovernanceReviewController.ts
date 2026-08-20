@@ -78,6 +78,7 @@ runForm.post = (args: { npoEngagement: string | { id: string } } | [npoEngagemen
 })
 
 run.form = runForm
+
 /**
 * @see \App\Http\Controllers\Advisor\NpoGovernanceReviewController::review
 * @see app/Http/Controllers/Advisor/NpoGovernanceReviewController.php:33
@@ -167,6 +168,7 @@ reviewForm.patch = (args: { governanceReviewFinding: string | { id: string } } |
 })
 
 review.form = reviewForm
+
 const NpoGovernanceReviewController = { run, review }
 
 export default NpoGovernanceReviewController

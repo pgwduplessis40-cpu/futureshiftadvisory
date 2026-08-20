@@ -103,6 +103,7 @@ viewProposalForm.head = (args: { proposal: string | { id: string } } | [proposal
 })
 
 viewProposal.form = viewProposalForm
+
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
 * @see app/Http/Controllers/Portal/ProposalSignoffController.php:184
@@ -207,6 +208,7 @@ downloadForm.head = (args: { proposal: string | { id: string } } | [proposal: st
 })
 
 download.form = downloadForm
+
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
 * @see app/Http/Controllers/Portal/ProposalSignoffController.php:47
@@ -311,6 +313,7 @@ showForm.head = (args: { proposal: string | { id: string } } | [proposal: string
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::paymentSetup
 * @see app/Http/Controllers/Portal/ProposalSignoffController.php:99
@@ -390,6 +393,7 @@ paymentSetupForm.post = (args: { proposal: string | { id: string } } | [proposal
 })
 
 paymentSetup.form = paymentSetupForm
+
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::step
 * @see app/Http/Controllers/Portal/ProposalSignoffController.php:70
@@ -464,6 +468,7 @@ stepForm.post = (args: { proposal: string | { id: string }, step: string | numbe
 })
 
 step.form = stepForm
+
 const ProposalSignoffController = { viewProposal, download, show, paymentSetup, step }
 
 export default ProposalSignoffController

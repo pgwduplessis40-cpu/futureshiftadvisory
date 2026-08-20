@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\SurveyController::store
 * @see app/Http/Controllers/Admin/SurveyController.php:62
@@ -134,6 +135,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Admin\SurveyController::show
 * @see app/Http/Controllers/Admin/SurveyController.php:96
@@ -238,6 +240,7 @@ showForm.head = (args: { survey: string | { id: string } } | [survey: string | {
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Admin\SurveyController::edit
 * @see app/Http/Controllers/Admin/SurveyController.php:108
@@ -342,6 +345,7 @@ editForm.head = (args: { survey: string | { id: string } } | [survey: string | {
 })
 
 edit.form = editForm
+
 /**
 * @see \App\Http\Controllers\Admin\SurveyController::update
 * @see app/Http/Controllers/Admin/SurveyController.php:123
@@ -431,6 +435,7 @@ updateForm.put = (args: { survey: string | { id: string } } | [survey: string | 
 })
 
 update.form = updateForm
+
 /**
 * @see \App\Http\Controllers\Admin\SurveyController::publish
 * @see app/Http/Controllers/Admin/SurveyController.php:184
@@ -510,6 +515,7 @@ publishForm.post = (args: { survey: string | { id: string } } | [survey: string 
 })
 
 publish.form = publishForm
+
 /**
 * @see \App\Http\Controllers\Admin\SurveyController::archive
 * @see app/Http/Controllers/Admin/SurveyController.php:206
@@ -589,6 +595,7 @@ archiveForm.post = (args: { survey: string | { id: string } } | [survey: string 
 })
 
 archive.form = archiveForm
+
 /**
 * @see \App\Http\Controllers\Admin\SurveyController::results
 * @see app/Http/Controllers/Admin/SurveyController.php:223
@@ -693,6 +700,7 @@ resultsForm.head = (args: { survey: string | { id: string } } | [survey: string 
 })
 
 results.form = resultsForm
+
 const SurveyController = { index, store, show, edit, update, publish, archive, results }
 
 export default SurveyController

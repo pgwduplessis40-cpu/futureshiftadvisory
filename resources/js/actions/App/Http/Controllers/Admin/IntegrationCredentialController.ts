@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::store
 * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:49
@@ -134,6 +135,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::revoke
 * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:70
@@ -199,6 +201,7 @@ revokeForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 })
 
 revoke.form = revokeForm
+
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::activate
 * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:90
@@ -264,6 +267,7 @@ activateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> 
 })
 
 activate.form = activateForm
+
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::deactivate
 * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:104
@@ -329,6 +333,7 @@ deactivateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'
 })
 
 deactivate.form = deactivateForm
+
 const IntegrationCredentialController = { index, store, revoke, activate, deactivate }
 
 export default IntegrationCredentialController

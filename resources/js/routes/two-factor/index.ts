@@ -80,6 +80,7 @@ loginForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 login.form = loginForm
+
 /**
 * @see \Laravel\Fortify\Http\Controllers\TwoFactorAuthenticationController::enable
 * @see vendor/laravel/fortify/src/Http/Controllers/TwoFactorAuthenticationController.php:21
@@ -135,6 +136,7 @@ enableForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 })
 
 enable.form = enableForm
+
 /**
 * @see \Laravel\Fortify\Http\Controllers\ConfirmedTwoFactorAuthenticationController::confirm
 * @see vendor/laravel/fortify/src/Http/Controllers/ConfirmedTwoFactorAuthenticationController.php:19
@@ -190,6 +192,7 @@ confirmForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 })
 
 confirm.form = confirmForm
+
 /**
 * @see \Laravel\Fortify\Http\Controllers\TwoFactorAuthenticationController::disable
 * @see vendor/laravel/fortify/src/Http/Controllers/TwoFactorAuthenticationController.php:35
@@ -255,6 +258,7 @@ disableForm.delete = (options?: RouteQueryOptions): RouteFormDefinition<'post'> 
 })
 
 disable.form = disableForm
+
 /**
 * @see \Laravel\Fortify\Http\Controllers\TwoFactorQrCodeController::qrCode
 * @see vendor/laravel/fortify/src/Http/Controllers/TwoFactorQrCodeController.php:16
@@ -335,6 +339,7 @@ qrCodeForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 qrCode.form = qrCodeForm
+
 /**
 * @see \Laravel\Fortify\Http\Controllers\TwoFactorSecretKeyController::secretKey
 * @see vendor/laravel/fortify/src/Http/Controllers/TwoFactorSecretKeyController.php:17
@@ -415,6 +420,7 @@ secretKeyForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =
 })
 
 secretKey.form = secretKeyForm
+
 /**
 * @see \Laravel\Fortify\Http\Controllers\RecoveryCodeController::recoveryCodes
 * @see vendor/laravel/fortify/src/Http/Controllers/RecoveryCodeController.php:19
@@ -495,6 +501,7 @@ recoveryCodesForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get
 })
 
 recoveryCodes.form = recoveryCodesForm
+
 /**
 * @see \Laravel\Fortify\Http\Controllers\RecoveryCodeController::regenerateRecoveryCodes
 * @see vendor/laravel/fortify/src/Http/Controllers/RecoveryCodeController.php:38
@@ -550,6 +557,7 @@ regenerateRecoveryCodesForm.post = (options?: RouteQueryOptions): RouteFormDefin
 })
 
 regenerateRecoveryCodes.form = regenerateRecoveryCodesForm
+
 const twoFactor = {
     login: Object.assign(login, loginDf2c2a),
     enable: Object.assign(enable, enable),

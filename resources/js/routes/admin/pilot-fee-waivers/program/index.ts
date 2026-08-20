@@ -64,6 +64,7 @@ updateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 })
 
 update.form = updateForm
+
 const program = {
     update: Object.assign(update, update),
 }

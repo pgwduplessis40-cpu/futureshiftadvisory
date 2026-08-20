@@ -88,6 +88,7 @@ updateForm.patch = (args: { client: string | { id: string } } | [client: string 
 })
 
 update.form = updateForm
+
 const lifecycle = {
     update: Object.assign(update, update),
 }

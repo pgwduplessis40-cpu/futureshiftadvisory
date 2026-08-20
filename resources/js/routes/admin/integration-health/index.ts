@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::refresh
 * @see app/Http/Controllers/Admin/IntegrationHealthController.php:69
@@ -134,6 +135,7 @@ refreshForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 })
 
 refresh.form = refreshForm
+
 const integrationHealth = {
     index: Object.assign(index, index),
     refresh: Object.assign(refresh, refresh),

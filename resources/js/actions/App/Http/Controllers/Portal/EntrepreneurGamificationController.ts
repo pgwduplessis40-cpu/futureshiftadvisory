@@ -54,6 +54,7 @@ requestDisableForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'po
 })
 
 requestDisable.form = requestDisableForm
+
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurGamificationController::seen
 * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:24
@@ -109,6 +110,7 @@ seenForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
 })
 
 seen.form = seenForm
+
 const EntrepreneurGamificationController = { requestDisable, seen }
 
 export default EntrepreneurGamificationController

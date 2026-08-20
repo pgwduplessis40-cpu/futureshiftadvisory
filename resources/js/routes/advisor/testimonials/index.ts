@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\TestimonialController::capture
 * @see app/Http/Controllers/Advisor/TestimonialController.php:41
@@ -168,6 +169,7 @@ captureForm.patch = (args: { testimonial: string | { id: string } } | [testimoni
 })
 
 capture.form = captureForm
+
 const testimonials = {
     index: Object.assign(index, index),
     capture: Object.assign(capture, capture),

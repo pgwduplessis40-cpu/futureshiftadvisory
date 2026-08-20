@@ -72,6 +72,7 @@ storeForm.post = (args: { token: string | number } | [token: string | number ] |
 })
 
 store.form = storeForm
+
 const guestUploads = {
     store: Object.assign(store, store),
 }

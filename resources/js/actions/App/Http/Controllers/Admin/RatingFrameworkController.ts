@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\RatingFrameworkController::storeDraft
 * @see app/Http/Controllers/Admin/RatingFrameworkController.php:40
@@ -134,6 +135,7 @@ storeDraftForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'>
 })
 
 storeDraft.form = storeDraftForm
+
 /**
 * @see \App\Http\Controllers\Admin\RatingFrameworkController::publish
 * @see app/Http/Controllers/Admin/RatingFrameworkController.php:60
@@ -213,6 +215,7 @@ publishForm.post = (args: { ratingFramework: string | { id: string } } | [rating
 })
 
 publish.form = publishForm
+
 const RatingFrameworkController = { index, storeDraft, publish }
 
 export default RatingFrameworkController

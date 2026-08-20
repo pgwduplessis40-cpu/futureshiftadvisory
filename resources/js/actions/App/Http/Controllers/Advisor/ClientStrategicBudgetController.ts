@@ -88,6 +88,7 @@ approveForm.patch = (args: { client: string | { id: string } } | [client: string
 })
 
 approve.form = approveForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientStrategicBudgetController::advisorGoals
 * @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:43
@@ -177,6 +178,7 @@ advisorGoalsForm.patch = (args: { client: string | { id: string } } | [client: s
 })
 
 advisorGoals.form = advisorGoalsForm
+
 const ClientStrategicBudgetController = { approve, advisorGoals }
 
 export default ClientStrategicBudgetController

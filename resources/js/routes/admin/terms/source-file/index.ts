@@ -78,6 +78,7 @@ storeForm.post = (args: { termsVersion: string | { id: string } } | [termsVersio
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Admin\TermsController::download
 * @see app/Http/Controllers/Admin/TermsController.php:236
@@ -182,6 +183,7 @@ downloadForm.head = (args: { termsVersion: string | { id: string } } | [termsVer
 })
 
 download.form = downloadForm
+
 const sourceFile = {
     store: Object.assign(store, store),
     download: Object.assign(download, download),

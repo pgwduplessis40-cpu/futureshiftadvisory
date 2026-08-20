@@ -78,6 +78,7 @@ responseForm.post = (args: { session: string | { id: string } } | [session: stri
 })
 
 response.form = responseForm
+
 /**
 * @see \App\Http\Controllers\ScreenShare\ScreenShareSessionController::browserPermission
 * @see app/Http/Controllers/ScreenShare/ScreenShareSessionController.php:66
@@ -157,6 +158,7 @@ browserPermissionForm.post = (args: { session: string | { id: string } } | [sess
 })
 
 browserPermission.form = browserPermissionForm
+
 const sessions = {
     response: Object.assign(response, response),
     browserPermission: Object.assign(browserPermission, browserPermission),

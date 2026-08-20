@@ -100,6 +100,7 @@ showForm.head = (args: { entrepreneurProfile: string | { id: string }, document:
 })
 
 show.form = showForm
+
 const EntrepreneurDocumentController = { show }
 
 export default EntrepreneurDocumentController

@@ -79,6 +79,7 @@ remeasureForm.post = (args: { goal: string | { id: string } } | [goal: string | 
 })
 
 remeasure.form = remeasureForm
+
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::achieve
 * @see app/Http/Controllers/Advisor/GoalController.php:92
@@ -168,6 +169,7 @@ achieveForm.patch = (args: { goal: string | { id: string } } | [goal: string | {
 })
 
 achieve.form = achieveForm
+
 const goals = {
     milestones: Object.assign(milestones, milestones),
     remeasure: Object.assign(remeasure, remeasure),

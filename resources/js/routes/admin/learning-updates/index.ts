@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::rerun
 * @see app/Http/Controllers/Admin/LearningUpdateController.php:61
@@ -134,6 +135,7 @@ rerunForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 rerun.form = rerunForm
+
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::decide
 * @see app/Http/Controllers/Admin/LearningUpdateController.php:40
@@ -223,6 +225,7 @@ decideForm.patch = (args: { learningUpdate: string | { id: string } } | [learnin
 })
 
 decide.form = decideForm
+
 const learningUpdates = {
     index: Object.assign(index, index),
     rerun: Object.assign(rerun, rerun),

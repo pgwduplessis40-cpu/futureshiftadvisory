@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::show
 * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:87
@@ -183,6 +184,7 @@ showForm.head = (args: { integrationScope: string | { id: string } } | [integrat
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::store
 * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:111
@@ -262,6 +264,7 @@ storeForm.post = (args: { client: string | { id: string } } | [client: string | 
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::update
 * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:123
@@ -351,6 +354,7 @@ updateForm.patch = (args: { integrationScope: string | { id: string } } | [integ
 })
 
 update.form = updateForm
+
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::recalculate
 * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:135
@@ -430,6 +434,7 @@ recalculateForm.post = (args: { integrationScope: string | { id: string } } | [i
 })
 
 recalculate.form = recalculateForm
+
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::createFeeCalculation
 * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:147
@@ -509,6 +514,7 @@ createFeeCalculationForm.post = (args: { integrationScope: string | { id: string
 })
 
 createFeeCalculation.form = createFeeCalculationForm
+
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::extractQuoteSources
 * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:167
@@ -588,6 +594,7 @@ extractQuoteSourcesForm.post = (args: { integrationScope: string | { id: string 
 })
 
 extractQuoteSources.form = extractQuoteSourcesForm
+
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::retryQuoteSourceExtraction
 * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:209
@@ -664,6 +671,7 @@ retryQuoteSourceExtractionForm.post = (args: { integrationScope: string | { id: 
 })
 
 retryQuoteSourceExtraction.form = retryQuoteSourceExtractionForm
+
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::confirmQuoteSourceRows
 * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:228
@@ -740,6 +748,7 @@ confirmQuoteSourceRowsForm.post = (args: { integrationScope: string | { id: stri
 })
 
 confirmQuoteSourceRows.form = confirmQuoteSourceRowsForm
+
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::rejectQuoteSourceRows
 * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:248
@@ -816,6 +825,7 @@ rejectQuoteSourceRowsForm.post = (args: { integrationScope: string | { id: strin
 })
 
 rejectQuoteSourceRows.form = rejectQuoteSourceRowsForm
+
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::showQuoteSourceDocument
 * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:268
@@ -915,6 +925,7 @@ showQuoteSourceDocumentForm.head = (args: { integrationScope: string | { id: str
 })
 
 showQuoteSourceDocument.form = showQuoteSourceDocumentForm
+
 const IntegrationScopeController = { index, show, store, update, recalculate, createFeeCalculation, extractQuoteSources, retryQuoteSourceExtraction, confirmQuoteSourceRows, rejectQuoteSourceRows, showQuoteSourceDocument }
 
 export default IntegrationScopeController

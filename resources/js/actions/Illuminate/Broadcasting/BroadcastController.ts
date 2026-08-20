@@ -99,6 +99,7 @@ authenticateForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'
 })
 
 authenticate.form = authenticateForm
+
 const BroadcastController = { authenticate }
 
 export default BroadcastController

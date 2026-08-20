@@ -75,6 +75,7 @@ storeForm.post = (args: { entrepreneurProfile: string | { id: string }, business
 })
 
 store.form = storeForm
+
 const assessments = {
     store: Object.assign(store, store),
 }

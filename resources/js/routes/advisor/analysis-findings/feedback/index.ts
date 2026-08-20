@@ -78,6 +78,7 @@ storeForm.post = (args: { analysisFinding: string | { id: string } } | [analysis
 })
 
 store.form = storeForm
+
 const feedback = {
     store: Object.assign(store, store),
 }

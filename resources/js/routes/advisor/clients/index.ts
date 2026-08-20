@@ -103,6 +103,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::create
 * @see app/Http/Controllers/Advisor/ClientController.php:241
@@ -183,6 +184,7 @@ createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 create.form = createForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::invite
 * @see app/Http/Controllers/Advisor/ClientController.php:248
@@ -263,6 +265,7 @@ inviteForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 invite.form = inviteForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::lookupNzbn
 * @see app/Http/Controllers/Advisor/ClientController.php:421
@@ -318,6 +321,7 @@ lookupNzbnForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'>
 })
 
 lookupNzbn.form = lookupNzbnForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::store
 * @see app/Http/Controllers/Advisor/ClientController.php:435
@@ -373,6 +377,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
 * @see app/Http/Controllers/Advisor/SurveyResultController.php:19
@@ -477,6 +482,7 @@ surveysForm.head = (args: { client: string | { id: string } } | [client: string 
 })
 
 surveys.form = surveysForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientEmailController::compose
 * @see app/Http/Controllers/Advisor/ClientEmailController.php:22
@@ -581,6 +587,7 @@ composeForm.head = (args: { client: string | { id: string } } | [client: string 
 })
 
 compose.form = composeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::show
 * @see app/Http/Controllers/Advisor/ClientController.php:515
@@ -685,6 +692,7 @@ showForm.head = (args: { client: string | { id: string } } | [client: string | {
 })
 
 show.form = showForm
+
 const clients = {
     index: Object.assign(index, index),
     screenShare: Object.assign(screenShare, screenShare),

@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\QuestionnaireController::store
 * @see app/Http/Controllers/Admin/QuestionnaireController.php:45
@@ -134,6 +135,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Admin\QuestionnaireController::edit
 * @see app/Http/Controllers/Admin/QuestionnaireController.php:79
@@ -238,6 +240,7 @@ editForm.head = (args: { questionnaire: string | { id: string } } | [questionnai
 })
 
 edit.form = editForm
+
 /**
 * @see \App\Http\Controllers\Admin\QuestionnaireController::update
 * @see app/Http/Controllers/Admin/QuestionnaireController.php:90
@@ -327,6 +330,7 @@ updateForm.put = (args: { questionnaire: string | { id: string } } | [questionna
 })
 
 update.form = updateForm
+
 /**
 * @see \App\Http\Controllers\Admin\QuestionnaireController::preview
 * @see app/Http/Controllers/Admin/QuestionnaireController.php:175
@@ -431,6 +435,7 @@ previewForm.head = (args: { questionnaire: string | { id: string } } | [question
 })
 
 preview.form = previewForm
+
 /**
 * @see \App\Http\Controllers\Admin\QuestionnaireController::publish
 * @see app/Http/Controllers/Admin/QuestionnaireController.php:184
@@ -510,6 +515,7 @@ publishForm.post = (args: { questionnaire: string | { id: string } } | [question
 })
 
 publish.form = publishForm
+
 const QuestionnaireController = { index, store, edit, update, preview, publish }
 
 export default QuestionnaireController

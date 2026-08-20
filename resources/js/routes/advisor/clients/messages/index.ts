@@ -103,6 +103,7 @@ indexForm.head = (args: { client: string | { id: string } } | [client: string | 
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientMessageController::store
 * @see app/Http/Controllers/Advisor/ClientMessageController.php:57
@@ -182,6 +183,7 @@ storeForm.post = (args: { client: string | { id: string } } | [client: string | 
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientMessageController::show
 * @see app/Http/Controllers/Advisor/ClientMessageController.php:42
@@ -283,6 +285,7 @@ showForm.head = (args: { client: string | { id: string }, messageThread: string 
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientMessageController::reply
 * @see app/Http/Controllers/Advisor/ClientMessageController.php:75
@@ -359,6 +362,7 @@ replyForm.post = (args: { client: string | { id: string }, messageThread: string
 })
 
 reply.form = replyForm
+
 const messages = {
     index: Object.assign(index, index),
     store: Object.assign(store, store),

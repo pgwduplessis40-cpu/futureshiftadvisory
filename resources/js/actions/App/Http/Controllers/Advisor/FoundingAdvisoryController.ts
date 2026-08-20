@@ -78,6 +78,7 @@ replanForm.post = (args: { foundingAdvisoryEngagement: string | number | { id: s
 })
 
 replan.form = replanForm
+
 /**
 * @see \App\Http\Controllers\Advisor\FoundingAdvisoryController::publish
 * @see app/Http/Controllers/Advisor/FoundingAdvisoryController.php:50
@@ -164,6 +165,7 @@ publishForm.patch = (args: { foundingAdvisoryEngagement: string | number | { id:
 })
 
 publish.form = publishForm
+
 const FoundingAdvisoryController = { replan, publish }
 
 export default FoundingAdvisoryController

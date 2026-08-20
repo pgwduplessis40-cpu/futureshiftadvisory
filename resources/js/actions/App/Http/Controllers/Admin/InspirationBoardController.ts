@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::store
 * @see app/Http/Controllers/Admin/InspirationBoardController.php:41
@@ -134,6 +135,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 store.form = storeForm
+
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::scheduleRotation
 * @see app/Http/Controllers/Admin/InspirationBoardController.php:108
@@ -189,6 +191,7 @@ scheduleRotationForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'
 })
 
 scheduleRotation.form = scheduleRotationForm
+
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::cancelRotation
 * @see app/Http/Controllers/Admin/InspirationBoardController.php:133
@@ -278,6 +281,7 @@ cancelRotationForm.delete = (args: { rotationSchedule: string | { id: string } }
 })
 
 cancelRotation.form = cancelRotationForm
+
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::update
 * @see app/Http/Controllers/Admin/InspirationBoardController.php:86
@@ -367,6 +371,7 @@ updateForm.patch = (args: { boardPost: string | { id: string } } | [boardPost: s
 })
 
 update.form = updateForm
+
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::publish
 * @see app/Http/Controllers/Admin/InspirationBoardController.php:140
@@ -446,6 +451,7 @@ publishForm.post = (args: { boardPost: string | { id: string } } | [boardPost: s
 })
 
 publish.form = publishForm
+
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::archive
 * @see app/Http/Controllers/Admin/InspirationBoardController.php:151
@@ -525,6 +531,7 @@ archiveForm.post = (args: { boardPost: string | { id: string } } | [boardPost: s
 })
 
 archive.form = archiveForm
+
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::pin
 * @see app/Http/Controllers/Admin/InspirationBoardController.php:158
@@ -604,6 +611,7 @@ pinForm.post = (args: { boardPost: string | { id: string } } | [boardPost: strin
 })
 
 pin.form = pinForm
+
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::unpin
 * @see app/Http/Controllers/Admin/InspirationBoardController.php:165
@@ -683,6 +691,7 @@ unpinForm.post = (args: { boardPost: string | { id: string } } | [boardPost: str
 })
 
 unpin.form = unpinForm
+
 const InspirationBoardController = { index, store, scheduleRotation, cancelRotation, update, publish, archive, pin, unpin }
 
 export default InspirationBoardController

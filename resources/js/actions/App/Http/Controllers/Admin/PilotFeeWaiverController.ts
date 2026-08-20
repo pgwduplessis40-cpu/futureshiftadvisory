@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateProgram
 * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:83
@@ -144,6 +145,7 @@ updateProgramForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'po
 })
 
 updateProgram.form = updateProgramForm
+
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateClient
 * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:97
@@ -233,6 +235,7 @@ updateClientForm.patch = (args: { client: string | { id: string } } | [client: s
 })
 
 updateClient.form = updateClientForm
+
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::updateEntrepreneur
 * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:110
@@ -322,6 +325,7 @@ updateEntrepreneurForm.patch = (args: { entrepreneurProfile: string | { id: stri
 })
 
 updateEntrepreneur.form = updateEntrepreneurForm
+
 const PilotFeeWaiverController = { index, updateProgram, updateClient, updateEntrepreneur }
 
 export default PilotFeeWaiverController

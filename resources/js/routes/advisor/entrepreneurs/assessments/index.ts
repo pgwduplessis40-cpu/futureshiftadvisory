@@ -86,6 +86,7 @@ finaliseForm.patch = (args: { entrepreneurProfile: string | { id: string }, plan
 })
 
 finalise.form = finaliseForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurAssessmentController::show
 * @see app/Http/Controllers/Advisor/EntrepreneurAssessmentController.php:29
@@ -187,6 +188,7 @@ showForm.head = (args: { entrepreneurProfile: string | { id: string }, planAsses
 })
 
 show.form = showForm
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurAssessmentController::planPreview
 * @see app/Http/Controllers/Advisor/EntrepreneurAssessmentController.php:100
@@ -288,6 +290,7 @@ planPreviewForm.head = (args: { entrepreneurProfile: string | { id: string }, pl
 })
 
 planPreview.form = planPreviewForm
+
 const assessments = {
     feedback: Object.assign(feedback, feedback),
     finalise: Object.assign(finalise, finalise),

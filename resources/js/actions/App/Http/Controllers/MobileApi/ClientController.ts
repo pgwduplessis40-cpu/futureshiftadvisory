@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\MobileApi\ClientController::show
 * @see app/Http/Controllers/MobileApi/ClientController.php:32
@@ -177,6 +178,7 @@ showForm.head = (args: { client: string | number } | [client: string | number ] 
 })
 
 show.form = showForm
+
 const ClientController = { index, show }
 
 export default ClientController

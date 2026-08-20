@@ -88,6 +88,7 @@ updateForm.patch = (args: { entrepreneurProfile: string | { id: string } } | [en
 })
 
 update.form = updateForm
+
 const gamification = {
     update: Object.assign(update, update),
 }

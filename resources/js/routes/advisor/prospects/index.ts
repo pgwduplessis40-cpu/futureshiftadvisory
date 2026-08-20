@@ -79,6 +79,7 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 index.form = indexForm
+
 /**
 * @see \App\Http\Controllers\Advisor\ProspectInboxController::triage
 * @see app/Http/Controllers/Advisor/ProspectInboxController.php:44
@@ -168,6 +169,7 @@ triageForm.patch = (args: { prospectLead: number | { id: number } } | [prospectL
 })
 
 triage.form = triageForm
+
 const prospects = {
     index: Object.assign(index, index),
     triage: Object.assign(triage, triage),
