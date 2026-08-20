@@ -12,7 +12,17 @@ final class AdvisoryReadinessSignal extends Model
 {
     use HasUuids;
 
-    protected $guarded = [];
+    /**
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'entrepreneur_profile_id',
+        'business_plan_id',
+        'plan_assessment_id',
+        'score',
+        'surfaced_at',
+        'advisor_notified_at',
+    ];
 
     protected $casts = [
         'score' => 'float',

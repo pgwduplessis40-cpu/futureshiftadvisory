@@ -12,7 +12,23 @@ final class PlanAssessment extends Model
 {
     use HasUuids;
 
-    protected $guarded = [];
+    /**
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'business_plan_id',
+        'round',
+        'rating_framework_id',
+        'ai_scores',
+        'advisor_scores',
+        'mentor_notes',
+        'document_support',
+        'plan_snapshot',
+        'overall_grade',
+        'concept_pv_calculation_id',
+        'finalised_at',
+        'finalised_by_user_id',
+    ];
 
     protected $casts = [
         'round' => 'integer',

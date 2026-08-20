@@ -6,6 +6,10 @@ namespace App\Http\Controllers\Advisor;
 
 use App\Enums\EntrepreneurStage;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Advisor\Entrepreneurs\AssessmentFeedbackRequest;
+use App\Http\Requests\Advisor\Entrepreneurs\PassIdeaGateRequest;
+use App\Http\Requests\Advisor\Entrepreneurs\RequestIdeaChangesRequest;
+use App\Http\Requests\Advisor\Entrepreneurs\SetGamificationRequest;
 use App\Jobs\RefreshIdeaValidationAiReview;
 use App\Jobs\RunEntrepreneurPlanAssessment;
 use App\Models\AdvisoryReadinessSignal;
@@ -34,17 +38,14 @@ use Throwable;
 final class EntrepreneurActionController extends Controller
 {
     public function gateIdea(
-        Request $request,
+        PassIdeaGateRequest $request,
         EntrepreneurProfile $entrepreneurProfile,
         IdeaValidation $ideaValidation,
         IdeaValidationService $ideas,
     ): RedirectResponse {
-        Gate::authorize('view', $entrepreneurProfile);
         $this->assertIdeaBelongsToProfile($ideaValidation, $entrepreneurProfile);
         $advisor = $this->advisor($request);
-        $validated = $request->validate([
-            'advisor_gate_note' => ['required', 'string', 'min:10', 'max:2000'],
-        ]);
+        $validated = $request->validated();
 
         $ideas->passAdvisorGate($ideaValidation, $advisor, (string) $validated['advisor_gate_note']);
 
@@ -57,7 +58,7 @@ final class EntrepreneurActionController extends Controller
         IdeaValidation $ideaValidation,
         IdeaValidationService $ideas,
     ): RedirectResponse {
-        Gate::authorize('view', $entrepreneurProfile);
+        Gate::authorize('assess', $entrepreneurProfile);
         $this->assertIdeaBelongsToProfile($ideaValidation, $entrepreneurProfile);
         $advisor = $this->advisor($request);
 
@@ -68,17 +69,14 @@ final class EntrepreneurActionController extends Controller
     }
 
     public function requestIdeaChanges(
-        Request $request,
+        RequestIdeaChangesRequest $request,
         EntrepreneurProfile $entrepreneurProfile,
         IdeaValidation $ideaValidation,
         IdeaValidationService $ideas,
     ): RedirectResponse {
-        Gate::authorize('view', $entrepreneurProfile);
         $this->assertIdeaBelongsToProfile($ideaValidation, $entrepreneurProfile);
         $advisor = $this->advisor($request);
-        $validated = $request->validate([
-            'change_request_note' => ['required', 'string', 'min:10', 'max:4000'],
-        ]);
+        $validated = $request->validated();
 
         $ideas->requestChanges($ideaValidation, $advisor, (string) $validated['change_request_note']);
 
@@ -91,7 +89,7 @@ final class EntrepreneurActionController extends Controller
         BusinessPlan $businessPlan,
         Assessment $assessments,
     ): RedirectResponse {
-        Gate::authorize('view', $entrepreneurProfile);
+        Gate::authorize('assess', $entrepreneurProfile);
         $this->assertPlanBelongsToProfile($businessPlan, $entrepreneurProfile);
         $advisor = $this->advisor($request);
 
@@ -122,7 +120,7 @@ final class EntrepreneurActionController extends Controller
         ReportComposer $reports,
         AdvisoryReadiness $readiness,
     ): RedirectResponse {
-        Gate::authorize('view', $entrepreneurProfile);
+        Gate::authorize('finaliseAssessment', $entrepreneurProfile);
         $this->assertAssessmentBelongsToProfile($planAssessment, $entrepreneurProfile);
         $advisor = $this->advisor($request);
 
@@ -142,7 +140,7 @@ final class EntrepreneurActionController extends Controller
     }
 
     public function updateAssessmentFeedback(
-        Request $request,
+        AssessmentFeedbackRequest $request,
         EntrepreneurProfile $entrepreneurProfile,
         PlanAssessment $planAssessment,
         Assessment $assessments,
@@ -150,14 +148,9 @@ final class EntrepreneurActionController extends Controller
         Revision $revisions,
         MessageThreadService $messages,
     ): RedirectResponse {
-        Gate::authorize('view', $entrepreneurProfile);
         $this->assertAssessmentBelongsToProfile($planAssessment, $entrepreneurProfile);
         $advisor = $this->advisor($request);
-        $validated = $request->validate([
-            'feedback' => ['required', 'string', 'min:10', 'max:4000'],
-            'proposed_reply' => ['required', 'string', 'min:10', 'max:4000'],
-            'send_to_founder' => ['required', 'boolean'],
-        ]);
+        $validated = $request->validated();
         $sendToFounder = (bool) $validated['send_to_founder'];
 
         $assessment = $assessments->saveAdvisorFeedback(
@@ -198,8 +191,9 @@ final class EntrepreneurActionController extends Controller
         Request $request,
         EntrepreneurProfile $entrepreneurProfile,
         AdvisoryConversion $conversion,
+        AdvisoryReadiness $readiness,
     ): RedirectResponse {
-        Gate::authorize('view', $entrepreneurProfile);
+        Gate::authorize('convert', $entrepreneurProfile);
         $advisor = $this->advisor($request);
         $plan = BusinessPlan::query()
             ->where('entrepreneur_profile_id', $entrepreneurProfile->getKey())
@@ -207,11 +201,7 @@ final class EntrepreneurActionController extends Controller
             ->latest('updated_at')
             ->latest()
             ->first();
-        $signal = AdvisoryReadinessSignal::query()
-            ->where('entrepreneur_profile_id', $entrepreneurProfile->getKey())
-            ->latest('surfaced_at')
-            ->latest()
-            ->first();
+        $signal = $readiness->currentSignalForPlan($plan);
 
         if (! $signal instanceof AdvisoryReadinessSignal) {
             return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)->with('status', 'entrepreneur-not-advisory-ready');
@@ -223,17 +213,14 @@ final class EntrepreneurActionController extends Controller
     }
 
     public function setGamification(
-        Request $request,
+        SetGamificationRequest $request,
         EntrepreneurProfile $entrepreneurProfile,
         EntrepreneurMilestones $milestones,
         EntrepreneurStreak $streak,
         AuditWriter $audit,
     ): RedirectResponse {
-        Gate::authorize('view', $entrepreneurProfile);
         $advisor = $this->advisor($request);
-        $validated = $request->validate([
-            'enabled' => ['required', 'boolean'],
-        ]);
+        $validated = $request->validated();
         $enabled = (bool) $validated['enabled'];
 
         DB::transaction(function () use ($entrepreneurProfile, $enabled, $advisor, $milestones, $streak, $audit): void {

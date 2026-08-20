@@ -42,6 +42,17 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import {
+    csrfToken,
+    currentSectionTextareaPosition,
+    localDraftIsNewer,
+    postBudgetAutosave,
+    postSectionAutosave,
+    readPlanWorkspaceDraft,
+    restoreSectionTextareaPosition,
+    updatePlanWorkspaceDraft,
+} from './plan-workspace-draft';
+import type { AutosaveState, PlanWorkspaceDraft } from './plan-workspace-draft';
 
 type ProfilePayload = {
     id: string;
@@ -337,28 +348,6 @@ type PlanSectionPayload = {
     guidance_url: string;
 };
 
-type PlanWorkspaceDraft = {
-    selectedKey?: string | null;
-    windowScrollY?: number;
-    sectionDrafts?: Record<
-        string,
-        {
-            title: string;
-            body: string;
-            updatedAt: string;
-        }
-    >;
-    sectionPositions?: Record<
-        string,
-        {
-            scrollTop: number;
-            selectionStart: number;
-            selectionEnd: number;
-        }
-    >;
-    budgetForm?: BudgetFormState;
-};
-
 type ReportPayload = {
     id: string;
     title: string;
@@ -491,7 +480,8 @@ export default function EntrepreneurPlan({
         [profile.id],
     );
     const initialWorkspaceDraft = useMemo(
-        () => readPlanWorkspaceDraft(workspaceKey),
+        (): PlanWorkspaceDraft<BudgetFormState> | null =>
+            readPlanWorkspaceDraft<BudgetFormState>(workspaceKey),
         [workspaceKey],
     );
     const firstMissingRequirement =
@@ -662,12 +652,10 @@ export default function EntrepreneurPlan({
         () => initialWorkspaceDraft?.budgetForm ?? budgetToForm(plan?.budget),
     );
     const [savingBudget, setSavingBudget] = useState(false);
-    const [sectionAutosaveState, setSectionAutosaveState] = useState<
-        'idle' | 'saving' | 'saved' | 'error'
-    >('idle');
-    const [budgetAutosaveState, setBudgetAutosaveState] = useState<
-        'idle' | 'saving' | 'saved' | 'error'
-    >('idle');
+    const [sectionAutosaveState, setSectionAutosaveState] =
+        useState<AutosaveState>('idle');
+    const [budgetAutosaveState, setBudgetAutosaveState] =
+        useState<AutosaveState>('idle');
     const selectedKeyRef = useRef<string | null>(selectedKey);
     const budgetAutosaveReadyRef = useRef(false);
     const rememberWorkspacePosition = useCallback(() => {
@@ -724,7 +712,7 @@ export default function EntrepreneurPlan({
         // Keep the editable budget form aligned with Inertia refreshes after save.
         /* eslint-disable-next-line react-hooks/set-state-in-effect */
         setBudgetForm(
-            readPlanWorkspaceDraft(workspaceKey)?.budgetForm ??
+            readPlanWorkspaceDraft<BudgetFormState>(workspaceKey)?.budgetForm ??
                 budgetToForm(plan?.budget),
         );
     }, [plan?.budget, workspaceKey]);
@@ -828,28 +816,18 @@ export default function EntrepreneurPlan({
         const timeout = window.setTimeout(() => {
             setSectionAutosaveState('saving');
 
-            void fetch(urls.sectionStore, {
-                method: 'POST',
-                headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken(),
-                },
-                body: JSON.stringify({
-                    _autosave: true,
-                    phase_key: selectedRequirement.phase_key,
-                    requirement_key: selectedRequirement.key,
-                    title: sectionTitle,
-                    body: sectionBody,
-                    attached_document_ids: [],
-                }),
+            void postSectionAutosave(urls.sectionStore, {
+                phase_key: selectedRequirement.phase_key,
+                requirement_key: selectedRequirement.key,
+                title: sectionTitle,
+                body: sectionBody,
             })
-                .then((response) => {
+                .then((saved) => {
                     if (cancelled) {
                         return;
                     }
 
-                    setSectionAutosaveState(response.ok ? 'saved' : 'error');
+                    setSectionAutosaveState(saved ? 'saved' : 'error');
                 })
                 .catch(() => {
                     if (!cancelled) {
@@ -872,7 +850,7 @@ export default function EntrepreneurPlan({
     ]);
 
     useEffect(() => {
-        updatePlanWorkspaceDraft(workspaceKey, (draft) => ({
+        updatePlanWorkspaceDraft<BudgetFormState>(workspaceKey, (draft) => ({
             ...draft,
             budgetForm,
         }));
@@ -897,24 +875,16 @@ export default function EntrepreneurPlan({
         const timeout = window.setTimeout(() => {
             setBudgetAutosaveState('saving');
 
-            void fetch(urls.budgetUpdate, {
-                method: 'POST',
-                headers: {
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken(),
-                },
-                body: JSON.stringify({
-                    ...cleanBudgetForm(budgetForm),
-                    _autosave: true,
-                }),
-            })
-                .then((response) => {
+            void postBudgetAutosave(
+                urls.budgetUpdate,
+                cleanBudgetForm(budgetForm),
+            )
+                .then((saved) => {
                     if (cancelled) {
                         return;
                     }
 
-                    setBudgetAutosaveState(response.ok ? 'saved' : 'error');
+                    setBudgetAutosaveState(saved ? 'saved' : 'error');
                 })
                 .catch(() => {
                     if (!cancelled) {
@@ -5407,112 +5377,11 @@ function formatDate(value: string | null): string {
     }).format(new Date(value));
 }
 
-function csrfToken(): string {
-    return (
-        document
-            .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
-            ?.getAttribute('content') ?? ''
-    );
-}
-
 function planWorkspaceKey(profileId: string): string {
     return `fsa:entrepreneur-plan-workspace:${profileId}:v1`;
 }
 
-function readPlanWorkspaceDraft(key: string): PlanWorkspaceDraft | null {
-    if (typeof window === 'undefined') {
-        return null;
-    }
-
-    try {
-        const raw = window.localStorage.getItem(key);
-
-        if (!raw) {
-            return null;
-        }
-
-        const parsed = JSON.parse(raw) as PlanWorkspaceDraft;
-
-        return typeof parsed === 'object' && parsed !== null ? parsed : null;
-    } catch {
-        return null;
-    }
-}
-
-function updatePlanWorkspaceDraft(
-    key: string,
-    updater: (draft: PlanWorkspaceDraft) => PlanWorkspaceDraft,
-): void {
-    if (typeof window === 'undefined') {
-        return;
-    }
-
-    const current = readPlanWorkspaceDraft(key) ?? {};
-
-    try {
-        window.localStorage.setItem(key, JSON.stringify(updater(current)));
-    } catch {
-        // Browsers can reject storage in private mode or when quota is full.
-    }
-}
-
-function localDraftIsNewer(
-    draftUpdatedAt: string,
-    serverUpdatedAt: string | null,
-): boolean {
-    if (!serverUpdatedAt) {
-        return true;
-    }
-
-    return Date.parse(draftUpdatedAt) > Date.parse(serverUpdatedAt);
-}
-
-function currentSectionTextareaPosition(): {
-    scrollTop: number;
-    selectionStart: number;
-    selectionEnd: number;
-} | null {
-    if (typeof document === 'undefined') {
-        return null;
-    }
-
-    const textarea = document.getElementById(
-        'entrepreneur-plan-section-body',
-    ) as HTMLTextAreaElement | null;
-
-    if (!textarea) {
-        return null;
-    }
-
-    return {
-        scrollTop: textarea.scrollTop,
-        selectionStart: textarea.selectionStart,
-        selectionEnd: textarea.selectionEnd,
-    };
-}
-
-function restoreSectionTextareaPosition(key: string, sectionKey: string): void {
-    if (typeof document === 'undefined') {
-        return;
-    }
-
-    const position =
-        readPlanWorkspaceDraft(key)?.sectionPositions?.[sectionKey];
-    const textarea = document.getElementById(
-        'entrepreneur-plan-section-body',
-    ) as HTMLTextAreaElement | null;
-
-    if (!position || !textarea) {
-        return;
-    }
-
-    textarea.scrollTop = position.scrollTop;
-    textarea.setSelectionRange(position.selectionStart, position.selectionEnd);
-}
-
-function sectionAutosaveStateLabel(
-    state: 'idle' | 'saving' | 'saved' | 'error',
-): string {
+function sectionAutosaveStateLabel(state: AutosaveState): string {
     const labels = {
         idle: '',
         saving: 'Saving draft',

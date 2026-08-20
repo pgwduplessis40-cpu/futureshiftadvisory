@@ -25,6 +25,7 @@ use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\BudgetPackBuilder;
 use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
 use App\Services\Entrepreneurs\EntrepreneurBudgetService;
@@ -92,6 +93,7 @@ final class EntrepreneurPlanController extends Controller
         private readonly EntrepreneurMilestones $milestones,
         private readonly EntrepreneurGamification $gamification,
         private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
+        private readonly AdvisoryReadiness $advisoryReadiness,
     ) {}
 
     public function show(Request $request): Response
@@ -662,7 +664,7 @@ final class EntrepreneurPlanController extends Controller
         }
 
         $plan = $this->latestPlan($profile);
-        $signal = $this->latestReadinessSignal($profile);
+        $signal = $this->advisoryReadiness->currentSignalForPlan($plan);
 
         if (! $signal instanceof AdvisoryReadinessSignal) {
             return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-advisory-not-ready');
@@ -1251,7 +1253,7 @@ final class EntrepreneurPlanController extends Controller
      */
     private function advisoryRequestPayload(EntrepreneurProfile $profile, ?BusinessPlan $plan): array
     {
-        $signal = $this->latestReadinessSignal($profile);
+        $signal = $this->advisoryReadiness->currentSignalForPlan($plan);
         $thread = MessageThread::query()
             ->where('entrepreneur_profile_id', $profile->getKey())
             ->where('subject', self::ADVISORY_REQUEST_SUBJECT)
@@ -1286,15 +1288,6 @@ final class EntrepreneurPlanController extends Controller
                 ? route('portal.messages.show', $thread, absolute: false)
                 : null,
         ];
-    }
-
-    private function latestReadinessSignal(EntrepreneurProfile $profile): ?AdvisoryReadinessSignal
-    {
-        return AdvisoryReadinessSignal::query()
-            ->where('entrepreneur_profile_id', $profile->getKey())
-            ->latest('surfaced_at')
-            ->latest()
-            ->first();
     }
 
     /**

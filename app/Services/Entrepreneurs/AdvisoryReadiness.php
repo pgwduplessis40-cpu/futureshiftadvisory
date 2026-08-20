@@ -76,6 +76,31 @@ final class AdvisoryReadiness implements ProvidesMethodology
         });
     }
 
+    public function currentSignalForPlan(?BusinessPlan $plan): ?AdvisoryReadinessSignal
+    {
+        if (! $plan instanceof BusinessPlan || $plan->entrepreneur_profile_id === null) {
+            return null;
+        }
+
+        $plan->loadMissing('assessments');
+        $assessment = $plan->assessments
+            ->filter(fn (PlanAssessment $candidate): bool => $candidate->finalised_at !== null)
+            ->sortByDesc('round')
+            ->first();
+
+        if (! $assessment instanceof PlanAssessment) {
+            return null;
+        }
+
+        return AdvisoryReadinessSignal::query()
+            ->where('entrepreneur_profile_id', $plan->entrepreneur_profile_id)
+            ->where('business_plan_id', $plan->getKey())
+            ->where('plan_assessment_id', $assessment->getKey())
+            ->latest('surfaced_at')
+            ->latest()
+            ->first();
+    }
+
     private function score(PlanAssessment $assessment): float
     {
         $assessment->loadMissing('ratingFramework.criteria');

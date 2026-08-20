@@ -36,4 +36,42 @@ final class EntrepreneurProfilePolicy
     {
         return $this->allows($user, Permission::ENTREPRENEURS_ASSESS);
     }
+
+    public function assess(User $user, EntrepreneurProfile $profile): bool
+    {
+        return $this->canMutateEntrepreneurProfile($user, $profile);
+    }
+
+    public function finaliseAssessment(User $user, EntrepreneurProfile $profile): bool
+    {
+        return $this->canMutateEntrepreneurProfile($user, $profile);
+    }
+
+    public function manageInvite(User $user, EntrepreneurProfile $profile): bool
+    {
+        return $this->canMutateEntrepreneurProfile($user, $profile);
+    }
+
+    public function convert(User $user, EntrepreneurProfile $profile): bool
+    {
+        return $this->canMutateEntrepreneurProfile($user, $profile);
+    }
+
+    public function updateGamification(User $user, EntrepreneurProfile $profile): bool
+    {
+        return $this->canMutateEntrepreneurProfile($user, $profile);
+    }
+
+    private function canMutateEntrepreneurProfile(User $user, EntrepreneurProfile $profile): bool
+    {
+        if (! $this->allows($user, Permission::ENTREPRENEURS_ASSESS)) {
+            return false;
+        }
+
+        if ($user->fsaRole() === User::TYPE_SUPER_ADMIN) {
+            return true;
+        }
+
+        return (string) $profile->assigned_advisor_id === (string) $user->getKey();
+    }
 }

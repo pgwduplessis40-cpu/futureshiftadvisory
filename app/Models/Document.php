@@ -50,7 +50,24 @@ final class Document extends Model
 
     public const SCANNER_ERROR = 'error';
 
-    protected $guarded = [];
+    /**
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'client_id',
+        'entrepreneur_profile_id',
+        'npo_engagement_id',
+        'category',
+        'original_filename',
+        'stored_path',
+        'byte_size',
+        'mime_type',
+        'sha256',
+        'uploaded_by_user_id',
+        'scanner_result',
+        'scanner_payload',
+        'expires_at',
+    ];
 
     protected $casts = [
         'byte_size' => 'integer',

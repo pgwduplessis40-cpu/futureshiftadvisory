@@ -2435,6 +2435,8 @@ final class StaffDashboardController extends Controller
             ->filter()
             ->sortDesc()
             ->first();
+        $previousIndicators = $this->previousIndicators($indicators);
+        $previousExchangeRates = $this->previousExchangeRates($exchangeRates);
 
         return [
             'methodology_id' => 'economic.exposure',
@@ -2445,8 +2447,8 @@ final class StaffDashboardController extends Controller
                 'latest_fetched_at' => $latestFetchedAt instanceof Carbon ? $latestFetchedAt->toIso8601String() : null,
             ],
             'indicators' => $indicators
-                ->map(function (EconomicIndicator $indicator) use ($clientIds, $economicExposure): array {
-                    $previous = $this->previousIndicator($indicator);
+                ->map(function (EconomicIndicator $indicator) use ($clientIds, $economicExposure, $previousIndicators): array {
+                    $previous = $previousIndicators->get($this->indicatorTrendKey($indicator));
 
                     return [
                         'id' => $indicator->id,
@@ -2465,8 +2467,8 @@ final class StaffDashboardController extends Controller
                 })
                 ->all(),
             'exchange_rates' => $exchangeRates
-                ->map(function (ExchangeRate $rate) use ($clientIds, $economicExposure): array {
-                    $previous = $this->previousExchangeRate($rate);
+                ->map(function (ExchangeRate $rate) use ($clientIds, $economicExposure, $previousExchangeRates): array {
+                    $previous = $previousExchangeRates->get($this->exchangeRateTrendKey($rate));
 
                     return [
                         'id' => $rate->id,
@@ -2493,15 +2495,61 @@ final class StaffDashboardController extends Controller
         ];
     }
 
-    private function previousIndicator(EconomicIndicator $indicator): ?EconomicIndicator
+    private function previousIndicators($indicators)
     {
-        return EconomicIndicator::query()
-            ->where('indicator', $indicator->indicator)
-            ->where('source', $indicator->source)
-            ->where('period_date', '<', $indicator->period_date)
+        if ($indicators->isEmpty()) {
+            return collect();
+        }
+
+        $candidates = EconomicIndicator::query()
+            ->whereIn('indicator', $indicators->pluck('indicator')->unique()->values()->all())
+            ->whereIn('source', $indicators->pluck('source')->unique()->values()->all())
+            ->whereNotIn('id', $indicators->pluck('id')->all())
             ->orderByDesc('period_date')
             ->latest('fetched_at')
-            ->first();
+            ->limit(500)
+            ->get();
+
+        return $indicators->mapWithKeys(function (EconomicIndicator $indicator) use ($candidates): array {
+            $previous = $candidates->first(
+                fn (EconomicIndicator $candidate): bool => $this->isPreviousIndicatorCandidate($candidate, $indicator),
+            );
+
+            return [$this->indicatorTrendKey($indicator) => $previous];
+        });
+    }
+
+    private function isPreviousIndicatorCandidate(EconomicIndicator $candidate, EconomicIndicator $indicator): bool
+    {
+        $candidatePeriod = $candidate->period_date?->toDateString();
+        $currentPeriod = $indicator->period_date?->toDateString();
+
+        if (
+            $candidate->indicator !== $indicator->indicator
+            || $candidate->source !== $indicator->source
+            || ! is_string($candidatePeriod)
+            || ! is_string($currentPeriod)
+        ) {
+            return false;
+        }
+
+        if ($candidatePeriod < $currentPeriod) {
+            return true;
+        }
+
+        return $candidatePeriod === $currentPeriod
+            && $candidate->fetched_at instanceof DateTimeInterface
+            && $indicator->fetched_at instanceof DateTimeInterface
+            && $candidate->fetched_at->getTimestamp() < $indicator->fetched_at->getTimestamp();
+    }
+
+    private function indicatorTrendKey(EconomicIndicator $indicator): string
+    {
+        return implode('|', [
+            $indicator->indicator,
+            $indicator->source,
+            $indicator->period_date?->toDateString() ?? '',
+        ]);
     }
 
     /**
@@ -2528,16 +2576,64 @@ final class StaffDashboardController extends Controller
         ];
     }
 
-    private function previousExchangeRate(ExchangeRate $rate): ?ExchangeRate
+    private function previousExchangeRates($exchangeRates)
     {
-        return ExchangeRate::query()
-            ->where('base_currency', $rate->base_currency)
-            ->where('quote_currency', $rate->quote_currency)
-            ->where('source', $rate->source)
-            ->where('rate_date', '<', $rate->rate_date)
+        if ($exchangeRates->isEmpty()) {
+            return collect();
+        }
+
+        $candidates = ExchangeRate::query()
+            ->whereIn('base_currency', $exchangeRates->pluck('base_currency')->unique()->values()->all())
+            ->whereIn('quote_currency', $exchangeRates->pluck('quote_currency')->unique()->values()->all())
+            ->whereIn('source', $exchangeRates->pluck('source')->unique()->values()->all())
+            ->whereNotIn('id', $exchangeRates->pluck('id')->all())
             ->orderByDesc('rate_date')
             ->latest('fetched_at')
-            ->first();
+            ->limit(500)
+            ->get();
+
+        return $exchangeRates->mapWithKeys(function (ExchangeRate $rate) use ($candidates): array {
+            $previous = $candidates->first(
+                fn (ExchangeRate $candidate): bool => $this->isPreviousExchangeRateCandidate($candidate, $rate),
+            );
+
+            return [$this->exchangeRateTrendKey($rate) => $previous];
+        });
+    }
+
+    private function isPreviousExchangeRateCandidate(ExchangeRate $candidate, ExchangeRate $rate): bool
+    {
+        $candidateDate = $candidate->rate_date?->toDateString();
+        $currentDate = $rate->rate_date?->toDateString();
+
+        if (
+            $candidate->base_currency !== $rate->base_currency
+            || $candidate->quote_currency !== $rate->quote_currency
+            || $candidate->source !== $rate->source
+            || ! is_string($candidateDate)
+            || ! is_string($currentDate)
+        ) {
+            return false;
+        }
+
+        if ($candidateDate < $currentDate) {
+            return true;
+        }
+
+        return $candidateDate === $currentDate
+            && $candidate->fetched_at instanceof DateTimeInterface
+            && $rate->fetched_at instanceof DateTimeInterface
+            && $candidate->fetched_at->getTimestamp() < $rate->fetched_at->getTimestamp();
+    }
+
+    private function exchangeRateTrendKey(ExchangeRate $rate): string
+    {
+        return implode('|', [
+            $rate->base_currency,
+            $rate->quote_currency,
+            $rate->source,
+            $rate->rate_date?->toDateString() ?? '',
+        ]);
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Enums\EngagementType;
 use App\Enums\EntrepreneurStage;
 use App\Enums\FeeMethod;
 use App\Enums\ProposalStatus;
+use App\Models\AdvisoryReadinessSignal;
 use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
@@ -16,7 +17,9 @@ use App\Models\DdEngagement;
 use App\Models\EntrepreneurProfile;
 use App\Models\FeeCalculation;
 use App\Models\FoundingAdvisoryEngagement;
+use App\Models\PlanAssessment;
 use App\Models\Proposal;
+use App\Models\RatingFramework;
 use App\Models\User;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
 use App\Services\Entrepreneurs\AdvisoryConversion;
@@ -86,6 +89,41 @@ final class AdvisoryConversionTest extends TestCase
             'action' => 'entrepreneur.advisory_converted',
             'subject_id' => $client->id,
         ]);
+    }
+
+    public function test_advisor_conversion_requires_current_readiness_signal_for_latest_plan(): void
+    {
+        [$advisor, $profile, $readyPlan] = $this->entrepreneurPlan('stale-readiness-founder@example.test');
+        $assessment = $this->finalisedAssessmentFor($readyPlan, $advisor, 88);
+        AdvisoryReadinessSignal::query()->create([
+            'entrepreneur_profile_id' => $profile->id,
+            'business_plan_id' => $readyPlan->id,
+            'plan_assessment_id' => $assessment->id,
+            'score' => 88,
+            'surfaced_at' => now()->subMinute(),
+            'advisor_notified_at' => now()->subMinute(),
+        ]);
+        $latestPlan = BusinessPlan::query()->create([
+            'entrepreneur_profile_id' => $profile->id,
+            'title' => 'Business plan: '.$profile->name.' revised',
+            'source_type' => BusinessPlan::SOURCE_ENTREPRENEUR,
+            'status' => BusinessPlan::STATUS_SUBMITTED,
+            'current_phase' => 5,
+            'founding_advisory_payload' => [
+                'industry' => 'Retail',
+                'validated_customer' => 'Revised customer segment',
+            ],
+            'created_by_user_id' => $advisor->id,
+        ]);
+        $latestPlan->forceFill(['updated_at' => now()->addMinute()])->save();
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.entrepreneurs.convert', $profile))
+            ->assertRedirect(route('advisor.entrepreneurs.show', $profile))
+            ->assertSessionHas('status', 'entrepreneur-not-advisory-ready');
+
+        $this->assertDatabaseCount('clients', 0);
+        $this->assertNull($latestPlan->refresh()->client_id);
     }
 
     public function test_capacity_counts_all_active_entrepreneur_stages_and_blocks_at_limit(): void
@@ -224,6 +262,38 @@ final class AdvisoryConversionTest extends TestCase
         ]);
 
         return [$advisor, $profile->refresh()->load('user', 'advisoryReadinessSignals'), $plan];
+    }
+
+    private function finalisedAssessmentFor(BusinessPlan $plan, User $advisor, int $score): PlanAssessment
+    {
+        $framework = RatingFramework::query()->create([
+            'version' => 1,
+            'status' => RatingFramework::STATUS_PUBLISHED,
+            'production_ready' => true,
+            'grade_bands' => RatingFramework::DEFAULT_GRADE_BANDS,
+            'published_at' => now(),
+            'published_by_user_id' => $advisor->getKey(),
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        return PlanAssessment::query()->create([
+            'business_plan_id' => $plan->id,
+            'round' => 1,
+            'rating_framework_id' => $framework->id,
+            'ai_scores' => [[
+                'criterion_id' => 'fixture-market-proof',
+                'criterion_number' => 1,
+                'criterion_name' => 'Market proof',
+                'score' => $score,
+                'rationale' => 'Fixture readiness score.',
+            ]],
+            'advisor_scores' => [],
+            'mentor_notes' => [],
+            'document_support' => [],
+            'overall_grade' => $framework->gradeFor($score),
+            'finalised_at' => now(),
+            'finalised_by_user_id' => $advisor->getKey(),
+        ]);
     }
 
     /**

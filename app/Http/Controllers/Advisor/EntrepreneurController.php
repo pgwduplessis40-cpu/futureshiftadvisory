@@ -10,6 +10,7 @@ use App\Enums\SurveyAssignmentStatus;
 use App\Enums\SurveyType;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\BuildsEntrepreneurAssessmentPayload;
+use App\Http\Requests\Advisor\Entrepreneurs\UpdateInviteRequest;
 use App\Models\AdvisoryReadinessSignal;
 use App\Models\BusinessPlan;
 use App\Models\Document;
@@ -221,7 +222,7 @@ final class EntrepreneurController extends Controller
 
     public function resendInvite(Request $request, EntrepreneurProfile $entrepreneurProfile): RedirectResponse
     {
-        Gate::authorize('view', $entrepreneurProfile);
+        Gate::authorize('manageInvite', $entrepreneurProfile);
 
         $advisor = $this->actor($request);
 
@@ -268,10 +269,8 @@ final class EntrepreneurController extends Controller
             ->with('status', 'entrepreneur-invite-resent');
     }
 
-    public function updateInvite(Request $request, EntrepreneurProfile $entrepreneurProfile): RedirectResponse
+    public function updateInvite(UpdateInviteRequest $request, EntrepreneurProfile $entrepreneurProfile): RedirectResponse
     {
-        Gate::authorize('view', $entrepreneurProfile);
-
         $advisor = $this->actor($request);
 
         $entrepreneurProfile->loadMissing(['inviteToken', 'user']);
@@ -282,26 +281,7 @@ final class EntrepreneurController extends Controller
             ]);
         }
 
-        $request->merge([
-            'email' => Str::lower(trim((string) $request->input('email'))),
-        ]);
-
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => [
-                'required',
-                'email',
-                'max:255',
-                Rule::unique('entrepreneur_profiles', 'email')->ignore($entrepreneurProfile->getKey()),
-                Rule::unique('users', 'email'),
-            ],
-            'concept_summary' => ['nullable', 'string', 'max:2000'],
-            'intended_package_scope' => [
-                'required',
-                'string',
-                Rule::in(ServiceRatePackage::entrepreneurPackageScopes()),
-            ],
-        ]);
+        $validated = $request->validated();
 
         $previousEmail = Str::lower(trim((string) $entrepreneurProfile->email));
         $previousScope = $this->intendedEntrepreneurScope($entrepreneurProfile);
@@ -352,7 +332,7 @@ final class EntrepreneurController extends Controller
 
     public function cancelInvite(Request $request, EntrepreneurProfile $entrepreneurProfile): RedirectResponse
     {
-        Gate::authorize('view', $entrepreneurProfile);
+        Gate::authorize('manageInvite', $entrepreneurProfile);
 
         $advisor = $this->actor($request);
 

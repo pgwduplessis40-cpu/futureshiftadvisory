@@ -36,7 +36,36 @@ final class BusinessPlan extends Model
 
     public const STATUS_FOUNDING = 'founding';
 
-    protected $guarded = [];
+    /**
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'client_id',
+        'entrepreneur_profile_id',
+        'dd_engagement_id',
+        'title',
+        'source_type',
+        'status',
+        'submitted_at',
+        'assessment_run_status',
+        'assessment_run_requested_at',
+        'assessment_run_started_at',
+        'assessment_run_total_criteria',
+        'assessment_run_completed_criteria',
+        'assessment_run_current_criterion',
+        'assessment_run_completed_at',
+        'assessment_run_failed_at',
+        'assessment_run_failure',
+        'assessment_run_requested_by_user_id',
+        'current_phase',
+        'founding_advisory_payload',
+        'created_by_user_id',
+        'completed_at',
+        'living_plan_next_update_at',
+        'living_plan_last_prompted_at',
+        'living_plan_last_assessed_at',
+        'living_plan_divergence_flags',
+    ];
 
     protected $casts = [
         'current_phase' => 'integer',

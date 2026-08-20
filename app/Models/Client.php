@@ -28,7 +28,34 @@ final class Client extends Model
 
     public const DATA_QUALITY_INSUFFICIENT = 'insufficient';
 
-    protected $guarded = [];
+    /**
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'billing_code',
+        'engagement_type',
+        'status',
+        'nzbn',
+        'legal_name',
+        'trading_name',
+        'entity_type',
+        'address',
+        'gst_registered',
+        'directors',
+        'filing_status',
+        'data_quality',
+        'registry_sources',
+        'created_by_user_id',
+        'primary_contact_user_id',
+        'engagement_type_locked_at',
+        'onboarding_wizard_state',
+        'pilot_fee_waiver_enabled',
+        'pilot_fee_waiver_starts_at',
+        'pilot_fee_waiver_expires_at',
+        'pilot_fee_waiver_reason',
+        'pilot_fee_waiver_approved_by_user_id',
+        'pilot_fee_waiver_approved_at',
+    ];
 
     protected $casts = [
         'engagement_type' => EngagementType::class,
