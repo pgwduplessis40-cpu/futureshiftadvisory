@@ -79,4 +79,5 @@ EntrepreneurDashboardControllerForm.head = (options?: RouteQueryOptions): RouteF
 })
 
 EntrepreneurDashboardController.form = EntrepreneurDashboardControllerForm
+
 export default EntrepreneurDashboardController

@@ -97,4 +97,5 @@ BulkCommunicationOpenControllerForm.head = (args: { token: string | number } | [
 })
 
 BulkCommunicationOpenController.form = BulkCommunicationOpenControllerForm
+
 export default BulkCommunicationOpenController

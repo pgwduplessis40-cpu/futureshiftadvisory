@@ -79,4 +79,5 @@ AboutControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'g
 })
 
 AboutController.form = AboutControllerForm
+
 export default AboutController

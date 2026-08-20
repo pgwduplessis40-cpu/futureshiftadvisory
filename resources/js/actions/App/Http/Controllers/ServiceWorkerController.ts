@@ -79,4 +79,5 @@ ServiceWorkerControllerForm.head = (options?: RouteQueryOptions): RouteFormDefin
 })
 
 ServiceWorkerController.form = ServiceWorkerControllerForm
+
 export default ServiceWorkerController

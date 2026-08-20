@@ -88,4 +88,5 @@ ReferralStageControllerForm.patch = (args: { referral: string | { id: string } }
 })
 
 ReferralStageController.form = ReferralStageControllerForm
+
 export default ReferralStageController

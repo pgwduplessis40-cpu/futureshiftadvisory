@@ -79,4 +79,5 @@ DeploymentControllerForm.head = (options?: RouteQueryOptions): RouteFormDefiniti
 })
 
 DeploymentController.form = DeploymentControllerForm
+
 export default DeploymentController

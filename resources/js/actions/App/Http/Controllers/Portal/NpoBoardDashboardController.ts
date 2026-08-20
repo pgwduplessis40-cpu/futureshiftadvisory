@@ -79,4 +79,5 @@ NpoBoardDashboardControllerForm.head = (options?: RouteQueryOptions): RouteFormD
 })
 
 NpoBoardDashboardController.form = NpoBoardDashboardControllerForm
+
 export default NpoBoardDashboardController

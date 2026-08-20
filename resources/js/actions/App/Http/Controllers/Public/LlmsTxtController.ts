@@ -79,4 +79,5 @@ LlmsTxtControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<
 })
 
 LlmsTxtController.form = LlmsTxtControllerForm
+
 export default LlmsTxtController

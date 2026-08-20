@@ -79,4 +79,5 @@ DashboardControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinitio
 })
 
 DashboardController.form = DashboardControllerForm
+
 export default DashboardController

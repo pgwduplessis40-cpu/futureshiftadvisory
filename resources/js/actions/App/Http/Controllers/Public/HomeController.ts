@@ -79,4 +79,5 @@ HomeControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'ge
 })
 
 HomeController.form = HomeControllerForm
+
 export default HomeController

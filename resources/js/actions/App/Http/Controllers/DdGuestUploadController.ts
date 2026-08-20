@@ -72,4 +72,5 @@ DdGuestUploadControllerForm.post = (args: { token: string | number } | [token: s
 })
 
 DdGuestUploadController.form = DdGuestUploadControllerForm
+
 export default DdGuestUploadController

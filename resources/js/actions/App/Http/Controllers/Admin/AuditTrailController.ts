@@ -79,4 +79,5 @@ AuditTrailControllerForm.head = (options?: RouteQueryOptions): RouteFormDefiniti
 })
 
 AuditTrailController.form = AuditTrailControllerForm
+
 export default AuditTrailController
