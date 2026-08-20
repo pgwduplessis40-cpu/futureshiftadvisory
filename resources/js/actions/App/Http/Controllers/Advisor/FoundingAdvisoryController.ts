@@ -4,7 +4,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 * @see app/Http/Controllers/Advisor/FoundingAdvisoryController.php:19
 * @route '/advisor/founding-advisory-engagements/{foundingAdvisoryEngagement}/replan'
 */
-export const replan = (args: { foundingAdvisoryEngagement: string | number | { id: string | number } } | [foundingAdvisoryEngagement: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const replan = (args: { foundingAdvisoryEngagement: string | { id: string } } | [foundingAdvisoryEngagement: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: replan.url(args, options),
     method: 'post',
 })
@@ -19,7 +19,7 @@ replan.definition = {
 * @see app/Http/Controllers/Advisor/FoundingAdvisoryController.php:19
 * @route '/advisor/founding-advisory-engagements/{foundingAdvisoryEngagement}/replan'
 */
-replan.url = (args: { foundingAdvisoryEngagement: string | number | { id: string | number } } | [foundingAdvisoryEngagement: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+replan.url = (args: { foundingAdvisoryEngagement: string | { id: string } } | [foundingAdvisoryEngagement: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { foundingAdvisoryEngagement: args }
     }
@@ -52,7 +52,7 @@ replan.url = (args: { foundingAdvisoryEngagement: string | number | { id: string
 * @see app/Http/Controllers/Advisor/FoundingAdvisoryController.php:19
 * @route '/advisor/founding-advisory-engagements/{foundingAdvisoryEngagement}/replan'
 */
-replan.post = (args: { foundingAdvisoryEngagement: string | number | { id: string | number } } | [foundingAdvisoryEngagement: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+replan.post = (args: { foundingAdvisoryEngagement: string | { id: string } } | [foundingAdvisoryEngagement: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: replan.url(args, options),
     method: 'post',
 })
@@ -62,7 +62,7 @@ replan.post = (args: { foundingAdvisoryEngagement: string | number | { id: strin
 * @see app/Http/Controllers/Advisor/FoundingAdvisoryController.php:19
 * @route '/advisor/founding-advisory-engagements/{foundingAdvisoryEngagement}/replan'
 */
-const replanForm = (args: { foundingAdvisoryEngagement: string | number | { id: string | number } } | [foundingAdvisoryEngagement: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+const replanForm = (args: { foundingAdvisoryEngagement: string | { id: string } } | [foundingAdvisoryEngagement: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
     action: replan.url(args, options),
     method: 'post',
 })
@@ -72,7 +72,7 @@ const replanForm = (args: { foundingAdvisoryEngagement: string | number | { id: 
 * @see app/Http/Controllers/Advisor/FoundingAdvisoryController.php:19
 * @route '/advisor/founding-advisory-engagements/{foundingAdvisoryEngagement}/replan'
 */
-replanForm.post = (args: { foundingAdvisoryEngagement: string | number | { id: string | number } } | [foundingAdvisoryEngagement: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+replanForm.post = (args: { foundingAdvisoryEngagement: string | { id: string } } | [foundingAdvisoryEngagement: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
     action: replan.url(args, options),
     method: 'post',
 })
@@ -84,7 +84,7 @@ replan.form = replanForm
 * @see app/Http/Controllers/Advisor/FoundingAdvisoryController.php:50
 * @route '/advisor/founding-advisory-engagements/{foundingAdvisoryEngagement}/roadmaps/{foundingRoadmapVersion}/publish'
 */
-export const publish = (args: { foundingAdvisoryEngagement: string | number | { id: string | number }, foundingRoadmapVersion: string | number | { id: string | number } } | [foundingAdvisoryEngagement: string | number | { id: string | number }, foundingRoadmapVersion: string | number | { id: string | number } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+export const publish = (args: { foundingAdvisoryEngagement: string | { id: string }, foundingRoadmapVersion: string | { id: string } } | [foundingAdvisoryEngagement: string | { id: string }, foundingRoadmapVersion: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: publish.url(args, options),
     method: 'patch',
 })
@@ -99,7 +99,7 @@ publish.definition = {
 * @see app/Http/Controllers/Advisor/FoundingAdvisoryController.php:50
 * @route '/advisor/founding-advisory-engagements/{foundingAdvisoryEngagement}/roadmaps/{foundingRoadmapVersion}/publish'
 */
-publish.url = (args: { foundingAdvisoryEngagement: string | number | { id: string | number }, foundingRoadmapVersion: string | number | { id: string | number } } | [foundingAdvisoryEngagement: string | number | { id: string | number }, foundingRoadmapVersion: string | number | { id: string | number } ], options?: RouteQueryOptions) => {
+publish.url = (args: { foundingAdvisoryEngagement: string | { id: string }, foundingRoadmapVersion: string | { id: string } } | [foundingAdvisoryEngagement: string | { id: string }, foundingRoadmapVersion: string | { id: string } ], options?: RouteQueryOptions) => {
     if (Array.isArray(args)) {
         args = {
             foundingAdvisoryEngagement: args[0],
@@ -129,7 +129,7 @@ publish.url = (args: { foundingAdvisoryEngagement: string | number | { id: strin
 * @see app/Http/Controllers/Advisor/FoundingAdvisoryController.php:50
 * @route '/advisor/founding-advisory-engagements/{foundingAdvisoryEngagement}/roadmaps/{foundingRoadmapVersion}/publish'
 */
-publish.patch = (args: { foundingAdvisoryEngagement: string | number | { id: string | number }, foundingRoadmapVersion: string | number | { id: string | number } } | [foundingAdvisoryEngagement: string | number | { id: string | number }, foundingRoadmapVersion: string | number | { id: string | number } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+publish.patch = (args: { foundingAdvisoryEngagement: string | { id: string }, foundingRoadmapVersion: string | { id: string } } | [foundingAdvisoryEngagement: string | { id: string }, foundingRoadmapVersion: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: publish.url(args, options),
     method: 'patch',
 })
@@ -139,7 +139,7 @@ publish.patch = (args: { foundingAdvisoryEngagement: string | number | { id: str
 * @see app/Http/Controllers/Advisor/FoundingAdvisoryController.php:50
 * @route '/advisor/founding-advisory-engagements/{foundingAdvisoryEngagement}/roadmaps/{foundingRoadmapVersion}/publish'
 */
-const publishForm = (args: { foundingAdvisoryEngagement: string | number | { id: string | number }, foundingRoadmapVersion: string | number | { id: string | number } } | [foundingAdvisoryEngagement: string | number | { id: string | number }, foundingRoadmapVersion: string | number | { id: string | number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+const publishForm = (args: { foundingAdvisoryEngagement: string | { id: string }, foundingRoadmapVersion: string | { id: string } } | [foundingAdvisoryEngagement: string | { id: string }, foundingRoadmapVersion: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
     action: publish.url(args, {
         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
             _method: 'PATCH',
@@ -154,7 +154,7 @@ const publishForm = (args: { foundingAdvisoryEngagement: string | number | { id:
 * @see app/Http/Controllers/Advisor/FoundingAdvisoryController.php:50
 * @route '/advisor/founding-advisory-engagements/{foundingAdvisoryEngagement}/roadmaps/{foundingRoadmapVersion}/publish'
 */
-publishForm.patch = (args: { foundingAdvisoryEngagement: string | number | { id: string | number }, foundingRoadmapVersion: string | number | { id: string | number } } | [foundingAdvisoryEngagement: string | number | { id: string | number }, foundingRoadmapVersion: string | number | { id: string | number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+publishForm.patch = (args: { foundingAdvisoryEngagement: string | { id: string }, foundingRoadmapVersion: string | { id: string } } | [foundingAdvisoryEngagement: string | { id: string }, foundingRoadmapVersion: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
     action: publish.url(args, {
         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
             _method: 'PATCH',

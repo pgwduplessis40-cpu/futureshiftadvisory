@@ -102,7 +102,7 @@ function normalizeWayfinderTypes(source) {
         cleaned = cleaned.replaceAll(search, replacement);
     }
 
-    return cleaned.replace(/^[\t ]+$/gm, '');
+    return `${cleaned.replace(/^[\t ]+$/gm, '').replace(/\n*$/, '')}\n`;
 }
 
 let changed = 0;
