@@ -73,6 +73,8 @@ jobs:
         run: php artisan migrate:fresh --env=testing --force
 
       - name: Build Assets
+        env:
+          WAYFINDER_GENERATE: 'false'
         run: npm run build
 
       - name: Verify build does not dirty tracked files
