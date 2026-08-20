@@ -25,6 +25,7 @@ const regexReplacements = [
     [/\s+\.replace/g, `\n${' '.repeat(12)}.replace`],
     [/\s+\+ queryParams\(options\)/g, ' + queryParams(options)'],
     [/(\n[^\n]+\.form = [^\n]+)\n(?=\/\*\*|const\s|export\s+default\s)/g, '$1\n\n'],
+    [/(\n[^\n]+\.[A-Za-z_$][\w$]* = [^\n]+)\n(?=export\s+default\s)/g, '$1\n\n'],
     [/^((?:import [^\n]+\n)+)(?=const\s)/gm, '$1\n'],
     [/\n{3,}/g, '\n\n'],
 ];
