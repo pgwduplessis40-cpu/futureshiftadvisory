@@ -3,7 +3,9 @@ import { readdir, readFile, writeFile } from 'node:fs/promises';
 const generatedRoots = ['resources/js/actions', 'resources/js/routes'];
 const maxNormalizePasses = 5;
 const stableStringIdRouteFiles = new Set([
+    'resources/js/actions/App/Http/Controllers/DocumentController.ts',
     'resources/js/actions/App/Http/Controllers/Advisor/FoundingAdvisoryController.ts',
+    'resources/js/routes/portal/documents/index.ts',
     'resources/js/routes/advisor/founding-advisory/index.ts',
     'resources/js/routes/advisor/founding-advisory/roadmaps/index.ts',
 ]);
