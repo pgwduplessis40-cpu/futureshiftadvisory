@@ -4795,7 +4795,7 @@ function formatDate(value: string | null): string {
         return 'No activity';
     }
 
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat('en-NZ', {
         month: 'short',
         day: 'numeric',
         hour: 'numeric',
@@ -4808,7 +4808,7 @@ function formatDateOnly(value: string | null): string {
         return 'No period';
     }
 
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat('en-NZ', {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
@@ -4826,7 +4826,7 @@ function formatSignedPercent(value: number): string {
 }
 
 function formatCurrency(value: number): string {
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat('en-NZ', {
         style: 'currency',
         currency: 'NZD',
         maximumFractionDigits: 0,

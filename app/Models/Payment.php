@@ -21,7 +21,25 @@ final class Payment extends Model
 
     public const STATUS_RETRYING = 'retrying';
 
-    protected $guarded = [];
+    /**
+     * @var list<string>
+     */
+    protected $fillable = [
+        'client_id',
+        'payment_schedule_id',
+        'payment_authority_id',
+        'payment_installment_id',
+        'amount',
+        'currency',
+        'gateway',
+        'gateway_ref',
+        'idempotency_key',
+        'status',
+        'attempt',
+        'failover_from',
+        'failed_reason',
+        'processed_at',
+    ];
 
     protected $casts = [
         'amount' => 'decimal:2',

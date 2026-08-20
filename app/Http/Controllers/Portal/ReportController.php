@@ -42,6 +42,8 @@ final class ReportController extends Controller
         abort_unless($this->clientCanView($client, $report), 404);
 
         $disk = Storage::disk('secure_local');
+        $this->abortIfReportIsNotRenderable($report);
+
         if ($report->pdf_path === null || ! $disk->exists($report->pdf_path) || ! $this->reports->usesCurrentTemplate($report)) {
             $report = $this->reports->rerenderArtifacts($report);
         }
@@ -80,6 +82,8 @@ final class ReportController extends Controller
         abort_unless($this->entrepreneurCanView($report), 404);
 
         $disk = Storage::disk('secure_local');
+        $this->abortIfReportIsNotRenderable($report);
+
         if ($report->pdf_path === null || ! $disk->exists($report->pdf_path) || ! $this->reports->usesCurrentTemplate($report)) {
             $report = $this->reports->rerenderArtifacts($report);
         }
@@ -153,6 +157,17 @@ final class ReportController extends Controller
 
         return $type === ReportType::EntrepreneurAssessment
             && in_array($report->review_status, ['not_required', 'reviewed'], true);
+    }
+
+    private function abortIfReportIsNotRenderable(Report $report): void
+    {
+        if ($report->render_status === Report::RENDER_STATUS_COMPOSING) {
+            abort(409, 'Report rendering is still in progress.');
+        }
+
+        if ($report->render_status === Report::RENDER_STATUS_FAILED) {
+            abort(503, 'Report rendering failed. Please regenerate the report.');
+        }
     }
 
     private function engagementType(Client $client): ?EngagementType

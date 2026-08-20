@@ -70,6 +70,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use RuntimeException;
+use Throwable;
 
 final class ReportComposer implements ProvidesMethodology
 {
@@ -133,6 +134,7 @@ final class ReportComposer implements ProvidesMethodology
                     ],
                     'template' => $this->reportTemplateMetadata($template),
                 ],
+                'render_status' => Report::RENDER_STATUS_COMPOSING,
                 'review_status' => $reviewStatus,
             ]);
 
@@ -145,18 +147,19 @@ final class ReportComposer implements ProvidesMethodology
                 ]);
             }
 
-            $this->renderAndStorePdf($report->refresh()->load(['client', 'sections']));
-
-            if ($type === ReportType::Stakeholder) {
-                $this->renderAndStorePptx($report->refresh()->load(['client', 'sections']));
-            }
-
-            $this->audit->record('report.generated', subject: $report, actor: $actor, after: [
-                'type' => $type->value,
-                'sections' => $report->sections()->count(),
-                'pdf_path' => $report->pdf_path,
-                'pptx_path' => $report->pptx_path,
-            ]);
+            $this->renderAndAuditAfterCommit(
+                $report,
+                $actor,
+                'report.generated',
+                fn (Report $rendered): array => [
+                    'type' => $type->value,
+                    'sections' => $rendered->sections()->count(),
+                    'pdf_path' => $rendered->pdf_path,
+                    'pptx_path' => $rendered->pptx_path,
+                ],
+                ['client', 'sections'],
+                $type === ReportType::Stakeholder,
+            );
 
             return $report->refresh()->load('sections');
         });
@@ -190,6 +193,7 @@ final class ReportComposer implements ProvidesMethodology
                     'recommendation' => $recommendation,
                     'redactions' => [],
                 ],
+                'render_status' => Report::RENDER_STATUS_COMPOSING,
                 'review_status' => 'pending_review',
             ]);
 
@@ -202,17 +206,21 @@ final class ReportComposer implements ProvidesMethodology
                 ]);
             }
 
-            $this->renderAndStorePdf($report->refresh()->load(['client', 'sections']));
-            $this->renderAndStorePptx($report->refresh()->load(['client', 'sections']));
-
-            $this->audit->record('dd.report_generated', subject: $report, actor: $actor, after: [
-                'dd_engagement_id' => $engagement->getKey(),
-                'recommendation' => $recommendation['recommendation'],
-                'sections' => $report->sections()->count(),
-                'risk_count' => $risks->count(),
-                'pdf_path' => $report->pdf_path,
-                'pptx_path' => $report->pptx_path,
-            ]);
+            $this->renderAndAuditAfterCommit(
+                $report,
+                $actor,
+                'dd.report_generated',
+                fn (Report $rendered): array => [
+                    'dd_engagement_id' => $engagement->getKey(),
+                    'recommendation' => $recommendation['recommendation'],
+                    'sections' => $rendered->sections()->count(),
+                    'risk_count' => $risks->count(),
+                    'pdf_path' => $rendered->pdf_path,
+                    'pptx_path' => $rendered->pptx_path,
+                ],
+                ['client', 'sections'],
+                true,
+            );
 
             return $report->refresh()->load('sections');
         });
@@ -273,6 +281,7 @@ final class ReportComposer implements ProvidesMethodology
                     'dd_pv_baseline' => $migration->dd_pv_baseline,
                     'redactions' => [],
                 ],
+                'render_status' => Report::RENDER_STATUS_COMPOSING,
                 'review_status' => 'not_required',
             ]);
 
@@ -285,15 +294,19 @@ final class ReportComposer implements ProvidesMethodology
                 ]);
             }
 
-            $this->renderAndStorePdf($report->refresh()->load(['client', 'sections']));
-
-            $this->audit->record('post_acquisition.gap_report_generated', subject: $report, actor: $actor, after: [
-                'post_acquisition_migration_id' => $migration->getKey(),
-                'dd_engagement_id' => $engagement->getKey(),
-                'sections' => $report->sections()->count(),
-                'missing_plan_requirements' => $completion['missing'],
-                'pdf_path' => $report->pdf_path,
-            ]);
+            $this->renderAndAuditAfterCommit(
+                $report,
+                $actor,
+                'post_acquisition.gap_report_generated',
+                fn (Report $rendered): array => [
+                    'post_acquisition_migration_id' => $migration->getKey(),
+                    'dd_engagement_id' => $engagement->getKey(),
+                    'sections' => $rendered->sections()->count(),
+                    'missing_plan_requirements' => $completion['missing'],
+                    'pdf_path' => $rendered->pdf_path,
+                ],
+                ['client', 'sections'],
+            );
 
             return $report->refresh()->load('sections');
         });
@@ -354,6 +367,7 @@ final class ReportComposer implements ProvidesMethodology
                     'concept_pv_present_value' => data_get($conceptPv->result, 'present_value'),
                     'redactions' => [],
                 ],
+                'render_status' => Report::RENDER_STATUS_COMPOSING,
                 'review_status' => 'not_required',
             ]);
 
@@ -367,17 +381,21 @@ final class ReportComposer implements ProvidesMethodology
                 ]);
             }
 
-            $this->renderAndStorePdf($report->refresh()->load(['client', 'entrepreneurProfile', 'sections']));
-
-            $this->audit->record('entrepreneur.assessment_report_generated', subject: $report, actor: $actor, after: [
-                'business_plan_id' => $plan->getKey(),
-                'plan_assessment_id' => $assessment->getKey(),
-                'overall_grade' => $overallGrade,
-                'weighted_score' => $weightedScore,
-                'concept_pv_calculation_id' => $conceptPv->getKey(),
-                'sections' => $report->sections()->count(),
-                'pdf_path' => $report->pdf_path,
-            ]);
+            $this->renderAndAuditAfterCommit(
+                $report,
+                $actor,
+                'entrepreneur.assessment_report_generated',
+                fn (Report $rendered): array => [
+                    'business_plan_id' => $plan->getKey(),
+                    'plan_assessment_id' => $assessment->getKey(),
+                    'overall_grade' => $overallGrade,
+                    'weighted_score' => $weightedScore,
+                    'concept_pv_calculation_id' => $conceptPv->getKey(),
+                    'sections' => $rendered->sections()->count(),
+                    'pdf_path' => $rendered->pdf_path,
+                ],
+                ['client', 'entrepreneurProfile', 'sections'],
+            );
 
             return $report->refresh()->load(['entrepreneurProfile', 'sections']);
         });
@@ -419,6 +437,7 @@ final class ReportComposer implements ProvidesMethodology
                     'legal_disclaimer_required' => true,
                     'redactions' => [],
                 ],
+                'render_status' => Report::RENDER_STATUS_COMPOSING,
                 'review_status' => 'not_required',
             ]);
 
@@ -431,15 +450,19 @@ final class ReportComposer implements ProvidesMethodology
                 ]);
             }
 
-            $this->renderAndStorePdf($report->refresh()->load(['client', 'sections']));
-
-            $this->audit->record('npo.governance_review_report_generated', subject: $report, actor: $actor, after: [
-                'client_id' => $client->getKey(),
-                'npo_engagement_id' => $engagement->getKey(),
-                'sections' => $report->sections()->count(),
-                'reviewed_findings' => $findings->count(),
-                'pdf_path' => $report->pdf_path,
-            ]);
+            $this->renderAndAuditAfterCommit(
+                $report,
+                $actor,
+                'npo.governance_review_report_generated',
+                fn (Report $rendered): array => [
+                    'client_id' => $client->getKey(),
+                    'npo_engagement_id' => $engagement->getKey(),
+                    'sections' => $rendered->sections()->count(),
+                    'reviewed_findings' => $findings->count(),
+                    'pdf_path' => $rendered->pdf_path,
+                ],
+                ['client', 'sections'],
+            );
 
             return $report->refresh()->load(['client', 'npoEngagement', 'sections']);
         });
@@ -485,6 +508,7 @@ final class ReportComposer implements ProvidesMethodology
                     'advisor_review_required' => true,
                     'redactions' => [],
                 ],
+                'render_status' => Report::RENDER_STATUS_COMPOSING,
                 'review_status' => 'pending_review',
             ]);
 
@@ -497,13 +521,17 @@ final class ReportComposer implements ProvidesMethodology
                 ]);
             }
 
-            $this->renderAndStorePdf($report->refresh()->load(['client', 'sections']));
-
-            $this->audit->record('npo.funder_accountability_report_generated', subject: $report, actor: $actor, after: [
-                'npo_engagement_id' => $engagement->getKey(),
-                'client_funder_record_id' => $record->getKey(),
-                'review_status' => 'pending_review',
-            ]);
+            $this->renderAndAuditAfterCommit(
+                $report,
+                $actor,
+                'npo.funder_accountability_report_generated',
+                fn (): array => [
+                    'npo_engagement_id' => $engagement->getKey(),
+                    'client_funder_record_id' => $record->getKey(),
+                    'review_status' => 'pending_review',
+                ],
+                ['client', 'sections'],
+            );
 
             return $report->refresh()->load(['client', 'npoEngagement', 'sections']);
         });
@@ -528,6 +556,7 @@ final class ReportComposer implements ProvidesMethodology
                     'board_audience' => true,
                     'redactions' => ['advisor_workings'],
                 ],
+                'render_status' => Report::RENDER_STATUS_COMPOSING,
                 'review_status' => 'not_required',
             ]);
 
@@ -540,12 +569,16 @@ final class ReportComposer implements ProvidesMethodology
                 ]);
             }
 
-            $this->renderAndStorePdf($report->refresh()->load(['client', 'sections']));
-
-            $this->audit->record('npo.health_report_generated', subject: $report, actor: $actor, after: [
-                'npo_engagement_id' => $engagement->getKey(),
-                'sections' => $report->sections()->count(),
-            ]);
+            $this->renderAndAuditAfterCommit(
+                $report,
+                $actor,
+                'npo.health_report_generated',
+                fn (Report $rendered): array => [
+                    'npo_engagement_id' => $engagement->getKey(),
+                    'sections' => $rendered->sections()->count(),
+                ],
+                ['client', 'sections'],
+            );
 
             return $report->refresh()->load(['client', 'npoEngagement', 'sections']);
         });
@@ -570,6 +603,7 @@ final class ReportComposer implements ProvidesMethodology
                     'header_colour' => 'cognac',
                     'redactions' => [],
                 ],
+                'render_status' => Report::RENDER_STATUS_COMPOSING,
                 'review_status' => 'not_required',
             ]);
 
@@ -582,13 +616,17 @@ final class ReportComposer implements ProvidesMethodology
                 ]);
             }
 
-            $this->renderAndStorePdf($report->refresh()->load(['client', 'sections']));
-
-            $this->audit->record('npo.advisor_report_generated', subject: $report, actor: $actor, after: [
-                'npo_engagement_id' => $engagement->getKey(),
-                'sections' => $report->sections()->count(),
-                'confidential' => true,
-            ]);
+            $this->renderAndAuditAfterCommit(
+                $report,
+                $actor,
+                'npo.advisor_report_generated',
+                fn (Report $rendered): array => [
+                    'npo_engagement_id' => $engagement->getKey(),
+                    'sections' => $rendered->sections()->count(),
+                    'confidential' => true,
+                ],
+                ['client', 'sections'],
+            );
 
             return $report->refresh()->load(['client', 'npoEngagement', 'sections']);
         });
@@ -637,6 +675,7 @@ final class ReportComposer implements ProvidesMethodology
                     'tension_analysis_id' => $analysis->getKey(),
                     'redactions' => [],
                 ],
+                'render_status' => Report::RENDER_STATUS_COMPOSING,
                 'review_status' => 'not_required',
             ]);
 
@@ -649,13 +688,17 @@ final class ReportComposer implements ProvidesMethodology
                 ]);
             }
 
-            $this->renderAndStorePdf($report->refresh()->load(['client', 'sections']));
-
-            $this->audit->record('npo.social_enterprise_dual_impact_report_generated', subject: $report, actor: $actor, after: [
-                'npo_engagement_id' => $engagement->getKey(),
-                'scorecard_id' => $scorecard->getKey(),
-                'tension_analysis_id' => $analysis->getKey(),
-            ]);
+            $this->renderAndAuditAfterCommit(
+                $report,
+                $actor,
+                'npo.social_enterprise_dual_impact_report_generated',
+                fn (): array => [
+                    'npo_engagement_id' => $engagement->getKey(),
+                    'scorecard_id' => $scorecard->getKey(),
+                    'tension_analysis_id' => $analysis->getKey(),
+                ],
+                ['client', 'sections'],
+            );
 
             return $report->refresh()->load(['client', 'npoEngagement', 'sections']);
         });
@@ -699,6 +742,7 @@ final class ReportComposer implements ProvidesMethodology
                     'platform_metrics' => $platformMetrics,
                     'redactions' => ['fsa_ip'],
                 ],
+                'render_status' => Report::RENDER_STATUS_COMPOSING,
                 'review_status' => 'pending_review',
             ]);
 
@@ -711,13 +755,17 @@ final class ReportComposer implements ProvidesMethodology
                 ]);
             }
 
-            $this->renderAndStorePdf($report->refresh()->load(['client', 'sections']));
-
-            $this->audit->record('npo.impact_summary_report_generated', subject: $report, actor: $actor, after: [
-                'npo_engagement_id' => $engagement->getKey(),
-                'client_authored' => true,
-                'auto_release_at' => $report->metadata['auto_release_at'] ?? null,
-            ]);
+            $this->renderAndAuditAfterCommit(
+                $report,
+                $actor,
+                'npo.impact_summary_report_generated',
+                fn (Report $rendered): array => [
+                    'npo_engagement_id' => $engagement->getKey(),
+                    'client_authored' => true,
+                    'auto_release_at' => $rendered->metadata['auto_release_at'] ?? null,
+                ],
+                ['client', 'sections'],
+            );
 
             return $report->refresh()->load(['client', 'npoEngagement', 'sections']);
         });
@@ -741,6 +789,7 @@ final class ReportComposer implements ProvidesMethodology
                     'advisor_review_required' => true,
                     'redactions' => [],
                 ],
+                'render_status' => Report::RENDER_STATUS_COMPOSING,
                 'review_status' => 'pending_review',
             ]);
 
@@ -753,14 +802,18 @@ final class ReportComposer implements ProvidesMethodology
                 ]);
             }
 
-            $this->renderAndStorePdf($report->refresh()->load(['client', 'sections']));
-
-            $this->audit->record('valuation.report_generated', subject: $report, actor: $actor, after: [
-                'client_id' => $client->getKey(),
-                'business_valuation_id' => $valuation?->getKey(),
-                'sections' => $report->sections()->count(),
-                'pdf_path' => $report->pdf_path,
-            ]);
+            $this->renderAndAuditAfterCommit(
+                $report,
+                $actor,
+                'valuation.report_generated',
+                fn (Report $rendered): array => [
+                    'client_id' => $client->getKey(),
+                    'business_valuation_id' => $valuation?->getKey(),
+                    'sections' => $rendered->sections()->count(),
+                    'pdf_path' => $rendered->pdf_path,
+                ],
+                ['client', 'sections'],
+            );
 
             return $report->refresh()->load(['client', 'sections']);
         });
@@ -803,6 +856,7 @@ final class ReportComposer implements ProvidesMethodology
                     'advisor_review_required' => true,
                     'redactions' => [],
                 ],
+                'render_status' => Report::RENDER_STATUS_COMPOSING,
                 'review_status' => 'pending_review',
             ]);
 
@@ -815,14 +869,18 @@ final class ReportComposer implements ProvidesMethodology
                 ]);
             }
 
-            $this->renderAndStorePdf($report->refresh()->load(['client', 'sections']));
-
-            $this->audit->record('dd.go_no_go_report_generated', subject: $report, actor: $actor, after: [
-                'dd_engagement_id' => $engagement->getKey(),
-                'recommendation' => $recommendation['recommendation'],
-                'sections' => $report->sections()->count(),
-                'pdf_path' => $report->pdf_path,
-            ]);
+            $this->renderAndAuditAfterCommit(
+                $report,
+                $actor,
+                'dd.go_no_go_report_generated',
+                fn (Report $rendered): array => [
+                    'dd_engagement_id' => $engagement->getKey(),
+                    'recommendation' => $recommendation['recommendation'],
+                    'sections' => $rendered->sections()->count(),
+                    'pdf_path' => $rendered->pdf_path,
+                ],
+                ['client', 'sections'],
+            );
 
             return $report->refresh()->load(['client', 'sections']);
         });
@@ -848,6 +906,7 @@ final class ReportComposer implements ProvidesMethodology
                     'advisor_review_required' => true,
                     'redactions' => [],
                 ],
+                'render_status' => Report::RENDER_STATUS_COMPOSING,
                 'review_status' => 'pending_review',
             ]);
 
@@ -860,15 +919,19 @@ final class ReportComposer implements ProvidesMethodology
                 ]);
             }
 
-            $this->renderAndStorePdf($report->refresh()->load(['client', 'sections']));
-
-            $this->audit->record('succession.value_gap_report_generated', subject: $report, actor: $actor, after: [
-                'client_id' => $client->getKey(),
-                'business_valuation_id' => $valuation?->getKey(),
-                'succession_plan_id' => $successionPlan?->getKey(),
-                'sections' => $report->sections()->count(),
-                'pdf_path' => $report->pdf_path,
-            ]);
+            $this->renderAndAuditAfterCommit(
+                $report,
+                $actor,
+                'succession.value_gap_report_generated',
+                fn (Report $rendered): array => [
+                    'client_id' => $client->getKey(),
+                    'business_valuation_id' => $valuation?->getKey(),
+                    'succession_plan_id' => $successionPlan?->getKey(),
+                    'sections' => $rendered->sections()->count(),
+                    'pdf_path' => $rendered->pdf_path,
+                ],
+                ['client', 'sections'],
+            );
 
             return $report->refresh()->load(['client', 'sections']);
         });
@@ -900,17 +963,31 @@ final class ReportComposer implements ProvidesMethodology
     {
         $report->loadMissing(['client', 'entrepreneurProfile', 'sections']);
 
-        $this->renderAndStorePdf($report);
+        $report->forceFill([
+            'render_status' => Report::RENDER_STATUS_COMPOSING,
+            'render_failed_at' => null,
+            'render_error' => null,
+        ])->save();
 
-        if ($report->pptx_path !== null) {
-            $this->renderAndStorePptx($report->refresh()->load(['client', 'entrepreneurProfile', 'sections']));
+        try {
+            $this->renderAndStorePdf($report);
+
+            if ($report->pptx_path !== null) {
+                $this->renderAndStorePptx($report->refresh()->load(['client', 'entrepreneurProfile', 'sections']));
+            }
+
+            $this->markRendered($report);
+
+            $this->audit->record('report.rerendered', subject: $report, after: [
+                'type' => $report->type->value,
+                'pdf_path' => $report->pdf_path,
+                'pptx_path' => $report->pptx_path,
+            ]);
+        } catch (Throwable $exception) {
+            $this->markRenderFailed($report, $exception);
+
+            throw $exception;
         }
-
-        $this->audit->record('report.rerendered', subject: $report, after: [
-            'type' => $report->type->value,
-            'pdf_path' => $report->pdf_path,
-            'pptx_path' => $report->pptx_path,
-        ]);
 
         return $report->refresh();
     }
@@ -5082,6 +5159,46 @@ final class ReportComposer implements ProvidesMethodology
         return is_numeric($value) ? 'NZD '.number_format((float) $value, 0) : 'n/a';
     }
 
+    /**
+     * @param  callable(Report): array<string, mixed>  $after
+     * @param  array<int, string>  $load
+     */
+    private function renderAndAuditAfterCommit(
+        Report $report,
+        ?User $actor,
+        string $action,
+        callable $after,
+        array $load,
+        bool $withPptx = false,
+    ): void {
+        $callback = function () use ($report, $actor, $action, $after, $load, $withPptx): void {
+            try {
+                $report->refresh()->load($load);
+                $this->renderAndStorePdf($report);
+
+                if ($withPptx) {
+                    $this->renderAndStorePptx($report->refresh()->load($load));
+                }
+
+                $this->markRendered($report);
+
+                $this->audit->record($action, subject: $report, actor: $actor, after: $after($report->refresh()));
+            } catch (Throwable $exception) {
+                $this->markRenderFailed($report, $exception);
+
+                throw $exception;
+            }
+        };
+
+        if (app()->environment('testing') && DB::transactionLevel() > 1) {
+            $callback();
+
+            return;
+        }
+
+        DB::afterCommit($callback);
+    }
+
     private function renderAndStorePdf(Report $report): void
     {
         $pdf = $this->renderer->render($this->html($report));
@@ -5102,6 +5219,8 @@ final class ReportComposer implements ProvidesMethodology
         $report->forceFill([
             'pdf_path' => $path,
             'pdf_byte_size' => strlen($pdf),
+            'render_failed_at' => null,
+            'render_error' => null,
         ])->save();
     }
 
@@ -5125,6 +5244,24 @@ final class ReportComposer implements ProvidesMethodology
         $report->forceFill([
             'pptx_path' => $path,
             'pptx_byte_size' => strlen($pptx),
+        ])->save();
+    }
+
+    private function markRendered(Report $report): void
+    {
+        $report->forceFill([
+            'render_status' => Report::RENDER_STATUS_RENDERED,
+            'render_failed_at' => null,
+            'render_error' => null,
+        ])->save();
+    }
+
+    private function markRenderFailed(Report $report, Throwable $exception): void
+    {
+        $report->forceFill([
+            'render_status' => Report::RENDER_STATUS_FAILED,
+            'render_failed_at' => now(),
+            'render_error' => Str::limit($exception::class.': '.$exception->getMessage(), 4000, ''),
         ])->save();
     }
 

@@ -10,6 +10,7 @@ use App\Enums\NpoLegalStructure;
 use App\Enums\QuestionnaireQuestionType;
 use App\Enums\QuestionnaireSet;
 use App\Models\Client;
+use App\Models\ClientTeamMember;
 use App\Models\GovernanceReviewFinding;
 use App\Models\NpoComplianceAlert;
 use App\Models\NpoEngagement;
@@ -213,6 +214,13 @@ final class GovernanceReviewAnalyzerTest extends TestCase
             'nzbn' => fake()->unique()->numerify('9429#########'),
             'legal_name' => fake()->company(),
             'data_quality' => Client::DATA_QUALITY_INSUFFICIENT,
+        ]);
+
+        ClientTeamMember::query()->create([
+            'client_id' => $client->getKey(),
+            'user_id' => $advisor->getKey(),
+            'role' => 'lead_advisor',
+            'granted_modules' => [EngagementType::NPO->value],
         ]);
 
         $engagement = NpoEngagement::query()->create([

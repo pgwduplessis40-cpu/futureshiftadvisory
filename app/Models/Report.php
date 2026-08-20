@@ -14,6 +14,12 @@ final class Report extends Model
 {
     use HasUuids;
 
+    public const RENDER_STATUS_COMPOSING = 'composing';
+
+    public const RENDER_STATUS_RENDERED = 'rendered';
+
+    public const RENDER_STATUS_FAILED = 'render_failed';
+
     protected $guarded = [];
 
     protected $casts = [
@@ -21,6 +27,7 @@ final class Report extends Model
         'pdf_byte_size' => 'integer',
         'pptx_byte_size' => 'integer',
         'generated_at' => 'datetime',
+        'render_failed_at' => 'datetime',
         'metadata' => 'array',
         'reviewed_at' => 'datetime',
     ];

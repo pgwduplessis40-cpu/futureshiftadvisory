@@ -25,7 +25,22 @@ final class PaymentSchedule extends Model
 
     public const STATUS_COMPLETED = 'completed';
 
-    protected $guarded = [];
+    /**
+     * @var list<string>
+     */
+    protected $fillable = [
+        'client_id',
+        'proposal_id',
+        'payment_authority_id',
+        'cadence',
+        'amount',
+        'currency',
+        'collection_day',
+        'next_run_at',
+        'status',
+        'revoked_at',
+        'created_by_user_id',
+    ];
 
     protected $casts = [
         'amount' => 'decimal:2',

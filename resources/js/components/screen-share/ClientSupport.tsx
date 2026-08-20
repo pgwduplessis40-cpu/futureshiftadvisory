@@ -94,6 +94,10 @@ export function ClientSupport({ config }: Props) {
     const offerSignaled = useRef(false);
     const lastPolledSignalId = useRef(0);
     const receivedSignalIds = useRef(new Set<number>());
+    const handleIncomingSignalRef = useRef<(event: Signal) => Promise<void>>(
+        async () => undefined,
+    );
+    const stopRef = useRef<() => void>(() => undefined);
 
     useEffect(() => {
         if (!config) {
@@ -156,7 +160,7 @@ export function ClientSupport({ config }: Props) {
                         setPrompt(event),
                     );
                     channel.listen('.screen-share.signal', (event: Signal) => {
-                        void handleIncomingSignal(event);
+                        void handleIncomingSignalRef.current(event);
                     });
                     channel.listen(
                         '.screen-share.session-updated',
@@ -165,7 +169,7 @@ export function ClientSupport({ config }: Props) {
                                 event.session_id === sessionIdRef.current &&
                                 event.status === 'ended'
                             ) {
-                                stop();
+                                stopRef.current();
                             }
 
                             if (
@@ -200,7 +204,7 @@ export function ClientSupport({ config }: Props) {
                 );
             }
 
-            stop();
+            stopRef.current();
             closeScreenShareEcho();
         };
     }, [config]);
@@ -231,7 +235,7 @@ export function ClientSupport({ config }: Props) {
                             return;
                         }
 
-                        await handleIncomingSignal({
+                        await handleIncomingSignalRef.current({
                             id: signal.id,
                             session_id: sessionId,
                             type: signal.type,
@@ -263,9 +267,10 @@ export function ClientSupport({ config }: Props) {
         /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(
             navigator.userAgent,
         );
+    const promptSessionId = prompt?.session_id ?? null;
 
     useEffect(() => {
-        if (!prompt) {
+        if (promptSessionId === null) {
             return;
         }
 
@@ -312,7 +317,7 @@ export function ClientSupport({ config }: Props) {
                 void context.close();
             }
         };
-    }, [prompt?.session_id]);
+    }, [promptSessionId]);
 
     useEffect(() => {
         if (!config || !credentials || !sharing || !sessionId) {
@@ -327,7 +332,7 @@ export function ClientSupport({ config }: Props) {
             )
                 .then((next) => {
                     if (active && next.status === 'ended') {
-                        stop();
+                        stopRef.current();
                     }
                 })
                 .catch(() => undefined);
@@ -636,6 +641,9 @@ export function ClientSupport({ config }: Props) {
         setOverSharing(false);
         setAdvisorName(null);
     }
+
+    handleIncomingSignalRef.current = handleIncomingSignal;
+    stopRef.current = stop;
 
     return (
         <>

@@ -49,7 +49,7 @@ jobs:
           php-version: ${{ matrix.php-version }}
           tools: composer:v2
           coverage: xdebug
-          extensions: pdo_pgsql, pgsql
+          extensions: pdo_pgsql, pgsql, zip
           ini-values: max_execution_time=0, memory_limit=1024M
 
       - name: Setup Node
@@ -75,6 +75,9 @@ jobs:
       - name: Build Assets
         run: npm run build
 
+      - name: Verify build does not dirty tracked files
+        run: git diff --exit-code
+
       - name: Verify PHP test runtime
         shell: bash
         run: |
@@ -82,11 +85,18 @@ jobs:
           echo "PHP max_execution_time=${max_execution_time}"
           test "${max_execution_time}" = "0"
 
+      - name: PHPStan
+        run: php vendor/bin/phpstan analyse --memory-limit=1G
+
       - name: Tests
         shell: bash
+        env:
+          XDEBUG_MODE: coverage
         run: |
-          set -o pipefail
-          php vendor/phpunit/phpunit/phpunit --log-junit storage/logs/phpunit.xml 2>&1 | tee storage/logs/phpunit-console.log
+          set -euo pipefail
+          php scripts/ensure-coverage-driver.php
+          php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --log-junit storage/logs/phpunit.xml --coverage-clover storage/logs/clover.xml 2>&1 | tee storage/logs/phpunit-console.log
+          php scripts/assert-coverage-thresholds.php storage/logs/clover.xml
 
       - name: Report PHPUnit failures
         if: failure()

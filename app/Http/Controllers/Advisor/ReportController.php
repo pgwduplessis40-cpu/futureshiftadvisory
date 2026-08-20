@@ -4,20 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Advisor;
 
-use App\Enums\NpoEngagementSubType;
 use App\Enums\ReportType;
 use App\Http\Controllers\Controller;
+use App\Jobs\ComposeReport;
 use App\Models\Client;
-use App\Models\DdEngagement;
 use App\Models\EntrepreneurProfile;
-use App\Models\NpoEngagement;
-use App\Models\PostAcquisitionMigration;
 use App\Models\Report;
 use App\Models\ReportSection;
 use App\Models\ReportSectionComment;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
-use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Reports\ReportComposer;
 use App\Services\Reports\ReportSectionEditor;
 use Illuminate\Http\RedirectResponse;
@@ -30,11 +26,7 @@ use Illuminate\Validation\Rule;
 
 final class ReportController extends Controller
 {
-    public function __construct(
-        private readonly DdAdviceReportGenerator $ddAdviceReports,
-    ) {}
-
-    public function store(Request $request, Client $client, ReportComposer $reports): RedirectResponse
+    public function store(Request $request, Client $client): RedirectResponse
     {
         Gate::authorize('view', $client);
 
@@ -62,89 +54,9 @@ final class ReportController extends Controller
         ]);
 
         $type = ReportType::from((string) $validated['type']);
-        if ($type === ReportType::Valuation) {
-            $reports->composeValuation($client, $user);
-        } elseif ($type === ReportType::DueDiligence) {
-            $engagement = DdEngagement::query()
-                ->where('client_id', $client->getKey())
-                ->latest()
-                ->first();
+        ComposeReport::dispatch((string) $client->getKey(), $type->value, (int) $user->getKey())->afterCommit();
 
-            abort_unless($engagement instanceof DdEngagement, 404);
-
-            $report = $this->ddAdviceReports->generateIfReady($engagement, $user, returnCurrent: true);
-
-            if (! $report instanceof Report) {
-                return to_route('advisor.clients.show', $client)->with('status', 'dd-report-not-ready');
-            }
-        } elseif ($type === ReportType::AcquisitionGoNoGo) {
-            $engagement = DdEngagement::query()
-                ->where('client_id', $client->getKey())
-                ->latest()
-                ->first();
-
-            abort_unless($engagement instanceof DdEngagement, 404);
-
-            $reports->composeAcquisitionGoNoGo($engagement, $user);
-        } elseif ($type === ReportType::PostAcquisitionGap) {
-            $migration = PostAcquisitionMigration::query()
-                ->where('advisory_client_id', $client->getKey())
-                ->latest('migrated_at')
-                ->latest()
-                ->first();
-
-            abort_unless($migration instanceof PostAcquisitionMigration, 404);
-
-            $reports->composePostAcquisitionGap($migration, $user);
-        } elseif ($type === ReportType::SuccessionValueGap) {
-            $reports->composeSuccessionValueGap($client, $user);
-        } elseif ($type === ReportType::GovernanceReview) {
-            $engagement = NpoEngagement::query()
-                ->where('client_id', $client->getKey())
-                ->where('sub_type', NpoEngagementSubType::GovernanceReview->value)
-                ->latest()
-                ->first();
-
-            abort_unless($engagement instanceof NpoEngagement, 404);
-
-            $reports->composeGovernanceReview($engagement, $user);
-        } elseif (in_array($type, [
-            ReportType::NpoHealth,
-            ReportType::NpoAdvisor,
-            ReportType::SocialEnterpriseDual,
-            ReportType::FunderAccountability,
-            ReportType::ImpactSummary,
-        ], true)) {
-            $engagement = NpoEngagement::query()
-                ->where('client_id', $client->getKey())
-                ->whereIn('sub_type', $type === ReportType::SocialEnterpriseDual
-                    ? [NpoEngagementSubType::SocialEnterprise->value]
-                    : [
-                        NpoEngagementSubType::StandardNpo->value,
-                        NpoEngagementSubType::SocialEnterprise->value,
-                    ])
-                ->latest()
-                ->first();
-
-            abort_unless($engagement instanceof NpoEngagement, 404);
-
-            match ($type) {
-                ReportType::NpoHealth => $reports->composeNpoHealth($engagement, $user),
-                ReportType::NpoAdvisor => $reports->composeNpoAdvisor($engagement, $user),
-                ReportType::SocialEnterpriseDual => $reports->composeSocialEnterpriseDual($engagement, $user),
-                ReportType::FunderAccountability => $reports->composeFunderAccountability($engagement, actor: $user),
-                ReportType::ImpactSummary => $reports->composeImpactSummary($engagement, [
-                    'summary' => 'Impact Summary draft pending client narrative.',
-                    'metrics' => [],
-                    'platform_metrics' => [],
-                ], $user),
-                default => null,
-            };
-        } else {
-            $reports->compose($client, $type, $user);
-        }
-
-        return to_route('advisor.clients.show', $client)->with('status', 'report-generated');
+        return to_route('advisor.clients.show', $client)->with('status', 'report-generation-queued');
     }
 
     public function download(Request $request, Report $report, AuditWriter $audit, ReportComposer $reports): Response
@@ -178,6 +90,14 @@ final class ReportController extends Controller
 
         $path = $format === 'pptx' ? $report->pptx_path : $report->pdf_path;
         $disk = Storage::disk('secure_local');
+
+        if ($format === 'pdf' && $report->render_status === Report::RENDER_STATUS_COMPOSING) {
+            abort(409, 'Report rendering is still in progress.');
+        }
+
+        if ($format === 'pdf' && $report->render_status === Report::RENDER_STATUS_FAILED) {
+            abort(503, 'Report rendering failed. Please regenerate the report.');
+        }
 
         if ($format === 'pdf' && $reports instanceof ReportComposer && (
             $path === null

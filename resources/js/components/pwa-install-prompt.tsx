@@ -17,6 +17,12 @@ export function PwaInstallPrompt() {
             return;
         }
 
+        if (installPromptSuppressedForLocation()) {
+            setVisible(false);
+
+            return;
+        }
+
         if (installState.isInstalled) {
             setVisible(false);
 
@@ -168,5 +174,15 @@ export function PwaInstallPrompt() {
                 </Button>
             </div>
         </div>
+    );
+}
+
+function installPromptSuppressedForLocation(): boolean {
+    const pathname = window.location.pathname;
+
+    return (
+        pathname.includes('budget') ||
+        pathname.includes('report') ||
+        pathname.startsWith('/advisor/clients/')
     );
 }

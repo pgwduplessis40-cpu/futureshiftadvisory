@@ -20,12 +20,15 @@ Route::post('dd/guest-uploads/{token}', DdGuestUploadController::class)
     ->name('dd.guest-uploads.store');
 
 Route::post('webhooks/prospects', [ProspectIntakeController::class, 'store'])
+    ->middleware('throttle:webhooks')
     ->name('webhooks.prospects.store');
 
 Route::post('webhooks/payments/stripe', [PaymentWebhookController::class, 'stripe'])
+    ->middleware('throttle:webhooks')
     ->name('webhooks.payments.stripe');
 
 Route::post('webhooks/payments/windcave', [PaymentWebhookController::class, 'windcave'])
+    ->middleware('throttle:webhooks')
     ->name('webhooks.payments.windcave');
 
 Route::prefix('advisor/v1')

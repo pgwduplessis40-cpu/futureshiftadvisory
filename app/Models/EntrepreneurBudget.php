@@ -18,7 +18,25 @@ final class EntrepreneurBudget extends Model
 
     public const STATUS_COMPLETE = 'complete';
 
-    protected $guarded = [];
+    /**
+     * @var list<string>
+     */
+    protected $fillable = [
+        'business_plan_id',
+        'expected_runway_months',
+        'forecast_years',
+        'status',
+        'assumptions',
+        'launch_costs',
+        'monthly_fixed_costs',
+        'future_costs',
+        'revenue_forecast',
+        'funding_sources',
+        'funding_scenarios',
+        'computed',
+        'flags',
+        'advisor_line_nudge_seen_at',
+    ];
 
     protected $casts = [
         'expected_runway_months' => 'integer',

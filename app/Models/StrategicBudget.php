@@ -34,7 +34,43 @@ final class StrategicBudget extends Model
 
     public const STATUS_ACCEPTED_PROPOSAL_SNAPSHOT = 'accepted_proposal_snapshot';
 
-    protected $guarded = [];
+    /**
+     * @var list<string>
+     */
+    protected $fillable = [
+        'client_id',
+        'business_plan_id',
+        'proposal_id',
+        'pathway',
+        'label',
+        'status',
+        'horizon_months',
+        'expected_runway_months',
+        'source_financials',
+        'client_goals',
+        'advisor_goals',
+        'business_plan_sections',
+        'business_plan_source_drafts',
+        'business_plan_prompts',
+        'assumptions',
+        'implementation_costs',
+        'monthly_fixed_costs',
+        'future_costs',
+        'revenue_forecast',
+        'funding_sources',
+        'funding_scenarios',
+        'computed',
+        'flags',
+        'confidence',
+        'submitted_at',
+        'approved_at',
+        'approved_by_user_id',
+        'business_plan_submitted_at',
+        'business_plan_approved_at',
+        'business_plan_approved_by_user_id',
+        'used_in_proposal_at',
+        'accepted_snapshot_at',
+    ];
 
     protected $casts = [
         'horizon_months' => 'integer',

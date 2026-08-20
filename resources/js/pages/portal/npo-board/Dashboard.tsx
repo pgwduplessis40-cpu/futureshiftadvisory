@@ -288,7 +288,7 @@ function formatDate(value: string | null) {
         return 'n/a';
     }
 
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(
+    return new Intl.DateTimeFormat('en-NZ', { dateStyle: 'medium' }).format(
         new Date(value),
     );
 }

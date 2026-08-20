@@ -21,12 +21,14 @@
     },
     "require-dev": {
         "fakerphp/faker": "^1.24",
+        "larastan/larastan": "3.9.*",
         "laravel/pail": "^1.2.5",
         "laravel/pao": "^1.0.6",
         "laravel/pint": "^1.27",
         "laravel/sail": "^1.53",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.9.3",
+        "phpstan/phpstan": "2.1.*",
         "phpunit/phpunit": "^12.5.23"
     },
     "autoload": {
@@ -65,7 +67,22 @@
             "npm run lint:check",
             "npm run format:check",
             "npm run types:check",
-            "@test"
+            "@static:php",
+            "@test:coverage"
+        ],
+        "static:php": [
+            "phpstan analyse --memory-limit=1G"
+        ],
+        "coverage:check": [
+            "@php scripts/ensure-coverage-driver.php"
+        ],
+        "coverage:assert": [
+            "@php scripts/assert-coverage-thresholds.php storage/logs/clover.xml"
+        ],
+        "test:coverage": [
+            "@coverage:check",
+            "@php -d memory_limit=1024M -d xdebug.mode=coverage vendor/phpunit/phpunit/phpunit --log-junit storage/logs/phpunit.xml --coverage-clover storage/logs/clover.xml",
+            "@coverage:assert"
         ],
         "test": [
             "@php artisan config:clear --ansi",
@@ -84,8 +101,7 @@
             "@php artisan package:discover --ansi"
         ],
         "post-update-cmd": [
-            "@php artisan vendor:publish --tag=laravel-assets --ansi --force",
-            "@php artisan boost:update --ansi"
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
         ],
         "post-root-package-install": [
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""

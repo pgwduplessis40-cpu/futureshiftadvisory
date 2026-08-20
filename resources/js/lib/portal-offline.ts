@@ -54,7 +54,11 @@ let startupFlushScheduled = false;
 const legacyRecordsNotified = new Set<string>();
 
 export function registerPortalOffline(): void {
-    if (typeof window === 'undefined' || registrationStarted) {
+    if (
+        typeof window === 'undefined' ||
+        registrationStarted ||
+        !portalOfflineEnabledForLocation()
+    ) {
         return;
     }
 
@@ -65,7 +69,9 @@ export function registerPortalOffline(): void {
             .register('/sw.js', { updateViaCache: 'none' })
             .then((registration) => {
                 void registration.update();
-                void registerBackgroundSync(registration);
+                void navigator.serviceWorker.ready
+                    .then(registerBackgroundSync)
+                    .catch(() => undefined);
             })
             .catch(() => null);
 
@@ -293,7 +299,9 @@ async function queueRecord(
     });
 
     dispatchQueueChanged();
-    void navigator.serviceWorker?.ready.then(registerBackgroundSync);
+    void navigator.serviceWorker?.ready
+        .then(registerBackgroundSync)
+        .catch(() => undefined);
 
     return record.id;
 }
@@ -609,11 +617,25 @@ function isAuthFlowUrl(value: string): boolean {
     );
 }
 
-function registerBackgroundSync(
+async function registerBackgroundSync(
     registration: ServiceWorkerRegistration,
-): Promise<void> | undefined {
-    return (registration as BackgroundSyncRegistration).sync?.register(
-        'portal-offline-sync',
+): Promise<void> {
+    try {
+        await (registration as BackgroundSyncRegistration).sync?.register(
+            'portal-offline-sync',
+        );
+    } catch {
+        // Browsers can reject background sync before the worker is active or when permission is unavailable.
+    }
+}
+
+function portalOfflineEnabledForLocation(): boolean {
+    const pathname = window.location.pathname;
+
+    return (
+        pathname === '/portal' ||
+        pathname.startsWith('/portal/') ||
+        pathname.startsWith('/documents/')
     );
 }
 

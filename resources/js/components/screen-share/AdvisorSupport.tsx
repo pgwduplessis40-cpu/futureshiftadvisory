@@ -87,6 +87,10 @@ export function AdvisorSupport({
     const receivedSignalIds = useRef(new Set<number>());
     const processingSignalIds = useRef(new Set<number>());
     const signalProcessingQueue = useRef<Promise<void>>(Promise.resolve());
+    const handleIncomingSignalRef = useRef<
+        (event: Signal, nextCredentials: Credentials) => Promise<boolean>
+    >(async () => false);
+    const stopRef = useRef<() => void>(() => undefined);
 
     useEffect(() => {
         onConnectionChange(connected);
@@ -103,7 +107,7 @@ export function AdvisorSupport({
                 setCredentials(next);
                 const channel = screenShareEcho(next).private(next.channel);
                 channel.listen('.screen-share.signal', (event: Signal) => {
-                    void handleIncomingSignal(event, next);
+                    void handleIncomingSignalRef.current(event, next);
                 });
                 channel.listen(
                     '.screen-share.session-updated',
@@ -122,7 +126,7 @@ export function AdvisorSupport({
                         );
 
                         if (event.status === 'ended') {
-                            stop();
+                            stopRef.current();
                             onSessionEnded();
                         }
                     },
@@ -132,10 +136,10 @@ export function AdvisorSupport({
 
         return () => {
             active = false;
-            stop();
+            stopRef.current();
             closeScreenShareEcho();
         };
-    }, [config.connection_url]);
+    }, [config.connection_url, onSessionEnded]);
 
     useEffect(() => {
         if (!credentials || !sessionId) {
@@ -165,7 +169,7 @@ export function AdvisorSupport({
                             return;
                         }
 
-                        const processed = await handleIncomingSignal(
+                        const processed = await handleIncomingSignalRef.current(
                             {
                                 id: signal.id,
                                 session_id: sessionId,
@@ -580,6 +584,9 @@ export function AdvisorSupport({
         setOverSharing(false);
         setSession(null);
     }
+
+    handleIncomingSignalRef.current = handleIncomingSignal;
+    stopRef.current = stop;
 
     async function enterFullscreen(): Promise<void> {
         if (!video.current) {

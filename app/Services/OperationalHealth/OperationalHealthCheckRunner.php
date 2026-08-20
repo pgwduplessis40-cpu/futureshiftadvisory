@@ -6,6 +6,7 @@ namespace App\Services\OperationalHealth;
 
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
+use App\Models\Client;
 use App\Models\Document;
 use App\Models\OperationalHealthCheckResult;
 use App\Models\OperationalHealthCheckRun;
@@ -14,10 +15,12 @@ use App\Models\User;
 use App\Services\Pdf\SimpleTextPdf;
 use App\Services\Security\MfaChallenger;
 use App\Services\Security\StepUpEvaluator;
+use App\Support\OperationalHealthFixtures;
 use App\Support\ReleaseVersion;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Migrations\Migrator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -75,6 +78,7 @@ final class OperationalHealthCheckRunner
         $clientUser = $this->clientPortalUser();
         $ddUser = $this->clientPortalUser(EngagementType::DUE_DILIGENCE, 'dd_client_email');
         $entrepreneurUser = $this->entrepreneurUser();
+        $advisorClient = $this->advisorClientCandidate();
         $document = $this->clientDocumentCandidate();
         $documentUser = $document instanceof Document && is_string($document->client_id)
             ? $this->clientPortalUserForClient($document->client_id)
@@ -94,6 +98,20 @@ final class OperationalHealthCheckRunner
                 'expected_behavior' => 'The Laravel health endpoint should return HTTP 200.',
                 'missing_fixture' => null,
                 'sentinel' => true,
+            ],
+            [
+                'key' => 'system.pending_migrations',
+                'name' => 'Pending database migrations',
+                'area' => 'Core availability',
+                'method' => 'INTERNAL',
+                'url' => null,
+                'route_name' => null,
+                'user' => null,
+                'expected_statuses' => [0],
+                'expected_behavior' => 'All committed database migrations should be applied before routed smoke checks run.',
+                'missing_fixture' => null,
+                'sentinel' => true,
+                'kind' => 'pending_migrations',
             ],
             [
                 'key' => 'public.home',
@@ -205,6 +223,25 @@ final class OperationalHealthCheckRunner
                 'expected_behavior' => 'A client portal user with a client assignment should reach the portal dashboard.',
                 'missing_fixture' => 'No client portal monitor user with a client assignment is available.',
                 'sentinel' => true,
+            ],
+            [
+                'key' => 'advisor.clients.show',
+                'name' => 'Advisor client screen',
+                'area' => 'Advisor workflow',
+                'method' => 'GET',
+                'url' => $advisorClient instanceof Client
+                    ? route('advisor.clients.show', $advisorClient, absolute: false)
+                    : null,
+                'route_name' => 'advisor.clients.show',
+                'user' => $superAdmin,
+                'expected_statuses' => [200],
+                'expected_behavior' => 'An authorised advisor or super administrator should be able to open a client screen without missing-table failures.',
+                'missing_fixture' => 'No active advisor client monitor fixture is available.',
+                'subject' => $advisorClient instanceof Client ? [
+                    'type' => 'client',
+                    'id' => (string) $advisorClient->getKey(),
+                    'label' => $advisorClient->legal_name,
+                ] : null,
             ],
             [
                 'key' => 'portal.business_plan_budget.document',
@@ -322,6 +359,12 @@ final class OperationalHealthCheckRunner
      */
     private function recordDefinition(OperationalHealthCheckRun $run, array $definition): void
     {
+        if (($definition['kind'] ?? null) === 'pending_migrations') {
+            $this->recordPendingMigrationDefinition($run, $definition);
+
+            return;
+        }
+
         $user = $definition['user'] ?? null;
         $url = $definition['url'] ?? null;
 
@@ -408,6 +451,58 @@ final class OperationalHealthCheckRunner
                 'internal_request' => true,
             ],
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $definition
+     */
+    private function recordPendingMigrationDefinition(OperationalHealthCheckRun $run, array $definition): void
+    {
+        $pending = $this->pendingMigrations();
+        $status = $pending === []
+            ? OperationalHealthCheckResult::STATUS_PASSED
+            : OperationalHealthCheckResult::STATUS_FAILED;
+
+        $this->createResult($run, [
+            ...$this->baseResult($definition),
+            'status' => $status,
+            'actual_status' => count($pending),
+            'actual_content_type' => null,
+            'response_time_ms' => null,
+            'issue_summary' => $status === OperationalHealthCheckResult::STATUS_PASSED
+                ? null
+                : 'Pending database migrations: '.implode(', ', array_slice($pending, 0, 8)).(count($pending) > 8 ? ', ...' : ''),
+            'issue_detail' => $status === OperationalHealthCheckResult::STATUS_PASSED
+                ? null
+                : 'Run the pending migrations before treating routed smoke checks as production-safe. Pending migrations: '.implode(', ', $pending).'.',
+            'exception_class' => null,
+            'exception_message' => null,
+            'context' => [
+                'pending_migrations' => $pending,
+                'pending_migration_count' => count($pending),
+                'internal_request' => false,
+            ],
+        ]);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function pendingMigrations(): array
+    {
+        if (! Schema::hasTable('migrations')) {
+            return ['migrations_table_missing'];
+        }
+
+        /** @var Migrator $migrator */
+        $migrator = app(Migrator::class);
+        $files = array_keys($migrator->getMigrationFiles(database_path('migrations')));
+        $ran = DB::table('migrations')
+            ->pluck('migration')
+            ->map(fn (mixed $migration): string => (string) $migration)
+            ->all();
+
+        return array_values(array_diff($files, $ran));
     }
 
     /**
@@ -993,6 +1088,22 @@ final class OperationalHealthCheckRunner
             })
             ->oldest('id')
             ->first();
+    }
+
+    private function advisorClientCandidate(): ?Client
+    {
+        if (! Schema::hasTable('clients')) {
+            return null;
+        }
+
+        $query = Client::query()
+            ->where('registry_sources->source', OperationalHealthFixtures::CLIENT_SOURCE);
+
+        if (Schema::hasColumn('clients', 'status')) {
+            $query->where('status', '!=', ClientStatus::SUSPENDED->value);
+        }
+
+        return $query->oldest('created_at')->first();
     }
 
     private function clientDocumentCandidate(): ?Document

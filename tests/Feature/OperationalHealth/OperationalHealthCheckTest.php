@@ -188,6 +188,7 @@ final class OperationalHealthCheckTest extends TestCase
 
         $this->assertSame('sentinel', data_get($run->metadata, 'scope'));
         $this->assertContains('core.up', $checkKeys);
+        $this->assertContains('system.pending_migrations', $checkKeys);
         $this->assertContains('public.home', $checkKeys);
         $this->assertContains('auth.login', $checkKeys);
         $this->assertContains('pwa.service_worker', $checkKeys);
@@ -238,7 +239,9 @@ final class OperationalHealthCheckTest extends TestCase
         $this->assertSame(0, $run->skipped_checks);
 
         foreach ([
+            'system.pending_migrations',
             'portal.dashboard',
+            'advisor.clients.show',
             'portal.business_plan_budget.document',
             'portal.business_plan_budget.pdf',
             'portal.dd_plan.preview',

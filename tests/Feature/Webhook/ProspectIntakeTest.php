@@ -14,6 +14,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -31,6 +32,7 @@ final class ProspectIntakeTest extends TestCase
         Config::set('security.prospect_intake_secret', $this->secret);
         app(RequestContext::class)->apply('system', []);
         Mail::fake();
+        RateLimiter::clear('webhooks');
     }
 
     public function test_valid_signed_intake_creates_prospect_lead_and_notifies_advisor(): void
@@ -80,6 +82,22 @@ final class ProspectIntakeTest extends TestCase
         $this->assertDatabaseHas('audit_events', [
             'action' => 'prospect_intake.signature_rejected',
         ]);
+    }
+
+    public function test_prospect_webhook_is_rate_limited_by_signature_source(): void
+    {
+        Config::set('security.webhook_rate_limit_per_minute', 1);
+        $this->advisor();
+        $payload = $this->payload(['dedupe_key' => 'rate-limit-event']);
+        $headers = $this->signatureHeaders($payload);
+
+        $this->withHeaders($headers)
+            ->postJson(route('webhooks.prospects.store'), $payload)
+            ->assertCreated();
+
+        $this->withHeaders($headers)
+            ->postJson(route('webhooks.prospects.store'), $payload)
+            ->assertTooManyRequests();
     }
 
     public function test_advisor_can_view_and_invite_from_prospect_inbox(): void
