@@ -1,6 +1,7 @@
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 
 const generatedRoots = ['resources/js/actions', 'resources/js/routes'];
+const maxNormalizePasses = 5;
 
 const stringReplacements = [
     [' ,', ','],
@@ -105,11 +106,27 @@ function normalizeWayfinderTypes(source) {
     return `${cleaned.replace(/^[\t ]+$/gm, '').replace(/\n*$/, '')}\n`;
 }
 
+function normalizeWayfinderTypesUntilStable(source) {
+    let cleaned = source;
+
+    for (let pass = 0; pass < maxNormalizePasses; pass += 1) {
+        const next = normalizeWayfinderTypes(cleaned);
+
+        if (next === cleaned) {
+            return cleaned;
+        }
+
+        cleaned = next;
+    }
+
+    return cleaned;
+}
+
 let changed = 0;
 
 for (const path of generatedFiles) {
     const source = await readFile(path, 'utf8');
-    const cleaned = normalizeWayfinderTypes(source);
+    const cleaned = normalizeWayfinderTypesUntilStable(source);
 
     if (cleaned !== source) {
         await writeFile(path, cleaned);
