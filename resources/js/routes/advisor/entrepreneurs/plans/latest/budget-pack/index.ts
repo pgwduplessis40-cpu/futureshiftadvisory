@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::pdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:488
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
  */
 export const pdf = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ pdf.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::pdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:488
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
  */
 pdf.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ pdf.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneu
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::pdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:488
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
  */
 pdf.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -58,7 +58,7 @@ pdf.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneu
 })
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::pdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:488
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
  */
 pdf.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -68,7 +68,7 @@ pdf.head = (args: { entrepreneurProfile: string | { id: string } } | [entreprene
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::pdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:488
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
  */
     const pdfForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -78,7 +78,7 @@ pdf.head = (args: { entrepreneurProfile: string | { id: string } } | [entreprene
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::pdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:488
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
  */
         pdfForm.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -87,7 +87,7 @@ pdf.head = (args: { entrepreneurProfile: string | { id: string } } | [entreprene
         })
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::pdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:488
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
  */
         pdfForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
