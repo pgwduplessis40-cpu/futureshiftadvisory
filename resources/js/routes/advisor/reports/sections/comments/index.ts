@@ -1,9 +1,9 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:218
- * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:218
+* @route '/advisor/reports/{report}/sections/{reportSection}/comments'
+*/
 export const store = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
@@ -16,27 +16,27 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:218
- * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:218
+* @route '/advisor/reports/{report}/sections/{reportSection}/comments'
+*/
 store.url = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions) => {
     if (Array.isArray(args)) {
         args = {
-                    report: args[0],
-                    reportSection: args[1],
-                }
+            report: args[0],
+            reportSection: args[1],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        report: typeof args.report === 'object'
-                ? args.report.id
-                : args.report,
-                                reportSection: typeof args.reportSection === 'object'
-                ? args.reportSection.id
-                : args.reportSection,
-                }
+        report: typeof args.report === 'object'
+        ? args.report.id
+        : args.report,
+        reportSection: typeof args.reportSection === 'object'
+        ? args.reportSection.id
+        : args.reportSection,
+    }
 
     return store.definition.url
             .replace('{report}', parsedArgs.report.toString())
@@ -46,35 +46,35 @@ store.url = (args: { report: string | { id: string }, reportSection: string | { 
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:218
- * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:218
+* @route '/advisor/reports/{report}/sections/{reportSection}/comments'
+*/
 store.post = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:218
- * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
- */
-    const storeForm = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(args, options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/ReportController.php:218
+* @route '/advisor/reports/{report}/sections/{reportSection}/comments'
+*/
+const storeForm = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(args, options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:218
- * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
- */
-        storeForm.post = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(args, options),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/ReportController.php:218
+* @route '/advisor/reports/{report}/sections/{reportSection}/comments'
+*/
+storeForm.post = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(args, options),
+    method: 'post',
+})
 
-    store.form = storeForm
+store.form = storeForm
 const comments = {
     store: Object.assign(store, store),
 }

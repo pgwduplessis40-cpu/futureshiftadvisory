@@ -1,9 +1,9 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:77
- * @route '/advisor/entrepreneurs'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:77
+* @route '/advisor/entrepreneurs'
+*/
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
@@ -16,72 +16,74 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:77
- * @route '/advisor/entrepreneurs'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:77
+* @route '/advisor/entrepreneurs'
+*/
 index.url = (options?: RouteQueryOptions) => {
     return index.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:77
- * @route '/advisor/entrepreneurs'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:77
+* @route '/advisor/entrepreneurs'
+*/
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:77
- * @route '/advisor/entrepreneurs'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:77
+* @route '/advisor/entrepreneurs'
+*/
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: index.url(options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:77
- * @route '/advisor/entrepreneurs'
- */
-    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:77
+* @route '/advisor/entrepreneurs'
+*/
+const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: index.url(options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:77
- * @route '/advisor/entrepreneurs'
- */
-        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Advisor\EntrepreneurController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:77
- * @route '/advisor/entrepreneurs'
- */
-        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:77
+* @route '/advisor/entrepreneurs'
+*/
+indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: index.url(options),
+    method: 'get',
+})
 
-    index.form = indexForm
+/**
+* @see \App\Http\Controllers\Advisor\EntrepreneurController::index
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:77
+* @route '/advisor/entrepreneurs'
+*/
+indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: index.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:94
- * @route '/advisor/entrepreneurs/create'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:94
+* @route '/advisor/entrepreneurs/create'
+*/
 export const create = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: create.url(options),
     method: 'get',
@@ -94,72 +96,74 @@ create.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:94
- * @route '/advisor/entrepreneurs/create'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:94
+* @route '/advisor/entrepreneurs/create'
+*/
 create.url = (options?: RouteQueryOptions) => {
     return create.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:94
- * @route '/advisor/entrepreneurs/create'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:94
+* @route '/advisor/entrepreneurs/create'
+*/
 create.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: create.url(options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:94
- * @route '/advisor/entrepreneurs/create'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:94
+* @route '/advisor/entrepreneurs/create'
+*/
 create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: create.url(options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:94
- * @route '/advisor/entrepreneurs/create'
- */
-    const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: create.url(options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:94
+* @route '/advisor/entrepreneurs/create'
+*/
+const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: create.url(options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:94
- * @route '/advisor/entrepreneurs/create'
- */
-        createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: create.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Advisor\EntrepreneurController::create
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:94
- * @route '/advisor/entrepreneurs/create'
- */
-        createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: create.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:94
+* @route '/advisor/entrepreneurs/create'
+*/
+createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: create.url(options),
+    method: 'get',
+})
 
-    create.form = createForm
+/**
+* @see \App\Http\Controllers\Advisor\EntrepreneurController::create
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:94
+* @route '/advisor/entrepreneurs/create'
+*/
+createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: create.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+create.form = createForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::createManual
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:105
- * @route '/advisor/entrepreneurs/create/manual'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:105
+* @route '/advisor/entrepreneurs/create/manual'
+*/
 export const createManual = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: createManual.url(options),
     method: 'get',
@@ -172,72 +176,74 @@ createManual.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::createManual
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:105
- * @route '/advisor/entrepreneurs/create/manual'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:105
+* @route '/advisor/entrepreneurs/create/manual'
+*/
 createManual.url = (options?: RouteQueryOptions) => {
     return createManual.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::createManual
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:105
- * @route '/advisor/entrepreneurs/create/manual'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:105
+* @route '/advisor/entrepreneurs/create/manual'
+*/
 createManual.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: createManual.url(options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::createManual
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:105
- * @route '/advisor/entrepreneurs/create/manual'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:105
+* @route '/advisor/entrepreneurs/create/manual'
+*/
 createManual.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: createManual.url(options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::createManual
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:105
- * @route '/advisor/entrepreneurs/create/manual'
- */
-    const createManualForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: createManual.url(options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:105
+* @route '/advisor/entrepreneurs/create/manual'
+*/
+const createManualForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: createManual.url(options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::createManual
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:105
- * @route '/advisor/entrepreneurs/create/manual'
- */
-        createManualForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: createManual.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Advisor\EntrepreneurController::createManual
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:105
- * @route '/advisor/entrepreneurs/create/manual'
- */
-        createManualForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: createManual.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:105
+* @route '/advisor/entrepreneurs/create/manual'
+*/
+createManualForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: createManual.url(options),
+    method: 'get',
+})
 
-    createManual.form = createManualForm
+/**
+* @see \App\Http\Controllers\Advisor\EntrepreneurController::createManual
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:105
+* @route '/advisor/entrepreneurs/create/manual'
+*/
+createManualForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: createManual.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+createManual.form = createManualForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::store
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:116
- * @route '/advisor/entrepreneurs'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:116
+* @route '/advisor/entrepreneurs'
+*/
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(options),
     method: 'post',
@@ -250,49 +256,49 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::store
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:116
- * @route '/advisor/entrepreneurs'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:116
+* @route '/advisor/entrepreneurs'
+*/
 store.url = (options?: RouteQueryOptions) => {
     return store.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::store
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:116
- * @route '/advisor/entrepreneurs'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:116
+* @route '/advisor/entrepreneurs'
+*/
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::store
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:116
- * @route '/advisor/entrepreneurs'
- */
-    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:116
+* @route '/advisor/entrepreneurs'
+*/
+const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::store
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:116
- * @route '/advisor/entrepreneurs'
- */
-        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(options),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:116
+* @route '/advisor/entrepreneurs'
+*/
+storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(options),
+    method: 'post',
+})
 
-    store.form = storeForm
+store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::storeManual
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:184
- * @route '/advisor/entrepreneurs/manual'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:184
+* @route '/advisor/entrepreneurs/manual'
+*/
 export const storeManual = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: storeManual.url(options),
     method: 'post',
@@ -305,49 +311,49 @@ storeManual.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::storeManual
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:184
- * @route '/advisor/entrepreneurs/manual'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:184
+* @route '/advisor/entrepreneurs/manual'
+*/
 storeManual.url = (options?: RouteQueryOptions) => {
     return storeManual.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::storeManual
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:184
- * @route '/advisor/entrepreneurs/manual'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:184
+* @route '/advisor/entrepreneurs/manual'
+*/
 storeManual.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: storeManual.url(options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::storeManual
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:184
- * @route '/advisor/entrepreneurs/manual'
- */
-    const storeManualForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: storeManual.url(options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:184
+* @route '/advisor/entrepreneurs/manual'
+*/
+const storeManualForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: storeManual.url(options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::storeManual
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:184
- * @route '/advisor/entrepreneurs/manual'
- */
-        storeManualForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: storeManual.url(options),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:184
+* @route '/advisor/entrepreneurs/manual'
+*/
+storeManualForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: storeManual.url(options),
+    method: 'post',
+})
 
-    storeManual.form = storeManualForm
+storeManual.form = storeManualForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestPlanPreview
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:450
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:450
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
+*/
 export const latestPlanPreview = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: latestPlanPreview.url(args, options),
     method: 'get',
@@ -360,31 +366,31 @@ latestPlanPreview.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestPlanPreview
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:450
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:450
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
+*/
 latestPlanPreview.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { entrepreneurProfile: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { entrepreneurProfile: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { entrepreneurProfile: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    entrepreneurProfile: args[0],
-                }
+            entrepreneurProfile: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
-                ? args.entrepreneurProfile.id
-                : args.entrepreneurProfile,
-                }
+        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
+        ? args.entrepreneurProfile.id
+        : args.entrepreneurProfile,
+    }
 
     return latestPlanPreview.definition.url
             .replace('{entrepreneurProfile}', parsedArgs.entrepreneurProfile.toString())
@@ -393,63 +399,65 @@ latestPlanPreview.url = (args: { entrepreneurProfile: string | { id: string } } 
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestPlanPreview
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:450
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:450
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
+*/
 latestPlanPreview.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: latestPlanPreview.url(args, options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestPlanPreview
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:450
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:450
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
+*/
 latestPlanPreview.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: latestPlanPreview.url(args, options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestPlanPreview
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:450
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
- */
-    const latestPlanPreviewForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: latestPlanPreview.url(args, options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:450
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
+*/
+const latestPlanPreviewForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: latestPlanPreview.url(args, options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestPlanPreview
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:450
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
- */
-        latestPlanPreviewForm.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: latestPlanPreview.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Advisor\EntrepreneurController::latestPlanPreview
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:450
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
- */
-        latestPlanPreviewForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: latestPlanPreview.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:450
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
+*/
+latestPlanPreviewForm.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: latestPlanPreview.url(args, options),
+    method: 'get',
+})
 
-    latestPlanPreview.form = latestPlanPreviewForm
+/**
+* @see \App\Http\Controllers\Advisor\EntrepreneurController::latestPlanPreview
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:450
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
+*/
+latestPlanPreviewForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: latestPlanPreview.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+latestPlanPreview.form = latestPlanPreviewForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestBudgetPackPdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
+*/
 export const latestBudgetPackPdf = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: latestBudgetPackPdf.url(args, options),
     method: 'get',
@@ -462,31 +470,31 @@ latestBudgetPackPdf.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestBudgetPackPdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
+*/
 latestBudgetPackPdf.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { entrepreneurProfile: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { entrepreneurProfile: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { entrepreneurProfile: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    entrepreneurProfile: args[0],
-                }
+            entrepreneurProfile: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
-                ? args.entrepreneurProfile.id
-                : args.entrepreneurProfile,
-                }
+        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
+        ? args.entrepreneurProfile.id
+        : args.entrepreneurProfile,
+    }
 
     return latestBudgetPackPdf.definition.url
             .replace('{entrepreneurProfile}', parsedArgs.entrepreneurProfile.toString())
@@ -495,63 +503,65 @@ latestBudgetPackPdf.url = (args: { entrepreneurProfile: string | { id: string } 
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestBudgetPackPdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
+*/
 latestBudgetPackPdf.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: latestBudgetPackPdf.url(args, options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestBudgetPackPdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
+*/
 latestBudgetPackPdf.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: latestBudgetPackPdf.url(args, options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestBudgetPackPdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
- */
-    const latestBudgetPackPdfForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: latestBudgetPackPdf.url(args, options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
+*/
+const latestBudgetPackPdfForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: latestBudgetPackPdf.url(args, options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestBudgetPackPdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
- */
-        latestBudgetPackPdfForm.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: latestBudgetPackPdf.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Advisor\EntrepreneurController::latestBudgetPackPdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
- */
-        latestBudgetPackPdfForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: latestBudgetPackPdf.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
+*/
+latestBudgetPackPdfForm.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: latestBudgetPackPdf.url(args, options),
+    method: 'get',
+})
 
-    latestBudgetPackPdf.form = latestBudgetPackPdfForm
+/**
+* @see \App\Http\Controllers\Advisor\EntrepreneurController::latestBudgetPackPdf
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:468
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
+*/
+latestBudgetPackPdfForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: latestBudgetPackPdf.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+latestBudgetPackPdf.form = latestBudgetPackPdfForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::planPreview
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:460
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:460
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
+*/
 export const planPreview = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: planPreview.url(args, options),
     method: 'get',
@@ -564,27 +574,27 @@ planPreview.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::planPreview
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:460
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:460
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
+*/
 planPreview.url = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions) => {
     if (Array.isArray(args)) {
         args = {
-                    entrepreneurProfile: args[0],
-                    businessPlan: args[1],
-                }
+            entrepreneurProfile: args[0],
+            businessPlan: args[1],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
-                ? args.entrepreneurProfile.id
-                : args.entrepreneurProfile,
-                                businessPlan: typeof args.businessPlan === 'object'
-                ? args.businessPlan.id
-                : args.businessPlan,
-                }
+        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
+        ? args.entrepreneurProfile.id
+        : args.entrepreneurProfile,
+        businessPlan: typeof args.businessPlan === 'object'
+        ? args.businessPlan.id
+        : args.businessPlan,
+    }
 
     return planPreview.definition.url
             .replace('{entrepreneurProfile}', parsedArgs.entrepreneurProfile.toString())
@@ -594,63 +604,65 @@ planPreview.url = (args: { entrepreneurProfile: string | { id: string }, busines
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::planPreview
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:460
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:460
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
+*/
 planPreview.get = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: planPreview.url(args, options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::planPreview
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:460
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:460
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
+*/
 planPreview.head = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: planPreview.url(args, options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::planPreview
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:460
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
- */
-    const planPreviewForm = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: planPreview.url(args, options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:460
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
+*/
+const planPreviewForm = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: planPreview.url(args, options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::planPreview
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:460
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
- */
-        planPreviewForm.get = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: planPreview.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Advisor\EntrepreneurController::planPreview
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:460
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
- */
-        planPreviewForm.head = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: planPreview.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:460
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
+*/
+planPreviewForm.get = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: planPreview.url(args, options),
+    method: 'get',
+})
 
-    planPreview.form = planPreviewForm
+/**
+* @see \App\Http\Controllers\Advisor\EntrepreneurController::planPreview
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:460
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
+*/
+planPreviewForm.head = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: planPreview.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+planPreview.form = planPreviewForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::budgetPackPdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:479
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:479
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
+*/
 export const budgetPackPdf = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: budgetPackPdf.url(args, options),
     method: 'get',
@@ -663,27 +675,27 @@ budgetPackPdf.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::budgetPackPdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:479
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:479
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
+*/
 budgetPackPdf.url = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions) => {
     if (Array.isArray(args)) {
         args = {
-                    entrepreneurProfile: args[0],
-                    businessPlan: args[1],
-                }
+            entrepreneurProfile: args[0],
+            businessPlan: args[1],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
-                ? args.entrepreneurProfile.id
-                : args.entrepreneurProfile,
-                                businessPlan: typeof args.businessPlan === 'object'
-                ? args.businessPlan.id
-                : args.businessPlan,
-                }
+        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
+        ? args.entrepreneurProfile.id
+        : args.entrepreneurProfile,
+        businessPlan: typeof args.businessPlan === 'object'
+        ? args.businessPlan.id
+        : args.businessPlan,
+    }
 
     return budgetPackPdf.definition.url
             .replace('{entrepreneurProfile}', parsedArgs.entrepreneurProfile.toString())
@@ -693,63 +705,65 @@ budgetPackPdf.url = (args: { entrepreneurProfile: string | { id: string }, busin
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::budgetPackPdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:479
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:479
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
+*/
 budgetPackPdf.get = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: budgetPackPdf.url(args, options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::budgetPackPdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:479
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:479
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
+*/
 budgetPackPdf.head = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: budgetPackPdf.url(args, options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::budgetPackPdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:479
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
- */
-    const budgetPackPdfForm = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: budgetPackPdf.url(args, options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:479
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
+*/
+const budgetPackPdfForm = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: budgetPackPdf.url(args, options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::budgetPackPdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:479
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
- */
-        budgetPackPdfForm.get = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: budgetPackPdf.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Advisor\EntrepreneurController::budgetPackPdf
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:479
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
- */
-        budgetPackPdfForm.head = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: budgetPackPdf.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:479
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
+*/
+budgetPackPdfForm.get = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: budgetPackPdf.url(args, options),
+    method: 'get',
+})
 
-    budgetPackPdf.form = budgetPackPdfForm
+/**
+* @see \App\Http\Controllers\Advisor\EntrepreneurController::budgetPackPdf
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:479
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
+*/
+budgetPackPdfForm.head = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: budgetPackPdf.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+budgetPackPdf.form = budgetPackPdfForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::updateInvite
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:272
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:272
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
+*/
 export const updateInvite = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: updateInvite.url(args, options),
     method: 'patch',
@@ -762,31 +776,31 @@ updateInvite.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::updateInvite
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:272
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:272
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
+*/
 updateInvite.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { entrepreneurProfile: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { entrepreneurProfile: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { entrepreneurProfile: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    entrepreneurProfile: args[0],
-                }
+            entrepreneurProfile: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
-                ? args.entrepreneurProfile.id
-                : args.entrepreneurProfile,
-                }
+        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
+        ? args.entrepreneurProfile.id
+        : args.entrepreneurProfile,
+    }
 
     return updateInvite.definition.url
             .replace('{entrepreneurProfile}', parsedArgs.entrepreneurProfile.toString())
@@ -795,50 +809,50 @@ updateInvite.url = (args: { entrepreneurProfile: string | { id: string } } | [en
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::updateInvite
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:272
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:272
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
+*/
 updateInvite.patch = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: updateInvite.url(args, options),
     method: 'patch',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::updateInvite
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:272
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
- */
-    const updateInviteForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: updateInvite.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:272
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
+*/
+const updateInviteForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: updateInvite.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'PATCH',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::updateInvite
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:272
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
- */
-        updateInviteForm.patch = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: updateInvite.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:272
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
+*/
+updateInviteForm.patch = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: updateInvite.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'PATCH',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
 
-    updateInvite.form = updateInviteForm
+updateInvite.form = updateInviteForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::resendInvite
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:223
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite/resend'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:223
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite/resend'
+*/
 export const resendInvite = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: resendInvite.url(args, options),
     method: 'post',
@@ -851,31 +865,31 @@ resendInvite.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::resendInvite
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:223
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite/resend'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:223
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite/resend'
+*/
 resendInvite.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { entrepreneurProfile: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { entrepreneurProfile: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { entrepreneurProfile: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    entrepreneurProfile: args[0],
-                }
+            entrepreneurProfile: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
-                ? args.entrepreneurProfile.id
-                : args.entrepreneurProfile,
-                }
+        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
+        ? args.entrepreneurProfile.id
+        : args.entrepreneurProfile,
+    }
 
     return resendInvite.definition.url
             .replace('{entrepreneurProfile}', parsedArgs.entrepreneurProfile.toString())
@@ -884,40 +898,40 @@ resendInvite.url = (args: { entrepreneurProfile: string | { id: string } } | [en
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::resendInvite
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:223
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite/resend'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:223
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite/resend'
+*/
 resendInvite.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: resendInvite.url(args, options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::resendInvite
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:223
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite/resend'
- */
-    const resendInviteForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: resendInvite.url(args, options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:223
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite/resend'
+*/
+const resendInviteForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: resendInvite.url(args, options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::resendInvite
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:223
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite/resend'
- */
-        resendInviteForm.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: resendInvite.url(args, options),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:223
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite/resend'
+*/
+resendInviteForm.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: resendInvite.url(args, options),
+    method: 'post',
+})
 
-    resendInvite.form = resendInviteForm
+resendInvite.form = resendInviteForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::cancelInvite
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:333
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:333
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
+*/
 export const cancelInvite = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
     url: cancelInvite.url(args, options),
     method: 'delete',
@@ -930,31 +944,31 @@ cancelInvite.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::cancelInvite
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:333
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:333
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
+*/
 cancelInvite.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { entrepreneurProfile: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { entrepreneurProfile: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { entrepreneurProfile: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    entrepreneurProfile: args[0],
-                }
+            entrepreneurProfile: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
-                ? args.entrepreneurProfile.id
-                : args.entrepreneurProfile,
-                }
+        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
+        ? args.entrepreneurProfile.id
+        : args.entrepreneurProfile,
+    }
 
     return cancelInvite.definition.url
             .replace('{entrepreneurProfile}', parsedArgs.entrepreneurProfile.toString())
@@ -963,50 +977,50 @@ cancelInvite.url = (args: { entrepreneurProfile: string | { id: string } } | [en
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::cancelInvite
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:333
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:333
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
+*/
 cancelInvite.delete = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
     url: cancelInvite.url(args, options),
     method: 'delete',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::cancelInvite
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:333
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
- */
-    const cancelInviteForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: cancelInvite.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'DELETE',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:333
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
+*/
+const cancelInviteForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: cancelInvite.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'DELETE',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::cancelInvite
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:333
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
- */
-        cancelInviteForm.delete = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: cancelInvite.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'DELETE',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:333
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
+*/
+cancelInviteForm.delete = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: cancelInvite.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'DELETE',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
 
-    cancelInvite.form = cancelInviteForm
+cancelInvite.form = cancelInviteForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:368
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:368
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}'
+*/
 export const show = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
@@ -1019,31 +1033,31 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:368
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:368
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}'
+*/
 show.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { entrepreneurProfile: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { entrepreneurProfile: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { entrepreneurProfile: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    entrepreneurProfile: args[0],
-                }
+            entrepreneurProfile: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
-                ? args.entrepreneurProfile.id
-                : args.entrepreneurProfile,
-                }
+        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
+        ? args.entrepreneurProfile.id
+        : args.entrepreneurProfile,
+    }
 
     return show.definition.url
             .replace('{entrepreneurProfile}', parsedArgs.entrepreneurProfile.toString())
@@ -1052,58 +1066,60 @@ show.url = (args: { entrepreneurProfile: string | { id: string } } | [entreprene
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:368
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:368
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}'
+*/
 show.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:368
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
- */
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:368
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}'
+*/
 show.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: show.url(args, options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:368
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
- */
-    const showForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: show.url(args, options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:368
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}'
+*/
+const showForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: show.url(args, options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:368
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
- */
-        showForm.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:368
- * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
- */
-        showForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:368
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}'
+*/
+showForm.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: show.url(args, options),
+    method: 'get',
+})
 
-    show.form = showForm
+/**
+* @see \App\Http\Controllers\Advisor\EntrepreneurController::show
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:368
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}'
+*/
+showForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: show.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+show.form = showForm
 const EntrepreneurController = { index, create, createManual, store, storeManual, latestPlanPreview, latestBudgetPackPdf, planPreview, budgetPackPdf, updateInvite, resendInvite, cancelInvite, show }
 
 export default EntrepreneurController

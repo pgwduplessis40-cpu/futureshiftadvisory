@@ -1,9 +1,9 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:29
- * @route '/advisor/clients/{client}/reports'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:29
+* @route '/advisor/clients/{client}/reports'
+*/
 export const store = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
@@ -16,31 +16,31 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:29
- * @route '/advisor/clients/{client}/reports'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:29
+* @route '/advisor/clients/{client}/reports'
+*/
 store.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { client: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { client: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { client: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    client: args[0],
-                }
+            client: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        client: typeof args.client === 'object'
-                ? args.client.id
-                : args.client,
-                }
+        client: typeof args.client === 'object'
+        ? args.client.id
+        : args.client,
+    }
 
     return store.definition.url
             .replace('{client}', parsedArgs.client.toString())
@@ -49,40 +49,40 @@ store.url = (args: { client: string | { id: string } } | [client: string | { id:
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:29
- * @route '/advisor/clients/{client}/reports'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:29
+* @route '/advisor/clients/{client}/reports'
+*/
 store.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:29
- * @route '/advisor/clients/{client}/reports'
- */
-    const storeForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(args, options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/ReportController.php:29
+* @route '/advisor/clients/{client}/reports'
+*/
+const storeForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(args, options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:29
- * @route '/advisor/clients/{client}/reports'
- */
-        storeForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(args, options),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/ReportController.php:29
+* @route '/advisor/clients/{client}/reports'
+*/
+storeForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(args, options),
+    method: 'post',
+})
 
-    store.form = storeForm
+store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::download
- * @see app/Http/Controllers/Advisor/ReportController.php:62
- * @route '/advisor/reports/{report}/download'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:62
+* @route '/advisor/reports/{report}/download'
+*/
 export const download = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: download.url(args, options),
     method: 'get',
@@ -95,31 +95,31 @@ download.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::download
- * @see app/Http/Controllers/Advisor/ReportController.php:62
- * @route '/advisor/reports/{report}/download'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:62
+* @route '/advisor/reports/{report}/download'
+*/
 download.url = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { report: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { report: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { report: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    report: args[0],
-                }
+            report: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        report: typeof args.report === 'object'
-                ? args.report.id
-                : args.report,
-                }
+        report: typeof args.report === 'object'
+        ? args.report.id
+        : args.report,
+    }
 
     return download.definition.url
             .replace('{report}', parsedArgs.report.toString())
@@ -128,63 +128,65 @@ download.url = (args: { report: string | { id: string } } | [report: string | { 
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::download
- * @see app/Http/Controllers/Advisor/ReportController.php:62
- * @route '/advisor/reports/{report}/download'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:62
+* @route '/advisor/reports/{report}/download'
+*/
 download.get = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: download.url(args, options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::download
- * @see app/Http/Controllers/Advisor/ReportController.php:62
- * @route '/advisor/reports/{report}/download'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:62
+* @route '/advisor/reports/{report}/download'
+*/
 download.head = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: download.url(args, options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ReportController::download
- * @see app/Http/Controllers/Advisor/ReportController.php:62
- * @route '/advisor/reports/{report}/download'
- */
-    const downloadForm = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: download.url(args, options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Advisor/ReportController.php:62
+* @route '/advisor/reports/{report}/download'
+*/
+const downloadForm = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: download.url(args, options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ReportController::download
- * @see app/Http/Controllers/Advisor/ReportController.php:62
- * @route '/advisor/reports/{report}/download'
- */
-        downloadForm.get = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: download.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Advisor\ReportController::download
- * @see app/Http/Controllers/Advisor/ReportController.php:62
- * @route '/advisor/reports/{report}/download'
- */
-        downloadForm.head = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: download.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Advisor/ReportController.php:62
+* @route '/advisor/reports/{report}/download'
+*/
+downloadForm.get = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: download.url(args, options),
+    method: 'get',
+})
 
-    download.form = downloadForm
+/**
+* @see \App\Http\Controllers\Advisor\ReportController::download
+* @see app/Http/Controllers/Advisor/ReportController.php:62
+* @route '/advisor/reports/{report}/download'
+*/
+downloadForm.head = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: download.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+download.form = downloadForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::downloadPptx
- * @see app/Http/Controllers/Advisor/ReportController.php:67
- * @route '/advisor/reports/{report}/pptx'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:67
+* @route '/advisor/reports/{report}/pptx'
+*/
 export const downloadPptx = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: downloadPptx.url(args, options),
     method: 'get',
@@ -197,31 +199,31 @@ downloadPptx.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::downloadPptx
- * @see app/Http/Controllers/Advisor/ReportController.php:67
- * @route '/advisor/reports/{report}/pptx'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:67
+* @route '/advisor/reports/{report}/pptx'
+*/
 downloadPptx.url = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { report: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { report: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { report: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    report: args[0],
-                }
+            report: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        report: typeof args.report === 'object'
-                ? args.report.id
-                : args.report,
-                }
+        report: typeof args.report === 'object'
+        ? args.report.id
+        : args.report,
+    }
 
     return downloadPptx.definition.url
             .replace('{report}', parsedArgs.report.toString())
@@ -230,63 +232,65 @@ downloadPptx.url = (args: { report: string | { id: string } } | [report: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::downloadPptx
- * @see app/Http/Controllers/Advisor/ReportController.php:67
- * @route '/advisor/reports/{report}/pptx'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:67
+* @route '/advisor/reports/{report}/pptx'
+*/
 downloadPptx.get = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: downloadPptx.url(args, options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::downloadPptx
- * @see app/Http/Controllers/Advisor/ReportController.php:67
- * @route '/advisor/reports/{report}/pptx'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:67
+* @route '/advisor/reports/{report}/pptx'
+*/
 downloadPptx.head = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: downloadPptx.url(args, options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ReportController::downloadPptx
- * @see app/Http/Controllers/Advisor/ReportController.php:67
- * @route '/advisor/reports/{report}/pptx'
- */
-    const downloadPptxForm = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: downloadPptx.url(args, options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Advisor/ReportController.php:67
+* @route '/advisor/reports/{report}/pptx'
+*/
+const downloadPptxForm = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: downloadPptx.url(args, options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ReportController::downloadPptx
- * @see app/Http/Controllers/Advisor/ReportController.php:67
- * @route '/advisor/reports/{report}/pptx'
- */
-        downloadPptxForm.get = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: downloadPptx.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Advisor\ReportController::downloadPptx
- * @see app/Http/Controllers/Advisor/ReportController.php:67
- * @route '/advisor/reports/{report}/pptx'
- */
-        downloadPptxForm.head = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: downloadPptx.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Advisor/ReportController.php:67
+* @route '/advisor/reports/{report}/pptx'
+*/
+downloadPptxForm.get = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: downloadPptx.url(args, options),
+    method: 'get',
+})
 
-    downloadPptx.form = downloadPptxForm
+/**
+* @see \App\Http\Controllers\Advisor\ReportController::downloadPptx
+* @see app/Http/Controllers/Advisor/ReportController.php:67
+* @route '/advisor/reports/{report}/pptx'
+*/
+downloadPptxForm.head = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: downloadPptx.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+downloadPptx.form = downloadPptxForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
- * @see app/Http/Controllers/Advisor/ReportController.php:138
- * @route '/advisor/reports/{report}/review'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:138
+* @route '/advisor/reports/{report}/review'
+*/
 export const review = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: review.url(args, options),
     method: 'patch',
@@ -299,31 +303,31 @@ review.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
- * @see app/Http/Controllers/Advisor/ReportController.php:138
- * @route '/advisor/reports/{report}/review'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:138
+* @route '/advisor/reports/{report}/review'
+*/
 review.url = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { report: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { report: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { report: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    report: args[0],
-                }
+            report: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        report: typeof args.report === 'object'
-                ? args.report.id
-                : args.report,
-                }
+        report: typeof args.report === 'object'
+        ? args.report.id
+        : args.report,
+    }
 
     return review.definition.url
             .replace('{report}', parsedArgs.report.toString())
@@ -332,50 +336,50 @@ review.url = (args: { report: string | { id: string } } | [report: string | { id
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
- * @see app/Http/Controllers/Advisor/ReportController.php:138
- * @route '/advisor/reports/{report}/review'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:138
+* @route '/advisor/reports/{report}/review'
+*/
 review.patch = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: review.url(args, options),
     method: 'patch',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ReportController::review
- * @see app/Http/Controllers/Advisor/ReportController.php:138
- * @route '/advisor/reports/{report}/review'
- */
-    const reviewForm = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: review.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/ReportController.php:138
+* @route '/advisor/reports/{report}/review'
+*/
+const reviewForm = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: review.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'PATCH',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ReportController::review
- * @see app/Http/Controllers/Advisor/ReportController.php:138
- * @route '/advisor/reports/{report}/review'
- */
-        reviewForm.patch = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: review.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/ReportController.php:138
+* @route '/advisor/reports/{report}/review'
+*/
+reviewForm.patch = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: review.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'PATCH',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
 
-    review.form = reviewForm
+review.form = reviewForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::release
- * @see app/Http/Controllers/Advisor/ReportController.php:157
- * @route '/advisor/reports/{report}/release'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:157
+* @route '/advisor/reports/{report}/release'
+*/
 export const release = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: release.url(args, options),
     method: 'patch',
@@ -388,31 +392,31 @@ release.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::release
- * @see app/Http/Controllers/Advisor/ReportController.php:157
- * @route '/advisor/reports/{report}/release'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:157
+* @route '/advisor/reports/{report}/release'
+*/
 release.url = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { report: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { report: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { report: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    report: args[0],
-                }
+            report: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        report: typeof args.report === 'object'
-                ? args.report.id
-                : args.report,
-                }
+        report: typeof args.report === 'object'
+        ? args.report.id
+        : args.report,
+    }
 
     return release.definition.url
             .replace('{report}', parsedArgs.report.toString())
@@ -421,50 +425,50 @@ release.url = (args: { report: string | { id: string } } | [report: string | { i
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::release
- * @see app/Http/Controllers/Advisor/ReportController.php:157
- * @route '/advisor/reports/{report}/release'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:157
+* @route '/advisor/reports/{report}/release'
+*/
 release.patch = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: release.url(args, options),
     method: 'patch',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ReportController::release
- * @see app/Http/Controllers/Advisor/ReportController.php:157
- * @route '/advisor/reports/{report}/release'
- */
-    const releaseForm = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: release.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/ReportController.php:157
+* @route '/advisor/reports/{report}/release'
+*/
+const releaseForm = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: release.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'PATCH',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ReportController::release
- * @see app/Http/Controllers/Advisor/ReportController.php:157
- * @route '/advisor/reports/{report}/release'
- */
-        releaseForm.patch = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: release.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/ReportController.php:157
+* @route '/advisor/reports/{report}/release'
+*/
+releaseForm.patch = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: release.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'PATCH',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
 
-    release.form = releaseForm
+release.form = releaseForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::updateSection
- * @see app/Http/Controllers/Advisor/ReportController.php:182
- * @route '/advisor/reports/{report}/sections/{reportSection}'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:182
+* @route '/advisor/reports/{report}/sections/{reportSection}'
+*/
 export const updateSection = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: updateSection.url(args, options),
     method: 'patch',
@@ -477,27 +481,27 @@ updateSection.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::updateSection
- * @see app/Http/Controllers/Advisor/ReportController.php:182
- * @route '/advisor/reports/{report}/sections/{reportSection}'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:182
+* @route '/advisor/reports/{report}/sections/{reportSection}'
+*/
 updateSection.url = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions) => {
     if (Array.isArray(args)) {
         args = {
-                    report: args[0],
-                    reportSection: args[1],
-                }
+            report: args[0],
+            reportSection: args[1],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        report: typeof args.report === 'object'
-                ? args.report.id
-                : args.report,
-                                reportSection: typeof args.reportSection === 'object'
-                ? args.reportSection.id
-                : args.reportSection,
-                }
+        report: typeof args.report === 'object'
+        ? args.report.id
+        : args.report,
+        reportSection: typeof args.reportSection === 'object'
+        ? args.reportSection.id
+        : args.reportSection,
+    }
 
     return updateSection.definition.url
             .replace('{report}', parsedArgs.report.toString())
@@ -507,50 +511,50 @@ updateSection.url = (args: { report: string | { id: string }, reportSection: str
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::updateSection
- * @see app/Http/Controllers/Advisor/ReportController.php:182
- * @route '/advisor/reports/{report}/sections/{reportSection}'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:182
+* @route '/advisor/reports/{report}/sections/{reportSection}'
+*/
 updateSection.patch = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: updateSection.url(args, options),
     method: 'patch',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ReportController::updateSection
- * @see app/Http/Controllers/Advisor/ReportController.php:182
- * @route '/advisor/reports/{report}/sections/{reportSection}'
- */
-    const updateSectionForm = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: updateSection.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/ReportController.php:182
+* @route '/advisor/reports/{report}/sections/{reportSection}'
+*/
+const updateSectionForm = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: updateSection.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'PATCH',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ReportController::updateSection
- * @see app/Http/Controllers/Advisor/ReportController.php:182
- * @route '/advisor/reports/{report}/sections/{reportSection}'
- */
-        updateSectionForm.patch = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: updateSection.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/ReportController.php:182
+* @route '/advisor/reports/{report}/sections/{reportSection}'
+*/
+updateSectionForm.patch = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: updateSection.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'PATCH',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
 
-    updateSection.form = updateSectionForm
+updateSection.form = updateSectionForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::commentSection
- * @see app/Http/Controllers/Advisor/ReportController.php:218
- * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:218
+* @route '/advisor/reports/{report}/sections/{reportSection}/comments'
+*/
 export const commentSection = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: commentSection.url(args, options),
     method: 'post',
@@ -563,27 +567,27 @@ commentSection.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::commentSection
- * @see app/Http/Controllers/Advisor/ReportController.php:218
- * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:218
+* @route '/advisor/reports/{report}/sections/{reportSection}/comments'
+*/
 commentSection.url = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions) => {
     if (Array.isArray(args)) {
         args = {
-                    report: args[0],
-                    reportSection: args[1],
-                }
+            report: args[0],
+            reportSection: args[1],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        report: typeof args.report === 'object'
-                ? args.report.id
-                : args.report,
-                                reportSection: typeof args.reportSection === 'object'
-                ? args.reportSection.id
-                : args.reportSection,
-                }
+        report: typeof args.report === 'object'
+        ? args.report.id
+        : args.report,
+        reportSection: typeof args.reportSection === 'object'
+        ? args.reportSection.id
+        : args.reportSection,
+    }
 
     return commentSection.definition.url
             .replace('{report}', parsedArgs.report.toString())
@@ -593,35 +597,35 @@ commentSection.url = (args: { report: string | { id: string }, reportSection: st
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::commentSection
- * @see app/Http/Controllers/Advisor/ReportController.php:218
- * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
- */
+* @see app/Http/Controllers/Advisor/ReportController.php:218
+* @route '/advisor/reports/{report}/sections/{reportSection}/comments'
+*/
 commentSection.post = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: commentSection.url(args, options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ReportController::commentSection
- * @see app/Http/Controllers/Advisor/ReportController.php:218
- * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
- */
-    const commentSectionForm = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: commentSection.url(args, options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/ReportController.php:218
+* @route '/advisor/reports/{report}/sections/{reportSection}/comments'
+*/
+const commentSectionForm = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: commentSection.url(args, options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ReportController::commentSection
- * @see app/Http/Controllers/Advisor/ReportController.php:218
- * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
- */
-        commentSectionForm.post = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: commentSection.url(args, options),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/ReportController.php:218
+* @route '/advisor/reports/{report}/sections/{reportSection}/comments'
+*/
+commentSectionForm.post = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: commentSection.url(args, options),
+    method: 'post',
+})
 
-    commentSection.form = commentSectionForm
+commentSection.form = commentSectionForm
 const ReportController = { store, download, downloadPptx, review, release, updateSection, commentSection }
 
 export default ReportController

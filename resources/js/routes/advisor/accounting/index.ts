@@ -1,9 +1,9 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\AccountingConnectionController::callback
- * @see app/Http/Controllers/Advisor/AccountingConnectionController.php:83
- * @route '/advisor/accounting/{provider}/callback'
- */
+* @see app/Http/Controllers/Advisor/AccountingConnectionController.php:83
+* @route '/advisor/accounting/{provider}/callback'
+*/
 export const callback = (args: { provider: string | number } | [provider: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: callback.url(args, options),
     method: 'get',
@@ -16,26 +16,25 @@ callback.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\AccountingConnectionController::callback
- * @see app/Http/Controllers/Advisor/AccountingConnectionController.php:83
- * @route '/advisor/accounting/{provider}/callback'
- */
+* @see app/Http/Controllers/Advisor/AccountingConnectionController.php:83
+* @route '/advisor/accounting/{provider}/callback'
+*/
 callback.url = (args: { provider: string | number } | [provider: string | number ] | string | number, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { provider: args }
     }
 
-
     if (Array.isArray(args)) {
         args = {
-                    provider: args[0],
-                }
+            provider: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        provider: args.provider,
-                }
+        provider: args.provider,
+    }
 
     return callback.definition.url
             .replace('{provider}', parsedArgs.provider.toString())
@@ -44,58 +43,60 @@ callback.url = (args: { provider: string | number } | [provider: string | number
 
 /**
 * @see \App\Http\Controllers\Advisor\AccountingConnectionController::callback
- * @see app/Http/Controllers/Advisor/AccountingConnectionController.php:83
- * @route '/advisor/accounting/{provider}/callback'
- */
+* @see app/Http/Controllers/Advisor/AccountingConnectionController.php:83
+* @route '/advisor/accounting/{provider}/callback'
+*/
 callback.get = (args: { provider: string | number } | [provider: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: callback.url(args, options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Advisor\AccountingConnectionController::callback
- * @see app/Http/Controllers/Advisor/AccountingConnectionController.php:83
- * @route '/advisor/accounting/{provider}/callback'
- */
+* @see app/Http/Controllers/Advisor/AccountingConnectionController.php:83
+* @route '/advisor/accounting/{provider}/callback'
+*/
 callback.head = (args: { provider: string | number } | [provider: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: callback.url(args, options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\AccountingConnectionController::callback
- * @see app/Http/Controllers/Advisor/AccountingConnectionController.php:83
- * @route '/advisor/accounting/{provider}/callback'
- */
-    const callbackForm = (args: { provider: string | number } | [provider: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: callback.url(args, options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Advisor/AccountingConnectionController.php:83
+* @route '/advisor/accounting/{provider}/callback'
+*/
+const callbackForm = (args: { provider: string | number } | [provider: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: callback.url(args, options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\AccountingConnectionController::callback
- * @see app/Http/Controllers/Advisor/AccountingConnectionController.php:83
- * @route '/advisor/accounting/{provider}/callback'
- */
-        callbackForm.get = (args: { provider: string | number } | [provider: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: callback.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Advisor\AccountingConnectionController::callback
- * @see app/Http/Controllers/Advisor/AccountingConnectionController.php:83
- * @route '/advisor/accounting/{provider}/callback'
- */
-        callbackForm.head = (args: { provider: string | number } | [provider: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: callback.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Advisor/AccountingConnectionController.php:83
+* @route '/advisor/accounting/{provider}/callback'
+*/
+callbackForm.get = (args: { provider: string | number } | [provider: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: callback.url(args, options),
+    method: 'get',
+})
 
-    callback.form = callbackForm
+/**
+* @see \App\Http\Controllers\Advisor\AccountingConnectionController::callback
+* @see app/Http/Controllers/Advisor/AccountingConnectionController.php:83
+* @route '/advisor/accounting/{provider}/callback'
+*/
+callbackForm.head = (args: { provider: string | number } | [provider: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: callback.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+callback.form = callbackForm
 const accounting = {
     callback: Object.assign(callback, callback),
 }

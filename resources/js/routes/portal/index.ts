@@ -21,9 +21,9 @@ import surveys from './surveys'
 import onboarding from './onboarding'
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:87
- * @route '/portal'
- */
+* @see app/Http/Controllers/Portal/DashboardController.php:87
+* @route '/portal'
+*/
 export const dashboard = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: dashboard.url(options),
     method: 'get',
@@ -36,89 +36,91 @@ dashboard.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:87
- * @route '/portal'
- */
+* @see app/Http/Controllers/Portal/DashboardController.php:87
+* @route '/portal'
+*/
 dashboard.url = (options?: RouteQueryOptions) => {
     return dashboard.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:87
- * @route '/portal'
- */
+* @see app/Http/Controllers/Portal/DashboardController.php:87
+* @route '/portal'
+*/
 dashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: dashboard.url(options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:87
- * @route '/portal'
- */
+* @see app/Http/Controllers/Portal/DashboardController.php:87
+* @route '/portal'
+*/
 dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: dashboard.url(options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:87
- * @route '/portal'
- */
-    const dashboardForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: dashboard.url(options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Portal/DashboardController.php:87
+* @route '/portal'
+*/
+const dashboardForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: dashboard.url(options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:87
- * @route '/portal'
- */
-        dashboardForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: dashboard.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:87
- * @route '/portal'
- */
-        dashboardForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: dashboard.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Portal/DashboardController.php:87
+* @route '/portal'
+*/
+dashboardForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: dashboard.url(options),
+    method: 'get',
+})
 
-    dashboard.form = dashboardForm
+/**
+* @see \App\Http\Controllers\Portal\DashboardController::__invoke
+* @see app/Http/Controllers/Portal/DashboardController.php:87
+* @route '/portal'
+*/
+dashboardForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: dashboard.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+dashboard.form = dashboardForm
 const portal = {
     coBrowse: Object.assign(coBrowse, coBrowse),
-screenShare: Object.assign(screenShare, screenShare),
-entrepreneurScreenShare: Object.assign(entrepreneurScreenShare, entrepreneurScreenShare),
-dashboard: Object.assign(dashboard, dashboard),
-businessPlanBudget: Object.assign(businessPlanBudget, businessPlanBudget),
-strategicPlan: Object.assign(strategicPlan, strategicPlan),
-serviceActivations: Object.assign(serviceActivations, serviceActivations),
-npoBoard: Object.assign(npoBoard, npoBoard),
-calendar: Object.assign(calendar, calendar),
-ddPlan: Object.assign(ddPlan, ddPlan),
-entrepreneur: Object.assign(entrepreneur, entrepreneur),
-documents: Object.assign(documents, documents),
-reports: Object.assign(reports, reports),
-npoImpactMetrics: Object.assign(npoImpactMetrics, npoImpactMetrics),
-outcomeFollowUps: Object.assign(outcomeFollowUps, outcomeFollowUps),
-inspirationBoard: Object.assign(inspirationBoard, inspirationBoard),
-messages: Object.assign(messages, messages),
-proposals: Object.assign(proposals, proposals),
-wellbeing: Object.assign(wellbeing, wellbeing),
-surveys: Object.assign(surveys, surveys),
-onboarding: Object.assign(onboarding, onboarding),
+    screenShare: Object.assign(screenShare, screenShare),
+    entrepreneurScreenShare: Object.assign(entrepreneurScreenShare, entrepreneurScreenShare),
+    dashboard: Object.assign(dashboard, dashboard),
+    businessPlanBudget: Object.assign(businessPlanBudget, businessPlanBudget),
+    strategicPlan: Object.assign(strategicPlan, strategicPlan),
+    serviceActivations: Object.assign(serviceActivations, serviceActivations),
+    npoBoard: Object.assign(npoBoard, npoBoard),
+    calendar: Object.assign(calendar, calendar),
+    ddPlan: Object.assign(ddPlan, ddPlan),
+    entrepreneur: Object.assign(entrepreneur, entrepreneur),
+    documents: Object.assign(documents, documents),
+    reports: Object.assign(reports, reports),
+    npoImpactMetrics: Object.assign(npoImpactMetrics, npoImpactMetrics),
+    outcomeFollowUps: Object.assign(outcomeFollowUps, outcomeFollowUps),
+    inspirationBoard: Object.assign(inspirationBoard, inspirationBoard),
+    messages: Object.assign(messages, messages),
+    proposals: Object.assign(proposals, proposals),
+    wellbeing: Object.assign(wellbeing, wellbeing),
+    surveys: Object.assign(surveys, surveys),
+    onboarding: Object.assign(onboarding, onboarding),
 }
 
 export default portal

@@ -4,9 +4,9 @@ import clients from './clients'
 import entrepreneurs from './entrepreneurs'
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
- * @route '/admin/pilot-fee-waivers'
- */
+* @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
+* @route '/admin/pilot-fee-waivers'
+*/
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
@@ -19,72 +19,74 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
- * @route '/admin/pilot-fee-waivers'
- */
+* @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
+* @route '/admin/pilot-fee-waivers'
+*/
 index.url = (options?: RouteQueryOptions) => {
     return index.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
- * @route '/admin/pilot-fee-waivers'
- */
+* @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
+* @route '/admin/pilot-fee-waivers'
+*/
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
- * @route '/admin/pilot-fee-waivers'
- */
+* @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
+* @route '/admin/pilot-fee-waivers'
+*/
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: index.url(options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
- * @route '/admin/pilot-fee-waivers'
- */
-    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
+* @route '/admin/pilot-fee-waivers'
+*/
+const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: index.url(options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
- * @route '/admin/pilot-fee-waivers'
- */
-        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
- * @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
- * @route '/admin/pilot-fee-waivers'
- */
-        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
+* @route '/admin/pilot-fee-waivers'
+*/
+indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: index.url(options),
+    method: 'get',
+})
 
-    index.form = indexForm
+/**
+* @see \App\Http\Controllers\Admin\PilotFeeWaiverController::index
+* @see app/Http/Controllers/Admin/PilotFeeWaiverController.php:30
+* @route '/admin/pilot-fee-waivers'
+*/
+indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: index.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+index.form = indexForm
 const pilotFeeWaivers = {
     index: Object.assign(index, index),
-program: Object.assign(program, program),
-clients: Object.assign(clients, clients),
-entrepreneurs: Object.assign(entrepreneurs, entrepreneurs),
+    program: Object.assign(program, program),
+    clients: Object.assign(clients, clients),
+    entrepreneurs: Object.assign(entrepreneurs, entrepreneurs),
 }
 
 export default pilotFeeWaivers

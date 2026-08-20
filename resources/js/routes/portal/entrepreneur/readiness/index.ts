@@ -1,9 +1,9 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:205
- * @route '/portal/entrepreneur/readiness'
- */
+* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:205
+* @route '/portal/entrepreneur/readiness'
+*/
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(options),
     method: 'post',
@@ -16,44 +16,44 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:205
- * @route '/portal/entrepreneur/readiness'
- */
+* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:205
+* @route '/portal/entrepreneur/readiness'
+*/
 store.url = (options?: RouteQueryOptions) => {
     return store.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:205
- * @route '/portal/entrepreneur/readiness'
- */
+* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:205
+* @route '/portal/entrepreneur/readiness'
+*/
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:205
- * @route '/portal/entrepreneur/readiness'
- */
-    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:205
+* @route '/portal/entrepreneur/readiness'
+*/
+const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:205
- * @route '/portal/entrepreneur/readiness'
- */
-        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(options),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:205
+* @route '/portal/entrepreneur/readiness'
+*/
+storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(options),
+    method: 'post',
+})
 
-    store.form = storeForm
+store.form = storeForm
 const readiness = {
     store: Object.assign(store, store),
 }

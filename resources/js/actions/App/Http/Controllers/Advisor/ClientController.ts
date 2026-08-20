@@ -1,9 +1,9 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::index
- * @see app/Http/Controllers/Advisor/ClientController.php:93
- * @route '/advisor/clients'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:93
+* @route '/advisor/clients'
+*/
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
@@ -16,72 +16,74 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::index
- * @see app/Http/Controllers/Advisor/ClientController.php:93
- * @route '/advisor/clients'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:93
+* @route '/advisor/clients'
+*/
 index.url = (options?: RouteQueryOptions) => {
     return index.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::index
- * @see app/Http/Controllers/Advisor/ClientController.php:93
- * @route '/advisor/clients'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:93
+* @route '/advisor/clients'
+*/
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::index
- * @see app/Http/Controllers/Advisor/ClientController.php:93
- * @route '/advisor/clients'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:93
+* @route '/advisor/clients'
+*/
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: index.url(options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::index
- * @see app/Http/Controllers/Advisor/ClientController.php:93
- * @route '/advisor/clients'
- */
-    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Advisor/ClientController.php:93
+* @route '/advisor/clients'
+*/
+const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: index.url(options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::index
- * @see app/Http/Controllers/Advisor/ClientController.php:93
- * @route '/advisor/clients'
- */
-        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Advisor\ClientController::index
- * @see app/Http/Controllers/Advisor/ClientController.php:93
- * @route '/advisor/clients'
- */
-        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Advisor/ClientController.php:93
+* @route '/advisor/clients'
+*/
+indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: index.url(options),
+    method: 'get',
+})
 
-    index.form = indexForm
+/**
+* @see \App\Http\Controllers\Advisor\ClientController::index
+* @see app/Http/Controllers/Advisor/ClientController.php:93
+* @route '/advisor/clients'
+*/
+indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: index.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::create
- * @see app/Http/Controllers/Advisor/ClientController.php:241
- * @route '/advisor/clients/create'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:241
+* @route '/advisor/clients/create'
+*/
 export const create = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: create.url(options),
     method: 'get',
@@ -94,72 +96,74 @@ create.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::create
- * @see app/Http/Controllers/Advisor/ClientController.php:241
- * @route '/advisor/clients/create'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:241
+* @route '/advisor/clients/create'
+*/
 create.url = (options?: RouteQueryOptions) => {
     return create.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::create
- * @see app/Http/Controllers/Advisor/ClientController.php:241
- * @route '/advisor/clients/create'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:241
+* @route '/advisor/clients/create'
+*/
 create.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: create.url(options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::create
- * @see app/Http/Controllers/Advisor/ClientController.php:241
- * @route '/advisor/clients/create'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:241
+* @route '/advisor/clients/create'
+*/
 create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: create.url(options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::create
- * @see app/Http/Controllers/Advisor/ClientController.php:241
- * @route '/advisor/clients/create'
- */
-    const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: create.url(options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Advisor/ClientController.php:241
+* @route '/advisor/clients/create'
+*/
+const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: create.url(options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::create
- * @see app/Http/Controllers/Advisor/ClientController.php:241
- * @route '/advisor/clients/create'
- */
-        createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: create.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Advisor\ClientController::create
- * @see app/Http/Controllers/Advisor/ClientController.php:241
- * @route '/advisor/clients/create'
- */
-        createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: create.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Advisor/ClientController.php:241
+* @route '/advisor/clients/create'
+*/
+createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: create.url(options),
+    method: 'get',
+})
 
-    create.form = createForm
+/**
+* @see \App\Http\Controllers\Advisor\ClientController::create
+* @see app/Http/Controllers/Advisor/ClientController.php:241
+* @route '/advisor/clients/create'
+*/
+createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: create.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+create.form = createForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::invite
- * @see app/Http/Controllers/Advisor/ClientController.php:248
- * @route '/advisor/clients/invite'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:248
+* @route '/advisor/clients/invite'
+*/
 export const invite = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: invite.url(options),
     method: 'get',
@@ -172,72 +176,74 @@ invite.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::invite
- * @see app/Http/Controllers/Advisor/ClientController.php:248
- * @route '/advisor/clients/invite'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:248
+* @route '/advisor/clients/invite'
+*/
 invite.url = (options?: RouteQueryOptions) => {
     return invite.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::invite
- * @see app/Http/Controllers/Advisor/ClientController.php:248
- * @route '/advisor/clients/invite'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:248
+* @route '/advisor/clients/invite'
+*/
 invite.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: invite.url(options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::invite
- * @see app/Http/Controllers/Advisor/ClientController.php:248
- * @route '/advisor/clients/invite'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:248
+* @route '/advisor/clients/invite'
+*/
 invite.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: invite.url(options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::invite
- * @see app/Http/Controllers/Advisor/ClientController.php:248
- * @route '/advisor/clients/invite'
- */
-    const inviteForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: invite.url(options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Advisor/ClientController.php:248
+* @route '/advisor/clients/invite'
+*/
+const inviteForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: invite.url(options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::invite
- * @see app/Http/Controllers/Advisor/ClientController.php:248
- * @route '/advisor/clients/invite'
- */
-        inviteForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: invite.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Advisor\ClientController::invite
- * @see app/Http/Controllers/Advisor/ClientController.php:248
- * @route '/advisor/clients/invite'
- */
-        inviteForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: invite.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Advisor/ClientController.php:248
+* @route '/advisor/clients/invite'
+*/
+inviteForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: invite.url(options),
+    method: 'get',
+})
 
-    invite.form = inviteForm
+/**
+* @see \App\Http\Controllers\Advisor\ClientController::invite
+* @see app/Http/Controllers/Advisor/ClientController.php:248
+* @route '/advisor/clients/invite'
+*/
+inviteForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: invite.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+invite.form = inviteForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::storeInvite
- * @see app/Http/Controllers/Advisor/ClientController.php:266
- * @route '/advisor/clients/invite'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:266
+* @route '/advisor/clients/invite'
+*/
 export const storeInvite = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: storeInvite.url(options),
     method: 'post',
@@ -250,49 +256,49 @@ storeInvite.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::storeInvite
- * @see app/Http/Controllers/Advisor/ClientController.php:266
- * @route '/advisor/clients/invite'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:266
+* @route '/advisor/clients/invite'
+*/
 storeInvite.url = (options?: RouteQueryOptions) => {
     return storeInvite.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::storeInvite
- * @see app/Http/Controllers/Advisor/ClientController.php:266
- * @route '/advisor/clients/invite'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:266
+* @route '/advisor/clients/invite'
+*/
 storeInvite.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: storeInvite.url(options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::storeInvite
- * @see app/Http/Controllers/Advisor/ClientController.php:266
- * @route '/advisor/clients/invite'
- */
-    const storeInviteForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: storeInvite.url(options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/ClientController.php:266
+* @route '/advisor/clients/invite'
+*/
+const storeInviteForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: storeInvite.url(options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::storeInvite
- * @see app/Http/Controllers/Advisor/ClientController.php:266
- * @route '/advisor/clients/invite'
- */
-        storeInviteForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: storeInvite.url(options),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/ClientController.php:266
+* @route '/advisor/clients/invite'
+*/
+storeInviteForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: storeInvite.url(options),
+    method: 'post',
+})
 
-    storeInvite.form = storeInviteForm
+storeInvite.form = storeInviteForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::resendInvite
- * @see app/Http/Controllers/Advisor/ClientController.php:322
- * @route '/advisor/clients/{client}/invite/resend'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:322
+* @route '/advisor/clients/{client}/invite/resend'
+*/
 export const resendInvite = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: resendInvite.url(args, options),
     method: 'post',
@@ -305,31 +311,31 @@ resendInvite.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::resendInvite
- * @see app/Http/Controllers/Advisor/ClientController.php:322
- * @route '/advisor/clients/{client}/invite/resend'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:322
+* @route '/advisor/clients/{client}/invite/resend'
+*/
 resendInvite.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { client: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { client: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { client: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    client: args[0],
-                }
+            client: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        client: typeof args.client === 'object'
-                ? args.client.id
-                : args.client,
-                }
+        client: typeof args.client === 'object'
+        ? args.client.id
+        : args.client,
+    }
 
     return resendInvite.definition.url
             .replace('{client}', parsedArgs.client.toString())
@@ -338,40 +344,40 @@ resendInvite.url = (args: { client: string | { id: string } } | [client: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::resendInvite
- * @see app/Http/Controllers/Advisor/ClientController.php:322
- * @route '/advisor/clients/{client}/invite/resend'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:322
+* @route '/advisor/clients/{client}/invite/resend'
+*/
 resendInvite.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: resendInvite.url(args, options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::resendInvite
- * @see app/Http/Controllers/Advisor/ClientController.php:322
- * @route '/advisor/clients/{client}/invite/resend'
- */
-    const resendInviteForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: resendInvite.url(args, options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/ClientController.php:322
+* @route '/advisor/clients/{client}/invite/resend'
+*/
+const resendInviteForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: resendInvite.url(args, options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::resendInvite
- * @see app/Http/Controllers/Advisor/ClientController.php:322
- * @route '/advisor/clients/{client}/invite/resend'
- */
-        resendInviteForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: resendInvite.url(args, options),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/ClientController.php:322
+* @route '/advisor/clients/{client}/invite/resend'
+*/
+resendInviteForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: resendInvite.url(args, options),
+    method: 'post',
+})
 
-    resendInvite.form = resendInviteForm
+resendInvite.form = resendInviteForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::cancelInvite
- * @see app/Http/Controllers/Advisor/ClientController.php:384
- * @route '/advisor/clients/{client}/invite'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:384
+* @route '/advisor/clients/{client}/invite'
+*/
 export const cancelInvite = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
     url: cancelInvite.url(args, options),
     method: 'delete',
@@ -384,31 +390,31 @@ cancelInvite.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::cancelInvite
- * @see app/Http/Controllers/Advisor/ClientController.php:384
- * @route '/advisor/clients/{client}/invite'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:384
+* @route '/advisor/clients/{client}/invite'
+*/
 cancelInvite.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { client: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { client: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { client: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    client: args[0],
-                }
+            client: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        client: typeof args.client === 'object'
-                ? args.client.id
-                : args.client,
-                }
+        client: typeof args.client === 'object'
+        ? args.client.id
+        : args.client,
+    }
 
     return cancelInvite.definition.url
             .replace('{client}', parsedArgs.client.toString())
@@ -417,50 +423,50 @@ cancelInvite.url = (args: { client: string | { id: string } } | [client: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::cancelInvite
- * @see app/Http/Controllers/Advisor/ClientController.php:384
- * @route '/advisor/clients/{client}/invite'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:384
+* @route '/advisor/clients/{client}/invite'
+*/
 cancelInvite.delete = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
     url: cancelInvite.url(args, options),
     method: 'delete',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::cancelInvite
- * @see app/Http/Controllers/Advisor/ClientController.php:384
- * @route '/advisor/clients/{client}/invite'
- */
-    const cancelInviteForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: cancelInvite.url(args, {
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'DELETE',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/ClientController.php:384
+* @route '/advisor/clients/{client}/invite'
+*/
+const cancelInviteForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: cancelInvite.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'DELETE',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::cancelInvite
- * @see app/Http/Controllers/Advisor/ClientController.php:384
- * @route '/advisor/clients/{client}/invite'
- */
-        cancelInviteForm.delete = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: cancelInvite.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'DELETE',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/ClientController.php:384
+* @route '/advisor/clients/{client}/invite'
+*/
+cancelInviteForm.delete = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: cancelInvite.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'DELETE',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
 
-    cancelInvite.form = cancelInviteForm
+cancelInvite.form = cancelInviteForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::lookupNzbn
- * @see app/Http/Controllers/Advisor/ClientController.php:421
- * @route '/advisor/clients/lookup-nzbn'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:421
+* @route '/advisor/clients/lookup-nzbn'
+*/
 export const lookupNzbn = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: lookupNzbn.url(options),
     method: 'post',
@@ -473,49 +479,49 @@ lookupNzbn.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::lookupNzbn
- * @see app/Http/Controllers/Advisor/ClientController.php:421
- * @route '/advisor/clients/lookup-nzbn'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:421
+* @route '/advisor/clients/lookup-nzbn'
+*/
 lookupNzbn.url = (options?: RouteQueryOptions) => {
     return lookupNzbn.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::lookupNzbn
- * @see app/Http/Controllers/Advisor/ClientController.php:421
- * @route '/advisor/clients/lookup-nzbn'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:421
+* @route '/advisor/clients/lookup-nzbn'
+*/
 lookupNzbn.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: lookupNzbn.url(options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::lookupNzbn
- * @see app/Http/Controllers/Advisor/ClientController.php:421
- * @route '/advisor/clients/lookup-nzbn'
- */
-    const lookupNzbnForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: lookupNzbn.url(options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/ClientController.php:421
+* @route '/advisor/clients/lookup-nzbn'
+*/
+const lookupNzbnForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: lookupNzbn.url(options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::lookupNzbn
- * @see app/Http/Controllers/Advisor/ClientController.php:421
- * @route '/advisor/clients/lookup-nzbn'
- */
-        lookupNzbnForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: lookupNzbn.url(options),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/ClientController.php:421
+* @route '/advisor/clients/lookup-nzbn'
+*/
+lookupNzbnForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: lookupNzbn.url(options),
+    method: 'post',
+})
 
-    lookupNzbn.form = lookupNzbnForm
+lookupNzbn.form = lookupNzbnForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::store
- * @see app/Http/Controllers/Advisor/ClientController.php:435
- * @route '/advisor/clients'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:435
+* @route '/advisor/clients'
+*/
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(options),
     method: 'post',
@@ -528,49 +534,49 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::store
- * @see app/Http/Controllers/Advisor/ClientController.php:435
- * @route '/advisor/clients'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:435
+* @route '/advisor/clients'
+*/
 store.url = (options?: RouteQueryOptions) => {
     return store.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::store
- * @see app/Http/Controllers/Advisor/ClientController.php:435
- * @route '/advisor/clients'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:435
+* @route '/advisor/clients'
+*/
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::store
- * @see app/Http/Controllers/Advisor/ClientController.php:435
- * @route '/advisor/clients'
- */
-    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/ClientController.php:435
+* @route '/advisor/clients'
+*/
+const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::store
- * @see app/Http/Controllers/Advisor/ClientController.php:435
- * @route '/advisor/clients'
- */
-        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(options),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/ClientController.php:435
+* @route '/advisor/clients'
+*/
+storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(options),
+    method: 'post',
+})
 
-    store.form = storeForm
+store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::show
- * @see app/Http/Controllers/Advisor/ClientController.php:515
- * @route '/advisor/clients/{client}'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:515
+* @route '/advisor/clients/{client}'
+*/
 export const show = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
@@ -583,31 +589,31 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::show
- * @see app/Http/Controllers/Advisor/ClientController.php:515
- * @route '/advisor/clients/{client}'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:515
+* @route '/advisor/clients/{client}'
+*/
 show.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { client: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { client: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { client: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    client: args[0],
-                }
+            client: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        client: typeof args.client === 'object'
-                ? args.client.id
-                : args.client,
-                }
+        client: typeof args.client === 'object'
+        ? args.client.id
+        : args.client,
+    }
 
     return show.definition.url
             .replace('{client}', parsedArgs.client.toString())
@@ -616,58 +622,60 @@ show.url = (args: { client: string | { id: string } } | [client: string | { id: 
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::show
- * @see app/Http/Controllers/Advisor/ClientController.php:515
- * @route '/advisor/clients/{client}'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:515
+* @route '/advisor/clients/{client}'
+*/
 show.get = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::show
- * @see app/Http/Controllers/Advisor/ClientController.php:515
- * @route '/advisor/clients/{client}'
- */
+* @see app/Http/Controllers/Advisor/ClientController.php:515
+* @route '/advisor/clients/{client}'
+*/
 show.head = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: show.url(args, options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::show
- * @see app/Http/Controllers/Advisor/ClientController.php:515
- * @route '/advisor/clients/{client}'
- */
-    const showForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: show.url(args, options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Advisor/ClientController.php:515
+* @route '/advisor/clients/{client}'
+*/
+const showForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: show.url(args, options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ClientController::show
- * @see app/Http/Controllers/Advisor/ClientController.php:515
- * @route '/advisor/clients/{client}'
- */
-        showForm.get = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Advisor\ClientController::show
- * @see app/Http/Controllers/Advisor/ClientController.php:515
- * @route '/advisor/clients/{client}'
- */
-        showForm.head = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: show.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Advisor/ClientController.php:515
+* @route '/advisor/clients/{client}'
+*/
+showForm.get = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: show.url(args, options),
+    method: 'get',
+})
 
-    show.form = showForm
+/**
+* @see \App\Http\Controllers\Advisor\ClientController::show
+* @see app/Http/Controllers/Advisor/ClientController.php:515
+* @route '/advisor/clients/{client}'
+*/
+showForm.head = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: show.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+show.form = showForm
 const ClientController = { index, create, invite, storeInvite, resendInvite, cancelInvite, lookupNzbn, store, show }
 
 export default ClientController

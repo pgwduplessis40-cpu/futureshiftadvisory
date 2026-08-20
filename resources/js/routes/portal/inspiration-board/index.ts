@@ -1,9 +1,9 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::index
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:29
- * @route '/portal/inspiration-board'
- */
+* @see app/Http/Controllers/Portal/InspirationBoardController.php:29
+* @route '/portal/inspiration-board'
+*/
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
@@ -16,72 +16,74 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::index
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:29
- * @route '/portal/inspiration-board'
- */
+* @see app/Http/Controllers/Portal/InspirationBoardController.php:29
+* @route '/portal/inspiration-board'
+*/
 index.url = (options?: RouteQueryOptions) => {
     return index.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::index
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:29
- * @route '/portal/inspiration-board'
- */
+* @see app/Http/Controllers/Portal/InspirationBoardController.php:29
+* @route '/portal/inspiration-board'
+*/
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: index.url(options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::index
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:29
- * @route '/portal/inspiration-board'
- */
+* @see app/Http/Controllers/Portal/InspirationBoardController.php:29
+* @route '/portal/inspiration-board'
+*/
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: index.url(options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::index
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:29
- * @route '/portal/inspiration-board'
- */
-    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: index.url(options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Portal/InspirationBoardController.php:29
+* @route '/portal/inspiration-board'
+*/
+const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: index.url(options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::index
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:29
- * @route '/portal/inspiration-board'
- */
-        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url(options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Portal\InspirationBoardController::index
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:29
- * @route '/portal/inspiration-board'
- */
-        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: index.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Portal/InspirationBoardController.php:29
+* @route '/portal/inspiration-board'
+*/
+indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: index.url(options),
+    method: 'get',
+})
 
-    index.form = indexForm
+/**
+* @see \App\Http\Controllers\Portal\InspirationBoardController::index
+* @see app/Http/Controllers/Portal/InspirationBoardController.php:29
+* @route '/portal/inspiration-board'
+*/
+indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: index.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+index.form = indexForm
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::image
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:43
- * @route '/portal/inspiration-board/{boardPost}/image'
- */
+* @see app/Http/Controllers/Portal/InspirationBoardController.php:43
+* @route '/portal/inspiration-board/{boardPost}/image'
+*/
 export const image = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: image.url(args, options),
     method: 'get',
@@ -94,31 +96,31 @@ image.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::image
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:43
- * @route '/portal/inspiration-board/{boardPost}/image'
- */
+* @see app/Http/Controllers/Portal/InspirationBoardController.php:43
+* @route '/portal/inspiration-board/{boardPost}/image'
+*/
 image.url = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { boardPost: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { boardPost: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { boardPost: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    boardPost: args[0],
-                }
+            boardPost: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        boardPost: typeof args.boardPost === 'object'
-                ? args.boardPost.id
-                : args.boardPost,
-                }
+        boardPost: typeof args.boardPost === 'object'
+        ? args.boardPost.id
+        : args.boardPost,
+    }
 
     return image.definition.url
             .replace('{boardPost}', parsedArgs.boardPost.toString())
@@ -127,61 +129,63 @@ image.url = (args: { boardPost: string | { id: string } } | [boardPost: string |
 
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::image
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:43
- * @route '/portal/inspiration-board/{boardPost}/image'
- */
+* @see app/Http/Controllers/Portal/InspirationBoardController.php:43
+* @route '/portal/inspiration-board/{boardPost}/image'
+*/
 image.get = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: image.url(args, options),
     method: 'get',
 })
+
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::image
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:43
- * @route '/portal/inspiration-board/{boardPost}/image'
- */
+* @see app/Http/Controllers/Portal/InspirationBoardController.php:43
+* @route '/portal/inspiration-board/{boardPost}/image'
+*/
 image.head = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: image.url(args, options),
     method: 'head',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::image
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:43
- * @route '/portal/inspiration-board/{boardPost}/image'
- */
-    const imageForm = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: image.url(args, options),
-        method: 'get',
-    })
+* @see app/Http/Controllers/Portal/InspirationBoardController.php:43
+* @route '/portal/inspiration-board/{boardPost}/image'
+*/
+const imageForm = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: image.url(args, options),
+    method: 'get',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::image
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:43
- * @route '/portal/inspiration-board/{boardPost}/image'
- */
-        imageForm.get = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: image.url(args, options),
-            method: 'get',
-        })
-            /**
-* @see \App\Http\Controllers\Portal\InspirationBoardController::image
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:43
- * @route '/portal/inspiration-board/{boardPost}/image'
- */
-        imageForm.head = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: image.url(args, {
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'HEAD',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'get',
-        })
+* @see app/Http/Controllers/Portal/InspirationBoardController.php:43
+* @route '/portal/inspiration-board/{boardPost}/image'
+*/
+imageForm.get = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: image.url(args, options),
+    method: 'get',
+})
 
-    image.form = imageForm
+/**
+* @see \App\Http\Controllers\Portal\InspirationBoardController::image
+* @see app/Http/Controllers/Portal/InspirationBoardController.php:43
+* @route '/portal/inspiration-board/{boardPost}/image'
+*/
+imageForm.head = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: image.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+image.form = imageForm
 const inspirationBoard = {
     index: Object.assign(index, index),
-image: Object.assign(image, image),
+    image: Object.assign(image, image),
 }
 
 export default inspirationBoard

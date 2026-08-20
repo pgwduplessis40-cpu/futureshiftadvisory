@@ -3,9 +3,9 @@ import flags from './flags'
 import advisorNudge from './advisor-nudge'
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:433
- * @route '/portal/entrepreneur/plan/budget'
- */
+* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:433
+* @route '/portal/entrepreneur/plan/budget'
+*/
 export const update = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: update.url(options),
     method: 'post',
@@ -18,48 +18,48 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:433
- * @route '/portal/entrepreneur/plan/budget'
- */
+* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:433
+* @route '/portal/entrepreneur/plan/budget'
+*/
 update.url = (options?: RouteQueryOptions) => {
     return update.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:433
- * @route '/portal/entrepreneur/plan/budget'
- */
+* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:433
+* @route '/portal/entrepreneur/plan/budget'
+*/
 update.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: update.url(options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:433
- * @route '/portal/entrepreneur/plan/budget'
- */
-    const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: update.url(options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:433
+* @route '/portal/entrepreneur/plan/budget'
+*/
+const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: update.url(options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:433
- * @route '/portal/entrepreneur/plan/budget'
- */
-        updateForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url(options),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:433
+* @route '/portal/entrepreneur/plan/budget'
+*/
+updateForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: update.url(options),
+    method: 'post',
+})
 
-    update.form = updateForm
+update.form = updateForm
 const budget = {
     update: Object.assign(update, update),
-flags: Object.assign(flags, flags),
-advisorNudge: Object.assign(advisorNudge, advisorNudge),
+    flags: Object.assign(flags, flags),
+    advisorNudge: Object.assign(advisorNudge, advisorNudge),
 }
 
 export default budget

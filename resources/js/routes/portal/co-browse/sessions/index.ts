@@ -1,9 +1,9 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseSessionController::response
- * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:63
- * @route '/portal/co-browse-sessions/{session}/response'
- */
+* @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:63
+* @route '/portal/co-browse-sessions/{session}/response'
+*/
 export const response = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: response.url(args, options),
     method: 'post',
@@ -16,31 +16,31 @@ response.definition = {
 
 /**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseSessionController::response
- * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:63
- * @route '/portal/co-browse-sessions/{session}/response'
- */
+* @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:63
+* @route '/portal/co-browse-sessions/{session}/response'
+*/
 response.url = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { session: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { session: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { session: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    session: args[0],
-                }
+            session: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        session: typeof args.session === 'object'
-                ? args.session.id
-                : args.session,
-                }
+        session: typeof args.session === 'object'
+        ? args.session.id
+        : args.session,
+    }
 
     return response.definition.url
             .replace('{session}', parsedArgs.session.toString())
@@ -49,35 +49,35 @@ response.url = (args: { session: string | { id: string } } | [session: string | 
 
 /**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseSessionController::response
- * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:63
- * @route '/portal/co-browse-sessions/{session}/response'
- */
+* @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:63
+* @route '/portal/co-browse-sessions/{session}/response'
+*/
 response.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: response.url(args, options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseSessionController::response
- * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:63
- * @route '/portal/co-browse-sessions/{session}/response'
- */
-    const responseForm = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: response.url(args, options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:63
+* @route '/portal/co-browse-sessions/{session}/response'
+*/
+const responseForm = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: response.url(args, options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\CoBrowse\CoBrowseSessionController::response
- * @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:63
- * @route '/portal/co-browse-sessions/{session}/response'
- */
-        responseForm.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: response.url(args, options),
-            method: 'post',
-        })
+* @see app/Http/Controllers/CoBrowse/CoBrowseSessionController.php:63
+* @route '/portal/co-browse-sessions/{session}/response'
+*/
+responseForm.post = (args: { session: string | { id: string } } | [session: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: response.url(args, options),
+    method: 'post',
+})
 
-    response.form = responseForm
+response.form = responseForm
 const sessions = {
     response: Object.assign(response, response),
 }

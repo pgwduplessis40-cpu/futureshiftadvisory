@@ -1,9 +1,9 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::store
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:20
- * @route '/advisor/clients/{client}/voice-notes'
- */
+* @see app/Http/Controllers/Advisor/VoiceNoteController.php:20
+* @route '/advisor/clients/{client}/voice-notes'
+*/
 export const store = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
@@ -16,31 +16,31 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::store
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:20
- * @route '/advisor/clients/{client}/voice-notes'
- */
+* @see app/Http/Controllers/Advisor/VoiceNoteController.php:20
+* @route '/advisor/clients/{client}/voice-notes'
+*/
 store.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { client: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { client: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { client: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    client: args[0],
-                }
+            client: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        client: typeof args.client === 'object'
-                ? args.client.id
-                : args.client,
-                }
+        client: typeof args.client === 'object'
+        ? args.client.id
+        : args.client,
+    }
 
     return store.definition.url
             .replace('{client}', parsedArgs.client.toString())
@@ -49,40 +49,40 @@ store.url = (args: { client: string | { id: string } } | [client: string | { id:
 
 /**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::store
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:20
- * @route '/advisor/clients/{client}/voice-notes'
- */
+* @see app/Http/Controllers/Advisor/VoiceNoteController.php:20
+* @route '/advisor/clients/{client}/voice-notes'
+*/
 store.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::store
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:20
- * @route '/advisor/clients/{client}/voice-notes'
- */
-    const storeForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(args, options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/VoiceNoteController.php:20
+* @route '/advisor/clients/{client}/voice-notes'
+*/
+const storeForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(args, options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::store
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:20
- * @route '/advisor/clients/{client}/voice-notes'
- */
-        storeForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(args, options),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/VoiceNoteController.php:20
+* @route '/advisor/clients/{client}/voice-notes'
+*/
+storeForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(args, options),
+    method: 'post',
+})
 
-    store.form = storeForm
+store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::storeCallLog
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:61
- * @route '/advisor/clients/{client}/call-logs'
- */
+* @see app/Http/Controllers/Advisor/VoiceNoteController.php:61
+* @route '/advisor/clients/{client}/call-logs'
+*/
 export const storeCallLog = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: storeCallLog.url(args, options),
     method: 'post',
@@ -95,31 +95,31 @@ storeCallLog.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::storeCallLog
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:61
- * @route '/advisor/clients/{client}/call-logs'
- */
+* @see app/Http/Controllers/Advisor/VoiceNoteController.php:61
+* @route '/advisor/clients/{client}/call-logs'
+*/
 storeCallLog.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { client: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { client: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { client: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    client: args[0],
-                }
+            client: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        client: typeof args.client === 'object'
-                ? args.client.id
-                : args.client,
-                }
+        client: typeof args.client === 'object'
+        ? args.client.id
+        : args.client,
+    }
 
     return storeCallLog.definition.url
             .replace('{client}', parsedArgs.client.toString())
@@ -128,35 +128,35 @@ storeCallLog.url = (args: { client: string | { id: string } } | [client: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::storeCallLog
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:61
- * @route '/advisor/clients/{client}/call-logs'
- */
+* @see app/Http/Controllers/Advisor/VoiceNoteController.php:61
+* @route '/advisor/clients/{client}/call-logs'
+*/
 storeCallLog.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: storeCallLog.url(args, options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::storeCallLog
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:61
- * @route '/advisor/clients/{client}/call-logs'
- */
-    const storeCallLogForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: storeCallLog.url(args, options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/VoiceNoteController.php:61
+* @route '/advisor/clients/{client}/call-logs'
+*/
+const storeCallLogForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: storeCallLog.url(args, options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::storeCallLog
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:61
- * @route '/advisor/clients/{client}/call-logs'
- */
-        storeCallLogForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: storeCallLog.url(args, options),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/VoiceNoteController.php:61
+* @route '/advisor/clients/{client}/call-logs'
+*/
+storeCallLogForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: storeCallLog.url(args, options),
+    method: 'post',
+})
 
-    storeCallLog.form = storeCallLogForm
+storeCallLog.form = storeCallLogForm
 const VoiceNoteController = { store, storeCallLog }
 
 export default VoiceNoteController

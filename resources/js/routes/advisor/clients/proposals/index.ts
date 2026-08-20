@@ -1,9 +1,9 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::store
- * @see app/Http/Controllers/Advisor/ProposalController.php:33
- * @route '/advisor/clients/{client}/proposals'
- */
+* @see app/Http/Controllers/Advisor/ProposalController.php:33
+* @route '/advisor/clients/{client}/proposals'
+*/
 export const store = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
@@ -16,31 +16,31 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::store
- * @see app/Http/Controllers/Advisor/ProposalController.php:33
- * @route '/advisor/clients/{client}/proposals'
- */
+* @see app/Http/Controllers/Advisor/ProposalController.php:33
+* @route '/advisor/clients/{client}/proposals'
+*/
 store.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { client: args }
     }
 
-            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-            args = { client: args.id }
-        }
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { client: args.id }
+    }
 
     if (Array.isArray(args)) {
         args = {
-                    client: args[0],
-                }
+            client: args[0],
+        }
     }
 
     args = applyUrlDefaults(args)
 
     const parsedArgs = {
-                        client: typeof args.client === 'object'
-                ? args.client.id
-                : args.client,
-                }
+        client: typeof args.client === 'object'
+        ? args.client.id
+        : args.client,
+    }
 
     return store.definition.url
             .replace('{client}', parsedArgs.client.toString())
@@ -49,35 +49,35 @@ store.url = (args: { client: string | { id: string } } | [client: string | { id:
 
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::store
- * @see app/Http/Controllers/Advisor/ProposalController.php:33
- * @route '/advisor/clients/{client}/proposals'
- */
+* @see app/Http/Controllers/Advisor/ProposalController.php:33
+* @route '/advisor/clients/{client}/proposals'
+*/
 store.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\Advisor\ProposalController::store
- * @see app/Http/Controllers/Advisor/ProposalController.php:33
- * @route '/advisor/clients/{client}/proposals'
- */
-    const storeForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(args, options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/Advisor/ProposalController.php:33
+* @route '/advisor/clients/{client}/proposals'
+*/
+const storeForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(args, options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\Advisor\ProposalController::store
- * @see app/Http/Controllers/Advisor/ProposalController.php:33
- * @route '/advisor/clients/{client}/proposals'
- */
-        storeForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(args, options),
-            method: 'post',
-        })
+* @see app/Http/Controllers/Advisor/ProposalController.php:33
+* @route '/advisor/clients/{client}/proposals'
+*/
+storeForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(args, options),
+    method: 'post',
+})
 
-    store.form = storeForm
+store.form = storeForm
 const proposals = {
     store: Object.assign(store, store),
 }

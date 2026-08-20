@@ -1,9 +1,9 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\PanelApplicationController::store
- * @see app/Http/Controllers/PanelApplicationController.php:20
- * @route '/panel/application'
- */
+* @see app/Http/Controllers/PanelApplicationController.php:20
+* @route '/panel/application'
+*/
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(options),
     method: 'post',
@@ -16,49 +16,49 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\PanelApplicationController::store
- * @see app/Http/Controllers/PanelApplicationController.php:20
- * @route '/panel/application'
- */
+* @see app/Http/Controllers/PanelApplicationController.php:20
+* @route '/panel/application'
+*/
 store.url = (options?: RouteQueryOptions) => {
     return store.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\PanelApplicationController::store
- * @see app/Http/Controllers/PanelApplicationController.php:20
- * @route '/panel/application'
- */
+* @see app/Http/Controllers/PanelApplicationController.php:20
+* @route '/panel/application'
+*/
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(options),
     method: 'post',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\PanelApplicationController::store
- * @see app/Http/Controllers/PanelApplicationController.php:20
- * @route '/panel/application'
- */
-    const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: store.url(options),
-        method: 'post',
-    })
+* @see app/Http/Controllers/PanelApplicationController.php:20
+* @route '/panel/application'
+*/
+const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(options),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\PanelApplicationController::store
- * @see app/Http/Controllers/PanelApplicationController.php:20
- * @route '/panel/application'
- */
-        storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: store.url(options),
-            method: 'post',
-        })
+* @see app/Http/Controllers/PanelApplicationController.php:20
+* @route '/panel/application'
+*/
+storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: store.url(options),
+    method: 'post',
+})
 
-    store.form = storeForm
+store.form = storeForm
 /**
 * @see \App\Http\Controllers\PanelApplicationController::update
- * @see app/Http/Controllers/PanelApplicationController.php:36
- * @route '/panel/application'
- */
+* @see app/Http/Controllers/PanelApplicationController.php:36
+* @route '/panel/application'
+*/
 export const update = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: update.url(options),
     method: 'patch',
@@ -71,57 +71,57 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\PanelApplicationController::update
- * @see app/Http/Controllers/PanelApplicationController.php:36
- * @route '/panel/application'
- */
+* @see app/Http/Controllers/PanelApplicationController.php:36
+* @route '/panel/application'
+*/
 update.url = (options?: RouteQueryOptions) => {
     return update.definition.url + queryParams(options)
 }
 
 /**
 * @see \App\Http\Controllers\PanelApplicationController::update
- * @see app/Http/Controllers/PanelApplicationController.php:36
- * @route '/panel/application'
- */
+* @see app/Http/Controllers/PanelApplicationController.php:36
+* @route '/panel/application'
+*/
 update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: update.url(options),
     method: 'patch',
 })
 
-    /**
+/**
 * @see \App\Http\Controllers\PanelApplicationController::update
- * @see app/Http/Controllers/PanelApplicationController.php:36
- * @route '/panel/application'
- */
-    const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-        action: update.url({
-                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                        _method: 'PATCH',
-                        ...(options?.query ?? options?.mergeQuery ?? {}),
-                    }
-                }),
-        method: 'post',
-    })
+* @see app/Http/Controllers/PanelApplicationController.php:36
+* @route '/panel/application'
+*/
+const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: update.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'PATCH',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
 
-            /**
+/**
 * @see \App\Http\Controllers\PanelApplicationController::update
- * @see app/Http/Controllers/PanelApplicationController.php:36
- * @route '/panel/application'
- */
-        updateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-            action: update.url({
-                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-                            _method: 'PATCH',
-                            ...(options?.query ?? options?.mergeQuery ?? {}),
-                        }
-                    }),
-            method: 'post',
-        })
+* @see app/Http/Controllers/PanelApplicationController.php:36
+* @route '/panel/application'
+*/
+updateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: update.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'PATCH',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
 
-    update.form = updateForm
+update.form = updateForm
 const application = {
     store: Object.assign(store, store),
-update: Object.assign(update, update),
+    update: Object.assign(update, update),
 }
 
 export default application
