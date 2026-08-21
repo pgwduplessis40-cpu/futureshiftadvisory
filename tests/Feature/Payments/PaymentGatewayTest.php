@@ -149,6 +149,29 @@ final class PaymentGatewayTest extends TestCase
         $this->assertSame(0, AuditEvent::query()->where('action', 'like', 'payment_gateway.%')->count());
     }
 
+    public function test_gateway_rejects_inactive_authorities_unsupported_currency_invalid_amounts_and_card_values(): void
+    {
+        [$authority, $advisor] = $this->authority('gateway-validation-advisor@example.test');
+        $gateway = app(Gateway::class);
+        $assertRejected = function (int|float|string $amount, array $options, string $message) use ($gateway, $authority, $advisor): void {
+            try {
+                $gateway->charge($authority, $amount, $options, $advisor);
+                $this->fail("Gateway should reject: {$message}");
+            } catch (\InvalidArgumentException $exception) {
+                $this->assertSame($message, $exception->getMessage());
+            }
+        };
+
+        $authority->forceFill(['status' => PaymentAuthority::STATUS_REVOKED])->save();
+        $assertRejected(100, [], 'Only active payment authorities can be charged.');
+
+        $authority->forceFill(['status' => PaymentAuthority::STATUS_ACTIVE])->save();
+        $assertRejected(100, ['currency' => 'USD'], 'Payment gateway charges currently support NZD only.');
+        $assertRejected('not-a-number', [], 'Payment charge amount must be numeric.');
+        $assertRejected(0, [], 'Payment charge amount must be greater than zero.');
+        $assertRejected(100, ['metadata' => ['card' => '4242 4242 4242 4242']], 'Raw card numbers must not be submitted or stored.');
+    }
+
     public function test_live_stripe_client_uses_resilient_http_when_enabled(): void
     {
         Config::set('integrations.payments.stripe.live', true);

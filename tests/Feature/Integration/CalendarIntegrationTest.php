@@ -32,6 +32,7 @@ use App\Services\Storage\KeyEnvelope;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -287,6 +288,7 @@ final class CalendarIntegrationTest extends TestCase
             'https://login.example.test/common/oauth2/v2.0/token',
             'https://login.example.test/revoke',
         );
+        Config::set('integrations.calendar.microsoft.scopes', 'Calendars.ReadWrite, offline_access, User.Read');
         [$advisor, $client] = $this->advisorAndClient('calendar-live-client-microsoft@example.test');
         $connection = $this->liveConnection($advisor, CalendarConnection::PROVIDER_MICROSOFT);
         $meeting = $this->meeting($client, $advisor, 'Microsoft calendar coverage');
@@ -366,6 +368,8 @@ final class CalendarIntegrationTest extends TestCase
         $this->assertSame('https://graph.example.test/delta/next', $pulled['delta_link']);
         $this->assertCount(1, $pulled['events']);
         $this->assertSame('microsoft-pulled-event', $pulled['events'][0]['external_event_id']);
+        Http::assertSent(fn (Request $request): bool => $request->url() === 'https://login.example.test/common/oauth2/v2.0/token'
+            && data_get($request->data(), 'scope') === 'Calendars.ReadWrite offline_access User.Read');
         Http::assertSentCount(6);
     }
 
