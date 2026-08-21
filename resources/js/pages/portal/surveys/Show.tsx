@@ -1,5 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Check } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Check, Save } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
@@ -94,6 +94,8 @@ export default function PortalSurveyShow({
     const [draftStatus, setDraftStatus] = useState<DraftStatus>(
         assignment.draft_saved_at ? 'saved' : 'idle',
     );
+    const [submitError, setSubmitError] = useState<string | null>(null);
+    const [manualSaveInFlight, setManualSaveInFlight] = useState(false);
 
     useEffect(() => {
         const answers = initialAnswers(assignment);
@@ -150,6 +152,9 @@ export default function PortalSurveyShow({
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        saveLocalDraft(assignment.id, form.data.answers);
+        setSubmitError(null);
+
         form.post(storeUrl, {
             preserveScroll: true,
             onSuccess: (page) => {
@@ -159,8 +164,42 @@ export default function PortalSurveyShow({
                 ) {
                     clearLocalDraft(assignment.id);
                 }
+
+                setSubmitError(null);
+            },
+            onError: () => {
+                saveLocalDraft(assignment.id, form.data.answers);
+                setSubmitError(
+                    'We could not submit the survey yet. Your answers are still saved on this device; please fix any highlighted fields or try again.',
+                );
             },
         });
+    };
+
+    const saveDraftNow = () => {
+        if (!assignment.is_open) {
+            return;
+        }
+
+        saveLocalDraft(assignment.id, form.data.answers);
+        setManualSaveInFlight(true);
+        setDraftStatus('saving');
+
+        void saveServerDraft(draftUrl, form.data.answers)
+            .then(() => {
+                savedAnswers.current = JSON.stringify(form.data.answers);
+                setDraftStatus('saved');
+                setSubmitError(null);
+            })
+            .catch(() => {
+                setDraftStatus('local');
+                setSubmitError(
+                    'The server draft could not be saved yet. Your answers are saved on this device until the connection or session recovers.',
+                );
+            })
+            .finally(() => {
+                setManualSaveInFlight(false);
+            });
     };
 
     const setFlat = (questionId: string, value: number | boolean | string) => {
@@ -453,6 +492,22 @@ export default function PortalSurveyShow({
 
                     <div className="flex justify-end">
                         <div className="space-y-2 text-right">
+                            {submitError || form.errors[
+                                'assignment' as keyof typeof form.errors
+                            ] ? (
+                                <div className="flex max-w-xl gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-left text-sm text-amber-950">
+                                    <AlertTriangle
+                                        className="mt-0.5 size-4 shrink-0"
+                                        aria-hidden="true"
+                                    />
+                                    <p>
+                                        {(form.errors[
+                                            'assignment' as keyof typeof form.errors
+                                        ] as string | undefined) ??
+                                            submitError}
+                                    </p>
+                                </div>
+                            ) : null}
                             {assignment.is_open && draftStatus !== 'idle' && (
                                 <p className="text-sm text-muted-foreground">
                                     {draftStatus === 'saving'
@@ -467,15 +522,38 @@ export default function PortalSurveyShow({
                                 improve the service and will never be held
                                 against you.
                             </p>
-                            <Button
-                                type="submit"
-                                disabled={
-                                    !assignment.is_open || form.processing
-                                }
-                            >
-                                <Check className="size-4" aria-hidden="true" />
-                                Submit
-                            </Button>
+                            <div className="flex flex-wrap justify-end gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={
+                                        !assignment.is_open ||
+                                        manualSaveInFlight ||
+                                        form.processing
+                                    }
+                                    onClick={saveDraftNow}
+                                >
+                                    <Save
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    {manualSaveInFlight
+                                        ? 'Saving draft'
+                                        : 'Save draft'}
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={
+                                        !assignment.is_open || form.processing
+                                    }
+                                >
+                                    <Check
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Submit
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </form>
@@ -649,7 +727,7 @@ const ratingQuestionGuidance: Record<string, string> = {
     process_clarity:
         'Rate the clarity of the process, expectations, and next steps throughout the service. Use 1 for very poor and 5 for excellent.',
     timeliness:
-        'Rate whether the timing and pace of the service worked for you. Use 1 for very poor and 5 for excellent.',
+        'Rate both the time between advisor updates and the overall pace through the service. Use 1 for very poor and 5 for excellent.',
     recommend_service:
         'Consider whether you would recommend this specific service to another business. Zero means not at all likely; 10 means extremely likely.',
 };

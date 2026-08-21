@@ -27,6 +27,7 @@ use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\BudgetPackBuilder;
+use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
 use App\Services\Entrepreneurs\EntrepreneurBudgetService;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
@@ -86,6 +87,7 @@ final class EntrepreneurPlanController extends Controller
         private readonly MessageThreadService $messages,
         private readonly PdfRenderer $pdf,
         private readonly BusinessPlanPreviewRenderer $planPreview,
+        private readonly BusinessPlanExecutiveSummary $executiveSummaries,
         private readonly BudgetPackBuilder $budgetPack,
         private readonly AuditWriter $audit,
         private readonly EntrepreneurBudgetService $budgets,
@@ -132,6 +134,7 @@ final class EntrepreneurPlanController extends Controller
                 'budgetFlagAcknowledge' => route('portal.entrepreneur.plan.budget.flags.acknowledge', absolute: false),
                 'budgetAdvisorNudgeDismiss' => route('portal.entrepreneur.plan.budget.advisor-nudge.dismiss', absolute: false),
                 'assistRequirement' => route('portal.entrepreneur.plan.requirements.assist', absolute: false),
+                'executiveSummary' => route('portal.entrepreneur.plan.executive-summary.store', absolute: false),
                 'preview' => route('portal.entrepreneur.plan.preview', absolute: false),
                 'submit' => route('portal.entrepreneur.plan.submit', absolute: false),
                 'documentUpload' => route('portal.documents.store', absolute: false),
@@ -599,6 +602,27 @@ final class EntrepreneurPlanController extends Controller
         ));
     }
 
+    public function generateExecutiveSummary(Request $request): RedirectResponse|JsonResponse
+    {
+        $user = $this->entrepreneurUser($request);
+        $profile = $this->profileFor($user);
+        abort_unless($this->packageIncludesPlanBudget($profile), 403);
+        $plan = $this->latestPlan($profile);
+        abort_unless($plan instanceof BusinessPlan, 404);
+
+        $payload = $this->executiveSummaries->generate($plan, $profile, $user);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'entrepreneur-plan-executive-summary-generated',
+                ...$payload,
+            ]);
+        }
+
+        return to_route('portal.entrepreneur.plan.show')
+            ->with('status', 'entrepreneur-plan-executive-summary-generated');
+    }
+
     public function guidance(Request $request, PlanSection $planSection): RedirectResponse
     {
         $user = $this->entrepreneurUser($request);
@@ -1003,6 +1027,7 @@ final class EntrepreneurPlanController extends Controller
             'requirements_complete' => $completion['complete'],
             'missing_requirements' => $completion['missing'],
             'external_issue_readiness' => $this->planIssueReadiness->evaluate($plan),
+            'executive_summary' => $this->executiveSummaries->status($plan),
             'budget' => $this->budgetPayload($plan, $plan->budgetRunway),
             'latest_assessment' => $latestAssessment ? [
                 'id' => $latestAssessment->id,

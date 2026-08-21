@@ -32,6 +32,7 @@ use App\Services\Entrepreneurs\AssessmentScoring;
 use App\Services\Entrepreneurs\Benchmarking;
 use App\Services\Entrepreneurs\BudgetFundingReadiness;
 use App\Services\Entrepreneurs\BudgetPackBuilder;
+use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\BusinessPlanIdentity;
 use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
 use App\Services\Entrepreneurs\BusinessPlanSnapshot;
@@ -144,6 +145,7 @@ final class MethodologyDriftGuardTest extends TestCase
         Benchmarking::class => 'Privacy-gated cohort report; excluded until a client-safe aggregate methodology is surfaced.',
         BudgetFundingReadiness::class => 'Funding-readiness presentation state; the budget formula is owned by BudgetCalculator.',
         BudgetPackBuilder::class => 'Budget-pack renderer; forecast formula is owned by BudgetCalculator.',
+        BusinessPlanExecutiveSummary::class => 'Executive-summary synthesis workflow; it stores reviewed plan wording and does not own advisory scoring methodology.',
         BusinessPlanIdentity::class => 'Business-name resolution helper; it selects existing identity data and does not calculate or disclose advisory methodology.',
         BusinessPlanPreviewRenderer::class => 'Business-plan PDF renderer; requirement completion is presentation state, not an advisory methodology surface.',
         BusinessPlanSnapshot::class => 'Submitted-plan snapshot serializer; assessment scoring methodology is owned by Assessment.',

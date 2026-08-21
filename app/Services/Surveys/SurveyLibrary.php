@@ -21,7 +21,7 @@ final class SurveyLibrary
 
     public const DEFAULT_VERSION = '1.0';
 
-    public const SERVICE_IMPROVEMENT_VERSION = '1.1';
+    public const SERVICE_IMPROVEMENT_VERSION = '1.2';
 
     public function ensureDefault(?User $creator = null): Survey
     {
@@ -109,16 +109,7 @@ final class SurveyLibrary
                     $survey->questions()->create($question);
                 }
 
-                Survey::query()
-                    ->where('key', self::SERVICE_IMPROVEMENT_KEY)
-                    ->where('version', self::DEFAULT_VERSION)
-                    ->where('type', SurveyType::ServiceImprovement->value)
-                    ->where('status', SurveyStatus::Published->value)
-                    ->update([
-                        'status' => SurveyStatus::Archived->value,
-                        'archived_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+                $this->archiveOlderPublishedServiceImprovementSurveys();
 
                 return $survey->load('questions');
             });
@@ -240,8 +231,8 @@ final class SurveyLibrary
                 'order' => 4,
                 'type' => SurveyQuestionType::Likert->value,
                 'key' => 'timeliness',
-                'prompt' => 'How well did the timing of the service work for you?',
-                'help_text' => 'Consider whether the timing and pace of the service worked for you.',
+                'prompt' => 'How well did the overall pace and response timing work for you?',
+                'help_text' => 'Think about both the time between advisor updates and the overall pace through the service. If only one part matters, explain that in the comment.',
                 'options' => $this->likertOptions(),
                 'required' => true,
             ],
@@ -301,5 +292,19 @@ final class SurveyLibrary
             ['value' => 4, 'label' => 'Good'],
             ['value' => 5, 'label' => 'Excellent'],
         ];
+    }
+
+    private function archiveOlderPublishedServiceImprovementSurveys(): void
+    {
+        Survey::query()
+            ->where('key', self::SERVICE_IMPROVEMENT_KEY)
+            ->where('type', SurveyType::ServiceImprovement->value)
+            ->where('version', '!=', self::SERVICE_IMPROVEMENT_VERSION)
+            ->where('status', SurveyStatus::Published->value)
+            ->update([
+                'status' => SurveyStatus::Archived->value,
+                'archived_at' => now(),
+                'updated_at' => now(),
+            ]);
     }
 }

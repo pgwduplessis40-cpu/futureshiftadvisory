@@ -105,6 +105,7 @@ export default function EntrepreneursShow({
     coBrowse,
 }: Props) {
     const latestAssessment = entrepreneur.latest_plan?.latest_assessment;
+    const executiveSummary = entrepreneur.latest_plan?.executive_summary;
     const assessmentHistory =
         entrepreneur.latest_plan?.assessment_history ?? [];
     const latestAssessmentUsesCurrentRubric =
@@ -128,6 +129,8 @@ export default function EntrepreneursShow({
     const [serviceFeedbackSurveyPending, setServiceFeedbackSurveyPending] =
         useState(false);
     const [assessmentPending, setAssessmentPending] = useState(false);
+    const [executiveSummaryPending, setExecutiveSummaryPending] =
+        useState(false);
     const [assessmentError, setAssessmentError] = useState<string | null>(null);
     const assessmentBusy = assessmentPending || assessmentRunInFlight;
     const assessmentTotalCriteria = assessmentRun?.total_criteria ?? null;
@@ -220,6 +223,24 @@ export default function EntrepreneursShow({
                     );
                 },
                 onFinish: () => setAssessmentPending(false),
+            },
+        );
+    };
+
+    const refreshExecutiveSummary = () => {
+        const generateUrl = executiveSummary?.generate_url;
+
+        if (!generateUrl || executiveSummaryPending) {
+            return;
+        }
+
+        router.post(
+            generateUrl,
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => setExecutiveSummaryPending(true),
+                onFinish: () => setExecutiveSummaryPending(false),
             },
         );
     };
@@ -2207,6 +2228,47 @@ export default function EntrepreneursShow({
                                         ]}
                                     />
                                 ) : null}
+                                {executiveSummary ? (
+                                    <HoverBadge
+                                        label={
+                                            executiveSummary.stale
+                                                ? 'Summary stale'
+                                                : executiveSummary.present
+                                                  ? 'Summary current'
+                                                  : 'Summary missing'
+                                        }
+                                        variant={
+                                            executiveSummary.stale
+                                                ? 'destructive'
+                                                : executiveSummary.present
+                                                  ? 'secondary'
+                                                  : 'outline'
+                                        }
+                                        title="Executive summary"
+                                        rows={[
+                                            {
+                                                label: 'Status',
+                                                value:
+                                                    executiveSummary.status_label,
+                                            },
+                                            {
+                                                label: 'Generated',
+                                                value:
+                                                    executiveSummary.generated_at
+                                                        ? formatDate(
+                                                              executiveSummary.generated_at,
+                                                          )
+                                                        : '-',
+                                            },
+                                            {
+                                                label: 'Source',
+                                                value:
+                                                    executiveSummary.source ??
+                                                    '-',
+                                            },
+                                        ]}
+                                    />
+                                ) : null}
                                 <Button asChild size="sm" variant="outline">
                                     <a
                                         href={
@@ -2223,6 +2285,29 @@ export default function EntrepreneursShow({
                                         Business plan PDF
                                     </a>
                                 </Button>
+                                {executiveSummary?.can_generate ? (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={executiveSummaryPending}
+                                        onClick={refreshExecutiveSummary}
+                                    >
+                                        <RefreshCw
+                                            className={cn(
+                                                'size-4',
+                                                executiveSummaryPending &&
+                                                    'animate-spin',
+                                            )}
+                                            aria-hidden="true"
+                                        />
+                                        {executiveSummaryPending
+                                            ? 'Generating'
+                                            : executiveSummary.present
+                                              ? 'Refresh summary'
+                                              : 'Generate summary'}
+                                    </Button>
+                                ) : null}
                                 {entrepreneur.latest_plan.budget_pdf_url ? (
                                     <Button asChild size="sm" variant="outline">
                                         <a

@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import { ExplainedMetricCard } from '@/components/explainer';
 import type { Explanation } from '@/components/explainer';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 type ResponsePayload = {
@@ -21,6 +22,11 @@ type ResponsePayload = {
         value: string;
         score: number | null;
         scale_max: number | null;
+        type: string;
+    }>;
+    themes: Array<{
+        key: string;
+        label: string;
     }>;
 };
 
@@ -140,12 +146,13 @@ export default function SurveyResults({
                                     >
                                         {response.comments.length > 0 ? (
                                             <div className="space-y-2 text-sm">
+                                                <ThemeBadges
+                                                    themes={response.themes}
+                                                />
                                                 {response.comments.map(
                                                     (comment) => (
                                                         <div
-                                                            key={
-                                                                comment.question
-                                                            }
+                                                            key={`${comment.question}:${comment.score}:${comment.type}`}
                                                         >
                                                             <div className="font-medium">
                                                                 {
@@ -174,10 +181,15 @@ export default function SurveyResults({
                                                 )}
                                             </div>
                                         ) : (
-                                            <span className="text-sm text-muted-foreground">
-                                                No written feedback or rating
-                                                explanations
-                                            </span>
+                                            <div className="space-y-2 text-sm">
+                                                <ThemeBadges
+                                                    themes={response.themes}
+                                                />
+                                                <span className="text-muted-foreground">
+                                                    No written feedback or
+                                                    rating explanations
+                                                </span>
+                                            </div>
                                         )}
                                     </td>
                                 </tr>
@@ -187,6 +199,26 @@ export default function SurveyResults({
                 </div>
             </div>
         </>
+    );
+}
+
+function ThemeBadges({
+    themes,
+}: {
+    themes: Array<{ key: string; label: string }>;
+}) {
+    if (themes.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="flex flex-wrap gap-1">
+            {themes.map((theme) => (
+                <Badge key={theme.key} variant="outline">
+                    {theme.label}
+                </Badge>
+            ))}
+        </div>
     );
 }
 

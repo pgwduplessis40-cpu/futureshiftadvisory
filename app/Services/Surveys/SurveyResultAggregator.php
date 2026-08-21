@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 final class SurveyResultAggregator
 {
+    public function __construct(private readonly SurveyFeedbackThemes $themes) {}
+
     /**
      * @return array<string, mixed>
      */
@@ -60,6 +62,8 @@ final class SurveyResultAggregator
                     'overall_score' => $assignment->response->overall_score,
                     'nps_score' => $assignment->response->nps_score,
                     'submitted_at' => $assignment->response->submitted_at?->toIso8601String(),
+                    'themes' => $this->themes->forResponse($assignment->response),
+                    'written_feedback' => $this->themes->writtenFeedback($assignment->response),
                     'feedback' => $assignment->response->answers
                         ->filter(fn ($answer): bool => is_string(data_get($answer->value, 'comment')) && trim((string) data_get($answer->value, 'comment')) !== '')
                         ->map(fn ($answer): array => [

@@ -85,6 +85,22 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             url: string;
             finalise_url: string;
         } | null;
+        executive_summary: {
+            present: boolean;
+            generated: boolean;
+            stale: boolean;
+            can_generate: boolean;
+            section_id: string | null;
+            generated_at: string | null;
+            source: string | null;
+            model: string | null;
+            prompt_hash: string | null;
+            context_hash: string | null;
+            stored_context_hash: string | null;
+            status_label: string;
+            readiness_reason: string | null;
+            generate_url: string;
+        };
         budget: {
             status: string;
             expected_runway_months: number | null;

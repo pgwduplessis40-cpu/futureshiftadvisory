@@ -12,11 +12,14 @@ use App\Services\Learning\LayerCadenceRegistry;
 
 final class SurveyFeedbackEvaluator
 {
+    public function __construct(private readonly SurveyFeedbackThemes $themes) {}
+
     public function evaluate(SurveyResponse $response): ?LearningUpdate
     {
         $response->loadMissing('survey', 'answers.question', 'assignment');
 
         $isServiceImprovement = $response->survey?->type === SurveyType::ServiceImprovement;
+        $themes = $this->themes->forResponse($response);
 
         $lowOverall = $response->overall_score !== null && (float) $response->overall_score < 60.0;
         $lowNps = $response->nps_score !== null && (int) $response->nps_score <= 6;
@@ -69,12 +72,13 @@ final class SurveyFeedbackEvaluator
                 'service' => $response->assignment?->service_snapshot,
             ],
             'summary' => $isServiceImprovement
-                ? 'Service improvement survey feedback is ready for review before changing the delivered service.'
+                ? $this->serviceImprovementSummary($themes)
                 : 'Client experience survey feedback is ready for review.',
             'proposed_change' => [
                 'action' => $isServiceImprovement ? 'review_service_improvement_feedback' : 'review_client_experience_feedback',
                 'automatic_application' => false,
                 'survey_response_id' => $response->getKey(),
+                'improvement_themes' => $themes,
             ],
             'impact_scope' => [
                 'module' => $isServiceImprovement ? $serviceModule : 'surveys',
@@ -92,8 +96,23 @@ final class SurveyFeedbackEvaluator
                 'written_feedback_count' => $writtenFeedback,
                 'rating_comment_count' => $ratingComments,
                 'answer_count' => $response->answers->count(),
+                'improvement_themes' => $themes,
             ],
             'status' => LearningUpdate::STATUS_DETECTED,
         ]);
+    }
+
+    /**
+     * @param  array<int, array{key:string,label:string}>  $themes
+     */
+    private function serviceImprovementSummary(array $themes): string
+    {
+        if ($themes === []) {
+            return 'Service improvement survey feedback is ready for review before changing the delivered service.';
+        }
+
+        $labels = collect($themes)->pluck('label')->implode(', ');
+
+        return "Service improvement survey feedback is ready for review. Themes: {$labels}.";
     }
 }

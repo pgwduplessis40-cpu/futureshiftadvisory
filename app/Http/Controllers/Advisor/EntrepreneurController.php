@@ -32,6 +32,7 @@ use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
 use App\Services\Entrepreneurs\BudgetPackBuilder;
+use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
 use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
@@ -67,6 +68,7 @@ final class EntrepreneurController extends Controller
         private readonly FounderChangeRequestMessage $changeRequestMessages,
         private readonly IdeaViabilityGate $ideaViabilityGate,
         private readonly BusinessPlanPreviewRenderer $planPreview,
+        private readonly BusinessPlanExecutiveSummary $executiveSummaries,
         private readonly BudgetPackBuilder $budgetPack,
         private readonly PdfRenderer $pdf,
         private readonly CanonicalEntrepreneurWorkspace $entrepreneurWorkspaces,
@@ -803,6 +805,10 @@ final class EntrepreneurController extends Controller
                 'url' => route('advisor.entrepreneurs.assessments.show', [$profile, $latestAssessment], absolute: false),
                 'finalise_url' => route('advisor.entrepreneurs.assessments.finalise', [$profile, $latestAssessment], absolute: false),
             ] : null,
+            'executive_summary' => [
+                ...$this->executiveSummaries->status($plan, $profile),
+                'generate_url' => route('advisor.entrepreneurs.plans.executive-summary.store', [$profile, $plan], absolute: false),
+            ],
             'budget' => $this->budgetSummary($plan->budgetRunway),
             'preview_pdf_url' => route('advisor.entrepreneurs.plans.latest.preview', $profile, absolute: false),
             'budget_pdf_url' => $this->planPreview->budgetUnlocked($plan)

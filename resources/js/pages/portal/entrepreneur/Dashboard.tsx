@@ -225,6 +225,14 @@ type FoundingAdvisoryPayload = {
     draft_version: FoundingRoadmapVersion | null;
 };
 
+type JourneyStatus = {
+    current: string;
+    completed: string;
+    next: string;
+    doneLooksLike: string;
+    humanSupport: string;
+};
+
 type Props = {
     profile: EntrepreneurProfile;
     inspirationBoard: InspirationPost | null;
@@ -264,6 +272,12 @@ export default function EntrepreneurDashboard({
     const nextSurvey = surveys.items[0] ?? null;
     const nextOutcomeFollowUp = outcomeFollowUps.items[0] ?? null;
     const hasPlan = Boolean(profile?.latest_plan);
+    const journeyStatus = journeyStatusFor(
+        profile,
+        latestAssessment,
+        readiness,
+        nextSurvey,
+    );
     const journeyPrompt = hasPlan
         ? {
               badge: 'Continue',
@@ -323,6 +337,7 @@ export default function EntrepreneurDashboard({
 
                 <JourneyPrompt
                     prompt={journeyPrompt}
+                    status={journeyStatus}
                     planWorkspaceUrl={planWorkspaceUrl}
                 />
 
@@ -946,6 +961,7 @@ function WelcomeBanner({ welcomeMessage }: { welcomeMessage: WelcomeMessage }) {
 
 function JourneyPrompt({
     prompt,
+    status,
     planWorkspaceUrl,
 }: {
     prompt: {
@@ -954,6 +970,7 @@ function JourneyPrompt({
         body: string;
         action: string;
     };
+    status: JourneyStatus;
     planWorkspaceUrl: string;
 }) {
     return (
@@ -973,7 +990,30 @@ function JourneyPrompt({
                     <Link href={planWorkspaceUrl}>{prompt.action}</Link>
                 </Button>
             </div>
+            <div className="mt-4 grid gap-4 border-t pt-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
+                <JourneyDetail label="Where you are now" value={status.current} />
+                <JourneyDetail label="Already done" value={status.completed} />
+                <JourneyDetail label="Next practical step" value={status.next} />
+                <JourneyDetail
+                    label="What done looks like"
+                    value={status.doneLooksLike}
+                />
+            </div>
+            <div className="mt-3 border-t pt-3 text-sm text-muted-foreground">
+                {status.humanSupport}
+            </div>
         </section>
+    );
+}
+
+function JourneyDetail({ label, value }: { label: string; value: string }) {
+    return (
+        <div>
+            <div className="text-xs font-medium text-muted-foreground">
+                {label}
+            </div>
+            <div className="mt-1 text-foreground">{value}</div>
+        </div>
     );
 }
 
@@ -1326,6 +1366,51 @@ const readinessScale = [
         barClassName: 'bg-sky-500',
     },
 ];
+
+function journeyStatusFor(
+    profile: EntrepreneurProfile,
+    latestAssessment: AssessmentLink | null,
+    readiness: NonNullable<EntrepreneurProfile>['advisory_readiness_signal'],
+    nextSurvey: PendingSurvey | null,
+): JourneyStatus {
+    const hasPlan = Boolean(profile?.latest_plan);
+    const current = displayStageLabel(
+        profile?.stage,
+        profile?.stage_label ?? 'Getting started',
+    );
+    const threshold = readiness?.threshold ?? 75;
+    const score =
+        latestAssessment?.weighted_score ??
+        (typeof readiness?.score === 'number' ? readiness.score : null);
+    const completed = latestAssessment
+        ? `Latest assessment round ${latestAssessment.round} is available at ${latestAssessment.weighted_score.toFixed(1)}/100.`
+        : hasPlan
+          ? 'Idea validation is far enough along for business-plan work.'
+          : 'Your profile is open and ready for idea validation.';
+    const next = nextSurvey
+        ? `Complete ${nextSurvey.survey_title} so your advisor can improve the service.`
+        : !hasPlan
+          ? 'Describe the problem, customer, solution, demand signal, and revenue model.'
+          : score !== null && score >= threshold
+            ? 'Message your advisor to agree the next advisory work from the assessed plan.'
+            : 'Open the plan workspace and finish the next incomplete requirement.';
+    const doneLooksLike = !hasPlan
+        ? 'Your advisor can see enough about the idea to approve the plan builder or ask for specific changes.'
+        : latestAssessment && score !== null && score >= threshold
+          ? 'Your advisor can turn the assessed plan into the next agreed service or roadmap.'
+          : latestAssessment
+            ? 'The plan addresses the assessment gaps and is ready for another review.'
+            : 'All required plan sections are saved and submitted for advisor assessment.';
+
+    return {
+        current,
+        completed,
+        next,
+        doneLooksLike,
+        humanSupport:
+            'AI assist can help prepare drafts and clarify wording, but your advisor reviews the evidence and agrees the next step with you.',
+    };
+}
 
 function statusDetails(
     profile: EntrepreneurProfile,

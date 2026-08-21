@@ -215,6 +215,9 @@ final class ClientExperienceSurveyTest extends TestCase
                 ->where('results.summary.assignments', 1)
                 ->where('results.summary.completed', 1)
                 ->where('results.items.0.response.nps_score', 8)
+                ->where('results.items.0.response.themes.0.key', 'process_clarity')
+                ->where('results.items.0.response.written_feedback.0.type', 'rating_comment')
+                ->where('results.items.0.response.written_feedback.0.value', 'The report was useful, but a worked example would make the next step clearer.')
                 ->where('results.items.0.response.feedback.0.score', 4)
                 ->where('results.items.0.response.feedback.0.value', 'The report was useful, but a worked example would make the next step clearer.'));
     }

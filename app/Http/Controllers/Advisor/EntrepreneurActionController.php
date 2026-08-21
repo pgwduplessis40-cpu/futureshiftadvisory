@@ -23,6 +23,7 @@ use App\Services\Entrepreneurs\AdvisoryConversion;
 use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\Assessment;
 use App\Services\Entrepreneurs\AssessmentFeedback;
+use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Entrepreneurs\EntrepreneurStreak;
 use App\Services\Entrepreneurs\IdeaValidationService;
@@ -110,6 +111,22 @@ final class EntrepreneurActionController extends Controller
 
         return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)
             ->with('status', $queued ? 'entrepreneur-plan-assessment-queued' : 'entrepreneur-plan-assessment-running');
+    }
+
+    public function generateExecutiveSummary(
+        Request $request,
+        EntrepreneurProfile $entrepreneurProfile,
+        BusinessPlan $businessPlan,
+        BusinessPlanExecutiveSummary $executiveSummaries,
+    ): RedirectResponse {
+        Gate::authorize('assess', $entrepreneurProfile);
+        $this->assertPlanBelongsToProfile($businessPlan, $entrepreneurProfile);
+        $advisor = $this->advisor($request);
+
+        $executiveSummaries->generate($businessPlan, $entrepreneurProfile, $advisor);
+
+        return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)
+            ->with('status', 'entrepreneur-plan-executive-summary-generated');
     }
 
     public function finalise(

@@ -48,7 +48,25 @@
       "Bash(grep -n \"insert the \\\\`submitted\\\\` payment row\" PLAN-DIRECT-DEBIT-EZYPAY.md)",
       "Bash(cd \"C:/Users/pgwdu/AppData/Local/Temp/claude/C--Users-pgwdu-Herd-futureshiftadvisory/be327733-b257-4d7c-aabb-3a6f1949d43b/scratchpad\" && head -c 2000 \"C:/Users/pgwdu/Downloads/tania-hassounia-budget-pack.pdf\" | strings | head -40)",
       "Bash(grep -a -o '\\([−$-]*[0-9][0-9.,]*[km]*\\) Tj' \"C:/Users/pgwdu/Downloads/tania-hassounia-budget-pack.pdf\")",
-      "Bash(grep -a -E '\\\\$[0-9.]+[km]')"
+      "Bash(grep -a -E '\\\\$[0-9.]+[km]')",
+      "Bash(sed -n '/\"require-dev\"/,/}/p' composer.json)",
+      "Bash(sed -n '/\"scripts\"/,/}/p' package.json)",
+      "Bash(php -m)",
+      "Bash(php -v)",
+      "PowerShell(cd \"C:\\\\Users\\\\pgwdu\\\\Herd\\\\futureshiftadvisory\"; & php -d memory_limit=2G vendor/bin/phpstan analyse --no-progress --error-format=table 2>&1 | Out-File -FilePath \"$env:TEMP\\\\fsa_phpstan.txt\" -Encoding utf8; \"EXIT: $LASTEXITCODE\"; Get-Content \"$env:TEMP\\\\fsa_phpstan.txt\" -Tail 15)",
+      "PowerShell(cd \"C:\\\\Users\\\\pgwdu\\\\Herd\\\\futureshiftadvisory\"; \"=== tsc ===\"; & npx tsc --noEmit 2>&1 | Tee-Object -FilePath \"$env:TEMP\\\\fsa_tsc.txt\" | Select-Object -Last 5; \"TSC_EXIT: $LASTEXITCODE\"; \"=== eslint ===\"; & npx eslint . -f compact 2>&1 | Tee-Object -FilePath \"$env:TEMP\\\\fsa_eslint.txt\" | Select-Object -Last 8; \"ESLINT_EXIT: $LASTEXITCODE\")",
+      "Bash(grep -n 'casts\\\\|protected $casts' -A 15 app/Models/ScreenShareSession.php)",
+      "PowerShell(cd \"C:\\\\Users\\\\pgwdu\\\\Herd\\\\futureshiftadvisory\"; \"=== coverage drivers ===\"; $m = & php -m; if \\($m -match 'xdebug'\\) { \"xdebug: YES\" } else { \"xdebug: NO\" }; if \\($m -match 'pcov'\\) { \"pcov: YES\" } else { \"pcov: NO\" }; \"=== RefreshDatabase usage in tests ===\"; \\(Select-String -Path tests\\\\TestCase.php -Pattern 'RefreshDatabase|DatabaseTransactions|migrate' -ErrorAction SilentlyContinue | ForEach-Object { $_.Line.Trim\\(\\) }\\) -join \"`n\")",
+      "PowerShell(cd \"C:\\\\Users\\\\pgwdu\\\\Herd\\\\futureshiftadvisory\"; & npx eslint . 2>&1 | Select-Object -Last 25; \"ESLINT_EXIT: $LASTEXITCODE\")",
+      "PowerShell(cd \"C:\\\\Users\\\\pgwdu\\\\Herd\\\\futureshiftadvisory\"; & php -d memory_limit=2G vendor/phpunit/phpunit/phpunit --no-coverage 2>&1 | Select-Object -Last 40; \"PHPUNIT_EXIT: $LASTEXITCODE\")",
+      "Bash(sed -n \"/private function weightedScore/,/^    }/p\" app/Services/Entrepreneurs/EntrepreneurMilestones.php)",
+      "Bash(sed -n \"/public static function weightedScore/,/^    }/p\" app/Services/Entrepreneurs/AssessmentScoring.php)",
+      "Bash(grep -oE '\\\\$table->[a-zA-Z]+\\\\\\('\\\\''[a-z_]+'\\\\''')",
+      "Bash(sed -n \"/private function computedNeedsScenarioRefresh/,/^    }/p\" app/Services/Budgets/StrategicBudgetService.php)",
+      "Bash(sed -n \"/private function computedForRead/,/^    }/p\" app/Services/Budgets/StrategicBudgetService.php)",
+      "Bash(ps -W)",
+      "Bash([ -s \"$f\" ])",
+      "Bash(grep -n 'aiScore ?? 0\\\\|\\\\$score = \\\\$hasAdvisorScore\\\\|public static function hasFallbackScores\\\\|private static function totalWeight\\\\|sum\\(.weight.\\)' app/Services/Entrepreneurs/AssessmentScoring.php)"
     ]
   }
 }

@@ -27,6 +27,17 @@ type AssignmentItem = {
         overall_score: number | null;
         nps_score: number | null;
         submitted_at: string | null;
+        themes: Array<{
+            key: string;
+            label: string;
+        }>;
+        written_feedback: Array<{
+            question: string;
+            score: number | null;
+            scale_max: number | null;
+            value: string;
+            type: string;
+        }>;
         feedback: Array<{
             question: string;
             score: number | null;
@@ -195,7 +206,7 @@ export default function AdvisorSurveyResults({
                                         NPS
                                     </th>
                                     <th className="px-3 py-2 font-medium">
-                                        Rating feedback
+                                        Learning feedback
                                     </th>
                                 </tr>
                             </thead>
@@ -245,44 +256,62 @@ export default function AdvisorSurveyResults({
                                         </td>
                                         <td
                                             className="max-w-md px-3 py-2 align-top"
-                                            data-label="Rating feedback"
+                                            data-label="Learning feedback"
                                         >
-                                            {item.response?.feedback.length ? (
+                                            {item.response ? (
                                                 <div className="space-y-2 text-sm">
-                                                    {item.response.feedback.map(
-                                                        (feedback) => (
-                                                            <div
-                                                                key={`${feedback.question}:${feedback.score}`}
-                                                            >
-                                                                <div className="font-medium">
-                                                                    {
-                                                                        feedback.question
-                                                                    }
-                                                                    {feedback.score !==
-                                                                        null && (
-                                                                        <span className="ml-2 font-normal text-muted-foreground">
-                                                                            {
-                                                                                feedback.score
-                                                                            }
-                                                                            /
-                                                                            {
-                                                                                feedback.scale_max
-                                                                            }
-                                                                        </span>
-                                                                    )}
+                                                    <ThemeBadges
+                                                        themes={
+                                                            item.response
+                                                                .themes
+                                                        }
+                                                    />
+                                                    {item.response
+                                                        .written_feedback
+                                                        .length ? (
+                                                        item.response.written_feedback.map(
+                                                            (feedback) => (
+                                                                <div
+                                                                    key={`${feedback.question}:${feedback.score}:${feedback.type}`}
+                                                                >
+                                                                    <div className="font-medium">
+                                                                        {
+                                                                            feedback.question
+                                                                        }
+                                                                        {feedback.score !==
+                                                                            null &&
+                                                                        feedback.scale_max !==
+                                                                            null ? (
+                                                                            <span className="ml-2 font-normal text-muted-foreground">
+                                                                                {
+                                                                                    feedback.score
+                                                                                }
+                                                                                /
+                                                                                {
+                                                                                    feedback.scale_max
+                                                                                }
+                                                                            </span>
+                                                                        ) : null}
+                                                                    </div>
+                                                                    <p className="whitespace-pre-wrap text-muted-foreground">
+                                                                        {
+                                                                            feedback.value
+                                                                        }
+                                                                    </p>
                                                                 </div>
-                                                                <p className="whitespace-pre-wrap text-muted-foreground">
-                                                                    {
-                                                                        feedback.value
-                                                                    }
-                                                                </p>
-                                                            </div>
-                                                        ),
+                                                            ),
+                                                        )
+                                                    ) : (
+                                                        <span className="text-sm text-muted-foreground">
+                                                            No written feedback
+                                                            or rating
+                                                            explanations
+                                                        </span>
                                                     )}
                                                 </div>
                                             ) : (
                                                 <span className="text-sm text-muted-foreground">
-                                                    No rating explanation
+                                                    No response yet
                                                 </span>
                                             )}
                                         </td>
@@ -312,6 +341,26 @@ function Metric({
             value={<span className="text-2xl font-semibold">{value}</span>}
             explanation={explanation}
         />
+    );
+}
+
+function ThemeBadges({
+    themes,
+}: {
+    themes: Array<{ key: string; label: string }>;
+}) {
+    if (themes.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="flex flex-wrap gap-1">
+            {themes.map((theme) => (
+                <Badge key={theme.key} variant="outline">
+                    {theme.label}
+                </Badge>
+            ))}
+        </div>
     );
 }
 

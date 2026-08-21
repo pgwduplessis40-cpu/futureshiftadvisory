@@ -134,6 +134,7 @@ type BusinessPlanPayload = {
         evidence_supported_responses: number;
         completed_responses: number;
     };
+    executive_summary: ExecutiveSummaryPayload;
     budget: BudgetPayload;
     latest_assessment: {
         id: string;
@@ -145,6 +146,22 @@ type BusinessPlanPayload = {
     } | null;
     phases: PlanPhasePayload[];
 } | null;
+
+type ExecutiveSummaryPayload = {
+    present: boolean;
+    generated: boolean;
+    stale: boolean;
+    can_generate: boolean;
+    section_id: string | null;
+    generated_at: string | null;
+    source: string | null;
+    model: string | null;
+    prompt_hash: string | null;
+    context_hash: string | null;
+    stored_context_hash: string | null;
+    status_label: string;
+    readiness_reason: string | null;
+};
 
 type PlanPhasePayload = {
     id: string;
@@ -431,6 +448,7 @@ type Props = {
         budgetFlagAcknowledge: string;
         budgetAdvisorNudgeDismiss: string;
         assistRequirement: string;
+        executiveSummary: string;
         preview: string;
         submit: string;
         documentUpload: string;
@@ -647,6 +665,8 @@ export default function EntrepreneurPlan({
     const [sectionError, setSectionError] = useState<string | null>(null);
     const [savingSection, setSavingSection] = useState(false);
     const [assistingSection, setAssistingSection] = useState(false);
+    const [generatingExecutiveSummary, setGeneratingExecutiveSummary] =
+        useState(false);
     const [assistantNotice, setAssistantNotice] = useState<string | null>(null);
     const [budgetForm, setBudgetForm] = useState<BudgetFormState>(
         () => initialWorkspaceDraft?.budgetForm ?? budgetToForm(plan?.budget),
@@ -1084,6 +1104,25 @@ export default function EntrepreneurPlan({
         } finally {
             setAssistingSection(false);
         }
+    };
+
+    const generateExecutiveSummary = () => {
+        if (!plan || generatingExecutiveSummary) {
+            return;
+        }
+
+        setGeneratingExecutiveSummary(true);
+        setSectionError(null);
+        setAssistantNotice(null);
+
+        router.post(
+            urls.executiveSummary,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => setGeneratingExecutiveSummary(false),
+            },
+        );
     };
 
     const saveSection = async () => {
@@ -1594,6 +1633,12 @@ export default function EntrepreneurPlan({
                                     <p className="mt-2 text-sm text-muted-foreground">
                                         {nextSmallWin.body}
                                     </p>
+                                    <p className="mt-2 text-xs text-muted-foreground">
+                                        AI assist can help draft or simplify
+                                        wording; your advisor still reviews the
+                                        evidence and agrees the next step with
+                                        you.
+                                    </p>
                                     {nextSmallWin.action ===
                                     'Start idea validation' ? (
                                         <div className="mt-3">
@@ -1674,6 +1719,8 @@ export default function EntrepreneurPlan({
                                 </div>
                             </div>
                         </section>
+
+                        <PlainLanguageGuide />
 
                         {includesIdeaValidation ? (
                             <section
@@ -1860,6 +1907,9 @@ export default function EntrepreneurPlan({
                                                                 IDEA_VALIDATION_FIELD_MAX_LENGTH
                                                             }
                                                         </span>
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {field.plain}
                                                     </span>
                                                     <FormattedTextarea
                                                         id={fieldId}
@@ -2116,26 +2166,61 @@ export default function EntrepreneurPlan({
                                                             </p>
                                                         </div>
                                                         <div className="flex flex-wrap gap-2">
-                                                            <Button
-                                                                type="button"
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    void assistRequirement()
-                                                                }
-                                                                disabled={
-                                                                    !plan ||
-                                                                    assistingSection
-                                                                }
-                                                            >
-                                                                <Bot
-                                                                    className="size-4"
-                                                                    aria-hidden="true"
-                                                                />
-                                                                {assistingSection
-                                                                    ? 'Assisting'
-                                                                    : 'AI assist'}
-                                                            </Button>
+                                                            {selectedRequirement.key ===
+                                                            'executive-summary' ? (
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={
+                                                                        generateExecutiveSummary
+                                                                    }
+                                                                    disabled={
+                                                                        !plan ||
+                                                                        generatingExecutiveSummary ||
+                                                                        !plan
+                                                                            ?.executive_summary
+                                                                            .can_generate
+                                                                    }
+                                                                >
+                                                                    <RefreshCw
+                                                                        className={cn(
+                                                                            'size-4',
+                                                                            generatingExecutiveSummary &&
+                                                                                'animate-spin',
+                                                                        )}
+                                                                        aria-hidden="true"
+                                                                    />
+                                                                    {generatingExecutiveSummary
+                                                                        ? 'Generating'
+                                                                        : plan
+                                                                                ?.executive_summary
+                                                                                .present
+                                                                          ? 'Refresh summary'
+                                                                          : 'Generate summary'}
+                                                                </Button>
+                                                            ) : (
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() =>
+                                                                        void assistRequirement()
+                                                                    }
+                                                                    disabled={
+                                                                        !plan ||
+                                                                        assistingSection
+                                                                    }
+                                                                >
+                                                                    <Bot
+                                                                        className="size-4"
+                                                                        aria-hidden="true"
+                                                                    />
+                                                                    {assistingSection
+                                                                        ? 'Assisting'
+                                                                        : 'AI assist'}
+                                                                </Button>
+                                                            )}
                                                             {selectedSection ? (
                                                                 <Button
                                                                     type="button"
@@ -2160,6 +2245,54 @@ export default function EntrepreneurPlan({
                                                             ) : null}
                                                         </div>
                                                     </div>
+                                                    {selectedRequirement.key ===
+                                                        'executive-summary' &&
+                                                    plan?.executive_summary ? (
+                                                        <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/20 p-3 text-sm">
+                                                            <Badge
+                                                                variant={
+                                                                    plan
+                                                                        .executive_summary
+                                                                        .stale
+                                                                        ? 'destructive'
+                                                                        : plan
+                                                                                .executive_summary
+                                                                                .present
+                                                                          ? 'secondary'
+                                                                          : 'outline'
+                                                                }
+                                                            >
+                                                                {
+                                                                    plan
+                                                                        .executive_summary
+                                                                        .status_label
+                                                                }
+                                                            </Badge>
+                                                            {plan
+                                                                .executive_summary
+                                                                .generated_at ? (
+                                                                <span className="text-muted-foreground">
+                                                                    Generated{' '}
+                                                                    {formatDate(
+                                                                        plan
+                                                                            .executive_summary
+                                                                            .generated_at,
+                                                                    )}
+                                                                </span>
+                                                            ) : null}
+                                                            {plan
+                                                                .executive_summary
+                                                                .readiness_reason ? (
+                                                                <span className="text-muted-foreground">
+                                                                    {
+                                                                        plan
+                                                                            .executive_summary
+                                                                            .readiness_reason
+                                                                    }
+                                                                </span>
+                                                            ) : null}
+                                                        </div>
+                                                    ) : null}
                                                     <label className="grid gap-1 text-sm">
                                                         <span>
                                                             Section title
@@ -2461,6 +2594,30 @@ function TabList({
                 </button>
             ))}
         </div>
+    );
+}
+
+function PlainLanguageGuide() {
+    return (
+        <section className="space-y-3 rounded-md border bg-background p-4">
+            <div>
+                <h2 className="text-sm font-medium">Plain English guide</h2>
+                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                    These are the business terms used in the workspace, written
+                    as the practical questions your advisor needs answered.
+                </p>
+            </div>
+            <dl className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-3">
+                {plainLanguageTerms.map((term) => (
+                    <div key={term.term}>
+                        <dt className="font-medium">{term.term}</dt>
+                        <dd className="mt-1 text-muted-foreground">
+                            {term.meaning}
+                        </dd>
+                    </div>
+                ))}
+            </dl>
+        </section>
     );
 }
 
@@ -5563,43 +5720,77 @@ const ideaFields = [
         label: 'Problem',
         minimum: 5,
         placeholder: 'What specific customer problem are you solving?',
+        plain: 'What is hard, costly, risky, or frustrating for the customer right now?',
     },
     {
         key: 'target_customer',
         label: 'Target customer',
         minimum: 3,
         placeholder: 'Who has this problem and how do you know?',
+        plain: 'Who exactly would pay attention to this problem first?',
     },
     {
         key: 'solution',
         label: 'Solution',
         minimum: 10,
         placeholder: 'What will you offer and how will it work?',
+        plain: 'What will you sell or deliver, and what changes for the customer?',
     },
     {
         key: 'value_proposition',
         label: 'Value proposition',
         minimum: 10,
         placeholder: 'Why would the customer choose this over alternatives?',
+        plain: 'Why would a customer choose you instead of doing nothing or choosing another option?',
     },
     {
         key: 'demand_signal',
         label: 'Demand signal',
         minimum: 5,
         placeholder: 'What evidence shows people want or need this?',
+        plain: 'What have real people done or said that shows this is worth testing further?',
     },
     {
         key: 'revenue_model',
         label: 'Revenue model',
         minimum: 5,
         placeholder: 'How will the business earn, collect, and retain revenue?',
+        plain: 'How will money come in, how often, and from whom?',
     },
 ] satisfies {
     key: keyof IdeaValidationForm;
     label: string;
     minimum: number;
     placeholder: string;
+    plain: string;
 }[];
+
+const plainLanguageTerms = [
+    {
+        term: 'Target customer',
+        meaning: 'The specific person or business most likely to need this first.',
+    },
+    {
+        term: 'Demand signal',
+        meaning: 'Evidence that someone wants the offer, such as interviews, bookings, pilots, deposits, or repeated requests.',
+    },
+    {
+        term: 'Value proposition',
+        meaning: 'The reason a customer would choose this option instead of another option or doing nothing.',
+    },
+    {
+        term: 'Revenue model',
+        meaning: 'How the business gets paid, how often it gets paid, and what keeps that income going.',
+    },
+    {
+        term: 'Evidence',
+        meaning: 'Real support for a claim: a quote, customer note, test result, sale, supplier price, contract, or clear calculation.',
+    },
+    {
+        term: 'Advisory ready',
+        meaning: 'Ready for an advisor to rely on the plan enough to agree the next service or roadmap.',
+    },
+] satisfies Array<{ term: string; meaning: string }>;
 
 EntrepreneurPlan.layout = {
     breadcrumbs: [

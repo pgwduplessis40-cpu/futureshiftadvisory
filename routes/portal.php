@@ -88,6 +88,7 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneur/plan/start', [EntrepreneurPlanController::class, 'start'])->name('entrepreneur.plan.start');
         Route::post('entrepreneur/plan/company-name', [EntrepreneurPlanController::class, 'updateCompanyName'])->name('entrepreneur.plan.company-name.update');
         Route::post('entrepreneur/plan/requirements/assist', [EntrepreneurPlanController::class, 'assistRequirement'])->name('entrepreneur.plan.requirements.assist');
+        Route::post('entrepreneur/plan/executive-summary', [EntrepreneurPlanController::class, 'generateExecutiveSummary'])->name('entrepreneur.plan.executive-summary.store');
         Route::post('entrepreneur/plan/sections', [EntrepreneurPlanController::class, 'section'])->name('entrepreneur.plan.sections.store');
         Route::post('entrepreneur/plan/sections/{planSection}/guidance', [EntrepreneurPlanController::class, 'guidance'])->name('entrepreneur.plan.sections.guidance');
         Route::post('entrepreneur/plan/budget', [EntrepreneurPlanController::class, 'budget'])->name('entrepreneur.plan.budget.update');

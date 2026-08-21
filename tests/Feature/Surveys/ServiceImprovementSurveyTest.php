@@ -86,6 +86,11 @@ final class ServiceImprovementSurveyTest extends TestCase
             'value' => 3,
             'comment' => 'The advice was useful, but more time to apply it between sessions would improve the fit.',
         ];
+        $missingQuestion = $assignment->survey->questions->firstWhere('key', 'missing_or_unclear');
+        $this->assertInstanceOf(SurveyQuestion::class, $missingQuestion);
+        $answers[$missingQuestion->id] = [
+            'value' => 'The jargon made it harder to understand what was needed next, and I value advisor conversation rather than just AI handholding.',
+        ];
 
         $this->actingAsMfa($clientUser)
             ->post(route('portal.surveys.submit', $assignment), [
@@ -104,6 +109,19 @@ final class ServiceImprovementSurveyTest extends TestCase
             'layer_id' => LayerCadenceRegistry::LAYER_SERVICE_ACTIVATION,
             'status' => LearningUpdate::STATUS_DETECTED,
         ]);
+        $update = LearningUpdate::query()->sole();
+        $this->assertContains(
+            'plain_language',
+            collect($update->proposed_change['improvement_themes'])->pluck('key')->all(),
+        );
+        $this->assertContains(
+            'process_clarity',
+            collect($update->proposed_change['improvement_themes'])->pluck('key')->all(),
+        );
+        $this->assertContains(
+            'human_support',
+            collect($update->proposed_change['improvement_themes'])->pluck('key')->all(),
+        );
     }
 
     public function test_advisor_general_survey_action_cannot_issue_a_service_improvement_survey(): void
@@ -214,7 +232,7 @@ final class ServiceImprovementSurveyTest extends TestCase
         $this->assertNull($replacement->draft_saved_at);
     }
 
-    public function test_builtin_service_survey_upgrade_publishes_v1_1_and_preserves_the_v1_0_template(): void
+    public function test_builtin_service_survey_upgrade_publishes_v1_2_and_archives_older_published_templates(): void
     {
         $this->survey->delete();
 
@@ -237,6 +255,25 @@ final class ServiceImprovementSurveyTest extends TestCase
             ],
             'required' => true,
         ]);
+        $previous = Survey::query()->create([
+            'key' => SurveyLibrary::SERVICE_IMPROVEMENT_KEY,
+            'version' => '1.1',
+            'type' => 'service_improvement',
+            'title' => 'Service improvement survey',
+            'status' => SurveyStatus::Published->value,
+        ]);
+        $previous->questions()->create([
+            'order' => 1,
+            'type' => 'likert',
+            'key' => 'timeliness',
+            'prompt' => 'How well did the timing of the service work for you?',
+            'help_text' => 'Consider whether the timing and pace of the service worked for you.',
+            'options' => [
+                ['value' => 1, 'label' => 'Very poor'],
+                ['value' => 5, 'label' => 'Excellent'],
+            ],
+            'required' => true,
+        ]);
 
         $updated = app(SurveyLibrary::class)->ensureServiceImprovement($this->superAdmin('service-survey-upgrade@example.test'));
 
@@ -244,10 +281,11 @@ final class ServiceImprovementSurveyTest extends TestCase
         $this->assertSame(SurveyStatus::Published, $updated->status);
         $this->assertNotNull($updated->published_at);
         $this->assertSame(
-            'Consider how well this completed service addressed the need you engaged us for.',
-            $updated->questions->firstWhere('key', 'service_fit')?->help_text,
+            'Think about both the time between advisor updates and the overall pace through the service. If only one part matters, explain that in the comment.',
+            $updated->questions->firstWhere('key', 'timeliness')?->help_text,
         );
         $this->assertSame(SurveyStatus::Archived, $legacy->refresh()->status);
+        $this->assertSame(SurveyStatus::Archived, $previous->refresh()->status);
         $this->assertNull($legacy->questions()->firstOrFail()->help_text);
     }
 

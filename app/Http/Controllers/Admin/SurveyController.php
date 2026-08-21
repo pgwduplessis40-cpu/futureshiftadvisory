@@ -13,6 +13,7 @@ use App\Models\SurveyQuestion;
 use App\Models\SurveyResponse;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Surveys\SurveyFeedbackThemes;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,10 @@ use Inertia\Response;
 
 final class SurveyController extends Controller
 {
-    public function __construct(private readonly AuditWriter $audit) {}
+    public function __construct(
+        private readonly AuditWriter $audit,
+        private readonly SurveyFeedbackThemes $themes,
+    ) {}
 
     public function index(): Response
     {
@@ -250,18 +254,8 @@ final class SurveyController extends Controller
                     'overall_score' => $response->overall_score,
                     'nps_score' => $response->nps_score,
                     'service' => $response->assignment?->service_snapshot,
-                    'comments' => $response->answers
-                        ->filter(fn ($answer): bool => $answer->question?->type === SurveyQuestionType::Text || is_string(data_get($answer->value, 'comment')))
-                        ->map(fn ($answer): array => [
-                            'question' => $answer->question?->prompt ?? 'Feedback',
-                            'value' => $answer->question?->type === SurveyQuestionType::Text
-                                ? (is_string(data_get($answer->value, 'value')) ? data_get($answer->value, 'value') : '')
-                                : (is_string(data_get($answer->value, 'comment')) ? data_get($answer->value, 'comment') : ''),
-                            'score' => $answer->question?->type === SurveyQuestionType::Text ? null : $answer->numeric_value,
-                            'scale_max' => $answer->question?->type === SurveyQuestionType::Nps ? 10 : 5,
-                        ])
-                        ->filter(fn (array $comment): bool => $comment['value'] !== '')
-                        ->values(),
+                    'comments' => $this->themes->writtenFeedback($response),
+                    'themes' => $this->themes->forResponse($response),
                 ])
                 ->values(),
             'indexUrl' => route('admin.surveys.index', absolute: false),

@@ -16,6 +16,8 @@ final class EntrepreneurPromptRegistry
 
     public const PLAN_REQUIREMENT_ASSIST = 'entrepreneur.plan_requirement_assist';
 
+    public const PLAN_EXECUTIVE_SUMMARY = 'entrepreneur.plan_executive_summary';
+
     public const IDEA_VALIDATION = 'entrepreneur.idea_validation';
 
     /**
@@ -27,6 +29,7 @@ final class EntrepreneurPromptRegistry
             self::PLAN_SCORE_CRITERION => self::EXAMINER,
             self::PLAN_GUIDANCE => self::NON_EXAMINER,
             self::PLAN_REQUIREMENT_ASSIST => self::NON_EXAMINER,
+            self::PLAN_EXECUTIVE_SUMMARY => self::NON_EXAMINER,
             self::IDEA_VALIDATION => self::NON_EXAMINER,
         ];
     }
