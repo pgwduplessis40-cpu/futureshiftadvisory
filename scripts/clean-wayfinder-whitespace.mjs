@@ -72,8 +72,9 @@ function normalizePlatformRouteTypes(source, path) {
         return source;
     }
 
-    return source.replaceAll(
-        'string | number | { id: string | number }',
+    // Wayfinder can infer UUID route keys differently across PHP/OS runtimes.
+    return source.replace(
+        /string \| (?:number \| )?\{ id: string(?: \| number)? \}/g,
         'string | { id: string }',
     );
 }
