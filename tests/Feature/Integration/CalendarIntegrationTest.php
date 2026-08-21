@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Services\Calendar\CalendarClientResolver;
 use App\Services\Calendar\CalendarConnector;
 use App\Services\Calendar\CalendarSync;
+use App\Services\Integration\Exceptions\IntegrationRequestFailedException;
 use App\Services\Integration\GoogleCalendar\Contracts\GoogleCalendarClient;
 use App\Services\Integration\GoogleCalendar\FakeGoogleCalendarClient;
 use App\Services\Integration\GoogleCalendar\FallbackGoogleCalendarClient;
@@ -435,6 +436,24 @@ final class CalendarIntegrationTest extends TestCase
         $this->assertSame('google-latest-sync-token', $incrementalSync['sync_token']);
         $this->assertSame('google-incremental-event', $incrementalSync['events'][0]['external_event_id']);
         Http::assertSentCount(5);
+    }
+
+    public function test_live_calendar_client_rejects_a_token_response_without_an_access_token(): void
+    {
+        $this->activateCalendarProvider(
+            CalendarConnection::PROVIDER_GOOGLE,
+            'https://google.example.test/calendar/v3',
+            'https://oauth.google.example.test/token',
+            'https://oauth.google.example.test/revoke',
+        );
+        Http::fakeSequence()->push(['refresh_token' => 'orphaned-refresh-token']);
+
+        $this->expectException(IntegrationRequestFailedException::class);
+
+        app(LiveGoogleCalendarClient::class)->exchangeCodeForToken(
+            'google-code-without-access-token',
+            'https://fsa.example.test/callback',
+        );
     }
 
     public function test_settings_page_exposes_connections_and_external_events(): void

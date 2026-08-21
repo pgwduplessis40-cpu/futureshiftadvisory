@@ -18,6 +18,7 @@ use App\Models\PaymentSchedule;
 use App\Models\PaymentWebhookEvent;
 use App\Models\Proposal;
 use App\Models\User;
+use App\Services\Payments\ClientBillingCode;
 use App\Services\Payments\InstallmentPaymentProcessor;
 use App\Services\Payments\InstallmentScheduleBuilder;
 use App\Services\Payments\PaymentWebhookReconciler;
@@ -383,6 +384,55 @@ final class InstallmentPaymentProcessorTest extends TestCase
         $this->assertSame('payment_schedule_id', $schedule->installments()->getForeignKeyName());
         $this->assertSame('payment_id', $event->payment()->getForeignKeyName());
         $this->assertSame('client_id', $event->client()->getForeignKeyName());
+    }
+
+    public function test_billing_codes_are_stable_and_webhooks_handle_legacy_and_malformed_payloads(): void
+    {
+        [$client, $schedule] = $this->paymentFixture();
+        $billingCodes = app(ClientBillingCode::class);
+
+        $assigned = $billingCodes->shortCode($client);
+
+        $this->assertSame($assigned, $client->refresh()->billing_code);
+        $this->assertSame($assigned, $billingCodes->shortCode($client));
+        $this->assertSame('FSA-'.strtoupper(str_replace('-', '', $client->id)), $billingCodes->xeroContactNumber($client));
+        $this->assertSame(mb_substr($assigned, 0, 10), $billingCodes->stripeStatementSuffix($client));
+        $this->assertStringStartsWith('FSA-', $billingCodes->shortCode('###'));
+
+        $legacyPayment = $this->standalonePayment($schedule, 1);
+        $legacyPayment->forceFill(['gateway_ref' => 'pi_legacy_gateway_reference'])->save();
+        $legacyPayload = $this->stripeEvent(
+            eventId: 'evt_legacy_gateway_reference',
+            type: 'payment_intent.succeeded',
+            intentId: 'pi_legacy_gateway_reference',
+            payment: $legacyPayment,
+        );
+        unset($legacyPayload['data']['object']['metadata']);
+
+        $legacy = app(PaymentWebhookReconciler::class)->handleStripe($legacyPayload);
+        $missingObject = app(PaymentWebhookReconciler::class)->handleStripe([
+            'id' => 'evt_missing_payment_intent_object',
+            'type' => 'payment_intent.succeeded',
+            'data' => [],
+        ]);
+        $unmatched = app(PaymentWebhookReconciler::class)->handleStripe([
+            'id' => 'evt_unmatched_payment_intent',
+            'type' => 'payment_intent.succeeded',
+            'data' => [
+                'object' => [
+                    'id' => 'pi_missing_payment',
+                    'currency' => 'nzd',
+                    'amount_received' => 11500,
+                ],
+            ],
+        ]);
+
+        $this->assertSame(PaymentWebhookEvent::STATUS_PROCESSED, $legacy->status);
+        $this->assertSame(Payment::STATUS_SUCCEEDED, $legacyPayment->refresh()->status);
+        $this->assertSame(PaymentWebhookEvent::STATUS_IGNORED, $missingObject->status);
+        $this->assertSame('missing_event_object', $missingObject->failure_reason);
+        $this->assertSame(PaymentWebhookEvent::STATUS_IGNORED, $unmatched->status);
+        $this->assertSame('no_matching_payment', $unmatched->failure_reason);
     }
 
     /**
