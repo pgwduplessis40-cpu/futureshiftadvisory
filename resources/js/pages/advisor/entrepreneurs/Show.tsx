@@ -2248,17 +2248,15 @@ export default function EntrepreneursShow({
                                         rows={[
                                             {
                                                 label: 'Status',
-                                                value:
-                                                    executiveSummary.status_label,
+                                                value: executiveSummary.status_label,
                                             },
                                             {
                                                 label: 'Generated',
-                                                value:
-                                                    executiveSummary.generated_at
-                                                        ? formatDate(
-                                                              executiveSummary.generated_at,
-                                                          )
-                                                        : '-',
+                                                value: executiveSummary.generated_at
+                                                    ? formatDate(
+                                                          executiveSummary.generated_at,
+                                                      )
+                                                    : '-',
                                             },
                                             {
                                                 label: 'Source',

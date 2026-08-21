@@ -5768,27 +5768,33 @@ const ideaFields = [
 const plainLanguageTerms = [
     {
         term: 'Target customer',
-        meaning: 'The specific person or business most likely to need this first.',
+        meaning:
+            'The specific person or business most likely to need this first.',
     },
     {
         term: 'Demand signal',
-        meaning: 'Evidence that someone wants the offer, such as interviews, bookings, pilots, deposits, or repeated requests.',
+        meaning:
+            'Evidence that someone wants the offer, such as interviews, bookings, pilots, deposits, or repeated requests.',
     },
     {
         term: 'Value proposition',
-        meaning: 'The reason a customer would choose this option instead of another option or doing nothing.',
+        meaning:
+            'The reason a customer would choose this option instead of another option or doing nothing.',
     },
     {
         term: 'Revenue model',
-        meaning: 'How the business gets paid, how often it gets paid, and what keeps that income going.',
+        meaning:
+            'How the business gets paid, how often it gets paid, and what keeps that income going.',
     },
     {
         term: 'Evidence',
-        meaning: 'Real support for a claim: a quote, customer note, test result, sale, supplier price, contract, or clear calculation.',
+        meaning:
+            'Real support for a claim: a quote, customer note, test result, sale, supplier price, contract, or clear calculation.',
     },
     {
         term: 'Advisory ready',
-        meaning: 'Ready for an advisor to rely on the plan enough to agree the next service or roadmap.',
+        meaning:
+            'Ready for an advisor to rely on the plan enough to agree the next service or roadmap.',
     },
 ] satisfies Array<{ term: string; meaning: string }>;
 

@@ -262,8 +262,7 @@ export default function AdvisorSurveyResults({
                                                 <div className="space-y-2 text-sm">
                                                     <ThemeBadges
                                                         themes={
-                                                            item.response
-                                                                .themes
+                                                            item.response.themes
                                                         }
                                                     />
                                                     {item.response
@@ -286,6 +285,7 @@ export default function AdvisorSurveyResults({
                                                                                 {
                                                                                     feedback.score
                                                                                 }
+
                                                                                 /
                                                                                 {
                                                                                     feedback.scale_max

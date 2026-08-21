@@ -492,7 +492,8 @@ export default function PortalSurveyShow({
 
                     <div className="flex justify-end">
                         <div className="space-y-2 text-right">
-                            {submitError || form.errors[
+                            {submitError ||
+                            form.errors[
                                 'assignment' as keyof typeof form.errors
                             ] ? (
                                 <div className="flex max-w-xl gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-left text-sm text-amber-950">
@@ -503,8 +504,7 @@ export default function PortalSurveyShow({
                                     <p>
                                         {(form.errors[
                                             'assignment' as keyof typeof form.errors
-                                        ] as string | undefined) ??
-                                            submitError}
+                                        ] as string | undefined) ?? submitError}
                                     </p>
                                 </div>
                             ) : null}

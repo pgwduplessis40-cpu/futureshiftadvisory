@@ -991,9 +991,15 @@ function JourneyPrompt({
                 </Button>
             </div>
             <div className="mt-4 grid gap-4 border-t pt-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
-                <JourneyDetail label="Where you are now" value={status.current} />
+                <JourneyDetail
+                    label="Where you are now"
+                    value={status.current}
+                />
                 <JourneyDetail label="Already done" value={status.completed} />
-                <JourneyDetail label="Next practical step" value={status.next} />
+                <JourneyDetail
+                    label="Next practical step"
+                    value={status.next}
+                />
                 <JourneyDetail
                     label="What done looks like"
                     value={status.doneLooksLike}
