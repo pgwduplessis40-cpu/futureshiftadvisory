@@ -37,7 +37,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: ['8.4', '8.5']
+        include:
+          - php-version: '8.4'
+            coverage: pcov
+            coverage-gates: 'true'
+          - php-version: '8.5'
+            coverage: none
+            coverage-gates: 'false'
 
     steps:
       - name: Checkout code
@@ -48,7 +54,7 @@ jobs:
         with:
           php-version: ${{ matrix.php-version }}
           tools: composer:v2
-          coverage: xdebug
+          coverage: ${{ matrix.coverage }}
           extensions: pdo_pgsql, pgsql, zip
           ini-values: max_execution_time=0, memory_limit=1024M
 
@@ -114,12 +120,16 @@ jobs:
       - name: Tests
         shell: bash
         env:
-          XDEBUG_MODE: coverage
+          RUN_COVERAGE_GATES: ${{ matrix.coverage-gates }}
         run: |
           set -euo pipefail
-          php scripts/ensure-coverage-driver.php
-          php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --log-junit storage/logs/phpunit.xml --coverage-clover storage/logs/clover.xml 2>&1 | tee storage/logs/phpunit-console.log
-          php scripts/assert-coverage-thresholds.php storage/logs/clover.xml
+          if [ "${RUN_COVERAGE_GATES}" = "true" ]; then
+            php scripts/ensure-coverage-driver.php
+            php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --log-junit storage/logs/phpunit.xml --coverage-clover storage/logs/clover.xml 2>&1 | tee storage/logs/phpunit-console.log
+            php scripts/assert-coverage-thresholds.php storage/logs/clover.xml
+          else
+            php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --log-junit storage/logs/phpunit.xml --no-coverage 2>&1 | tee storage/logs/phpunit-console.log
+          fi
 
       - name: Report PHPUnit failures
         if: failure()
