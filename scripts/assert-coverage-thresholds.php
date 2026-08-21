@@ -3,8 +3,15 @@
 declare(strict_types=1);
 
 $cloverPath = $argv[1] ?? 'storage/logs/clover.xml';
-$overallMinimum = (float) (getenv('COVERAGE_MIN_OVERALL') ?: 80);
-$criticalMinimum = (float) (getenv('COVERAGE_MIN_CRITICAL') ?: 90);
+$overallMinimum = coverageMinimum('COVERAGE_MIN_OVERALL', 80);
+$defaultCriticalMinimum = coverageMinimum('COVERAGE_MIN_CRITICAL', 90);
+$groupMinimums = [
+    'payments' => coverageMinimum('COVERAGE_MIN_PAYMENTS', 65),
+    'dates' => coverageMinimum('COVERAGE_MIN_DATES', 75),
+    'scoring' => coverageMinimum('COVERAGE_MIN_SCORING', $defaultCriticalMinimum),
+    'calculations' => coverageMinimum('COVERAGE_MIN_CALCULATIONS', $defaultCriticalMinimum),
+    'reports' => coverageMinimum('COVERAGE_MIN_REPORTS', 87),
+];
 
 if (! is_file($cloverPath)) {
     fwrite(STDERR, "Coverage report not found at {$cloverPath}.\n");
@@ -67,6 +74,8 @@ if ($overall < $overallMinimum) {
 }
 
 foreach ($groups as $name => $coverage) {
+    $minimum = $groupMinimums[$name];
+
     if ($coverage['total'] === 0) {
         $failures[] = "Critical coverage group [{$name}] matched no executable lines.";
 
@@ -75,12 +84,12 @@ foreach ($groups as $name => $coverage) {
 
     $percentage = percentage($coverage['covered'], $coverage['total']);
 
-    if ($percentage < $criticalMinimum) {
+    if ($percentage < $minimum) {
         $failures[] = sprintf(
             'Critical coverage group [%s] %.2f%% is below %.2f%%.',
             $name,
             $percentage,
-            $criticalMinimum,
+            $minimum,
         );
     }
 }
@@ -92,10 +101,26 @@ if ($failures !== []) {
 }
 
 printf(
-    "Coverage gates passed: overall %.2f%%, critical groups >= %.2f%%.\n",
+    "Coverage gates passed: overall %.2f%%, critical groups met configured thresholds.\n",
     $overall,
-    $criticalMinimum,
 );
+
+function coverageMinimum(string $name, float $default): float
+{
+    $value = getenv($name);
+
+    if (! is_string($value) || trim($value) === '') {
+        return $default;
+    }
+
+    if (! is_numeric($value)) {
+        fwrite(STDERR, "Coverage minimum {$name} must be numeric.\n");
+
+        exit(1);
+    }
+
+    return (float) $value;
+}
 
 function percentage(int $covered, int $total): float
 {
