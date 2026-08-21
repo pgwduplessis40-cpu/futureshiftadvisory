@@ -159,6 +159,7 @@ showForm.head = (args: { document: string | { id: string } } | [document: string
 })
 
 show.form = showForm
+
 DocumentController.show = show
 
 export default DocumentController
