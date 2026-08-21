@@ -6,6 +6,7 @@ namespace Tests\Feature\Integration;
 
 use App\Enums\EngagementType;
 use App\Models\CalendarConnection;
+use App\Models\CalendarEventMapping;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\IntegrationCall;
@@ -277,6 +278,165 @@ final class CalendarIntegrationTest extends TestCase
         ]);
     }
 
+    public function test_live_microsoft_client_exchanges_pushes_updates_pulls_and_revokes_calendar_events(): void
+    {
+        $this->activateCalendarProvider(
+            CalendarConnection::PROVIDER_MICROSOFT,
+            'https://graph.example.test/v1.0/me',
+            'https://login.example.test/common/oauth2/v2.0/token',
+            'https://login.example.test/revoke',
+        );
+        [$advisor, $client] = $this->advisorAndClient('calendar-live-client-microsoft@example.test');
+        $connection = $this->liveConnection($advisor, CalendarConnection::PROVIDER_MICROSOFT);
+        $meeting = $this->meeting($client, $advisor, 'Microsoft calendar coverage');
+        $meeting->forceFill([
+            'attendees' => [
+                'owner@example.test',
+                ['emailAddress' => ['address' => 'advisor@example.test']],
+                'not-an-email',
+            ],
+        ])->save();
+        $mapping = CalendarEventMapping::query()->create([
+            'calendar_connection_id' => $connection->getKey(),
+            'meeting_id' => $meeting->getKey(),
+            'external_event_id' => 'microsoft-existing-event',
+        ]);
+
+        Http::fakeSequence()
+            ->push([
+                'access_token' => 'microsoft-access-token',
+                'refresh_token' => 'microsoft-refresh-token',
+                'expires_in' => 3600,
+            ])
+            ->push([
+                'id' => 'microsoft-calendar-id',
+                'owner' => ['address' => 'owner@example.test'],
+            ])
+            ->push([
+                'id' => 'microsoft-created-event',
+                'changeKey' => 'created-etag',
+                'lastModifiedDateTime' => '2026-08-21T10:00:00Z',
+                'subject' => 'Microsoft calendar coverage',
+                'start' => ['dateTime' => '2026-08-23T09:00:00+00:00'],
+                'end' => ['dateTime' => '2026-08-23T10:00:00+00:00'],
+                'location' => ['displayName' => 'Board room'],
+                'attendees' => [['emailAddress' => ['address' => 'owner@example.test']]],
+            ])
+            ->push([
+                'id' => 'microsoft-existing-event',
+                'changeKey' => 'updated-etag',
+                'lastModifiedDateTime' => '2026-08-21T11:00:00Z',
+                'subject' => 'Updated Microsoft calendar coverage',
+                'start' => ['dateTime' => '2026-08-23T09:00:00+00:00'],
+                'end' => ['dateTime' => '2026-08-23T10:00:00+00:00'],
+                'location' => ['displayName' => 'Board room'],
+            ])
+            ->push([
+                'value' => [
+                    [
+                        'id' => 'microsoft-pulled-event',
+                        'changeKey' => 'pulled-etag',
+                        'lastModifiedDateTime' => '2026-08-21T12:00:00Z',
+                        'subject' => 'Pulled Microsoft event',
+                        'start' => ['dateTime' => '2026-08-24T09:00:00+00:00'],
+                        'end' => ['dateTime' => '2026-08-24T10:00:00+00:00'],
+                        'location' => ['displayName' => 'Client site'],
+                        'attendees' => [['emailAddress' => ['address' => 'client@example.test']]],
+                    ],
+                    ['subject' => 'Malformed remote event'],
+                ],
+                '@odata.deltaLink' => 'https://graph.example.test/delta/next',
+            ])
+            ->push([], 204);
+
+        $calendar = app(LiveMicrosoftGraphClient::class);
+        $authorizeUrl = $calendar->authorizeUrl('microsoft-state', 'https://fsa.example.test/callback', ['Calendars.ReadWrite']);
+        $token = $calendar->exchangeCodeForToken('microsoft-code', 'https://fsa.example.test/callback');
+        $created = $calendar->pushEvent($connection, $meeting, $token);
+        $updated = $calendar->pushEvent($connection, $meeting, $token, $mapping);
+        $pulled = $calendar->pullEvents($connection, $token);
+        $calendar->revoke($connection, $token);
+
+        $this->assertStringContainsString('microsoft-state', $authorizeUrl);
+        $this->assertSame('microsoft-calendar-id', $token['external_account_id']);
+        $this->assertSame('owner@example.test', $token['external_account_email']);
+        $this->assertSame('microsoft-created-event', $created['external_event_id']);
+        $this->assertSame('updated-etag', $updated['etag']);
+        $this->assertSame('https://graph.example.test/delta/next', $pulled['delta_link']);
+        $this->assertCount(1, $pulled['events']);
+        $this->assertSame('microsoft-pulled-event', $pulled['events'][0]['external_event_id']);
+        Http::assertSentCount(6);
+    }
+
+    public function test_live_google_client_exchanges_pushes_pulls_both_sync_modes_and_revokes(): void
+    {
+        $this->activateCalendarProvider(
+            CalendarConnection::PROVIDER_GOOGLE,
+            'https://google.example.test/calendar/v3',
+            'https://oauth.google.example.test/token',
+            'https://oauth.google.example.test/revoke',
+        );
+        [$advisor, $client] = $this->advisorAndClient('calendar-live-client-google@example.test');
+        $connection = $this->liveConnection($advisor, CalendarConnection::PROVIDER_GOOGLE);
+        $meeting = $this->meeting($client, $advisor, 'Google calendar coverage');
+        $meeting->forceFill(['attendees' => ['owner@example.test', ['email' => 'advisor@example.test']]])->save();
+
+        Http::fakeSequence()
+            ->push([
+                'access_token' => 'google-access-token',
+                'refresh_token' => 'google-refresh-token',
+                'expires_in' => 3600,
+            ])
+            ->push([
+                'id' => 'google-created-event',
+                'etag' => 'google-created-etag',
+                'updated' => '2026-08-21T10:00:00Z',
+                'summary' => 'Google calendar coverage',
+                'start' => ['dateTime' => '2026-08-23T09:00:00+00:00'],
+                'end' => ['dateTime' => '2026-08-23T10:00:00+00:00'],
+                'location' => 'Board room',
+                'attendees' => [['email' => 'owner@example.test']],
+            ])
+            ->push([
+                'items' => [[
+                    'id' => 'google-first-sync-event',
+                    'etag' => 'google-first-sync-etag',
+                    'updated' => '2026-08-21T11:00:00Z',
+                    'summary' => 'First Google sync',
+                    'start' => ['dateTime' => '2026-08-24T09:00:00+00:00'],
+                    'end' => ['dateTime' => '2026-08-24T10:00:00+00:00'],
+                ]],
+                'nextSyncToken' => 'google-next-sync-token',
+            ])
+            ->push([
+                'events' => [[
+                    'external_event_id' => 'google-incremental-event',
+                    'updated_at' => '2026-08-21T12:00:00Z',
+                    'title' => 'Incremental Google sync',
+                    'starts_at' => '2026-08-25T09:00:00+00:00',
+                    'ends_at' => '2026-08-25T10:00:00+00:00',
+                ]],
+                'sync_token' => 'google-latest-sync-token',
+            ])
+            ->push([], 204);
+
+        $calendar = app(LiveGoogleCalendarClient::class);
+        $token = $calendar->exchangeCodeForToken('google-code', 'https://fsa.example.test/callback');
+        $created = $calendar->pushEvent($connection, $meeting, $token);
+        $firstSync = $calendar->pullEvents($connection, $token);
+        $connection->forceFill(['sync_token' => 'google-next-sync-token'])->save();
+        $incrementalSync = $calendar->pullEvents($connection, $token);
+        $calendar->revoke($connection, $token);
+
+        $this->assertSame('google-access-token', $token['access_token']);
+        $this->assertSame('google-created-event', $created['external_event_id']);
+        $this->assertSame('google-next-sync-token', $firstSync['sync_token']);
+        $this->assertSame('google-first-sync-event', $firstSync['events'][0]['external_event_id']);
+        $this->assertSame('google-latest-sync-token', $incrementalSync['sync_token']);
+        $this->assertSame('google-incremental-event', $incrementalSync['events'][0]['external_event_id']);
+        Http::assertSentCount(5);
+    }
+
     public function test_settings_page_exposes_connections_and_external_events(): void
     {
         [$advisor, $client] = $this->advisorAndClient('calendar-settings@example.test');
@@ -344,6 +504,33 @@ final class CalendarIntegrationTest extends TestCase
         $this->assertContains($connectionA->id, $visibleConnectionIds);
         $this->assertNotContains($connectionB->id, $visibleConnectionIds);
         $this->assertSame([$connectionA->id], $visibleMappingConnectionIds);
+    }
+
+    private function activateCalendarProvider(string $provider, string $baseUrl, string $tokenUrl, string $revokeUrl): void
+    {
+        $integration = $provider.'_calendar';
+        Config::set("integrations.calendar.{$provider}.base_url", $baseUrl);
+        Config::set("integrations.calendar.{$provider}.token_url", $tokenUrl);
+        Config::set("integrations.calendar.{$provider}.revoke_url", $revokeUrl);
+
+        $admin = User::factory()->superAdmin()->create();
+        app(IntegrationCredentials::class)->set($integration, 'client_id', "{$provider}-client-id", $admin);
+        app(IntegrationCredentials::class)->set($integration, 'client_secret', "{$provider}-client-secret", $admin);
+        app(IntegrationActivationResolver::class)->activate($integration, $admin);
+        $this->forgetCalendarClients();
+    }
+
+    private function liveConnection(User $advisor, string $provider): CalendarConnection
+    {
+        return CalendarConnection::query()->create([
+            'user_id' => $advisor->getKey(),
+            'provider' => $provider,
+            'external_account_id' => "{$provider}-calendar-account",
+            'external_account_email' => "{$provider}@example.test",
+            'access_token_envelope' => app(KeyEnvelope::class)->encrypt("{$provider}-access-token"),
+            'refresh_token_envelope' => app(KeyEnvelope::class)->encrypt("{$provider}-refresh-token"),
+            'status' => CalendarConnection::STATUS_CONNECTED,
+        ]);
     }
 
     private function advisor(string $email): User

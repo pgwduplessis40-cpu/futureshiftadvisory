@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Reports;
 
+use App\Models\Report;
+use App\Models\ReportSection;
+use App\Models\ReportSectionComment;
+use App\Models\ReportSectionRevision;
 use App\Models\Template;
 use App\Services\Reports\UploadedReportTemplateRenderer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -108,6 +112,38 @@ XML,
         $this->assertNull($renderer->renderDocument('Report', $unsafe, '', [], ''));
         $this->assertNull($renderer->renderDocument('Report', $invalid, '', [], ''));
         $this->assertNull($renderer->renderStandaloneFragmentFromBytes('not a DOCX archive'));
+    }
+
+    public function test_report_models_expose_review_state_and_editorial_relationships(): void
+    {
+        $reviewed = new Report([
+            'review_status' => 'reviewed',
+            'reviewed_at' => now(),
+        ]);
+        $pending = new Report(['review_status' => 'pending']);
+        $section = new ReportSection;
+        $comment = new ReportSectionComment;
+        $revision = new ReportSectionRevision;
+
+        $this->assertTrue($reviewed->reviewed());
+        $this->assertFalse($pending->reviewed());
+        $this->assertSame('client_id', $reviewed->client()->getForeignKeyName());
+        $this->assertSame('entrepreneur_profile_id', $reviewed->entrepreneurProfile()->getForeignKeyName());
+        $this->assertSame('npo_engagement_id', $reviewed->npoEngagement()->getForeignKeyName());
+        $this->assertSame('generated_by_user_id', $reviewed->generatedBy()->getForeignKeyName());
+        $this->assertSame('report_id', $reviewed->sections()->getForeignKeyName());
+        $this->assertSame('reviewed_by_user_id', $reviewed->reviewedBy()->getForeignKeyName());
+        $this->assertSame('report_id', $section->report()->getForeignKeyName());
+        $this->assertSame('client_id', $section->client()->getForeignKeyName());
+        $this->assertSame('entrepreneur_profile_id', $section->entrepreneurProfile()->getForeignKeyName());
+        $this->assertSame('report_section_id', $section->revisions()->getForeignKeyName());
+        $this->assertSame('report_section_id', $section->comments()->getForeignKeyName());
+        $this->assertSame('report_id', $comment->report()->getForeignKeyName());
+        $this->assertSame('report_section_id', $comment->section()->getForeignKeyName());
+        $this->assertSame('created_by_user_id', $comment->createdBy()->getForeignKeyName());
+        $this->assertSame('report_id', $revision->report()->getForeignKeyName());
+        $this->assertSame('report_section_id', $revision->section()->getForeignKeyName());
+        $this->assertSame('edited_by_user_id', $revision->editedBy()->getForeignKeyName());
     }
 
     /**

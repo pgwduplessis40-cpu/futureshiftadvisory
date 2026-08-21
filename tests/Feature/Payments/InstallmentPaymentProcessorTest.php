@@ -15,6 +15,7 @@ use App\Models\Payment;
 use App\Models\PaymentAuthority;
 use App\Models\PaymentInstallment;
 use App\Models\PaymentSchedule;
+use App\Models\PaymentWebhookEvent;
 use App\Models\Proposal;
 use App\Models\User;
 use App\Services\Payments\InstallmentPaymentProcessor;
@@ -279,6 +280,111 @@ final class InstallmentPaymentProcessorTest extends TestCase
         ]);
     }
 
+    public function test_non_installment_webhooks_reconcile_success_failure_mismatch_and_duplicate_events(): void
+    {
+        [, $successfulSchedule] = $this->paymentFixture();
+        $successfulPayment = $this->standalonePayment($successfulSchedule, 1);
+        $successPayload = $this->stripeEvent(
+            eventId: 'evt_standalone_success',
+            type: 'payment_intent.succeeded',
+            intentId: 'pi_standalone_success',
+            payment: $successfulPayment,
+        );
+
+        $success = app(PaymentWebhookReconciler::class)->handleStripe($successPayload);
+        $duplicate = app(PaymentWebhookReconciler::class)->handleStripe($successPayload);
+
+        $this->assertSame(PaymentWebhookEvent::STATUS_PROCESSED, $success->status);
+        $this->assertSame($success->id, $duplicate->id);
+        $this->assertSame(Payment::STATUS_SUCCEEDED, $successfulPayment->refresh()->status);
+        $this->assertSame(PaymentSchedule::STATUS_COMPLETED, $successfulSchedule->refresh()->status);
+        $this->assertNotNull($successfulPayment->receipt()->first());
+        $this->assertDatabaseHas('audit_events', ['action' => 'payment.webhook_duplicate']);
+
+        [, $mismatchSchedule] = $this->paymentFixture();
+        $mismatchPayment = $this->standalonePayment($mismatchSchedule, 1);
+        $mismatchPayload = $this->stripeEvent(
+            eventId: 'evt_standalone_mismatch',
+            type: 'payment_intent.succeeded',
+            intentId: 'pi_standalone_mismatch',
+            payment: $mismatchPayment,
+        );
+        $mismatchPayload['data']['object']['amount_received'] = 1;
+
+        $mismatch = app(PaymentWebhookReconciler::class)->handleStripe($mismatchPayload);
+
+        $this->assertSame(PaymentWebhookEvent::STATUS_FAILED, $mismatch->status);
+        $this->assertSame('amount_mismatch', $mismatch->failure_reason);
+
+        [, $retrySchedule] = $this->paymentFixture();
+        $retryPayment = $this->standalonePayment($retrySchedule, 1);
+        $retry = app(PaymentWebhookReconciler::class)->handleStripe($this->stripeEvent(
+            eventId: 'evt_standalone_retry',
+            type: 'payment_intent.payment_failed',
+            intentId: 'pi_standalone_retry',
+            payment: $retryPayment,
+            failureMessage: 'Insufficient funds.',
+        ));
+
+        $this->assertSame(PaymentWebhookEvent::STATUS_PROCESSED, $retry->status);
+        $this->assertSame(Payment::STATUS_RETRYING, $retryPayment->refresh()->status);
+        $this->assertSame(PaymentSchedule::STATUS_ACTIVE, $retrySchedule->refresh()->status);
+        $this->assertNotNull($retrySchedule->next_run_at);
+
+        [, $terminalSchedule] = $this->paymentFixture();
+        $terminalPayment = $this->standalonePayment($terminalSchedule, 2);
+        $terminal = app(PaymentWebhookReconciler::class)->handleStripe($this->stripeEvent(
+            eventId: 'evt_standalone_terminal',
+            type: 'payment_intent.payment_failed',
+            intentId: 'pi_standalone_terminal',
+            payment: $terminalPayment,
+            failureMessage: 'Repeated failure.',
+        ));
+
+        $this->assertSame(PaymentWebhookEvent::STATUS_PROCESSED, $terminal->status);
+        $this->assertSame(Payment::STATUS_FAILED, $terminalPayment->refresh()->status);
+        $this->assertSame(PaymentSchedule::STATUS_PAUSED, $terminalSchedule->refresh()->status);
+
+        $ignored = app(PaymentWebhookReconciler::class)->handleStripe([
+            'id' => 'evt_standalone_ignored',
+            'type' => 'charge.refunded',
+            'data' => ['object' => []],
+        ]);
+
+        $this->assertSame(PaymentWebhookEvent::STATUS_IGNORED, $ignored->status);
+        $this->assertSame('unsupported_event_type', $ignored->failure_reason);
+    }
+
+    public function test_payment_models_expose_their_supported_values_and_relationships(): void
+    {
+        $installment = new PaymentInstallment;
+        $authority = new PaymentAuthority;
+        $schedule = new PaymentSchedule;
+        $event = new PaymentWebhookEvent;
+
+        $this->assertSame([PaymentAuthority::TYPE_CARD, PaymentAuthority::TYPE_DIRECT_DEBIT], PaymentAuthority::types());
+        $this->assertSame([PaymentAuthority::GATEWAY_STRIPE, PaymentAuthority::GATEWAY_WINDCAVE], PaymentAuthority::gateways());
+        $this->assertSame([PaymentSchedule::CADENCE_ONE_OFF, PaymentSchedule::CADENCE_MONTHLY_RETAINER], PaymentSchedule::cadences());
+        $this->assertSame('client_id', $installment->client()->getForeignKeyName());
+        $this->assertSame('payment_schedule_id', $installment->paymentSchedule()->getForeignKeyName());
+        $this->assertSame('active_payment_id', $installment->activePayment()->getForeignKeyName());
+        $this->assertSame('payment_installment_id', $installment->payments()->getForeignKeyName());
+        $this->assertSame('payment_installment_id', $installment->adjustmentApplications()->getForeignKeyName());
+        $this->assertSame('client_id', $authority->client()->getForeignKeyName());
+        $this->assertSame('proposal_id', $authority->proposal()->getForeignKeyName());
+        $this->assertSame('authorised_by_user_id', $authority->authorisedBy()->getForeignKeyName());
+        $this->assertSame('payment_authority_id', $authority->paymentSchedules()->getForeignKeyName());
+        $this->assertSame('payment_authority_id', $authority->payments()->getForeignKeyName());
+        $this->assertSame('client_id', $schedule->client()->getForeignKeyName());
+        $this->assertSame('proposal_id', $schedule->proposal()->getForeignKeyName());
+        $this->assertSame('payment_authority_id', $schedule->paymentAuthority()->getForeignKeyName());
+        $this->assertSame('created_by_user_id', $schedule->createdBy()->getForeignKeyName());
+        $this->assertSame('payment_schedule_id', $schedule->payments()->getForeignKeyName());
+        $this->assertSame('payment_schedule_id', $schedule->installments()->getForeignKeyName());
+        $this->assertSame('payment_id', $event->payment()->getForeignKeyName());
+        $this->assertSame('client_id', $event->client()->getForeignKeyName());
+    }
+
     /**
      * @return array{0: Client, 1: PaymentSchedule, 2: Proposal}
      */
@@ -404,6 +510,22 @@ final class InstallmentPaymentProcessorTest extends TestCase
         $installment->forceFill(['active_payment_id' => $payment->getKey()])->save();
 
         return [$installment, $payment];
+    }
+
+    private function standalonePayment(PaymentSchedule $schedule, int $attempt): Payment
+    {
+        return Payment::query()->create([
+            'client_id' => $schedule->client_id,
+            'payment_schedule_id' => $schedule->getKey(),
+            'payment_authority_id' => $schedule->payment_authority_id,
+            'amount' => '115.00',
+            'currency' => 'NZD',
+            'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+            'gateway_ref' => 'pending_standalone_'.$attempt.'_'.$schedule->getKey(),
+            'idempotency_key' => 'fixture-standalone-'.$attempt.'-'.$schedule->getKey(),
+            'status' => Payment::STATUS_PENDING,
+            'attempt' => $attempt,
+        ]);
     }
 
     /**

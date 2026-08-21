@@ -674,6 +674,68 @@ final class ProposalBuilderTest extends TestCase
         );
     }
 
+    public function test_strategic_plan_payloads_keep_advisor_controls_out_of_the_client_portal(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('proposal-strategic-plan-payload@example.test');
+        $plan = StrategicPlan::query()->create([
+            'client_id' => $client->getKey(),
+            'title' => 'Payload-safe strategic plan',
+            'status' => StrategicPlan::STATUS_DEPLOYED,
+            'duration_months' => 18,
+            'complexity_band' => 'complex',
+            'duration_rationale' => ['Multi-workstream delivery requires an 18-month horizon.'],
+            'summary' => 'A deployment-safe strategic plan payload.',
+            'sections' => [['key' => 'priorities', 'body' => 'Deliver the priority work.']],
+            'generated_at' => now()->subDay(),
+            'deployed_at' => now(),
+            'generated_by_user_id' => $advisor->getKey(),
+            'deployed_by_user_id' => $advisor->getKey(),
+        ]);
+        StrategicPlanMilestone::query()->create([
+            'strategic_plan_id' => $plan->getKey(),
+            'client_id' => $client->getKey(),
+            'title' => 'Completed milestone',
+            'description' => 'Evidence is ready for review.',
+            'owner' => StrategicPlanMilestone::OWNER_CLIENT,
+            'due_offset_days' => 30,
+            'due_date' => now()->addMonth()->toDateString(),
+            'status' => StrategicPlanMilestone::STATUS_COMPLETED,
+            'progress_percent' => 60,
+            'evidence_notes' => 'Client evidence supplied.',
+            'advisor_notes' => 'Internal advisor note.',
+        ]);
+        StrategicPlanMilestone::query()->create([
+            'strategic_plan_id' => $plan->getKey(),
+            'client_id' => $client->getKey(),
+            'title' => 'Pending milestone',
+            'description' => 'Start the next workstream.',
+            'owner' => StrategicPlanMilestone::OWNER_JOINT,
+            'due_offset_days' => 90,
+            'due_date' => now()->addMonths(3)->toDateString(),
+            'status' => StrategicPlanMilestone::STATUS_PENDING,
+            'progress_percent' => 20,
+        ]);
+
+        $service = app(StrategicPlanService::class);
+        $advisorPayload = $service->advisorPayload($client);
+        $portalPayload = $service->portalPayload($client);
+
+        $this->assertNotNull($advisorPayload);
+        $this->assertNotNull($portalPayload);
+        $this->assertSame($plan->id, $advisorPayload['id']);
+        $this->assertSame(18, $advisorPayload['duration_months']);
+        $this->assertSame('complex', $advisorPayload['complexity_band']);
+        $this->assertSame(40, $advisorPayload['progress_percent']);
+        $this->assertSame(1, $advisorPayload['completed_milestones']);
+        $this->assertSame(2, $advisorPayload['total_milestones']);
+        $this->assertArrayHasKey('pdf_url', $advisorPayload);
+        $this->assertArrayHasKey('update_url', $advisorPayload);
+        $this->assertArrayHasKey('deploy_url', $advisorPayload);
+        $this->assertArrayHasKey('update_url', $portalPayload['milestones'][0]);
+        $this->assertArrayNotHasKey('pdf_url', $portalPayload);
+        $this->assertArrayNotHasKey('update_url', $portalPayload);
+    }
+
     public function test_proposal_generation_uses_active_uploaded_proposal_template(): void
     {
         if (! class_exists(\ZipArchive::class)) {
