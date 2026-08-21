@@ -35,7 +35,7 @@ final class AdvisoryReadiness implements ProvidesMethodology
         $profile = $plan->entrepreneurProfile;
         $assessment = $plan->assessments->sortByDesc('round')->first();
 
-        if (! $profile || ! $assessment instanceof PlanAssessment) {
+        if (! $profile || ! $assessment instanceof PlanAssessment || AssessmentScoring::hasIncompleteScores($assessment)) {
             return null;
         }
 
@@ -88,7 +88,7 @@ final class AdvisoryReadiness implements ProvidesMethodology
             ->sortByDesc('round')
             ->first();
 
-        if (! $assessment instanceof PlanAssessment) {
+        if (! $assessment instanceof PlanAssessment || AssessmentScoring::hasIncompleteScores($assessment)) {
             return null;
         }
 

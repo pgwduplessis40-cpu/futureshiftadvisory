@@ -115,6 +115,7 @@ final class EntrepreneurDashboardController extends Controller
                         'status' => $latestAssessmentPayload['status'],
                         'overall_grade' => $latestAssessmentPayload['overall_grade'],
                         'weighted_score' => $latestAssessmentPayload['weighted_score'],
+                        'automated_score_available' => $latestAssessmentPayload['automated_score_available'],
                         'url' => route('portal.entrepreneur.assessments.show', $latestAssessment, absolute: false),
                     ] : null,
                     'living_plan_next_update_at' => $latestPlan->living_plan_next_update_at?->toIso8601String(),

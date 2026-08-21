@@ -27,6 +27,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Tests\Concerns\MakesIdeaReviewEligible;
 use Tests\Fakes\ScoringAiClient;
 use Tests\TestCase;
@@ -139,6 +140,23 @@ final class AssessmentReportTest extends TestCase
         $this->assertStringContainsString('not ready for launch', strtolower($gradeSection->body));
         $this->assertStringNotContainsString('excellent', strtolower($gradeSection->body));
         $this->assertStringNotContainsString('ready for focused', strtolower($gradeSection->body));
+    }
+
+    public function test_incomplete_assessment_cannot_be_composed_as_a_client_report(): void
+    {
+        [$advisor, $plan] = $this->plan('incomplete-assessment-report@example.test');
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $assessment->forceFill([
+            'ai_scores' => collect($assessment->ai_scores)
+                ->reject(fn (array $score): bool => (int) $score['criterion_number'] === 1)
+                ->values()
+                ->all(),
+        ])->save();
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Entrepreneur assessment reports require valid scores for every criterion. Missing criterion: 1.');
+
+        app(ReportComposer::class)->composeEntrepreneurAssessment($assessment->refresh(), $advisor);
     }
 
     /**

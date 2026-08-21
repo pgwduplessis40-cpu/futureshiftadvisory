@@ -26,6 +26,10 @@ final class Benchmarking
             return $this->cohortGuard->suppress('No current assessment is available for benchmarking yet.');
         }
 
+        if (AssessmentScoring::hasIncompleteScores($currentAssessment)) {
+            return $this->cohortGuard->suppress('The current assessment is incomplete and cannot be benchmarked. Run a fresh assessment first.');
+        }
+
         $industry = $this->industry($plan);
         $cohortScores = $this->cohortScores($plan, $industry);
 
@@ -64,9 +68,13 @@ final class Benchmarking
             ->whereKeyNot($plan->getKey())
             ->get()
             ->filter(fn (BusinessPlan $candidate): bool => $this->industry($candidate) === $industry)
-            ->map(fn (BusinessPlan $candidate): ?float => ($assessment = $this->latestAssessment($candidate)) instanceof PlanAssessment
-                ? $this->score($assessment)
-                : null)
+            ->map(function (BusinessPlan $candidate): ?float {
+                $assessment = $this->latestAssessment($candidate);
+
+                return $assessment instanceof PlanAssessment && ! AssessmentScoring::hasIncompleteScores($assessment)
+                    ? $this->score($assessment)
+                    : null;
+            })
             ->filter(fn (?float $score): bool => $score !== null)
             ->values();
     }

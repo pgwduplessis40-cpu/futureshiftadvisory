@@ -76,13 +76,13 @@ final class BusinessPlanExecutiveSummary
                 'source' => $source,
                 'prompt_id' => EntrepreneurPromptRegistry::PLAN_EXECUTIVE_SUMMARY,
                 'prompt_version' => self::PROMPT_VERSION,
-                'prompt_hash' => $response->promptHash ?? $prompt->hash(),
+                'prompt_hash' => $response?->promptHash ?? $prompt->hash(),
                 'model' => $response?->model,
                 'uncertainty' => $response?->uncertainty->value,
-                'attributions' => $response->attributions ?? [],
+                'attributions' => $response?->attributions ?? [],
                 'source_section_count' => count($context['sections']),
                 'budget_included' => is_array($context['budget']),
-                'degraded' => $response === null || (bool) data_get($response->metadata, 'degraded', false),
+                'degraded' => $response === null || (bool) data_get($response?->metadata, 'degraded', false),
             ],
         ];
 
@@ -94,7 +94,7 @@ final class BusinessPlanExecutiveSummary
             body: $body,
             actor: $actor,
             metadata: $metadata,
-            attachedDocumentIds: (array) ($existing->attached_document_ids ?? []),
+            attachedDocumentIds: (array) ($existing?->attached_document_ids ?? []),
             completenessStatus: PlanSection::STATUS_COMPLETE,
         );
 
@@ -430,7 +430,7 @@ final class BusinessPlanExecutiveSummary
             ->reject(fn (PlanSection $section): bool => $this->isExecutiveSummarySection($section))
             ->filter(fn (PlanSection $section): bool => trim((string) $section->body) !== '')
             ->sortBy([
-                fn (PlanSection $a, PlanSection $b): int => ((int) ($a->phase->position ?? 99)) <=> ((int) ($b->phase->position ?? 99)),
+                fn (PlanSection $a, PlanSection $b): int => ((int) ($a->phase?->position ?? 99)) <=> ((int) ($b->phase?->position ?? 99)),
                 fn (PlanSection $a, PlanSection $b): int => strcmp((string) $a->created_at, (string) $b->created_at),
             ])
             ->values();

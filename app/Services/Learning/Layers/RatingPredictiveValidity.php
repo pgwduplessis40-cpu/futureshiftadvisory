@@ -134,7 +134,9 @@ final class RatingPredictiveValidity
                 $assessment = $outcome->planAssessment;
                 $outcomeScore = $this->outcomeScore($outcome->outcome_signal ?? []);
 
-                if (! $assessment instanceof PlanAssessment || $outcomeScore === null) {
+                if (! $assessment instanceof PlanAssessment
+                    || $outcomeScore === null
+                    || AssessmentScoring::hasIncompleteScores($assessment)) {
                     return null;
                 }
 

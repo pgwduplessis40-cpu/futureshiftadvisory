@@ -286,6 +286,66 @@ final class PlanBuilderTest extends TestCase
         $this->assertContains($staleStatus['readiness_reason'], $readiness['reasons']);
     }
 
+    public function test_executive_summary_falls_back_when_ai_fails_on_first_generation(): void
+    {
+        [$advisor, $profile] = $this->profile('summary-fallback-founder@example.test');
+        $this->openIdeaGate($profile, $advisor);
+        $plan = app(PlanBuilder::class)->start($profile, $advisor);
+        $this->app->instance(AiClient::class, new class implements AiClient
+        {
+            public function analyse(PromptEnvelope $prompt): AiResponse
+            {
+                throw new RuntimeException('AI is unavailable.');
+            }
+
+            public function verifyDocument(PromptEnvelope $prompt): AiResponse
+            {
+                throw new RuntimeException('AI is unavailable.');
+            }
+
+            public function scoreCriterion(PromptEnvelope $prompt): AiResponse
+            {
+                throw new RuntimeException('AI is unavailable.');
+            }
+
+            public function summarise(PromptEnvelope $prompt): AiResponse
+            {
+                throw new RuntimeException('AI is unavailable.');
+            }
+
+            public function redFlag(PromptEnvelope $prompt): AiResponse
+            {
+                throw new RuntimeException('AI is unavailable.');
+            }
+        });
+
+        app(PlanBuilder::class)->upsertSection(
+            plan: $plan,
+            phaseKey: 'market',
+            key: 'founder-market-industry-context',
+            title: 'Industry and customer demand',
+            body: 'Customer evidence includes five discovery calls and two pilot letters from regional service businesses.',
+            actor: $advisor,
+            metadata: ['requirement_key' => 'industry-context'],
+        );
+
+        $this->actingAsMfa($profile->user()->firstOrFail())
+            ->postJson(route('portal.entrepreneur.plan.executive-summary.store'))
+            ->assertOk()
+            ->assertJsonPath('status', 'entrepreneur-plan-executive-summary-generated')
+            ->assertJsonPath('executive_summary.generated', true);
+
+        $summary = PlanSection::query()
+            ->where('business_plan_id', $plan->getKey())
+            ->where('key', BusinessPlanExecutiveSummary::SECTION_KEY)
+            ->firstOrFail();
+
+        $this->assertNotSame('', trim((string) $summary->body));
+        $this->assertSame('deterministic_fallback', data_get($summary->metadata, 'executive_summary.source'));
+        $this->assertTrue((bool) data_get($summary->metadata, 'executive_summary.degraded'));
+        $this->assertSame([], $summary->attached_document_ids);
+    }
+
     public function test_business_plan_preview_renders_markdown_formatting_safely(): void
     {
         [$advisor, $profile] = $this->profile('markdown-preview-founder@example.test');

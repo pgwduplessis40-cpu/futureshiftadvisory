@@ -335,6 +335,15 @@ final class ReportComposer implements ProvidesMethodology
                 throw new InvalidArgumentException('Entrepreneur assessment reports require a plan, profile, and rating framework.');
             }
 
+            $incompleteCriterionNumbers = AssessmentScoring::incompleteCriterionNumbers($assessment);
+
+            if ($incompleteCriterionNumbers !== []) {
+                throw new InvalidArgumentException(sprintf(
+                    'Entrepreneur assessment reports require valid scores for every criterion. Missing criterion: %s.',
+                    implode(', ', $incompleteCriterionNumbers),
+                ));
+            }
+
             $criteria = $this->entrepreneurCriteriaRows($assessment);
             $weightedScore = AssessmentScoring::weightedScore($assessment);
             $overallGrade = $assessment->ratingFramework->gradeFor($weightedScore);

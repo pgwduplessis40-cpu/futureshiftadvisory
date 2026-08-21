@@ -20,11 +20,12 @@ type Criterion = {
     number: number;
     name: string;
     weight: number;
-    score: number;
+    score: number | null;
     score_band: string | null;
     score_scale: Record<string, number> | null;
     scoring_method: string | null;
-    contribution: number;
+    contribution: number | null;
+    is_complete: boolean;
     source_label: string;
     rationale: string;
     context_hash: string | null;
@@ -63,11 +64,12 @@ type Assessment = {
     id: string;
     round: number;
     status: string;
-    overall_grade: string;
-    weighted_score: number;
+    overall_grade: string | null;
+    weighted_score: number | null;
     threshold: number;
     requires_full_reassessment: boolean;
     automated_score_available: boolean;
+    incomplete_criterion_numbers: number[];
     scoring: {
         is_calibrated: boolean;
         uses_complete_snapshot_evidence: boolean;
@@ -392,7 +394,8 @@ export default function EntrepreneurAssessment({
                         <Detail
                             label="Weighted score"
                             value={
-                                assessment.automated_score_available
+                                assessment.automated_score_available &&
+                                assessment.weighted_score !== null
                                     ? `${assessment.weighted_score.toFixed(1)}/100`
                                     : 'Unavailable'
                             }
@@ -400,7 +403,8 @@ export default function EntrepreneurAssessment({
                         <Detail
                             label="Grade"
                             value={
-                                assessment.automated_score_available
+                                assessment.automated_score_available &&
+                                assessment.overall_grade !== null
                                     ? formatLabel(assessment.overall_grade)
                                     : 'Unavailable'
                             }
@@ -459,12 +463,10 @@ export default function EntrepreneurAssessment({
                                 <h2 className="text-sm font-medium">
                                     {assessment.automated_score_available
                                         ? 'Calibrated reassessment required'
-                                        : 'Invalid automated result'}
+                                        : 'Assessment unavailable'}
                                 </h2>
                                 <p className="max-w-4xl text-sm">
-                                    {assessment.automated_score_available
-                                        ? assessment.scoring.detail
-                                        : 'No valid AI score was returned for this historical round. Its fallback values are retained only for audit and cannot be used for advice or progression.'}
+                                    {assessment.scoring.detail}
                                 </p>
                             </div>
                         </div>
@@ -913,7 +915,8 @@ export default function EntrepreneurAssessment({
                                                 : 'destructive'
                                         }
                                     >
-                                        {assessment.automated_score_available
+                                        {assessment.automated_score_available &&
+                                        criterion.score !== null
                                             ? `${criterion.score.toFixed(1)}/100`
                                             : 'Unavailable'}
                                     </Badge>
@@ -921,7 +924,9 @@ export default function EntrepreneurAssessment({
                                         {criterion.weight.toFixed(1)}% weight
                                     </span>
                                     <span className="text-xs text-muted-foreground">
-                                        {criterion.contribution.toFixed(1)} pts
+                                        {criterion.contribution !== null
+                                            ? `${criterion.contribution.toFixed(1)} pts`
+                                            : 'Unavailable'}
                                     </span>
                                 </div>
                             </article>
@@ -935,14 +940,18 @@ export default function EntrepreneurAssessment({
 
 function formatScoreScale(criterion: Criterion): string {
     if (!criterion.score_band || !criterion.score_scale) {
-        return `${criterion.score.toFixed(1)}/100`;
+        return criterion.score === null
+            ? 'Unavailable'
+            : `${criterion.score.toFixed(1)}/100`;
     }
 
     const score = criterion.score_scale[criterion.score_band];
 
     return typeof score === 'number'
         ? `${score}/100 approved scale`
-        : `${criterion.score.toFixed(1)}/100`;
+        : criterion.score === null
+          ? 'Unavailable'
+          : `${criterion.score.toFixed(1)}/100`;
 }
 
 function Detail({

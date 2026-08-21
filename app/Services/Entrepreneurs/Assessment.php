@@ -403,9 +403,18 @@ final class Assessment implements ProvidesMethodology
     {
         $assessment->loadMissing('ratingFramework.criteria');
 
-        if (AssessmentScoring::hasFallbackScores($assessment)) {
+        $incompleteCriterionNumbers = AssessmentScoring::incompleteCriterionNumbers($assessment);
+
+        if (AssessmentScoring::hasFallbackScores($assessment) || $incompleteCriterionNumbers !== []) {
+            $message = $incompleteCriterionNumbers === []
+                ? 'This historical round has no valid AI score and cannot be finalised. Run a fresh assessment first.'
+                : sprintf(
+                    'This assessment is missing valid scores for criterion %s and cannot be finalised. Run a fresh assessment first.',
+                    implode(', ', $incompleteCriterionNumbers),
+                );
+
             throw ValidationException::withMessages([
-                'assessment' => 'This historical round has no valid AI score and cannot be finalised. Run a fresh assessment first.',
+                'assessment' => $message,
             ]);
         }
 

@@ -33,9 +33,10 @@ final class AssessmentScoring
                 $aiScore = is_array($ai) && is_numeric($ai['score'] ?? null)
                     ? (float) $ai['score']
                     : null;
+                $hasScore = $hasAdvisorScore || $aiScore !== null;
                 $score = $hasAdvisorScore
                     ? (float) $advisor['score']
-                    : (float) ($aiScore ?? 0);
+                    : $aiScore;
                 $scoreBand = $hasAdvisorScore || ! is_array($ai)
                     ? null
                     : self::normaliseBand(data_get($ai, 'metadata.score_band'));
@@ -49,6 +50,26 @@ final class AssessmentScoring
                     : '';
                 $reused = $scoreSource === 'reused_identical_context';
                 $fallback = $scoreSource === 'deterministic_fallback';
+                $source = 'automated_assessment';
+                $sourceLabel = sprintf('Round %d automated score', max(1, (int) $assessment->round));
+
+                if ($hasAdvisorScore) {
+                    $source = 'advisor_review';
+                    $sourceLabel = 'Advisor reviewed';
+                } elseif (! $hasScore) {
+                    $source = 'incomplete';
+                    $sourceLabel = 'No valid score is recorded for this criterion; this assessment is incomplete and unavailable for advice or progression';
+                } elseif ($fallback) {
+                    $source = 'invalid_fallback';
+                    $sourceLabel = 'No valid AI score was returned; this historical fallback is unavailable for advice or progression';
+                } elseif ($reused) {
+                    $source = 'reused_assessment';
+                    $sourceLabel = sprintf(
+                        'Round %d carried forward from round %d; no fresh AI score was generated',
+                        max(1, (int) $assessment->round),
+                        max(1, (int) data_get($ai, 'metadata.reused_from_round', $assessment->round)),
+                    );
+                }
 
                 return [
                     'criterion_id' => (string) $criterion->getKey(),
@@ -59,29 +80,18 @@ final class AssessmentScoring
                     'weight' => $weight,
                     'normalised_weight' => round($normalisedWeight * 100, 3),
                     'score' => $score,
+                    'is_complete' => $hasScore,
                     'ai_score' => $aiScore,
                     'advisor_score' => $hasAdvisorScore ? (float) $advisor['score'] : null,
-                    'grade' => $scoreBand ?? $framework->gradeFor($score),
+                    'grade' => $hasScore ? ($scoreBand ?? $framework->gradeFor((float) $score)) : null,
                     'score_band' => $scoreBand,
                     'score_scale' => $scoreScale,
                     'scoring_method' => is_array($ai)
                         ? data_get($ai, 'metadata.scoring_method')
                         : ($hasAdvisorScore ? 'advisor_review' : null),
-                    'contribution' => round($score * $normalisedWeight, 2),
-                    'source' => $hasAdvisorScore
-                        ? 'advisor_review'
-                        : ($fallback ? 'invalid_fallback' : ($reused ? 'reused_assessment' : 'automated_assessment')),
-                    'source_label' => $hasAdvisorScore
-                        ? 'Advisor reviewed'
-                        : ($fallback
-                            ? 'No valid AI score was returned; this historical fallback is unavailable for advice or progression'
-                            : ($reused
-                            ? sprintf(
-                                'Round %d carried forward from round %d; no fresh AI score was generated',
-                                max(1, (int) $assessment->round),
-                                max(1, (int) data_get($ai, 'metadata.reused_from_round', $assessment->round)),
-                            )
-                            : sprintf('Round %d automated score', max(1, (int) $assessment->round)))),
+                    'contribution' => $hasScore ? round(((float) $score) * $normalisedWeight, 2) : null,
+                    'source' => $source,
+                    'source_label' => $sourceLabel,
                     'rationale' => $hasAdvisorScore
                         ? (string) ($advisor['note'] ?? '')
                         : (string) (is_array($ai) ? ($ai['rationale'] ?? '') : ''),
@@ -111,6 +121,41 @@ final class AssessmentScoring
         return collect($assessment->ai_scores ?? [])
             ->contains(fn (mixed $score): bool => is_array($score)
                 && (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'deterministic_fallback');
+    }
+
+    public static function hasIncompleteScores(PlanAssessment $assessment): bool
+    {
+        return self::incompleteCriterionNumbers($assessment) !== [];
+    }
+
+    /**
+     * @return list<int>
+     */
+    public static function incompleteCriterionNumbers(PlanAssessment $assessment): array
+    {
+        $assessment->loadMissing('ratingFramework.criteria');
+        $framework = $assessment->ratingFramework;
+
+        if (! $framework instanceof RatingFramework) {
+            return [];
+        }
+
+        $aiScores = self::scoresByCriterion($assessment->ai_scores ?? []);
+        $advisorScores = self::scoresByCriterion($assessment->advisor_scores ?? []);
+
+        return $framework->criteria
+            ->filter(function ($criterion) use ($aiScores, $advisorScores): bool {
+                $criterionNumber = (int) $criterion->number;
+                $ai = $aiScores->get($criterionNumber);
+                $advisor = $advisorScores->get($criterionNumber);
+
+                return ! (is_array($ai) && is_numeric($ai['score'] ?? null))
+                    && ! (is_array($advisor) && is_numeric($advisor['score'] ?? null));
+            })
+            ->pluck('number')
+            ->map(fn (mixed $number): int => (int) $number)
+            ->values()
+            ->all();
     }
 
     /**

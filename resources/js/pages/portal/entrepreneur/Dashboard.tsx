@@ -42,8 +42,9 @@ type AssessmentLink = {
     id: string;
     round: number;
     status: string;
-    overall_grade: string;
-    weighted_score: number;
+    overall_grade: string | null;
+    weighted_score: number | null;
+    automated_score_available: boolean;
     url: string;
 };
 
@@ -430,11 +431,14 @@ export default function EntrepreneurDashboard({
                                     icon={ClipboardCheck}
                                     title="Assessment"
                                     value={
-                                        latestAssessment
+                                        latestAssessment?.automated_score_available &&
+                                        latestAssessment.weighted_score !== null
                                             ? `${latestAssessment.weighted_score.toFixed(1)}/100`
-                                            : readiness
-                                              ? `${readiness.score.toFixed(1)}/100`
-                                              : 'Not completed'
+                                            : latestAssessment
+                                              ? 'Unavailable'
+                                              : readiness
+                                                ? `${readiness.score.toFixed(1)}/100`
+                                                : 'Not completed'
                                     }
                                     explanation="Assessment shows the latest scored plan review and links to the detail when available."
                                 >
@@ -572,7 +576,9 @@ export default function EntrepreneurDashboard({
                                         <Detail
                                             label="Assessment score"
                                             value={
-                                                latestAssessment
+                                                latestAssessment?.automated_score_available &&
+                                                latestAssessment.weighted_score !==
+                                                    null
                                                     ? `${latestAssessment.weighted_score.toFixed(1)}/100`
                                                     : null
                                             }
@@ -1386,13 +1392,18 @@ function journeyStatusFor(
     );
     const threshold = readiness?.threshold ?? 75;
     const score =
-        latestAssessment?.weighted_score ??
-        (typeof readiness?.score === 'number' ? readiness.score : null);
-    const completed = latestAssessment
-        ? `Latest assessment round ${latestAssessment.round} is available at ${latestAssessment.weighted_score.toFixed(1)}/100.`
-        : hasPlan
-          ? 'Idea validation is far enough along for business-plan work.'
-          : 'Your profile is open and ready for idea validation.';
+        latestAssessment && !latestAssessment.automated_score_available
+            ? null
+            : (latestAssessment?.weighted_score ??
+              (typeof readiness?.score === 'number' ? readiness.score : null));
+    const completed =
+        latestAssessment?.automated_score_available && score !== null
+            ? `Latest assessment round ${latestAssessment.round} is available at ${score.toFixed(1)}/100.`
+            : latestAssessment
+              ? `Latest assessment round ${latestAssessment.round} is incomplete and needs a fresh assessment.`
+              : hasPlan
+                ? 'Idea validation is far enough along for business-plan work.'
+                : 'Your profile is open and ready for idea validation.';
     const next = nextSurvey
         ? `Complete ${nextSurvey.survey_title} so your advisor can improve the service.`
         : !hasPlan
@@ -1429,8 +1440,10 @@ function statusDetails(
     );
     const threshold = readiness?.threshold ?? 75;
     const score =
-        latestAssessment?.weighted_score ??
-        (typeof readiness?.score === 'number' ? readiness.score : null);
+        latestAssessment && !latestAssessment.automated_score_available
+            ? null
+            : (latestAssessment?.weighted_score ??
+              (typeof readiness?.score === 'number' ? readiness.score : null));
 
     if (score !== null) {
         if (score >= 90) {

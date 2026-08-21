@@ -84,6 +84,11 @@ final class AssessmentFeedback
     public function priorities(PlanAssessment $assessment): array
     {
         $assessment->loadMissing('ratingFramework.criteria');
+
+        if (AssessmentScoring::hasIncompleteScores($assessment)) {
+            return [];
+        }
+
         $previous = $this->previousAssessment($assessment);
         $previousCriteria = $previous instanceof PlanAssessment
             ? collect(AssessmentScoring::criteriaPayload($previous))->keyBy('criterion_number')

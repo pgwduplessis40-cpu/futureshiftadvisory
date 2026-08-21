@@ -80,26 +80,29 @@ jobs:
         run: php artisan migrate:fresh --env=testing --force
 
       - name: Build Assets
-        env:
-          WAYFINDER_GENERATE: 'false'
         run: npm run build
 
-      - name: Verify build does not dirty tracked files
+      - name: Verify build does not dirty the worktree
         shell: bash
         run: |
-          if git diff --quiet; then
+          worktree_status="$(git status --porcelain)"
+          if [ -z "${worktree_status}" ]; then
             exit 0
           fi
 
-          dirty_paths="$(git diff --name-only | sed -n '1,30p' | tr '\n' ' ')"
-          echo "::error title=Build dirtied tracked files::${dirty_paths}"
+          dirty_paths="$(printf '%s\n' "${worktree_status}" | sed -n '1,30p' | tr '\n' ' ')"
+          echo "::error title=Build dirtied worktree::${dirty_paths}"
 
-          echo "::group::Tracked build diff names"
-          git diff --name-only
+          echo "::group::Build worktree status"
+          printf '%s\n' "${worktree_status}"
           echo "::endgroup::"
 
           echo "::group::Tracked build diff stat"
           git diff --stat
+          echo "::endgroup::"
+
+          echo "::group::Untracked build output"
+          git ls-files --others --exclude-standard
           echo "::endgroup::"
 
           echo "::group::Tracked build diff excerpt"
@@ -131,6 +134,14 @@ jobs:
           else
             php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --log-junit storage/logs/phpunit.xml --no-coverage 2>&1 | tee storage/logs/phpunit-console.log
           fi
+
+      - name: Upload Clover coverage report
+        if: ${{ always() && matrix.coverage-gates == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: clover-php-${{ matrix.php-version }}
+          path: storage/logs/clover.xml
+          if-no-files-found: warn
 
       - name: Report PHPUnit failures
         if: failure()

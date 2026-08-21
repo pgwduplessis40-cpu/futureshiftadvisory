@@ -19,6 +19,7 @@ use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Ai\Fake\FakeAiClient;
 use App\Services\Entrepreneurs\Assessment;
 use App\Services\Entrepreneurs\AssessmentFeedback;
+use App\Services\Entrepreneurs\AssessmentScoring;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBuilder;
 use App\Support\RequestContext;
@@ -438,6 +439,49 @@ final class AssessmentTest extends TestCase
             $this->fail('Expected an invalid fallback assessment to be blocked from finalisation.');
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('assessment', $exception->errors());
+        }
+    }
+
+    public function test_missing_criterion_scores_are_incomplete_and_cannot_be_finalised(): void
+    {
+        [$advisor, $plan] = $this->plan('missing-criterion-score@example.test');
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $assessment->forceFill([
+            'ai_scores' => collect($assessment->ai_scores)
+                ->reject(fn (array $score): bool => (int) $score['criterion_number'] === 1)
+                ->values()
+                ->all(),
+        ])->save();
+
+        $assessment = $assessment->refresh()->load('ratingFramework.criteria');
+        $criteria = collect(AssessmentScoring::criteriaPayload($assessment));
+        $missing = $criteria->firstWhere('criterion_number', 1);
+
+        $this->assertSame([1], AssessmentScoring::incompleteCriterionNumbers($assessment));
+        $this->assertTrue(AssessmentScoring::hasIncompleteScores($assessment));
+        $this->assertNull($missing['score']);
+        $this->assertNull($missing['contribution']);
+        $this->assertFalse($missing['is_complete']);
+        $this->assertSame('incomplete', $missing['source']);
+
+        $this->actingAsMfa($plan->entrepreneurProfile()->firstOrFail()->user()->firstOrFail())
+            ->get(route('portal.entrepreneur.assessments.show', $assessment))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('assessment.automated_score_available', false)
+                ->where('assessment.weighted_score', null)
+                ->where('assessment.incomplete_criterion_numbers', [1])
+                ->where('assessment.criteria.0.score', null),
+            );
+
+        try {
+            app(Assessment::class)->finalise($assessment, $advisor);
+            $this->fail('Expected an incomplete assessment to be blocked from finalisation.');
+        } catch (ValidationException $exception) {
+            $this->assertSame(
+                'This assessment is missing valid scores for criterion 1 and cannot be finalised. Run a fresh assessment first.',
+                $exception->errors()['assessment'][0],
+            );
         }
     }
 

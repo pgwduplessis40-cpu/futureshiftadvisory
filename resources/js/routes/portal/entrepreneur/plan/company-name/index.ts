@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
-* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:324
+* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:327
 * @route '/portal/entrepreneur/plan/company-name'
 */
 export const update = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
-* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:324
+* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:327
 * @route '/portal/entrepreneur/plan/company-name'
 */
 update.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ update.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
-* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:324
+* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:327
 * @route '/portal/entrepreneur/plan/company-name'
 */
 update.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ update.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
-* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:324
+* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:327
 * @route '/portal/entrepreneur/plan/company-name'
 */
 const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,7 +45,7 @@ const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
-* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:324
+* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:327
 * @route '/portal/entrepreneur/plan/company-name'
 */
 updateForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

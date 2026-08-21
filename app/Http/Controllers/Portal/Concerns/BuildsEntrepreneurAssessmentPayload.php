@@ -19,7 +19,6 @@ trait BuildsEntrepreneurAssessmentPayload
         $assessment->loadMissing('businessPlan', 'ratingFramework.criteria');
 
         $criteria = AssessmentScoring::criteriaPayload($assessment);
-        $weightedScore = round(collect($criteria)->sum('contribution'), 2);
         $framework = $assessment->ratingFramework;
         $currentFramework = $this->currentPublishedFrameworkFor($framework);
         $isCurrentFramework = ! $framework instanceof RatingFramework
@@ -31,6 +30,8 @@ trait BuildsEntrepreneurAssessmentPayload
             ->filter(fn (mixed $score): bool => is_array($score)
                 && (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'reused_identical_context');
         $hasFallbackScores = AssessmentScoring::hasFallbackScores($assessment);
+        $incompleteCriterionNumbers = AssessmentScoring::incompleteCriterionNumbers($assessment);
+        $hasIncompleteScores = $incompleteCriterionNumbers !== [];
         $freshAiScores = collect($assessment->ai_scores ?? [])
             ->filter(fn (mixed $score): bool => is_array($score)
                 && (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'ai_assessment');
@@ -38,15 +39,28 @@ trait BuildsEntrepreneurAssessmentPayload
             && $freshAiScores->contains(fn (array $score): bool => data_get($score, 'metadata.scoring_method') !== 'calibrated_band_v1');
         $usesCompleteSnapshotEvidence = $freshAiScores->isNotEmpty()
             && $freshAiScores->every(fn (array $score): bool => data_get($score, 'metadata.evidence_mode') === 'complete_submitted_plan_snapshot');
-        $requiresFullReassessment = $reusedScores->isNotEmpty() || $hasFallbackScores || $hasLegacyUncalibratedScores;
-        $automatedScoreAvailable = ! $hasFallbackScores;
+        $requiresFullReassessment = $reusedScores->isNotEmpty()
+            || $hasFallbackScores
+            || $hasIncompleteScores
+            || $hasLegacyUncalibratedScores;
+        $automatedScoreAvailable = ! $hasFallbackScores && ! $hasIncompleteScores;
+        $weightedScore = $automatedScoreAvailable ? round(collect($criteria)->sum('contribution'), 2) : null;
         $automatedScoreDescription = match (true) {
+            $hasIncompleteScores => sprintf(
+                'This historical round is missing valid scores for criterion %s. It is retained for audit only and must not be used for advice or progression.',
+                implode(', ', $incompleteCriterionNumbers),
+            ),
             $hasFallbackScores => 'No valid AI score was returned for this historical round. Its calculated fallback values are retained only for audit and must not be used for advice or progression.',
             $reusedScores->isNotEmpty() => 'This historical round carried forward automatic scores from an earlier assessment. The submitted-plan snapshot is correct for this round, but no new AI score was generated. Run a fresh assessment before relying on the automatic score.',
             $hasLegacyUncalibratedScores => 'This historical round used model-selected raw numeric scores and selected excerpts. It is retained for audit, but it is not comparable with calibrated assessments. Run a fresh assessment before relying on it.',
             default => 'Each automated criterion selected a rubric band from the complete submitted-plan snapshot. The server converted that band using this framework version’s approved score scale. Advisor-reviewed scores override the automated score only where an advisor has added a review score.',
         };
         $explanation = match (true) {
+            $hasIncompleteScores => sprintf(
+                'Assessment round %d is incomplete because it is missing valid scores for criterion %s. Run a fresh assessment before relying on it.',
+                max(1, (int) $assessment->round),
+                implode(', ', $incompleteCriterionNumbers),
+            ),
             $hasFallbackScores => sprintf(
                 'Assessment round %d has no valid AI score. It is retained as an audit record only and is excluded from progression. Run a fresh assessment before relying on it.',
                 max(1, (int) $assessment->round),
@@ -77,19 +91,27 @@ trait BuildsEntrepreneurAssessmentPayload
             'id' => $assessment->id,
             'round' => $assessment->round,
             'status' => $assessment->finalised_at === null ? 'in_review' : 'completed',
-            'overall_grade' => $framework?->gradeFor($weightedScore) ?? $assessment->overall_grade,
+            'overall_grade' => $automatedScoreAvailable
+                ? ($framework?->gradeFor((float) $weightedScore) ?? $assessment->overall_grade)
+                : null,
             'weighted_score' => $weightedScore,
             'threshold' => AdvisoryReadiness::THRESHOLD,
             'requires_full_reassessment' => $requiresFullReassessment,
             'automated_score_available' => $automatedScoreAvailable,
+            'incomplete_criterion_numbers' => $incompleteCriterionNumbers,
             'scoring' => [
-                'is_calibrated' => ! $hasLegacyUncalibratedScores && ! $hasFallbackScores && $reusedScores->isEmpty(),
+                'is_calibrated' => ! $hasLegacyUncalibratedScores
+                    && ! $hasFallbackScores
+                    && ! $hasIncompleteScores
+                    && $reusedScores->isEmpty(),
                 'uses_complete_snapshot_evidence' => $usesCompleteSnapshotEvidence,
-                'label' => $hasLegacyUncalibratedScores
-                    ? 'Historical raw AI score - reassessment required'
-                    : ($usesCompleteSnapshotEvidence
-                        ? 'Calibrated rubric bands from the complete submitted snapshot'
-                        : 'Historical assessment evidence'),
+                'label' => $hasIncompleteScores
+                    ? 'Incomplete assessment score record - reassessment required'
+                    : ($hasLegacyUncalibratedScores
+                        ? 'Historical raw AI score - reassessment required'
+                        : ($usesCompleteSnapshotEvidence
+                            ? 'Calibrated rubric bands from the complete submitted snapshot'
+                            : 'Historical assessment evidence')),
                 'detail' => $automatedScoreDescription,
             ],
             'finalised_at' => $assessment->finalised_at?->toIso8601String(),

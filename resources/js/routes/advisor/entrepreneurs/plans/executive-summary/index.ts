@@ -1,8 +1,8 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::store
-* @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:87
-* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/assessments'
+* @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:116
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/executive-summary'
 */
 export const store = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
@@ -11,13 +11,13 @@ export const store = (args: { entrepreneurProfile: string | { id: string }, busi
 
 store.definition = {
     methods: ["post"],
-    url: '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/assessments',
+    url: '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/executive-summary',
 } satisfies RouteDefinition<["post"]>
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::store
-* @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:87
-* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/assessments'
+* @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:116
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/executive-summary'
 */
 store.url = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions) => {
     if (Array.isArray(args)) {
@@ -46,8 +46,8 @@ store.url = (args: { entrepreneurProfile: string | { id: string }, businessPlan:
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::store
-* @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:87
-* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/assessments'
+* @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:116
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/executive-summary'
 */
 store.post = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
@@ -56,8 +56,8 @@ store.post = (args: { entrepreneurProfile: string | { id: string }, businessPlan
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::store
-* @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:87
-* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/assessments'
+* @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:116
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/executive-summary'
 */
 const storeForm = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
     action: store.url(args, options),
@@ -66,8 +66,8 @@ const storeForm = (args: { entrepreneurProfile: string | { id: string }, busines
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::store
-* @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:87
-* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/assessments'
+* @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:116
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/executive-summary'
 */
 storeForm.post = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
     action: store.url(args, options),
@@ -76,8 +76,8 @@ storeForm.post = (args: { entrepreneurProfile: string | { id: string }, business
 
 store.form = storeForm
 
-const assessments = {
+const executiveSummary = {
     store: Object.assign(store, store),
 }
 
-export default assessments
+export default executiveSummary

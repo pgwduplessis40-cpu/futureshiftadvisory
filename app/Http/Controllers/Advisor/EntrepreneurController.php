@@ -31,6 +31,7 @@ use App\Models\SurveyAssignment;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
+use App\Services\Entrepreneurs\AssessmentScoring;
 use App\Services\Entrepreneurs\BudgetPackBuilder;
 use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
@@ -880,6 +881,12 @@ final class EntrepreneurController extends Controller
 
     private function scoreSourceSummary(PlanAssessment $assessment): string
     {
+        $incompleteCriterionNumbers = AssessmentScoring::incompleteCriterionNumbers($assessment);
+
+        if ($incompleteCriterionNumbers !== []) {
+            return 'Incomplete assessment: no valid score is recorded for criterion '.implode(', ', $incompleteCriterionNumbers).'. Retained for audit only and excluded from advice and progression.';
+        }
+
         $scores = collect($assessment->ai_scores ?? [])
             ->filter(fn (mixed $score): bool => is_array($score));
         $total = $scores->count();

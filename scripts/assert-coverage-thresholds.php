@@ -6,11 +6,11 @@ $cloverPath = $argv[1] ?? 'storage/logs/clover.xml';
 $overallMinimum = coverageMinimum('COVERAGE_MIN_OVERALL', 80);
 $defaultCriticalMinimum = coverageMinimum('COVERAGE_MIN_CRITICAL', 90);
 $groupMinimums = [
-    'payments' => coverageMinimum('COVERAGE_MIN_PAYMENTS', 65),
-    'dates' => coverageMinimum('COVERAGE_MIN_DATES', 75),
+    'payments' => coverageMinimum('COVERAGE_MIN_PAYMENTS', $defaultCriticalMinimum),
+    'dates' => coverageMinimum('COVERAGE_MIN_DATES', $defaultCriticalMinimum),
     'scoring' => coverageMinimum('COVERAGE_MIN_SCORING', $defaultCriticalMinimum),
     'calculations' => coverageMinimum('COVERAGE_MIN_CALCULATIONS', $defaultCriticalMinimum),
-    'reports' => coverageMinimum('COVERAGE_MIN_REPORTS', 87),
+    'reports' => coverageMinimum('COVERAGE_MIN_REPORTS', $defaultCriticalMinimum),
 ];
 
 if (! is_file($cloverPath)) {

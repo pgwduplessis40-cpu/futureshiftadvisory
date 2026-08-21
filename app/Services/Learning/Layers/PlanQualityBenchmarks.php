@@ -118,7 +118,7 @@ final class PlanQualityBenchmarks
             ->map(function (BusinessPlan $plan): ?array {
                 $assessment = $this->latestAssessment($plan);
 
-                if (! $assessment instanceof PlanAssessment) {
+                if (! $assessment instanceof PlanAssessment || AssessmentScoring::hasIncompleteScores($assessment)) {
                     return null;
                 }
 
