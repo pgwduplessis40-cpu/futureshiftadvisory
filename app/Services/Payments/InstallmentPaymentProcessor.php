@@ -275,7 +275,7 @@ final class InstallmentPaymentProcessor
                 throw new InvalidArgumentException('The installment has no active payment authority.');
             }
             $this->assertTenantLinks($installment, $schedule, $authority);
-            if ($installment->status !== PaymentInstallment::STATUS_DUE || ($installment->next_attempt_at !== null && $installment->next_attempt_at->isFuture())) {
+            if ($installment->status !== PaymentInstallment::STATUS_DUE || ($installment->next_attempt_at !== null && $installment->next_attempt_at->greaterThan($now))) {
                 return ['claimed' => false, 'zero' => false, 'installment' => $installment, 'payment' => new Payment, 'schedule' => $schedule, 'authority' => $authority];
             }
 
