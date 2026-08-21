@@ -235,18 +235,6 @@ parameters:
 			path: app/Http/Controllers/Admin/StaffController.php
 
 		-
-			message: '#^Anonymous function should return array\{id\: string, subject\: non\-falsy\-string, submitted_by\: string\|null, submitted_at\: string\|null, overall_score\: float\|null, nps_score\: int\|null, service\: array\|null, comments\: Illuminate\\Support\\Collection\<int, array\{question\: mixed, value\: non\-empty\-string, score\: mixed, scale_max\: 5\|10\}\>\} but returns array\{id\: string, subject\: non\-falsy\-string, submitted_by\: string\|null, submitted_at\: string\|null, overall_score\: float\|null, nps_score\: int\|null, service\: array\|null, comments\: Illuminate\\Support\\Collection\<int, array\{question\: mixed, value\: non\-empty\-string, score\: mixed, scale_max\: 5\|10\}\>\}\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Http/Controllers/Admin/SurveyController.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>prompt" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Http/Controllers/Admin/SurveyController.php
-
-		-
 			message: '#^Using nullsafe property access on non\-nullable type App\\Enums\\SurveyQuestionType\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
