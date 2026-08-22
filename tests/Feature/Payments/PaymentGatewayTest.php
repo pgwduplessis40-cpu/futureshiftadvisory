@@ -172,6 +172,19 @@ final class PaymentGatewayTest extends TestCase
         $assertRejected(100, ['metadata' => ['card' => '4242 4242 4242 4242']], 'Raw card numbers must not be submitted or stored.');
     }
 
+    public function test_gateway_reports_an_unknown_lookup_for_an_unsupported_stored_gateway(): void
+    {
+        [$authority] = $this->authority('gateway-unknown-lookup@example.test');
+        [, $payment] = $this->pendingPayment($authority);
+        $payment->forceFill(['gateway' => 'unsupported_gateway'])->save();
+
+        $lookup = app(Gateway::class)->findCharge($payment);
+
+        $this->assertSame('unknown', $lookup->status);
+        $this->assertFalse($lookup->isSucceeded());
+        $this->assertFalse($lookup->isNotCharged());
+    }
+
     public function test_live_stripe_client_uses_resilient_http_when_enabled(): void
     {
         Config::set('integrations.payments.stripe.live', true);
