@@ -273,11 +273,19 @@ final class OperationalHealthCheckTest extends TestCase
         $this->artisan('fsa:seed-operational-health-fixtures')
             ->assertSuccessful();
 
-        $this->artisan(RunOperationalHealthChecks::class)
-            ->assertSuccessful();
+        $exitCode = $this->artisan(RunOperationalHealthChecks::class)->run();
 
         /** @var OperationalHealthCheckRun $run */
         $run = OperationalHealthCheckRun::query()->latest()->firstOrFail();
+
+        $this->assertSame(
+            0,
+            $exitCode,
+            $run->results()
+                ->where('status', OperationalHealthCheckResult::STATUS_FAILED)
+                ->get(['check_key', 'actual_status', 'issue_summary', 'issue_detail'])
+                ->toJson(),
+        );
 
         $this->assertSame(OperationalHealthCheckRun::STATUS_WARNING, $run->status);
         $this->assertGreaterThanOrEqual(1, $run->warning_checks);
