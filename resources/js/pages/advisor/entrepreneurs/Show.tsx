@@ -2339,8 +2339,8 @@ export default function EntrepreneursShow({
                                             },
                                             {
                                                 label: 'Open items',
-                                                value:
-                                                    funderReady.reasons.length,
+                                                value: funderReady.reasons
+                                                    .length,
                                             },
                                         ]}
                                     />
