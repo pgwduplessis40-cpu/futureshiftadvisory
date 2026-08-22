@@ -117,6 +117,17 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         };
         preview_pdf_url: string;
         budget_pdf_url: string | null;
+        funder_ready: {
+            ready: boolean;
+            label: string;
+            tone: 'good' | 'high' | string;
+            reasons: string[];
+            requirements_completed: number;
+            requirements_total: number;
+            requirements_missing: number;
+            evidence_count: number;
+            document_url: string;
+        };
         assess_url: string;
         assessment_history: {
             id: string;

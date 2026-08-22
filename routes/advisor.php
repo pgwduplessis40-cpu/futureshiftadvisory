@@ -469,6 +469,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf', [EntrepreneurController::class, 'budgetPackPdf'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.plans.budget-pack.pdf');
+        Route::get('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf', [EntrepreneurController::class, 'funderReadyPlanPdf'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
+            ->name('entrepreneurs.plans.funder-ready.pdf');
         Route::post('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/executive-summary', [EntrepreneurActionController::class, 'generateExecutiveSummary'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.plans.executive-summary.store');

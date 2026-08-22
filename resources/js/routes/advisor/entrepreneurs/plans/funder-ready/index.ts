@@ -1,8 +1,8 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::pdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:484
-* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:493
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf'
 */
 export const pdf = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: pdf.url(args, options),
@@ -11,13 +11,13 @@ export const pdf = (args: { entrepreneurProfile: string | { id: string }, busine
 
 pdf.definition = {
     methods: ["get","head"],
-    url: '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf',
+    url: '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf',
 } satisfies RouteDefinition<["get","head"]>
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::pdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:484
-* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:493
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf'
 */
 pdf.url = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions) => {
     if (Array.isArray(args)) {
@@ -46,8 +46,8 @@ pdf.url = (args: { entrepreneurProfile: string | { id: string }, businessPlan: s
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::pdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:484
-* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:493
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf'
 */
 pdf.get = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: pdf.url(args, options),
@@ -56,8 +56,8 @@ pdf.get = (args: { entrepreneurProfile: string | { id: string }, businessPlan: s
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::pdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:484
-* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:493
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf'
 */
 pdf.head = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: pdf.url(args, options),
@@ -66,8 +66,8 @@ pdf.head = (args: { entrepreneurProfile: string | { id: string }, businessPlan: 
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::pdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:484
-* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:493
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf'
 */
 const pdfForm = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
     action: pdf.url(args, options),
@@ -76,8 +76,8 @@ const pdfForm = (args: { entrepreneurProfile: string | { id: string }, businessP
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::pdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:484
-* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:493
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf'
 */
 pdfForm.get = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
     action: pdf.url(args, options),
@@ -86,8 +86,8 @@ pdfForm.get = (args: { entrepreneurProfile: string | { id: string }, businessPla
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::pdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:484
-* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:493
+* @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf'
 */
 pdfForm.head = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
     action: pdf.url(args, {
@@ -101,8 +101,8 @@ pdfForm.head = (args: { entrepreneurProfile: string | { id: string }, businessPl
 
 pdf.form = pdfForm
 
-const budgetPack = {
+const funderReady = {
     pdf: Object.assign(pdf, pdf),
 }
 
-export default budgetPack
+export default funderReady

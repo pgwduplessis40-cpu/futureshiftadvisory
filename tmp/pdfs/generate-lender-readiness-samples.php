@@ -10,6 +10,7 @@ use App\Models\PlanSection;
 use App\Services\Entrepreneurs\BudgetCalculator;
 use App\Services\Entrepreneurs\BudgetPackBuilder;
 use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
+use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
 use App\Services\Entrepreneurs\PlanRequirements;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -132,7 +133,11 @@ if (! is_dir($outputDirectory)) {
     mkdir($outputDirectory, 0777, true);
 }
 
-file_put_contents($outputDirectory.'/lender-readiness-budget-pack-sample.pdf', app(BudgetPackBuilder::class)->fallbackPdf($profile, $plan));
-file_put_contents($outputDirectory.'/lender-readiness-business-plan-sample.pdf', app(BusinessPlanPreviewRenderer::class)->pdf($profile, $plan));
+if (! in_array('--funder-ready-only', $argv, true)) {
+    file_put_contents($outputDirectory.'/lender-readiness-budget-pack-sample.pdf', app(BudgetPackBuilder::class)->fallbackPdf($profile, $plan));
+    file_put_contents($outputDirectory.'/lender-readiness-business-plan-sample.pdf', app(BusinessPlanPreviewRenderer::class)->pdf($profile, $plan));
+}
+
+file_put_contents($outputDirectory.'/funder-ready-business-plan-sample.pdf', app(FunderReadyBusinessPlanBuilder::class)->pdf($profile, $plan));
 
 echo "Generated lender-readiness samples.\n";

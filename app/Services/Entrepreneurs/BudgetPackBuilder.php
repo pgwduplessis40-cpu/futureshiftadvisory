@@ -326,7 +326,7 @@ HTML,
 
         $cashStory = array_values(array_map('strval', (array) ($payload['cash_story'] ?? [])));
         if ($cashStory !== []) {
-            $blocks[] = ['type' => 'section', 'text' => 'Cash and downside checks'];
+            $this->appendFallbackSection($blocks, 'Cash and downside checks');
             foreach ($cashStory as $line) {
                 $blocks[] = ['type' => 'paragraph', 'text' => $line];
             }
@@ -334,6 +334,7 @@ HTML,
 
         $cashTrendChart = $this->fallbackCashTrendChart((array) ($payload['monthly_by_year'] ?? []));
         if ($cashTrendChart !== null) {
+            $this->appendFallbackSpacing($blocks);
             $blocks[] = $cashTrendChart;
         }
 
@@ -350,7 +351,7 @@ HTML,
             ])
             ->values()
             ->all();
-        $blocks[] = ['type' => 'section', 'text' => 'Funding build-up'];
+        $this->appendFallbackSection($blocks, 'Funding build-up');
         $blocks[] = $useOfFunds === []
             ? ['type' => 'paragraph', 'text' => 'No funding inputs have been saved yet.']
             : [
@@ -372,7 +373,7 @@ HTML,
             ->values()
             ->all();
         $fixedCostReconciliation = (array) ($payload['fixed_cost_reconciliation'] ?? []);
-        $blocks[] = ['type' => 'section', 'text' => 'Monthly fixed-cost trace'];
+        $this->appendFallbackSection($blocks, 'Monthly fixed-cost trace');
         $blocks[] = [
             'type' => 'paragraph',
             'text' => 'The converted fixed-cost rows total '.$this->money($fixedCostReconciliation['listed_total'] ?? 0).' per month; the model base used for funding calculations is '.$this->money($fixedCostReconciliation['model_base'] ?? 0).' per month.',
@@ -403,7 +404,7 @@ HTML,
             ])
             ->values()
             ->all();
-        $blocks[] = ['type' => 'section', 'text' => 'Later-year cost trace'];
+        $this->appendFallbackSection($blocks, 'Later-year cost trace');
         $blocks[] = $futureCosts === []
             ? ['type' => 'paragraph', 'text' => 'No later-year costs have been saved yet.']
             : [
@@ -424,7 +425,7 @@ HTML,
             ])
             ->values()
             ->all();
-        $blocks[] = ['type' => 'section', 'text' => 'Scenario comparison'];
+        $this->appendFallbackSection($blocks, 'Scenario comparison');
         $blocks[] = $scenarios === []
             ? ['type' => 'paragraph', 'text' => 'No scenarios have been saved yet.']
             : [
@@ -453,7 +454,7 @@ HTML,
             $blocks[] = $annualChart;
         }
 
-        $blocks[] = ['type' => 'section', 'text' => 'Annual forecast'];
+        $this->appendFallbackSection($blocks, 'Annual forecast');
         $blocks[] = $annual === []
             ? ['type' => 'paragraph', 'text' => 'No annual forecast has been saved yet.']
             : [
@@ -476,7 +477,7 @@ HTML,
             ])
             ->values()
             ->all();
-        $blocks[] = ['type' => 'section', 'text' => 'Profit and cash reconciliation'];
+        $this->appendFallbackSection($blocks, 'Profit and cash reconciliation');
         $blocks[] = ['type' => 'paragraph', 'text' => 'Opening cash balance: '.$this->money(data_get($payload, 'summary.opening_cash_balance', 0)).'. All figures are NZD and GST exclusive.'];
         $blocks[] = $financialBridge === []
             ? ['type' => 'paragraph', 'text' => 'No annual forecast has been saved yet.']
@@ -498,7 +499,7 @@ HTML,
             ->filter()
             ->values()
             ->all();
-        $blocks[] = ['type' => 'section', 'text' => 'Assumption quality'];
+        $this->appendFallbackSection($blocks, 'Assumption quality');
         $blocks[] = $assumptions === []
             ? ['type' => 'paragraph', 'text' => 'No assumptions have been saved yet.']
             : [
@@ -525,7 +526,7 @@ HTML,
 
             if ($rows !== []) {
                 $blocks[] = ['type' => 'page_break'];
-                $blocks[] = ['type' => 'section', 'text' => 'Year '.((string) ($year['year'] ?? '-')).' monthly detail'];
+                $this->appendFallbackSection($blocks, 'Year '.((string) ($year['year'] ?? '-')).' monthly detail');
                 $blocks[] = [
                     'type' => 'table',
                     'headers' => ['Month', 'Revenue', 'Cash collected', 'Gross profit', 'Fixed costs', 'Tax', 'Net cash flow', 'Cash'],
@@ -540,6 +541,30 @@ HTML,
             $blocks,
             $this->draftFooterNote($issueReadiness),
         );
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $blocks
+     */
+    private function appendFallbackSection(array &$blocks, string $heading): void
+    {
+        $this->appendFallbackSpacing($blocks);
+        $blocks[] = ['type' => 'section', 'text' => $heading];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $blocks
+     */
+    private function appendFallbackSpacing(array &$blocks): void
+    {
+        $last = $blocks[array_key_last($blocks)] ?? [];
+
+        if (($last['type'] ?? null) === 'page_break') {
+            return;
+        }
+
+        $blocks[] = ['type' => 'spacer'];
+        $blocks[] = ['type' => 'spacer'];
     }
 
     /**
@@ -838,6 +863,8 @@ HTML,
         }
 
         $blocks = [
+            ['type' => 'spacer'],
+            ['type' => 'spacer'],
             ['type' => 'section', 'text' => 'Year 2 revenue bridge'],
             ['type' => 'paragraph', 'text' => (string) ($bridge['explanation'] ?? 'Month 13 revenue is bridged from the selected Year 2 basis.')],
         ];
@@ -1412,7 +1439,7 @@ HTML,
         return <<<'CSS'
 :root { --chart-1: #0d7a7a; --chart-4: #b8860b; }
 .report-content { display: block; }
-.report-content .report-section { margin: 0 0 18px; }
+.report-content .report-section { margin: 0 0 26px; }
 .report-content .report-section.page { margin-top: 0; }
 .report-hero { background: #fff; border: 0; border-left: 0; break-after: page; margin: 68px 0 0; min-height: 430px; padding: 0; }
 .report-hero .eyebrow:empty { display: none; }
@@ -1444,7 +1471,7 @@ HTML,
 .warning p { margin: 0; }
 .warning ul { margin: 0; padding-left: 16px; }
 .trace-ok { color: #176b4d; font-size: 10.5px; margin: 0 0 10px; }
-.chart { border: 1px solid #cfded8; margin: 16px 0 2px; padding: 13px 14px 12px; page-break-inside: avoid; }
+.chart { border: 1px solid #cfded8; margin: 22px 0 2px; padding: 13px 14px 12px; page-break-inside: avoid; }
 .chart-header { align-items: flex-start; display: flex; gap: 16px; justify-content: space-between; margin-bottom: 10px; }
 .chart-title { font-size: 12px; font-weight: 700; margin: 0 0 2px; }
 .chart-note { color: #667085; font-size: 10.5px; line-height: 1.45; margin: 0; max-width: 60ch; }

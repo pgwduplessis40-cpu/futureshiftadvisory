@@ -106,6 +106,7 @@ export default function EntrepreneursShow({
 }: Props) {
     const latestAssessment = entrepreneur.latest_plan?.latest_assessment;
     const executiveSummary = entrepreneur.latest_plan?.executive_summary;
+    const funderReady = entrepreneur.latest_plan?.funder_ready;
     const assessmentHistory =
         entrepreneur.latest_plan?.assessment_history ?? [];
     const latestAssessmentUsesCurrentRubric =
@@ -1019,6 +1020,57 @@ export default function EntrepreneursShow({
                                                 aria-hidden="true"
                                             />
                                             Business plan & budget
+                                        </a>
+                                    </Button>
+                                ) : null}
+                                {executiveSummary?.can_generate ? (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={executiveSummaryPending}
+                                        onClick={refreshExecutiveSummary}
+                                    >
+                                        <RefreshCw
+                                            className={cn(
+                                                'size-4',
+                                                executiveSummaryPending &&
+                                                    'animate-spin',
+                                            )}
+                                            aria-hidden="true"
+                                        />
+                                        {executiveSummaryPending
+                                            ? 'Generating'
+                                            : executiveSummary.present
+                                              ? 'Refresh summary'
+                                              : 'Generate summary'}
+                                    </Button>
+                                ) : null}
+                                {funderReady ? (
+                                    <Button
+                                        asChild
+                                        size="sm"
+                                        variant="outline"
+                                        className={cn(
+                                            funderReady.ready &&
+                                                'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white',
+                                        )}
+                                        title={
+                                            funderReady.ready
+                                                ? `Ready for lender review: ${funderReady.requirements_completed}/${funderReady.requirements_total} plan requirements and ${funderReady.evidence_count} evidence files.`
+                                                : funderReady.reasons.join(' ')
+                                        }
+                                    >
+                                        <a
+                                            href={funderReady.document_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            <FileText
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            Generate funder-ready plan
                                         </a>
                                     </Button>
                                 ) : null}
@@ -2267,6 +2319,32 @@ export default function EntrepreneursShow({
                                         ]}
                                     />
                                 ) : null}
+                                {funderReady ? (
+                                    <HoverBadge
+                                        label={funderReady.label}
+                                        variant={
+                                            funderReady.ready
+                                                ? 'secondary'
+                                                : 'destructive'
+                                        }
+                                        title="Funder-ready plan"
+                                        rows={[
+                                            {
+                                                label: 'Plan requirements',
+                                                value: `${funderReady.requirements_completed}/${funderReady.requirements_total}`,
+                                            },
+                                            {
+                                                label: 'Evidence files',
+                                                value: funderReady.evidence_count,
+                                            },
+                                            {
+                                                label: 'Open items',
+                                                value:
+                                                    funderReady.reasons.length,
+                                            },
+                                        ]}
+                                    />
+                                ) : null}
                                 <Button asChild size="sm" variant="outline">
                                     <a
                                         href={
@@ -2283,29 +2361,6 @@ export default function EntrepreneursShow({
                                         Business plan PDF
                                     </a>
                                 </Button>
-                                {executiveSummary?.can_generate ? (
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        disabled={executiveSummaryPending}
-                                        onClick={refreshExecutiveSummary}
-                                    >
-                                        <RefreshCw
-                                            className={cn(
-                                                'size-4',
-                                                executiveSummaryPending &&
-                                                    'animate-spin',
-                                            )}
-                                            aria-hidden="true"
-                                        />
-                                        {executiveSummaryPending
-                                            ? 'Generating'
-                                            : executiveSummary.present
-                                              ? 'Refresh summary'
-                                              : 'Generate summary'}
-                                    </Button>
-                                ) : null}
                                 {entrepreneur.latest_plan.budget_pdf_url ? (
                                     <Button asChild size="sm" variant="outline">
                                         <a

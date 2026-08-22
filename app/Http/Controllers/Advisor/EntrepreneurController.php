@@ -38,6 +38,7 @@ use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
 use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\Entrepreneurs\FounderChangeRequestMessage;
+use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
 use App\Services\Entrepreneurs\IdeaViabilityGate;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\ScreenShare\ScreenShareAuthorizer;
@@ -69,6 +70,7 @@ final class EntrepreneurController extends Controller
         private readonly FounderChangeRequestMessage $changeRequestMessages,
         private readonly IdeaViabilityGate $ideaViabilityGate,
         private readonly BusinessPlanPreviewRenderer $planPreview,
+        private readonly FunderReadyBusinessPlanBuilder $funderReadyPlans,
         private readonly BusinessPlanExecutiveSummary $executiveSummaries,
         private readonly BudgetPackBuilder $budgetPack,
         private readonly PdfRenderer $pdf,
@@ -488,6 +490,19 @@ final class EntrepreneurController extends Controller
         return $this->budgetPackPdfResponse($entrepreneurProfile, $businessPlan);
     }
 
+    public function funderReadyPlanPdf(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): SymfonyResponse
+    {
+        Gate::authorize('view', $entrepreneurProfile);
+        $this->assertPlanBelongsToProfile($businessPlan, $entrepreneurProfile);
+
+        $pdf = $this->funderReadyPlans->pdf($entrepreneurProfile, $businessPlan);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$this->funderReadyPlans->filename($entrepreneurProfile).'"',
+        ]);
+    }
+
     private function planPreviewResponse(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): SymfonyResponse
     {
         $pdf = $this->planPreview->pdf($entrepreneurProfile, $businessPlan);
@@ -815,6 +830,10 @@ final class EntrepreneurController extends Controller
             'budget_pdf_url' => $this->planPreview->budgetUnlocked($plan)
                 ? route('advisor.entrepreneurs.plans.latest.budget-pack.pdf', $profile, absolute: false)
                 : null,
+            'funder_ready' => [
+                ...$this->funderReadyPlans->status($plan, $profile),
+                'document_url' => route('advisor.entrepreneurs.plans.funder-ready.pdf', [$profile, $plan], absolute: false),
+            ],
             'assess_url' => route('advisor.entrepreneurs.plans.assessments.store', [$profile, $plan], absolute: false),
             'assessment_history' => $this->assessmentHistory($plan, $profile),
             'latest_revision' => $latestRevision instanceof PlanRevision ? [

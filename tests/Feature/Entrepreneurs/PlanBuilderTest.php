@@ -423,6 +423,92 @@ final class PlanBuilderTest extends TestCase
         $this->assertStringNotContainsString('Browser-formatted PDF generation', $response->getContent());
     }
 
+    public function test_advisor_can_generate_a_source_mapped_funder_ready_plan_with_a_draft_gate(): void
+    {
+        [$advisor, $profile] = $this->profile('funder-ready-founder@example.test');
+        $this->openIdeaGate($profile, $advisor);
+        $plan = app(PlanBuilder::class)->start($profile, $advisor);
+        $renderer = new class implements PdfRenderer
+        {
+            public string $html = '';
+
+            public function render(string $html): string
+            {
+                $this->html = $html;
+
+                return "%PDF-1.4\n".strip_tags($html);
+            }
+        };
+        $this->app->instance(PdfRenderer::class, $renderer);
+
+        app(PlanBuilder::class)->upsertSection(
+            plan: $plan,
+            phaseKey: 'foundation',
+            key: 'founder-foundation-business-type-location',
+            title: 'Business type, location, and operating model',
+            body: 'Harbour Studio is a Hamilton-based advisory business that delivers planning workshops and online implementation support to small service-business owners.',
+            actor: $advisor,
+            metadata: ['requirement_key' => 'business-type-location'],
+        );
+        app(PlanBuilder::class)->upsertSection(
+            plan: $plan,
+            phaseKey: 'market',
+            key: 'founder-market-industry-context',
+            title: 'Industry and customer demand',
+            body: 'Five paid discovery sessions and two pilot letters provide current evidence of demand for practical planning support among regional service businesses.',
+            actor: $advisor,
+            metadata: ['requirement_key' => 'industry-context'],
+        );
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('entrepreneur.latest_plan.funder_ready.label', 'Draft - gaps to resolve')
+                ->where('entrepreneur.latest_plan.funder_ready.ready', false)
+                ->where('entrepreneur.latest_plan.funder_ready.document_url', route('advisor.entrepreneurs.plans.funder-ready.pdf', [$profile, $plan], absolute: false)));
+
+        $response = $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.plans.funder-ready.pdf', [$profile, $plan]))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+
+        $this->assertStringStartsWith('%PDF-1.4', $response->getContent());
+        $this->assertStringContainsString('Funder-Ready Business Plan', $response->getContent());
+        $this->assertStringContainsString('Draft - gaps to resolve before lender review', $response->getContent());
+        $this->assertStringContainsString('1. Executive Summary', $response->getContent());
+        $this->assertStringContainsString('3. Market Research', $response->getContent());
+        $this->assertStringContainsString('10.5 Funding Request', $response->getContent());
+        $this->assertStringContainsString('Harbour Studio is a Hamilton-based advisory business', $response->getContent());
+        $this->assertStringContainsString('Five paid discovery sessions and two pilot letters', $response->getContent());
+        $this->assertStringContainsString('INTERNAL DRAFT - NOT FOR EXTERNAL ISSUE', $response->getContent());
+        $this->assertStringContainsString('funder-detail-table', $renderer->html);
+    }
+
+    public function test_funder_ready_plan_uses_the_structured_pdf_fallback_when_browser_rendering_fails(): void
+    {
+        [$advisor, $profile] = $this->profile('funder-ready-fallback-founder@example.test');
+        $this->openIdeaGate($profile, $advisor);
+        $plan = app(PlanBuilder::class)->start($profile, $advisor);
+        $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
+        {
+            public function render(string $html): string
+            {
+                throw new RuntimeException('Chromium is unavailable.');
+            }
+        });
+
+        $response = $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.plans.funder-ready.pdf', [$profile, $plan]))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+
+        $this->assertStringStartsWith('%PDF-1.4', $response->getContent());
+        $this->assertStringContainsString('Funder-Ready Business Plan', $response->getContent());
+        $this->assertStringContainsString('Funding Request & Use of Funds', $response->getContent());
+        $this->assertStringContainsString('INTERNAL DRAFT - NOT FOR EXTERNAL ISSUE', $response->getContent());
+    }
+
     public function test_entrepreneur_plan_tables_are_profile_scoped_by_rls(): void
     {
         if (DB::connection()->getDriverName() !== 'pgsql') {
