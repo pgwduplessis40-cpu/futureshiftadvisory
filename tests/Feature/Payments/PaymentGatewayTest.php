@@ -19,6 +19,7 @@ use App\Models\PaymentWebhookEvent;
 use App\Models\Proposal;
 use App\Models\User;
 use App\Services\Integration\Stripe\LiveStripeClient;
+use App\Services\Payments\ClientBillingCode;
 use App\Services\Payments\Gateway;
 use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentChargeRequest;
@@ -183,6 +184,16 @@ final class PaymentGatewayTest extends TestCase
         $this->assertSame('unknown', $lookup->status);
         $this->assertFalse($lookup->isSucceeded());
         $this->assertFalse($lookup->isNotCharged());
+    }
+
+    public function test_billing_code_uses_a_stable_fallback_for_an_unsaved_client(): void
+    {
+        $client = new Client;
+        $client->setAttribute($client->getKeyName(), 'draft-client-123');
+
+        $code = app(ClientBillingCode::class)->shortCode($client);
+
+        $this->assertSame('FSA-DRAFTC', $code);
     }
 
     public function test_live_stripe_client_uses_resilient_http_when_enabled(): void
