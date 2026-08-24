@@ -9,6 +9,7 @@ import {
 import type { Explanation } from '@/components/explainer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { formatNzdCurrency } from '@/lib/formatters';
 
 type AnnualRow = {
     year: number;
@@ -783,11 +784,7 @@ function Td({ children }: { children: ReactNode }) {
 }
 
 function formatCurrency(value: number | null | undefined): string {
-    return new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency: 'NZD',
-        maximumFractionDigits: 0,
-    }).format(value ?? 0);
+    return formatNzdCurrency(value);
 }
 
 function formatPercent(value: number | null | undefined): string {

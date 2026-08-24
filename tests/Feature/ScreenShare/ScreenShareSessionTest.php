@@ -407,6 +407,146 @@ final class ScreenShareSessionTest extends TestCase
             ->count());
     }
 
+    public function test_client_screen_support_http_flow_covers_browser_permission_transport_and_clean_end(): void
+    {
+        Event::fake([ScreenSharePrompt::class, ScreenShareSignal::class]);
+
+        $advisorConnection = $this->actingAs($this->advisor)
+            ->withSession($this->mfaSession($this->advisor))
+            ->postJson(route('advisor.clients.screen-share.connections.store', $this->client))
+            ->assertOk();
+        $clientToken = app(ClientPortalContextTokens::class)->issue($this->clientUser, $this->client, 'portal.dashboard');
+        $clientConnection = $this->actingAs($this->clientUser)
+            ->withSession($this->mfaSession($this->clientUser))
+            ->postJson(route('portal.screen-share.connections.store'), ['portal_context_token' => $clientToken])
+            ->assertOk();
+
+        $clientConnectionId = (string) $clientConnection->json('connection_id');
+        $clientSecret = (string) $clientConnection->json('connection_secret');
+
+        $this->actingAs($this->clientUser)
+            ->withSession($this->mfaSession($this->clientUser))
+            ->postJson(route('screen-share.connections.heartbeat', $clientConnectionId), ['connection_secret' => $clientSecret])
+            ->assertOk()
+            ->assertJsonStructure(['expires_at']);
+
+        $requested = $this->actingAs($this->advisor)
+            ->withSession($this->mfaSession($this->advisor))
+            ->postJson(route('advisor.clients.screen-share.sessions.store', $this->client), [
+                'client_user_id' => (string) $this->clientUser->getKey(),
+                'advisor_connection_id' => $advisorConnection->json('connection_id'),
+                'advisor_connection_secret' => $advisorConnection->json('connection_secret'),
+            ])
+            ->assertCreated()
+            ->assertJsonPath('status', ScreenShareSession::STATUS_REQUESTED);
+        $session = ScreenShareSession::query()->findOrFail($requested->json('id'));
+
+        $pending = $this->actingAs($this->clientUser)
+            ->withSession($this->mfaSession($this->clientUser))
+            ->postJson(route('screen-share.connections.pending-prompt', $clientConnectionId), ['connection_secret' => $clientSecret])
+            ->assertOk()
+            ->assertJsonPath('prompt.session_id', (string) $session->getKey());
+
+        $this->actingAs($this->clientUser)
+            ->withSession($this->mfaSession($this->clientUser))
+            ->postJson(route('portal.screen-share.sessions.response', $session), [
+                'action' => 'approve',
+                'connection_id' => $clientConnectionId,
+                'connection_secret' => $clientSecret,
+                'nonce' => $pending->json('prompt.nonce'),
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', ScreenShareSession::STATUS_APPROVED_PENDING_BROWSER);
+
+        $this->actingAs($this->clientUser)
+            ->withSession($this->mfaSession($this->clientUser))
+            ->postJson(route('portal.screen-share.sessions.browser-permission', $session), [
+                'connection_id' => $clientConnectionId,
+                'connection_secret' => $clientSecret,
+                'granted' => true,
+                'display_surface' => 'browser',
+            ])
+            ->assertOk()
+            ->assertJsonPath('display_surface', 'browser');
+
+        $this->actingAs($this->clientUser)
+            ->withSession($this->mfaSession($this->clientUser))
+            ->postJson(route('screen-share.sessions.active', $session), [
+                'connection_id' => $clientConnectionId,
+                'connection_secret' => $clientSecret,
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', ScreenShareSession::STATUS_ACTIVE);
+
+        $this->actingAs($this->clientUser)
+            ->withSession($this->mfaSession($this->clientUser))
+            ->postJson(route('screen-share.sessions.ice-servers', $session), [
+                'connection_id' => $clientConnectionId,
+                'connection_secret' => $clientSecret,
+            ])
+            ->assertOk()
+            ->assertJsonPath('0.urls.0', 'turns:turn.test:5349?transport=tcp');
+
+        $this->actingAs($this->clientUser)
+            ->withSession($this->mfaSession($this->clientUser))
+            ->postJson(route('screen-share.sessions.heartbeat', $session), [
+                'connection_id' => $clientConnectionId,
+                'connection_secret' => $clientSecret,
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', ScreenShareSession::STATUS_ACTIVE);
+
+        $this->actingAs($this->advisor)
+            ->withSession($this->mfaSession($this->advisor))
+            ->postJson(route('screen-share.sessions.end', $session), [
+                'connection_id' => $advisorConnection->json('connection_id'),
+                'connection_secret' => $advisorConnection->json('connection_secret'),
+                'reason' => 'completed_advisor_ended',
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', ScreenShareSession::STATUS_ENDED)
+            ->assertJsonPath('end_reason', 'completed_advisor_ended');
+    }
+
+    public function test_entrepreneur_screen_support_connection_endpoints_bind_the_assigned_advisor_and_portal_participant(): void
+    {
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'assigned_advisor_id' => $this->advisor->getKey(),
+            'name' => 'Screen Support Endpoint Entrepreneur',
+            'email' => 'screen-support-endpoint@example.test',
+        ]);
+
+        $this->actingAs($this->advisor)
+            ->withSession($this->mfaSession($this->advisor))
+            ->postJson(route('advisor.entrepreneurs.screen-share.connections.store', $profile))
+            ->assertOk()
+            ->assertJsonStructure(['connection_id', 'connection_secret', 'channel', 'expires_at']);
+
+        $token = app(ClientPortalContextTokens::class)->issueForEntrepreneur(
+            $entrepreneur,
+            $profile,
+            'portal.entrepreneur.dashboard',
+        );
+        $response = $this->actingAs($entrepreneur)
+            ->withSession($this->mfaSession($entrepreneur))
+            ->postJson(route('portal.entrepreneur-screen-share.connections.store'), ['portal_context_token' => $token])
+            ->assertOk()
+            ->assertJsonStructure(['connection_id', 'connection_secret', 'channel', 'expires_at']);
+
+        $this->assertDatabaseHas('screen_share_connections', [
+            'id' => $response->json('connection_id'),
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'user_id' => $entrepreneur->getKey(),
+            'participant_type' => ScreenShareConnection::TYPE_CLIENT,
+        ]);
+    }
+
     public function test_assigned_advisor_can_request_support_from_an_entrepreneur_profile(): void
     {
         Event::fake([ScreenSharePrompt::class]);
@@ -857,5 +997,14 @@ final class ScreenShareSessionTest extends TestCase
         $token = app(ClientPortalContextTokens::class)->issue($user, $this->client, 'portal.dashboard');
 
         return app(ScreenSharePresence::class)->registerClient($user, $token);
+    }
+
+    /** @return array<string, int|string> */
+    private function mfaSession(User $user): array
+    {
+        return [
+            'auth.mfa_user_id' => (string) $user->getKey(),
+            'auth.mfa_confirmed_at' => now()->getTimestamp(),
+        ];
     }
 }

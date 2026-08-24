@@ -31,6 +31,8 @@ final class OperationalHealthFixtureSeeder extends Seeder
 {
     public function run(RequestContext $requestContext): void
     {
+        $this->call(DdSpecificQuestionnaireV2Seeder::class);
+
         $requestContext->withSystemContext(function (): void {
             DB::transaction(function (): void {
                 $admin = $this->monitorUser('super_admin_email', User::TYPE_SUPER_ADMIN, 'Operational Health Admin');

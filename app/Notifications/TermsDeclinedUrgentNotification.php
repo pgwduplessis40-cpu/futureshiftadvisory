@@ -41,7 +41,7 @@ final class TermsDeclinedUrgentNotification extends ChannelAwareNotification
     public function toArray(object $notifiable): array
     {
         return [
-            'urgency' => $this->urgency,
+            'urgency' => $this->urgency(),
             'declined_user_id' => $this->declinedUser->id,
             'declined_user_email' => $this->declinedUser->email,
             'terms_version_id' => $this->termsVersion->id,

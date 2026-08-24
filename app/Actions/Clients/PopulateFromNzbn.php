@@ -8,7 +8,6 @@ use App\Services\Integration\CompaniesOffice\Contracts\CompaniesOfficeClient;
 use App\Services\Integration\Ird\Contracts\IrdClient;
 use App\Services\Integration\Nzbn\Contracts\NzbnClient;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Concurrency;
 
 final class PopulateFromNzbn
 {
@@ -31,16 +30,10 @@ final class PopulateFromNzbn
      */
     public function handle(string $nzbn): array
     {
-        /** @var array{nzbn:array<string, mixed>, companies_office:array<string, mixed>, ird:array<string, mixed>} $results */
-        $results = Concurrency::driver('sync')->run([
-            'nzbn' => fn (): array => $this->nzbn->lookupByNzbn($nzbn),
-            'companies_office' => fn (): array => $this->companiesOffice->companyProfile($nzbn),
-            'ird' => fn (): array => $this->ird->gstStatus($nzbn),
-        ]);
-
-        $nzbnRecord = $results['nzbn'];
-        $companyRecord = $results['companies_office'];
-        $irdRecord = $results['ird'];
+        // The sync concurrency driver is sequential and erases the concrete client return types.
+        $nzbnRecord = $this->nzbn->lookupByNzbn($nzbn);
+        $companyRecord = $this->companiesOffice->companyProfile($nzbn);
+        $irdRecord = $this->ird->gstStatus($nzbn);
 
         return [
             'lookup_key' => $nzbn,
@@ -62,13 +55,23 @@ final class PopulateFromNzbn
                 'filing_status' => Arr::get($companyRecord, 'status'),
             ],
             'source_badges' => [
-                'nzbn' => (string) Arr::get($nzbnRecord, 'source_badge', 'unknown'),
-                'companies_office' => (string) Arr::get($companyRecord, 'source_badge', 'unknown'),
-                'ird' => (string) Arr::get($irdRecord, 'source_badge', 'unknown'),
+                'nzbn' => $this->sourceBadge($nzbnRecord),
+                'companies_office' => $this->sourceBadge($companyRecord),
+                'ird' => $this->sourceBadge($irdRecord),
             ],
             'degraded' => (bool) Arr::get($nzbnRecord, 'degraded', false)
                 || (bool) Arr::get($companyRecord, 'degraded', false)
                 || (bool) Arr::get($irdRecord, 'degraded', false),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $record
+     */
+    private function sourceBadge(array $record): string
+    {
+        $badge = Arr::get($record, 'source_badge');
+
+        return is_string($badge) && $badge !== '' ? $badge : 'unknown';
     }
 }

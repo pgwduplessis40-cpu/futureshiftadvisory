@@ -70,6 +70,14 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useDrillFocus } from '@/hooks/use-drill-focus';
+import {
+    formatCurrency as formatLocalizedCurrency,
+    formatNumber,
+    formatNzdCurrency,
+    formatNzDate,
+    formatNzMonth,
+    formatPercentage,
+} from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { ClientSummary } from './types';
 
@@ -3341,10 +3349,9 @@ function NpoFundingPanel({ funding }: { funding: NpoFundingSummary }) {
                 />
                 <Detail
                     label="Concentration"
-                    value={new Intl.NumberFormat(undefined, {
-                        style: 'percent',
-                        maximumFractionDigits: 1,
-                    }).format(funding.concentration.largest_funder_ratio)}
+                    value={formatPercentage(
+                        funding.concentration.largest_funder_ratio,
+                    )}
                 />
             </dl>
 
@@ -3531,9 +3538,7 @@ function NpoValuePanel({ values }: { values: NpoValueSummary }) {
 
 function formatProjectionValue(value: number, unit?: string): string {
     if (unit === 'beneficiaries') {
-        return `${new Intl.NumberFormat(undefined, {
-            maximumFractionDigits: 1,
-        }).format(value)} beneficiaries`;
+        return `${formatNumber(value, { maximumFractionDigits: 1 })} beneficiaries`;
     }
 
     return formatCurrency(value);
@@ -7432,10 +7437,7 @@ function formatMonth(value: string | null) {
         return 'Current period';
     }
 
-    return new Intl.DateTimeFormat(undefined, {
-        month: 'short',
-        year: 'numeric',
-    }).format(new Date(`${value}T00:00:00`));
+    return formatNzMonth(value);
 }
 
 function formatDate(value: string | null) {
@@ -7443,9 +7445,7 @@ function formatDate(value: string | null) {
         return '-';
     }
 
-    return new Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-    }).format(new Date(value));
+    return formatNzDate(value);
 }
 
 function formatLabel(value: string) {
@@ -7587,39 +7587,25 @@ function formatMetric(value: unknown) {
     }
 
     if (Math.abs(value) <= 1) {
-        return new Intl.NumberFormat(undefined, {
-            style: 'percent',
-            maximumFractionDigits: 1,
-        }).format(value);
+        return formatPercentage(value);
     }
 
-    return new Intl.NumberFormat(undefined, {
-        maximumFractionDigits: 2,
-    }).format(value);
+    return formatNumber(value, { maximumFractionDigits: 2 });
 }
 
 function formatCurrency(value: number) {
-    return new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency: 'NZD',
-        maximumFractionDigits: 0,
-    }).format(value);
+    return formatNzdCurrency(value);
 }
 
 function formatPercent(value: number) {
-    return new Intl.NumberFormat(undefined, {
-        style: 'percent',
-        maximumFractionDigits: 1,
-    }).format(value / 100);
+    return formatPercentage(value / 100);
 }
 
 function formatMoney(value: number, currency: string) {
-    return new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency,
+    return formatLocalizedCurrency(value, currency, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
-    }).format(value);
+    });
 }
 
 function formatBytes(value: number | null) {

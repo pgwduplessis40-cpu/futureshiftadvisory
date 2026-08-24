@@ -12,6 +12,7 @@
         "lint": "eslint . --fix",
         "lint:check": "eslint .",
         "co-browse:guard": "node scripts/check-co-browse-guard.mjs",
+        "browser:smoke": "node scripts/browser-smoke.mjs",
         "screen-share:guard": "node scripts/check-screen-share-guard.mjs",
         "types:check": "tsc --noEmit"
     },
@@ -84,6 +85,13 @@
         "lightningcss-win32-x64-msvc": "^1.29.1"
     },
     "overrides": {
-        "shell-quote": "^1.8.4"
+        "shell-quote": "^1.8.5",
+        "js-yaml": "4.3.1",
+        "minimatch@3": {
+            "brace-expansion": "1.1.18"
+        },
+        "minimatch@10": {
+            "brace-expansion": "5.0.9"
+        }
     }
 }

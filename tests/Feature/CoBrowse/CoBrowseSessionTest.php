@@ -296,6 +296,166 @@ final class CoBrowseSessionTest extends TestCase
         }
     }
 
+    public function test_client_guided_assistance_http_flow_covers_connection_consent_and_lifecycle_endpoints(): void
+    {
+        Event::fake([CoBrowseActionDispatched::class, CoBrowsePrompt::class]);
+
+        $advisorConnection = $this->actingAs($this->advisor)
+            ->withSession($this->mfaSession($this->advisor))
+            ->postJson(route('advisor.clients.co-browse.connections.store', $this->client))
+            ->assertOk();
+        $clientToken = app(ClientPortalContextTokens::class)->issue($this->clientUser, $this->client, 'portal.dashboard');
+        $clientConnection = $this->actingAs($this->clientUser)
+            ->withSession($this->mfaSession($this->clientUser))
+            ->postJson(route('portal.co-browse.connections.store'), ['portal_context_token' => $clientToken])
+            ->assertOk();
+
+        $clientConnectionId = (string) $clientConnection->json('connection_id');
+        $clientSecret = (string) $clientConnection->json('connection_secret');
+
+        $this->actingAs($this->clientUser)
+            ->withSession($this->mfaSession($this->clientUser))
+            ->postJson(route('co-browse.connections.heartbeat', $clientConnectionId), ['connection_secret' => $clientSecret])
+            ->assertOk()
+            ->assertJsonStructure(['expires_at']);
+
+        $requested = $this->actingAs($this->advisor)
+            ->withSession($this->mfaSession($this->advisor))
+            ->postJson(route('advisor.clients.co-browse.sessions.store', $this->client), [
+                'client_user_id' => (string) $this->clientUser->getKey(),
+                'advisor_connection_id' => $advisorConnection->json('connection_id'),
+                'advisor_connection_secret' => $advisorConnection->json('connection_secret'),
+            ])
+            ->assertCreated()
+            ->assertJsonPath('status', CoBrowseSession::STATUS_REQUESTED);
+        $session = CoBrowseSession::query()->findOrFail($requested->json('id'));
+
+        $pending = $this->actingAs($this->clientUser)
+            ->withSession($this->mfaSession($this->clientUser))
+            ->postJson(route('co-browse.connections.pending-prompt', $clientConnectionId), ['connection_secret' => $clientSecret])
+            ->assertOk()
+            ->assertJsonPath('prompt.session_id', (string) $session->getKey());
+        $nonce = (string) $pending->json('prompt.nonce');
+
+        $approved = $this->actingAs($this->clientUser)
+            ->withSession($this->mfaSession($this->clientUser))
+            ->postJson(route('portal.co-browse.sessions.response', $session), [
+                'action' => 'approve',
+                'connection_id' => $clientConnectionId,
+                'connection_secret' => $clientSecret,
+                'nonce' => $nonce,
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', CoBrowseSession::STATUS_ACTIVE);
+        $targets = $approved->json('targets');
+        $this->assertIsArray($targets);
+        $this->assertSame('Progress', $targets['client.dashboard.progress'] ?? null);
+
+        $this->actingAs($this->advisor)
+            ->withSession($this->mfaSession($this->advisor))
+            ->postJson(route('co-browse.sessions.actions.store', $session), [
+                'connection_id' => $advisorConnection->json('connection_id'),
+                'connection_secret' => $advisorConnection->json('connection_secret'),
+                'type' => 'highlight',
+                'payload' => ['target' => 'client.dashboard.progress'],
+            ])
+            ->assertNoContent();
+
+        $this->actingAs($this->clientUser)
+            ->withSession($this->mfaSession($this->clientUser))
+            ->postJson(route('co-browse.sessions.pending-actions', $session), [
+                'connection_id' => $clientConnectionId,
+                'connection_secret' => $clientSecret,
+                'after_id' => 0,
+            ])
+            ->assertOk()
+            ->assertJsonPath('actions.0.type', 'highlight');
+
+        $this->actingAs($this->clientUser)
+            ->withSession($this->mfaSession($this->clientUser))
+            ->postJson(route('co-browse.sessions.status', $session), [
+                'connection_id' => $clientConnectionId,
+                'connection_secret' => $clientSecret,
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', CoBrowseSession::STATUS_ACTIVE);
+
+        $this->actingAs($this->clientUser)
+            ->withSession($this->mfaSession($this->clientUser))
+            ->postJson(route('co-browse.sessions.heartbeat', $session), [
+                'connection_id' => $clientConnectionId,
+                'connection_secret' => $clientSecret,
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', CoBrowseSession::STATUS_ACTIVE);
+
+        $this->actingAs($this->advisor)
+            ->withSession($this->mfaSession($this->advisor))
+            ->postJson(route('co-browse.sessions.end', $session), [
+                'connection_id' => $advisorConnection->json('connection_id'),
+                'connection_secret' => $advisorConnection->json('connection_secret'),
+                'reason' => 'completed_advisor_ended',
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', CoBrowseSession::STATUS_ENDED)
+            ->assertJsonPath('end_reason', 'completed_advisor_ended');
+    }
+
+    public function test_entrepreneur_guided_assistance_endpoints_bind_the_assigned_advisor_and_portal_participant(): void
+    {
+        Event::fake([CoBrowsePrompt::class]);
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'assigned_advisor_id' => $this->advisor->getKey(),
+            'name' => 'Guided Assistance Entrepreneur',
+            'email' => 'guided-assistance-endpoint@example.test',
+        ]);
+
+        $advisorConnection = $this->actingAs($this->advisor)
+            ->withSession($this->mfaSession($this->advisor))
+            ->postJson(route('advisor.entrepreneurs.co-browse.connections.store', $profile))
+            ->assertOk();
+        $token = app(ClientPortalContextTokens::class)->issueForEntrepreneur(
+            $entrepreneur,
+            $profile,
+            'portal.entrepreneur.dashboard',
+        );
+        $clientConnection = $this->actingAs($entrepreneur)
+            ->withSession($this->mfaSession($entrepreneur))
+            ->postJson(route('portal.co-browse.connections.store'), ['portal_context_token' => $token])
+            ->assertOk();
+
+        $this->actingAs($this->advisor)
+            ->withSession($this->mfaSession($this->advisor))
+            ->postJson(route('advisor.entrepreneurs.co-browse.sessions.store', $profile), [
+                'client_user_id' => (string) $entrepreneur->getKey(),
+                'advisor_connection_id' => $advisorConnection->json('connection_id'),
+                'advisor_connection_secret' => $advisorConnection->json('connection_secret'),
+            ])
+            ->assertCreated()
+            ->assertJsonPath('status', CoBrowseSession::STATUS_REQUESTED);
+
+        $this->assertDatabaseHas('co_browse_connections', [
+            'id' => $clientConnection->json('connection_id'),
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'user_id' => $entrepreneur->getKey(),
+        ]);
+    }
+
+    /** @return array<string, int|string> */
+    private function mfaSession(User $user): array
+    {
+        return [
+            'auth.mfa_user_id' => (string) $user->getKey(),
+            'auth.mfa_confirmed_at' => now()->getTimestamp(),
+        ];
+    }
+
     private function clientConnection(): CoBrowseConnectionCredentials
     {
         $token = app(ClientPortalContextTokens::class)->issue($this->clientUser, $this->client, 'portal.dashboard');

@@ -41,6 +41,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { formatNzdCurrency, formatNzDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {
     csrfToken,
@@ -5407,11 +5408,7 @@ function normaliseForecastYears(value: string | number): number {
 }
 
 function formatCurrency(value: number | null | undefined): string {
-    return new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency: 'NZD',
-        maximumFractionDigits: 0,
-    }).format(value ?? 0);
+    return formatNzdCurrency(value);
 }
 
 function countLabel(
@@ -5528,10 +5525,10 @@ function formatDate(value: string | null): string {
         return '-';
     }
 
-    return new Intl.DateTimeFormat(undefined, {
+    return formatNzDate(value, {
         dateStyle: 'medium',
         timeStyle: 'short',
-    }).format(new Date(value));
+    });
 }
 
 function planWorkspaceKey(profileId: string): string {

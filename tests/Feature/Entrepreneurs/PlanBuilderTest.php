@@ -329,11 +329,28 @@ final class PlanBuilderTest extends TestCase
             metadata: ['requirement_key' => 'industry-context'],
         );
 
-        $this->actingAsMfa($profile->user()->firstOrFail())
-            ->postJson(route('portal.entrepreneur.plan.executive-summary.store'))
-            ->assertOk()
-            ->assertJsonPath('status', 'entrepreneur-plan-executive-summary-generated')
-            ->assertJsonPath('executive_summary.generated', true);
+        $warnings = [];
+        set_error_handler(function (int $severity, string $message) use (&$warnings): bool {
+            if ($severity === E_WARNING) {
+                $warnings[] = $message;
+
+                return true;
+            }
+
+            return false;
+        });
+
+        try {
+            $this->actingAsMfa($profile->user()->firstOrFail())
+                ->postJson(route('portal.entrepreneur.plan.executive-summary.store'))
+                ->assertOk()
+                ->assertJsonPath('status', 'entrepreneur-plan-executive-summary-generated')
+                ->assertJsonPath('executive_summary.generated', true);
+        } finally {
+            restore_error_handler();
+        }
+
+        $this->assertSame([], $warnings, 'The deterministic fallback must not emit PHP warnings.');
 
         $summary = PlanSection::query()
             ->where('business_plan_id', $plan->getKey())

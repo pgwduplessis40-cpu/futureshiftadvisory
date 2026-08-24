@@ -130,7 +130,7 @@ jobs:
           if [ "${RUN_COVERAGE_GATES}" = "true" ]; then
             php scripts/ensure-coverage-driver.php
             php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --log-junit storage/logs/phpunit.xml --coverage-clover storage/logs/clover.xml 2>&1 | tee storage/logs/phpunit-console.log
-            php scripts/assert-coverage-thresholds.php storage/logs/clover.xml
+            php scripts/assert-coverage-thresholds.php storage/logs/clover.xml storage/logs/coverage-summary.json
           else
             php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --log-junit storage/logs/phpunit.xml --no-coverage 2>&1 | tee storage/logs/phpunit-console.log
           fi
@@ -140,8 +140,26 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: clover-php-${{ matrix.php-version }}
-          path: storage/logs/clover.xml
+          path: |
+            storage/logs/clover.xml
+            storage/logs/coverage-summary.json
           if-no-files-found: warn
+
+      - name: Publish coverage summary
+        if: ${{ always() && matrix.coverage-gates == 'true' }}
+        shell: bash
+        run: |
+          if [ ! -f storage/logs/coverage-summary.json ]; then
+            echo "Coverage summary was not produced."
+            exit 0
+          fi
+
+          {
+            echo "### PHP coverage contract"
+            echo '```json'
+            cat storage/logs/coverage-summary.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Report PHPUnit failures
         if: failure()

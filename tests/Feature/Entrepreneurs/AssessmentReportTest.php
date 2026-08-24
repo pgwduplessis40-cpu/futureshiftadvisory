@@ -123,6 +123,67 @@ final class AssessmentReportTest extends TestCase
         }
     }
 
+    public function test_entrepreneur_can_download_only_a_rendered_assessment_report(): void
+    {
+        [$advisor, $plan] = $this->plan('assessment-report-download@example.test');
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $report = app(ReportComposer::class)->composeEntrepreneurAssessment($assessment->refresh(), $advisor);
+        $entrepreneur = User::query()->findOrFail($plan->entrepreneurProfile->user_id);
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.reports.show', $report))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $report->forceFill(['render_status' => Report::RENDER_STATUS_COMPOSING])->save();
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.reports.show', $report))
+            ->assertStatus(409);
+
+        $report->forceFill(['render_status' => Report::RENDER_STATUS_FAILED])->save();
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.reports.show', $report))
+            ->assertStatus(503);
+    }
+
+    public function test_advisor_downloads_entrepreneur_assessments_and_receives_render_state_errors(): void
+    {
+        [$advisor, $plan] = $this->plan('assessment-report-advisor-download@example.test');
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $report = app(ReportComposer::class)->composeEntrepreneurAssessment($assessment->refresh(), $advisor);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.reports.download', $report))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $pptxPath = 'reports/'.$report->getKey().'.pptx';
+        Storage::disk('secure_local')->put($pptxPath, "PPTX\nassessment");
+        $report->forceFill([
+            'pptx_path' => $pptxPath,
+            'pptx_byte_size' => 15,
+        ])->save();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.reports.pptx', $report))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+
+        $report->forceFill(['render_status' => Report::RENDER_STATUS_COMPOSING])->save();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.reports.download', $report))
+            ->assertStatus(409);
+
+        $report->forceFill(['render_status' => Report::RENDER_STATUS_FAILED])->save();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.reports.download', $report))
+            ->assertStatus(503);
+    }
+
     public function test_report_tone_stays_honest_for_weak_plans(): void
     {
         [$advisor, $plan] = $this->plan('weak-report-founder@example.test');

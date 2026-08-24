@@ -51,17 +51,13 @@ final class BusinessPlanExecutiveSummary
         $profile = $profile->refresh();
         $context = $this->promptContext($plan, $profile);
         $prompt = $this->prompt($plan, $profile, $context);
-        $response = null;
-
-        try {
-            $response = $this->ai->summarise($prompt);
-        } catch (Throwable $exception) {
-            report($exception);
-        }
+        $response = $this->summaryResponse($prompt);
+        $contextHash = $this->contextHash($plan, $profile);
 
         [$body, $source] = $this->summaryBody($response, $plan, $profile, $context);
         $existing = $this->executiveSummarySection($plan);
         $existingMetadata = is_array($existing?->metadata) ? $existing->metadata : [];
+        $aiMetadata = $this->aiMetadata($response, $prompt);
         $metadata = [
             ...$existingMetadata,
             'source' => 'executive_summary_synthesis',
@@ -72,17 +68,15 @@ final class BusinessPlanExecutiveSummary
                 'generated' => true,
                 'generated_at' => now()->toIso8601String(),
                 'generated_by_user_id' => $actor->getKey(),
-                'context_hash' => $this->contextHash($plan, $profile),
+                'context_hash' => $contextHash,
                 'source' => $source,
                 'prompt_id' => EntrepreneurPromptRegistry::PLAN_EXECUTIVE_SUMMARY,
                 'prompt_version' => self::PROMPT_VERSION,
-                'prompt_hash' => $response->promptHash ?? $prompt->hash(),
-                'model' => $response?->model,
-                'uncertainty' => $response?->uncertainty->value,
-                'attributions' => $response->attributions ?? [],
-                'source_section_count' => count($context['sections']),
+                'source_section_count' => is_countable($context['sections'] ?? null)
+                    ? count($context['sections'])
+                    : 0,
                 'budget_included' => is_array($context['budget']),
-                'degraded' => $response === null || (bool) data_get($response->metadata, 'degraded', false),
+                ...$aiMetadata,
             ],
         ];
 
@@ -101,9 +95,9 @@ final class BusinessPlanExecutiveSummary
         $this->audit->record('entrepreneur.plan_executive_summary_generated', subject: $section, actor: $actor, after: [
             'business_plan_id' => $plan->getKey(),
             'entrepreneur_profile_id' => $profile->getKey(),
-            'context_hash' => $metadata[self::METADATA_KEY]['context_hash'],
+            'context_hash' => $contextHash,
             'source' => $source,
-            'model' => $response?->model,
+            'model' => $aiMetadata['model'],
         ]);
 
         $freshPlan = $plan->refresh()->load('sections', 'budgetRunway', 'entrepreneurProfile');
@@ -116,6 +110,47 @@ final class BusinessPlanExecutiveSummary
                 'updated_at' => $section->updated_at?->toIso8601String(),
             ],
             'executive_summary' => $this->status($freshPlan, $profile),
+        ];
+    }
+
+    private function summaryResponse(PromptEnvelope $prompt): ?AiResponse
+    {
+        try {
+            return $this->ai->summarise($prompt);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return null;
+        }
+    }
+
+    /**
+     * @return array{
+     *     prompt_hash:string,
+     *     model:string|null,
+     *     uncertainty:string|null,
+     *     attributions:array<int, array{claim:string, source_reference:string}>,
+     *     degraded:bool
+     * }
+     */
+    private function aiMetadata(?AiResponse $response, PromptEnvelope $prompt): array
+    {
+        if ($response === null) {
+            return [
+                'prompt_hash' => $prompt->hash(),
+                'model' => null,
+                'uncertainty' => null,
+                'attributions' => [],
+                'degraded' => true,
+            ];
+        }
+
+        return [
+            'prompt_hash' => $response->promptHash,
+            'model' => $response->model,
+            'uncertainty' => $response->uncertainty->value,
+            'attributions' => $response->attributions,
+            'degraded' => (bool) data_get($response->metadata, 'degraded', false),
         ];
     }
 

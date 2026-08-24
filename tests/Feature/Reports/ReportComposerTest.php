@@ -13,6 +13,7 @@ use App\Enums\FindingSeverity;
 use App\Enums\ProposalStatus;
 use App\Enums\PvType;
 use App\Enums\ReportType;
+use App\Jobs\ComposeReport;
 use App\Models\AccountingConnection;
 use App\Models\AnalysisFinding;
 use App\Models\AnalysisRun;
@@ -33,6 +34,7 @@ use App\Models\Template;
 use App\Models\User;
 use App\Models\WebsiteAuditSnapshot;
 use App\Services\Ai\Contracts\Uncertainty;
+use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
 use App\Services\Reports\ReportComposer;
@@ -43,6 +45,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
+use RuntimeException;
 use Tests\TestCase;
 use ZipArchive;
 
@@ -1097,6 +1100,101 @@ HTML,
         ]);
     }
 
+    public function test_client_portal_applies_each_engagement_specific_report_release_rule(): void
+    {
+        $cases = [
+            [EngagementType::STANDARD_ADVISORY, ReportType::Valuation, 'reviewed', true],
+            [EngagementType::POST_ACQUISITION_ADVISORY, ReportType::PostAcquisitionGap, 'not_required', true],
+            [EngagementType::DUE_DILIGENCE, ReportType::DueDiligence, 'not_required', true],
+            [EngagementType::NPO, ReportType::GovernanceReview, 'not_required', true],
+            [EngagementType::NPO, ReportType::FunderAccountability, 'reviewed', true],
+            [EngagementType::STANDARD_ADVISORY, ReportType::Valuation, 'pending_review', false],
+        ];
+
+        foreach ($cases as $index => [$engagementType, $reportType, $reviewStatus, $canView]) {
+            [, $client, $clientUser] = $this->clientWithTeamAndClientUser("portal-release-{$index}@example.test");
+            $client->forceFill(['engagement_type' => $engagementType])->save();
+            $report = $this->portalReport($client, $reportType, $reviewStatus);
+
+            $response = $this->actingAsMfa($clientUser)
+                ->get(route('portal.reports.show', $report));
+
+            if ($canView) {
+                $response
+                    ->assertOk()
+                    ->assertHeader('content-type', 'application/pdf');
+            } else {
+                $response->assertNotFound();
+            }
+        }
+    }
+
+    public function test_report_job_ignores_stale_queue_requests_without_composing_a_report(): void
+    {
+        $job = new ComposeReport(
+            clientId: '00000000-0000-0000-0000-000000000000',
+            reportType: 'removed_report_type',
+            actorId: 999999,
+        );
+
+        $job->handle(
+            app(RequestContext::class),
+            app(ReportComposer::class),
+            app(DdAdviceReportGenerator::class),
+        );
+        $job->failed(new RuntimeException('Queue transport failed after the source record was removed.'));
+
+        $this->assertDatabaseCount('reports', 0);
+    }
+
+    public function test_report_job_composes_a_valid_client_report_after_the_request_commits(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('queued-client-report@example.test');
+        $this->analysisFixture($client);
+
+        $job = new ComposeReport(
+            clientId: (string) $client->getKey(),
+            reportType: ReportType::Client->value,
+            actorId: (int) $advisor->getKey(),
+        );
+
+        $job->handle(
+            app(RequestContext::class),
+            app(ReportComposer::class),
+            app(DdAdviceReportGenerator::class),
+        );
+
+        $this->assertDatabaseHas('reports', [
+            'client_id' => $client->getKey(),
+            'type' => ReportType::Client->value,
+            'generated_by_user_id' => $advisor->getKey(),
+        ]);
+    }
+
+    public function test_report_job_ignores_domain_reports_when_their_source_engagement_was_removed(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('removed-report-source@example.test');
+
+        foreach ([
+            ReportType::DueDiligence,
+            ReportType::AcquisitionGoNoGo,
+            ReportType::PostAcquisitionGap,
+            ReportType::GovernanceReview,
+        ] as $reportType) {
+            (new ComposeReport(
+                clientId: (string) $client->getKey(),
+                reportType: $reportType->value,
+                actorId: (int) $advisor->getKey(),
+            ))->handle(
+                app(RequestContext::class),
+                app(ReportComposer::class),
+                app(DdAdviceReportGenerator::class),
+            );
+        }
+
+        $this->assertDatabaseCount('reports', 0);
+    }
+
     public function test_reports_and_sections_are_isolated_by_client_rls(): void
     {
         if (DB::connection()->getDriverName() !== 'pgsql') {
@@ -1473,6 +1571,26 @@ XML,
         ]);
 
         return $report;
+    }
+
+    private function portalReport(Client $client, ReportType $type, string $reviewStatus): Report
+    {
+        $report = $this->storedReport($client);
+        $path = 'reports/'.$report->getKey().'.pdf';
+
+        $report->forceFill([
+            'type' => $type,
+            'title' => $type->label(),
+            'review_status' => $reviewStatus,
+            'reviewed_at' => $reviewStatus === 'reviewed' ? now() : null,
+            'pdf_path' => $path,
+            'pdf_byte_size' => 13,
+            'render_status' => Report::RENDER_STATUS_RENDERED,
+            'metadata' => [],
+        ])->save();
+        Storage::disk('secure_local')->put($path, "%PDF-1.4\nfixture");
+
+        return $report->refresh();
     }
 
     private function currentRoleBypassesRls(): bool

@@ -38,6 +38,7 @@ final class ProspectIntakeTest extends TestCase
     public function test_valid_signed_intake_creates_prospect_lead_and_notifies_advisor(): void
     {
         $advisor = $this->advisor();
+        $this->lead('existing-prospect@example.test');
         $payload = $this->payload([
             'name' => 'Ada Founder',
             'email' => 'ada@example.test',
@@ -50,7 +51,9 @@ final class ProspectIntakeTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('prospect_lead.status', ProspectLead::STATUS_NEW);
 
-        $lead = ProspectLead::query()->firstOrFail();
+        $lead = ProspectLead::query()
+            ->where('dedupe_key', 'website-event-123')
+            ->firstOrFail();
 
         $this->assertSame('Ada Founder', $lead->name);
         $this->assertSame('ada@example.test', $lead->email);
@@ -69,7 +72,12 @@ final class ProspectIntakeTest extends TestCase
     public function test_invalid_hmac_is_rejected_and_audited(): void
     {
         $this->advisor();
-        $payload = $this->payload();
+        $this->lead('existing-prospect@example.test');
+        $payload = $this->payload([
+            'email' => 'rejected-intake@example.test',
+            'dedupe_key' => 'rejected-intake-event',
+        ]);
+        $leadCountBefore = ProspectLead::query()->count();
 
         $this->withHeaders([
             'X-FSA-Timestamp' => (string) now()->getTimestamp(),
@@ -78,7 +86,10 @@ final class ProspectIntakeTest extends TestCase
             ->postJson(route('webhooks.prospects.store'), $payload)
             ->assertUnauthorized();
 
-        $this->assertDatabaseCount('prospect_leads', 0);
+        $this->assertSame($leadCountBefore, ProspectLead::query()->count());
+        $this->assertDatabaseMissing('prospect_leads', [
+            'dedupe_key' => 'rejected-intake-event',
+        ]);
         $this->assertDatabaseHas('audit_events', [
             'action' => 'prospect_intake.signature_rejected',
         ]);

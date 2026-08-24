@@ -6259,12 +6259,6 @@ parameters:
 			path: app/Notifications/ServiceActivationRequestedNotification.php
 
 		-
-			message: '#^Access to an undefined property App\\Notifications\\TermsDeclinedUrgentNotification\:\:\$urgency\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Notifications/TermsDeclinedUrgentNotification.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Report\:\:\$npo_engagement_id\.$#'
 			identifier: property.notFound
 			count: 1
