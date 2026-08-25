@@ -356,7 +356,7 @@ storeManual.form = storeManualForm
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestPlanPreview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:455
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:462
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
 */
 export const latestPlanPreview = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -371,7 +371,7 @@ latestPlanPreview.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestPlanPreview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:455
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:462
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
 */
 latestPlanPreview.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -404,7 +404,7 @@ latestPlanPreview.url = (args: { entrepreneurProfile: string | { id: string } } 
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestPlanPreview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:455
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:462
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
 */
 latestPlanPreview.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -414,7 +414,7 @@ latestPlanPreview.get = (args: { entrepreneurProfile: string | { id: string } } 
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestPlanPreview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:455
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:462
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
 */
 latestPlanPreview.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -424,7 +424,7 @@ latestPlanPreview.head = (args: { entrepreneurProfile: string | { id: string } }
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestPlanPreview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:455
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:462
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
 */
 const latestPlanPreviewForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -434,7 +434,7 @@ const latestPlanPreviewForm = (args: { entrepreneurProfile: string | { id: strin
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestPlanPreview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:455
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:462
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
 */
 latestPlanPreviewForm.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -444,7 +444,7 @@ latestPlanPreviewForm.get = (args: { entrepreneurProfile: string | { id: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestPlanPreview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:455
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:462
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
 */
 latestPlanPreviewForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -461,7 +461,7 @@ latestPlanPreview.form = latestPlanPreviewForm
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestBudgetPackPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:473
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:480
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
 */
 export const latestBudgetPackPdf = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -476,7 +476,7 @@ latestBudgetPackPdf.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestBudgetPackPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:473
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:480
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
 */
 latestBudgetPackPdf.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -509,7 +509,7 @@ latestBudgetPackPdf.url = (args: { entrepreneurProfile: string | { id: string } 
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestBudgetPackPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:473
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:480
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
 */
 latestBudgetPackPdf.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -519,7 +519,7 @@ latestBudgetPackPdf.get = (args: { entrepreneurProfile: string | { id: string } 
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestBudgetPackPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:473
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:480
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
 */
 latestBudgetPackPdf.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -529,7 +529,7 @@ latestBudgetPackPdf.head = (args: { entrepreneurProfile: string | { id: string }
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestBudgetPackPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:473
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:480
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
 */
 const latestBudgetPackPdfForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -539,7 +539,7 @@ const latestBudgetPackPdfForm = (args: { entrepreneurProfile: string | { id: str
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestBudgetPackPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:473
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:480
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
 */
 latestBudgetPackPdfForm.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -549,7 +549,7 @@ latestBudgetPackPdfForm.get = (args: { entrepreneurProfile: string | { id: strin
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::latestBudgetPackPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:473
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:480
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf'
 */
 latestBudgetPackPdfForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -566,7 +566,7 @@ latestBudgetPackPdf.form = latestBudgetPackPdfForm
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::planPreview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:465
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:472
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
 */
 export const planPreview = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -581,7 +581,7 @@ planPreview.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::planPreview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:465
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:472
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
 */
 planPreview.url = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -611,7 +611,7 @@ planPreview.url = (args: { entrepreneurProfile: string | { id: string }, busines
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::planPreview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:465
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:472
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
 */
 planPreview.get = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -621,7 +621,7 @@ planPreview.get = (args: { entrepreneurProfile: string | { id: string }, busines
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::planPreview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:465
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:472
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
 */
 planPreview.head = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -631,7 +631,7 @@ planPreview.head = (args: { entrepreneurProfile: string | { id: string }, busine
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::planPreview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:465
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:472
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
 */
 const planPreviewForm = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -641,7 +641,7 @@ const planPreviewForm = (args: { entrepreneurProfile: string | { id: string }, b
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::planPreview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:465
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:472
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
 */
 planPreviewForm.get = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -651,7 +651,7 @@ planPreviewForm.get = (args: { entrepreneurProfile: string | { id: string }, bus
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::planPreview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:465
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:472
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview'
 */
 planPreviewForm.head = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -668,7 +668,7 @@ planPreview.form = planPreviewForm
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::budgetPackPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:484
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:491
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
 */
 export const budgetPackPdf = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -683,7 +683,7 @@ budgetPackPdf.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::budgetPackPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:484
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:491
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
 */
 budgetPackPdf.url = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -713,7 +713,7 @@ budgetPackPdf.url = (args: { entrepreneurProfile: string | { id: string }, busin
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::budgetPackPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:484
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:491
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
 */
 budgetPackPdf.get = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -723,7 +723,7 @@ budgetPackPdf.get = (args: { entrepreneurProfile: string | { id: string }, busin
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::budgetPackPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:484
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:491
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
 */
 budgetPackPdf.head = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -733,7 +733,7 @@ budgetPackPdf.head = (args: { entrepreneurProfile: string | { id: string }, busi
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::budgetPackPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:484
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:491
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
 */
 const budgetPackPdfForm = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -743,7 +743,7 @@ const budgetPackPdfForm = (args: { entrepreneurProfile: string | { id: string },
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::budgetPackPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:484
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:491
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
 */
 budgetPackPdfForm.get = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -753,7 +753,7 @@ budgetPackPdfForm.get = (args: { entrepreneurProfile: string | { id: string }, b
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::budgetPackPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:484
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:491
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf'
 */
 budgetPackPdfForm.head = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -770,7 +770,7 @@ budgetPackPdf.form = budgetPackPdfForm
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::funderReadyPlanPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:493
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:500
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf'
 */
 export const funderReadyPlanPdf = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -785,7 +785,7 @@ funderReadyPlanPdf.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::funderReadyPlanPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:493
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:500
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf'
 */
 funderReadyPlanPdf.url = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -815,7 +815,7 @@ funderReadyPlanPdf.url = (args: { entrepreneurProfile: string | { id: string }, 
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::funderReadyPlanPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:493
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:500
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf'
 */
 funderReadyPlanPdf.get = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -825,7 +825,7 @@ funderReadyPlanPdf.get = (args: { entrepreneurProfile: string | { id: string }, 
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::funderReadyPlanPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:493
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:500
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf'
 */
 funderReadyPlanPdf.head = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -835,7 +835,7 @@ funderReadyPlanPdf.head = (args: { entrepreneurProfile: string | { id: string },
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::funderReadyPlanPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:493
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:500
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf'
 */
 const funderReadyPlanPdfForm = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -845,7 +845,7 @@ const funderReadyPlanPdfForm = (args: { entrepreneurProfile: string | { id: stri
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::funderReadyPlanPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:493
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:500
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf'
 */
 funderReadyPlanPdfForm.get = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -855,7 +855,7 @@ funderReadyPlanPdfForm.get = (args: { entrepreneurProfile: string | { id: string
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::funderReadyPlanPdf
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:493
+* @see app/Http/Controllers/Advisor/EntrepreneurController.php:500
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf'
 */
 funderReadyPlanPdfForm.head = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
