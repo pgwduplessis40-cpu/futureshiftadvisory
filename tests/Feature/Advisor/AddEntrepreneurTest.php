@@ -74,6 +74,65 @@ final class AddEntrepreneurTest extends TestCase
         Mail::assertSent(InvitationMail::class, 1);
     }
 
+    public function test_invite_service_options_use_current_active_service_rate_packages(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        ServiceRatePackage::query()->create([
+            'service_type' => ServiceRatePackage::SERVICE_ENTREPRENEUR,
+            'package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET,
+            'package_name' => 'Full plan + assessment + runway',
+            'client_label' => 'Full plan + assessment + runway',
+            'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+            'fixed_fee' => 2900,
+            'deposit_percent' => 100,
+            'currency' => 'NZD',
+            'scope_description' => 'Business plan workspace, budget/runway builder, advisor assessment, and revision round.',
+            'is_active' => true,
+            'effective_from' => now()->subMinute(),
+        ]);
+        ServiceRatePackage::query()->create([
+            'service_type' => ServiceRatePackage::SERVICE_ENTREPRENEUR,
+            'package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO,
+            'package_name' => 'Bundle - Idea + Business Plan + Budget',
+            'client_label' => 'Bundle - Idea + Business Plan + Budget',
+            'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+            'fixed_fee' => 4450,
+            'deposit_percent' => 100,
+            'currency' => 'NZD',
+            'scope_description' => 'Platform validation, graded plan, budget/runway and revision.',
+            'is_active' => true,
+            'effective_from' => now()->subMinute(),
+        ]);
+        ServiceRatePackage::query()->create([
+            'service_type' => ServiceRatePackage::SERVICE_ENTREPRENEUR,
+            'package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION,
+            'package_name' => 'Retired Idea Validation Sprint',
+            'client_label' => 'Retired Idea Validation Sprint',
+            'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+            'fixed_fee' => 1000,
+            'deposit_percent' => 100,
+            'currency' => 'NZD',
+            'scope_description' => 'Retired platform idea validation with advisor gate feedback.',
+            'is_active' => false,
+            'effective_from' => now()->subMinute(),
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.create'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('advisor/entrepreneurs/Create')
+                ->has('serviceOptions', 2)
+                ->where('serviceOptions.0.value', ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET)
+                ->where('serviceOptions.0.label', 'Full plan + assessment + runway')
+                ->where('serviceOptions.0.description', 'Business Plan + Budget access. NZD 2,900.00 ex GST. Business plan workspace, budget/runway builder, advisor assessment, and revision round.')
+                ->where('serviceOptions.1.value', ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO)
+                ->where('serviceOptions.1.label', 'Bundle - Idea + Business Plan + Budget')
+            );
+    }
+
     public function test_advisor_must_choose_invite_service_when_creating_entrepreneur(): void
     {
         Mail::fake();

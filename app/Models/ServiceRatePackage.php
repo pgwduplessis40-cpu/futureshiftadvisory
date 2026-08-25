@@ -155,6 +155,61 @@ final class ServiceRatePackage extends Model
     }
 
     /**
+     * Return the entrepreneur invite choices from the currently offered service
+     * packages. This keeps the advisor's invite wording and price context in
+     * step with Service rates while the persisted invite continues to carry the
+     * stable access scope rather than a mutable package record.
+     *
+     * When no entrepreneur packages have been configured yet, retain the
+     * standard access choices so existing workspaces remain inviteable.
+     *
+     * @return array<int, array{value:string,label:string,description:string}>
+     */
+    public static function entrepreneurInviteServiceOptions(): array
+    {
+        $now = now();
+        $packagesByScope = self::query()
+            ->where('service_type', self::SERVICE_ENTREPRENEUR)
+            ->where('is_active', true)
+            ->where('effective_from', '<=', $now)
+            ->where(function ($query) use ($now): void {
+                $query->whereNull('effective_to')
+                    ->orWhere('effective_to', '>', $now);
+            })
+            ->orderByDesc('effective_from')
+            ->get()
+            ->filter(fn (self $package): bool => in_array($package->packageScope(), self::entrepreneurPackageScopes(), true))
+            ->unique(fn (self $package): string => (string) $package->packageScope())
+            ->keyBy(fn (self $package): string => (string) $package->packageScope());
+
+        if ($packagesByScope->isEmpty()) {
+            return self::entrepreneurPackageScopeOptions();
+        }
+
+        return collect(self::entrepreneurPackageScopes())
+            ->map(function (string $scope) use ($packagesByScope): ?array {
+                $package = $packagesByScope->get($scope);
+
+                if (! $package instanceof self) {
+                    return null;
+                }
+
+                return [
+                    'value' => $scope,
+                    'label' => $package->client_label,
+                    'description' => implode(' ', array_filter([
+                        self::packageScopeLabel($scope).' access.',
+                        self::inviteRateSummary($package),
+                        $package->scope_description,
+                    ])),
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
      * @return array<int, array{value:string,label:string,description:string}>
      */
     public static function dueDiligencePackageScopeOptions(): array
@@ -365,6 +420,21 @@ final class ServiceRatePackage extends Model
             'bank_transfer_amount' => $bankTransfer,
             'requires_bank_transfer' => $bankTransfer > 0,
         ];
+    }
+
+    private static function inviteRateSummary(self $package): string
+    {
+        $currency = trim((string) ($package->currency ?: 'NZD'));
+
+        return match ($package->billing_model) {
+            self::BILLING_FIXED_FEE => $package->fixed_fee !== null
+                ? sprintf('%s %s ex GST.', $currency, number_format((float) $package->fixed_fee, 2))
+                : 'Fixed fee confirmed by your advisor.',
+            self::BILLING_HOURLY_RETAINER => $package->hourly_rate !== null
+                ? sprintf('%s %s per hour.', $currency, number_format((float) $package->hourly_rate, 2))
+                : 'Retainer pricing confirmed by your advisor.',
+            default => 'Pricing confirmed by your advisor.',
+        };
     }
 
     /**

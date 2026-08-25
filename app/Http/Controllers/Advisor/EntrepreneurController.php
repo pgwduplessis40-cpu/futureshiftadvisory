@@ -103,7 +103,7 @@ final class EntrepreneurController extends Controller
         return Inertia::render('advisor/entrepreneurs/Create', [
             'capacity' => $this->capacity->summary($this->actor($request)),
             'mode' => 'invite',
-            'serviceOptions' => ServiceRatePackage::entrepreneurPackageScopeOptions(),
+            'serviceOptions' => ServiceRatePackage::entrepreneurInviteServiceOptions(),
         ]);
     }
 
@@ -114,7 +114,7 @@ final class EntrepreneurController extends Controller
         return Inertia::render('advisor/entrepreneurs/Create', [
             'capacity' => $this->capacity->summary($this->actor($request)),
             'mode' => 'manual',
-            'serviceOptions' => ServiceRatePackage::entrepreneurPackageScopeOptions(),
+            'serviceOptions' => ServiceRatePackage::entrepreneurInviteServiceOptions(),
         ]);
     }
 
@@ -395,6 +395,13 @@ final class EntrepreneurController extends Controller
             ->where('source_type', BusinessPlan::SOURCE_ENTREPRENEUR)
             ->sortByDesc('updated_at')
             ->first();
+        $serviceOptions = ServiceRatePackage::entrepreneurInviteServiceOptions();
+        $intendedPackageScope = $this->intendedEntrepreneurScope($entrepreneurProfile);
+        $intendedPackageOption = collect($serviceOptions)
+            ->firstWhere('value', $intendedPackageScope);
+        $intendedPackageLabel = is_array($intendedPackageOption)
+            ? (string) $intendedPackageOption['label']
+            : ServiceRatePackage::packageScopeLabel($intendedPackageScope);
         $activeInvite = $entrepreneurProfile->inviteToken instanceof InviteToken
             && $entrepreneurProfile->inviteToken->isUsable();
 
@@ -417,8 +424,8 @@ final class EntrepreneurController extends Controller
                 'invite_cancel_url' => $this->canCancelInvite($entrepreneurProfile)
                     ? route('advisor.entrepreneurs.invite.cancel', $entrepreneurProfile, absolute: false)
                     : null,
-                'intended_package_scope' => $this->intendedEntrepreneurScope($entrepreneurProfile),
-                'intended_package_scope_label' => ServiceRatePackage::packageScopeLabel($this->intendedEntrepreneurScope($entrepreneurProfile)),
+                'intended_package_scope' => $intendedPackageScope,
+                'intended_package_scope_label' => $intendedPackageLabel,
                 'created_at' => $entrepreneurProfile->created_at?->toIso8601String(),
                 'latest_plan' => $latestPlan instanceof BusinessPlan
                     ? $this->planProgressSummary($latestPlan, $entrepreneurProfile)
@@ -446,7 +453,7 @@ final class EntrepreneurController extends Controller
                     'toggle_url' => route('advisor.entrepreneurs.gamification.update', $entrepreneurProfile, absolute: false),
                 ],
             ],
-            'serviceOptions' => ServiceRatePackage::entrepreneurPackageScopeOptions(),
+            'serviceOptions' => $serviceOptions,
             'screenShare' => $this->screenSharePayload($viewer, $entrepreneurProfile),
             'coBrowse' => $this->coBrowsePayload($viewer, $entrepreneurProfile),
         ]);

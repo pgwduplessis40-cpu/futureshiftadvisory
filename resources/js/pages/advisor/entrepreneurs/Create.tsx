@@ -126,7 +126,7 @@ export default function EntrepreneursCreate({
                             {!isManual && (
                                 <div className="grid gap-2">
                                     <Label htmlFor="intended_package_scope">
-                                        Invite service
+                                        Invite service and access
                                     </Label>
                                     <Select
                                         value={form.data.intended_package_scope}
@@ -141,7 +141,7 @@ export default function EntrepreneursCreate({
                                             id="intended_package_scope"
                                             className="w-full"
                                         >
-                                            <SelectValue placeholder="Select client access" />
+                                            <SelectValue placeholder="Select a service package" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {serviceOptions.map((option) => (

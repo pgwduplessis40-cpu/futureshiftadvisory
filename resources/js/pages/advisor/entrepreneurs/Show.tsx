@@ -1995,7 +1995,7 @@ export default function EntrepreneursShow({
 
                                 <div className="grid gap-2">
                                     <Label htmlFor="invite-package-scope">
-                                        Invite service
+                                        Invite service and access
                                     </Label>
                                     <Select
                                         value={
@@ -2013,7 +2013,7 @@ export default function EntrepreneursShow({
                                             id="invite-package-scope"
                                             className="w-full"
                                         >
-                                            <SelectValue placeholder="Select client access" />
+                                            <SelectValue placeholder="Select a service package" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {serviceOptions.map((option) => (
