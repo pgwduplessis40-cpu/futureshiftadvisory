@@ -63,6 +63,9 @@ jobs:
           composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts
           npm ci
 
+      - name: Install Chrome for Puppeteer
+        run: npx --no-install puppeteer browsers install chrome
+
       - name: Prepare isolated browser environment
         run: |
           cp .env.testing .env
