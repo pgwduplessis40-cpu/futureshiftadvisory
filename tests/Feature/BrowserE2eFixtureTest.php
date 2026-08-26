@@ -10,6 +10,7 @@ use App\Support\RequestContext;
 use Database\Seeders\BrowserE2eSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
+use Laravel\Fortify\Fortify;
 use Tests\TestCase;
 
 final class BrowserE2eFixtureTest extends TestCase
@@ -46,6 +47,22 @@ final class BrowserE2eFixtureTest extends TestCase
         $clientUser = User::query()->where('email', 'browser-e2e-client@example.test')->firstOrFail();
         $npoUser = User::query()->where('email', 'browser-e2e-npo@example.test')->firstOrFail();
         $client = Client::query()->findOrFail('00000000-0000-4000-8000-000000000001');
+
+        self::assertTrue($advisor->hasEnabledTwoFactorAuthentication());
+        self::assertTrue($clientUser->hasEnabledTwoFactorAuthentication());
+        self::assertTrue($npoUser->hasEnabledTwoFactorAuthentication());
+        self::assertSame(
+            'JBSWY3DPEHPK3PXP',
+            Fortify::currentEncrypter()->decrypt($advisor->two_factor_secret),
+        );
+        self::assertSame(
+            ['browser-e2e-recovery-code'],
+            json_decode(
+                Fortify::currentEncrypter()->decrypt($advisor->two_factor_recovery_codes),
+                true,
+                flags: JSON_THROW_ON_ERROR,
+            ),
+        );
 
         $this->actingAsMfa($advisor)
             ->get(route('dashboard'))

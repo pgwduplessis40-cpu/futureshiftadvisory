@@ -13,8 +13,8 @@ use App\Models\NpoBoardMember;
 use App\Models\NpoEngagement;
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
+use Laravel\Fortify\Fortify;
 use LogicException;
 
 /**
@@ -99,6 +99,7 @@ final class BrowserE2eSeeder extends Seeder
         $email = $this->required("E2E_{$prefix}_EMAIL");
         $password = $this->required("E2E_{$prefix}_PASSWORD");
         $totpSecret = $this->required("E2E_{$prefix}_MFA_SECRET");
+        $encrypter = Fortify::currentEncrypter();
 
         $user = User::query()->firstOrNew(['email' => $email]);
         $user->forceFill([
@@ -108,7 +109,13 @@ final class BrowserE2eSeeder extends Seeder
             'password' => Hash::make($password),
             'user_type' => $type,
             'primary_role' => $type,
-            'two_factor_secret' => Crypt::encryptString($totpSecret),
+            // Fortify decrypts these with serialized encryption. Do not use
+            // encryptString(), whose string-only payload cannot be verified
+            // by the two-factor login pipeline.
+            'two_factor_secret' => $encrypter->encrypt($totpSecret),
+            'two_factor_recovery_codes' => $encrypter->encrypt(json_encode([
+                'browser-e2e-recovery-code',
+            ], JSON_THROW_ON_ERROR)),
             'two_factor_confirmed_at' => now(),
             'mfa_enabled_at' => now(),
             'mfa_method' => User::MFA_METHOD_TOTP,
