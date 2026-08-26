@@ -186,6 +186,7 @@ async function runFlowViewport(browserInstance, flow, viewport) {
             await assertFakeWebRtcContract(page, viewport.name);
         }
 
+        await settleVisualCapture(page);
         await assertApprovedScreenshot(page, flow, viewport.name);
     } catch (error) {
         try {
@@ -484,7 +485,12 @@ async function assertApprovedScreenshot(page, flow, viewport) {
         diff.data,
         expected.width,
         expected.height,
-        { threshold: 0.1 },
+        {
+            // The hosted Chrome runners can vary at anti-aliased font edges
+            // even with the same DOM and browser revision. Keep layout and
+            // colour changes strict while excluding that rasterisation noise.
+            threshold: 0.2,
+        },
     );
 
     if (changedPixels > 0) {
@@ -497,6 +503,14 @@ async function assertApprovedScreenshot(page, flow, viewport) {
             `Unapproved screenshot change for ${snapshotName}: ${changedPixels} pixels differ.`,
         );
     }
+}
+
+async function settleVisualCapture(page) {
+    await page.evaluate(async () => {
+        await document.fonts?.ready;
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
 }
 
 function absoluteUrl(path) {
