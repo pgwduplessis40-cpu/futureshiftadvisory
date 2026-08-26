@@ -8592,7 +8592,7 @@ parameters:
 			count: 1
 			path: app/Services/Wellbeing/WellbeingTrendAnalytics.php
 
--
+		-
 			message: '#^Method App\\Http\\Controllers\\Admin\\AuditTrailController\:\:applyFilters\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
 			identifier: missingType.generics
 			count: 1
