@@ -63,9 +63,10 @@ void createInertiaApp({
             </AppErrorBoundary>
         );
     },
-    progress: {
-        color: '#4B5563',
-    },
+    // Inertia's bundled progress template renders the invalid ARIA role
+    // `bar`. Keep navigation accessible until the upstream template exposes
+    // an accessible customization point.
+    progress: false,
 }).then(() => {
     if (typeof document !== 'undefined') {
         document.getElementById('app-launch-skeleton')?.remove();

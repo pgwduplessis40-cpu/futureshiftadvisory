@@ -1,7 +1,6 @@
 /* global process */
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 
 const comparisonRef = process.argv[2] ?? 'HEAD';
 
@@ -9,32 +8,51 @@ if (!/^[A-Za-z0-9._/-]+$/.test(comparisonRef)) {
     throw new Error(`Unsafe comparison revision ${comparisonRef}.`);
 }
 
-const changed = execFileSync(
+const patch = execFileSync(
     'git',
-    ['diff', '--name-only', comparisonRef, '--', 'resources/js'],
+    ['diff', '--unified=0', comparisonRef, '--', 'resources/js'],
     { encoding: 'utf8' },
-)
-    .split(/\r?\n/)
-    .filter((path) => /\.(?:tsx?|jsx?)$/.test(path));
+);
 
-for (const path of changed) {
-    const source = readFileSync(path, 'utf8');
-    const checkboxUses = source.match(/<(?:Checkbox|input)\b[\s\S]{0,600}?(?:\/>|>)/g) ?? [];
+for (const filePatch of patch.split(/^diff --git /m)) {
+    const path = filePatch.match(/^a\/(resources\/js\/[^\s]+) b\//m)?.[1];
 
-    for (const use of checkboxUses) {
-        const isCheckbox = /<Checkbox\b/.test(use) || /type=["']checkbox["']/.test(use);
+    if (!path || !/\.(?:tsx?|jsx?)$/.test(path)) {
+        continue;
+    }
 
-        if (!isCheckbox) {
-            continue;
-        }
+    for (const hunk of filePatch.split(/^@@ .* @@$/m).slice(1)) {
+        const additions = hunk
+            .split(/\r?\n/)
+            .filter((line) => line.startsWith('+') && !line.startsWith('+++'))
+            .map((line) => line.slice(1))
+            .join('\n');
+        const checkboxUses =
+            additions.match(/<(?:Checkbox|input)\b[\s\S]{0,600}?(?:\/>|>)/g) ??
+            [];
 
-        const hasName = /\bname=/.test(use);
-        const hasAccessibleName = /aria-label=|aria-labelledby=|<Label\b/.test(source);
+        for (const use of checkboxUses) {
+            const isCheckbox =
+                /<Checkbox\b/.test(use) || /type=["']checkbox["']/.test(use);
 
-        if (!hasName || !hasAccessibleName) {
-            throw new Error(`${path} adds a checkbox without the required name and accessible label contract.`);
+            if (!isCheckbox) {
+                continue;
+            }
+
+            const hasName = /\bname=/.test(use);
+            const hasAccessibleName =
+                /aria-label=|aria-labelledby=/.test(use) ||
+                /<Label\b[^>]*htmlFor=|<label\b[^>]*htmlFor=/.test(additions);
+
+            if (!hasName || !hasAccessibleName) {
+                throw new Error(
+                    `${path} adds a checkbox without the required name and accessible label contract.`,
+                );
+            }
         }
     }
 }
 
-console.log('New checkbox controls satisfy the name and accessible-label contract.');
+console.log(
+    'New checkbox controls satisfy the name and accessible-label contract.',
+);
