@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
 import axe from 'axe-core';
-import { authenticator } from 'otplib';
+import { generateSync } from 'otplib';
 import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 import puppeteer from 'puppeteer';
@@ -215,7 +215,7 @@ async function login(page, account, viewport) {
         await assertKeyboardFocus(page, { name: 'MFA challenge' }, viewport);
         await page
             .locator('input[name="code"]')
-            .fill(authenticator.generate(account.mfaSecret));
+            .fill(generateSync({ secret: account.mfaSecret }));
         await page.locator('button[type="submit"]').click();
         await page.waitForFunction(
             () => !window.location.pathname.includes('/mfa/challenge'),
