@@ -1,6 +1,7 @@
 name: browser-e2e
 
 on:
+  workflow_dispatch:
   push:
     branches: [develop, main, master, workos, featureApp]
   pull_request:
