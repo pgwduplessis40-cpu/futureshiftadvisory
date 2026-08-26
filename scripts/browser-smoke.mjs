@@ -364,7 +364,9 @@ async function assertAccessibility(page, flow, viewport) {
         return {
             violations: axeResult.violations.map((violation) => ({
                 id: violation.id,
-                nodes: violation.nodes.length,
+                targets: violation.nodes
+                    .slice(0, 3)
+                    .map((node) => node.target.join(' ')),
             })),
             missingAlt: Array.from(document.images)
                 .filter((image) => !image.hasAttribute('alt'))
@@ -376,7 +378,7 @@ async function assertAccessibility(page, flow, viewport) {
 
     if (result.violations.length > 0) {
         throw new Error(
-            `${flow.name} has axe violations on ${viewport}: ${result.violations.map((item) => `${item.id} (${item.nodes})`).join(', ')}.`,
+            `${flow.name} has axe violations on ${viewport}: ${result.violations.map((item) => `${item.id} (${item.targets.join('; ')})`).join(', ')}.`,
         );
     }
 
