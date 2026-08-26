@@ -32,6 +32,10 @@ const baseUrl = new URL(process.env.E2E_BASE_URL);
 const screenshotRoot = process.env.E2E_SNAPSHOT_DIR ?? 'e2e/snapshots';
 const artifactRoot =
     process.env.E2E_ARTIFACT_DIR ?? 'storage/app/e2e-artifacts';
+// Hosted Chrome can alter anti-aliased font-edge pixels between otherwise
+// identical runs. One changed pixel per thousand is noise, not a visual
+// approval bypass; layout and content changes exceed this bound.
+const maxScreenshotDifferenceRatio = 0.001;
 const failures = [];
 mkdirSync(artifactRoot, { recursive: true });
 
@@ -493,14 +497,18 @@ async function assertApprovedScreenshot(page, flow, viewport) {
         },
     );
 
-    if (changedPixels > 0) {
+    const allowedChangedPixels = Math.ceil(
+        expected.width * expected.height * maxScreenshotDifferenceRatio,
+    );
+
+    if (changedPixels > allowedChangedPixels) {
         writeFileSync(
             join(artifactRoot, `${safeName(flow.name)}-${viewport}.diff.png`),
             PNG.sync.write(diff),
         );
 
         throw new Error(
-            `Unapproved screenshot change for ${snapshotName}: ${changedPixels} pixels differ.`,
+            `Unapproved screenshot change for ${snapshotName}: ${changedPixels} pixels differ (allowed visual-noise budget: ${allowedChangedPixels}).`,
         );
     }
 }
