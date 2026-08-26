@@ -885,7 +885,11 @@ export function AppSidebar() {
     };
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
+        <Sidebar
+            aria-label="Primary application navigation"
+            collapsible="icon"
+            variant="inset"
+        >
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>

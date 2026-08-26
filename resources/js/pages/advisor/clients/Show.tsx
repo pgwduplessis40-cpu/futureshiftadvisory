@@ -7490,10 +7490,7 @@ function AnalysisReadinessIndicator({
     return (
         <Tooltip>
             <TooltipTrigger asChild>
-                <span
-                    className="inline-flex h-8 items-center gap-2 rounded-md border px-2 text-sm"
-                    aria-label={`Analysis readiness: ${readiness.label}`}
-                >
+                <span className="inline-flex h-8 items-center gap-2 rounded-md border px-2 text-sm">
                     <span
                         className="grid gap-0.5 rounded-full bg-muted p-1"
                         aria-hidden="true"
@@ -7523,7 +7520,9 @@ function AnalysisReadinessIndicator({
                             )}
                         />
                     </span>
-                    <span className="hidden lg:inline">{readiness.label}</span>
+                    <span className="sr-only lg:not-sr-only">
+                        Analysis readiness: {readiness.label}
+                    </span>
                 </span>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-xs">

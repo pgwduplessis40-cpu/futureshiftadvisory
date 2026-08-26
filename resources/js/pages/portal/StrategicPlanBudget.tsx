@@ -477,7 +477,7 @@ export default function StrategicPlanBudget({
         <>
             <Head title={budget.label} />
 
-            <main className="flex-1 space-y-6">
+            <div className="flex-1 space-y-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">
@@ -933,7 +933,7 @@ export default function StrategicPlanBudget({
                         ) : null}
                     </div>
                 )}
-            </main>
+            </div>
         </>
     );
 }
@@ -1109,9 +1109,9 @@ function BusinessPlanEditor({
                     >
                         <div className="space-y-2 rounded-md border bg-background p-3">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                                <h3 className="text-sm font-medium">
+                                <h2 className="text-sm font-medium">
                                     Source draft
-                                </h3>
+                                </h2>
                                 {sourceDraft?.source_url ? (
                                     <Tooltip>
                                         <TooltipTrigger asChild>

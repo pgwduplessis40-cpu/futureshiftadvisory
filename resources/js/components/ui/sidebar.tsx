@@ -154,7 +154,7 @@ function Sidebar({
   className,
   children,
   ...props
-}: React.ComponentProps<"div"> & {
+}: React.ComponentProps<"aside"> & {
   side?: "left" | "right"
   variant?: "sidebar" | "floating" | "inset"
   collapsible?: "offcanvas" | "icon" | "none"
@@ -163,7 +163,7 @@ function Sidebar({
 
   if (collapsible === "none") {
     return (
-      <div
+      <aside
         data-slot="sidebar"
         className={cn(
           "bg-sidebar text-sidebar-foreground flex h-full w-(--sidebar-width) flex-col",
@@ -172,13 +172,13 @@ function Sidebar({
         {...props}
       >
         {children}
-      </div>
+      </aside>
     )
   }
 
   if (isMobile) {
     return (
-      <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+      <Sheet open={openMobile} onOpenChange={setOpenMobile}>
         <SheetHeader className="sr-only">
           <SheetTitle>Sidebar</SheetTitle>
           <SheetDescription>Displays the mobile sidebar.</SheetDescription>
@@ -195,20 +195,26 @@ function Sidebar({
           }
           side={side}
         >
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <aside
+            className={cn("flex h-full w-full flex-col", className)}
+            {...props}
+          >
+            {children}
+          </aside>
         </SheetContent>
       </Sheet>
     )
   }
 
   return (
-    <div
+    <aside
       className="group peer text-sidebar-foreground hidden md:block"
       data-state={state}
       data-collapsible={state === "collapsed" ? collapsible : ""}
       data-variant={variant}
       data-side={side}
       data-slot="sidebar"
+      {...props}
     >
       {/* This is what handles the sidebar gap on desktop */}
       <div
@@ -233,7 +239,6 @@ function Sidebar({
             : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
           className
         )}
-        {...props}
       >
         <div
           data-sidebar="sidebar"
@@ -242,7 +247,7 @@ function Sidebar({
           {children}
         </div>
       </div>
-    </div>
+    </aside>
   )
 }
 
