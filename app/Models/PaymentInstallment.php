@@ -27,7 +27,26 @@ final class PaymentInstallment extends Model
 
     public const STATUS_FAILED = 'failed';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'client_id',
+        'payment_schedule_id',
+        'active_payment_id',
+        'sequence',
+        'due_date',
+        'base_amount',
+        'credit_applied',
+        'net_amount',
+        'currency',
+        'status',
+        'attempt_count',
+        'next_attempt_at',
+        'processing_started_at',
+        'next_confirmation_at',
+        'confirmation_deadline',
+        'failure_reason',
+        'settled_at',
+    ];
 
     protected $casts = [
         'due_date' => 'date',

@@ -26,6 +26,14 @@ const paddingAroundControl = [
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
+    {
+        ignores: [
+            'storage/**',
+            'bootstrap/cache/**',
+            '.cache/**',
+            'coverage/**',
+        ],
+    },
     js.configs.recommended,
     reactHooks.configs.flat['recommended-latest'],
     ...typescript.configs.recommended,
@@ -112,7 +120,6 @@ export default [
             'public',
             'bootstrap/ssr',
             'tailwind.config.js',
-            'vite.config.ts',
             'resources/js/actions/**',
             'resources/js/components/ui/*',
             'resources/js/routes/**',

@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "source_revision": "90373665eeddb73ed89c7906389cd1196e795b88",
+  "previous_findings": 1628,
+  "removed_stale_suppressions": 4,
+  "legacy_level6_findings": 215,
+  "expected_findings": 1839,
+  "baseline_sha256": "082980a51eb7ae6f01da9804497896695156c53a797723a927b5811db89f13d6"
+}

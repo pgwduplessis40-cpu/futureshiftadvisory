@@ -26,7 +26,15 @@ final class ProposalSignoffStep extends Model
 
     public const STEP_CONFIRMATION = 'confirmation';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'proposal_id',
+        'client_id',
+        'step',
+        'completed_by_user_id',
+        'completed_at',
+        'payload',
+    ];
 
     protected $casts = [
         'payload' => 'array',

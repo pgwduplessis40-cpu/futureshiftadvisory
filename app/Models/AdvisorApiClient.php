@@ -24,7 +24,19 @@ final class AdvisorApiClient extends Model
 
     public const SCOPE_WRITE_ACTIONS = 'actions:write';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'advisor_user_id',
+        'name',
+        'token_hash',
+        'scopes',
+        'status',
+        'rate_limit_per_minute',
+        'approved_by_user_id',
+        'approved_at',
+        'last_used_at',
+        'revoked_at',
+    ];
 
     protected $casts = [
         'scopes' => 'array',

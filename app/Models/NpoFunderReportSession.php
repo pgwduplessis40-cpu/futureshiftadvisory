@@ -14,7 +14,14 @@ final class NpoFunderReportSession extends Model
 
     public $timestamps = false;
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'client_id',
+        'npo_funder_report_link_id',
+        'report_id',
+        'accessed_at',
+        'metadata',
+    ];
 
     protected $casts = [
         'accessed_at' => 'datetime',

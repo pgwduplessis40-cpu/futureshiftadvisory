@@ -16,7 +16,18 @@ final class ReportSectionComment extends Model
 
     public const VISIBILITY_CLIENT_VISIBLE = 'client_visible';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'report_id',
+        'report_section_id',
+        'client_id',
+        'entrepreneur_profile_id',
+        'visibility',
+        'body',
+        'created_by_user_id',
+        'resolved_at',
+        'resolved_by_user_id',
+    ];
 
     protected $casts = [
         'resolved_at' => 'datetime',

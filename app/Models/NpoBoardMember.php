@@ -12,7 +12,17 @@ final class NpoBoardMember extends Model
 {
     use HasUuids;
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'client_id',
+        'npo_engagement_id',
+        'user_id',
+        'treasurer',
+        'active',
+        'revoked_at',
+        'created_by_user_id',
+        'revoked_by_user_id',
+    ];
 
     protected $casts = [
         'treasurer' => 'boolean',

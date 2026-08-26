@@ -277,18 +277,6 @@ parameters:
 			path: app/Http/Controllers/Advisor/CalendarController.php
 
 		-
-			message: '#^Instanceof between App\\Enums\\ClientStatus and App\\Enums\\ClientStatus will always evaluate to true\.$#'
-			identifier: instanceof.alwaysTrue
-			count: 2
-			path: app/Http/Controllers/Advisor/ClientController.php
-
-		-
-			message: '#^Instanceof between App\\Enums\\EngagementType and App\\Enums\\EngagementType will always evaluate to true\.$#'
-			identifier: instanceof.alwaysTrue
-			count: 2
-			path: app/Http/Controllers/Advisor/ClientController.php
-
-		-
 			message: '#^Using nullsafe method call on non\-nullable type Carbon\\CarbonImmutable\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 4
@@ -8603,3 +8591,1095 @@ parameters:
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Services/Wellbeing/WellbeingTrendAnalytics.php
+
+-
+			message: '#^Method App\\Http\\Controllers\\Admin\\AuditTrailController\:\:applyFilters\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Http/Controllers/Admin/AuditTrailController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Admin\\AuditTrailController\:\:applyFilters\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Http/Controllers/Admin/AuditTrailController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Admin\\AuditTrailController\:\:applyLikeAny\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Http/Controllers/Admin/AuditTrailController.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Http/Controllers/Admin/IntegrationHealthController.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Http/Controllers/Admin/IntegrationHealthController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Admin\\OperationalHealthController\:\:applyFilters\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Http/Controllers/Admin/OperationalHealthController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Admin\\OperationalHealthController\:\:applyFilters\(\) return type with generic class Illuminate\\Database\\Eloquent\\Builder does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Http/Controllers/Admin/OperationalHealthController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Admin\\OperationalHealthController\:\:applyLikeAny\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Http/Controllers/Admin/OperationalHealthController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Admin\\QuestionnaireController\:\:remapConditionalLogic\(\) has parameter \$logic with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/Admin/QuestionnaireController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Admin\\QuestionnaireController\:\:remapConditionalLogic\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/Admin/QuestionnaireController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Admin\\ServiceRateController\:\:validatedIntegrationFeeBand\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/Admin/ServiceRateController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Advisor\\ClientController\:\:createPayload\(\) has parameter \$input with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/Advisor/ClientController.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 2
+			path: app/Http/Controllers/Advisor/EntrepreneurAssessmentController.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 2
+			path: app/Http/Controllers/Advisor/EntrepreneurAssessmentController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Advisor\\EntrepreneurController\:\:findingContext\(\) has parameter \$finding with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/Advisor/EntrepreneurController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Advisor\\EntrepreneurController\:\:founderActionForFinding\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/Advisor/EntrepreneurController.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 3
+			path: app/Http/Controllers/Advisor/EntrepreneurController.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 3
+			path: app/Http/Controllers/Advisor/EntrepreneurController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Advisor\\PartnerPanelController\:\:activeReferrals\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Http/Controllers/Advisor/PartnerPanelController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Advisor\\PartnerPanelController\:\:latestAgreement\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/Advisor/PartnerPanelController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Advisor\\PartnerPanelController\:\:referralSummary\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/Advisor/PartnerPanelController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\CalendarController\:\:addEvent\(\) has parameter \$event with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/CalendarController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\MobileApi\\ClientController\:\:index\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/MobileApi/ClientController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\MobileApi\\ClientController\:\:show\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/MobileApi/ClientController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\MobileApi\\MeController\:\:index\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/MobileApi/MeController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\MobileApi\\VoiceSessionController\:\:store\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/MobileApi/VoiceSessionController.php
+
+		-
+			message: '#^Unable to resolve the template type TFlatMapKey in call to method Illuminate\\Support\\Collection\<\(int\|string\),mixed\>\:\:flatMap\(\)$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Http/Controllers/Portal/DashboardController.php
+
+		-
+			message: '#^Unable to resolve the template type TFlatMapValue in call to method Illuminate\\Support\\Collection\<\(int\|string\),mixed\>\:\:flatMap\(\)$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Http/Controllers/Portal/DashboardController.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Http/Controllers/Portal/DashboardController.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Http/Controllers/Portal/DashboardController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Portal\\DdBusinessPlanController\:\:businessAdvicePayload\(\) has parameter \$readiness with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/Portal/DdBusinessPlanController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Portal\\DdBusinessPlanController\:\:previewAdditionalSectionHtml\(\) has parameter \$section with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/Portal/DdBusinessPlanController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Portal\\DdBusinessPlanController\:\:previewRequirementHtml\(\) has parameter \$requirement with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/Portal/DdBusinessPlanController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Portal\\DdBusinessPlanController\:\:previewRequirementHtml\(\) has parameter \$sections with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Http/Controllers/Portal/DdBusinessPlanController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\Portal\\DdBusinessPlanController\:\:previewSectionContentHtml\(\) has parameter \$section with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/Portal/DdBusinessPlanController.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 3
+			path: app/Http/Controllers/Portal/DdBusinessPlanController.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 3
+			path: app/Http/Controllers/Portal/DdBusinessPlanController.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 2
+			path: app/Http/Controllers/Portal/EntrepreneurAssessmentController.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 2
+			path: app/Http/Controllers/Portal/EntrepreneurAssessmentController.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 2
+			path: app/Http/Controllers/Portal/EntrepreneurDashboardController.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 2
+			path: app/Http/Controllers/Portal/EntrepreneurDashboardController.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Http/Controllers/Portal/ServiceActivationController.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Http/Controllers/Portal/ServiceActivationController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\StaffDashboardController\:\:clientSummary\(\) has parameter \$cashFlow with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/StaffDashboardController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\StaffDashboardController\:\:clientSummary\(\) has parameter \$engagement with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/StaffDashboardController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\StaffDashboardController\:\:clientsHealth\(\) has parameter \$cashFlowByClient with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/StaffDashboardController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\StaffDashboardController\:\:economicIndicators\(\) has parameter \$clientIds with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Http/Controllers/StaffDashboardController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\StaffDashboardController\:\:previousExchangeRates\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/StaffDashboardController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\StaffDashboardController\:\:previousExchangeRates\(\) has parameter \$exchangeRates with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Http/Controllers/StaffDashboardController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\StaffDashboardController\:\:previousIndicators\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Http/Controllers/StaffDashboardController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\StaffDashboardController\:\:previousIndicators\(\) has parameter \$indicators with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Http/Controllers/StaffDashboardController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\StaffDashboardController\:\:visibleEntrepreneurQuery\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Http/Controllers/StaffDashboardController.php
+
+		-
+			message: '#^Method App\\Models\\QuoteSourceExtraction\:\:scopeable\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\MorphTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/QuoteSourceExtraction.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Services/Ai/Integrity/BiasCalibration.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Services/Ai/Integrity/BiasCalibration.php
+
+		-
+			message: '#^Method App\\Services\\Analysis\\Modules\\FinancialAnalysis\:\:fallbackFindings\(\) has parameter \$attributions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Analysis/Modules/FinancialAnalysis.php
+
+		-
+			message: '#^Method App\\Services\\Analysis\\Modules\\FinancialAnalysis\:\:riskSeverity\(\) has parameter \$metrics with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Analysis/Modules/FinancialAnalysis.php
+
+		-
+			message: '#^Method App\\Services\\Analysis\\SuccessionPlanner\:\:targetExitPv\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Services/Analysis/SuccessionPlanner.php
+
+		-
+			message: '#^Method App\\Services\\Analytics\\FunnelTracker\:\:events\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Services/Analytics/FunnelTracker.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Services/Analytics/FunnelTracker.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Services/Analytics/FunnelTracker.php
+
+		-
+			message: '#^Method App\\Services\\Audit\\AuditWriter\:\:recordRead\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Audit/AuditWriter.php
+
+		-
+			message: '#^Method App\\Services\\Calendar\\PublicHolidayCalendar\:\:eventsBetween\(\) has parameter \$regions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Calendar/PublicHolidayCalendar.php
+
+		-
+			message: '#^Method App\\Services\\Calendar\\PublicHolidayCalendar\:\:holidayOn\(\) has parameter \$regions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Calendar/PublicHolidayCalendar.php
+
+		-
+			message: '#^Method App\\Services\\Calendar\\PublicHolidayCalendar\:\:holidayOn\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Calendar/PublicHolidayCalendar.php
+
+		-
+			message: '#^Method App\\Services\\Calendar\\PublicHolidayCalendar\:\:isPublicHoliday\(\) has parameter \$regions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Calendar/PublicHolidayCalendar.php
+
+		-
+			message: '#^Method App\\Services\\Calendar\\PublicHolidayCalendar\:\:nextAvailableDate\(\) has parameter \$regions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Calendar/PublicHolidayCalendar.php
+
+		-
+			message: '#^Method App\\Services\\Calendar\\PublicHolidayCalendar\:\:regionalEvents\(\) has parameter \$regions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Calendar/PublicHolidayCalendar.php
+
+		-
+			message: '#^Method App\\Services\\Calendar\\PublicHolidayCalendar\:\:regionalGroups\(\) has parameter \$regions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Calendar/PublicHolidayCalendar.php
+
+		-
+			message: '#^Method App\\Services\\Calendar\\PublicHolidayCalendar\:\:validationMessage\(\) has parameter \$holiday with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Calendar/PublicHolidayCalendar.php
+
+		-
+			message: '#^Instanceof between App\\Enums\\ClientStatus and App\\Enums\\ClientStatus will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 2
+			path: app/Services/Clients/AdvisorClientPayloadBuilder.php
+
+		-
+			message: '#^Instanceof between App\\Enums\\EngagementType and App\\Enums\\EngagementType will always evaluate to true\.$#'
+			identifier: instanceof.alwaysTrue
+			count: 1
+			path: app/Services/Clients/AdvisorClientPayloadBuilder.php
+
+		-
+			message: '#^Method App\\Services\\Clients\\AdvisorTeamManager\:\:assignClient\(\) has parameter \$grantedModules with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Clients/AdvisorTeamManager.php
+
+		-
+			message: '#^Method App\\Services\\CoBrowse\\CoBrowseSessions\:\:assertActionPayload\(\) has parameter \$payload with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/CoBrowse/CoBrowseSessions.php
+
+		-
+			message: '#^Method App\\Services\\CoBrowse\\CoBrowseSessions\:\:request\(\) has parameter \$connections with generic class Illuminate\\Database\\Eloquent\\Collection but does not specify its types\: TKey, TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Services/CoBrowse/CoBrowseSessions.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 3
+			path: app/Services/CoBrowse/CoBrowseSessions.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 3
+			path: app/Services/CoBrowse/CoBrowseSessions.php
+
+		-
+			message: '#^Method App\\Services\\Dashboards\\BusinessHealthRadarBuilder\:\:emptyModuleStates\(\) has parameter \$modules with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Dashboards/BusinessHealthRadarBuilder.php
+
+		-
+			message: '#^Method App\\Services\\Dashboards\\BusinessHealthRadarBuilder\:\:moduleStateName\(\) has parameter \$clientSafeFindings with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Services/Dashboards/BusinessHealthRadarBuilder.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Services/Dashboards/BusinessHealthRadarBuilder.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Services/Dashboards/BusinessHealthRadarBuilder.php
+
+		-
+			message: '#^Method App\\Services\\Dashboards\\CashFlowStatusMonitor\:\:clients\(\) return type with generic class Illuminate\\Database\\Eloquent\\Collection does not specify its types\: TKey, TModel$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Services/Dashboards/CashFlowStatusMonitor.php
+
+		-
+			message: '#^Method App\\Services\\Dd\\AcquisitionPlanRequirements\:\:sectionForRequirement\(\) has parameter \$requirement with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Dd/AcquisitionPlanRequirements.php
+
+		-
+			message: '#^Method App\\Services\\Dd\\AcquisitionPlanRequirements\:\:sectionForRequirement\(\) has parameter \$sections with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/Services/Dd/AcquisitionPlanRequirements.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\Assessment\:\:saveAdvisorFeedback\(\) has parameter \$feedbackSnapshot with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/Assessment.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\Assessment\:\:scoreCriterion\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/Assessment.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\AssessmentFeedback\:\:movementLine\(\) has parameter \$priority with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/AssessmentFeedback.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\AssessmentFeedback\:\:sourceEvidenceLine\(\) has parameter \$priority with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/AssessmentFeedback.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\AssessmentScoring\:\:scoresByCriterion\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/Services/Entrepreneurs/AssessmentScoring.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\BudgetCalculator\:\:cashCollectedForMonth\(\) has parameter \$assumptions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/BudgetCalculator.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\BudgetCalculator\:\:fixedCostsForMonth\(\) has parameter \$assumptions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/BudgetCalculator.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\BudgetCalculator\:\:loanPaymentForMonth\(\) has parameter \$loan with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/BudgetCalculator.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\BudgetCalculator\:\:revenueForMonth\(\) has parameter \$assumptions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/BudgetCalculator.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\BudgetCalculator\:\:variableCostsForMonth\(\) has parameter \$assumptions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/BudgetCalculator.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\BudgetCalculator\:\:variableCostsPaidForMonth\(\) has parameter \$assumptions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/BudgetCalculator.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\BusinessPlanPreviewRenderer\:\:fallbackPdf\(\) has parameter \$documentMeta with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/BusinessPlanPreviewRenderer.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\BusinessPlanPreviewRenderer\:\:html\(\) has parameter \$documentMeta with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/BusinessPlanPreviewRenderer.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 3
+			path: app/Services/Entrepreneurs/BusinessPlanPreviewRenderer.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 3
+			path: app/Services/Entrepreneurs/BusinessPlanPreviewRenderer.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\EntrepreneurBudgetService\:\:flags\(\) has parameter \$confidence with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/EntrepreneurBudgetService.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\EntrepreneurBudgetService\:\:flags\(\) has parameter \$monthlyFixedCosts with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/EntrepreneurBudgetService.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\EntrepreneurBudgetService\:\:flags\(\) has parameter \$revenueForecast with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/EntrepreneurBudgetService.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\EntrepreneurBudgetService\:\:status\(\) has parameter \$fundingScenarios with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/EntrepreneurBudgetService.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\EntrepreneurBudgetService\:\:status\(\) has parameter \$futureCosts with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/EntrepreneurBudgetService.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\EntrepreneurBudgetService\:\:status\(\) has parameter \$missingAssumptions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/EntrepreneurBudgetService.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\EntrepreneurDocumentTemplate\:\:for\(\) has parameter \$titleKeywords with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/EntrepreneurDocumentTemplate.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\EntrepreneurGamification\:\:nextMilestone\(\) has parameter \$awards with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Services/Entrepreneurs/EntrepreneurGamification.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\EntrepreneurMilestones\:\:labels\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/EntrepreneurMilestones.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\EntrepreneurMilestones\:\:scoresByCriterion\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Services/Entrepreneurs/EntrepreneurMilestones.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\Guidance\:\:fallbackRequirementDraft\(\) has parameter \$ideaValidation with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/Guidance.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\IdeaValidationService\:\:viabilityAlerts\(\) has parameter \$evidenceLoop with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/IdeaValidationService.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 4
+			path: app/Services/Entrepreneurs/PlanAiContext.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 4
+			path: app/Services/Entrepreneurs/PlanAiContext.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\PlanBuilder\:\:upsertSection\(\) has parameter \$attachedDocumentIds with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/PlanBuilder.php
+
+		-
+			message: '#^Method App\\Services\\Entrepreneurs\\PlanBuilder\:\:upsertSection\(\) has parameter \$metadata with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Entrepreneurs/PlanBuilder.php
+
+		-
+			message: '#^Method App\\Services\\Goals\\GoalTracker\:\:remeasureDueGoals\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Goals/GoalTracker.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 2
+			path: app/Services/Goals/GoalTracker.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 2
+			path: app/Services/Goals/GoalTracker.php
+
+		-
+			message: '#^Method App\\Services\\Integration\\CharitiesServices\\FakeCharitiesServicesClient\:\:fallbackCharityProfile\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Integration/CharitiesServices/FakeCharitiesServicesClient.php
+
+		-
+			message: '#^Method App\\Services\\Integration\\CompaniesOffice\\FakeCompaniesOfficeClient\:\:fallbackCompanyProfile\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Integration/CompaniesOffice/FakeCompaniesOfficeClient.php
+
+		-
+			message: '#^Method App\\Services\\Integration\\CompaniesOffice\\FakeCompaniesOfficeClient\:\:fallbackIncorporatedSocietyProfile\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Integration/CompaniesOffice/FakeCompaniesOfficeClient.php
+
+		-
+			message: '#^Method App\\Services\\Integration\\Ird\\FakeIrdClient\:\:fallbackGstStatus\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Integration/Ird/FakeIrdClient.php
+
+		-
+			message: '#^Method App\\Services\\Integration\\Rbnz\\LiveRbnzClient\:\:withTransportMeta\(\) has parameter \$payload with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Integration/Rbnz/LiveRbnzClient.php
+
+		-
+			message: '#^Method App\\Services\\Integration\\Resilience\\ResilientHttp\:\:request\(\) has parameter \$acceptableStatusCodes with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Integration/Resilience/ResilientHttp.php
+
+		-
+			message: '#^Method App\\Services\\Integrations\\IntegrationScopeCalculator\:\:feeRange\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Integrations/IntegrationScopeCalculator.php
+
+		-
+			message: '#^Method App\\Services\\Integrations\\IntegrationScopeCalculator\:\:hasOauth\(\) has parameter \$to with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Integrations/IntegrationScopeCalculator.php
+
+		-
+			message: '#^Method App\\Services\\Integrations\\IntegrationScopeCalculator\:\:hosting\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Integrations/IntegrationScopeCalculator.php
+
+		-
+			message: '#^Method App\\Services\\Integrations\\IntegrationScopeCalculator\:\:systemForReference\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Integrations/IntegrationScopeCalculator.php
+
+		-
+			message: '#^Method App\\Services\\Integrations\\IntegrationScopeCalculator\:\:systemsByReference\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Integrations/IntegrationScopeCalculator.php
+
+		-
+			message: '#^Method App\\Services\\Integrations\\IntegrationScopeCalculator\:\:worstApiQuality\(\) has parameter \$to with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Integrations/IntegrationScopeCalculator.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Services/Integrations/IntegrationScopeService.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Services/Integrations/IntegrationScopeService.php
+
+		-
+			message: '#^Method App\\Services\\Learning\\LayerCadenceRegistry\:\:layer\(\) has parameter \$metadata with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Learning/LayerCadenceRegistry.php
+
+		-
+			message: '#^Method App\\Services\\Learning\\LearningCapabilityProfile\:\:businessValue\(\) has parameter \$capabilities with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Learning/LearningCapabilityProfile.php
+
+		-
+			message: '#^Method App\\Services\\Learning\\LearningCapabilityProfile\:\:normaliseCapabilities\(\) has parameter \$values with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Learning/LearningCapabilityProfile.php
+
+		-
+			message: '#^Method App\\Services\\Learning\\LearningCapabilityProfile\:\:normaliseList\(\) has parameter \$values with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Learning/LearningCapabilityProfile.php
+
+		-
+			message: '#^Method App\\Services\\Learning\\LearningCapabilityProfile\:\:reviewFocus\(\) has parameter \$capabilities with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Learning/LearningCapabilityProfile.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Services/Learning/LearningUpdatePlainEnglishSummary.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Services/Learning/LearningUpdatePlainEnglishSummary.php
+
+		-
+			message: '#^Method App\\Services\\Npo\\NpoComplianceLookup\:\:raiseIsa2022Alert\(\) has parameter \$incorporatedSociety with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Npo/NpoComplianceLookup.php
+
+		-
+			message: '#^Method App\\Services\\Npo\\NpoComplianceLookup\:\:syncIsa2022Status\(\) has parameter \$incorporatedSociety with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Npo/NpoComplianceLookup.php
+
+		-
+			message: '#^Method App\\Services\\Npo\\NpoFunderMonitor\:\:concentration\(\) has parameter \$records with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Services/Npo/NpoFunderMonitor.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Services/Npo/NpoHealthScorer.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Services/Npo/NpoHealthScorer.php
+
+		-
+			message: '#^Method App\\Services\\Npo\\NpoValueCalculator\:\:financialInputs\(\) has parameter \$input with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Npo/NpoValueCalculator.php
+
+		-
+			message: '#^Method App\\Services\\Npo\\NpoValueCalculator\:\:persistCalculation\(\) has parameter \$inputs with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Npo/NpoValueCalculator.php
+
+		-
+			message: '#^Return type of call to function collect contains unresolvable type\.$#'
+			identifier: function.unresolvableReturnType
+			count: 1
+			path: app/Services/Npo/NpoValueCalculator.php
+
+		-
+			message: '#^Method App\\Services\\Outcomes\\OutcomeFollowUpService\:\:recordConversionOutcome\(\) has parameter \$signal with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Outcomes/OutcomeFollowUpService.php
+
+		-
+			message: '#^Method App\\Services\\Payments\\InstallmentPaymentProcessor\:\:processDue\(\) has parameter \$chargeMetadata with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Payments/InstallmentPaymentProcessor.php
+
+		-
+			message: '#^Method App\\Services\\Payments\\InstallmentPaymentProcessor\:\:processInstallment\(\) has parameter \$chargeMetadata with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Payments/InstallmentPaymentProcessor.php
+
+		-
+			message: '#^Method App\\Services\\Pdf\\SimpleTextPdf\:\:addLine\(\) has parameter \$color with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Pdf/SimpleTextPdf.php
+
+		-
+			message: '#^Method App\\Services\\Pdf\\SimpleTextPdf\:\:addParagraphText\(\) has parameter \$color with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Pdf/SimpleTextPdf.php
+
+		-
+			message: '#^Method App\\Services\\Pdf\\SimpleTextPdf\:\:addWrapped\(\) has parameter \$color with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Pdf/SimpleTextPdf.php
+
+		-
+			message: '#^Method App\\Services\\Pdf\\SimpleTextPdf\:\:estimateEntrySpace\(\) has parameter \$bodyBullets with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Pdf/SimpleTextPdf.php
+
+		-
+			message: '#^Method App\\Services\\Plans\\PlanBuilder\:\:upsertSection\(\) has parameter \$attachedDocumentIds with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Plans/PlanBuilder.php
+
+		-
+			message: '#^Method App\\Services\\Plans\\PlanBuilder\:\:upsertSection\(\) has parameter \$predictiveScore with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Plans/PlanBuilder.php
+
+		-
+			message: '#^Method App\\Services\\Portal\\OnboardingWizard\:\:saveDraft\(\) has parameter \$payload with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Portal/OnboardingWizard.php
+
+		-
+			message: '#^Method App\\Services\\Portal\\OnboardingWizard\:\:saveStep\(\) has parameter \$payload with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Portal/OnboardingWizard.php
+
+		-
+			message: '#^Method App\\Services\\Proposals\\SignoffFlow\:\:confirmation\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Proposals/SignoffFlow.php
+
+		-
+			message: '#^Method App\\Services\\Proposals\\SignoffFlow\:\:review\(\) has parameter \$payload with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Proposals/SignoffFlow.php
+
+		-
+			message: '#^Method App\\Services\\Proposals\\SignoffFlow\:\:review\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Proposals/SignoffFlow.php
+
+		-
+			message: '#^Return type of call to method Illuminate\\Support\\Collection\<int,array\<string, mixed\>\>\:\:all\(\) contains unresolvable type\.$#'
+			identifier: method.unresolvableReturnType
+			count: 1
+			path: app/Services/Questionnaires/QuestionnairePayload.php
+
+		-
+			message: '#^Return type of call to method Illuminate\\Support\\Collection\<int,array\<string, mixed\>\>\:\:values\(\) contains unresolvable type\.$#'
+			identifier: method.unresolvableReturnType
+			count: 1
+			path: app/Services/Questionnaires/QuestionnairePayload.php
+
+		-
+			message: '#^Method App\\Services\\QuoteSources\\QuoteSourceExtractor\:\:provenance\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/QuoteSources/QuoteSourceExtractor.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Services/ReferenceData/ReferenceDataFreshness.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Services/ReferenceData/ReferenceDataFreshness.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Services/Reports/PracticeHealthReport.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Services/Reports/PracticeHealthReport.php
+
+		-
+			message: '#^Method App\\Services\\Reports\\ReportComposer\:\:entrepreneurActionsSection\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Reports/ReportComposer.php
+
+		-
+			message: '#^Method App\\Services\\Reports\\ReportComposer\:\:entrepreneurFeedbackSection\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Reports/ReportComposer.php
+
+		-
+			message: '#^Method App\\Services\\Reports\\ReportComposer\:\:entrepreneurGradeSection\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Reports/ReportComposer.php
+
+		-
+			message: '#^Method App\\Services\\Reports\\ReportComposer\:\:entrepreneurScoreSection\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Reports/ReportComposer.php
+
+		-
+			message: '#^Method App\\Services\\Reports\\ReportComposer\:\:generatedSection\(\) has parameter \$metadata with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Reports/ReportComposer.php
+
+		-
+			message: '#^Method App\\Services\\Reports\\ReportComposer\:\:governanceSection\(\) has parameter \$metadata with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Reports/ReportComposer.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 2
+			path: app/Services/Reports/ReportComposer.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 2
+			path: app/Services/Reports/ReportComposer.php
+
+		-
+			message: '#^Method App\\Services\\ServiceActivations\\ServiceActivationManager\:\:request\(\) has parameter \$pricingPreview with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/ServiceActivations/ServiceActivationManager.php
+
+		-
+			message: '#^Method App\\Services\\StandardAdvisory\\StandardAdvisoryWorkflow\:\:analysisModuleSummaries\(\) has parameter \$waivers with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Services/StandardAdvisory/StandardAdvisoryWorkflow.php
+
+		-
+			message: '#^Method App\\Services\\StandardAdvisory\\StandardAdvisoryWorkflow\:\:websiteAuditReadinessPayload\(\) has parameter \$candidates with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/StandardAdvisory/StandardAdvisoryWorkflow.php
+
+		-
+			message: '#^Method App\\Services\\Surveys\\SurveyActivationService\:\:createAssignmentRecord\(\) has parameter \$draft with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/Services/Surveys/SurveyActivationService.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Support/OperationalHealthFixtures.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Support/OperationalHealthFixtures.php

@@ -24,7 +24,21 @@ final class CalendarConnection extends Model
 
     public const STATUS_ERROR = 'error';
 
-    protected $guarded = [];
+    protected $fillable = [
+        'user_id',
+        'provider',
+        'external_account_id',
+        'external_account_email',
+        'access_token_envelope',
+        'access_token_envelope_meta',
+        'refresh_token_envelope',
+        'refresh_token_envelope_meta',
+        'token_expires_at',
+        'sync_token',
+        'delta_link',
+        'status',
+        'last_synced_at',
+    ];
 
     protected $hidden = [
         'access_token_envelope',

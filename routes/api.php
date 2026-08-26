@@ -9,12 +9,17 @@ use App\Http\Controllers\DeploymentController;
 use App\Http\Controllers\MobileApi\ClientController as MobileApiClientController;
 use App\Http\Controllers\MobileApi\MeController as MobileApiMeController;
 use App\Http\Controllers\MobileApi\VoiceSessionController as MobileApiVoiceSessionController;
+use App\Http\Controllers\Telemetry\ClientErrorTelemetryController;
 use App\Http\Controllers\Webhook\PaymentWebhookController;
 use App\Http\Controllers\Webhook\ProspectIntakeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('deployment', DeploymentController::class)
     ->name('deployment.show');
+
+Route::post('telemetry/client-errors', ClientErrorTelemetryController::class)
+    ->middleware('throttle:30,1')
+    ->name('telemetry.client-errors.store');
 
 Route::post('dd/guest-uploads/{token}', DdGuestUploadController::class)
     ->name('dd.guest-uploads.store');

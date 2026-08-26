@@ -39,6 +39,8 @@ use App\Models\WellbeingCheckin;
 use App\Services\Audit\AuditWriter;
 use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Clients\AdvisorClientCapacity;
+use App\Services\Clients\AdvisorClientCollaborationPayloadBuilder;
+use App\Services\Clients\AdvisorClientPayloadBuilder;
 use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\Dashboards\EconomicExposureMapper;
 use App\Services\Dashboards\PaymentStatusReport;
@@ -77,6 +79,8 @@ final class ClientController extends Controller
     public function __construct(
         private readonly AuditWriter $auditWriter,
         private readonly AdvisorClientCapacity $clientCapacity,
+        private readonly AdvisorClientCollaborationPayloadBuilder $collaborationPayloads,
+        private readonly AdvisorClientPayloadBuilder $clientPayloads,
         private readonly ConflictDeclarer $conflicts,
         private readonly DataQualityScorer $dataQuality,
         private readonly GoalTracker $goals,
@@ -171,7 +175,7 @@ final class ClientController extends Controller
             ->get();
         $invites = InviteToken::query()
             ->whereIn('id', $clients
-                ->map(fn (Client $client): ?string => $this->clientInviteTokenId($client))
+                ->map(fn (Client $client): ?string => $this->clientPayloads->tokenId($client))
                 ->filter()
                 ->values()
                 ->all())
@@ -180,7 +184,7 @@ final class ClientController extends Controller
         $activatedInviteEmails = User::query()
             ->whereIn('user_type', [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM])
             ->whereIn('email', $clients
-                ->map(fn (Client $client): string => $this->clientInviteEmail($client))
+                ->map(fn (Client $client): string => $this->clientPayloads->inviteEmail($client))
                 ->filter()
                 ->values()
                 ->all())
@@ -190,11 +194,11 @@ final class ClientController extends Controller
 
         return Inertia::render('advisor/clients/Index', [
             'clients' => $clients
-                ->map(fn (Client $client): array => $this->clientSummary(
+                ->map(fn (Client $client): array => $this->clientPayloads->summary(
                     $client,
                     $showAdvisorAssignments,
-                    $invites->get($this->clientInviteTokenId($client)),
-                    $activatedInviteEmails->has($this->clientInviteEmail($client)),
+                    $invites->get($this->clientPayloads->tokenId($client)),
+                    $activatedInviteEmails->has($this->clientPayloads->inviteEmail($client)),
                 ))
                 ->values(),
             'engagementFilter' => $engagementFilter,
@@ -326,17 +330,15 @@ final class ClientController extends Controller
         $actor = $request->user();
         abort_unless($actor instanceof User, 403);
 
-        $invite = $this->clientInviteFor($client);
-        if (! $this->canResendClientInvite($client, $invite)) {
+        $invite = $this->clientPayloads->inviteFor($client);
+        if (! $this->clientPayloads->canResendInvite($client, $invite)) {
             return back()->withErrors([
                 'invite' => 'Only pending or cancelled client invitations can be resent.',
             ]);
         }
 
-        $email = $this->clientInviteEmail($client);
-        $engagement = $client->engagement_type instanceof EngagementType
-            ? $client->engagement_type
-            : EngagementType::from((string) $client->engagement_type);
+        $email = $this->clientPayloads->inviteEmail($client);
+        $engagement = $client->engagement_type;
 
         DB::transaction(function () use ($actor, $client, $email, $engagement, $invite, $issuer): void {
             if ($invite instanceof InviteToken && ! $invite->isAccepted()) {
@@ -388,8 +390,8 @@ final class ClientController extends Controller
         $actor = $request->user();
         abort_unless($actor instanceof User, 403);
 
-        $invite = $this->clientInviteFor($client);
-        if (! $this->canCancelClientInvite($client, $invite)) {
+        $invite = $this->clientPayloads->inviteFor($client);
+        if (! $this->clientPayloads->canCancelInvite($client, $invite)) {
             return back()->withErrors([
                 'invite' => 'Only pending client invitations can be cancelled.',
             ]);
@@ -409,7 +411,7 @@ final class ClientController extends Controller
 
             $this->auditWriter->record('client.invite_cancelled', subject: $client, actor: $actor, after: [
                 'client_id' => $client->getKey(),
-                'email' => $this->clientInviteEmail($client),
+                'email' => $this->clientPayloads->inviteEmail($client),
                 'invite_token_id' => $invite?->getKey(),
             ]);
         });
@@ -539,14 +541,14 @@ final class ClientController extends Controller
         $dataQuality = $this->dataQuality->score($client);
         $user = $request->user();
         $strategicBudget = $strategicBudgets->ensureForClient($client);
-        $invite = $this->clientInviteFor($client);
+        $invite = $this->clientPayloads->inviteFor($client);
 
         return Inertia::render('advisor/clients/Show', [
             'client' => [
-                ...$this->clientSummary(
+                ...$this->clientPayloads->summary(
                     $client,
                     invite: $invite,
-                    hasActivatedAccount: $this->clientInviteHasActivatedAccount($client),
+                    hasActivatedAccount: $this->clientPayloads->hasActivatedAccount($client),
                 ),
                 'data_quality' => $dataQuality->level,
                 'data_quality_summary' => $dataQuality->toPayload(),
@@ -591,50 +593,10 @@ final class ClientController extends Controller
                 'npo_values' => $npoValues->clientSummary($client),
                 'npo_social_enterprise' => $socialEnterprise->clientSummary($client),
                 'created_at' => $client->created_at?->toIso8601String(),
-                'invitation' => $this->clientInvitationSummary($client, $invite),
+                'invitation' => $this->clientPayloads->invitationSummary($client, $invite),
             ],
-            'screenShare' => [
-                'connection_url' => route('advisor.clients.screen-share.connections.store', $client, absolute: false),
-                'connection_heartbeat_url' => route('screen-share.connections.heartbeat', ['connection' => '__connection__'], absolute: false),
-                'request_url' => route('advisor.clients.screen-share.sessions.store', $client, absolute: false),
-                'ice_servers_url' => route('screen-share.sessions.ice-servers', ['session' => '__session__'], absolute: false),
-                'active_url' => route('screen-share.sessions.active', ['session' => '__session__'], absolute: false),
-                'signal_url' => route('screen-share.sessions.signal', ['session' => '__session__'], absolute: false),
-                'pending_signals_url' => route('screen-share.sessions.pending-signals', ['session' => '__session__'], absolute: false),
-                'heartbeat_url' => route('screen-share.sessions.heartbeat', ['session' => '__session__'], absolute: false),
-                'end_url' => route('screen-share.sessions.end', ['session' => '__session__'], absolute: false),
-                'heartbeat_seconds' => max(5, (int) config('screen-share.heartbeat_interval_seconds', 10)),
-                'participants' => $client->teamMembers()
-                    ->with('user')
-                    ->get()
-                    ->map(fn (ClientTeamMember $member): ?array => $member->user instanceof User
-                        && in_array($member->user->user_type, [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM], true)
-                        ? ['id' => (string) $member->user->getKey(), 'name' => $member->user->name]
-                        : null)
-                    ->filter()
-                    ->values()
-                    ->all(),
-            ],
-            'coBrowse' => (bool) config('co-browse.enabled') ? [
-                'connection_url' => route('advisor.clients.co-browse.connections.store', $client, absolute: false),
-                'connection_heartbeat_url' => route('co-browse.connections.heartbeat', ['connection' => '__connection__'], absolute: false),
-                'request_url' => route('advisor.clients.co-browse.sessions.store', $client, absolute: false),
-                'status_url' => route('co-browse.sessions.status', ['session' => '__session__'], absolute: false),
-                'heartbeat_url' => route('co-browse.sessions.heartbeat', ['session' => '__session__'], absolute: false),
-                'end_url' => route('co-browse.sessions.end', ['session' => '__session__'], absolute: false),
-                'action_url' => route('co-browse.sessions.actions.store', ['session' => '__session__'], absolute: false),
-                'heartbeat_seconds' => max(5, (int) config('co-browse.heartbeat_interval_seconds', 10)),
-                'participants' => $client->teamMembers()
-                    ->with('user')
-                    ->get()
-                    ->map(fn (ClientTeamMember $member): ?array => $member->user instanceof User
-                        && in_array($member->user->user_type, [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM], true)
-                        ? ['id' => (string) $member->user->getKey(), 'name' => $member->user->name]
-                        : null)
-                    ->filter()
-                    ->values()
-                    ->all(),
-            ] : null,
+            'screenShare' => $this->collaborationPayloads->screenShare($client),
+            'coBrowse' => $this->collaborationPayloads->coBrowse($client),
             'conflictDeclaration' => $client->conflictDeclarations()
                 ->latest('declared_at')
                 ->first()
@@ -1146,182 +1108,6 @@ final class ClientController extends Controller
         }
 
         return $client;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function clientSummary(
-        Client $client,
-        bool $includeAdvisorAssignments = false,
-        ?InviteToken $invite = null,
-        ?bool $hasActivatedAccount = null,
-    ): array {
-        $engagementType = $client->engagement_type instanceof EngagementType
-            ? $client->engagement_type
-            : EngagementType::from((string) $client->engagement_type);
-        $status = $client->status instanceof ClientStatus
-            ? $client->status
-            : ClientStatus::from((string) ($client->status ?? ClientStatus::ACTIVE->value));
-        [$accountStatus, $accountStatusLabel] = $this->clientAccountStatus(
-            $client,
-            $invite,
-            $status,
-            $hasActivatedAccount ?? $this->clientInviteHasActivatedAccount($client),
-        );
-
-        $summary = [
-            'id' => $client->id,
-            'engagement_type' => $engagementType->value,
-            'engagement_type_label' => $engagementType->label(),
-            'is_npo' => $engagementType === EngagementType::NPO,
-            'status' => $status->value,
-            'status_label' => $status->label(),
-            'account_status' => $accountStatus,
-            'account_status_label' => $accountStatusLabel,
-            'nzbn' => $client->nzbn,
-            'legal_name' => $client->legal_name,
-            'trading_name' => $client->trading_name,
-            'entity_type' => $client->entity_type,
-            'gst_registered' => $client->gst_registered,
-            'filing_status' => $client->filing_status,
-            'data_quality' => $client->data_quality,
-        ];
-
-        if ($includeAdvisorAssignments) {
-            $summary['advisor_assignments'] = $client->teamMembers
-                ->map(fn (ClientTeamMember $member): array => [
-                    'advisor_name' => $member->user?->name,
-                    'role' => $member->role,
-                    'team_name' => $member->advisorTeam?->name,
-                ])
-                ->values()
-                ->all();
-        }
-
-        return $summary;
-    }
-
-    private function clientInviteTokenId(Client $client): ?string
-    {
-        $registrySources = is_array($client->registry_sources) ? $client->registry_sources : [];
-        if (($registrySources['source'] ?? null) !== 'advisor_client_invite') {
-            return null;
-        }
-
-        $inviteId = $registrySources['invite_token_id'] ?? null;
-
-        return is_string($inviteId) && $inviteId !== '' ? $inviteId : null;
-    }
-
-    private function clientInviteFor(Client $client): ?InviteToken
-    {
-        $inviteId = $this->clientInviteTokenId($client);
-
-        return $inviteId !== null
-            ? InviteToken::query()->find($inviteId)
-            : null;
-    }
-
-    private function clientInviteEmail(Client $client): string
-    {
-        $registrySources = is_array($client->registry_sources) ? $client->registry_sources : [];
-        $email = Str::lower(trim((string) ($registrySources['invite_email'] ?? '')));
-
-        return filter_var($email, FILTER_VALIDATE_EMAIL) !== false ? $email : '';
-    }
-
-    private function canResendClientInvite(Client $client, ?InviteToken $invite): bool
-    {
-        $email = $this->clientInviteEmail($client);
-
-        return $this->clientInviteTokenId($client) !== null
-            && $client->primary_contact_user_id === null
-            && $invite?->accepted_at === null
-            && $email !== ''
-            && ! User::query()->whereRaw('lower(trim(email)) = ?', [$email])->exists();
-    }
-
-    private function canCancelClientInvite(Client $client, ?InviteToken $invite): bool
-    {
-        $registrySources = is_array($client->registry_sources) ? $client->registry_sources : [];
-
-        return $this->canResendClientInvite($client, $invite)
-            && $invite instanceof InviteToken
-            && ! isset($registrySources['invite_cancelled_at']);
-    }
-
-    private function clientInviteHasActivatedAccount(Client $client): bool
-    {
-        $email = $this->clientInviteEmail($client);
-
-        return $email !== ''
-            && User::query()
-                ->whereIn('user_type', [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM])
-                ->whereRaw('lower(trim(email)) = ?', [$email])
-                ->exists();
-    }
-
-    /**
-     * @return array{0:string, 1:string}
-     */
-    private function clientAccountStatus(
-        Client $client,
-        ?InviteToken $invite,
-        ClientStatus $lifecycle,
-        bool $hasActivatedAccount,
-    ): array {
-        if ($this->clientInviteTokenId($client) === null) {
-            return [$lifecycle->value, $lifecycle->label()];
-        }
-
-        if ($client->primary_contact_user_id !== null || $invite?->isAccepted() || $hasActivatedAccount) {
-            return [$lifecycle->value, $lifecycle->label()];
-        }
-
-        $registrySources = is_array($client->registry_sources) ? $client->registry_sources : [];
-        if (isset($registrySources['invite_cancelled_at'])) {
-            return ['invite_cancelled', 'Invite cancelled'];
-        }
-
-        if ($invite?->isUsable()) {
-            return ['awaiting_activation', 'Awaiting activation'];
-        }
-
-        return ['awaiting_activation', 'Awaiting activation'];
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function clientInvitationSummary(Client $client, ?InviteToken $invite): ?array
-    {
-        if ($this->clientInviteTokenId($client) === null) {
-            return null;
-        }
-
-        [$status, $statusLabel] = $this->clientAccountStatus(
-            $client,
-            $invite,
-            $client->status instanceof ClientStatus
-                ? $client->status
-                : ClientStatus::from((string) ($client->status ?? ClientStatus::ACTIVE->value)),
-            $this->clientInviteHasActivatedAccount($client),
-        );
-
-        return [
-            'email' => $this->clientInviteEmail($client),
-            'status' => $status,
-            'status_label' => $statusLabel,
-            'accepted_at' => $invite?->accepted_at?->toIso8601String(),
-            'expires_at' => $invite?->expires_at?->toIso8601String(),
-            'resend_url' => $this->canResendClientInvite($client, $invite)
-                ? route('advisor.clients.invite.resend', $client, absolute: false)
-                : null,
-            'cancel_url' => $this->canCancelClientInvite($client, $invite)
-                ? route('advisor.clients.invite.cancel', $client, absolute: false)
-                : null,
-        ];
     }
 
     /**

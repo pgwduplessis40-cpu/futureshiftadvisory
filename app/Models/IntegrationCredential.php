@@ -16,7 +16,18 @@ final class IntegrationCredential extends Model
 
     public const STATUS_REVOKED = 'revoked';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'integration_key',
+        'field',
+        'value_envelope',
+        'value_envelope_meta',
+        'last_four',
+        'status',
+        'set_by_user_id',
+        'rotated_at',
+        'revoked_at',
+    ];
 
     protected $hidden = [
         'value_envelope',

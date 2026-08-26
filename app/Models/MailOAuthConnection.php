@@ -22,7 +22,22 @@ final class MailOAuthConnection extends Model
 
     public const STATUS_ERROR = 'error';
 
-    protected $guarded = [];
+    protected $fillable = [
+        'provider',
+        'mailbox_email',
+        'external_account_id',
+        'status',
+        'access_token_envelope',
+        'access_token_envelope_meta',
+        'refresh_token_envelope',
+        'refresh_token_envelope_meta',
+        'token_expires_at',
+        'connected_by_user_id',
+        'connected_at',
+        'revoked_by_user_id',
+        'revoked_at',
+        'last_error',
+    ];
 
     protected $hidden = [
         'access_token_envelope',

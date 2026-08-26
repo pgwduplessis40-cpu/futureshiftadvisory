@@ -13,7 +13,21 @@ final class DdGuestLink extends Model
 {
     use HasUuids;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'client_id',
+        'dd_engagement_id',
+        'workstream',
+        'folder',
+        'token_hash',
+        'guest_email',
+        'max_uploads',
+        'upload_count',
+        'created_by_user_id',
+        'revoked_by_user_id',
+        'expires_at',
+        'revoked_at',
+        'last_used_at',
+    ];
 
     protected $casts = [
         'expires_at' => 'datetime',

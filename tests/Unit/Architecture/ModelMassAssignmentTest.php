@@ -9,6 +9,7 @@ use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\PlanAssessment;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 
@@ -24,10 +25,28 @@ final class ModelMassAssignmentTest extends TestCase
         }
     }
 
+    public function test_sensitive_model_registry_uses_non_empty_allow_lists(): void
+    {
+        /** @var array<class-string<Model>, string> $models */
+        $models = config('production_quality.sensitive_models');
+
+        foreach ($models as $model => $path) {
+            $this->assertFileExists(base_path($path), $model.' must remain in the sensitive-model registry.');
+
+            $instance = new $model;
+
+            $this->assertNotSame([], $instance->getGuarded(), $model.' must not use broad unguarded assignment.');
+            $this->assertNotSame([], $instance->getFillable(), $model.' must declare a non-empty allow-list.');
+        }
+    }
+
     public function test_legacy_broad_guarded_model_count_does_not_expand(): void
     {
         $broadGuardedModels = collect(File::allFiles(app_path('Models')))
-            ->filter(fn ($file): bool => str_contains((string) file_get_contents($file->getPathname()), 'protected $guarded = [];'))
+            ->filter(fn ($file): bool => preg_match(
+                '/(?:public|protected)\s+\$guarded\s*=\s*\[\s*\]\s*;/',
+                (string) file_get_contents($file->getPathname()),
+            ) === 1)
             ->count();
 
         $this->assertLessThanOrEqual(

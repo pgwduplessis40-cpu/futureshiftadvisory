@@ -27,7 +27,19 @@ final class PaymentAuthority extends Model
 
     public const STATUS_REVOKED = 'revoked';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'client_id',
+        'proposal_id',
+        'type',
+        'gateway',
+        'gateway_customer_ref',
+        'gateway_token_envelope',
+        'status',
+        'authorised_by_user_id',
+        'authorised_at',
+        'revoked_at',
+    ];
 
     protected $casts = [
         'authorised_at' => 'datetime',

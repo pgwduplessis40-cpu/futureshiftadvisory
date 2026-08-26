@@ -78,6 +78,44 @@ class ProfileUpdateTest extends TestCase
         $this->assertNull($user->email_verified_at);
     }
 
+    public function test_profile_update_cannot_mass_assign_identity_or_authentication_fields(): void
+    {
+        $user = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_CLIENT_PRIMARY,
+            'primary_role' => User::TYPE_CLIENT_PRIMARY,
+            'session_timeout_minutes' => 30,
+        ]);
+
+        $this
+            ->actingAsMfa($user)
+            ->patch(route('profile.update'), [
+                'name' => 'Safe Profile Name',
+                'email' => $user->email,
+                'user_type' => User::TYPE_SUPER_ADMIN,
+                'primary_role' => User::TYPE_SUPER_ADMIN,
+                'mfa_enabled_at' => null,
+                'mfa_method' => 'none',
+                'session_timeout_minutes' => 1,
+                'advisor_client_capacity_limit' => 999,
+                'suspended_at' => now()->toIso8601String(),
+                'suspended_reason' => 'forged request field',
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('profile.edit'));
+
+        $user->refresh();
+
+        $this->assertSame('Safe Profile Name', $user->name);
+        $this->assertSame(User::TYPE_CLIENT_PRIMARY, $user->user_type);
+        $this->assertSame(User::TYPE_CLIENT_PRIMARY, $user->primary_role);
+        $this->assertNotNull($user->mfa_enabled_at);
+        $this->assertSame(User::MFA_METHOD_TOTP, $user->mfa_method);
+        $this->assertSame(30, $user->session_timeout_minutes);
+        $this->assertNull($user->advisor_client_capacity_limit);
+        $this->assertNull($user->suspended_at);
+        $this->assertNull($user->suspended_reason);
+    }
+
     public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged()
     {
         $user = User::factory()->create();

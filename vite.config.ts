@@ -7,8 +7,13 @@ import { bunny } from 'laravel-vite-plugin/fonts';
 import { defineConfig } from 'vite';
 
 const shouldGenerateWayfinder = process.env.WAYFINDER_GENERATE !== 'false';
+const clientReleaseSha =
+    process.env.GITHUB_SHA ?? process.env.VITE_RELEASE_SHA ?? 'local';
 
 export default defineConfig({
+    define: {
+        __CLIENT_RELEASE_SHA__: JSON.stringify(clientReleaseSha),
+    },
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],

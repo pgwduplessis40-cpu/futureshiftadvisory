@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 $cloverPath = $argv[1] ?? 'storage/logs/clover.xml';
 $summaryPath = $argv[2] ?? 'storage/logs/coverage-summary.json';
-$overallMinimum = coverageMinimum('COVERAGE_MIN_OVERALL', 80);
+$overallMinimum = coverageMinimum('COVERAGE_MIN_OVERALL', 85);
 $moduleMinimum = coverageMinimum('COVERAGE_MIN_MODULE', 80);
 $defaultCriticalMinimum = coverageMinimum('COVERAGE_MIN_CRITICAL', 90);
 $criticalMinimums = [

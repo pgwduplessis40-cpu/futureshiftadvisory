@@ -17,7 +17,28 @@ final class CoBrowseSession extends Model
 
     public const STATUS_ENDED = 'ended';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'client_id',
+        'entrepreneur_profile_id',
+        'client_user_id',
+        'advisor_id',
+        'client_connection_id',
+        'advisor_connection_id',
+        'status',
+        'client_response',
+        'client_response_at',
+        'requested_at',
+        'session_started_at',
+        'session_ended_at',
+        'end_reason',
+        'last_heartbeat_at',
+        'expires_at',
+        'consent_context',
+        'authorization_basis',
+        'prompted_connections',
+        'actions_count',
+    ];
 
     protected function casts(): array
     {

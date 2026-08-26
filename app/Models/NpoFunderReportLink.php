@@ -21,7 +21,26 @@ final class NpoFunderReportLink extends Model
 
     public const STATUS_REVOKED = 'revoked';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'client_id',
+        'npo_engagement_id',
+        'report_id',
+        'client_funder_record_id',
+        'guest_email',
+        'status',
+        'token_hash',
+        'requested_by_user_id',
+        'approved_by_user_id',
+        'declined_by_user_id',
+        'revoked_by_user_id',
+        'approved_at',
+        'declined_at',
+        'decline_reason',
+        'expires_at',
+        'revoked_at',
+        'last_used_at',
+    ];
 
     protected $casts = [
         'approved_at' => 'datetime',

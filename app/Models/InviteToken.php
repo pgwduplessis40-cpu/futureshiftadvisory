@@ -13,7 +13,20 @@ final class InviteToken extends Model
 {
     use HasUuids;
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'email',
+        'target_role',
+        'target_user_type',
+        'token_hash',
+        'token_envelope',
+        'expires_at',
+        'accepted_at',
+        'issued_by_user_id',
+        'accepted_by_user_id',
+        'intended_service_type',
+        'intended_package_scope',
+    ];
 
     protected $casts = [
         'expires_at' => 'datetime',

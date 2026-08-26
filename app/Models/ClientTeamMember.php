@@ -14,7 +14,14 @@ final class ClientTeamMember extends Model
 
     protected $table = 'client_team';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'client_id',
+        'user_id',
+        'role',
+        'granted_modules',
+        'advisor_team_id',
+    ];
 
     protected $casts = [
         'granted_modules' => 'array',

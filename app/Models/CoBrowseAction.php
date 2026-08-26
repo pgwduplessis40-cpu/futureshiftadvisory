@@ -8,7 +8,16 @@ use Illuminate\Database\Eloquent\Model;
 
 final class CoBrowseAction extends Model
 {
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'id',
+        'session_id',
+        'recipient_connection_id',
+        'sender_connection_id',
+        'type',
+        'payload',
+        'expires_at',
+    ];
 
     protected function casts(): array
     {

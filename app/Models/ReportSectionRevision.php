@@ -12,7 +12,23 @@ final class ReportSectionRevision extends Model
 {
     use HasUuids;
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'report_id',
+        'report_section_id',
+        'client_id',
+        'entrepreneur_profile_id',
+        'revision_number',
+        'title_before',
+        'title_after',
+        'body_before',
+        'body_after',
+        'metadata_before',
+        'metadata_after',
+        'edited_by_user_id',
+        'reason',
+        'edited_at',
+    ];
 
     protected $casts = [
         'revision_number' => 'integer',

@@ -96,6 +96,46 @@ final class AddClientTest extends TestCase
         $this->assertDatabaseHas('audit_events', ['action' => 'conflict.declared']);
     }
 
+    public function test_client_screen_collaboration_contract_exposes_only_client_participants(): void
+    {
+        $this->seed(RoleSeeder::class);
+        config()->set('co-browse.enabled', true);
+        $advisor = $this->advisor();
+        $client = Client::query()->create([
+            'engagement_type' => EngagementType::STANDARD_ADVISORY,
+            'legal_name' => 'Client Screen Contract Limited',
+            'data_quality' => Client::DATA_QUALITY_INSUFFICIENT,
+        ]);
+        ClientTeamMember::query()->create([
+            'client_id' => $client->getKey(),
+            'user_id' => $advisor->getKey(),
+            'role' => 'lead_advisor',
+        ]);
+        $participant = User::factory()->withTwoFactor()->create([
+            'name' => 'Client Screen Participant',
+            'user_type' => User::TYPE_CLIENT_PRIMARY,
+            'primary_role' => User::TYPE_CLIENT_PRIMARY,
+        ]);
+        ClientTeamMember::query()->create([
+            'client_id' => $client->getKey(),
+            'user_id' => $participant->getKey(),
+            'role' => 'primary_contact',
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.show', $client))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('screenShare.connection_url', route('advisor.clients.screen-share.connections.store', $client, absolute: false))
+                ->where('screenShare.signal_url', route('screen-share.sessions.signal', ['session' => '__session__'], absolute: false))
+                ->where('screenShare.participants.0', [
+                    'id' => (string) $participant->getKey(),
+                    'name' => 'Client Screen Participant',
+                ])
+                ->where('coBrowse.action_url', route('co-browse.sessions.actions.store', ['session' => '__session__'], absolute: false))
+                ->where('coBrowse.participants.0.id', (string) $participant->getKey()));
+    }
+
     public function test_advisor_can_create_npo_governance_review_engagement_with_legal_structure(): void
     {
         $this->seed(RoleSeeder::class);
@@ -626,6 +666,30 @@ final class AddClientTest extends TestCase
             ->assertNotFound();
 
         $this->assertDatabaseHas('clients', ['id' => $standard->id]);
+    }
+
+    public function test_client_index_resource_contract_does_not_expose_registry_payloads(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+        $client = $this->clientForAdvisor($advisor, 'Typed Contract Limited', EngagementType::STANDARD_ADVISORY);
+        $client->forceFill([
+            'registry_sources' => [
+                'source' => 'advisor_client_invite',
+                'invite_email' => 'contract@example.test',
+                'invite_token_id' => '00000000-0000-4000-8000-000000000099',
+                'internal_only' => 'must-not-cross-the-boundary',
+            ],
+        ])->save();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('clients.0.id', (string) $client->getKey())
+                ->where('clients.0.account_status', 'awaiting_activation')
+                ->missing('clients.0.registry_sources')
+                ->missing('clients.0.invite_token_id'));
     }
 
     public function test_junior_advisor_cannot_create_clients(): void

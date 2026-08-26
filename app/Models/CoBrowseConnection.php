@@ -16,7 +16,17 @@ final class CoBrowseConnection extends Model
 
     public const TYPE_CLIENT = 'client';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'client_id',
+        'entrepreneur_profile_id',
+        'user_id',
+        'participant_type',
+        'context_key',
+        'secret_hash',
+        'last_seen_at',
+        'expires_at',
+    ];
 
     protected $hidden = ['secret_hash'];
 

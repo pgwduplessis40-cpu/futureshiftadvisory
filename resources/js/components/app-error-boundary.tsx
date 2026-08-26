@@ -2,6 +2,7 @@ import { RotateCcw } from 'lucide-react';
 import { Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { reportClientError } from '@/lib/client-error-telemetry';
 
 type AppErrorBoundaryProps = {
     children: ReactNode;
@@ -22,7 +23,8 @@ export class AppErrorBoundary extends Component<
     }
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-        console.error('Unhandled application error', error, errorInfo);
+        void errorInfo;
+        reportClientError(error, 'react.error_boundary');
     }
 
     public render(): ReactNode {

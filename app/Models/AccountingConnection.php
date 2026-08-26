@@ -30,7 +30,20 @@ final class AccountingConnection extends Model
 
     public const STATUS_REVOKED = 'revoked';
 
-    protected $guarded = [];
+    protected $fillable = [
+        'client_id',
+        'provider',
+        'external_tenant_id',
+        'status',
+        'token_envelope',
+        'token_envelope_meta',
+        'scopes',
+        'connected_by_user_id',
+        'connected_at',
+        'revoked_by_user_id',
+        'revoked_at',
+        'last_snapshot_at',
+    ];
 
     protected $hidden = [
         'token_envelope',

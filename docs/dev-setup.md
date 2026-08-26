@@ -216,7 +216,7 @@ Phase 1 cannot fully run without these:
 
 | Item | Required for | Notes |
 |---|---|---|
-| Meridian Warm brand kit (colours, type, logo) | Any client-facing UI | Drop into `docs/brand/` |
+| Meridian Warm palette, typography, and usage rules | Any client-facing UI | Follow `docs/brand/README.md`; the active tokens are in `resources/css/app.css` |
 | 14-clause T&C source text | T&C acceptance gate (WO-10/11) | Drop into `docs/legal/terms-v1.md` |
 | `Business_Plan_Rating_Matrix.pdf` | Phase 3 (entrepreneur module) | Drop into `docs/rating-criteria/` |
 | FSA logo files (vector + favicon) | Branded shell | Drop into `docs/brand/` |

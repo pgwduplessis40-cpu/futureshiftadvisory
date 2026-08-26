@@ -186,6 +186,36 @@ final class ProposalSignoffFlowTest extends TestCase
         $this->assertSame(2, $proposal->signoffSteps()->count());
     }
 
+    public function test_signoff_request_cannot_mass_assign_privileged_payment_or_approval_fields(): void
+    {
+        [$advisor, $client, $clientUser] = $this->clientWithUsers('signoff-mass-assignment@example.test');
+        $proposal = $this->releasedProposal($client, $advisor);
+
+        $this->actingAsMfa($clientUser)
+            ->post(route('portal.proposals.signoff.step', [$proposal, ProposalSignoffStep::STEP_REVIEW]), [
+                'status' => ProposalStatus::Signed->value,
+                'client_id' => '00000000-0000-0000-0000-000000000000',
+                'amount' => 999_999,
+                'gateway_token_envelope' => 'attacker-token',
+                'approved_by_user_id' => $advisor->getKey(),
+                'approval_status' => 'approved',
+            ])
+            ->assertRedirect(route('portal.proposals.signoff.show', $proposal));
+
+        $proposal = $proposal->refresh();
+        $step = $proposal->signoffSteps()->where('step', ProposalSignoffStep::STEP_REVIEW)->firstOrFail();
+
+        $this->assertSame(ProposalStatus::Released, $proposal->status);
+        $this->assertSame($client->getKey(), $proposal->client_id);
+        $this->assertSame(['reviewed' => true], $step->payload);
+        foreach (['status', 'client_id', 'amount', 'gateway_token_envelope', 'approved_by_user_id', 'approval_status'] as $forbiddenField) {
+            $this->assertArrayNotHasKey($forbiddenField, $step->payload);
+        }
+        $this->assertDatabaseMissing('payment_authorities', [
+            'proposal_id' => $proposal->getKey(),
+        ]);
+    }
+
     public function test_integration_proposals_skip_referral_consent_steps(): void
     {
         [$advisor, $client, $clientUser] = $this->clientWithUsers('signoff-integration-advisor@example.test');

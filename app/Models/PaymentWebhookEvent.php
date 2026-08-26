@@ -20,7 +20,18 @@ final class PaymentWebhookEvent extends Model
 
     public const STATUS_FAILED = 'failed';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'gateway',
+        'event_id',
+        'event_type',
+        'status',
+        'payment_id',
+        'client_id',
+        'payload_hash',
+        'failure_reason',
+        'processed_at',
+    ];
 
     protected $casts = [
         'processed_at' => 'datetime',

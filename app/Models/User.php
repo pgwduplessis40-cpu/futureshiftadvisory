@@ -72,6 +72,30 @@ class User extends Authenticatable
 
     protected string $guard_name = 'web';
 
+    /** @var list<string> */
+    protected $fillable = [
+        'name',
+        'email',
+        'email_verified_at',
+        'mobile_phone',
+        'password',
+        'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_confirmed_at',
+        'user_type',
+        'primary_role',
+        'mfa_enabled_at',
+        'mfa_method',
+        'last_password_set_at',
+        'session_timeout_minutes',
+        'advisor_client_capacity_limit',
+        'suspended_at',
+        'suspended_reason',
+        'deactivation_requested_at',
+        'deactivation_requested_reason',
+    ];
+
     /**
      * Get the attributes that should be cast.
      *
