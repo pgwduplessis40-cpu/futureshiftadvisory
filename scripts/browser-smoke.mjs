@@ -92,6 +92,16 @@ const browser = await puppeteer.launch({
         '--use-fake-device-for-media-stream',
         '--use-fake-ui-for-media-stream',
         '--autoplay-policy=no-user-gesture-required',
+        ...(process.env.CI
+            ? [
+                  // GitHub's isolated Linux runner does not support Chrome's
+                  // regular sandbox or a large shared-memory mount.
+                  '--no-sandbox',
+                  '--disable-setuid-sandbox',
+                  '--disable-dev-shm-usage',
+                  '--disable-gpu',
+              ]
+            : []),
     ],
 });
 
