@@ -364,9 +364,14 @@ async function assertAccessibility(page, flow, viewport) {
         return {
             violations: axeResult.violations.map((violation) => ({
                 id: violation.id,
-                targets: violation.nodes
-                    .slice(0, 3)
-                    .map((node) => node.target.join(' ')),
+                targets: violation.nodes.slice(0, 3).map((node) => {
+                    const target = node.target.join(' ');
+                    const summary = node.failureSummary
+                        ?.replaceAll(/\s+/g, ' ')
+                        .trim();
+
+                    return summary ? `${target}: ${summary}` : target;
+                }),
             })),
             missingAlt: Array.from(document.images)
                 .filter((image) => !image.hasAttribute('alt'))
