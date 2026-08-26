@@ -187,6 +187,18 @@ async function runFlowViewport(browserInstance, flow, viewport) {
 
         await assertApprovedScreenshot(page, flow, viewport.name);
     } catch (error) {
+        try {
+            await page.screenshot({
+                path: join(
+                    artifactRoot,
+                    `${safeName(flow.name)}-${viewport.name}.failure.png`,
+                ),
+                fullPage: true,
+            });
+        } catch {
+            // Preserve the original browser failure if Chrome cannot capture it.
+        }
+
         failures.push(
             `${flow.name} (${viewport.name}): ${error instanceof Error ? error.message : String(error)}`,
         );
@@ -310,8 +322,29 @@ async function assertExpectedContent(page, flow, viewport) {
     const bodyText = await page.evaluate(() => document.body.innerText);
 
     if (!bodyText.includes(flow.expected)) {
+        const pageIdentity = await page.evaluate(() => {
+            const serializedPage = document
+                .querySelector('[data-page]')
+                ?.getAttribute('data-page');
+            let component = null;
+
+            try {
+                component = serializedPage
+                    ? JSON.parse(serializedPage).component
+                    : null;
+            } catch {
+                component = null;
+            }
+
+            return {
+                pathname: window.location.pathname,
+                component,
+                title: document.title,
+            };
+        });
+
         throw new Error(
-            `${flow.name} did not render expected marker "${flow.expected}" on ${viewport}.`,
+            `${flow.name} did not render expected marker "${flow.expected}" on ${viewport} at ${pageIdentity.pathname} (${pageIdentity.component ?? pageIdentity.title}).`,
         );
     }
 }
