@@ -67,10 +67,7 @@ export default function Login({ status, canResetPassword }: Props) {
                             </div>
 
                             <div className="flex items-center space-x-3">
-                                <Checkbox
-                                    id="remember"
-                                    name="remember"
-                                />
+                                <Checkbox id="remember" name="remember" />
                                 <Label htmlFor="remember">Remember me</Label>
                             </div>
 
