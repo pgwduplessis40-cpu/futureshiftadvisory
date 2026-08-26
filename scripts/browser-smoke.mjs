@@ -58,13 +58,14 @@ const flows = [
         name: 'Login and onboarding',
         account: accounts.advisor,
         path: process.env.E2E_ONBOARDING_PATH ?? '/dashboard',
-        expected: process.env.E2E_ONBOARDING_EXPECT ?? 'Dashboard',
+        expected: process.env.E2E_ONBOARDING_EXPECT ?? 'Advisor dashboard',
     },
     {
         name: 'Interactive Dashboard',
         account: accounts.advisor,
         path: process.env.E2E_ADVISOR_DASHBOARD_PATH ?? '/dashboard',
-        expected: process.env.E2E_ADVISOR_DASHBOARD_EXPECT ?? 'Dashboard',
+        expected:
+            process.env.E2E_ADVISOR_DASHBOARD_EXPECT ?? 'Advisor dashboard',
     },
     {
         name: 'NPO Module',
@@ -319,9 +320,13 @@ async function installFakeMedia(page) {
 }
 
 async function assertExpectedContent(page, flow, viewport) {
-    const bodyText = await page.evaluate(() => document.body.innerText);
-
-    if (!bodyText.includes(flow.expected)) {
+    try {
+        await page.waitForFunction(
+            (expected) => document.body.innerText.includes(expected),
+            { timeout: 10_000 },
+            flow.expected,
+        );
+    } catch {
         const pageIdentity = await page.evaluate(() => {
             const serializedPage = document
                 .querySelector('[data-page]')
