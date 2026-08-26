@@ -220,7 +220,7 @@ async function login(page, account, viewport) {
         { timeout: 15_000 },
     );
 
-    if (new URL(page.url()).pathname.includes('/mfa/challenge')) {
+    if (isMfaChallengePath(new URL(page.url()).pathname)) {
         await assertAccessibility(page, { name: 'MFA challenge' }, viewport);
         await assertKeyboardFocus(page, { name: 'MFA challenge' }, viewport);
         await page
@@ -228,10 +228,24 @@ async function login(page, account, viewport) {
             .fill(generateSync({ secret: account.mfaSecret }));
         await page.locator('button[type="submit"]').click();
         await page.waitForFunction(
-            () => !window.location.pathname.includes('/mfa/challenge'),
+            () => {
+                const path = window.location.pathname;
+
+                return ![
+                    '/login',
+                    '/mfa/challenge',
+                    '/two-factor-challenge',
+                ].some((challengePath) => path.includes(challengePath));
+            },
             { timeout: 15_000 },
         );
     }
+}
+
+function isMfaChallengePath(pathname) {
+    return ['/mfa/challenge', '/two-factor-challenge'].some((challengePath) =>
+        pathname.includes(challengePath),
+    );
 }
 
 async function installFakeMedia(page) {
