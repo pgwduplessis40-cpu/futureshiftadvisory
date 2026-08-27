@@ -48,6 +48,9 @@ final class BrowserE2eFixtureTest extends TestCase
         $npoUser = User::query()->where('email', 'browser-e2e-npo@example.test')->firstOrFail();
         $client = Client::query()->findOrFail('00000000-0000-4000-8000-000000000001');
 
+        self::assertSame('2026-08-26 22:15:00', $client->updated_at?->utc()->toDateTimeString());
+        self::assertSame('2026-08-26 22:15:00', $advisor->updated_at?->utc()->toDateTimeString());
+
         self::assertTrue($advisor->hasEnabledTwoFactorAuthentication());
         self::assertTrue($clientUser->hasEnabledTwoFactorAuthentication());
         self::assertTrue($npoUser->hasEnabledTwoFactorAuthentication());
