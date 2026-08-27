@@ -139,7 +139,7 @@ jobs:
           set -euo pipefail
           comparison_ref="${{ github.event.before }}"
           if [ -z "${comparison_ref}" ] || [ "${comparison_ref}" = "0000000000000000000000000000000000000000" ]; then
-            comparison_ref="HEAD~1"
+            comparison_ref="$(git rev-parse --verify HEAD^)"
           fi
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             comparison_ref="origin/${{ github.base_ref }}"
@@ -156,7 +156,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          comparison_ref="HEAD~1"
+          comparison_ref="$(git rev-parse --verify HEAD^)"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             comparison_ref="origin/${{ github.base_ref }}"
           fi
@@ -168,7 +168,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          comparison_ref="HEAD~1"
+          comparison_ref="$(git rev-parse --verify HEAD^)"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             comparison_ref="origin/${{ github.base_ref }}"
           fi
@@ -184,7 +184,7 @@ jobs:
             php scripts/ensure-coverage-driver.php
             php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --log-junit storage/logs/phpunit.xml --coverage-clover storage/logs/clover.xml 2>&1 | tee storage/logs/phpunit-console.log
             php scripts/assert-coverage-thresholds.php storage/logs/clover.xml storage/logs/coverage-summary.json
-            comparison_ref="HEAD~1"
+            comparison_ref="$(git rev-parse --verify HEAD^)"
             if [ "${{ github.event_name }}" = "pull_request" ]; then
               comparison_ref="origin/${{ github.base_ref }}"
             fi
