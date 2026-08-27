@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const bundle = resolve(projectRoot, 'bootstrap/ssr/app.js');
