@@ -67,7 +67,7 @@ export default function NpoBoardDashboard({
         <>
             <Head title="NPO board portal" />
 
-            <main className="space-y-6">
+            <div className="space-y-6">
                 <PageHeader
                     eyebrow="NPO board portal"
                     icon={ShieldCheck}
@@ -205,7 +205,7 @@ export default function NpoBoardDashboard({
                         ))}
                     </BoardPanel>
                 </section>
-            </main>
+            </div>
         </>
     );
 }

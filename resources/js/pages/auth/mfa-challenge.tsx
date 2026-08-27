@@ -42,6 +42,7 @@ export default function MfaChallenge() {
                     <>
                         <Input
                             name="recovery_code"
+                            aria-label="Recovery code"
                             value={form.data.recovery_code}
                             onChange={(event) =>
                                 form.setData(
@@ -58,6 +59,7 @@ export default function MfaChallenge() {
                     <div className="flex flex-col items-center justify-center space-y-3 text-center">
                         <InputOTP
                             name="code"
+                            aria-label="Six-digit authentication code"
                             maxLength={OTP_MAX_LENGTH}
                             value={form.data.code}
                             onChange={(value) => form.setData('code', value)}

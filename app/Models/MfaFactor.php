@@ -14,7 +14,16 @@ final class MfaFactor extends Model
 
     public const TYPE_TOTP = 'totp';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'user_id',
+        'type',
+        'label',
+        'secret_envelope',
+        'recovery_codes_envelope',
+        'confirmed_at',
+        'last_used_at',
+    ];
 
     protected $casts = [
         'confirmed_at' => 'datetime',

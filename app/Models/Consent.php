@@ -28,7 +28,19 @@ final class Consent extends Model
 
     public const ELECTION_UNDECIDED = 'undecided';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'client_id',
+        'proposal_id',
+        'subject_user_id',
+        'type',
+        'election',
+        'evidence',
+        'captured_by_user_id',
+        'captured_at',
+        'revoked_by_user_id',
+        'revoked_at',
+    ];
 
     protected $casts = [
         'evidence' => 'array',

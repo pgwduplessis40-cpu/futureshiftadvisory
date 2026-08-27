@@ -1,0 +1,106 @@
+name: browser-e2e
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop, main, master, workos, featureApp]
+  pull_request:
+    branches: [develop, main, master, workos, featureApp]
+
+permissions:
+  contents: read
+
+jobs:
+  browser-e2e:
+    name: authenticated-browser-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: futureshift_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test!@#456
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d futureshift_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      APP_ENV: testing
+      APP_URL: http://127.0.0.1:8000
+      E2E_BASE_URL: http://127.0.0.1:8000
+      # Browser requests need a session that survives the login redirect. The
+      # default testing `array` driver is intentionally request-local.
+      SESSION_DRIVER: file
+      E2E_ADVISOR_EMAIL: ${{ secrets.E2E_ADVISOR_EMAIL }}
+      E2E_ADVISOR_PASSWORD: ${{ secrets.E2E_ADVISOR_PASSWORD }}
+      E2E_ADVISOR_MFA_SECRET: ${{ secrets.E2E_ADVISOR_MFA_SECRET }}
+      E2E_CLIENT_EMAIL: ${{ secrets.E2E_CLIENT_EMAIL }}
+      E2E_CLIENT_PASSWORD: ${{ secrets.E2E_CLIENT_PASSWORD }}
+      E2E_CLIENT_MFA_SECRET: ${{ secrets.E2E_CLIENT_MFA_SECRET }}
+      E2E_NPO_EMAIL: ${{ secrets.E2E_NPO_EMAIL }}
+      E2E_NPO_PASSWORD: ${{ secrets.E2E_NPO_PASSWORD }}
+      E2E_NPO_MFA_SECRET: ${{ secrets.E2E_NPO_MFA_SECRET }}
+      E2E_CLIENT_SCREEN_PATH: /advisor/clients/00000000-0000-4000-8000-000000000001
+      E2E_CLIENT_SCREEN_EXPECT: Browser E2E Isolated Client
+      E2E_NPO_EXPECT: Browser E2E NPO Client
+      WAYFINDER_GENERATE: 'false'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          extensions: pdo_pgsql, pgsql, zip
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: |
+          composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts
+          npm ci
+
+      - name: Install Chrome for Puppeteer
+        run: npx --no-install puppeteer browsers install chrome
+
+      - name: Prepare isolated browser environment
+        run: |
+          cp .env.testing .env
+          php artisan key:generate --force
+          php artisan package:discover --ansi
+          php artisan migrate:fresh --env=testing --force
+          php artisan db:seed --class=Database\\Seeders\\BrowserE2eSeeder --env=testing --force
+          npm run build
+
+      - name: Start application
+        shell: bash
+        run: |
+          php artisan serve --host=127.0.0.1 --port=8000 > storage/logs/browser-e2e-server.log 2>&1 &
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8000/up >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat storage/logs/browser-e2e-server.log
+          exit 1
+
+      - name: Run authenticated browser quality gate
+        run: npm run browser:e2e
+
+      - name: Upload browser evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-e2e-evidence
+          path: |
+            storage/app/e2e-artifacts
+            storage/logs/browser-e2e-server.log
+          if-no-files-found: warn

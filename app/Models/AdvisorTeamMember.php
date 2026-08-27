@@ -18,7 +18,14 @@ final class AdvisorTeamMember extends Model
 
     public const ROLE_OPERATIONS = 'operations';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'advisor_team_id',
+        'user_id',
+        'role',
+        'joined_at',
+        'left_at',
+    ];
 
     protected $casts = [
         'joined_at' => 'datetime',

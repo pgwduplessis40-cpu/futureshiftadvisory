@@ -21,7 +21,19 @@ final class SecurityAudit extends Model
 
     public const STATUS_CLOSED = 'closed';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'period',
+        'auditor',
+        'scope',
+        'status',
+        'evidence_manifest',
+        'findings',
+        'report_path',
+        'prepared_at',
+        'started_at',
+        'closed_at',
+    ];
 
     protected $casts = [
         'scope' => 'array',

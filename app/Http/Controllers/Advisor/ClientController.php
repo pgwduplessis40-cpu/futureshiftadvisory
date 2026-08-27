@@ -11,8 +11,8 @@ use App\Enums\FeeMethod;
 use App\Enums\NpoEngagementSubType;
 use App\Enums\NpoLegalStructure;
 use App\Enums\ProposalStatus;
-use App\Enums\ReportType;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Advisor\AdvisorClientWorkspacePayloadBuilder;
 use App\Models\AccountingConnection;
 use App\Models\AnalysisFeedback;
 use App\Models\AnalysisFinding;
@@ -22,23 +22,16 @@ use App\Models\DdEngagement;
 use App\Models\EntrepreneurProfile;
 use App\Models\FeeCalculation;
 use App\Models\FinancialSnapshot;
-use App\Models\GovernanceReviewFinding;
-use App\Models\IndustryBriefing;
 use App\Models\InviteToken;
-use App\Models\KnowledgeAssessment;
-use App\Models\Meeting;
-use App\Models\NpoEngagement;
-use App\Models\PreMeetingBrief;
 use App\Models\Proposal;
-use App\Models\Report;
-use App\Models\ReportSectionComment;
-use App\Models\ReportSectionRevision;
 use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\Audit\AuditWriter;
 use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Clients\AdvisorClientCapacity;
+use App\Services\Clients\AdvisorClientCollaborationPayloadBuilder;
+use App\Services\Clients\AdvisorClientPayloadBuilder;
 use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\Dashboards\EconomicExposureMapper;
 use App\Services\Dashboards\PaymentStatusReport;
@@ -77,6 +70,9 @@ final class ClientController extends Controller
     public function __construct(
         private readonly AuditWriter $auditWriter,
         private readonly AdvisorClientCapacity $clientCapacity,
+        private readonly AdvisorClientCollaborationPayloadBuilder $collaborationPayloads,
+        private readonly AdvisorClientPayloadBuilder $clientPayloads,
+        private readonly AdvisorClientWorkspacePayloadBuilder $workspacePayloads,
         private readonly ConflictDeclarer $conflicts,
         private readonly DataQualityScorer $dataQuality,
         private readonly GoalTracker $goals,
@@ -171,7 +167,7 @@ final class ClientController extends Controller
             ->get();
         $invites = InviteToken::query()
             ->whereIn('id', $clients
-                ->map(fn (Client $client): ?string => $this->clientInviteTokenId($client))
+                ->map(fn (Client $client): ?string => $this->clientPayloads->tokenId($client))
                 ->filter()
                 ->values()
                 ->all())
@@ -180,7 +176,7 @@ final class ClientController extends Controller
         $activatedInviteEmails = User::query()
             ->whereIn('user_type', [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM])
             ->whereIn('email', $clients
-                ->map(fn (Client $client): string => $this->clientInviteEmail($client))
+                ->map(fn (Client $client): string => $this->clientPayloads->inviteEmail($client))
                 ->filter()
                 ->values()
                 ->all())
@@ -190,11 +186,11 @@ final class ClientController extends Controller
 
         return Inertia::render('advisor/clients/Index', [
             'clients' => $clients
-                ->map(fn (Client $client): array => $this->clientSummary(
+                ->map(fn (Client $client): array => $this->clientPayloads->summary(
                     $client,
                     $showAdvisorAssignments,
-                    $invites->get($this->clientInviteTokenId($client)),
-                    $activatedInviteEmails->has($this->clientInviteEmail($client)),
+                    $invites->get($this->clientPayloads->tokenId($client)),
+                    $activatedInviteEmails->has($this->clientPayloads->inviteEmail($client)),
                 ))
                 ->values(),
             'engagementFilter' => $engagementFilter,
@@ -326,17 +322,15 @@ final class ClientController extends Controller
         $actor = $request->user();
         abort_unless($actor instanceof User, 403);
 
-        $invite = $this->clientInviteFor($client);
-        if (! $this->canResendClientInvite($client, $invite)) {
+        $invite = $this->clientPayloads->inviteFor($client);
+        if (! $this->clientPayloads->canResendInvite($client, $invite)) {
             return back()->withErrors([
                 'invite' => 'Only pending or cancelled client invitations can be resent.',
             ]);
         }
 
-        $email = $this->clientInviteEmail($client);
-        $engagement = $client->engagement_type instanceof EngagementType
-            ? $client->engagement_type
-            : EngagementType::from((string) $client->engagement_type);
+        $email = $this->clientPayloads->inviteEmail($client);
+        $engagement = $client->engagement_type;
 
         DB::transaction(function () use ($actor, $client, $email, $engagement, $invite, $issuer): void {
             if ($invite instanceof InviteToken && ! $invite->isAccepted()) {
@@ -388,8 +382,8 @@ final class ClientController extends Controller
         $actor = $request->user();
         abort_unless($actor instanceof User, 403);
 
-        $invite = $this->clientInviteFor($client);
-        if (! $this->canCancelClientInvite($client, $invite)) {
+        $invite = $this->clientPayloads->inviteFor($client);
+        if (! $this->clientPayloads->canCancelInvite($client, $invite)) {
             return back()->withErrors([
                 'invite' => 'Only pending client invitations can be cancelled.',
             ]);
@@ -409,7 +403,7 @@ final class ClientController extends Controller
 
             $this->auditWriter->record('client.invite_cancelled', subject: $client, actor: $actor, after: [
                 'client_id' => $client->getKey(),
-                'email' => $this->clientInviteEmail($client),
+                'email' => $this->clientPayloads->inviteEmail($client),
                 'invite_token_id' => $invite?->getKey(),
             ]);
         });
@@ -539,14 +533,14 @@ final class ClientController extends Controller
         $dataQuality = $this->dataQuality->score($client);
         $user = $request->user();
         $strategicBudget = $strategicBudgets->ensureForClient($client);
-        $invite = $this->clientInviteFor($client);
+        $invite = $this->clientPayloads->inviteFor($client);
 
         return Inertia::render('advisor/clients/Show', [
             'client' => [
-                ...$this->clientSummary(
+                ...$this->clientPayloads->summary(
                     $client,
                     invite: $invite,
-                    hasActivatedAccount: $this->clientInviteHasActivatedAccount($client),
+                    hasActivatedAccount: $this->clientPayloads->hasActivatedAccount($client),
                 ),
                 'data_quality' => $dataQuality->level,
                 'data_quality_summary' => $dataQuality->toPayload(),
@@ -555,7 +549,7 @@ final class ClientController extends Controller
                 'lifecycle_update_url' => route('advisor.clients.lifecycle.update', $client, absolute: false),
                 'knowledge_assessment_store_url' => route('advisor.clients.knowledge-assessments.store', $client, absolute: false),
                 'knowledge_draft_store_url' => route('advisor.clients.knowledge-drafts.store', $client, absolute: false),
-                'latest_knowledge_assessment' => $this->latestKnowledgeAssessment($client),
+                'latest_knowledge_assessment' => $this->workspacePayloads->latestKnowledgeAssessment($client),
                 'goal_store_url' => route('advisor.clients.goals.store', $client, absolute: false),
                 'goals' => $this->goals->dashboard($client, includeAdvisorActions: true),
                 'proposal_store_url' => route('advisor.clients.proposals.store', $client, absolute: false),
@@ -564,11 +558,11 @@ final class ClientController extends Controller
                 'proposals' => $this->proposalSummaries($client),
                 'business_health_recompute_url' => route('advisor.clients.health-radar.recompute', $client, absolute: false),
                 'report_store_url' => route('advisor.clients.reports.store', $client, absolute: false),
-                'reports' => $this->reportSummaries($client),
+                'reports' => $this->workspacePayloads->reports($client),
                 'meeting_store_url' => route('advisor.clients.meetings.store', $client, absolute: false),
-                'meetings' => $this->meetingSummaries($client),
-                'industry_briefings' => $this->industryBriefingSummaries($client),
-                'pre_meeting_briefs' => $this->preMeetingBriefSummaries($client),
+                'meetings' => $this->workspacePayloads->meetings($client),
+                'industry_briefings' => $this->workspacePayloads->industryBriefings($client),
+                'pre_meeting_briefs' => $this->workspacePayloads->preMeetingBriefs($client),
                 'address' => $client->address,
                 'directors' => $client->directors ?? [],
                 'registry_sources' => $client->registry_sources ?? [],
@@ -584,57 +578,17 @@ final class ClientController extends Controller
                 'proposal_budget_guard' => $strategicBudgets->proposalGuardPayload($strategicBudget),
                 'due_diligence' => $this->dueDiligenceSummary($client),
                 'npo_conversion' => $npoConversion->clientSummary($client),
-                'npo_governance_review' => $this->npoGovernanceReviewSummary($client),
+                'npo_governance_review' => $this->workspacePayloads->npoGovernanceReview($client),
                 'npo_configuration' => $npoConfiguration->clientSummary($client),
                 'npo_health' => $npoHealth->clientSummary($client),
                 'npo_funding' => $npoFunders->clientSummary($client),
                 'npo_values' => $npoValues->clientSummary($client),
                 'npo_social_enterprise' => $socialEnterprise->clientSummary($client),
                 'created_at' => $client->created_at?->toIso8601String(),
-                'invitation' => $this->clientInvitationSummary($client, $invite),
+                'invitation' => $this->clientPayloads->invitationSummary($client, $invite),
             ],
-            'screenShare' => [
-                'connection_url' => route('advisor.clients.screen-share.connections.store', $client, absolute: false),
-                'connection_heartbeat_url' => route('screen-share.connections.heartbeat', ['connection' => '__connection__'], absolute: false),
-                'request_url' => route('advisor.clients.screen-share.sessions.store', $client, absolute: false),
-                'ice_servers_url' => route('screen-share.sessions.ice-servers', ['session' => '__session__'], absolute: false),
-                'active_url' => route('screen-share.sessions.active', ['session' => '__session__'], absolute: false),
-                'signal_url' => route('screen-share.sessions.signal', ['session' => '__session__'], absolute: false),
-                'pending_signals_url' => route('screen-share.sessions.pending-signals', ['session' => '__session__'], absolute: false),
-                'heartbeat_url' => route('screen-share.sessions.heartbeat', ['session' => '__session__'], absolute: false),
-                'end_url' => route('screen-share.sessions.end', ['session' => '__session__'], absolute: false),
-                'heartbeat_seconds' => max(5, (int) config('screen-share.heartbeat_interval_seconds', 10)),
-                'participants' => $client->teamMembers()
-                    ->with('user')
-                    ->get()
-                    ->map(fn (ClientTeamMember $member): ?array => $member->user instanceof User
-                        && in_array($member->user->user_type, [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM], true)
-                        ? ['id' => (string) $member->user->getKey(), 'name' => $member->user->name]
-                        : null)
-                    ->filter()
-                    ->values()
-                    ->all(),
-            ],
-            'coBrowse' => (bool) config('co-browse.enabled') ? [
-                'connection_url' => route('advisor.clients.co-browse.connections.store', $client, absolute: false),
-                'connection_heartbeat_url' => route('co-browse.connections.heartbeat', ['connection' => '__connection__'], absolute: false),
-                'request_url' => route('advisor.clients.co-browse.sessions.store', $client, absolute: false),
-                'status_url' => route('co-browse.sessions.status', ['session' => '__session__'], absolute: false),
-                'heartbeat_url' => route('co-browse.sessions.heartbeat', ['session' => '__session__'], absolute: false),
-                'end_url' => route('co-browse.sessions.end', ['session' => '__session__'], absolute: false),
-                'action_url' => route('co-browse.sessions.actions.store', ['session' => '__session__'], absolute: false),
-                'heartbeat_seconds' => max(5, (int) config('co-browse.heartbeat_interval_seconds', 10)),
-                'participants' => $client->teamMembers()
-                    ->with('user')
-                    ->get()
-                    ->map(fn (ClientTeamMember $member): ?array => $member->user instanceof User
-                        && in_array($member->user->user_type, [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM], true)
-                        ? ['id' => (string) $member->user->getKey(), 'name' => $member->user->name]
-                        : null)
-                    ->filter()
-                    ->values()
-                    ->all(),
-            ] : null,
+            'screenShare' => $this->collaborationPayloads->screenShare($client),
+            'coBrowse' => $this->collaborationPayloads->coBrowse($client),
             'conflictDeclaration' => $client->conflictDeclarations()
                 ->latest('declared_at')
                 ->first()
@@ -645,59 +599,6 @@ final class ClientController extends Controller
     private function activeEntrepreneurWorkspace(Client $client): ?EntrepreneurProfile
     {
         return $this->entrepreneurWorkspaces->forClient($client);
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function npoGovernanceReviewSummary(Client $client): ?array
-    {
-        $engagement = NpoEngagement::query()
-            ->where('client_id', $client->getKey())
-            ->where('sub_type', NpoEngagementSubType::GovernanceReview->value)
-            ->latest()
-            ->first();
-
-        if (! $engagement instanceof NpoEngagement) {
-            return null;
-        }
-
-        $findings = GovernanceReviewFinding::query()
-            ->where('npo_engagement_id', $engagement->getKey())
-            ->orderByRaw("case severity when 'critical' then 0 when 'high' then 1 when 'medium' then 2 when 'low' then 3 else 4 end")
-            ->latest('updated_at')
-            ->orderBy('id')
-            ->get();
-        $pending = $findings->where('status', GovernanceReviewFinding::STATUS_PENDING_ADVISOR_REVIEW);
-        $reviewed = $findings->where('status', GovernanceReviewFinding::STATUS_REVIEWED);
-
-        return [
-            'id' => $engagement->id,
-            'run_url' => route('advisor.npo-engagements.governance-review.analysis', $engagement, absolute: false),
-            'findings_count' => $findings->count(),
-            'pending_review_count' => $pending->count(),
-            'reviewed_count' => $reviewed->count(),
-            'high_priority_count' => $findings
-                ->filter(fn (GovernanceReviewFinding $finding): bool => in_array($finding->severity->value, ['critical', 'high'], true))
-                ->count(),
-            'can_generate_report' => $reviewed->isNotEmpty(),
-            'findings' => $findings
-                ->take(8)
-                ->map(fn (GovernanceReviewFinding $finding): array => [
-                    'id' => $finding->id,
-                    'finding_key' => $finding->finding_key,
-                    'category' => $finding->category,
-                    'severity' => $finding->severity->value,
-                    'title' => $finding->title,
-                    'body' => $finding->body,
-                    'status' => $finding->status,
-                    'advisor_notes' => $finding->advisor_notes,
-                    'review_url' => route('advisor.governance-review-findings.review', $finding, absolute: false),
-                    'reviewed_at' => $finding->reviewed_at?->toIso8601String(),
-                ])
-                ->values()
-                ->all(),
-        ];
     }
 
     /**
@@ -717,31 +618,6 @@ final class ClientController extends Controller
         return array_merge($this->ddOnboarding->targetPanel($engagement), [
             'data_room' => $this->dataRoom->summary($engagement),
         ]);
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function latestKnowledgeAssessment(Client $client): ?array
-    {
-        $assessment = KnowledgeAssessment::query()
-            ->where('client_id', $client->getKey())
-            ->latest('assessed_at')
-            ->latest('created_at')
-            ->first();
-
-        if (! $assessment instanceof KnowledgeAssessment) {
-            return null;
-        }
-
-        return [
-            'id' => $assessment->id,
-            'financial_literacy' => $assessment->financial_literacy,
-            'strategic_awareness' => $assessment->strategic_awareness,
-            'leadership' => $assessment->leadership,
-            'calibration' => $assessment->calibration,
-            'assessed_at' => $assessment->assessed_at?->toIso8601String(),
-        ];
     }
 
     /**
@@ -891,138 +767,6 @@ final class ClientController extends Controller
     }
 
     /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function reportSummaries(Client $client): array
-    {
-        return Report::query()
-            ->where('client_id', $client->getKey())
-            ->latest('generated_at')
-            ->limit(8)
-            ->get()
-            ->map(fn (Report $report): array => [
-                'id' => $report->id,
-                'type' => $report->type->value,
-                'type_label' => $report->type->label(),
-                'title' => $report->title,
-                'generated_at' => $report->generated_at?->toIso8601String(),
-                'pdf_byte_size' => $report->pdf_byte_size,
-                'pptx_byte_size' => $report->pptx_byte_size,
-                'view_url' => route('advisor.reports.download', $report, absolute: false),
-                'download_url' => route('advisor.reports.download', $report, absolute: false),
-                'pptx_url' => $report->pptx_path !== null
-                    ? route('advisor.reports.pptx', $report, absolute: false)
-                    : null,
-                'review_status' => $report->review_status,
-                'reviewed_at' => $report->reviewed_at?->toIso8601String(),
-                'review_url' => route('advisor.reports.review', $report, absolute: false),
-                'release_url' => $report->type === ReportType::Client
-                    ? route('advisor.reports.release', $report, absolute: false)
-                    : null,
-                'can_review' => in_array($report->type, [
-                    ReportType::Client,
-                    ReportType::DueDiligence,
-                    ReportType::Valuation,
-                    ReportType::AcquisitionGoNoGo,
-                    ReportType::Trajectory,
-                    ReportType::SuccessionValueGap,
-                    ReportType::FunderAccountability,
-                    ReportType::ImpactSummary,
-                ], true) && $report->review_status === 'pending_review',
-                'section_count' => $report->sections()->count(),
-                'revision_count' => ReportSectionRevision::query()
-                    ->where('report_id', $report->getKey())
-                    ->count(),
-                'comment_count' => ReportSectionComment::query()
-                    ->where('report_id', $report->getKey())
-                    ->whereNull('resolved_at')
-                    ->count(),
-            ])
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function meetingSummaries(Client $client): array
-    {
-        return Meeting::query()
-            ->with('preMeetingBrief')
-            ->withCount('calendarEventMappings')
-            ->where('client_id', $client->getKey())
-            ->where('scheduled_at', '>=', now()->subDay())
-            ->orderBy('scheduled_at')
-            ->limit(8)
-            ->get()
-            ->map(fn (Meeting $meeting): array => [
-                'id' => $meeting->id,
-                'title' => $meeting->title,
-                'scheduled_at' => $meeting->scheduled_at?->toIso8601String(),
-                'location' => $meeting->location,
-                'link' => $meeting->link,
-                'attendees' => $meeting->attendees ?? [],
-                'calendar_synced' => $meeting->calendar_event_mappings_count > 0,
-                'brief_status' => $meeting->preMeetingBrief?->sent_at !== null
-                    ? 'sent'
-                    : ($meeting->preMeetingBrief instanceof PreMeetingBrief ? 'draft' : 'pending'),
-            ])
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function industryBriefingSummaries(Client $client): array
-    {
-        return IndustryBriefing::query()
-            ->where('client_id', $client->getKey())
-            ->latest('period')
-            ->limit(6)
-            ->get()
-            ->map(fn (IndustryBriefing $briefing): array => [
-                'id' => $briefing->id,
-                'period' => $briefing->period?->toDateString(),
-                'body' => $briefing->body,
-                'status' => $briefing->status,
-                'reviewed_at' => $briefing->reviewed_at?->toIso8601String(),
-                'sent_at' => $briefing->sent_at?->toIso8601String(),
-                'review_url' => route('advisor.industry-briefings.review', $briefing, absolute: false),
-                'can_review' => $briefing->status === IndustryBriefing::STATUS_DRAFT,
-            ])
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function preMeetingBriefSummaries(Client $client): array
-    {
-        return PreMeetingBrief::query()
-            ->with('meeting')
-            ->where('client_id', $client->getKey())
-            ->latest('meeting_at')
-            ->limit(6)
-            ->get()
-            ->map(fn (PreMeetingBrief $brief): array => [
-                'id' => $brief->id,
-                'meeting_title' => $brief->meeting?->title,
-                'meeting_at' => $brief->meeting_at?->toIso8601String(),
-                'body' => $brief->body,
-                'red_flag_count' => count($brief->red_flag_ids ?? []),
-                'generated_at' => $brief->generated_at?->toIso8601String(),
-                'reviewed_at' => $brief->reviewed_at?->toIso8601String(),
-                'sent_at' => $brief->sent_at?->toIso8601String(),
-                'review_url' => route('advisor.pre-meeting-briefs.review', $brief, absolute: false),
-                'can_review' => $brief->sent_at === null,
-            ])
-            ->values()
-            ->all();
-    }
-
-    /**
      * @param  array<string, mixed>|null  $lookup
      * @return array<string, mixed>
      */
@@ -1146,182 +890,6 @@ final class ClientController extends Controller
         }
 
         return $client;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function clientSummary(
-        Client $client,
-        bool $includeAdvisorAssignments = false,
-        ?InviteToken $invite = null,
-        ?bool $hasActivatedAccount = null,
-    ): array {
-        $engagementType = $client->engagement_type instanceof EngagementType
-            ? $client->engagement_type
-            : EngagementType::from((string) $client->engagement_type);
-        $status = $client->status instanceof ClientStatus
-            ? $client->status
-            : ClientStatus::from((string) ($client->status ?? ClientStatus::ACTIVE->value));
-        [$accountStatus, $accountStatusLabel] = $this->clientAccountStatus(
-            $client,
-            $invite,
-            $status,
-            $hasActivatedAccount ?? $this->clientInviteHasActivatedAccount($client),
-        );
-
-        $summary = [
-            'id' => $client->id,
-            'engagement_type' => $engagementType->value,
-            'engagement_type_label' => $engagementType->label(),
-            'is_npo' => $engagementType === EngagementType::NPO,
-            'status' => $status->value,
-            'status_label' => $status->label(),
-            'account_status' => $accountStatus,
-            'account_status_label' => $accountStatusLabel,
-            'nzbn' => $client->nzbn,
-            'legal_name' => $client->legal_name,
-            'trading_name' => $client->trading_name,
-            'entity_type' => $client->entity_type,
-            'gst_registered' => $client->gst_registered,
-            'filing_status' => $client->filing_status,
-            'data_quality' => $client->data_quality,
-        ];
-
-        if ($includeAdvisorAssignments) {
-            $summary['advisor_assignments'] = $client->teamMembers
-                ->map(fn (ClientTeamMember $member): array => [
-                    'advisor_name' => $member->user?->name,
-                    'role' => $member->role,
-                    'team_name' => $member->advisorTeam?->name,
-                ])
-                ->values()
-                ->all();
-        }
-
-        return $summary;
-    }
-
-    private function clientInviteTokenId(Client $client): ?string
-    {
-        $registrySources = is_array($client->registry_sources) ? $client->registry_sources : [];
-        if (($registrySources['source'] ?? null) !== 'advisor_client_invite') {
-            return null;
-        }
-
-        $inviteId = $registrySources['invite_token_id'] ?? null;
-
-        return is_string($inviteId) && $inviteId !== '' ? $inviteId : null;
-    }
-
-    private function clientInviteFor(Client $client): ?InviteToken
-    {
-        $inviteId = $this->clientInviteTokenId($client);
-
-        return $inviteId !== null
-            ? InviteToken::query()->find($inviteId)
-            : null;
-    }
-
-    private function clientInviteEmail(Client $client): string
-    {
-        $registrySources = is_array($client->registry_sources) ? $client->registry_sources : [];
-        $email = Str::lower(trim((string) ($registrySources['invite_email'] ?? '')));
-
-        return filter_var($email, FILTER_VALIDATE_EMAIL) !== false ? $email : '';
-    }
-
-    private function canResendClientInvite(Client $client, ?InviteToken $invite): bool
-    {
-        $email = $this->clientInviteEmail($client);
-
-        return $this->clientInviteTokenId($client) !== null
-            && $client->primary_contact_user_id === null
-            && $invite?->accepted_at === null
-            && $email !== ''
-            && ! User::query()->whereRaw('lower(trim(email)) = ?', [$email])->exists();
-    }
-
-    private function canCancelClientInvite(Client $client, ?InviteToken $invite): bool
-    {
-        $registrySources = is_array($client->registry_sources) ? $client->registry_sources : [];
-
-        return $this->canResendClientInvite($client, $invite)
-            && $invite instanceof InviteToken
-            && ! isset($registrySources['invite_cancelled_at']);
-    }
-
-    private function clientInviteHasActivatedAccount(Client $client): bool
-    {
-        $email = $this->clientInviteEmail($client);
-
-        return $email !== ''
-            && User::query()
-                ->whereIn('user_type', [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM])
-                ->whereRaw('lower(trim(email)) = ?', [$email])
-                ->exists();
-    }
-
-    /**
-     * @return array{0:string, 1:string}
-     */
-    private function clientAccountStatus(
-        Client $client,
-        ?InviteToken $invite,
-        ClientStatus $lifecycle,
-        bool $hasActivatedAccount,
-    ): array {
-        if ($this->clientInviteTokenId($client) === null) {
-            return [$lifecycle->value, $lifecycle->label()];
-        }
-
-        if ($client->primary_contact_user_id !== null || $invite?->isAccepted() || $hasActivatedAccount) {
-            return [$lifecycle->value, $lifecycle->label()];
-        }
-
-        $registrySources = is_array($client->registry_sources) ? $client->registry_sources : [];
-        if (isset($registrySources['invite_cancelled_at'])) {
-            return ['invite_cancelled', 'Invite cancelled'];
-        }
-
-        if ($invite?->isUsable()) {
-            return ['awaiting_activation', 'Awaiting activation'];
-        }
-
-        return ['awaiting_activation', 'Awaiting activation'];
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function clientInvitationSummary(Client $client, ?InviteToken $invite): ?array
-    {
-        if ($this->clientInviteTokenId($client) === null) {
-            return null;
-        }
-
-        [$status, $statusLabel] = $this->clientAccountStatus(
-            $client,
-            $invite,
-            $client->status instanceof ClientStatus
-                ? $client->status
-                : ClientStatus::from((string) ($client->status ?? ClientStatus::ACTIVE->value)),
-            $this->clientInviteHasActivatedAccount($client),
-        );
-
-        return [
-            'email' => $this->clientInviteEmail($client),
-            'status' => $status,
-            'status_label' => $statusLabel,
-            'accepted_at' => $invite?->accepted_at?->toIso8601String(),
-            'expires_at' => $invite?->expires_at?->toIso8601String(),
-            'resend_url' => $this->canResendClientInvite($client, $invite)
-                ? route('advisor.clients.invite.resend', $client, absolute: false)
-                : null,
-            'cancel_url' => $this->canCancelClientInvite($client, $invite)
-                ? route('advisor.clients.invite.cancel', $client, absolute: false)
-                : null,
-        ];
     }
 
     /**

@@ -16,7 +16,23 @@ final class DeviceRegistration extends Model
 
     public const STATUS_REVOKED = 'revoked';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'user_id',
+        'device_id',
+        'platform',
+        'device_name',
+        'app_version',
+        'token_hash',
+        'status',
+        'capabilities',
+        'mfa_confirmed_at',
+        'terms_confirmed_at',
+        'last_used_at',
+        'expires_at',
+        'revoked_at',
+        'revoked_by_user_id',
+    ];
 
     protected $hidden = [
         'token_hash',

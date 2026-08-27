@@ -10,12 +10,21 @@ import DocumentLayout from '@/layouts/document-layout';
 import NotificationsLayout from '@/layouts/notifications-layout';
 import PublicLayout from '@/layouts/public-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import {
+    configureClientErrorTelemetry,
+    registerGlobalClientErrorTelemetry,
+} from '@/lib/client-error-telemetry';
 import { registerPortalOffline } from '@/lib/portal-offline';
 import { ensurePwaInstallListeners } from '@/lib/pwa-install';
 import { registerTargetHighlighting } from '@/lib/target-highlight';
 import buildVersion from '../../VERSION?raw';
 
+declare const __CLIENT_RELEASE_SHA__: string;
+
 const appName = import.meta.env.VITE_APP_NAME || 'Future Shift Advisory';
+
+configureClientErrorTelemetry({ releaseSha: __CLIENT_RELEASE_SHA__ });
+registerGlobalClientErrorTelemetry();
 
 void createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
@@ -54,9 +63,10 @@ void createInertiaApp({
             </AppErrorBoundary>
         );
     },
-    progress: {
-        color: '#4B5563',
-    },
+    // Inertia's bundled progress template renders the invalid ARIA role
+    // `bar`. Keep navigation accessible until the upstream template exposes
+    // an accessible customization point.
+    progress: false,
 }).then(() => {
     if (typeof document !== 'undefined') {
         document.getElementById('app-launch-skeleton')?.remove();

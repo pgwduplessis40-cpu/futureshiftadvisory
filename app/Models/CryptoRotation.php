@@ -19,7 +19,26 @@ final class CryptoRotation extends Model
 
     public const STATUS_ROTATED = 'rotated';
 
-    protected $guarded = [];
+    protected $fillable = [
+        'run_id',
+        'rotation_type',
+        'source_table',
+        'source_column',
+        'source_id',
+        'from_version',
+        'from_alg',
+        'from_kid',
+        'to_version',
+        'to_alg',
+        'to_kid',
+        'from_meta',
+        'to_meta',
+        'status',
+        'idempotency_key',
+        'error_message',
+        'started_at',
+        'completed_at',
+    ];
 
     protected $casts = [
         'from_meta' => 'array',

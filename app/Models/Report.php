@@ -20,7 +20,27 @@ final class Report extends Model
 
     public const RENDER_STATUS_FAILED = 'render_failed';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'client_id',
+        'entrepreneur_profile_id',
+        'npo_engagement_id',
+        'type',
+        'title',
+        'pdf_path',
+        'pdf_byte_size',
+        'pptx_path',
+        'pptx_byte_size',
+        'generated_by_user_id',
+        'generated_at',
+        'render_status',
+        'render_failed_at',
+        'render_failure_reason',
+        'metadata',
+        'review_status',
+        'reviewed_at',
+        'reviewed_by_user_id',
+    ];
 
     protected $casts = [
         'type' => ReportType::class,

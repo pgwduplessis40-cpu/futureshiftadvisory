@@ -17,7 +17,21 @@ final class PracticeAccountingConnection extends Model
 
     public const STATUS_REVOKED = 'revoked';
 
-    protected $guarded = [];
+    protected $fillable = [
+        'provider',
+        'external_tenant_id',
+        'external_tenant_name',
+        'external_tenant_type',
+        'status',
+        'token_envelope',
+        'token_envelope_meta',
+        'scopes',
+        'connected_by_user_id',
+        'connected_at',
+        'revoked_by_user_id',
+        'revoked_at',
+        'last_invoice_sync_at',
+    ];
 
     protected $casts = [
         'token_envelope_meta' => 'array',

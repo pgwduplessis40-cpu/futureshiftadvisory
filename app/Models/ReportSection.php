@@ -13,7 +13,22 @@ final class ReportSection extends Model
 {
     use HasUuids;
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'report_id',
+        'client_id',
+        'entrepreneur_profile_id',
+        'key',
+        'title',
+        'body',
+        'position',
+        'lens',
+        'attributions',
+        'document_support',
+        'document_support_note',
+        'data_quality_note',
+        'metadata',
+    ];
 
     protected $casts = [
         'position' => 'integer',

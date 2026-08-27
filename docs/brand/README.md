@@ -1,56 +1,67 @@
-# Brand assets — Meridian Warm
+# Meridian Warm brand system
 
-This folder holds the visual identity for Future Shift Advisory. The brand system is referenced as "Meridian Warm" across the spec.
+`resources/css/app.css` is the implementation source for Meridian Warm. This
+document is the review contract for its public-facing use. It replaces the old
+placeholder-asset guidance: the tokens below are active today.
 
-## Status
+## Palette
 
-**Placeholder.** Owner-supplied brand assets are not yet present in this folder. The build will run against the default shadcn/ui neutral palette until these are dropped in. Once the kit is present, WO-01 acceptance flips from "scaffolded with placeholder tokens" to "Meridian Warm tokens active across all surfaces."
+| Role | Token | Value | Use |
+| --- | --- | --- | --- |
+| Authority text and navigation | `--fs-admiralty` | `#1c2b45` | Headings, primary text, navigation |
+| Raised navy | `--fs-commodore` | `#2a3b5c` | Dense dark surfaces only |
+| Information | `--fs-harbour` | `#1b5070` | Informational detail and links |
+| Interactive accent | `--fs-pacific` | `#0d7a7a` | Primary actions and focus-safe accents |
+| Success | `--fs-deep-cove` | `#0d6a5a` | Positive state, never as body text on dark backgrounds |
+| Premium accent | `--fs-warm-gold` | `#d4a020` | Rules, small highlights, not paragraph text |
+| Reserved accent | `--fs-antique-gold` | `#b8860b` | Gold emphasis where contrast is verified |
+| Warm accent text | `--fs-cognac` | `#8b6c42` | Eyebrows and muted emphasis |
+| Accent surface | `--fs-champagne` | `#e8d5a0` | Small, non-semantic highlights |
+| Page surface | `--fs-parchment` | `#f9f6f0` | Public page background |
+| Secondary surface | `--fs-linen` | `#f0ead8` | Grouping and quiet sections |
+| Border | `--fs-sand` | `#e0d8cc` | Dividers and low-emphasis borders |
+| Muted text | `--fs-graphite` | `#5a6a7a` | Supporting copy only |
 
-## Required files
+Use the semantic aliases (`--fs-bg`, `--fs-bg-elevated`, `--fs-text`,
+`--fs-text-muted`, `--fs-text-accent`, `--fs-border`) in components. Raw colour
+tokens are only for the documented exceptions above. Meridian Warm is scoped to
+`.public`; authenticated product surfaces continue to use their application
+theme unless a reviewed design change explicitly expands the scope.
 
-When dropping the brand kit into this folder, please include:
+## Typography
 
-### Colour
-- `meridian-warm-palette.json` — the full token set in JSON (primary, accents, semantic, surface, text, border). Example shape:
-  ```json
-  {
-    "primary": { "DEFAULT": "#...", "foreground": "#..." },
-    "meridian": { "warm": "#...", "deep": "#...", "sand": "#...", "ink": "#..." },
-    "semantic": { "success": "#...", "warning": "#...", "danger": "#...", "info": "#..." }
-  }
-  ```
-- `meridian-warm-palette.pdf` — visual palette reference for humans.
+- Body and controls: `Outfit`, then the system sans-serif stack; 400 by default.
+- Display headings: `DM Serif Display` through `.font-display`; 400, with the
+  existing slight negative tracking.
+- Editorial accent only: `Cormorant Garamond` through `.font-accent`; never use
+  it for navigation, form labels, tables, or dense operational content.
+- Eyebrows use `.eyebrow`: 11px, 600, uppercase, 0.15em tracking, cognac.
 
-### Typography
-- `typography.md` — primary typeface, secondary typeface, weights used, fallback stack, license terms.
-- Font files (woff2 preferred) under `fonts/` if self-hosted.
+Headings carry hierarchy through size, weight, and spacing; colour alone must
+not signal importance. Keep body copy at a legible size and maintain sufficient
+contrast against parchment, linen, and elevated white surfaces.
 
-### Logo and marks
-- `logo-primary.svg` — primary horizontal lockup.
-- `logo-mark.svg` — square mark (favicon source).
-- `logo-mono-light.svg` and `logo-mono-dark.svg` — monochrome variants for stamped contexts (PDFs, footers).
-- `favicon.ico`, `favicon-32.png`, `favicon-16.png`, `apple-touch-icon.png`.
-- `logo-usage.md` — clear-space rules, minimum size, do/don't.
+## Usage rules
 
-### Imagery and motifs
-- `imagery-guidelines.md` — photo style, illustration style, gradient usage.
-- Any reusable SVG motifs under `motifs/`.
+1. Use Pacific for a primary action only when its focus and disabled states are
+   visible. Do not make gold the primary button colour.
+2. Use `.gold-rule` for a short decorative divider, never to communicate a
+   required status or validation outcome.
+3. Keep at least one text label for an icon-only interaction through an
+   accessible name. Checkbox fields require a form `name` and associated label;
+   use `AccessibleCheckboxField` for new forms.
+4. Do not introduce one-off hex values, fonts, or raw type scale values on a
+   public screen. Add a reviewed token first if the existing system is missing a
+   semantic role.
+5. Preserve the separation between semantic status colours and brand accents:
+   error, warning, and success always need text/icon support in addition to
+   colour.
 
-### Voice and tone
-- `voice-and-tone.md` — written brand voice notes for UI copy, error messages, marketing tone.
+## Compliance evidence
 
-## How these get wired in
-
-Once present, a follow-up WO will:
-
-1. Convert `meridian-warm-palette.json` into CSS variables in `resources/css/app.css`.
-2. Override the shadcn theme tokens so all primitives pick up Meridian Warm without rewrites.
-3. Wire the typography into Tailwind's `fontFamily` config.
-4. Place logo files into `public/brand/` and reference them from `BrandShell.tsx`.
-5. Generate the favicon set and reference from `resources/views/app.blade.php`.
-
-Until then, all UI uses the neutral defaults from `components.json`.
-
-## Confidentiality
-
-These assets are Future Shift Advisory's proprietary visual identity. Do not commit derivative work or test files using these assets to any public repository.
+Approved authenticated-browser screenshots in `e2e/snapshots/` are the visual
+compliance record. The browser CI gate captures the same named flows at 1440px
+and 390px, runs axe and keyboard/overflow checks, and fails on any pixel change
+until a reviewed baseline is committed. A screenshot is evidence of the exact
+route, viewport, role, and build it represents; it is not a substitute for the
+token and accessibility rules above.

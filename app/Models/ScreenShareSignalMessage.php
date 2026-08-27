@@ -11,7 +11,14 @@ final class ScreenShareSignalMessage extends Model
 {
     public $timestamps = false;
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'session_id',
+        'recipient_connection_id',
+        'type',
+        'payload',
+        'created_at',
+    ];
 
     protected function casts(): array
     {

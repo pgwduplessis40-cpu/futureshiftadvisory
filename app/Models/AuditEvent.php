@@ -40,7 +40,23 @@ final class AuditEvent extends Model
 
     public $timestamps = false;
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'id',
+        'occurred_at',
+        'actor_user_id',
+        'actor_user_key',
+        'actor_role',
+        'client_id',
+        'action',
+        'subject_type',
+        'subject_id',
+        'before',
+        'after',
+        'ip',
+        'user_agent',
+        'request_id',
+    ];
 
     protected $casts = [
         'occurred_at' => 'datetime',
