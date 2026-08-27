@@ -190,7 +190,10 @@ async function runFlowViewport(browserInstance, flow, viewport) {
             await assertFakeWebRtcContract(page, viewport.name);
         }
 
-        await settleVisualCapture(page);
+        await settleVisualCapture(
+            page,
+            viewport.isMobile && usesPwaInstallFallback(flow),
+        );
         await assertApprovedScreenshot(page, flow, viewport.name);
     } catch (error) {
         try {
@@ -513,12 +516,27 @@ async function assertApprovedScreenshot(page, flow, viewport) {
     }
 }
 
-async function settleVisualCapture(page) {
-    await page.evaluate(async () => {
+function usesPwaInstallFallback(flow) {
+    return (
+        flow.name === 'Login and onboarding' ||
+        flow.name === 'Interactive Dashboard'
+    );
+}
+
+async function settleVisualCapture(page, waitForPwaInstallFallback) {
+    await page.evaluate(async (shouldWaitForPwaInstallFallback) => {
         await document.fonts?.ready;
         await new Promise((resolve) => requestAnimationFrame(resolve));
         await new Promise((resolve) => requestAnimationFrame(resolve));
-    });
+
+        if (shouldWaitForPwaInstallFallback) {
+            // The approved mobile dashboard baselines include the PWA
+            // browser-help fallback, which intentionally appears after 1.5s.
+            // Wait only for the affected flows; other mobile pages must retain
+            // their normal capture timing.
+            await new Promise((resolve) => window.setTimeout(resolve, 1600));
+        }
+    }, waitForPwaInstallFallback);
 }
 
 function absoluteUrl(path) {
