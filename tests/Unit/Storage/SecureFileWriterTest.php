@@ -13,6 +13,7 @@ use App\Services\Integration\VirusScanner\Contracts\FileScanner;
 use App\Services\Integration\VirusScanner\NoopScanner;
 use App\Services\Integration\VirusScanner\ScanResult;
 use App\Services\Storage\Exceptions\InfectedFileException;
+use App\Services\Storage\Exceptions\SecureFileStorageException;
 use App\Services\Storage\SecureFileWriter;
 use App\Services\Storage\SecureStorageNotice;
 use App\Support\RequestContext;
@@ -78,6 +79,27 @@ final class SecureFileWriterTest extends TestCase
             'action' => 'document.uploaded',
             'subject_id' => $document->id,
         ]);
+    }
+
+    public function test_secure_file_writer_persists_a_generated_artifact_on_the_encrypted_disk(): void
+    {
+        $path = 'reports/'.Str::uuid().'/artifact.pdf';
+        $plaintext = 'Generated report with confidential financial analysis.';
+
+        app(SecureFileWriter::class)->writeGenerated($path, $plaintext);
+
+        $rawBytes = file_get_contents(Storage::disk('secure_local')->path($path));
+
+        $this->assertIsString($rawBytes);
+        $this->assertStringNotContainsString($plaintext, $rawBytes);
+        $this->assertSame($plaintext, Storage::disk('secure_local')->get($path));
+    }
+
+    public function test_secure_file_writer_rejects_an_unsafe_generated_artifact_path(): void
+    {
+        $this->expectException(SecureFileStorageException::class);
+
+        app(SecureFileWriter::class)->writeGenerated('../reports/artifact.pdf', 'Report');
     }
 
     public function test_noop_scanner_allows_eicar_fixture_in_development_mode(): void

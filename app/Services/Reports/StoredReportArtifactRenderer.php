@@ -13,10 +13,9 @@ use App\Models\User;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
 use App\Services\Reports\Contracts\ReportArtifactRenderer;
+use App\Services\Storage\SecureFileWriter;
 use App\Support\Reports\SourceReferenceLabeler;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use RuntimeException;
 use Throwable;
 
 /**
@@ -34,6 +33,7 @@ final class StoredReportArtifactRenderer implements ReportArtifactRenderer
         private readonly UploadedReportTemplateRenderer $uploadedTemplates,
         private readonly ReportTemplateCatalog $templateCatalog,
         private readonly BrandedReportLayout $layout,
+        private readonly SecureFileWriter $files,
     ) {}
 
     public function render(Report $report, bool $withPptx = false): void
@@ -86,11 +86,7 @@ final class StoredReportArtifactRenderer implements ReportArtifactRenderer
             $report->type->value,
         );
 
-        $written = Storage::disk('secure_local')->put($path, $pdf);
-
-        if ($written !== true) {
-            throw new RuntimeException('Report PDF could not be stored.');
-        }
+        $this->files->writeGenerated($path, $pdf);
 
         $report->forceFill([
             'pdf_path' => $path,
@@ -111,11 +107,7 @@ final class StoredReportArtifactRenderer implements ReportArtifactRenderer
             $report->type->value,
         );
 
-        $written = Storage::disk('secure_local')->put($path, $pptx);
-
-        if ($written !== true) {
-            throw new RuntimeException('Report PowerPoint could not be stored.');
-        }
+        $this->files->writeGenerated($path, $pptx);
 
         $report->forceFill([
             'pptx_path' => $path,
