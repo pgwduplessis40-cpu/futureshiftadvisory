@@ -773,7 +773,7 @@ final class AddClientTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('clients.0.id', (string) $client->getKey())
-                ->where('clients.0.engagement_type_label', 'Advisory')
+                ->where('clients.0.engagement_type_label', 'Standard Advisory')
                 ->where('clients.0.data_quality', Client::DATA_QUALITY_INSUFFICIENT)
                 ->where('clients.0.account_status', 'awaiting_activation')
                 ->missing('clients.0.registry_sources')
