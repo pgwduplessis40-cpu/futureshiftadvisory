@@ -22,6 +22,8 @@ use App\Services\Pdf\PdfRenderer;
 use App\Services\Performance\DashboardLaunchTiming;
 use App\Services\Pptx\Contracts\PptxGenerator;
 use App\Services\Pptx\OpenXmlPptxGenerator;
+use App\Services\Reports\Contracts\ReportArtifactRenderer;
+use App\Services\Reports\StoredReportArtifactRenderer;
 use App\Services\Settings\ProjectSettings;
 use App\Services\Storage\Hsm\HsmClient;
 use App\Services\Storage\Hsm\HsmKeyManager;
@@ -80,6 +82,7 @@ class AppServiceProvider extends ServiceProvider
         });
         $this->app->singleton(PdfRenderer::class, BrowsershotRenderer::class);
         $this->app->singleton(PptxGenerator::class, OpenXmlPptxGenerator::class);
+        $this->app->singleton(ReportArtifactRenderer::class, StoredReportArtifactRenderer::class);
         $this->app->singleton(ProjectSettings::class);
         $this->app->singleton(HsmClient::class, function (): HsmClient {
             $driver = (string) config('hsm.driver', 'software');
