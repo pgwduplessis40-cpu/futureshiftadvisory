@@ -12,6 +12,7 @@ use App\Models\ClientTeamMember;
 use App\Models\NpoBoardMember;
 use App\Models\NpoEngagement;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Fortify\Fortify;
@@ -23,6 +24,13 @@ use LogicException;
  */
 final class BrowserE2eSeeder extends Seeder
 {
+    /**
+     * The approved browser baselines were captured in UTC. Keeping this
+     * fixture timestamp fixed prevents date labels from making visual
+     * approval fail on a later CI day.
+     */
+    private const FIXTURE_TIMESTAMP = '2026-08-26 22:15:00';
+
     public function run(): void
     {
         if (! app()->environment('testing')) {
@@ -82,13 +90,15 @@ final class BrowserE2eSeeder extends Seeder
     private function upsertClient(string $id, string $legalName, EngagementType $engagementType, User $advisor, User $contact): Client
     {
         $client = Client::query()->firstOrNew(['id' => $id]);
-        $client->fill([
+        $client->forceFill([
             'engagement_type' => $engagementType,
             'nzbn' => $id === '00000000-0000-4000-8000-000000000001' ? '9429000000000' : '9429000000001',
             'legal_name' => $legalName,
             'data_quality' => Client::DATA_QUALITY_LOW,
             'created_by_user_id' => $advisor->getKey(),
             'primary_contact_user_id' => $contact->getKey(),
+            'created_at' => $this->fixtureTimestamp(),
+            'updated_at' => $this->fixtureTimestamp(),
         ])->save();
 
         return $client;
@@ -105,7 +115,7 @@ final class BrowserE2eSeeder extends Seeder
         $user->forceFill([
             'name' => "Browser E2E {$prefix}",
             'email' => $email,
-            'email_verified_at' => now(),
+            'email_verified_at' => $this->fixtureTimestamp(),
             'password' => Hash::make($password),
             'user_type' => $type,
             'primary_role' => $type,
@@ -116,9 +126,11 @@ final class BrowserE2eSeeder extends Seeder
             'two_factor_recovery_codes' => $encrypter->encrypt(json_encode([
                 'browser-e2e-recovery-code',
             ], JSON_THROW_ON_ERROR)),
-            'two_factor_confirmed_at' => now(),
-            'mfa_enabled_at' => now(),
+            'two_factor_confirmed_at' => $this->fixtureTimestamp(),
+            'mfa_enabled_at' => $this->fixtureTimestamp(),
             'mfa_method' => User::MFA_METHOD_TOTP,
+            'created_at' => $this->fixtureTimestamp(),
+            'updated_at' => $this->fixtureTimestamp(),
         ])->save();
         $user->syncRoles([$type]);
 
@@ -134,5 +146,14 @@ final class BrowserE2eSeeder extends Seeder
         }
 
         return $value;
+    }
+
+    private function fixtureTimestamp(): CarbonImmutable
+    {
+        return CarbonImmutable::createFromFormat(
+            'Y-m-d H:i:s',
+            self::FIXTURE_TIMESTAMP,
+            'UTC',
+        );
     }
 }
