@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Clients;
+namespace App\Http\Resources\Advisor;
 
 use App\Enums\EngagementType;
 use App\Models\Client;
 use App\Models\InviteToken;
 use App\Models\ServiceActivation;
 use App\Models\User;
+use App\Services\Clients\AdvisorClientPayloadBuilder;
 use App\Services\Dashboards\EconomicExposureMapper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;

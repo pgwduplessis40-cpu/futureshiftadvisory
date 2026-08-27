@@ -2,12 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Clients;
+namespace App\Http\Resources\Advisor;
 
 use App\Enums\ClientStatus;
 use App\Enums\FeeMethod;
 use App\Enums\ProposalStatus;
-use App\Http\Resources\Advisor\AdvisorClientWorkspacePayloadBuilder;
 use App\Models\AccountingConnection;
 use App\Models\AnalysisFeedback;
 use App\Models\AnalysisFinding;
@@ -21,6 +20,8 @@ use App\Models\Proposal;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\Budgets\StrategicBudgetService;
+use App\Services\Clients\AdvisorClientCollaborationPayloadBuilder;
+use App\Services\Clients\AdvisorClientPayloadBuilder;
 use App\Services\Dashboards\PaymentStatusReport;
 use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Dd\DataRoom;
