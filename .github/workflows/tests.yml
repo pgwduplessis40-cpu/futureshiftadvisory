@@ -121,6 +121,9 @@ jobs:
           WAYFINDER_GENERATE: 'false'
         run: npm run build:ssr:production
 
+      - name: Verify production SSR runtime
+        run: node scripts/assert-ssr-runtime.mjs
+
       - name: Verify production build keeps Wayfinder clean
         shell: bash
         run: |

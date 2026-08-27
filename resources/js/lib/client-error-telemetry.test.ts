@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createClientErrorTelemetry } from './client-error-telemetry';
+import {
+    configureClientErrorTelemetry,
+    createClientErrorTelemetry,
+    registerGlobalClientErrorTelemetry,
+    reportClientError,
+} from './client-error-telemetry';
 
 test('an error emits exactly one PII-safe telemetry event', () => {
     const events: unknown[] = [];
@@ -46,4 +51,17 @@ test('an error emits exactly one PII-safe telemetry event', () => {
         (events[0] as { sanitized_stack: string }).sanitized_stack,
         /^Error: \[message-redacted\]\nat \[frame-redacted\]$/,
     );
+});
+
+test('telemetry registration is inert during server-side rendering', () => {
+    assert.equal(typeof window, 'undefined');
+
+    assert.doesNotThrow(() => {
+        configureClientErrorTelemetry({ releaseSha: 'ssr-release' });
+        registerGlobalClientErrorTelemetry();
+        reportClientError(
+            new Error('SSR should not emit browser telemetry'),
+            'ssr',
+        );
+    });
 });
