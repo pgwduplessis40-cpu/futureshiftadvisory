@@ -12,6 +12,7 @@ use App\Enums\ReportType;
 use App\Mail\InvitationMail;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\EntrepreneurProfile;
 use App\Models\IndustryBriefing;
 use App\Models\InviteToken;
 use App\Models\KnowledgeAssessment;
@@ -57,6 +58,35 @@ final class AddClientTest extends TestCase
                 ->where('lookup.source_badges.ird', 'client_supplied_not_ird_verified')
                 ->where('defaults.legal_name', 'Future Shift Advisory Test Limited')
             );
+    }
+
+    public function test_nzbn_lookup_preserves_requested_npo_create_fields(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.clients.lookup-nzbn'), [
+                'engagement_type' => EngagementType::NPO->value,
+                'nzbn' => '9429000000000',
+                'trading_name' => 'Future Shift Community Trust',
+                'entity_type' => 'Charitable trust',
+                'npo' => [
+                    'sub_type' => NpoEngagementSubType::GovernanceReview->value,
+                    'legal_structure' => NpoLegalStructure::RegisteredCharity->value,
+                    'isa_2022_reregistered' => true,
+                ],
+            ])
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/clients/Create')
+                ->where('defaults.engagement_type', EngagementType::NPO->value)
+                ->where('defaults.legal_name', 'Future Shift Advisory Test Limited')
+                ->where('defaults.trading_name', 'Future Shift Community Trust')
+                ->where('defaults.entity_type', 'NZ Limited Company')
+                ->where('defaults.npo.sub_type', NpoEngagementSubType::GovernanceReview->value)
+                ->where('defaults.npo.legal_structure', NpoLegalStructure::RegisteredCharity->value)
+                ->where('defaults.npo.isa_2022_reregistered', true));
     }
 
     public function test_advisor_can_create_client_with_registry_data_and_conflict_declaration(): void
@@ -335,6 +365,29 @@ final class AddClientTest extends TestCase
         Mail::assertSent(InvitationMail::class, 1);
     }
 
+    public function test_advisor_invite_rejects_an_unapproved_return_url(): void
+    {
+        Mail::fake();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+        $expected = route('advisor.clients.index', ['engagement_type' => EngagementType::DUE_DILIGENCE->value], absolute: false);
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.clients.invite.store'), [
+                'email' => 'safe-return@example.com',
+                'engagement_type' => EngagementType::DUE_DILIGENCE->value,
+                'return_to' => 'https://untrusted.example/redirect',
+            ])
+            ->assertRedirect($expected)
+            ->assertSessionHas('status', 'client-invited');
+
+        $this->assertDatabaseHas('clients', [
+            'engagement_type' => EngagementType::DUE_DILIGENCE->value,
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+        Mail::assertSent(InvitationMail::class, 1);
+    }
+
     public function test_advisor_can_invite_post_acquisition_advisory_client(): void
     {
         Mail::fake();
@@ -481,6 +534,45 @@ final class AddClientTest extends TestCase
                 ->where('client.account_status_label', 'Invite cancelled')
                 ->where('client.invitation.cancel_url', null)
                 ->where('client.invitation.resend_url', route('advisor.clients.invite.resend', $client, absolute: false)));
+    }
+
+    public function test_advisor_can_resend_a_cancelled_due_diligence_client_invite(): void
+    {
+        Mail::fake();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.clients.invite.store'), [
+                'email' => 'cancelled-due-diligence@example.com',
+                'engagement_type' => EngagementType::DUE_DILIGENCE->value,
+                'return_to' => route('advisor.clients.index', absolute: false),
+            ])
+            ->assertRedirect(route('advisor.clients.index', absolute: false));
+
+        $client = Client::query()->firstOrFail();
+        $originalInvite = InviteToken::query()->firstOrFail();
+
+        $this->actingAsMfa($advisor)
+            ->delete(route('advisor.clients.invite.cancel', $client))
+            ->assertRedirect(route('advisor.clients.show', $client));
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.clients.invite.resend', $client))
+            ->assertRedirect(route('advisor.clients.show', $client))
+            ->assertSessionHas('status', 'client-invite-resent');
+
+        $replacement = InviteToken::query()
+            ->whereKeyNot($originalInvite->getKey())
+            ->firstOrFail();
+        $sources = $client->refresh()->registry_sources;
+
+        $this->assertSame(ServiceActivation::SERVICE_DUE_DILIGENCE, $replacement->intended_service_type);
+        $this->assertSame((string) $replacement->getKey(), (string) $sources['invite_token_id']);
+        $this->assertArrayNotHasKey('invite_cancelled_at', $sources);
+        $this->assertArrayNotHasKey('invite_cancelled_by_user_id', $sources);
+        $this->assertDatabaseHas('audit_events', ['action' => 'client.invite_resent']);
+        Mail::assertSent(InvitationMail::class, 2);
     }
 
     public function test_expired_unaccepted_client_invite_can_still_be_cancelled(): void
@@ -773,9 +865,61 @@ final class AddClientTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('clients.0.id', (string) $client->getKey())
+                ->where('clients.0.engagement_type_label', 'Standard Advisory')
+                ->where('clients.0.data_quality', Client::DATA_QUALITY_INSUFFICIENT)
                 ->where('clients.0.account_status', 'awaiting_activation')
                 ->missing('clients.0.registry_sources')
                 ->missing('clients.0.invite_token_id'));
+    }
+
+    public function test_client_invite_defaults_to_standard_advisory_for_an_invalid_filter(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.invite', ['engagement_type' => 'not-real']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('defaults.engagement_type', EngagementType::STANDARD_ADVISORY->value)
+                ->where('defaults.return_to', route('advisor.clients.index', absolute: false)));
+    }
+
+    public function test_client_invite_actions_reject_a_workspace_without_an_active_invite(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+        $client = $this->clientForAdvisor($advisor, 'No Invite Contract Limited', EngagementType::STANDARD_ADVISORY);
+        $showUrl = route('advisor.clients.show', $client, absolute: false);
+
+        $this->actingAsMfa($advisor)
+            ->from($showUrl)
+            ->post(route('advisor.clients.invite.resend', $client))
+            ->assertRedirect($showUrl)
+            ->assertSessionHasErrors('invite');
+
+        $this->actingAsMfa($advisor)
+            ->from($showUrl)
+            ->delete(route('advisor.clients.invite.cancel', $client))
+            ->assertRedirect($showUrl)
+            ->assertSessionHasErrors('invite');
+    }
+
+    public function test_client_workspace_redirects_to_its_linked_entrepreneur_profile(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+        $client = $this->clientForAdvisor($advisor, 'Linked Entrepreneur Limited', EngagementType::STANDARD_ADVISORY);
+        $profile = EntrepreneurProfile::query()->create([
+            'client_id' => $client->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => 'Linked Entrepreneur',
+            'email' => 'linked.entrepreneur@example.test',
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.show', $client))
+            ->assertRedirect(route('advisor.entrepreneurs.show', $profile, absolute: false));
     }
 
     public function test_junior_advisor_cannot_create_clients(): void
