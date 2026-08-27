@@ -39,7 +39,7 @@ const knownErrorNames = new Set([
 ]);
 
 export function configureClientErrorTelemetry(options: TelemetryOptions): void {
-    telemetry = createClientErrorTelemetry(options);
+    telemetry = isBrowserRuntime() ? createClientErrorTelemetry(options) : null;
 }
 
 export function reportClientError(error: unknown, feature: string): void {
@@ -47,12 +47,23 @@ export function reportClientError(error: unknown, feature: string): void {
 }
 
 export function registerGlobalClientErrorTelemetry(): void {
+    if (!isBrowserRuntime()) {
+        return;
+    }
+
     window.addEventListener('error', (event) => {
         reportClientError(event.error ?? event.message, 'window.error');
     });
     window.addEventListener('unhandledrejection', (event) => {
         reportClientError(event.reason, 'window.unhandled_rejection');
     });
+}
+
+function isBrowserRuntime(): boolean {
+    return (
+        typeof window !== 'undefined' &&
+        typeof window.addEventListener === 'function'
+    );
 }
 
 export function createClientErrorTelemetry(
