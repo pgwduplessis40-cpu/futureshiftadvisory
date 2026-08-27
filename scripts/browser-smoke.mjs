@@ -518,11 +518,6 @@ async function settleVisualCapture(page) {
         await document.fonts?.ready;
         await new Promise((resolve) => requestAnimationFrame(resolve));
         await new Promise((resolve) => requestAnimationFrame(resolve));
-
-        // The mobile PWA fallback prompt intentionally appears after 1.5s.
-        // Capture after that user-facing state has settled so an intermittent
-        // timer race cannot approve or reject otherwise identical pages.
-        await new Promise((resolve) => window.setTimeout(resolve, 1600));
     });
 }
 
