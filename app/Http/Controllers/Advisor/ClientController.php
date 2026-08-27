@@ -11,7 +11,6 @@ use App\Enums\FeeMethod;
 use App\Enums\NpoEngagementSubType;
 use App\Enums\NpoLegalStructure;
 use App\Enums\ProposalStatus;
-use App\Enums\ReportType;
 use App\Http\Controllers\Controller;
 use App\Models\AccountingConnection;
 use App\Models\AnalysisFeedback;
@@ -22,17 +21,8 @@ use App\Models\DdEngagement;
 use App\Models\EntrepreneurProfile;
 use App\Models\FeeCalculation;
 use App\Models\FinancialSnapshot;
-use App\Models\GovernanceReviewFinding;
-use App\Models\IndustryBriefing;
 use App\Models\InviteToken;
-use App\Models\KnowledgeAssessment;
-use App\Models\Meeting;
-use App\Models\NpoEngagement;
-use App\Models\PreMeetingBrief;
 use App\Models\Proposal;
-use App\Models\Report;
-use App\Models\ReportSectionComment;
-use App\Models\ReportSectionRevision;
 use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
@@ -41,6 +31,7 @@ use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Clients\AdvisorClientCapacity;
 use App\Services\Clients\AdvisorClientCollaborationPayloadBuilder;
 use App\Services\Clients\AdvisorClientPayloadBuilder;
+use App\Services\Clients\AdvisorClientWorkspacePayloadBuilder;
 use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\Dashboards\EconomicExposureMapper;
 use App\Services\Dashboards\PaymentStatusReport;
@@ -81,6 +72,7 @@ final class ClientController extends Controller
         private readonly AdvisorClientCapacity $clientCapacity,
         private readonly AdvisorClientCollaborationPayloadBuilder $collaborationPayloads,
         private readonly AdvisorClientPayloadBuilder $clientPayloads,
+        private readonly AdvisorClientWorkspacePayloadBuilder $workspacePayloads,
         private readonly ConflictDeclarer $conflicts,
         private readonly DataQualityScorer $dataQuality,
         private readonly GoalTracker $goals,
@@ -557,7 +549,7 @@ final class ClientController extends Controller
                 'lifecycle_update_url' => route('advisor.clients.lifecycle.update', $client, absolute: false),
                 'knowledge_assessment_store_url' => route('advisor.clients.knowledge-assessments.store', $client, absolute: false),
                 'knowledge_draft_store_url' => route('advisor.clients.knowledge-drafts.store', $client, absolute: false),
-                'latest_knowledge_assessment' => $this->latestKnowledgeAssessment($client),
+                'latest_knowledge_assessment' => $this->workspacePayloads->latestKnowledgeAssessment($client),
                 'goal_store_url' => route('advisor.clients.goals.store', $client, absolute: false),
                 'goals' => $this->goals->dashboard($client, includeAdvisorActions: true),
                 'proposal_store_url' => route('advisor.clients.proposals.store', $client, absolute: false),
@@ -566,11 +558,11 @@ final class ClientController extends Controller
                 'proposals' => $this->proposalSummaries($client),
                 'business_health_recompute_url' => route('advisor.clients.health-radar.recompute', $client, absolute: false),
                 'report_store_url' => route('advisor.clients.reports.store', $client, absolute: false),
-                'reports' => $this->reportSummaries($client),
+                'reports' => $this->workspacePayloads->reports($client),
                 'meeting_store_url' => route('advisor.clients.meetings.store', $client, absolute: false),
-                'meetings' => $this->meetingSummaries($client),
-                'industry_briefings' => $this->industryBriefingSummaries($client),
-                'pre_meeting_briefs' => $this->preMeetingBriefSummaries($client),
+                'meetings' => $this->workspacePayloads->meetings($client),
+                'industry_briefings' => $this->workspacePayloads->industryBriefings($client),
+                'pre_meeting_briefs' => $this->workspacePayloads->preMeetingBriefs($client),
                 'address' => $client->address,
                 'directors' => $client->directors ?? [],
                 'registry_sources' => $client->registry_sources ?? [],
@@ -586,7 +578,7 @@ final class ClientController extends Controller
                 'proposal_budget_guard' => $strategicBudgets->proposalGuardPayload($strategicBudget),
                 'due_diligence' => $this->dueDiligenceSummary($client),
                 'npo_conversion' => $npoConversion->clientSummary($client),
-                'npo_governance_review' => $this->npoGovernanceReviewSummary($client),
+                'npo_governance_review' => $this->workspacePayloads->npoGovernanceReview($client),
                 'npo_configuration' => $npoConfiguration->clientSummary($client),
                 'npo_health' => $npoHealth->clientSummary($client),
                 'npo_funding' => $npoFunders->clientSummary($client),
@@ -612,59 +604,6 @@ final class ClientController extends Controller
     /**
      * @return array<string, mixed>|null
      */
-    private function npoGovernanceReviewSummary(Client $client): ?array
-    {
-        $engagement = NpoEngagement::query()
-            ->where('client_id', $client->getKey())
-            ->where('sub_type', NpoEngagementSubType::GovernanceReview->value)
-            ->latest()
-            ->first();
-
-        if (! $engagement instanceof NpoEngagement) {
-            return null;
-        }
-
-        $findings = GovernanceReviewFinding::query()
-            ->where('npo_engagement_id', $engagement->getKey())
-            ->orderByRaw("case severity when 'critical' then 0 when 'high' then 1 when 'medium' then 2 when 'low' then 3 else 4 end")
-            ->latest('updated_at')
-            ->orderBy('id')
-            ->get();
-        $pending = $findings->where('status', GovernanceReviewFinding::STATUS_PENDING_ADVISOR_REVIEW);
-        $reviewed = $findings->where('status', GovernanceReviewFinding::STATUS_REVIEWED);
-
-        return [
-            'id' => $engagement->id,
-            'run_url' => route('advisor.npo-engagements.governance-review.analysis', $engagement, absolute: false),
-            'findings_count' => $findings->count(),
-            'pending_review_count' => $pending->count(),
-            'reviewed_count' => $reviewed->count(),
-            'high_priority_count' => $findings
-                ->filter(fn (GovernanceReviewFinding $finding): bool => in_array($finding->severity->value, ['critical', 'high'], true))
-                ->count(),
-            'can_generate_report' => $reviewed->isNotEmpty(),
-            'findings' => $findings
-                ->take(8)
-                ->map(fn (GovernanceReviewFinding $finding): array => [
-                    'id' => $finding->id,
-                    'finding_key' => $finding->finding_key,
-                    'category' => $finding->category,
-                    'severity' => $finding->severity->value,
-                    'title' => $finding->title,
-                    'body' => $finding->body,
-                    'status' => $finding->status,
-                    'advisor_notes' => $finding->advisor_notes,
-                    'review_url' => route('advisor.governance-review-findings.review', $finding, absolute: false),
-                    'reviewed_at' => $finding->reviewed_at?->toIso8601String(),
-                ])
-                ->values()
-                ->all(),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
     private function dueDiligenceSummary(Client $client): ?array
     {
         $engagement = DdEngagement::query()
@@ -679,31 +618,6 @@ final class ClientController extends Controller
         return array_merge($this->ddOnboarding->targetPanel($engagement), [
             'data_room' => $this->dataRoom->summary($engagement),
         ]);
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function latestKnowledgeAssessment(Client $client): ?array
-    {
-        $assessment = KnowledgeAssessment::query()
-            ->where('client_id', $client->getKey())
-            ->latest('assessed_at')
-            ->latest('created_at')
-            ->first();
-
-        if (! $assessment instanceof KnowledgeAssessment) {
-            return null;
-        }
-
-        return [
-            'id' => $assessment->id,
-            'financial_literacy' => $assessment->financial_literacy,
-            'strategic_awareness' => $assessment->strategic_awareness,
-            'leadership' => $assessment->leadership,
-            'calibration' => $assessment->calibration,
-            'assessed_at' => $assessment->assessed_at?->toIso8601String(),
-        ];
     }
 
     /**
@@ -848,138 +762,6 @@ final class ClientController extends Controller
                         : null,
                 ];
             })
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function reportSummaries(Client $client): array
-    {
-        return Report::query()
-            ->where('client_id', $client->getKey())
-            ->latest('generated_at')
-            ->limit(8)
-            ->get()
-            ->map(fn (Report $report): array => [
-                'id' => $report->id,
-                'type' => $report->type->value,
-                'type_label' => $report->type->label(),
-                'title' => $report->title,
-                'generated_at' => $report->generated_at?->toIso8601String(),
-                'pdf_byte_size' => $report->pdf_byte_size,
-                'pptx_byte_size' => $report->pptx_byte_size,
-                'view_url' => route('advisor.reports.download', $report, absolute: false),
-                'download_url' => route('advisor.reports.download', $report, absolute: false),
-                'pptx_url' => $report->pptx_path !== null
-                    ? route('advisor.reports.pptx', $report, absolute: false)
-                    : null,
-                'review_status' => $report->review_status,
-                'reviewed_at' => $report->reviewed_at?->toIso8601String(),
-                'review_url' => route('advisor.reports.review', $report, absolute: false),
-                'release_url' => $report->type === ReportType::Client
-                    ? route('advisor.reports.release', $report, absolute: false)
-                    : null,
-                'can_review' => in_array($report->type, [
-                    ReportType::Client,
-                    ReportType::DueDiligence,
-                    ReportType::Valuation,
-                    ReportType::AcquisitionGoNoGo,
-                    ReportType::Trajectory,
-                    ReportType::SuccessionValueGap,
-                    ReportType::FunderAccountability,
-                    ReportType::ImpactSummary,
-                ], true) && $report->review_status === 'pending_review',
-                'section_count' => $report->sections()->count(),
-                'revision_count' => ReportSectionRevision::query()
-                    ->where('report_id', $report->getKey())
-                    ->count(),
-                'comment_count' => ReportSectionComment::query()
-                    ->where('report_id', $report->getKey())
-                    ->whereNull('resolved_at')
-                    ->count(),
-            ])
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function meetingSummaries(Client $client): array
-    {
-        return Meeting::query()
-            ->with('preMeetingBrief')
-            ->withCount('calendarEventMappings')
-            ->where('client_id', $client->getKey())
-            ->where('scheduled_at', '>=', now()->subDay())
-            ->orderBy('scheduled_at')
-            ->limit(8)
-            ->get()
-            ->map(fn (Meeting $meeting): array => [
-                'id' => $meeting->id,
-                'title' => $meeting->title,
-                'scheduled_at' => $meeting->scheduled_at?->toIso8601String(),
-                'location' => $meeting->location,
-                'link' => $meeting->link,
-                'attendees' => $meeting->attendees ?? [],
-                'calendar_synced' => $meeting->calendar_event_mappings_count > 0,
-                'brief_status' => $meeting->preMeetingBrief?->sent_at !== null
-                    ? 'sent'
-                    : ($meeting->preMeetingBrief instanceof PreMeetingBrief ? 'draft' : 'pending'),
-            ])
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function industryBriefingSummaries(Client $client): array
-    {
-        return IndustryBriefing::query()
-            ->where('client_id', $client->getKey())
-            ->latest('period')
-            ->limit(6)
-            ->get()
-            ->map(fn (IndustryBriefing $briefing): array => [
-                'id' => $briefing->id,
-                'period' => $briefing->period?->toDateString(),
-                'body' => $briefing->body,
-                'status' => $briefing->status,
-                'reviewed_at' => $briefing->reviewed_at?->toIso8601String(),
-                'sent_at' => $briefing->sent_at?->toIso8601String(),
-                'review_url' => route('advisor.industry-briefings.review', $briefing, absolute: false),
-                'can_review' => $briefing->status === IndustryBriefing::STATUS_DRAFT,
-            ])
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function preMeetingBriefSummaries(Client $client): array
-    {
-        return PreMeetingBrief::query()
-            ->with('meeting')
-            ->where('client_id', $client->getKey())
-            ->latest('meeting_at')
-            ->limit(6)
-            ->get()
-            ->map(fn (PreMeetingBrief $brief): array => [
-                'id' => $brief->id,
-                'meeting_title' => $brief->meeting?->title,
-                'meeting_at' => $brief->meeting_at?->toIso8601String(),
-                'body' => $brief->body,
-                'red_flag_count' => count($brief->red_flag_ids ?? []),
-                'generated_at' => $brief->generated_at?->toIso8601String(),
-                'reviewed_at' => $brief->reviewed_at?->toIso8601String(),
-                'sent_at' => $brief->sent_at?->toIso8601String(),
-                'review_url' => route('advisor.pre-meeting-briefs.review', $brief, absolute: false),
-                'can_review' => $brief->sent_at === null,
-            ])
             ->values()
             ->all();
     }

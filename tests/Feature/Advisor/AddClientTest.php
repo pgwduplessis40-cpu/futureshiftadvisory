@@ -8,12 +8,18 @@ use App\Enums\EngagementType;
 use App\Enums\NpoEngagementSubType;
 use App\Enums\NpoLegalStructure;
 use App\Enums\QuestionnaireSet;
+use App\Enums\ReportType;
 use App\Mail\InvitationMail;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\IndustryBriefing;
 use App\Models\InviteToken;
+use App\Models\KnowledgeAssessment;
+use App\Models\Meeting;
 use App\Models\NpoEngagement;
+use App\Models\PreMeetingBrief;
 use App\Models\Questionnaire;
+use App\Models\Report;
 use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Support\RequestContext;
@@ -134,6 +140,86 @@ final class AddClientTest extends TestCase
                 ])
                 ->where('coBrowse.action_url', route('co-browse.sessions.actions.store', ['session' => '__session__'], absolute: false))
                 ->where('coBrowse.participants.0.id', (string) $participant->getKey()));
+    }
+
+    public function test_client_workspace_activity_payload_contract_is_shaped_at_the_boundary(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+        $client = Client::query()->create([
+            'engagement_type' => EngagementType::STANDARD_ADVISORY,
+            'legal_name' => 'Client Workspace Contract Limited',
+            'data_quality' => Client::DATA_QUALITY_INSUFFICIENT,
+        ]);
+        ClientTeamMember::query()->create([
+            'client_id' => $client->getKey(),
+            'user_id' => $advisor->getKey(),
+            'role' => 'lead_advisor',
+        ]);
+        KnowledgeAssessment::query()->create([
+            'client_id' => $client->getKey(),
+            'financial_literacy' => 2,
+            'strategic_awareness' => 3,
+            'leadership' => 4,
+            'calibration' => [
+                'source' => 'knowledge_assessment',
+                'language_depth' => 'plain_language',
+                'financial_detail' => 'explain_terms',
+                'strategic_framing' => 'balanced',
+                'leadership_context' => 'delegate_to_leadership_team',
+                'advisor_review_note' => 'Use clear language.',
+                'scores' => [
+                    'financial_literacy' => 2,
+                    'strategic_awareness' => 3,
+                    'leadership' => 4,
+                ],
+            ],
+            'assessed_at' => now(),
+            'assessed_by_user_id' => $advisor->getKey(),
+        ]);
+        $report = Report::query()->create([
+            'client_id' => $client->getKey(),
+            'type' => ReportType::Client,
+            'title' => 'Client workspace report',
+            'generated_at' => now(),
+            'metadata' => [],
+        ]);
+        $meeting = Meeting::query()->create([
+            'client_id' => $client->getKey(),
+            'title' => 'Client workspace meeting',
+            'scheduled_at' => now()->addDay(),
+            'attendees' => ['Advisor', 'Client owner'],
+            'status' => Meeting::STATUS_SCHEDULED,
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+        $briefing = IndustryBriefing::query()->create([
+            'client_id' => $client->getKey(),
+            'period' => now()->toDateString(),
+            'body' => 'Industry context for the client workspace.',
+            'sources' => [],
+            'status' => IndustryBriefing::STATUS_DRAFT,
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+        $preMeetingBrief = PreMeetingBrief::query()->create([
+            'meeting_id' => $meeting->getKey(),
+            'client_id' => $client->getKey(),
+            'meeting_at' => $meeting->scheduled_at,
+            'body' => 'Prepare the client workspace agenda.',
+            'red_flag_ids' => [],
+            'generated_at' => now(),
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.show', $client))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('client.latest_knowledge_assessment.id', (string) $client->knowledgeAssessments()->firstOrFail()->getKey())
+                ->where('client.latest_knowledge_assessment.calibration.scores.financial_literacy', 2)
+                ->where('client.reports.0.id', (string) $report->getKey())
+                ->where('client.reports.0.release_url', route('advisor.reports.release', $report, absolute: false))
+                ->where('client.meetings.0.attendees', ['Advisor', 'Client owner'])
+                ->where('client.industry_briefings.0.id', (string) $briefing->getKey())
+                ->where('client.pre_meeting_briefs.0.id', (string) $preMeetingBrief->getKey()));
     }
 
     public function test_advisor_can_create_npo_governance_review_engagement_with_legal_structure(): void

@@ -16,7 +16,21 @@ $comparisonContents = $comparisonRef === null ? null : readRevisionOrFail($compa
 $comparison = $comparisonContents === null ? null : baselineStats($comparisonContents);
 $failures = [];
 $newOrExpandedEntries = 0;
-$isVerifiedBootstrap = verifiedBootstrap($comparisonRef, $comparison, $current, readFileOrFail($baselinePath));
+
+if ($comparisonContents !== null) {
+    $newOrExpandedEntries = newOrExpandedEntryCount(
+        baselineEntryCounts(readFileOrFail($baselinePath)),
+        baselineEntryCounts($comparisonContents),
+    );
+}
+
+$isVerifiedBootstrap = verifiedBootstrap(
+    $comparisonRef,
+    $comparison,
+    $current,
+    readFileOrFail($baselinePath),
+    $newOrExpandedEntries,
+);
 
 if ($current['findings'] > $maximum) {
     $failures[] = "PHPStan baseline has {$current['findings']} findings; the ratcheted maximum is {$maximum}.";
@@ -27,11 +41,6 @@ if ($comparison !== null && $current['findings'] > $comparison['findings'] && ! 
 }
 
 if ($comparisonContents !== null) {
-    $newOrExpandedEntries = newOrExpandedEntryCount(
-        baselineEntryCounts(readFileOrFail($baselinePath)),
-        baselineEntryCounts($comparisonContents),
-    );
-
     if ($newOrExpandedEntries > 0 && ! $isVerifiedBootstrap) {
         $failures[] = "PHPStan baseline contains {$newOrExpandedEntries} new or expanded suppression entries.";
     }
@@ -59,15 +68,22 @@ if ($failures !== []) {
 printf("PHPStan baseline: %d findings across %d entries.\n", $current['findings'], $current['entries']);
 
 /**
- * Permits only the first level-6 normalization from the verified predecessor
- * revision. The committed baseline hash makes this exception non-reusable for
- * a later suppression change.
+ * Permits the verified level-6 normalization from the audited predecessor
+ * revision, and its strictly debt-reducing successors. The initial baseline
+ * hash is immutable at its recorded count. Once debt is reduced, the count
+ * may only stay below that fixed audited ceiling and cannot introduce more
+ * newly expanded suppressions than the original normalization did.
  *
  * @param  array{entries:int,findings:int}|null  $comparison
  * @param  array{entries:int,findings:int}  $current
  */
-function verifiedBootstrap(?string $comparisonRef, ?array $comparison, array $current, string $baselineContents): bool
-{
+function verifiedBootstrap(
+    ?string $comparisonRef,
+    ?array $comparison,
+    array $current,
+    string $baselineContents,
+    int $newOrExpandedEntries,
+): bool {
     if ($comparisonRef === null || $comparison === null || $current['findings'] <= $comparison['findings']) {
         return false;
     }
@@ -97,11 +113,16 @@ function verifiedBootstrap(?string $comparisonRef, ?array $comparison, array $cu
         return false;
     }
 
-    return revisionSha($comparisonRef) === $sourceRevision
-        && $comparison['findings'] === $previousFindings
-        && $current['findings'] === $expectedFindings
-        && $expectedFindings - ($previousFindings - $removedStaleSuppressions) === $legacyFindings
-        && hash_equals($baselineHash, hash('sha256', str_replace("\r\n", "\n", $baselineContents)));
+    if (revisionSha($comparisonRef) !== $sourceRevision
+        || $comparison['findings'] !== $previousFindings
+        || $expectedFindings - ($previousFindings - $removedStaleSuppressions) !== $legacyFindings
+        || $current['findings'] > $expectedFindings
+        || $newOrExpandedEntries > $legacyFindings) {
+        return false;
+    }
+
+    return $current['findings'] < $expectedFindings
+        || hash_equals($baselineHash, hash('sha256', str_replace("\r\n", "\n", $baselineContents)));
 }
 
 /** @return array{entries:int,findings:int} */

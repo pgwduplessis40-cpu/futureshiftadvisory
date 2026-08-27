@@ -10,7 +10,7 @@ return [
      */
     'monoliths' => [
         'app/Http/Controllers/Advisor/ClientController.php' => [
-            'ceiling' => 1327,
+            'ceiling' => 1109,
             'production_limit' => 500,
             'contract_tests' => ['tests/Feature/Advisor'],
         ],
