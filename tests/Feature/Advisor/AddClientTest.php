@@ -12,6 +12,7 @@ use App\Enums\ReportType;
 use App\Mail\InvitationMail;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\EntrepreneurProfile;
 use App\Models\IndustryBriefing;
 use App\Models\InviteToken;
 use App\Models\KnowledgeAssessment;
@@ -778,6 +779,56 @@ final class AddClientTest extends TestCase
                 ->where('clients.0.account_status', 'awaiting_activation')
                 ->missing('clients.0.registry_sources')
                 ->missing('clients.0.invite_token_id'));
+    }
+
+    public function test_client_invite_defaults_to_standard_advisory_for_an_invalid_filter(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.invite', ['engagement_type' => 'not-real']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('defaults.engagement_type', EngagementType::STANDARD_ADVISORY->value)
+                ->where('defaults.return_to', route('advisor.clients.index', absolute: false)));
+    }
+
+    public function test_client_invite_actions_reject_a_workspace_without_an_active_invite(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+        $client = $this->clientForAdvisor($advisor, 'No Invite Contract Limited', EngagementType::STANDARD_ADVISORY);
+        $showUrl = route('advisor.clients.show', $client, absolute: false);
+
+        $this->actingAsMfa($advisor)
+            ->from($showUrl)
+            ->post(route('advisor.clients.invite.resend', $client))
+            ->assertRedirect($showUrl)
+            ->assertSessionHasErrors('invite');
+
+        $this->actingAsMfa($advisor)
+            ->from($showUrl)
+            ->delete(route('advisor.clients.invite.cancel', $client))
+            ->assertRedirect($showUrl)
+            ->assertSessionHasErrors('invite');
+    }
+
+    public function test_client_workspace_redirects_to_its_linked_entrepreneur_profile(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+        $client = $this->clientForAdvisor($advisor, 'Linked Entrepreneur Limited', EngagementType::STANDARD_ADVISORY);
+        $profile = EntrepreneurProfile::query()->create([
+            'client_id' => $client->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => 'Linked Entrepreneur',
+            'email' => 'linked.entrepreneur@example.test',
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.show', $client))
+            ->assertRedirect(route('advisor.entrepreneurs.show', $profile, absolute: false));
     }
 
     public function test_junior_advisor_cannot_create_clients(): void
