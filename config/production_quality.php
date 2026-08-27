@@ -40,7 +40,7 @@ return [
             'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Entrepreneurs'],
         ],
         'app/Services/Reports/ReportComposer.php' => [
-            'ceiling' => 5522,
+            'ceiling' => 5332,
             'production_limit' => 500,
             'contract_tests' => ['tests/Feature/Reports/ReportComposerTest.php'],
         ],

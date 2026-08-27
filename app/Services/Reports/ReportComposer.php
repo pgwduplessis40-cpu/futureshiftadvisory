@@ -21,7 +21,6 @@ use App\Models\DdIntegrationPlanItem;
 use App\Models\DdRiskRegisterItem;
 use App\Models\DdValuation;
 use App\Models\DdWorkstream;
-use App\Models\Document;
 use App\Models\DocumentVerification;
 use App\Models\FinancialSnapshot;
 use App\Models\Goal;
@@ -90,6 +89,7 @@ final class ReportComposer implements ProvidesMethodology
         private readonly NpoImpactMetricRecorder $npoImpactMetrics,
         private readonly AcquisitionPlanRequirements $acquisitionPlanRequirements,
         private readonly UploadedReportTemplateRenderer $uploadedTemplates,
+        private readonly ReportTemplateCatalog $templateCatalog,
         private readonly HolidaysActLiabilityCalculator $holidaysActLiability,
         private readonly BrandedReportLayout $layout,
     ) {}
@@ -105,7 +105,7 @@ final class ReportComposer implements ProvidesMethodology
             $waterfall = $this->waterfalls->forClient($client);
             $valuation = $this->latestValuation($client);
             $proposal = $this->latestProposal($client);
-            $template = $this->activeReportTemplateFor($type);
+            $template = $this->templateCatalog->activeFor($type);
 
             $clientReleaseGate = $type === ReportType::Client && $this->standardAdvisoryClient($client);
             $reviewStatus = match (true) {
@@ -132,7 +132,7 @@ final class ReportComposer implements ProvidesMethodology
                         ReportType::DueDiligence->value,
                         ReportType::EntrepreneurAssessment->value,
                     ],
-                    'template' => $this->reportTemplateMetadata($template),
+                    'template' => $this->templateCatalog->metadata($template),
                 ],
                 'render_status' => Report::RENDER_STATUS_COMPOSING,
                 'review_status' => $reviewStatus,
@@ -1007,7 +1007,7 @@ final class ReportComposer implements ProvidesMethodology
             return true;
         }
 
-        return ($report->metadata['template'] ?? null) === $this->reportTemplateMetadata(
+        return ($report->metadata['template'] ?? null) === $this->templateCatalog->metadata(
             $this->templateForReport($report),
         );
     }
@@ -1123,171 +1123,6 @@ final class ReportComposer implements ProvidesMethodology
             ReportType::Stakeholder => $this->stakeholderSections($client, $findings, $waterfall, $valuation),
             ReportType::Trajectory => $this->trajectorySections($client, $findings),
             default => [],
-        };
-    }
-
-    private function activeReportTemplateFor(ReportType $type): ?Template
-    {
-        return Template::query()
-            ->usable()
-            ->where('category', Template::CATEGORY_REPORT)
-            ->get()
-            ->filter(fn (Template $template): bool => $this->templateAppliesToReportType($template, $type)
-                && $this->templateHasRenderableSource($template))
-            ->sort(fn (Template $left, Template $right): int => $this->templateSelectionRank($right, $type) <=> $this->templateSelectionRank($left, $type))
-            ->first();
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function reportTemplateMetadata(?Template $template): ?array
-    {
-        if (! $template instanceof Template) {
-            return null;
-        }
-
-        $uploadedFile = data_get($template->structure, 'uploaded_file');
-
-        return [
-            'id' => $template->getKey(),
-            'category' => $template->category,
-            'title' => $template->title,
-            'version' => $template->version,
-            'source_reference' => $template->source_reference,
-            'structure_report_type' => data_get($template->structure, 'report_type'),
-            'render_strategy' => $this->templateRenderStrategy($template),
-            'updated_at' => $template->updated_at?->toIso8601String(),
-            'uploaded_file_document_id' => is_array($uploadedFile)
-                ? ($uploadedFile['document_id'] ?? null)
-                : null,
-            'uploaded_file_sha256' => is_array($uploadedFile)
-                ? ($uploadedFile['sha256'] ?? null)
-                : null,
-            'uploaded_file_scanner_result' => is_array($uploadedFile)
-                ? $this->uploadedTemplateFileScannerResult($template)
-                : null,
-            'uploaded_file' => is_array($uploadedFile)
-                ? ($uploadedFile['original_name'] ?? null)
-                : null,
-        ];
-    }
-
-    private function templateRenderStrategy(Template $template): string
-    {
-        if ($this->uploadedTemplates->supports($template)) {
-            return 'uploaded_docx_html_v5';
-        }
-
-        if ($this->isTokenizedHtmlTemplate($template)) {
-            return 'tokenized_html_v1';
-        }
-
-        return 'branded_html_v1';
-    }
-
-    private function templateTitleMatchesType(Template $template, ReportType $type): bool
-    {
-        return Str::contains(Str::lower($template->title), $this->reportTemplateKeywords($type));
-    }
-
-    private function templateAppliesToReportType(Template $template, ReportType $type): bool
-    {
-        $reportType = data_get($template->structure, 'report_type');
-
-        if (is_string($reportType) && trim($reportType) !== '') {
-            return $reportType === $type->value;
-        }
-
-        return $this->templateTitleMatchesType($template, $type)
-            || $this->isGenericReportTemplate($template);
-    }
-
-    /**
-     * @return array{0:int,1:int,2:int,3:int,4:int,5:string}
-     */
-    private function templateSelectionRank(Template $template, ReportType $type): array
-    {
-        return [
-            $this->templateSourceRank($template),
-            $this->templateSpecificityRank($template, $type),
-            $template->updated_at?->getTimestamp() ?? 0,
-            $template->created_at?->getTimestamp() ?? 0,
-            $template->version,
-            (string) $template->getKey(),
-        ];
-    }
-
-    private function templateSourceRank(Template $template): int
-    {
-        if (data_get($template->structure, 'source_kind') === 'uploaded_file'
-            || is_array(data_get($template->structure, 'uploaded_file'))) {
-            return $this->uploadedTemplates->supports($template)
-                ? 2
-                : (trim((string) $template->body) !== '' ? 1 : 0);
-        }
-
-        return trim((string) $template->body) !== '' ? 1 : 0;
-    }
-
-    private function templateHasRenderableSource(Template $template): bool
-    {
-        if ($this->uploadedTemplates->supports($template)) {
-            return true;
-        }
-
-        return trim((string) $template->body) !== '';
-    }
-
-    private function templateSpecificityRank(Template $template, ReportType $type): int
-    {
-        $reportType = data_get($template->structure, 'report_type');
-
-        if (is_string($reportType) && $reportType === $type->value) {
-            return 2;
-        }
-
-        return $this->templateTitleMatchesType($template, $type) ? 1 : 0;
-    }
-
-    private function isGenericReportTemplate(Template $template): bool
-    {
-        $reportType = data_get($template->structure, 'report_type');
-
-        return (! is_string($reportType) || trim($reportType) === '')
-            && ! Str::contains(Str::lower($template->title), ['client', 'advisor', 'stakeholder', 'trajectory']);
-    }
-
-    private function uploadedTemplateFileScannerResult(Template $template): string
-    {
-        $scannerResult = data_get($template->structure, 'uploaded_file.scanner_result');
-        if (is_string($scannerResult) && $scannerResult !== '') {
-            return $scannerResult;
-        }
-
-        $documentId = data_get($template->structure, 'uploaded_file.document_id');
-        if (is_string($documentId) && $documentId !== '') {
-            $document = Document::query()->find($documentId);
-
-            if ($document instanceof Document) {
-                return $document->scanner_result;
-            }
-        }
-
-        return Document::SCANNER_CLEAN;
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function reportTemplateKeywords(ReportType $type): array
-    {
-        return match ($type) {
-            ReportType::Client => ['client report', 'client'],
-            ReportType::Advisor => ['advisor report', 'advisor'],
-            ReportType::Stakeholder => ['stakeholder report', 'stakeholder'],
-            ReportType::Trajectory => ['business health trajectory report', 'trajectory'],
-            default => [Str::lower($type->label()), Str::of($type->value)->replace('_', ' ')->lower()->toString()],
         };
     }
 
@@ -5284,7 +5119,7 @@ final class ReportComposer implements ProvidesMethodology
         $template = $this->templateForReport($report);
         $this->syncReportTemplateMetadata($report, $template);
 
-        if ($template instanceof Template && $this->isTokenizedHtmlTemplate($template)) {
+        if ($template instanceof Template && $this->templateCatalog->isTokenizedHtml($template)) {
             return $this->htmlFromTemplate($report, $template, $sections);
         }
 
@@ -5308,14 +5143,14 @@ final class ReportComposer implements ProvidesMethodology
     private function templateForReport(Report $report): ?Template
     {
         return $report->type instanceof ReportType
-            ? $this->activeReportTemplateFor($report->type)
+            ? $this->templateCatalog->activeFor($report->type)
             : null;
     }
 
     private function syncReportTemplateMetadata(Report $report, ?Template $template): void
     {
         $metadata = $report->metadata ?? [];
-        $templateMetadata = $this->reportTemplateMetadata($template);
+        $templateMetadata = $this->templateCatalog->metadata($template);
 
         if (($metadata['template'] ?? null) === $templateMetadata) {
             return;
@@ -5323,20 +5158,6 @@ final class ReportComposer implements ProvidesMethodology
 
         $metadata['template'] = $templateMetadata;
         $report->forceFill(['metadata' => $metadata])->save();
-    }
-
-    private function isTokenizedHtmlTemplate(Template $template): bool
-    {
-        $body = Str::lower((string) $template->body);
-
-        return Str::contains($body, [
-            '{{ sections',
-            '{{sections',
-            '<html',
-            '<body',
-            '<style',
-            'data-report-template',
-        ]);
     }
 
     private function htmlFromTemplate(Report $report, Template $template, string $sections): string
@@ -5446,17 +5267,6 @@ HTML,
     private function reportCss(?Template $template): string
     {
         return $this->layout->css($template, fixedFooter: false);
-    }
-
-    private function templateLayoutColor(?Template $template, string $key, string $default): string
-    {
-        $value = $template instanceof Template ? data_get($template->structure, 'layout.'.$key) : null;
-
-        if (! is_string($value) || ! preg_match('/^#[0-9a-fA-F]{6}$/', $value)) {
-            return $default;
-        }
-
-        return $value;
     }
 
     private function reportSubjectKey(Report $report): string

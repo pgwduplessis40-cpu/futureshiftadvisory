@@ -332,6 +332,7 @@ HTML,
 
         $this->assertSame($template->id, data_get($report->metadata, 'template.id'));
         $this->assertSame(3, data_get($report->metadata, 'template.version'));
+        $this->assertSame('tokenized_html_v1', data_get($report->metadata, 'template.render_strategy'));
         $this->assertStringContainsString('data-report-template="client-template"', $this->renderer->html);
         $this->assertStringContainsString('Client Report Template v3', $this->renderer->html);
         $this->assertStringContainsString('Current valuation range', $this->renderer->html);
