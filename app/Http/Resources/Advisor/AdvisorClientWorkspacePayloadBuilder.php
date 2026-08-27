@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Clients;
+namespace App\Http\Resources\Advisor;
 
 use App\Enums\NpoEngagementSubType;
 use App\Enums\ReportType;
