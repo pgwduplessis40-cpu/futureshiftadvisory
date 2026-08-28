@@ -8041,12 +8041,6 @@ parameters:
 			path: app/Services/Reports/ReportComposer.php
 
 		-
-			message: '#^Method App\\Services\\Reports\\ReportComposer\:\:entrepreneurCriteriaRows\(\) should return Illuminate\\Support\\Collection\<int, array\<string, mixed\>\> but returns Illuminate\\Support\\Collection\<int, array\{criterion_id\: string, criterion_number\: mixed, criterion_name\: mixed, weight\: float, ai_score\: int\|null, advisor_score\: int\|null, score\: int, grade\: string, \.\.\.\}\>\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Services/Reports/ReportComposer.php
-
-		-
 			message: '#^Offset ''source_reference'' on array\{asset_floor_nzd\: float\|null, cash_or_surplus_asset_indicator_nzd\: float\|null, liabilities_nzd\: float\|null, source_reference\: string\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
@@ -8108,12 +8102,6 @@ parameters:
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>valuation_disclosures" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Services/Reports/ReportComposer.php
-
-		-
-			message: '#^Using nullsafe property access on non\-nullable type App\\Enums\\DiscountMethod\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Services/Reports/ReportComposer.php
@@ -9521,30 +9509,6 @@ parameters:
 			identifier: argument.templateType
 			count: 1
 			path: app/Services/Reports/PracticeHealthReport.php
-
-		-
-			message: '#^Method App\\Services\\Reports\\ReportComposer\:\:entrepreneurActionsSection\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/Reports/ReportComposer.php
-
-		-
-			message: '#^Method App\\Services\\Reports\\ReportComposer\:\:entrepreneurFeedbackSection\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/Reports/ReportComposer.php
-
-		-
-			message: '#^Method App\\Services\\Reports\\ReportComposer\:\:entrepreneurGradeSection\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/Reports/ReportComposer.php
-
-		-
-			message: '#^Method App\\Services\\Reports\\ReportComposer\:\:entrepreneurScoreSection\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/Reports/ReportComposer.php
 
 		-
 			message: '#^Method App\\Services\\Reports\\ReportComposer\:\:generatedSection\(\) has parameter \$metadata with no value type specified in iterable type array\.$#'
