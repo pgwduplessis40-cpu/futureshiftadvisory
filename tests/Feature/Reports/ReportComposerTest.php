@@ -38,8 +38,10 @@ use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
 use App\Services\Reports\Contracts\ReportArtifactRenderer;
+use App\Services\Reports\Contracts\ValuationReportComposition;
 use App\Services\Reports\ReportComposer;
 use App\Services\Reports\StoredReportArtifactRenderer;
+use App\Services\Reports\ValuationReportComposer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -251,6 +253,8 @@ final class ReportComposerTest extends TestCase
         [$advisor, $client] = $this->clientWithTeam('valuation-report-advisor@example.test');
         $this->businessValuation($client, 640000);
 
+        $this->assertInstanceOf(ValuationReportComposer::class, app(ValuationReportComposition::class));
+
         $report = app(ReportComposer::class)->composeValuation($client, $advisor);
 
         $this->assertSame(ReportType::Valuation, $report->type);
@@ -267,6 +271,19 @@ final class ReportComposerTest extends TestCase
         ] as $key) {
             $this->assertTrue($report->sections->contains('key', $key), "Missing valuation section {$key}.");
         }
+
+        $triangulation = $report->sections->firstWhere('key', 'valuation_triangulation');
+        $normalisation = $report->sections->firstWhere('key', 'earnings_normalisation');
+        $methodology = $report->sections->firstWhere('key', 'valuation_methodology');
+
+        $this->assertNotNull($triangulation);
+        $this->assertNotNull($normalisation);
+        $this->assertNotNull($methodology);
+        $this->assertArrayNotHasKey('methods', $triangulation->metadata);
+        $this->assertArrayNotHasKey('reconciled_range', $triangulation->metadata);
+        $this->assertArrayNotHasKey('add_backs', $normalisation->metadata);
+        $this->assertArrayNotHasKey('source_attributions', $methodology->metadata);
+        $this->assertArrayNotHasKey('valuation_disclosures', $methodology->metadata);
 
         $this->assertStringContainsString('Method triangulation', $this->renderer->html);
         $this->assertStringContainsString('use the range, not a point estimate', $this->renderer->html);

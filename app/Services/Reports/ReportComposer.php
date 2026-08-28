@@ -49,6 +49,7 @@ use App\Services\Reports\Contracts\NpoHealthReportComposition;
 use App\Services\Reports\Contracts\NpoImpactSummaryReportComposition;
 use App\Services\Reports\Contracts\NpoSocialEnterpriseDualReportComposition;
 use App\Services\Reports\Contracts\ReportArtifactRenderer;
+use App\Services\Reports\Contracts\ValuationReportComposition;
 use App\Services\Reports\Data\NpoImpactSummaryInput;
 use App\Support\Methodology\ProvidesMethodology;
 use App\Support\Reports\SourceReferenceLabeler;
@@ -80,6 +81,7 @@ final class ReportComposer implements ProvidesMethodology
         private readonly NpoImpactSummaryReportComposition $npoImpactSummaryReports,
         private readonly NpoFunderAccountabilityReportComposition $npoFunderAccountabilityReports,
         private readonly EntrepreneurAssessmentReportComposition $entrepreneurAssessmentReports,
+        private readonly ValuationReportComposition $valuationReports,
     ) {}
 
     public function compose(Client $client, ReportType $type, ?User $actor = null): Report
@@ -337,50 +339,7 @@ final class ReportComposer implements ProvidesMethodology
 
     public function composeValuation(Client $client, ?User $actor = null): Report
     {
-        return DB::transaction(function () use ($client, $actor): Report {
-            $valuation = $this->latestValuation($client);
-
-            $report = Report::query()->create([
-                'client_id' => $client->getKey(),
-                'type' => ReportType::Valuation,
-                'title' => ReportType::Valuation->label().' - '.$client->legal_name,
-                'generated_by_user_id' => $actor?->getKey(),
-                'generated_at' => now(),
-                'metadata' => [
-                    'phase' => 'phase_report_layer_composition',
-                    'business_valuation_id' => $valuation?->getKey(),
-                    'methodology' => 'triangulated_sde_ebitda_dcf_range',
-                    'advisor_review_required' => true,
-                    'redactions' => [],
-                ],
-                'render_status' => Report::RENDER_STATUS_COMPOSING,
-                'review_status' => 'pending_review',
-            ]);
-
-            foreach ($this->valuationReportSections($client, $valuation) as $position => $section) {
-                ReportSection::query()->create([
-                    ...$section,
-                    'report_id' => $report->getKey(),
-                    'client_id' => $client->getKey(),
-                    'position' => $position + 1,
-                ]);
-            }
-
-            $this->renderAndAuditAfterCommit(
-                $report,
-                $actor,
-                'valuation.report_generated',
-                fn (Report $rendered): array => [
-                    'client_id' => $client->getKey(),
-                    'business_valuation_id' => $valuation?->getKey(),
-                    'sections' => $rendered->sections()->count(),
-                    'pdf_path' => $rendered->pdf_path,
-                ],
-                ['client', 'sections'],
-            );
-
-            return $report->refresh()->load(['client', 'sections']);
-        });
+        return $this->valuationReports->compose($client, $actor);
     }
 
     public function composeAcquisitionGoNoGo(DdEngagement $engagement, ?User $actor = null): Report
@@ -840,19 +799,6 @@ final class ReportComposer implements ProvidesMethodology
             $this->ddBuyerReadinessSection($engagement, $valuation, $risks),
             $this->ddRecommendationSection($engagement, $recommendation),
             $this->ddLiabilityDisclaimerSection($engagement),
-        ];
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function valuationReportSections(Client $client, ?BusinessValuation $valuation): array
-    {
-        return [
-            $this->valuationTriangulationSection($client, $valuation),
-            $this->earningsNormalisationSection($client, $valuation),
-            $this->assetFloorSection($client, $valuation),
-            $this->valuationMethodologySection($client, $valuation),
         ];
     }
 
@@ -1651,155 +1597,6 @@ final class ReportComposer implements ProvidesMethodology
             body: DdDisclaimer::STANDARD,
             sourceReference: 'dd_disclaimer:'.$engagement->getKey(),
             dataQualityNote: 'Data quality note: this disclaimer is included on every due diligence output.',
-        );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function valuationTriangulationSection(Client $client, ?BusinessValuation $valuation): array
-    {
-        if (! $valuation instanceof BusinessValuation) {
-            return $this->generatedSection(
-                key: 'valuation_triangulation',
-                title: 'Method triangulation',
-                body: 'No business valuation row is available yet. Generate or import a valuation before relying on a standalone valuation report.',
-                sourceReference: 'business_valuations:none:'.$client->getKey(),
-                dataQualityNote: 'Data quality note: valuation report is pending source valuation data.',
-            );
-        }
-
-        $methodRows = $this->valuationMethodRows($valuation);
-        $body = sprintf(
-            "Valuation as at: %s.\nReconciled range: %s low, %s midpoint, %s high.\n\nMethod triangulation:\n%s\n\nConclusion: use the range, not a point estimate. The midpoint is a planning anchor; negotiation and advice should stay inside the evidenced low/high range unless the advisor records a specific adjustment.",
-            $valuation->as_at?->toDateString() ?? 'not dated',
-            $this->money($valuation->reconciled_low),
-            $this->money($valuation->reconciled_mid),
-            $this->money($valuation->reconciled_high),
-            implode("\n", $methodRows),
-        );
-
-        return $this->generatedSection(
-            key: 'valuation_triangulation',
-            title: 'Method triangulation',
-            body: $body,
-            sourceReference: 'business_valuation:'.$valuation->getKey(),
-            dataQualityNote: ($valuation->data_quality_disclaimer ?: 'Data quality note: valuation uses persisted SDE, EBITDA, and DCF/PV methods.').' Data-age stamp: valuation as at '.($valuation->as_at?->toDateString() ?? 'not dated').'.',
-            metadata: [
-                'business_valuation_id' => $valuation->getKey(),
-                'methods' => [
-                    'sde' => $valuation->sde_value,
-                    'ebitda' => $valuation->ebitda_value,
-                    'dcf' => $valuation->dcf_value,
-                ],
-                'reconciled_range' => [
-                    'low' => $valuation->reconciled_low,
-                    'mid' => $valuation->reconciled_mid,
-                    'high' => $valuation->reconciled_high,
-                ],
-            ],
-        );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function earningsNormalisationSection(Client $client, ?BusinessValuation $valuation): array
-    {
-        $snapshot = $this->latestFinancialSnapshot($client);
-        $normalisation = $this->earningsNormalisationPayload($valuation, $snapshot);
-        $addBacks = collect($normalisation['add_backs'])
-            ->map(fn (array $row): string => sprintf(
-                '%s: %s (%s)',
-                $row['label'],
-                $this->money($row['amount']),
-                $row['rationale'],
-            ))
-            ->implode("\n");
-
-        $body = sprintf(
-            "Reported net profit: %s.\nNormalised EBITDA: %s.\nSeller discretionary earnings (SDE): %s.\n\nAdd-backs and normalisation adjustments:\n%s\n\nAdvisor check: for owner-operated NZ SMEs, SDE and one-off add-backs should be reviewed before this valuation is used for pricing or lending conversations.",
-            $this->money($normalisation['reported_net_profit']),
-            $this->money($normalisation['normalised_ebitda']),
-            $this->money($normalisation['sde']),
-            $addBacks !== '' ? $addBacks : 'No structured add-backs are recorded on the latest valuation.',
-        );
-
-        return $this->generatedSection(
-            key: 'earnings_normalisation',
-            title: 'Earnings normalisation worksheet',
-            body: $body,
-            sourceReference: $valuation instanceof BusinessValuation ? 'business_valuation:'.$valuation->getKey().':normalisation' : 'financial_snapshot:'.$client->getKey(),
-            dataQualityNote: 'Data quality note: normalisation is assembled from the latest valuation inputs, valuation adjustments, and the latest financial snapshot where present.',
-            metadata: $normalisation,
-        );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function assetFloorSection(Client $client, ?BusinessValuation $valuation): array
-    {
-        $floor = $this->assetFloorPayload($client);
-        $sanityCheck = match (true) {
-            ! is_numeric($floor['asset_floor_nzd']) => 'Asset floor could not be calculated from the latest balance sheet.',
-            $valuation instanceof BusinessValuation && $valuation->reconciled_low < (float) $floor['asset_floor_nzd'] => 'The valuation low point sits below the asset floor; advisor review should reconcile whether assets are surplus, impaired, or required for operations.',
-            $valuation instanceof BusinessValuation => 'The valuation range sits above the available asset floor sanity check.',
-            default => 'Asset floor is ready for comparison once a valuation is available.',
-        };
-
-        $body = sprintf(
-            "Asset floor estimate: %s.\nCash and surplus asset indicator: %s.\nLiabilities included: %s.\nSanity check: %s",
-            $this->money($floor['asset_floor_nzd']),
-            $this->money($floor['cash_or_surplus_asset_indicator_nzd']),
-            $this->money($floor['liabilities_nzd']),
-            $sanityCheck,
-        );
-
-        return $this->generatedSection(
-            key: 'asset_floor',
-            title: 'Asset floor and surplus asset check',
-            body: $body,
-            sourceReference: (string) ($floor['source_reference'] ?? 'financial_snapshot:none:'.$client->getKey()),
-            dataQualityNote: 'Data quality note: asset floor is a sanity check from balance-sheet fields, not a replacement for the earnings and DCF valuation methods.',
-            metadata: $floor,
-        );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function valuationMethodologySection(Client $client, ?BusinessValuation $valuation): array
-    {
-        $sources = collect($valuation?->source_attributions ?? [])
-            ->filter(fn (mixed $item): bool => is_array($item))
-            ->map(fn (array $source): string => (string) ($source['source_reference'] ?? $source['id'] ?? 'source'))
-            ->filter()
-            ->values()
-            ->all();
-        $disclosures = $valuation instanceof BusinessValuation
-            ? $this->valuationDisclosureLines($valuation)
-            : [];
-
-        $body = sprintf(
-            "Methodology version: valuation.business; report-layer composition %s.\nUncertainty standard: forward-looking valuation outputs are presented as ranges.\nInput attribution: %s.\nProfessional scope and reliance notes:\n%s\nAdvisor review: confirm earnings add-backs, surplus assets, multiple feed date, DCF assumptions, basis of value, purpose, and reliance limitations before releasing to a client.",
-            now()->toDateString(),
-            $sources === [] ? 'No explicit source attribution recorded on the valuation row.' : implode(', ', $sources),
-            $disclosures === [] ? 'No structured valuation disclosures are recorded yet.' : implode("\n", $disclosures),
-        );
-
-        return $this->generatedSection(
-            key: 'valuation_methodology',
-            title: 'Methodology and source notes',
-            body: $body,
-            sourceReference: $valuation instanceof BusinessValuation ? 'business_valuation:'.$valuation->getKey().':methodology' : 'client:'.$client->getKey().':valuation_methodology',
-            dataQualityNote: 'Data quality note: this section surfaces methodology, uncertainty, and source-age checks so stale reference data is visible.',
-            metadata: [
-                'calculation_methods' => ['Business valuation reconciliation', 'Present-value engine'],
-                'source_attributions' => $valuation?->source_attributions ?? [],
-                'valuation_disclosures' => $valuation?->valuation_disclosures ?? [],
-                'as_at' => $valuation?->as_at?->toIso8601String(),
-            ],
         );
     }
 
@@ -2648,16 +2445,6 @@ final class ReportComposer implements ProvidesMethodology
             ->first();
     }
 
-    private function latestFinancialSnapshot(Client $client): ?FinancialSnapshot
-    {
-        return FinancialSnapshot::query()
-            ->where('client_id', $client->getKey())
-            ->latest('period_end')
-            ->latest('pulled_at')
-            ->latest()
-            ->first();
-    }
-
     private function latestSuccessionPlan(Client $client): ?SuccessionPlan
     {
         return SuccessionPlan::query()
@@ -2680,156 +2467,6 @@ final class ReportComposer implements ProvidesMethodology
             ->get()
             ->sortBy('rank')
             ->values();
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function valuationMethodRows(BusinessValuation $valuation): array
-    {
-        return collect([
-            'SDE capitalisation' => $valuation->sde_value,
-            'EBITDA market multiple' => $valuation->ebitda_value,
-            'PV/DCF' => $valuation->dcf_value,
-        ])->map(function (mixed $range, string $label): string {
-            if (! is_array($range)) {
-                return "{$label}: n/a.";
-            }
-
-            return sprintf(
-                '%s: %s low, %s midpoint, %s high%s.',
-                $label,
-                $this->money($range['low'] ?? null),
-                $this->money($range['mid'] ?? $range['present_value'] ?? null),
-                $this->money($range['high'] ?? null),
-                is_numeric($range['input'] ?? null) ? ' from input '.$this->money($range['input']) : '',
-            );
-        })->values()->all();
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function valuationDisclosureLines(BusinessValuation $valuation): array
-    {
-        return collect($valuation->valuation_disclosures ?? [])
-            ->filter(fn (mixed $item): bool => is_array($item))
-            ->map(function (array $disclosure): string {
-                $type = str((string) ($disclosure['type'] ?? 'disclosure'))->replace('_', ' ')->title();
-                $message = trim((string) ($disclosure['message'] ?? ''));
-
-                return $message === '' ? null : "{$type}: {$message}";
-            })
-            ->filter()
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return array{reported_net_profit:?float, normalised_ebitda:?float, sde:?float, add_backs:array<int, array{label:string, amount:float, rationale:string}>}
-     */
-    private function earningsNormalisationPayload(?BusinessValuation $valuation, ?FinancialSnapshot $snapshot): array
-    {
-        $reportedNetProfit = $this->numericFromArray($snapshot?->profit_and_loss, ['net_profit', 'profit', 'net_income']);
-        $normalisedEbitda = $this->numericFromArray($valuation?->ebitda_value, ['input', 'normalised_ebitda'])
-            ?? $this->numericFromArray($snapshot?->metrics, ['ebitda', 'normalised_ebitda']);
-        $sde = $this->numericFromArray($valuation?->sde_value, ['input', 'sde'])
-            ?? $this->numericFromArray($snapshot?->metrics, ['sde']);
-        $addBacks = $this->normalisationAddBacks($valuation?->adjustments ?? []);
-
-        if (is_numeric($sde) && is_numeric($normalisedEbitda) && (float) $sde > (float) $normalisedEbitda) {
-            $addBacks[] = [
-                'label' => 'Owner discretionary earnings uplift',
-                'amount' => round((float) $sde - (float) $normalisedEbitda, 2),
-                'rationale' => 'SDE exceeds normalised EBITDA in the valuation inputs.',
-            ];
-        }
-
-        return [
-            'reported_net_profit' => $reportedNetProfit,
-            'normalised_ebitda' => $normalisedEbitda,
-            'sde' => $sde,
-            'add_backs' => $addBacks,
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>|null  $values
-     * @param  array<int, string>  $keys
-     */
-    private function numericFromArray(?array $values, array $keys): ?float
-    {
-        if ($values === null) {
-            return null;
-        }
-
-        foreach ($keys as $key) {
-            $value = data_get($values, $key);
-
-            if (is_numeric($value)) {
-                return round((float) $value, 2);
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @param  array<int|string, mixed>  $adjustments
-     * @return array<int, array{label:string, amount:float, rationale:string}>
-     */
-    private function normalisationAddBacks(array $adjustments): array
-    {
-        $rows = [];
-
-        foreach ($adjustments as $key => $adjustment) {
-            if (is_array($adjustment)) {
-                $amount = $adjustment['amount'] ?? $adjustment['value'] ?? null;
-
-                if (is_numeric($amount)) {
-                    $rows[] = [
-                        'label' => (string) ($adjustment['label'] ?? $adjustment['name'] ?? (is_string($key) ? str($key)->replace('_', ' ')->title()->toString() : 'Valuation adjustment')),
-                        'amount' => round((float) $amount, 2),
-                        'rationale' => (string) ($adjustment['rationale'] ?? $adjustment['description'] ?? 'Advisor supplied valuation adjustment.'),
-                    ];
-                }
-
-                continue;
-            }
-
-            if (is_string($key) && is_numeric($adjustment)) {
-                $rows[] = [
-                    'label' => str($key)->replace('_', ' ')->title()->toString(),
-                    'amount' => round((float) $adjustment, 2),
-                    'rationale' => 'Valuation adjustment recorded on the valuation row.',
-                ];
-            }
-        }
-
-        return $rows;
-    }
-
-    /**
-     * @return array{asset_floor_nzd:?float, cash_or_surplus_asset_indicator_nzd:?float, liabilities_nzd:?float, source_reference:string}
-     */
-    private function assetFloorPayload(Client $client): array
-    {
-        $snapshot = $this->latestFinancialSnapshot($client);
-        $balanceSheet = $snapshot?->balance_sheet;
-        $totalAssets = $this->numericFromArray($balanceSheet, ['total_assets', 'assets.total', 'assets']);
-        $liabilities = $this->numericFromArray($balanceSheet, ['total_liabilities', 'liabilities.total', 'liabilities']);
-        $cash = $this->numericFromArray($balanceSheet, ['cash', 'bank', 'cash_and_cash_equivalents']);
-
-        return [
-            'asset_floor_nzd' => is_numeric($totalAssets)
-                ? round((float) $totalAssets - (float) ($liabilities ?? 0), 2)
-                : null,
-            'cash_or_surplus_asset_indicator_nzd' => $cash,
-            'liabilities_nzd' => $liabilities,
-            'source_reference' => $snapshot instanceof FinancialSnapshot
-                ? 'financial_snapshot:'.$snapshot->getKey()
-                : 'financial_snapshot:none:'.$client->getKey(),
-        ];
     }
 
     /**
