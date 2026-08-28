@@ -8041,21 +8041,9 @@ parameters:
 			path: app/Services/Reports/ReportComposer.php
 
 		-
-			message: '#^Offset ''source_reference'' on array\{asset_floor_nzd\: float\|null, cash_or_surplus_asset_indicator_nzd\: float\|null, liabilities_nzd\: float\|null, source_reference\: string\} on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Services/Reports/ReportComposer.php
-
-		-
 			message: '#^Using nullsafe method call on non\-nullable type Carbon\\CarbonImmutable\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
-			path: app/Services/Reports/ReportComposer.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>adjustments" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
 			path: app/Services/Reports/ReportComposer.php
 
 		-
@@ -8083,12 +8071,6 @@ parameters:
 			path: app/Services/Reports/ReportComposer.php
 
 		-
-			message: '#^Using nullsafe property access "\?\-\>source_attributions" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 2
-			path: app/Services/Reports/ReportComposer.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>suggested_mid" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
@@ -8096,12 +8078,6 @@ parameters:
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>target_name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Services/Reports/ReportComposer.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>valuation_disclosures" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Services/Reports/ReportComposer.php
