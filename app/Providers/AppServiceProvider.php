@@ -24,10 +24,12 @@ use App\Services\Pptx\Contracts\PptxGenerator;
 use App\Services\Pptx\OpenXmlPptxGenerator;
 use App\Services\Reports\Contracts\NpoGovernanceReviewReportComposition;
 use App\Services\Reports\Contracts\NpoHealthReportComposition;
+use App\Services\Reports\Contracts\NpoImpactSummaryReportComposition;
 use App\Services\Reports\Contracts\NpoSocialEnterpriseDualReportComposition;
 use App\Services\Reports\Contracts\ReportArtifactRenderer;
 use App\Services\Reports\NpoGovernanceReviewReportComposer;
 use App\Services\Reports\NpoHealthReportComposer;
+use App\Services\Reports\NpoImpactSummaryReportComposer;
 use App\Services\Reports\NpoSocialEnterpriseDualReportComposer;
 use App\Services\Reports\StoredReportArtifactRenderer;
 use App\Services\Settings\ProjectSettings;
@@ -91,6 +93,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ReportArtifactRenderer::class, StoredReportArtifactRenderer::class);
         $this->app->singleton(NpoGovernanceReviewReportComposition::class, NpoGovernanceReviewReportComposer::class);
         $this->app->singleton(NpoHealthReportComposition::class, NpoHealthReportComposer::class);
+        $this->app->singleton(NpoImpactSummaryReportComposition::class, NpoImpactSummaryReportComposer::class);
         $this->app->singleton(NpoSocialEnterpriseDualReportComposition::class, NpoSocialEnterpriseDualReportComposer::class);
         $this->app->singleton(ProjectSettings::class);
         $this->app->singleton(HsmClient::class, function (): HsmClient {

@@ -52,8 +52,10 @@ use App\Services\Pv\PvWaterfallReportChart;
 use App\Services\Pv\RiskCostPv;
 use App\Services\Reports\Contracts\NpoGovernanceReviewReportComposition;
 use App\Services\Reports\Contracts\NpoHealthReportComposition;
+use App\Services\Reports\Contracts\NpoImpactSummaryReportComposition;
 use App\Services\Reports\Contracts\NpoSocialEnterpriseDualReportComposition;
 use App\Services\Reports\Contracts\ReportArtifactRenderer;
+use App\Services\Reports\Data\NpoImpactSummaryInput;
 use App\Support\Methodology\ProvidesMethodology;
 use App\Support\Reports\SourceReferenceLabeler;
 use Illuminate\Support\Carbon;
@@ -83,6 +85,7 @@ final class ReportComposer implements ProvidesMethodology
         private readonly NpoHealthReportComposition $npoHealthReports,
         private readonly NpoGovernanceReviewReportComposition $npoGovernanceReviews,
         private readonly NpoSocialEnterpriseDualReportComposition $npoSocialEnterpriseDualReports,
+        private readonly NpoImpactSummaryReportComposition $npoImpactSummaryReports,
     ) {}
 
     public function compose(Client $client, ReportType $type, ?User $actor = null): Report
@@ -490,71 +493,9 @@ final class ReportComposer implements ProvidesMethodology
         return $this->npoSocialEnterpriseDualReports->compose($engagement, $actor);
     }
 
-    /**
-     * @param  array<string, mixed>  $input
-     */
-    public function composeImpactSummary(NpoEngagement $engagement, array $input, ?User $actor = null): Report
+    public function composeImpactSummary(NpoEngagement $engagement, NpoImpactSummaryInput $input, ?User $actor = null): Report
     {
-        $engagement->loadMissing('client');
-        $client = $engagement->client;
-
-        if (! $client instanceof Client) {
-            throw new InvalidArgumentException('Impact Summary reports require an NPO engagement with a client.');
-        }
-
-        $recordedMetrics = $this->npoImpactMetrics->reportMetrics($engagement);
-        $metrics = (array) ($input['metrics'] ?? $recordedMetrics['metrics']);
-        $platformMetrics = (array) ($input['platform_metrics'] ?? $recordedMetrics['platform_metrics']);
-        foreach ($metrics as $key => $value) {
-            if (is_numeric($value) && is_numeric($platformMetrics[$key] ?? null) && (float) $value > (float) $platformMetrics[$key]) {
-                throw new InvalidArgumentException("Impact metric [{$key}] exceeds recorded platform data.");
-            }
-        }
-
-        return DB::transaction(function () use ($client, $engagement, $input, $metrics, $platformMetrics, $actor): Report {
-            $report = Report::query()->create([
-                'client_id' => $client->getKey(),
-                'npo_engagement_id' => $engagement->getKey(),
-                'type' => ReportType::ImpactSummary,
-                'title' => ReportType::ImpactSummary->label().' - '.$client->legal_name,
-                'generated_by_user_id' => $actor?->getKey(),
-                'generated_at' => now(),
-                'metadata' => [
-                    'phase' => 'phase_5b',
-                    'npo_engagement_id' => $engagement->getKey(),
-                    'client_authored' => true,
-                    'fsa_ip' => false,
-                    'auto_release_at' => now()->addHours((int) config('npo.impact_summary_auto_release_hours', 48))->toIso8601String(),
-                    'platform_metrics' => $platformMetrics,
-                    'redactions' => ['fsa_ip'],
-                ],
-                'render_status' => Report::RENDER_STATUS_COMPOSING,
-                'review_status' => 'pending_review',
-            ]);
-
-            foreach ($this->impactSummarySections($engagement, $input, $metrics) as $position => $section) {
-                ReportSection::query()->create([
-                    ...$section,
-                    'report_id' => $report->getKey(),
-                    'client_id' => $client->getKey(),
-                    'position' => $position + 1,
-                ]);
-            }
-
-            $this->renderAndAuditAfterCommit(
-                $report,
-                $actor,
-                'npo.impact_summary_report_generated',
-                fn (Report $rendered): array => [
-                    'npo_engagement_id' => $engagement->getKey(),
-                    'client_authored' => true,
-                    'auto_release_at' => $rendered->metadata['auto_release_at'] ?? null,
-                ],
-                ['client', 'sections'],
-            );
-
-            return $report->refresh()->load(['client', 'npoEngagement', 'sections']);
-        });
+        return $this->npoImpactSummaryReports->compose($engagement, $input, $actor);
     }
 
     public function composeValuation(Client $client, ?User $actor = null): Report
@@ -3217,34 +3158,6 @@ final class ReportComposer implements ProvidesMethodology
                     'ai_response' => $response->toArray(),
                     'generated_by_user_id' => $actor?->getKey(),
                 ],
-            ),
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $input
-     * @param  array<string, mixed>  $metrics
-     * @return array<int, array<string, mixed>>
-     */
-    private function impactSummarySections(NpoEngagement $engagement, array $input, array $metrics): array
-    {
-        return [
-            $this->generatedSection(
-                key: 'client_impact_summary',
-                title: 'Client-authored impact summary',
-                body: (string) ($input['summary'] ?? 'Impact summary pending client narrative.'),
-                sourceReference: 'impact_summary:'.$engagement->getKey(),
-                dataQualityNote: 'Data quality note: client-authored narrative; AI assistance is limited to language support and no FSA IP is included.',
-                metadata: ['client_authored' => true, 'fsa_ip' => false],
-            ),
-            $this->generatedSection(
-                key: 'fact_checked_metrics',
-                title: 'Fact-checked metrics',
-                body: collect($metrics)
-                    ->map(fn (mixed $value, string|int $key): string => "{$key}: {$value}")
-                    ->implode("\n") ?: 'No impact metrics supplied.',
-                sourceReference: 'impact_metrics:'.$engagement->getKey(),
-                metadata: ['metrics' => $metrics],
             ),
         ];
     }

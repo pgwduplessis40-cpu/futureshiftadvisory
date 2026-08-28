@@ -46,6 +46,7 @@ return [
                 'tests/Feature/Reports/ReportComposerTest.php',
                 'tests/Feature/Npo/GovernanceReviewReportTest.php',
                 'tests/Feature/Npo/NpoReportSuiteTest.php',
+                'tests/Feature/Npo/FunderAccountabilityReportTest.php',
             ],
         ],
     ],
