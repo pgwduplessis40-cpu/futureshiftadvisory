@@ -43,7 +43,6 @@ use App\Models\Report;
 use App\Models\ReportSection;
 use App\Models\RiskCost;
 use App\Models\SuccessionPlan;
-use App\Models\Template;
 use App\Models\User;
 use App\Models\WebsiteAuditSnapshot;
 use App\Services\Ai\Contracts\AiClient;
@@ -55,21 +54,17 @@ use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdDisclaimer;
 use App\Services\Entrepreneurs\AssessmentScoring;
 use App\Services\Npo\NpoImpactMetricRecorder;
-use App\Services\Pdf\PdfRenderer;
-use App\Services\Pptx\Contracts\PptxGenerator;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Pv\PvWaterfallReportChart;
 use App\Services\Pv\RiskCostPv;
+use App\Services\Reports\Contracts\ReportArtifactRenderer;
 use App\Support\Methodology\ProvidesMethodology;
 use App\Support\Reports\SourceReferenceLabeler;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
-use RuntimeException;
-use Throwable;
 
 final class ReportComposer implements ProvidesMethodology
 {
@@ -79,8 +74,7 @@ final class ReportComposer implements ProvidesMethodology
     }
 
     public function __construct(
-        private readonly PdfRenderer $renderer,
-        private readonly PptxGenerator $pptx,
+        private readonly ReportArtifactRenderer $artifacts,
         private readonly PvWaterfallBuilder $waterfalls,
         private readonly PvWaterfallReportChart $chart,
         private readonly RiskCostPv $riskCosts,
@@ -88,10 +82,8 @@ final class ReportComposer implements ProvidesMethodology
         private readonly AuditWriter $audit,
         private readonly NpoImpactMetricRecorder $npoImpactMetrics,
         private readonly AcquisitionPlanRequirements $acquisitionPlanRequirements,
-        private readonly UploadedReportTemplateRenderer $uploadedTemplates,
         private readonly ReportTemplateCatalog $templateCatalog,
         private readonly HolidaysActLiabilityCalculator $holidaysActLiability,
-        private readonly BrandedReportLayout $layout,
     ) {}
 
     public function compose(Client $client, ReportType $type, ?User $actor = null): Report
@@ -970,46 +962,20 @@ final class ReportComposer implements ProvidesMethodology
 
     public function rerenderArtifacts(Report $report): Report
     {
-        $report->loadMissing(['client', 'entrepreneurProfile', 'sections']);
+        $this->artifacts->rerender($report);
 
-        $report->forceFill([
-            'render_status' => Report::RENDER_STATUS_COMPOSING,
-            'render_failed_at' => null,
-            'render_error' => null,
-        ])->save();
-
-        try {
-            $this->renderAndStorePdf($report);
-
-            if ($report->pptx_path !== null) {
-                $this->renderAndStorePptx($report->refresh()->load(['client', 'entrepreneurProfile', 'sections']));
-            }
-
-            $this->markRendered($report);
-
-            $this->audit->record('report.rerendered', subject: $report, after: [
-                'type' => $report->type->value,
-                'pdf_path' => $report->pdf_path,
-                'pptx_path' => $report->pptx_path,
-            ]);
-        } catch (Throwable $exception) {
-            $this->markRenderFailed($report, $exception);
-
-            throw $exception;
-        }
+        $this->audit->record('report.rerendered', subject: $report, after: [
+            'type' => $report->type->value,
+            'pdf_path' => $report->pdf_path,
+            'pptx_path' => $report->pptx_path,
+        ]);
 
         return $report->refresh();
     }
 
     public function usesCurrentTemplate(Report $report): bool
     {
-        if (! $report->type instanceof ReportType) {
-            return true;
-        }
-
-        return ($report->metadata['template'] ?? null) === $this->templateCatalog->metadata(
-            $this->templateForReport($report),
-        );
+        return $this->artifacts->usesCurrentTemplate($report);
     }
 
     private function usesAdvisorReviewGate(Report $report): bool
@@ -5016,22 +4982,9 @@ final class ReportComposer implements ProvidesMethodology
         bool $withPptx = false,
     ): void {
         $callback = function () use ($report, $actor, $action, $after, $load, $withPptx): void {
-            try {
-                $report->refresh()->load($load);
-                $this->renderAndStorePdf($report);
-
-                if ($withPptx) {
-                    $this->renderAndStorePptx($report->refresh()->load($load));
-                }
-
-                $this->markRendered($report);
-
-                $this->audit->record($action, subject: $report, actor: $actor, after: $after($report->refresh()));
-            } catch (Throwable $exception) {
-                $this->markRenderFailed($report, $exception);
-
-                throw $exception;
-            }
+            $report->refresh()->load($load);
+            $this->artifacts->render($report, $withPptx);
+            $this->audit->record($action, subject: $report, actor: $actor, after: $after($report->refresh()));
         };
 
         if (app()->environment('testing') && DB::transactionLevel() > 1) {
@@ -5041,292 +4994,5 @@ final class ReportComposer implements ProvidesMethodology
         }
 
         DB::afterCommit($callback);
-    }
-
-    private function renderAndStorePdf(Report $report): void
-    {
-        $pdf = $this->renderer->render($this->html($report));
-        $path = sprintf(
-            'reports/%s/%s/%s-%s.pdf',
-            $this->reportSubjectKey($report),
-            now()->format('Y/m'),
-            Str::uuid(),
-            $report->type->value,
-        );
-
-        $written = Storage::disk('secure_local')->put($path, $pdf);
-
-        if ($written !== true) {
-            throw new RuntimeException('Report PDF could not be stored.');
-        }
-
-        $report->forceFill([
-            'pdf_path' => $path,
-            'pdf_byte_size' => strlen($pdf),
-            'render_failed_at' => null,
-            'render_error' => null,
-        ])->save();
-    }
-
-    private function renderAndStorePptx(Report $report): void
-    {
-        $pptx = $this->pptx->render($report);
-        $path = sprintf(
-            'reports/%s/%s/%s-%s.pptx',
-            $this->reportSubjectKey($report),
-            now()->format('Y/m'),
-            Str::uuid(),
-            $report->type->value,
-        );
-
-        $written = Storage::disk('secure_local')->put($path, $pptx);
-
-        if ($written !== true) {
-            throw new RuntimeException('Report PowerPoint could not be stored.');
-        }
-
-        $report->forceFill([
-            'pptx_path' => $path,
-            'pptx_byte_size' => strlen($pptx),
-        ])->save();
-    }
-
-    private function markRendered(Report $report): void
-    {
-        $report->forceFill([
-            'render_status' => Report::RENDER_STATUS_RENDERED,
-            'render_failed_at' => null,
-            'render_error' => null,
-        ])->save();
-    }
-
-    private function markRenderFailed(Report $report, Throwable $exception): void
-    {
-        $report->forceFill([
-            'render_status' => Report::RENDER_STATUS_FAILED,
-            'render_failed_at' => now(),
-            'render_error' => Str::limit($exception::class.': '.$exception->getMessage(), 4000, ''),
-        ])->save();
-    }
-
-    private function html(Report $report): string
-    {
-        $report->loadMissing(['client.primaryContact', 'entrepreneurProfile', 'sections']);
-        $sections = $report->sections
-            ->sortBy('position')
-            ->map(fn (ReportSection $section): string => $this->sectionHtml($section))
-            ->implode('');
-        $template = $this->templateForReport($report);
-        $this->syncReportTemplateMetadata($report, $template);
-
-        if ($template instanceof Template && $this->templateCatalog->isTokenizedHtml($template)) {
-            return $this->htmlFromTemplate($report, $template, $sections);
-        }
-
-        if ($template instanceof Template) {
-            $html = $this->uploadedTemplates->render(
-                $report,
-                $template,
-                $sections,
-                $this->reportTemplateTokens($report, $template, $sections),
-                $this->reportCss($template),
-            );
-
-            if (is_string($html)) {
-                return $html;
-            }
-        }
-
-        return $this->brandedReportHtml($report, $template, $sections);
-    }
-
-    private function templateForReport(Report $report): ?Template
-    {
-        return $report->type instanceof ReportType
-            ? $this->templateCatalog->activeFor($report->type)
-            : null;
-    }
-
-    private function syncReportTemplateMetadata(Report $report, ?Template $template): void
-    {
-        $metadata = $report->metadata ?? [];
-        $templateMetadata = $this->templateCatalog->metadata($template);
-
-        if (($metadata['template'] ?? null) === $templateMetadata) {
-            return;
-        }
-
-        $metadata['template'] = $templateMetadata;
-        $report->forceFill(['metadata' => $metadata])->save();
-    }
-
-    private function htmlFromTemplate(Report $report, Template $template, string $sections): string
-    {
-        $body = (string) $template->body;
-        $hasSectionsToken = Str::contains($body, [
-            '{{ sections }}',
-            '{{sections}}',
-            '{{{ sections }}}',
-            '{{{sections}}}',
-        ]);
-        $rendered = strtr($body, $this->reportTemplateTokens($report, $template, $sections));
-
-        if (! $hasSectionsToken) {
-            $rendered .= "\n".$sections;
-        }
-
-        if (Str::contains(Str::lower($rendered), '<html')) {
-            return $rendered;
-        }
-
-        return sprintf(
-            <<<'HTML'
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>%s</title>
-<style>%s</style>
-</head>
-<body data-report-template="%s">
-%s
-</body>
-</html>
-HTML,
-            $this->escape($report->title),
-            $this->reportCss($template),
-            $this->escape((string) $template->getKey()),
-            $rendered,
-        );
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function reportTemplateTokens(Report $report, Template $template, string $sections): array
-    {
-        $clientName = $report->client?->legal_name ?? $report->entrepreneurProfile?->name ?? 'Client';
-        $generatedAt = $report->generated_at?->format('j M Y') ?? now()->format('j M Y');
-        $primaryContact = $report->client?->primaryContact?->name ?: 'Client contact';
-        $primaryTitle = $report->client?->primaryContact instanceof User ? 'Primary contact' : 'Client';
-        $engagementPeriod = is_string(data_get($report->metadata, 'engagement_period'))
-            ? (string) data_get($report->metadata, 'engagement_period')
-            : 'As at '.$generatedAt;
-
-        return [
-            '{{ report_title }}' => $this->escape($report->title),
-            '{{report_title}}' => $this->escape($report->title),
-            '{{ report_type }}' => $this->escape($report->type->label()),
-            '{{report_type}}' => $this->escape($report->type->label()),
-            '{{ client_name }}' => $this->escape($clientName),
-            '{{client_name}}' => $this->escape($clientName),
-            '{{ generated_at }}' => $this->escape($generatedAt),
-            '{{generated_at}}' => $this->escape($generatedAt),
-            '{{ template_title }}' => $this->escape($template->title),
-            '{{template_title}}' => $this->escape($template->title),
-            '{{ template_version }}' => (string) $template->version,
-            '{{template_version}}' => (string) $template->version,
-            '{{ sections }}' => $sections,
-            '{{sections}}' => $sections,
-            '{{{ sections }}}' => $sections,
-            '{{{sections}}}' => $sections,
-            '[Business Name]' => $this->escape($clientName),
-            '[Report Type]' => $this->escape($report->type->label()),
-            '[Date]' => $this->escape($generatedAt),
-            '[Engagement Period]' => $this->escape($engagementPeriod),
-            '[Client Primary Contact]' => $this->escape($primaryContact),
-            '[Title]' => $this->escape($primaryTitle),
-        ];
-    }
-
-    private function brandedReportHtml(Report $report, ?Template $template, string $sections): string
-    {
-        $clientName = $report->client?->legal_name ?? $report->entrepreneurProfile?->name ?? 'Client';
-        $templateLabel = $template instanceof Template
-            ? sprintf('%s v%d', $template->title, $template->version)
-            : 'System report layout';
-
-        return $this->layout->document(
-            title: $report->title,
-            templateKey: $template instanceof Template ? (string) $template->getKey() : 'system',
-            documentTag: $report->type->label(),
-            eyebrow: $report->type->label(),
-            heading: $report->title,
-            subheading: $clientName,
-            meta: [
-                'Report type' => $report->type->label(),
-                'Generated' => $report->generated_at?->format('j M Y') ?? now()->format('j M Y'),
-                'Template' => $templateLabel,
-            ],
-            contentHtml: $sections,
-            footer: 'Generated using '.$templateLabel,
-            template: $template,
-        );
-    }
-
-    private function reportCss(?Template $template): string
-    {
-        return $this->layout->css($template, fixedFooter: false);
-    }
-
-    private function reportSubjectKey(Report $report): string
-    {
-        if (is_string($report->client_id) && $report->client_id !== '') {
-            return $report->client_id;
-        }
-
-        return 'entrepreneur-'.$report->entrepreneur_profile_id;
-    }
-
-    private function sectionHtml(ReportSection $section): string
-    {
-        $sources = $this->sectionSourceLabels($section);
-        $chart = is_string($section->metadata['chart_html'] ?? null)
-            ? '<div class="chart">'.$section->metadata['chart_html'].'</div>'
-            : '';
-        $evidenceLines = collect([
-            $section->document_support_note,
-            $section->data_quality_note,
-            $sources === '' ? '' : 'Sources: '.$sources,
-        ])
-            ->filter(fn (mixed $line): bool => is_string($line) && trim($line) !== '')
-            ->map(fn (string $line): string => '<p>'.$this->escape($line).'</p>')
-            ->implode('');
-        $evidence = $evidenceLines === '' ? '' : '<div class="evidence">'.$evidenceLines.'</div>';
-
-        return sprintf(
-            <<<'HTML'
-<article class="report-section" data-section-key="%s">
-<h2>%s</h2>
-<div class="section-body">%s</div>
-%s
-%s
-</article>
-HTML,
-            $this->escape($section->key),
-            $this->escape($section->title),
-            nl2br($this->escape($section->body)),
-            $chart,
-            $evidence,
-        );
-    }
-
-    private function sectionSourceLabels(ReportSection $section): string
-    {
-        return collect($section->attributions ?? [])
-            ->filter(fn (mixed $item): bool => is_array($item))
-            ->map(fn (array $item): string => SourceReferenceLabeler::label(
-                (string) ($item['source_reference'] ?? ''),
-                isset($item['claim']) ? (string) $item['claim'] : null,
-            ))
-            ->filter()
-            ->unique()
-            ->take(5)
-            ->implode(', ');
-    }
-
-    private function escape(string $value): string
-    {
-        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 }

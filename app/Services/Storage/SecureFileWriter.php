@@ -25,6 +25,29 @@ final class SecureFileWriter
         private readonly UploadThreatInspector $threatInspector,
     ) {}
 
+    /**
+     * Persist a trusted, server-generated artifact through the encrypted
+     * secure disk. Generated report files never enter the upload/scanning
+     * workflow, but they must retain the same encrypted-at-rest boundary.
+     */
+    public function writeGenerated(string $path, string $contents): void
+    {
+        if (
+            $path === ''
+            || str_starts_with($path, '/')
+            || str_contains($path, '\\')
+            || in_array('..', explode('/', $path), true)
+        ) {
+            throw new SecureFileStorageException('Generated artifact path must be a safe relative path.');
+        }
+
+        $written = Storage::disk('secure_local')->put($path, $contents);
+
+        if ($written !== true) {
+            throw new SecureFileStorageException('Secure disk rejected the generated artifact write.');
+        }
+    }
+
     public function write(
         UploadedFile $uploadedFile,
         ?Authenticatable $owner,

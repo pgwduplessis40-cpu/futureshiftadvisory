@@ -37,7 +37,9 @@ use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
+use App\Services\Reports\Contracts\ReportArtifactRenderer;
 use App\Services\Reports\ReportComposer;
+use App\Services\Reports\StoredReportArtifactRenderer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -148,6 +150,30 @@ final class ReportComposerTest extends TestCase
         $this->assertStringNotContainsString('no additional disclaimer recorded', $this->renderer->html);
         $this->assertStringNotContainsString('no verified document support recorded', $this->renderer->html);
         $this->assertStringNotContainsString('Sources: test:', $this->renderer->html);
+    }
+
+    public function test_shared_artifact_renderer_contract_rerenders_a_composed_report(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('report-artifact-contract@example.test');
+        $this->businessValuation($client, 500000);
+        $this->analysisFixture($client);
+        $this->proposal($client);
+
+        $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
+        $firstPdfPath = $report->pdf_path;
+
+        $artifacts = app(ReportArtifactRenderer::class);
+
+        self::assertInstanceOf(StoredReportArtifactRenderer::class, $artifacts);
+
+        $artifacts->rerender($report);
+
+        $report->refresh();
+
+        self::assertSame(Report::RENDER_STATUS_RENDERED, $report->render_status);
+        self::assertNotSame($firstPdfPath, $report->pdf_path);
+        self::assertNotNull($report->pdf_path);
+        Storage::disk('secure_local')->assertExists($report->pdf_path);
     }
 
     public function test_client_report_includes_website_and_systems_findings_in_what_is_wrong_section(): void
