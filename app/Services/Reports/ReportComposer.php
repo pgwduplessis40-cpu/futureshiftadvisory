@@ -2077,7 +2077,7 @@ final class ReportComposer implements ProvidesMethodology
             ->get();
 
         return $workstreams
-            ->flatMap(fn (DdWorkstream $workstream): Collection => $workstream->analysisRun?->findings ?? collect())
+            ->flatMap(fn (DdWorkstream $workstream): Collection => $workstream->analysisRun->findings)
             ->filter(fn (mixed $finding): bool => $finding instanceof AnalysisFinding)
             ->values();
     }
