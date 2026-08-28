@@ -44,7 +44,7 @@ return [
             'production_limit' => 500,
             'contract_tests' => [
                 'tests/Feature/Reports/ReportComposerTest.php',
-                'tests/Feature/Npo/NpoReportSuiteTest.php',
+                'tests/Feature/Npo/GovernanceReviewReportTest.php',
             ],
         ],
     ],

@@ -20,6 +20,8 @@ use App\Models\User;
 use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
+use App\Services\Reports\Contracts\NpoGovernanceReviewReportComposition;
+use App\Services\Reports\NpoGovernanceReviewReportComposer;
 use App\Services\Reports\ReportComposer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -69,6 +71,9 @@ final class GovernanceReviewReportTest extends TestCase
         [$advisor, $client, $engagement] = $this->npoClient();
         $document = $this->verifiedDocument($client, $advisor);
         $this->reviewedFindings($engagement, $advisor, $document->id);
+
+        $composition = app(NpoGovernanceReviewReportComposition::class);
+        $this->assertInstanceOf(NpoGovernanceReviewReportComposer::class, $composition);
 
         $report = app(ReportComposer::class)->composeGovernanceReview($engagement, $advisor);
 
