@@ -26,8 +26,10 @@ use App\Services\Goals\GoalTracker;
 use App\Services\Learning\LayerCadenceRegistry;
 use App\Services\Npo\FunderRegistry;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Reports\Contracts\NpoFunderAccountabilityReportComposition;
 use App\Services\Reports\Contracts\NpoImpactSummaryReportComposition;
 use App\Services\Reports\Data\NpoImpactSummaryInput;
+use App\Services\Reports\NpoFunderAccountabilityReportComposer;
 use App\Services\Reports\NpoImpactSummaryReportComposer;
 use App\Services\Reports\ReportComposer;
 use App\Support\RequestContext;
@@ -80,6 +82,11 @@ final class FunderAccountabilityReportTest extends TestCase
         $this->milestone($client, $engagement, 'Own pending milestone', Milestone::STATUS_PENDING);
         $otherMilestone = $this->milestone($client, $otherEngagement, 'Other engagement milestone', Milestone::STATUS_COMPLETED);
 
+        $this->assertInstanceOf(
+            NpoFunderAccountabilityReportComposer::class,
+            app(NpoFunderAccountabilityReportComposition::class),
+        );
+
         $report = app(ReportComposer::class)->composeFunderAccountability($engagement, $record, $advisor);
 
         $this->assertSame(ReportType::FunderAccountability, $report->type);
@@ -91,6 +98,7 @@ final class FunderAccountabilityReportTest extends TestCase
         $this->assertNotNull($milestoneSection);
         $this->assertStringContainsString('1 of 2', $milestoneSection->body);
         $this->assertNotContains($otherMilestone->id, $milestoneSection->metadata['milestone_ids']);
+        $this->assertSame(0, $report->sections->firstWhere('key', 'impact_metrics')->metadata['metric_count']);
         $this->assertTrue((bool) $report->sections->firstWhere('key', 'ai_accountability_narrative')->metadata['advisor_review_required']);
 
         $reviewed = app(ReportComposer::class)->markReviewed($report, $advisor);
