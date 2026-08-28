@@ -27,11 +27,9 @@ use App\Models\Goal;
 use App\Models\GovernanceReviewFinding;
 use App\Models\ImprovementOpportunity;
 use App\Models\Milestone;
-use App\Models\NpoDimensionScore;
 use App\Models\NpoEngagement;
 use App\Models\NpoSocialEnterpriseScorecard;
 use App\Models\NpoTensionAnalysis;
-use App\Models\NpoValueCalculation;
 use App\Models\NzResource;
 use App\Models\PlanAssessment;
 use App\Models\PlanSection;
@@ -57,6 +55,7 @@ use App\Services\Npo\NpoImpactMetricRecorder;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Pv\PvWaterfallReportChart;
 use App\Services\Pv\RiskCostPv;
+use App\Services\Reports\Contracts\NpoHealthReportComposition;
 use App\Services\Reports\Contracts\ReportArtifactRenderer;
 use App\Support\Methodology\ProvidesMethodology;
 use App\Support\Reports\SourceReferenceLabeler;
@@ -84,6 +83,7 @@ final class ReportComposer implements ProvidesMethodology
         private readonly AcquisitionPlanRequirements $acquisitionPlanRequirements,
         private readonly ReportTemplateCatalog $templateCatalog,
         private readonly HolidaysActLiabilityCalculator $holidaysActLiability,
+        private readonly NpoHealthReportComposition $npoHealthReports,
     ) {}
 
     public function compose(Client $client, ReportType $type, ?User $actor = null): Report
@@ -540,97 +540,12 @@ final class ReportComposer implements ProvidesMethodology
 
     public function composeNpoHealth(NpoEngagement $engagement, ?User $actor = null): Report
     {
-        [$client, $scores] = $this->npoReportInputs($engagement);
-
-        return DB::transaction(function () use ($client, $engagement, $scores, $actor): Report {
-            $report = Report::query()->create([
-                'client_id' => $client->getKey(),
-                'npo_engagement_id' => $engagement->getKey(),
-                'type' => ReportType::NpoHealth,
-                'title' => ReportType::NpoHealth->label().' - '.$client->legal_name,
-                'generated_by_user_id' => $actor?->getKey(),
-                'generated_at' => now(),
-                'metadata' => [
-                    'phase' => 'phase_5b',
-                    'npo_engagement_id' => $engagement->getKey(),
-                    'plain_english' => true,
-                    'board_audience' => true,
-                    'redactions' => ['advisor_workings'],
-                ],
-                'render_status' => Report::RENDER_STATUS_COMPOSING,
-                'review_status' => 'not_required',
-            ]);
-
-            foreach ($this->npoHealthSections($engagement, $scores) as $position => $section) {
-                ReportSection::query()->create([
-                    ...$section,
-                    'report_id' => $report->getKey(),
-                    'client_id' => $client->getKey(),
-                    'position' => $position + 1,
-                ]);
-            }
-
-            $this->renderAndAuditAfterCommit(
-                $report,
-                $actor,
-                'npo.health_report_generated',
-                fn (Report $rendered): array => [
-                    'npo_engagement_id' => $engagement->getKey(),
-                    'sections' => $rendered->sections()->count(),
-                ],
-                ['client', 'sections'],
-            );
-
-            return $report->refresh()->load(['client', 'npoEngagement', 'sections']);
-        });
+        return $this->npoHealthReports->composeHealth($engagement, $actor);
     }
 
     public function composeNpoAdvisor(NpoEngagement $engagement, ?User $actor = null): Report
     {
-        [$client, $scores] = $this->npoReportInputs($engagement);
-
-        return DB::transaction(function () use ($client, $engagement, $scores, $actor): Report {
-            $report = Report::query()->create([
-                'client_id' => $client->getKey(),
-                'npo_engagement_id' => $engagement->getKey(),
-                'type' => ReportType::NpoAdvisor,
-                'title' => ReportType::NpoAdvisor->label().' - '.$client->legal_name,
-                'generated_by_user_id' => $actor?->getKey(),
-                'generated_at' => now(),
-                'metadata' => [
-                    'phase' => 'phase_5b',
-                    'npo_engagement_id' => $engagement->getKey(),
-                    'confidential' => true,
-                    'header_colour' => 'cognac',
-                    'redactions' => [],
-                ],
-                'render_status' => Report::RENDER_STATUS_COMPOSING,
-                'review_status' => 'not_required',
-            ]);
-
-            foreach ($this->npoAdvisorSections($engagement, $scores) as $position => $section) {
-                ReportSection::query()->create([
-                    ...$section,
-                    'report_id' => $report->getKey(),
-                    'client_id' => $client->getKey(),
-                    'position' => $position + 1,
-                ]);
-            }
-
-            $this->renderAndAuditAfterCommit(
-                $report,
-                $actor,
-                'npo.advisor_report_generated',
-                fn (Report $rendered): array => [
-                    'npo_engagement_id' => $engagement->getKey(),
-                    'sections' => $rendered->sections()->count(),
-                    'confidential' => true,
-                ],
-                ['client', 'sections'],
-            );
-
-            return $report->refresh()->load(['client', 'npoEngagement', 'sections']);
-        });
+        return $this->npoHealthReports->composeAdvisor($engagement, $actor);
     }
 
     public function composeSocialEnterpriseDual(NpoEngagement $engagement, ?User $actor = null): Report
@@ -2162,8 +2077,7 @@ final class ReportComposer implements ProvidesMethodology
             ->get();
 
         return $workstreams
-            ->flatMap(fn (DdWorkstream $workstream): Collection => $workstream->analysisRun?->findings ?? collect())
-            ->filter(fn (mixed $finding): bool => $finding instanceof AnalysisFinding)
+            ->flatMap(fn (DdWorkstream $workstream): Collection => $workstream->analysisRun->findings)
             ->values();
     }
 
@@ -3878,144 +3792,6 @@ final class ReportComposer implements ProvidesMethodology
     }
 
     /**
-     * @return array{0: Client, 1: Collection<int, NpoDimensionScore>}
-     */
-    private function npoReportInputs(NpoEngagement $engagement): array
-    {
-        $engagement->loadMissing('client');
-        $client = $engagement->client;
-
-        if (! $client instanceof Client) {
-            throw new InvalidArgumentException('NPO reports require an engagement with a client.');
-        }
-
-        if (! in_array($engagement->sub_type, [NpoEngagementSubType::StandardNpo, NpoEngagementSubType::SocialEnterprise], true)) {
-            throw new InvalidArgumentException('NPO Health and Advisor reports require a full NPO engagement.');
-        }
-
-        $batchId = NpoDimensionScore::query()
-            ->where('npo_engagement_id', $engagement->getKey())
-            ->select('assessment_batch_id')
-            ->orderByDesc('captured_at')
-            ->orderByDesc('assessment_batch_id')
-            ->value('assessment_batch_id');
-
-        if (! is_string($batchId)) {
-            throw new InvalidArgumentException('NPO reports require a recorded NPO health assessment.');
-        }
-
-        $scores = NpoDimensionScore::query()
-            ->where('npo_engagement_id', $engagement->getKey())
-            ->where('assessment_batch_id', $batchId)
-            ->orderBy('dimension_number')
-            ->get();
-
-        if ($scores->isEmpty()) {
-            throw new InvalidArgumentException('NPO reports require a recorded NPO health assessment.');
-        }
-
-        return [$client, $scores];
-    }
-
-    /**
-     * @param  Collection<int, NpoDimensionScore>  $scores
-     * @return array<int, array<string, mixed>>
-     */
-    private function npoHealthSections(NpoEngagement $engagement, Collection $scores): array
-    {
-        $healthScore = (int) ($scores->first()?->health_score ?? round((float) $scores->avg('score')));
-        $strongest = $scores->sortByDesc('score')->first();
-        $priority = $scores->sortBy('score')->first();
-
-        return [
-            $this->generatedSection(
-                key: 'health_snapshot',
-                title: 'Health snapshot',
-                body: sprintf(
-                    'Current NPO health score: %s/100. Strongest area: %s. Priority area: %s. The score is about mission delivery strength, not commercial return.',
-                    $healthScore,
-                    $strongest?->dimension_label ?? 'not recorded',
-                    $priority?->dimension_label ?? 'not recorded',
-                ),
-                sourceReference: 'npo_dimension_scores:'.$engagement->getKey(),
-                dataQualityNote: 'Data quality note: plain-English client summary from the latest NPO health assessment.',
-                metadata: ['health_score' => $healthScore],
-            ),
-            $this->generatedSection(
-                key: 'dimension_scores',
-                title: 'Dimension scores',
-                body: $scores
-                    ->map(fn (NpoDimensionScore $score): string => "{$score->dimension_label}: {$score->score}/100")
-                    ->implode("\n"),
-                sourceReference: 'npo_dimension_scores:'.$engagement->getKey(),
-                dataQualityNote: 'Data quality note: each dimension score is persisted with source attributions and advisor weighting.',
-                metadata: ['dimension_score_ids' => $scores->pluck('id')->values()->all()],
-            ),
-            $this->generatedSection(
-                key: 'priority_findings',
-                title: 'Priority findings',
-                body: $this->npoFindingLines($scores),
-                sourceReference: 'npo_dimension_scores:'.$engagement->getKey().':findings',
-                dataQualityNote: 'Data quality note: findings are copied from the scored assessment and should stay tied to their cited evidence.',
-            ),
-        ];
-    }
-
-    /**
-     * @param  Collection<int, NpoDimensionScore>  $scores
-     * @return array<int, array<string, mixed>>
-     */
-    private function npoAdvisorSections(NpoEngagement $engagement, Collection $scores): array
-    {
-        $healthScore = (int) ($scores->first()?->health_score ?? round((float) $scores->avg('score')));
-        $calculations = NpoValueCalculation::query()
-            ->where('npo_engagement_id', $engagement->getKey())
-            ->orderByDesc('calculated_at')
-            ->get()
-            ->unique('type')
-            ->values();
-
-        return [
-            $this->generatedSection(
-                key: 'confidential_header',
-                title: 'CONFIDENTIAL - NPO Advisor Report',
-                body: 'CONFIDENTIAL advisor working paper. Header colour: Cognac. This report contains full workings and should not be released as the client-facing NPO Health Report.',
-                sourceReference: 'npo_advisor_report:'.$engagement->getKey().':confidential',
-                dataQualityNote: 'Data quality note: advisor-only report; release only through advisor-controlled channels.',
-                metadata: ['confidential' => true, 'header_colour' => 'cognac'],
-            ),
-            $this->generatedSection(
-                key: 'full_health_workings',
-                title: 'Full NPO health workings',
-                body: "Aggregate health score: {$healthScore}/100.\n\n".$scores
-                    ->map(fn (NpoDimensionScore $score): string => "{$score->dimension_number}. {$score->dimension_label}: score {$score->score}, weight {$score->advisor_weight}, weighted {$score->weighted_score}.")
-                    ->implode("\n"),
-                sourceReference: 'npo_dimension_scores:'.$engagement->getKey(),
-                dataQualityNote: 'Data quality note: advisor workings include weights and weighted scores from persisted assessment records.',
-            ),
-            $this->generatedSection(
-                key: 'mission_roi_value_workings',
-                title: 'Mission ROI value workings',
-                body: $calculations->isEmpty()
-                    ? 'No NPO value calculations have been recorded yet.'
-                    : $calculations
-                        ->map(fn (NpoValueCalculation $calculation): string => "{$calculation->type}: {$this->money($calculation->projection_mid)} midpoint, range {$this->money($calculation->projection_low)} to {$this->money($calculation->projection_high)}. Verification: ".(string) data_get($calculation->result, 'impact_governance.verification_label', 'Internal estimate - not externally verified').'. Theory of change: '.(string) data_get($calculation->result, 'impact_governance.theory_of_change_status', 'not_captured').'. Stakeholders: '.(string) data_get($calculation->result, 'impact_governance.stakeholder_involvement_status', 'not_captured').'. Mission framing: '.(string) ($calculation->result['mission_framing'] ?? 'Mission impact framing retained.'))
-                        ->implode("\n"),
-                sourceReference: 'npo_value_calculations:'.$engagement->getKey(),
-                dataQualityNote: 'Data quality note: values include the mandatory +/-15% uncertainty range and are framed as mission ROI, not commercial profit.',
-                metadata: ['npo_value_calculation_ids' => $calculations->pluck('id')->values()->all()],
-            ),
-            $this->generatedSection(
-                key: 'advisor_recommendation_frame',
-                title: 'Advisor recommendation frame',
-                body: $this->npoFindingLines($scores),
-                sourceReference: 'npo_dimension_scores:'.$engagement->getKey().':findings',
-                dataQualityNote: 'Data quality note: recommendation framing must preserve source evidence and avoid inflating mission outcomes.',
-            ),
-        ];
-    }
-
-    /**
      * @return array<int, array<string, mixed>>
      */
     private function socialEnterpriseDualSections(NpoSocialEnterpriseScorecard $scorecard, NpoTensionAnalysis $analysis): array
@@ -4069,24 +3845,6 @@ final class ReportComposer implements ProvidesMethodology
                 dataQualityNote: 'Data quality note: tension evidence is copied from the reviewed analysis record.',
             ),
         ];
-    }
-
-    /**
-     * @param  Collection<int, NpoDimensionScore>  $scores
-     */
-    private function npoFindingLines(Collection $scores): string
-    {
-        $lines = $scores
-            ->flatMap(fn (NpoDimensionScore $score): array => collect($score->findings ?? [])
-                ->map(fn (mixed $finding): string => is_array($finding)
-                    ? ($score->dimension_label.': '.(string) ($finding['title'] ?? 'Finding').' - '.(string) ($finding['body'] ?? ''))
-                    : ($score->dimension_label.': '.(string) $finding))
-                ->all())
-            ->values();
-
-        return $lines->isEmpty()
-            ? 'No priority findings were recorded in the latest NPO health assessment.'
-            : $lines->implode("\n");
     }
 
     /**

@@ -20,6 +20,8 @@ use App\Services\Npo\NpoBoardAccess;
 use App\Services\Npo\NpoHealthScorer;
 use App\Services\Npo\NpoValueCalculator;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Reports\Contracts\NpoHealthReportComposition;
+use App\Services\Reports\NpoHealthReportComposer;
 use App\Services\Reports\ReportComposer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -59,6 +61,9 @@ final class NpoReportSuiteTest extends TestCase
     {
         [$advisor, $client, $engagement] = $this->npoClient();
         $this->recordHealth($engagement, $advisor);
+        $composer = app(NpoHealthReportComposition::class);
+
+        $this->assertInstanceOf(NpoHealthReportComposer::class, $composer);
         app(NpoValueCalculator::class)->calculateCostPerBeneficiary($engagement, [
             'programme_expenditure' => 60000,
             'beneficiary_count' => 100,
