@@ -29,6 +29,7 @@ use App\Services\Reports\Contracts\NpoHealthReportComposition;
 use App\Services\Reports\Contracts\NpoImpactSummaryReportComposition;
 use App\Services\Reports\Contracts\NpoSocialEnterpriseDualReportComposition;
 use App\Services\Reports\Contracts\ReportArtifactRenderer;
+use App\Services\Reports\Contracts\SuccessionValueGapReportComposition;
 use App\Services\Reports\Contracts\ValuationReportComposition;
 use App\Services\Reports\EntrepreneurAssessmentReportComposer;
 use App\Services\Reports\NpoFunderAccountabilityReportComposer;
@@ -37,6 +38,7 @@ use App\Services\Reports\NpoHealthReportComposer;
 use App\Services\Reports\NpoImpactSummaryReportComposer;
 use App\Services\Reports\NpoSocialEnterpriseDualReportComposer;
 use App\Services\Reports\StoredReportArtifactRenderer;
+use App\Services\Reports\SuccessionValueGapReportComposer;
 use App\Services\Reports\ValuationReportComposer;
 use App\Services\Settings\ProjectSettings;
 use App\Services\Storage\Hsm\HsmClient;
@@ -103,6 +105,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(NpoHealthReportComposition::class, NpoHealthReportComposer::class);
         $this->app->singleton(NpoImpactSummaryReportComposition::class, NpoImpactSummaryReportComposer::class);
         $this->app->singleton(NpoSocialEnterpriseDualReportComposition::class, NpoSocialEnterpriseDualReportComposer::class);
+        $this->app->singleton(SuccessionValueGapReportComposition::class, SuccessionValueGapReportComposer::class);
         $this->app->singleton(ValuationReportComposition::class, ValuationReportComposer::class);
         $this->app->singleton(ProjectSettings::class);
         $this->app->singleton(HsmClient::class, function (): HsmClient {
