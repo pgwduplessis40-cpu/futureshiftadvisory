@@ -38,18 +38,16 @@ use App\Models\RiskCost;
 use App\Models\SuccessionPlan;
 use App\Models\User;
 use App\Models\WebsiteAuditSnapshot;
-use App\Services\Ai\Contracts\AiClient;
-use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Analysis\HolidaysActLiabilityCalculator;
 use App\Services\Audit\AuditWriter;
 use App\Services\Dd\AcquisitionPlanRequirements;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdDisclaimer;
 use App\Services\Entrepreneurs\AssessmentScoring;
-use App\Services\Npo\NpoImpactMetricRecorder;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Pv\PvWaterfallReportChart;
 use App\Services\Pv\RiskCostPv;
+use App\Services\Reports\Contracts\NpoFunderAccountabilityReportComposition;
 use App\Services\Reports\Contracts\NpoGovernanceReviewReportComposition;
 use App\Services\Reports\Contracts\NpoHealthReportComposition;
 use App\Services\Reports\Contracts\NpoImpactSummaryReportComposition;
@@ -76,9 +74,7 @@ final class ReportComposer implements ProvidesMethodology
         private readonly PvWaterfallBuilder $waterfalls,
         private readonly PvWaterfallReportChart $chart,
         private readonly RiskCostPv $riskCosts,
-        private readonly AiClient $ai,
         private readonly AuditWriter $audit,
-        private readonly NpoImpactMetricRecorder $npoImpactMetrics,
         private readonly AcquisitionPlanRequirements $acquisitionPlanRequirements,
         private readonly ReportTemplateCatalog $templateCatalog,
         private readonly HolidaysActLiabilityCalculator $holidaysActLiability,
@@ -86,6 +82,7 @@ final class ReportComposer implements ProvidesMethodology
         private readonly NpoGovernanceReviewReportComposition $npoGovernanceReviews,
         private readonly NpoSocialEnterpriseDualReportComposition $npoSocialEnterpriseDualReports,
         private readonly NpoImpactSummaryReportComposition $npoImpactSummaryReports,
+        private readonly NpoFunderAccountabilityReportComposition $npoFunderAccountabilityReports,
     ) {}
 
     public function compose(Client $client, ReportType $type, ?User $actor = null): Report
@@ -411,71 +408,7 @@ final class ReportComposer implements ProvidesMethodology
 
     public function composeFunderAccountability(NpoEngagement $engagement, ?ClientFunderRecord $record = null, ?User $actor = null): Report
     {
-        $engagement->loadMissing('client');
-        $client = $engagement->client;
-
-        if (! $client instanceof Client) {
-            throw new InvalidArgumentException('Funder Accountability reports require an NPO engagement with a client.');
-        }
-
-        $record ??= ClientFunderRecord::query()
-            ->with('funder')
-            ->where('client_id', $client->getKey())
-            ->where('npo_engagement_id', $engagement->getKey())
-            ->latest('period_end')
-            ->first();
-
-        if (! $record instanceof ClientFunderRecord) {
-            throw new InvalidArgumentException('Funder Accountability reports require an engagement-scoped funder record.');
-        }
-
-        if ((string) $record->npo_engagement_id !== (string) $engagement->getKey() || (string) $record->client_id !== (string) $client->getKey()) {
-            throw new InvalidArgumentException('Funder record must belong to the report engagement.');
-        }
-
-        return DB::transaction(function () use ($client, $engagement, $record, $actor): Report {
-            $report = Report::query()->create([
-                'client_id' => $client->getKey(),
-                'npo_engagement_id' => $engagement->getKey(),
-                'type' => ReportType::FunderAccountability,
-                'title' => ReportType::FunderAccountability->label().' - '.$client->legal_name,
-                'generated_by_user_id' => $actor?->getKey(),
-                'generated_at' => now(),
-                'metadata' => [
-                    'phase' => 'phase_5b',
-                    'npo_engagement_id' => $engagement->getKey(),
-                    'client_funder_record_id' => $record->getKey(),
-                    'funder_id' => $record->funder_id,
-                    'advisor_review_required' => true,
-                    'redactions' => [],
-                ],
-                'render_status' => Report::RENDER_STATUS_COMPOSING,
-                'review_status' => 'pending_review',
-            ]);
-
-            foreach ($this->funderAccountabilitySections($engagement, $record, $actor) as $position => $section) {
-                ReportSection::query()->create([
-                    ...$section,
-                    'report_id' => $report->getKey(),
-                    'client_id' => $client->getKey(),
-                    'position' => $position + 1,
-                ]);
-            }
-
-            $this->renderAndAuditAfterCommit(
-                $report,
-                $actor,
-                'npo.funder_accountability_report_generated',
-                fn (): array => [
-                    'npo_engagement_id' => $engagement->getKey(),
-                    'client_funder_record_id' => $record->getKey(),
-                    'review_status' => 'pending_review',
-                ],
-                ['client', 'sections'],
-            );
-
-            return $report->refresh()->load(['client', 'npoEngagement', 'sections']);
-        });
+        return $this->npoFunderAccountabilityReports->compose($engagement, $record, $actor);
     }
 
     public function composeNpoHealth(NpoEngagement $engagement, ?User $actor = null): Report
@@ -3072,113 +3005,6 @@ final class ReportComposer implements ProvidesMethodology
                 'advisor_review_required' => true,
             ],
         );
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function funderAccountabilitySections(NpoEngagement $engagement, ClientFunderRecord $record, ?User $actor): array
-    {
-        $snapshot = FinancialSnapshot::query()
-            ->where('client_id', $engagement->client_id)
-            ->latest('period_end')
-            ->first();
-        $milestones = Milestone::query()
-            ->where('client_id', $engagement->client_id)
-            ->where('npo_engagement_id', $engagement->getKey())
-            ->orderBy('due_date')
-            ->get();
-        $impactMetrics = $this->npoImpactMetrics->reportMetrics($engagement);
-        $completed = $milestones->where('status', Milestone::STATUS_COMPLETED)->count();
-        $total = $milestones->count();
-        $prompt = new PromptEnvelope(
-            id: 'npo.funder_accountability_narrative',
-            version: '1.0',
-            task: 'Draft an advisor-review-required funder accountability narrative from persisted grant, financial, milestone, and impact data.',
-            body: 'Use only supplied facts. Return a concise narrative for advisor review before funder release.',
-            input: [
-                'grant' => [
-                    'funder_name' => $record->funder?->name,
-                    'grant_name' => $record->grant_name,
-                    'grant_amount' => $record->grant_amount,
-                    'period_end' => $record->period_end?->toDateString(),
-                ],
-                'milestones' => [
-                    'completed' => $completed,
-                    'total' => $total,
-                ],
-                'impact_metrics' => $impactMetrics['payload'],
-                'financial_snapshot_id' => $snapshot?->getKey(),
-            ],
-            sourceReferences: array_values(array_filter([
-                'client_funder_record:'.$record->getKey(),
-                $snapshot instanceof FinancialSnapshot ? 'financial_snapshot:'.$snapshot->getKey() : null,
-                'milestones:'.$engagement->getKey(),
-            ])),
-        );
-        $response = $this->ai->summarise($prompt);
-
-        return [
-            $this->generatedSection(
-                key: 'financial_acquittal',
-                title: 'Financial acquittal',
-                body: $snapshot instanceof FinancialSnapshot
-                    ? sprintf('Latest accounting snapshot for %s reports revenue of NZD %s and operating expenses of NZD %s.', $snapshot->period_end?->toDateString(), number_format((float) data_get($snapshot->profit_and_loss, 'revenue', 0), 0), number_format((float) data_get($snapshot->profit_and_loss, 'operating_expenses', 0), 0))
-                    : 'Connected accounting data is not available yet; advisor review is required before funder release.',
-                sourceReference: $snapshot instanceof FinancialSnapshot ? 'financial_snapshot:'.$snapshot->getKey() : 'financial_snapshot:none:'.$engagement->getKey(),
-            ),
-            $this->generatedSection(
-                key: 'milestone_completion',
-                title: 'Milestone completion',
-                body: $total === 0
-                    ? 'No engagement-scoped milestones have been recorded for this funder report.'
-                    : "{$completed} of {$total} engagement-scoped milestones are complete.",
-                sourceReference: 'milestones:'.$engagement->getKey(),
-                metadata: ['milestone_ids' => $milestones->pluck('id')->values()->all()],
-            ),
-            $this->generatedSection(
-                key: 'impact_metrics',
-                title: 'Impact metrics',
-                body: $this->impactMetricLines($impactMetrics['payload'])
-                    ?: 'No client-entered impact metrics have been recorded for this engagement yet.',
-                sourceReference: 'impact_metrics:'.$engagement->getKey(),
-                metadata: [
-                    'metrics' => $impactMetrics['payload'],
-                    'platform_metrics' => $impactMetrics['platform_metrics'],
-                ],
-            ),
-            $this->generatedSection(
-                key: 'ai_accountability_narrative',
-                title: 'Advisor-reviewed accountability narrative',
-                body: $response->text,
-                sourceReference: 'ai_response:'.$response->promptHash,
-                dataQualityNote: 'Data quality note: FSA-generated AI narrative is blocked from funder/client release until advisor review marks the report reviewed.',
-                metadata: [
-                    'advisor_review_required' => true,
-                    'ai_response' => $response->toArray(),
-                    'generated_by_user_id' => $actor?->getKey(),
-                ],
-            ),
-        ];
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $metrics
-     */
-    private function impactMetricLines(array $metrics): string
-    {
-        return collect($metrics)
-            ->map(function (array $metric): string {
-                $value = $metric['value'] ?? null;
-                $unit = trim((string) ($metric['unit'] ?? ''));
-                $label = (string) ($metric['metric_label'] ?? $metric['metric_key'] ?? 'Metric');
-                $platform = $metric['platform_value'] ?? null;
-                $suffix = $unit === '' ? '' : " {$unit}";
-                $platformNote = $platform === null ? '' : " (platform cap {$platform}{$suffix})";
-
-                return "{$label}: {$value}{$suffix}{$platformNote}";
-            })
-            ->implode("\n");
     }
 
     private function autoReleaseAt(Report $report): ?Carbon

@@ -140,7 +140,8 @@ final class NpoClientPortalTest extends TestCase
 
         $this->assertNotNull($section);
         $this->assertStringContainsString('Meals served: 80 meals', $section->body);
-        $this->assertSame('meals_served', $section->metadata['metrics'][0]['metric_key']);
+        $this->assertSame(1, $section->metadata['metric_count']);
+        $this->assertSame(1, $section->metadata['platform_metric_count']);
     }
 
     /**
