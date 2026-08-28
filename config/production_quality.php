@@ -47,6 +47,7 @@ return [
                 'tests/Feature/Npo/GovernanceReviewReportTest.php',
                 'tests/Feature/Npo/NpoReportSuiteTest.php',
                 'tests/Feature/Npo/FunderAccountabilityReportTest.php',
+                'tests/Feature/Entrepreneurs/AssessmentReportTest.php',
             ],
         ],
     ],

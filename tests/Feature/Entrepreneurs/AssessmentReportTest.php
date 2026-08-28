@@ -18,6 +18,8 @@ use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBuilder;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
+use App\Services\Reports\Contracts\EntrepreneurAssessmentReportComposition;
+use App\Services\Reports\EntrepreneurAssessmentReportComposer;
 use App\Services\Reports\ReportComposer;
 use App\Support\RequestContext;
 use Database\Seeders\FoundingRatingFrameworkValuesSeeder;
@@ -77,6 +79,11 @@ final class AssessmentReportTest extends TestCase
         $assessment = app(Assessment::class)->firstPass($plan, $advisor);
         app(Assessment::class)->adjustScore($assessment, 1, 78, 'Advisor confirmed the business type evidence.', $advisor);
 
+        $this->assertInstanceOf(
+            EntrepreneurAssessmentReportComposer::class,
+            app(EntrepreneurAssessmentReportComposition::class),
+        );
+
         $report = app(ReportComposer::class)->composeEntrepreneurAssessment($assessment->refresh(), $advisor);
 
         $this->assertSame(ReportType::EntrepreneurAssessment, $report->type);
@@ -95,6 +102,9 @@ final class AssessmentReportTest extends TestCase
         $this->assertStringContainsString('document support:', $scoreSection->body);
         $this->assertStringContainsString('data quality:', $scoreSection->body);
         $this->assertStringContainsString('advisor adjustment: 78/100', $scoreSection->body);
+        $this->assertArrayHasKey('criterion_count', $scoreSection->metadata);
+        $this->assertArrayNotHasKey('criteria', $scoreSection->metadata);
+        $this->assertArrayNotHasKey('resources', $report->sections->firstWhere('key', 'entrepreneur_improvement_actions')->metadata);
         $this->assertNotNull($report->metadata['concept_pv_calculation_id']);
         $this->assertGreaterThanOrEqual(0, $report->metadata['concept_pv_present_value']);
         $this->assertDatabaseHas('pv_calculations', [
