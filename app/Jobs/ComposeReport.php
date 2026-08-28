@@ -12,6 +12,7 @@ use App\Models\NpoEngagement;
 use App\Models\PostAcquisitionMigration;
 use App\Models\User;
 use App\Services\Dd\DdAdviceReportGenerator;
+use App\Services\Reports\Data\NpoImpactSummaryInput;
 use App\Services\Reports\ReportComposer;
 use App\Support\RequestContext;
 use Illuminate\Bus\Queueable;
@@ -155,11 +156,7 @@ final class ComposeReport implements ShouldQueue
                 ReportType::NpoAdvisor => $reports->composeNpoAdvisor($engagement, $actor),
                 ReportType::SocialEnterpriseDual => $reports->composeSocialEnterpriseDual($engagement, $actor),
                 ReportType::FunderAccountability => $reports->composeFunderAccountability($engagement, actor: $actor),
-                ReportType::ImpactSummary => $reports->composeImpactSummary($engagement, [
-                    'summary' => 'Impact Summary draft pending client narrative.',
-                    'metrics' => [],
-                    'platform_metrics' => [],
-                ], $actor),
+                ReportType::ImpactSummary => $reports->composeImpactSummary($engagement, NpoImpactSummaryInput::draft(), $actor),
                 default => null,
             };
 

@@ -26,6 +26,9 @@ use App\Services\Goals\GoalTracker;
 use App\Services\Learning\LayerCadenceRegistry;
 use App\Services\Npo\FunderRegistry;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Reports\Contracts\NpoImpactSummaryReportComposition;
+use App\Services\Reports\Data\NpoImpactSummaryInput;
+use App\Services\Reports\NpoImpactSummaryReportComposer;
 use App\Services\Reports\ReportComposer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -101,11 +104,20 @@ final class FunderAccountabilityReportTest extends TestCase
         Carbon::setTestNow('2026-05-27 10:00:00');
         [$advisor, , $engagement] = $this->npoClient('impact-summary-advisor@example.test', 'Impact Summary Trust');
 
-        $report = app(ReportComposer::class)->composeImpactSummary($engagement, [
-            'summary' => 'We served families with warm meals and wraparound support.',
-            'metrics' => ['beneficiaries_served' => 90],
-            'platform_metrics' => ['beneficiaries_served' => 100],
-        ], $advisor);
+        $this->assertInstanceOf(
+            NpoImpactSummaryReportComposer::class,
+            app(NpoImpactSummaryReportComposition::class),
+        );
+
+        $report = app(ReportComposer::class)->composeImpactSummary(
+            $engagement,
+            new NpoImpactSummaryInput(
+                summary: 'We served families with warm meals and wraparound support.',
+                metrics: ['beneficiaries_served' => 90],
+                platformMetrics: ['beneficiaries_served' => 100],
+            ),
+            $advisor,
+        );
 
         $this->assertSame(ReportType::ImpactSummary, $report->type);
         $this->assertSame($engagement->id, $report->npo_engagement_id);
@@ -129,11 +141,15 @@ final class FunderAccountabilityReportTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('exceeds recorded platform data');
 
-        app(ReportComposer::class)->composeImpactSummary($engagement, [
-            'summary' => 'Overstated summary.',
-            'metrics' => ['beneficiaries_served' => 120],
-            'platform_metrics' => ['beneficiaries_served' => 100],
-        ], $advisor);
+        app(ReportComposer::class)->composeImpactSummary(
+            $engagement,
+            new NpoImpactSummaryInput(
+                summary: 'Overstated summary.',
+                metrics: ['beneficiaries_served' => 120],
+                platformMetrics: ['beneficiaries_served' => 100],
+            ),
+            $advisor,
+        );
     }
 
     public function test_goal_tracker_stamps_milestones_and_actions_with_valid_engagement(): void
