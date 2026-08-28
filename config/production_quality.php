@@ -45,6 +45,7 @@ return [
             'contract_tests' => [
                 'tests/Feature/Reports/ReportComposerTest.php',
                 'tests/Feature/Npo/GovernanceReviewReportTest.php',
+                'tests/Feature/Npo/NpoReportSuiteTest.php',
             ],
         ],
     ],

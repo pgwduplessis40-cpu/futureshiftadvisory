@@ -8,7 +8,6 @@ use App\Enums\AnalysisLens;
 use App\Enums\DiscountMethod;
 use App\Enums\EngagementType;
 use App\Enums\FindingSeverity;
-use App\Enums\NpoEngagementSubType;
 use App\Enums\PvType;
 use App\Enums\ReportType;
 use App\Models\AnalysisFinding;
@@ -26,8 +25,6 @@ use App\Models\Goal;
 use App\Models\ImprovementOpportunity;
 use App\Models\Milestone;
 use App\Models\NpoEngagement;
-use App\Models\NpoSocialEnterpriseScorecard;
-use App\Models\NpoTensionAnalysis;
 use App\Models\NzResource;
 use App\Models\PlanAssessment;
 use App\Models\PlanSection;
@@ -55,6 +52,7 @@ use App\Services\Pv\PvWaterfallReportChart;
 use App\Services\Pv\RiskCostPv;
 use App\Services\Reports\Contracts\NpoGovernanceReviewReportComposition;
 use App\Services\Reports\Contracts\NpoHealthReportComposition;
+use App\Services\Reports\Contracts\NpoSocialEnterpriseDualReportComposition;
 use App\Services\Reports\Contracts\ReportArtifactRenderer;
 use App\Support\Methodology\ProvidesMethodology;
 use App\Support\Reports\SourceReferenceLabeler;
@@ -84,6 +82,7 @@ final class ReportComposer implements ProvidesMethodology
         private readonly HolidaysActLiabilityCalculator $holidaysActLiability,
         private readonly NpoHealthReportComposition $npoHealthReports,
         private readonly NpoGovernanceReviewReportComposition $npoGovernanceReviews,
+        private readonly NpoSocialEnterpriseDualReportComposition $npoSocialEnterpriseDualReports,
     ) {}
 
     public function compose(Client $client, ReportType $type, ?User $actor = null): Report
@@ -488,74 +487,7 @@ final class ReportComposer implements ProvidesMethodology
 
     public function composeSocialEnterpriseDual(NpoEngagement $engagement, ?User $actor = null): Report
     {
-        $engagement->loadMissing('client');
-        $client = $engagement->client;
-
-        if (! $client instanceof Client) {
-            throw new InvalidArgumentException('Social Enterprise Dual Impact reports require an NPO engagement with a client.');
-        }
-
-        if ($engagement->sub_type !== NpoEngagementSubType::SocialEnterprise || ! $engagement->social_enterprise) {
-            throw new InvalidArgumentException('Social Enterprise Dual Impact reports require a social-enterprise engagement.');
-        }
-
-        $scorecard = NpoSocialEnterpriseScorecard::query()
-            ->where('npo_engagement_id', $engagement->getKey())
-            ->latest('calculated_at')
-            ->first();
-        $analysis = NpoTensionAnalysis::query()
-            ->where('npo_engagement_id', $engagement->getKey())
-            ->where('review_status', NpoTensionAnalysis::REVIEW_REVIEWED)
-            ->latest('reviewed_at')
-            ->latest('generated_at')
-            ->first();
-
-        if (! $scorecard instanceof NpoSocialEnterpriseScorecard || ! $analysis instanceof NpoTensionAnalysis) {
-            throw new InvalidArgumentException('Social Enterprise Dual Impact reports require a scorecard and advisor-reviewed evidenced tensions.');
-        }
-
-        return DB::transaction(function () use ($client, $engagement, $scorecard, $analysis, $actor): Report {
-            $report = Report::query()->create([
-                'client_id' => $client->getKey(),
-                'npo_engagement_id' => $engagement->getKey(),
-                'type' => ReportType::SocialEnterpriseDual,
-                'title' => ReportType::SocialEnterpriseDual->label().' - '.$client->legal_name,
-                'generated_by_user_id' => $actor?->getKey(),
-                'generated_at' => now(),
-                'metadata' => [
-                    'phase' => 'phase_5b',
-                    'npo_engagement_id' => $engagement->getKey(),
-                    'scorecard_id' => $scorecard->getKey(),
-                    'tension_analysis_id' => $analysis->getKey(),
-                    'redactions' => [],
-                ],
-                'render_status' => Report::RENDER_STATUS_COMPOSING,
-                'review_status' => 'not_required',
-            ]);
-
-            foreach ($this->socialEnterpriseDualSections($scorecard, $analysis) as $position => $section) {
-                ReportSection::query()->create([
-                    ...$section,
-                    'report_id' => $report->getKey(),
-                    'client_id' => $client->getKey(),
-                    'position' => $position + 1,
-                ]);
-            }
-
-            $this->renderAndAuditAfterCommit(
-                $report,
-                $actor,
-                'npo.social_enterprise_dual_impact_report_generated',
-                fn (): array => [
-                    'npo_engagement_id' => $engagement->getKey(),
-                    'scorecard_id' => $scorecard->getKey(),
-                    'tension_analysis_id' => $analysis->getKey(),
-                ],
-                ['client', 'sections'],
-            );
-
-            return $report->refresh()->load(['client', 'npoEngagement', 'sections']);
-        });
+        return $this->npoSocialEnterpriseDualReports->compose($engagement, $actor);
     }
 
     /**
@@ -3313,62 +3245,6 @@ final class ReportComposer implements ProvidesMethodology
                     ->implode("\n") ?: 'No impact metrics supplied.',
                 sourceReference: 'impact_metrics:'.$engagement->getKey(),
                 metadata: ['metrics' => $metrics],
-            ),
-        ];
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function socialEnterpriseDualSections(NpoSocialEnterpriseScorecard $scorecard, NpoTensionAnalysis $analysis): array
-    {
-        return [
-            $this->generatedSection(
-                key: 'dual_scorecard',
-                title: 'Dual impact scorecard',
-                body: sprintf(
-                    "Commercial score: %s/100 (%s%% weight)\nMission score: %s/100 (%s%% weight)\nBlended score: %s/100",
-                    $scorecard->commercial_score,
-                    $scorecard->commercial_weight,
-                    $scorecard->mission_score,
-                    $scorecard->mission_weight,
-                    number_format((float) $scorecard->blended_score, 2),
-                ),
-                sourceReference: 'npo_social_enterprise_scorecard:'.$scorecard->getKey(),
-                dataQualityNote: 'Data quality note: the blended score divides weighted commercial and mission scores by 100.',
-                metadata: [
-                    'scorecard_id' => $scorecard->getKey(),
-                    'commercial_axes' => $scorecard->commercial_axes,
-                    'mission_axes' => $scorecard->mission_axes,
-                ],
-            ),
-            $this->generatedSection(
-                key: 'evidenced_tensions',
-                title: 'Evidenced tensions',
-                body: collect($analysis->tensions)
-                    ->map(fn (array $tension): string => sprintf(
-                        "%s\nCommercial: %s\nMission: %s\nRecommended path: %s",
-                        (string) ($tension['title'] ?? 'Social enterprise tension'),
-                        (string) ($tension['commercial_implication'] ?? 'n/a'),
-                        (string) ($tension['mission_implication'] ?? 'n/a'),
-                        (string) ($tension['advisor_recommended_path'] ?? 'n/a'),
-                    ))
-                    ->implode("\n\n"),
-                sourceReference: 'npo_tension_analyses:'.$analysis->getKey(),
-                dataQualityNote: 'Data quality note: every tension has advisor-reviewed data points before report generation.',
-                metadata: ['tensions' => $analysis->tensions],
-            ),
-            $this->generatedSection(
-                key: 'tension_evidence',
-                title: 'Tension evidence',
-                body: collect($analysis->tensions)
-                    ->flatMap(fn (array $tension): array => (array) ($tension['data_points'] ?? []))
-                    ->map(fn (mixed $point): string => is_array($point)
-                        ? ((string) ($point['label'] ?? $point['key'] ?? 'Data point')).': '.(string) ($point['value'] ?? '').' ('.(string) ($point['source_reference'] ?? 'source').')'
-                        : (string) $point)
-                    ->implode("\n"),
-                sourceReference: 'npo_tension_analyses:'.$analysis->getKey().':data_points',
-                dataQualityNote: 'Data quality note: tension evidence is copied from the reviewed analysis record.',
             ),
         ];
     }

@@ -21,7 +21,9 @@ use App\Services\Npo\NpoHealthScorer;
 use App\Services\Npo\NpoValueCalculator;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Reports\Contracts\NpoHealthReportComposition;
+use App\Services\Reports\Contracts\NpoSocialEnterpriseDualReportComposition;
 use App\Services\Reports\NpoHealthReportComposer;
+use App\Services\Reports\NpoSocialEnterpriseDualReportComposer;
 use App\Services\Reports\ReportComposer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -99,6 +101,11 @@ final class NpoReportSuiteTest extends TestCase
 
     public function test_social_enterprise_dual_report_requires_reviewed_evidenced_tensions(): void
     {
+        $this->assertInstanceOf(
+            NpoSocialEnterpriseDualReportComposer::class,
+            app(NpoSocialEnterpriseDualReportComposition::class),
+        );
+
         [$advisor, , $engagement] = $this->npoClient(
             advisorEmail: 'dual-report-advisor@example.test',
             clientName: 'Dual Impact Trust',
