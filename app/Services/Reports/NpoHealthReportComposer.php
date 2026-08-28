@@ -154,7 +154,7 @@ final class NpoHealthReportComposer implements NpoHealthReportComposition
      */
     private function healthSections(NpoEngagement $engagement, Collection $scores): array
     {
-        $healthScore = (int) ($scores->first()?->health_score ?? round((float) $scores->avg('score')));
+        $healthScore = (int) ($scores->first()->health_score ?? round((float) $scores->avg('score')));
         $strongest = $scores->sortByDesc('score')->first();
         $priority = $scores->sortBy('score')->first();
 
@@ -165,8 +165,8 @@ final class NpoHealthReportComposer implements NpoHealthReportComposition
                 body: sprintf(
                     'Current NPO health score: %s/100. Strongest area: %s. Priority area: %s. The score is about mission delivery strength, not commercial return.',
                     $healthScore,
-                    $strongest?->dimension_label ?? 'not recorded',
-                    $priority?->dimension_label ?? 'not recorded',
+                    $strongest->dimension_label ?? 'not recorded',
+                    $priority->dimension_label ?? 'not recorded',
                 ),
                 sourceReference: 'npo_dimension_scores:'.$engagement->getKey(),
                 dataQualityNote: 'Data quality note: plain-English client summary from the latest NPO health assessment.',
@@ -180,7 +180,12 @@ final class NpoHealthReportComposer implements NpoHealthReportComposition
                     ->implode("\n"),
                 sourceReference: 'npo_dimension_scores:'.$engagement->getKey(),
                 dataQualityNote: 'Data quality note: each dimension score is persisted with source attributions and advisor weighting.',
-                metadata: ['dimension_score_ids' => $scores->pluck('id')->values()->all()],
+                metadata: [
+                    'dimension_score_ids' => $scores
+                        ->map(fn (NpoDimensionScore $score): string => (string) $score->getKey())
+                        ->values()
+                        ->all(),
+                ],
             ),
             ReportSectionDraft::generated(
                 key: 'priority_findings',
@@ -198,7 +203,7 @@ final class NpoHealthReportComposer implements NpoHealthReportComposition
      */
     private function advisorSections(NpoEngagement $engagement, Collection $scores): array
     {
-        $healthScore = (int) ($scores->first()?->health_score ?? round((float) $scores->avg('score')));
+        $healthScore = (int) ($scores->first()->health_score ?? round((float) $scores->avg('score')));
         /** @var Collection<int, NpoValueCalculation> $calculations */
         $calculations = NpoValueCalculation::query()
             ->where('npo_engagement_id', $engagement->getKey())
@@ -235,7 +240,12 @@ final class NpoHealthReportComposer implements NpoHealthReportComposition
                         ->implode("\n"),
                 sourceReference: 'npo_value_calculations:'.$engagement->getKey(),
                 dataQualityNote: 'Data quality note: values include the mandatory +/-15% uncertainty range and are framed as mission ROI, not commercial profit.',
-                metadata: ['npo_value_calculation_ids' => $calculations->pluck('id')->values()->all()],
+                metadata: [
+                    'npo_value_calculation_ids' => $calculations
+                        ->map(fn (NpoValueCalculation $calculation): string => (string) $calculation->getKey())
+                        ->values()
+                        ->all(),
+                ],
             ),
             ReportSectionDraft::generated(
                 key: 'advisor_recommendation_frame',
@@ -253,7 +263,7 @@ final class NpoHealthReportComposer implements NpoHealthReportComposition
     private function findingLines(Collection $scores): string
     {
         $lines = $scores
-            ->flatMap(fn (NpoDimensionScore $score): array => collect($score->findings ?? [])
+            ->flatMap(fn (NpoDimensionScore $score): array => collect($score->findings)
                 ->map(fn (mixed $finding): string => is_array($finding)
                     ? ($score->dimension_label.': '.(string) ($finding['title'] ?? 'Finding').' - '.(string) ($finding['body'] ?? ''))
                     : ($score->dimension_label.': '.(string) $finding))

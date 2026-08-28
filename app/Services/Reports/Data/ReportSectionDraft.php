@@ -10,7 +10,9 @@ use App\Models\AnalysisFinding;
  * Typed persistence payload for a generated report section.
  *
  * @phpstan-type Attribution array{claim: string, source_reference: string}
- * @phpstan-type SectionMetadata array<string, array|bool|float|int|string>
+ * @phpstan-type MetadataScalar bool|float|int|string
+ * @phpstan-type MetadataValue MetadataScalar|list<MetadataScalar>
+ * @phpstan-type SectionMetadata array<string, MetadataValue>
  */
 final readonly class ReportSectionDraft
 {
