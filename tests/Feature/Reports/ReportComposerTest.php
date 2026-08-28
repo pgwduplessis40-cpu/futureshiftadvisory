@@ -38,8 +38,10 @@ use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
 use App\Services\Reports\Contracts\ReportArtifactRenderer;
+use App\Services\Reports\Contracts\ValuationReportComposition;
 use App\Services\Reports\ReportComposer;
 use App\Services\Reports\StoredReportArtifactRenderer;
+use App\Services\Reports\ValuationReportComposer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -251,6 +253,8 @@ final class ReportComposerTest extends TestCase
         [$advisor, $client] = $this->clientWithTeam('valuation-report-advisor@example.test');
         $this->businessValuation($client, 640000);
 
+        $this->assertInstanceOf(ValuationReportComposer::class, app(ValuationReportComposition::class));
+
         $report = app(ReportComposer::class)->composeValuation($client, $advisor);
 
         $this->assertSame(ReportType::Valuation, $report->type);
@@ -268,9 +272,102 @@ final class ReportComposerTest extends TestCase
             $this->assertTrue($report->sections->contains('key', $key), "Missing valuation section {$key}.");
         }
 
+        $triangulation = $report->sections->firstWhere('key', 'valuation_triangulation');
+        $normalisation = $report->sections->firstWhere('key', 'earnings_normalisation');
+        $methodology = $report->sections->firstWhere('key', 'valuation_methodology');
+
+        $this->assertNotNull($triangulation);
+        $this->assertNotNull($normalisation);
+        $this->assertNotNull($methodology);
+        $this->assertArrayNotHasKey('methods', $triangulation->metadata);
+        $this->assertArrayNotHasKey('reconciled_range', $triangulation->metadata);
+        $this->assertArrayNotHasKey('add_backs', $normalisation->metadata);
+        $this->assertArrayNotHasKey('source_attributions', $methodology->metadata);
+        $this->assertArrayNotHasKey('valuation_disclosures', $methodology->metadata);
+
         $this->assertStringContainsString('Method triangulation', $this->renderer->html);
         $this->assertStringContainsString('use the range, not a point estimate', $this->renderer->html);
         $this->assertStringContainsString('Earnings normalisation worksheet', $this->renderer->html);
+    }
+
+    public function test_valuation_report_composes_normalised_earnings_asset_floor_and_source_contracts(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('valuation-report-rich-inputs@example.test');
+        $valuation = $this->businessValuation($client, 640000);
+        $valuation->forceFill([
+            'sde_value' => ['low' => 540000, 'mid' => 640000, 'high' => 740000, 'input' => 290000],
+            'ebitda_value' => ['low' => 500000, 'mid' => 610000, 'high' => 700000, 'input' => 250000],
+            'dcf_value' => ['low' => 520000, 'mid' => 630000, 'high' => 720000, 'input' => 275000],
+            'adjustments' => [
+                ['label' => 'Founder salary', 'amount' => 40000, 'rationale' => 'A market replacement cost is lower.'],
+                'legacy_one_off_cost' => 15000,
+            ],
+            'source_attributions' => [
+                ['source_reference' => 'financials:fy25'],
+                ['id' => 'valuation:workpaper:7'],
+                ['claim' => 'No identifier'],
+            ],
+            'valuation_disclosures' => [
+                ['type' => 'range', 'message' => 'Use the range rather than a single point estimate.'],
+                ['message' => 'The valuation remains subject to advisor review.'],
+                ['type' => 'empty'],
+            ],
+        ])->save();
+
+        $this->financialSnapshot(
+            $client,
+            now(),
+            ['ebitda' => 245000, 'sde' => 290000],
+            ['net_profit' => 180000],
+            ['total_assets' => 820000, 'total_liabilities' => 90000, 'cash' => 120000],
+        );
+
+        $report = app(ReportComposer::class)->composeValuation($client, $advisor);
+
+        $triangulation = $report->sections->firstWhere('key', 'valuation_triangulation');
+        $normalisation = $report->sections->firstWhere('key', 'earnings_normalisation');
+        $assetFloor = $report->sections->firstWhere('key', 'asset_floor');
+        $methodology = $report->sections->firstWhere('key', 'valuation_methodology');
+
+        $this->assertNotNull($triangulation);
+        $this->assertNotNull($normalisation);
+        $this->assertNotNull($assetFloor);
+        $this->assertNotNull($methodology);
+        $this->assertSame(3, $triangulation->metadata['method_count']);
+        $this->assertSame(3, $normalisation->metadata['add_back_count']);
+        $this->assertTrue($assetFloor->metadata['asset_floor_available']);
+        $this->assertSame(2, $methodology->metadata['source_count']);
+        $this->assertSame(2, $methodology->metadata['disclosure_count']);
+        $this->assertStringContainsString('Founder salary: NZD 40,000', $normalisation->body);
+        $this->assertStringContainsString('Owner discretionary earnings uplift: NZD 40,000', $normalisation->body);
+        $this->assertStringContainsString('valuation low point sits below the asset floor', $assetFloor->body);
+        $this->assertStringContainsString('financials:fy25, valuation:workpaper:7', $methodology->body);
+        $this->assertStringContainsString('Range: Use the range rather than a single point estimate.', $methodology->body);
+    }
+
+    public function test_valuation_report_explains_missing_valuation_and_financial_sources(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('valuation-report-no-sources@example.test');
+
+        $report = app(ReportComposer::class)->composeValuation($client, $advisor);
+
+        $triangulation = $report->sections->firstWhere('key', 'valuation_triangulation');
+        $normalisation = $report->sections->firstWhere('key', 'earnings_normalisation');
+        $assetFloor = $report->sections->firstWhere('key', 'asset_floor');
+        $methodology = $report->sections->firstWhere('key', 'valuation_methodology');
+
+        $this->assertNotNull($triangulation);
+        $this->assertNotNull($normalisation);
+        $this->assertNotNull($assetFloor);
+        $this->assertNotNull($methodology);
+        $this->assertSame(0, $triangulation->metadata['method_count']);
+        $this->assertFalse($normalisation->metadata['reported_net_profit_available']);
+        $this->assertFalse($assetFloor->metadata['asset_floor_available']);
+        $this->assertSame(0, $methodology->metadata['source_count']);
+        $this->assertStringContainsString('No business valuation row is available yet.', $triangulation->body);
+        $this->assertStringContainsString('No structured add-backs are recorded', $normalisation->body);
+        $this->assertStringContainsString('Asset floor could not be calculated', $assetFloor->body);
+        $this->assertStringContainsString('No explicit source attribution recorded', $methodology->body);
     }
 
     public function test_succession_value_gap_report_bridges_current_value_target_and_improvements(): void
@@ -1512,9 +1609,16 @@ XML,
 
     /**
      * @param  array<string, mixed>  $metrics
+     * @param  array<string, mixed>  $profitAndLoss
+     * @param  array<string, mixed>  $balanceSheet
      */
-    private function financialSnapshot(Client $client, mixed $periodEnd, array $metrics): FinancialSnapshot
-    {
+    private function financialSnapshot(
+        Client $client,
+        mixed $periodEnd,
+        array $metrics,
+        array $profitAndLoss = [],
+        array $balanceSheet = [],
+    ): FinancialSnapshot {
         $connection = AccountingConnection::query()->firstOrCreate([
             'client_id' => $client->id,
             'provider' => AccountingConnection::PROVIDER_XERO,
@@ -1536,8 +1640,8 @@ XML,
             'source' => 'fixture',
             'source_badge' => 'fixture',
             'degraded' => false,
-            'profit_and_loss' => ['revenue' => $metrics['revenue'] ?? 0],
-            'balance_sheet' => ['cash' => $metrics['cash_balance'] ?? 0],
+            'profit_and_loss' => ['revenue' => $metrics['revenue'] ?? 0, ...$profitAndLoss],
+            'balance_sheet' => ['cash' => $metrics['cash_balance'] ?? 0, ...$balanceSheet],
             'cash_flow' => [],
             'metrics' => $metrics,
             'pulled_at' => now(),
