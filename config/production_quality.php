@@ -42,7 +42,10 @@ return [
         'app/Services/Reports/ReportComposer.php' => [
             'ceiling' => 5332,
             'production_limit' => 500,
-            'contract_tests' => ['tests/Feature/Reports/ReportComposerTest.php'],
+            'contract_tests' => [
+                'tests/Feature/Reports/ReportComposerTest.php',
+                'tests/Feature/Npo/NpoReportSuiteTest.php',
+            ],
         ],
     ],
 
