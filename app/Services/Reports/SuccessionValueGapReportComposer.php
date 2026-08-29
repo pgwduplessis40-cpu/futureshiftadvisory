@@ -259,6 +259,7 @@ final class SuccessionValueGapReportComposer implements SuccessionValueGapReport
     /** @return list<string> */
     private function ownerDependencyActions(SuccessionPlan $successionPlan): array
     {
+        /** @var mixed $plan Malformed historic JSON must not break report composition. */
         $plan = $successionPlan->owner_dependency_plan;
         $actions = is_array($plan) ? ($plan['actions'] ?? []) : [];
 
@@ -290,6 +291,7 @@ final class SuccessionValueGapReportComposer implements SuccessionValueGapReport
     /** @return list<SuccessionOption> */
     private function options(SuccessionPlan $successionPlan): array
     {
+        /** @var mixed $source Malformed historic JSON must not break report composition. */
         $source = $successionPlan->options;
 
         if (! is_array($source)) {
