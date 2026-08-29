@@ -17,7 +17,6 @@ use App\Models\DdEngagement;
 use App\Models\DdIntegrationPlanItem;
 use App\Models\DdRiskRegisterItem;
 use App\Models\DdValuation;
-use App\Models\DdWorkstream;
 use App\Models\FinancialSnapshot;
 use App\Models\Goal;
 use App\Models\Milestone;
@@ -29,17 +28,14 @@ use App\Models\Proposal;
 use App\Models\QuestionnaireResponse;
 use App\Models\Report;
 use App\Models\ReportSection;
-use App\Models\RiskCost;
 use App\Models\User;
 use App\Models\WebsiteAuditSnapshot;
 use App\Services\Analysis\HolidaysActLiabilityCalculator;
 use App\Services\Audit\AuditWriter;
 use App\Services\Dd\AcquisitionPlanRequirements;
-use App\Services\Dd\DataRoom;
-use App\Services\Dd\DdDisclaimer;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Pv\PvWaterfallReportChart;
-use App\Services\Pv\RiskCostPv;
+use App\Services\Reports\Contracts\DueDiligenceReportComposition;
 use App\Services\Reports\Contracts\EntrepreneurAssessmentReportComposition;
 use App\Services\Reports\Contracts\NpoFunderAccountabilityReportComposition;
 use App\Services\Reports\Contracts\NpoGovernanceReviewReportComposition;
@@ -69,7 +65,6 @@ final class ReportComposer implements ProvidesMethodology
         private readonly ReportArtifactRenderer $artifacts,
         private readonly PvWaterfallBuilder $waterfalls,
         private readonly PvWaterfallReportChart $chart,
-        private readonly RiskCostPv $riskCosts,
         private readonly AuditWriter $audit,
         private readonly AcquisitionPlanRequirements $acquisitionPlanRequirements,
         private readonly ReportTemplateCatalog $templateCatalog,
@@ -82,6 +77,8 @@ final class ReportComposer implements ProvidesMethodology
         private readonly EntrepreneurAssessmentReportComposition $entrepreneurAssessmentReports,
         private readonly ValuationReportComposition $valuationReports,
         private readonly SuccessionValueGapReportComposition $successionValueGapReports,
+        private readonly DueDiligenceReportComposition $dueDiligenceReports,
+        private readonly DueDiligenceReportSupport $dueDiligenceSupport,
     ) {}
 
     public function compose(Client $client, ReportType $type, ?User $actor = null): Report
@@ -157,63 +154,7 @@ final class ReportComposer implements ProvidesMethodology
 
     public function composeDueDiligence(DdEngagement $engagement, ?User $actor = null): Report
     {
-        $engagement->loadMissing('client');
-
-        return DB::transaction(function () use ($engagement, $actor): Report {
-            $findings = $this->ddFindings($engagement);
-            $valuation = $this->latestDdValuation($engagement);
-            $risks = $this->refreshDdRiskRegister($engagement, $findings, $valuation);
-            $integrationPlan = $this->refreshDdIntegrationPlan($engagement, $risks);
-            $recommendation = $this->ddRecommendation($risks, $valuation);
-
-            $engagement->forceFill([
-                'recommendation' => $recommendation['recommendation'],
-            ])->save();
-
-            $report = Report::query()->create([
-                'client_id' => $engagement->client_id,
-                'type' => ReportType::DueDiligence,
-                'title' => ReportType::DueDiligence->label().' - '.$engagement->target_name,
-                'generated_by_user_id' => $actor?->getKey(),
-                'generated_at' => now(),
-                'metadata' => [
-                    'phase' => 'phase_3',
-                    'dd_engagement_id' => $engagement->getKey(),
-                    'target_name' => $engagement->target_name,
-                    'recommendation' => $recommendation,
-                    'redactions' => [],
-                ],
-                'render_status' => Report::RENDER_STATUS_COMPOSING,
-                'review_status' => 'pending_review',
-            ]);
-
-            foreach ($this->dueDiligenceSections($engagement, $findings, $valuation, $risks, $integrationPlan, $recommendation) as $position => $section) {
-                ReportSection::query()->create([
-                    ...$section,
-                    'report_id' => $report->getKey(),
-                    'client_id' => $engagement->client_id,
-                    'position' => $position + 1,
-                ]);
-            }
-
-            $this->renderAndAuditAfterCommit(
-                $report,
-                $actor,
-                'dd.report_generated',
-                fn (Report $rendered): array => [
-                    'dd_engagement_id' => $engagement->getKey(),
-                    'recommendation' => $recommendation['recommendation'],
-                    'sections' => $rendered->sections()->count(),
-                    'risk_count' => $risks->count(),
-                    'pdf_path' => $rendered->pdf_path,
-                    'pptx_path' => $rendered->pptx_path,
-                ],
-                ['client', 'sections'],
-                true,
-            );
-
-            return $report->refresh()->load('sections');
-        });
+        return $this->dueDiligenceReports->compose($engagement, $actor);
     }
 
     public function composePostAcquisitionGap(PostAcquisitionMigration $migration, ?User $actor = null): Report
@@ -351,18 +292,22 @@ final class ReportComposer implements ProvidesMethodology
         }
 
         return DB::transaction(function () use ($engagement, $actor): Report {
-            $findings = $this->ddFindings($engagement);
-            $valuation = $this->latestDdValuation($engagement);
+            $findings = $this->dueDiligenceSupport->findings($engagement);
+            $valuation = $this->dueDiligenceSupport->latestValuation($engagement);
             $risks = $findings->isEmpty()
                 ? DdRiskRegisterItem::query()
                     ->where('dd_engagement_id', $engagement->getKey())
                     ->orderBy('rank')
                     ->get()
-                : $this->refreshDdRiskRegister($engagement, $findings, $valuation);
-            $recommendation = $this->ddRecommendation($risks, $valuation);
+                : $this->dueDiligenceSupport->refreshRiskRegister($engagement, $findings, $valuation);
+            $recommendation = $this->dueDiligenceSupport->recommendation($risks, $valuation);
+            $recommendationPayload = [
+                'recommendation' => $recommendation->decision,
+                'rationale' => $recommendation->rationale,
+            ];
 
             $engagement->forceFill([
-                'recommendation' => $recommendation['recommendation'],
+                'recommendation' => $recommendation->decision,
             ])->save();
 
             $report = Report::query()->create([
@@ -375,7 +320,7 @@ final class ReportComposer implements ProvidesMethodology
                     'phase' => 'phase_report_layer_composition',
                     'dd_engagement_id' => $engagement->getKey(),
                     'dd_valuation_id' => $valuation?->getKey(),
-                    'recommendation' => $recommendation,
+                    'recommendation' => $recommendationPayload,
                     'advisor_review_required' => true,
                     'redactions' => [],
                 ],
@@ -383,7 +328,7 @@ final class ReportComposer implements ProvidesMethodology
                 'review_status' => 'pending_review',
             ]);
 
-            foreach ($this->acquisitionGoNoGoSections($engagement, $valuation, $risks, $recommendation) as $position => $section) {
+            foreach ($this->acquisitionGoNoGoSections($engagement, $valuation, $risks, $recommendationPayload) as $position => $section) {
                 ReportSection::query()->create([
                     ...$section,
                     'report_id' => $report->getKey(),
@@ -398,7 +343,7 @@ final class ReportComposer implements ProvidesMethodology
                 'dd.go_no_go_report_generated',
                 fn (Report $rendered): array => [
                     'dd_engagement_id' => $engagement->getKey(),
-                    'recommendation' => $recommendation['recommendation'],
+                    'recommendation' => $recommendation->decision,
                     'sections' => $rendered->sections()->count(),
                     'pdf_path' => $rendered->pdf_path,
                 ],
@@ -728,35 +673,6 @@ final class ReportComposer implements ProvidesMethodology
     }
 
     /**
-     * @param  Collection<int, AnalysisFinding>  $findings
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @param  Collection<int, DdIntegrationPlanItem>  $integrationPlan
-     * @param  array{recommendation:string,rationale:string}  $recommendation
-     * @return array<int, array<string, mixed>>
-     */
-    private function dueDiligenceSections(
-        DdEngagement $engagement,
-        Collection $findings,
-        ?DdValuation $valuation,
-        Collection $risks,
-        Collection $integrationPlan,
-        array $recommendation,
-    ): array {
-        return [
-            $this->ddExecutiveSummarySection($engagement, $findings, $valuation, $risks, $recommendation),
-            $this->ddValuationSection($engagement, $valuation),
-            $this->ddPurchasePriceRangeSection($engagement, $valuation, $risks),
-            $this->ddWorkstreamFindingsSection($engagement, $findings),
-            $this->ddRiskRegisterSection($engagement, $risks),
-            $this->ddPriceAdjustmentSection($engagement, $risks),
-            $this->ddIntegrationPlanSection($engagement, $integrationPlan),
-            $this->ddBuyerReadinessSection($engagement, $valuation, $risks),
-            $this->ddRecommendationSection($engagement, $recommendation),
-            $this->ddLiabilityDisclaimerSection($engagement),
-        ];
-    }
-
-    /**
      * @param  Collection<int, DdRiskRegisterItem>  $risks
      * @param  array{recommendation:string,rationale:string}  $recommendation
      * @return array<int, array<string, mixed>>
@@ -798,151 +714,6 @@ final class ReportComposer implements ProvidesMethodology
             $this->postAcquisitionBusinessPlanComparisonSection($migration, $risks, $plan, $requirements, $completion),
             $this->postAcquisitionAdvisorActionsSection($migration, $plan, $completion),
         ];
-    }
-
-    /**
-     * @return Collection<int, AnalysisFinding>
-     */
-    private function ddFindings(DdEngagement $engagement): Collection
-    {
-        $workstreams = DdWorkstream::query()
-            ->where('dd_engagement_id', $engagement->getKey())
-            ->whereNotNull('analysis_run_id')
-            ->with('analysisRun.findings')
-            ->get();
-
-        return $workstreams
-            ->flatMap(fn (DdWorkstream $workstream): Collection => $workstream->analysisRun->findings)
-            ->values();
-    }
-
-    /**
-     * @param  Collection<int, AnalysisFinding>  $findings
-     * @return Collection<int, DdRiskRegisterItem>
-     */
-    private function refreshDdRiskRegister(DdEngagement $engagement, Collection $findings, ?DdValuation $valuation): Collection
-    {
-        DdRiskRegisterItem::query()
-            ->where('dd_engagement_id', $engagement->getKey())
-            ->delete();
-
-        if ($findings->isEmpty()) {
-            return collect();
-        }
-
-        $workstreamsByRun = DdWorkstream::query()
-            ->where('dd_engagement_id', $engagement->getKey())
-            ->whereNotNull('analysis_run_id')
-            ->pluck('workstream', 'analysis_run_id');
-        $baseValue = $this->ddValuationMidpoint($valuation) ?: 100000.0;
-
-        $riskInputs = $findings
-            ->map(function (AnalysisFinding $finding) use ($engagement, $workstreamsByRun, $baseValue): array {
-                $workstream = (string) ($workstreamsByRun[$finding->analysis_run_id] ?? 'general');
-
-                return [
-                    'analysis_finding_id' => $finding->getKey(),
-                    'title' => $finding->title,
-                    'financial_impact' => $this->severityImpact($finding->severity, $baseValue),
-                    'probability' => $this->severityProbability($finding->severity),
-                    'duration_years' => 1,
-                    'source_reference' => 'analysis_finding:'.$finding->getKey(),
-                    'source_fingerprint_key' => $this->ddRiskSourceKey($engagement, $finding, $workstream),
-                ];
-            })
-            ->all();
-
-        $riskCosts = collect($this->riskCosts->rank($engagement->client, $riskInputs));
-
-        return $riskCosts
-            ->map(function (RiskCost $riskCost) use ($engagement, $findings, $workstreamsByRun): DdRiskRegisterItem {
-                /** @var AnalysisFinding|null $finding */
-                $finding = $findings->firstWhere('id', $riskCost->analysis_finding_id);
-                $riskLevel = $this->riskLevel($finding?->severity ?? FindingSeverity::Info);
-
-                return DdRiskRegisterItem::query()->create([
-                    'client_id' => $engagement->client_id,
-                    'dd_engagement_id' => $engagement->getKey(),
-                    'analysis_finding_id' => $finding?->getKey(),
-                    'risk_cost_id' => $riskCost->getKey(),
-                    'risk_level' => $riskLevel,
-                    'category' => (string) ($finding === null ? 'general' : ($workstreamsByRun[$finding->analysis_run_id] ?? 'general')),
-                    'title' => $riskCost->title,
-                    'body' => $finding?->body ?? $riskCost->title,
-                    'financial_impact' => $riskCost->financial_impact,
-                    'probability' => $riskCost->probability,
-                    'pv_of_cost' => $riskCost->pv_of_cost,
-                    'price_adjustment_nzd' => $this->priceAdjustment($riskLevel, $riskCost->pv_of_cost),
-                    'rank' => $riskCost->rank,
-                    'source_attributions' => $riskCost->source_attributions,
-                ]);
-            })
-            ->sortBy('rank')
-            ->values();
-    }
-
-    private function ddRiskSourceKey(DdEngagement $engagement, AnalysisFinding $finding, string $workstream): string
-    {
-        $stableSource = collect($this->attributions($finding))
-            ->pluck('source_reference')
-            ->filter(fn (mixed $source): bool => is_string($source) && ! str_starts_with($source, 'analysis_finding:'))
-            ->first();
-        $basis = implode('|', [
-            (string) $engagement->getKey(),
-            $workstream,
-            Str::lower(trim((string) $finding->title)),
-            (string) ($stableSource ?: Str::lower(trim((string) $finding->body))),
-        ]);
-
-        return 'dd_risk:'.hash('sha256', $basis);
-    }
-
-    /**
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @return Collection<int, DdIntegrationPlanItem>
-     */
-    private function refreshDdIntegrationPlan(DdEngagement $engagement, Collection $risks): Collection
-    {
-        DdIntegrationPlanItem::query()
-            ->where('dd_engagement_id', $engagement->getKey())
-            ->delete();
-
-        $actions = $risks
-            ->take(4)
-            ->values()
-            ->map(function (DdRiskRegisterItem $risk, int $index) use ($engagement): DdIntegrationPlanItem {
-                $day = [1, 30, 60, 90][$index] ?? 90;
-
-                return DdIntegrationPlanItem::query()->create([
-                    'client_id' => $engagement->client_id,
-                    'dd_engagement_id' => $engagement->getKey(),
-                    'dd_risk_register_id' => $risk->getKey(),
-                    'day' => $day,
-                    'phase' => $day <= 30 ? 'stabilise' : ($day <= 60 ? 'integrate' : 'optimise'),
-                    'action' => sprintf('Resolve %s DD risk: %s', str_replace('_', ' ', $risk->risk_level), $risk->title),
-                    'owner' => 'advisor',
-                    'priority' => in_array($risk->risk_level, [DdRiskRegisterItem::LEVEL_DEAL_KILLER, DdRiskRegisterItem::LEVEL_MAJOR], true) ? 'high' : 'medium',
-                    'metadata' => [
-                        'risk_level' => $risk->risk_level,
-                        'pv_of_cost' => $risk->pv_of_cost,
-                    ],
-                ]);
-            });
-
-        $actions->push(DdIntegrationPlanItem::query()->create([
-            'client_id' => $engagement->client_id,
-            'dd_engagement_id' => $engagement->getKey(),
-            'day' => 100,
-            'phase' => 'review',
-            'action' => 'Complete 100-day integration review against DD findings, price adjustments, and buyer-readiness assumptions.',
-            'owner' => 'advisor',
-            'priority' => $risks->contains(fn (DdRiskRegisterItem $risk): bool => $risk->risk_level === DdRiskRegisterItem::LEVEL_DEAL_KILLER) ? 'high' : 'medium',
-            'metadata' => [
-                'risk_count' => $risks->count(),
-            ],
-        ]));
-
-        return $actions->sortBy('day')->values();
     }
 
     /**
@@ -1167,371 +938,6 @@ final class ReportComposer implements ProvidesMethodology
             ->pluck('title')
             ->values()
             ->all();
-    }
-
-    /**
-     * @param  Collection<int, AnalysisFinding>  $findings
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @param  array{recommendation:string,rationale:string}  $recommendation
-     * @return array<string, mixed>
-     */
-    private function ddExecutiveSummarySection(
-        DdEngagement $engagement,
-        Collection $findings,
-        ?DdValuation $valuation,
-        Collection $risks,
-        array $recommendation,
-    ): array {
-        $body = sprintf(
-            "Target: %s.\nRecommendation: %s.\nFindings reviewed: %d.\nMaterial DD risks: %d.\nValuation midpoint: %s.\nRationale: %s",
-            $engagement->target_name,
-            ucfirst(str_replace('_', ' ', $recommendation['recommendation'])),
-            $findings->count(),
-            $risks->whereIn('risk_level', [DdRiskRegisterItem::LEVEL_DEAL_KILLER, DdRiskRegisterItem::LEVEL_MAJOR])->count(),
-            $this->money($this->ddValuationMidpoint($valuation)),
-            $recommendation['rationale'],
-        );
-
-        return $this->generatedSection(
-            key: 'dd_executive_summary',
-            title: 'Executive summary',
-            body: $body,
-            sourceReference: 'dd_engagement:'.$engagement->getKey(),
-            documentSupport: $this->strongestDocumentSupport($findings),
-            dataQualityNote: 'Data quality note: DD summary is assembled from completed workstream findings, valuation rows, and risk PV rows.',
-            metadata: [
-                'dd_engagement_id' => $engagement->getKey(),
-                'recommendation' => $recommendation['recommendation'],
-            ],
-        );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function ddValuationSection(DdEngagement $engagement, ?DdValuation $valuation): array
-    {
-        if (! $valuation instanceof DdValuation) {
-            return $this->generatedSection(
-                key: 'dd_valuation',
-                title: 'Valuation',
-                body: 'No DD valuation has been generated yet.',
-                sourceReference: 'dd_valuation:none:'.$engagement->getKey(),
-                dataQualityNote: 'Data quality note: DD valuation is pending.',
-            );
-        }
-
-        $valuation->loadMissing('businessValuation', 'pvCalculation');
-        $businessValuation = $valuation->businessValuation;
-        $dcfRange = $this->ddValuationRange($valuation, 'dcf_value');
-        $reconciledRange = $this->ddValuationRange($valuation, 'reconciled');
-        $valueWalkNote = $this->ddValueWalkNote($valuation);
-        $body = sprintf(
-            "Primary DCF/PV value: %s midpoint, with a %s to %s DCF range.\nMarket-multiple cross-checks: SDE %s; EBITDA %s.\nReconciled standalone NZD range: %s low, %s midpoint, %s high.%s\nFX: %s to NZD at %s, timestamp %s.\nBuyer position: %s.",
-            $this->money($dcfRange['mid'] ?? null),
-            $this->money($dcfRange['low'] ?? null),
-            $this->money($dcfRange['high'] ?? null),
-            $this->methodValue($this->ddValuationRange($valuation, 'sde_value')),
-            $this->methodValue($this->ddValuationRange($valuation, 'ebitda_value')),
-            $this->money($reconciledRange['low'] ?? null),
-            $this->money($reconciledRange['mid'] ?? null),
-            $this->money($reconciledRange['high'] ?? null),
-            $valueWalkNote,
-            $valuation->source_currency,
-            number_format($valuation->source_to_nzd_rate, 4),
-            $valuation->rate_timestamp?->toDateTimeString() ?? 'n/a',
-            str_replace('_', ' ', (string) data_get($valuation->buyer_position, 'position')),
-        );
-
-        return $this->generatedSection(
-            key: 'dd_valuation',
-            title: 'Valuation',
-            body: $body,
-            sourceReference: 'dd_valuation:'.$valuation->getKey(),
-            dataQualityNote: 'Data quality note: DD valuation reuses the persisted business valuation and PV calculation, with FX normalisation where required.',
-            metadata: [
-                'dd_valuation_id' => $valuation->getKey(),
-                'business_valuation_id' => $valuation->business_valuation_id,
-                'pv_calculation_id' => $valuation->pv_calculation_id,
-                'buyer_position' => $valuation->buyer_position,
-                'sensitivity' => $valuation->sensitivity,
-            ],
-        );
-    }
-
-    /**
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @return array<string, mixed>
-     */
-    private function ddPurchasePriceRangeSection(DdEngagement $engagement, ?DdValuation $valuation, Collection $risks): array
-    {
-        if (! $valuation instanceof DdValuation) {
-            return $this->generatedSection(
-                key: 'dd_purchase_price_range',
-                title: 'Estimated purchase-price range',
-                body: 'No purchase-price range can be generated until the DD valuation is available.',
-                sourceReference: 'dd_purchase_price_range:none:'.$engagement->getKey(),
-                dataQualityNote: 'Data quality note: purchase-price range is pending valuation inputs.',
-            );
-        }
-
-        $valuation->loadMissing('businessValuation');
-        $dcfRange = $this->ddValuationRange($valuation, 'dcf_value') ?? $this->ddValuationRange($valuation, 'reconciled');
-        $marketRange = $this->ddMarketMultipleRange($valuation);
-        $precedentRange = $this->ddPrecedentTransactionRange($engagement, $valuation);
-        $dealStructureInputs = data_get($engagement->target_details, 'deal_structure_adjustments', [])
-            ?: data_get($valuation->buyer_position, 'deal_structure_adjustments', []);
-        $synergyInputs = data_get($engagement->target_details, 'synergy_adjustments', [])
-            ?: data_get($valuation->buyer_position, 'synergy_adjustments', []);
-        $dealStructureAdjustment = $this->ddAdjustmentTotal($dealStructureInputs);
-        $synergyAdjustment = $this->ddAdjustmentTotal($synergyInputs);
-        $riskAdjustment = round((float) $risks->sum('price_adjustment_nzd'), 2);
-        $purchaseRange = $dcfRange === null
-            ? null
-            : $this->applyPurchasePriceAdjustments($dcfRange, $dealStructureAdjustment, $synergyAdjustment, $riskAdjustment);
-        $valueWalkNote = $this->ddValueWalkNote($valuation);
-
-        $body = sprintf(
-            "Primary basis: Discounted Cash Flow (DCF), %s low, %s midpoint, %s high.%s\nCross-checks: market multiples indicate %s low, %s midpoint, %s high; precedent transactions indicate %s low, %s midpoint, %s high.\nAdjustments applied to the DCF range: deal structure %s, synergies %s, due-diligence risk %s.\nEstimated purchase-price range for advisor review: %s low, %s midpoint, %s high.",
-            $this->money($dcfRange['low'] ?? null),
-            $this->money($dcfRange['mid'] ?? null),
-            $this->money($dcfRange['high'] ?? null),
-            $valueWalkNote,
-            $this->money($marketRange['low'] ?? null),
-            $this->money($marketRange['mid'] ?? null),
-            $this->money($marketRange['high'] ?? null),
-            $this->money($precedentRange['low'] ?? null),
-            $this->money($precedentRange['mid'] ?? null),
-            $this->money($precedentRange['high'] ?? null),
-            $this->money($dealStructureAdjustment),
-            $this->money($synergyAdjustment),
-            $this->money($riskAdjustment),
-            $this->money($purchaseRange['low'] ?? null),
-            $this->money($purchaseRange['mid'] ?? null),
-            $this->money($purchaseRange['high'] ?? null),
-        );
-
-        return $this->generatedSection(
-            key: 'dd_purchase_price_range',
-            title: 'Estimated purchase-price range',
-            body: $body,
-            sourceReference: 'dd_purchase_price_range:'.$valuation->getKey(),
-            dataQualityNote: 'Data quality note: range is advisor-facing and combines DCF valuation, market and precedent cross-checks, deal structure, synergies, and DD risk adjustments.',
-            metadata: [
-                'primary_method' => 'dcf',
-                'dcf_range_nzd' => $dcfRange,
-                'market_multiple_cross_check_nzd' => $marketRange,
-                'precedent_transaction_cross_check_nzd' => $precedentRange,
-                'deal_structure_adjustment_nzd' => $dealStructureAdjustment,
-                'synergy_adjustment_nzd' => $synergyAdjustment,
-                'due_diligence_risk_adjustment_nzd' => $riskAdjustment,
-                'purchase_price_range_nzd' => $purchaseRange,
-                'value_walk' => data_get($valuation->buyer_position, 'value_walk'),
-            ],
-        );
-    }
-
-    /**
-     * @param  Collection<int, AnalysisFinding>  $findings
-     * @return array<string, mixed>
-     */
-    private function ddWorkstreamFindingsSection(DdEngagement $engagement, Collection $findings): array
-    {
-        if ($findings->isEmpty()) {
-            $body = 'No completed DD workstream findings are available yet.';
-        } else {
-            $workstreamsByRun = DdWorkstream::query()
-                ->where('dd_engagement_id', $engagement->getKey())
-                ->whereNotNull('analysis_run_id')
-                ->pluck('workstream', 'analysis_run_id');
-            $body = $findings
-                ->map(fn (AnalysisFinding $finding): string => sprintf(
-                    '%s - %s: %s',
-                    str((string) ($workstreamsByRun[$finding->analysis_run_id] ?? 'general'))->replace('_', ' ')->title(),
-                    $finding->title,
-                    $finding->body,
-                ))
-                ->implode("\n\n");
-        }
-
-        return $this->generatedSection(
-            key: 'dd_workstream_findings',
-            title: 'Workstream findings',
-            body: $body,
-            sourceReference: 'dd_workstreams:'.$engagement->getKey(),
-            documentSupport: $this->strongestDocumentSupport($findings),
-            dataQualityNote: 'Data quality note: findings come from completed DD workstreams on the shared analysis spine.',
-            metadata: [
-                'finding_ids' => $findings->pluck('id')->values()->all(),
-            ],
-        );
-    }
-
-    /**
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @return array<string, mixed>
-     */
-    private function ddRiskRegisterSection(DdEngagement $engagement, Collection $risks): array
-    {
-        $body = $risks->isEmpty()
-            ? 'No DD risks have been ranked yet.'
-            : $risks
-                ->map(fn (DdRiskRegisterItem $risk): string => sprintf(
-                    '#%d %s - %s (%s PV cost)',
-                    $risk->rank,
-                    str_replace('_', ' ', $risk->risk_level),
-                    $risk->title,
-                    $this->money($risk->pv_of_cost),
-                ))
-                ->implode("\n");
-
-        return $this->generatedSection(
-            key: 'dd_risk_register',
-            title: 'Risk register',
-            body: $body,
-            sourceReference: 'dd_risk_register:'.$engagement->getKey(),
-            dataQualityNote: 'Data quality note: risk PV ranking uses persisted DD findings and the shared risk-cost PV engine.',
-            metadata: [
-                'risk_register_ids' => $risks->pluck('id')->values()->all(),
-                'risk_levels' => $risks->countBy('risk_level')->all(),
-            ],
-        );
-    }
-
-    /**
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @return array<string, mixed>
-     */
-    private function ddPriceAdjustmentSection(DdEngagement $engagement, Collection $risks): array
-    {
-        $adjustments = $risks
-            ->filter(fn (DdRiskRegisterItem $risk): bool => $risk->price_adjustment_nzd > 0)
-            ->values();
-        $total = $adjustments->sum('price_adjustment_nzd');
-        $body = $adjustments->isEmpty()
-            ? 'No price adjustment is indicated by the current DD risk register.'
-            : $adjustments
-                ->map(fn (DdRiskRegisterItem $risk): string => sprintf(
-                    '%s: %s adjustment for %s risk.',
-                    $risk->title,
-                    $this->money($risk->price_adjustment_nzd),
-                    str_replace('_', ' ', $risk->risk_level),
-                ))
-                ->implode("\n")."\nTotal indicative adjustment: ".$this->money($total).'.';
-
-        return $this->generatedSection(
-            key: 'dd_price_adjustment',
-            title: 'Price adjustment schedule',
-            body: $body,
-            sourceReference: 'dd_risk_register:'.$engagement->getKey().':price_adjustment',
-            dataQualityNote: 'Data quality note: adjustment schedule is indicative and must be reviewed by qualified legal/accounting advisers before negotiation.',
-            metadata: [
-                'total_price_adjustment_nzd' => $total,
-                'risk_register_ids' => $adjustments->pluck('id')->values()->all(),
-            ],
-        );
-    }
-
-    /**
-     * @param  Collection<int, DdIntegrationPlanItem>  $integrationPlan
-     * @return array<string, mixed>
-     */
-    private function ddIntegrationPlanSection(DdEngagement $engagement, Collection $integrationPlan): array
-    {
-        $body = $integrationPlan
-            ->map(fn (DdIntegrationPlanItem $item): string => sprintf(
-                'Day %d (%s): %s',
-                $item->day,
-                $item->phase,
-                $item->action,
-            ))
-            ->implode("\n");
-
-        return $this->generatedSection(
-            key: 'dd_integration_plan',
-            title: '100-day integration plan',
-            body: $body,
-            sourceReference: 'dd_integration_plans:'.$engagement->getKey(),
-            dataQualityNote: 'Data quality note: integration actions are generated from the ranked DD risk register and require advisor review.',
-            metadata: [
-                'integration_plan_ids' => $integrationPlan->pluck('id')->values()->all(),
-            ],
-        );
-    }
-
-    /**
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @return array<string, mixed>
-     */
-    private function ddBuyerReadinessSection(DdEngagement $engagement, ?DdValuation $valuation, Collection $risks): array
-    {
-        $completed = DdWorkstream::query()
-            ->where('dd_engagement_id', $engagement->getKey())
-            ->where('status', DdWorkstream::STATUS_COMPLETED)
-            ->count();
-        $itemCount = $engagement->dataRoomItems()->count();
-        $dealKillers = $risks->where('risk_level', DdRiskRegisterItem::LEVEL_DEAL_KILLER)->count();
-        $readiness = match (true) {
-            $dealKillers > 0 => 'not ready until deal-killer risks are resolved',
-            $completed < count(DataRoom::WORKSTREAMS) => 'partially ready; DD workstreams remain incomplete',
-            ! $valuation instanceof DdValuation => 'partially ready; valuation is missing',
-            default => 'ready for advisor-led acquisition decision review',
-        };
-
-        return $this->generatedSection(
-            key: 'dd_buyer_readiness',
-            title: 'Buyer readiness',
-            body: sprintf(
-                "Readiness: %s.\nCompleted workstreams: %d of %d.\nData room items reviewed: %d.\nDeal-killer risks: %d.",
-                $readiness,
-                $completed,
-                count(DataRoom::WORKSTREAMS),
-                $itemCount,
-                $dealKillers,
-            ),
-            sourceReference: 'dd_buyer_readiness:'.$engagement->getKey(),
-            dataQualityNote: 'Data quality note: buyer readiness reflects platform DD completion signals and is not acquisition advice.',
-            metadata: [
-                'completed_workstreams' => $completed,
-                'required_workstreams' => count(DataRoom::WORKSTREAMS),
-                'data_room_items' => $itemCount,
-                'deal_killer_risks' => $dealKillers,
-            ],
-        );
-    }
-
-    /**
-     * @param  array{recommendation:string,rationale:string}  $recommendation
-     * @return array<string, mixed>
-     */
-    private function ddRecommendationSection(DdEngagement $engagement, array $recommendation): array
-    {
-        return $this->generatedSection(
-            key: 'dd_recommendation',
-            title: 'Recommendation',
-            body: sprintf(
-                "Recommendation: %s.\nRationale: %s.",
-                ucfirst($recommendation['recommendation']),
-                $recommendation['rationale'],
-            ),
-            sourceReference: 'dd_recommendation:'.$engagement->getKey(),
-            dataQualityNote: 'Data quality note: recommendation is generated from DD risk, valuation, and workstream completion signals for advisor review.',
-            metadata: $recommendation,
-        );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function ddLiabilityDisclaimerSection(DdEngagement $engagement): array
-    {
-        return $this->generatedSection(
-            key: 'dd_liability_disclaimer',
-            title: 'Liability disclaimer',
-            body: DdDisclaimer::STANDARD,
-            sourceReference: 'dd_disclaimer:'.$engagement->getKey(),
-            dataQualityNote: 'Data quality note: this disclaimer is included on every due diligence output.',
-        );
     }
 
     /**
@@ -2393,7 +1799,84 @@ final class ReportComposer implements ProvidesMethodology
     }
 
     /**
+     * @return array{low:float, mid:float, high:float}|null
+     */
+    private function ddValuationRange(DdValuation $valuation, string $key): ?array
+    {
+        $range = $key === 'reconciled'
+            ? (data_get($valuation->normalised_values, 'reconciled') ?? $valuation->normalised_values)
+            : data_get($valuation->normalised_values, $key);
+
+        if (! is_array($range) && $valuation->businessValuation !== null) {
+            $sourceRange = match ($key) {
+                'sde_value' => $valuation->businessValuation->sde_value,
+                'ebitda_value' => $valuation->businessValuation->ebitda_value,
+                'dcf_value' => $valuation->businessValuation->dcf_value,
+                default => null,
+            };
+
+            $range = is_array($sourceRange)
+                ? $this->convertRangeToNzd($sourceRange, $valuation->source_to_nzd_rate)
+                : null;
+        }
+
+        if (! is_array($range)) {
+            return null;
+        }
+
+        foreach (['low', 'mid', 'high'] as $point) {
+            if (! is_numeric($range[$point] ?? null)) {
+                return null;
+            }
+        }
+
+        return [
+            'low' => round((float) $range['low'], 2),
+            'mid' => round((float) $range['mid'], 2),
+            'high' => round((float) $range['high'], 2),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $range
      * @return array<string, mixed>
+     */
+    private function convertRangeToNzd(array $range, float $rate): array
+    {
+        foreach (['low', 'mid', 'high'] as $point) {
+            if (is_numeric($range[$point] ?? null)) {
+                $range[$point] = round((float) $range[$point] * $rate, 2);
+            }
+        }
+
+        return $range;
+    }
+
+    private function ddAdjustmentTotal(mixed ...$groups): float
+    {
+        return round(collect($groups)
+            ->flatMap(function (mixed $group): array {
+                if (! is_array($group)) {
+                    return [];
+                }
+
+                if (isset($group['amount']) || isset($group['value'])) {
+                    return [$group];
+                }
+
+                return array_values(array_filter($group, 'is_array'));
+            })
+            ->filter(fn (mixed $item): bool => is_array($item))
+            ->sum(fn (array $adjustment): float => (float) ($adjustment['amount'] ?? $adjustment['value'] ?? 0)), 2);
+    }
+
+    private function money(mixed $value): string
+    {
+        return is_numeric($value) ? 'NZD '.number_format((float) $value, 0) : 'n/a';
+    }
+
+    /**
+     * @return array{gst_zero_rating_status:string,gst_cash_exposure_nzd:float,working_capital_peg:string,vendor_finance:string,earnout:string}
      */
     private function dealMechanicsPayload(DdEngagement $engagement, mixed $askingPriceNzd): array
     {
@@ -2465,314 +1948,8 @@ final class ReportComposer implements ProvidesMethodology
         return number_format((float) $value, abs((float) $value) < 1 ? 2 : 0);
     }
 
-    private function latestDdValuation(DdEngagement $engagement): ?DdValuation
-    {
-        return DdValuation::query()
-            ->with('businessValuation', 'pvCalculation')
-            ->where('dd_engagement_id', $engagement->getKey())
-            ->latest('as_at')
-            ->latest()
-            ->first();
-    }
-
     /**
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @return array{recommendation:string,rationale:string}
-     */
-    private function ddRecommendation(Collection $risks, ?DdValuation $valuation): array
-    {
-        $hasDealKiller = $risks->contains(fn (DdRiskRegisterItem $risk): bool => $risk->risk_level === DdRiskRegisterItem::LEVEL_DEAL_KILLER);
-        $hasMajor = $risks->contains(fn (DdRiskRegisterItem $risk): bool => $risk->risk_level === DdRiskRegisterItem::LEVEL_MAJOR);
-        $buyerPosition = (string) data_get($valuation?->buyer_position, 'position', 'no_valuation');
-
-        if ($hasDealKiller) {
-            return [
-                'recommendation' => DdEngagement::RECOMMENDATION_ABANDON,
-                'rationale' => 'At least one deal-killer DD risk requires abandonment unless resolved outside the platform.',
-            ];
-        }
-
-        if ($hasMajor || $buyerPosition === 'renegotiate_or_walkaway') {
-            return [
-                'recommendation' => DdEngagement::RECOMMENDATION_RENEGOTIATE,
-                'rationale' => 'Major DD risk or valuation pressure indicates renegotiation before proceeding.',
-            ];
-        }
-
-        return [
-            'recommendation' => DdEngagement::RECOMMENDATION_PROCEED,
-            'rationale' => 'No deal-killer or major DD risk is present and valuation signals do not require renegotiation.',
-        ];
-    }
-
-    private function ddValuationMidpoint(?DdValuation $valuation): ?float
-    {
-        $mid = data_get($valuation?->normalised_values, 'reconciled.mid')
-            ?? data_get($valuation?->normalised_values, 'mid');
-
-        return is_numeric($mid) ? (float) $mid : null;
-    }
-
-    /**
-     * @return array{low:float, mid:float, high:float}|null
-     */
-    private function ddValuationRange(DdValuation $valuation, string $key): ?array
-    {
-        $range = $key === 'reconciled'
-            ? (data_get($valuation->normalised_values, 'reconciled') ?? $valuation->normalised_values)
-            : data_get($valuation->normalised_values, $key);
-
-        if (! is_array($range) && $valuation->businessValuation !== null) {
-            $sourceRange = match ($key) {
-                'sde_value' => $valuation->businessValuation->sde_value,
-                'ebitda_value' => $valuation->businessValuation->ebitda_value,
-                'dcf_value' => $valuation->businessValuation->dcf_value,
-                default => null,
-            };
-
-            $range = is_array($sourceRange)
-                ? $this->convertRangeToNzd($sourceRange, $valuation->source_to_nzd_rate)
-                : null;
-        }
-
-        if (! is_array($range)) {
-            return null;
-        }
-
-        foreach (['low', 'mid', 'high'] as $point) {
-            if (! is_numeric($range[$point] ?? null)) {
-                return null;
-            }
-        }
-
-        return [
-            'low' => round((float) $range['low'], 2),
-            'mid' => round((float) $range['mid'], 2),
-            'high' => round((float) $range['high'], 2),
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $range
-     * @return array<string, mixed>
-     */
-    private function convertRangeToNzd(array $range, float $rate): array
-    {
-        foreach (['low', 'mid', 'high'] as $point) {
-            if (is_numeric($range[$point] ?? null)) {
-                $range[$point] = round((float) $range[$point] * $rate, 2);
-            }
-        }
-
-        return $range;
-    }
-
-    /**
-     * @return array{low:float, mid:float, high:float}|null
-     */
-    private function ddMarketMultipleRange(DdValuation $valuation): ?array
-    {
-        $ranges = collect([
-            $this->ddValuationRange($valuation, 'sde_value'),
-            $this->ddValuationRange($valuation, 'ebitda_value'),
-        ])->filter();
-
-        if ($ranges->isEmpty()) {
-            return null;
-        }
-
-        return [
-            'low' => round((float) $ranges->avg('low'), 2),
-            'mid' => round((float) $ranges->avg('mid'), 2),
-            'high' => round((float) $ranges->avg('high'), 2),
-        ];
-    }
-
-    /**
-     * @return array{low:float, mid:float, high:float}|null
-     */
-    private function ddPrecedentTransactionRange(DdEngagement $engagement, DdValuation $valuation): ?array
-    {
-        $precedents = data_get($engagement->target_details, 'precedent_transactions', []);
-        if (! is_array($precedents) || $precedents === []) {
-            $precedents = data_get($valuation->buyer_position, 'precedent_transactions', []);
-        }
-
-        if (! is_array($precedents) || $precedents === []) {
-            return null;
-        }
-
-        if ($this->hasRangePoints($precedents)) {
-            return [
-                'low' => round((float) $precedents['low'], 2),
-                'mid' => round((float) $precedents['mid'], 2),
-                'high' => round((float) $precedents['high'], 2),
-            ];
-        }
-
-        $ebitda = data_get($valuation->businessValuation?->ebitda_value, 'input');
-        $values = collect($precedents)
-            ->filter(fn (mixed $item): bool => is_array($item))
-            ->map(function (array $precedent) use ($ebitda, $valuation): ?float {
-                $amount = $precedent['enterprise_value_nzd']
-                    ?? $precedent['value_nzd']
-                    ?? $precedent['amount_nzd']
-                    ?? null;
-
-                if (! is_numeric($amount) && is_numeric($precedent['amount'] ?? null)) {
-                    $amount = (float) $precedent['amount'] * $valuation->source_to_nzd_rate;
-                }
-
-                if (! is_numeric($amount) && is_numeric($precedent['multiple'] ?? null) && is_numeric($ebitda)) {
-                    $amount = (float) $precedent['multiple'] * (float) $ebitda * $valuation->source_to_nzd_rate;
-                }
-
-                return is_numeric($amount) ? round((float) $amount, 2) : null;
-            })
-            ->filter(fn (?float $amount): bool => $amount !== null)
-            ->values();
-
-        if ($values->isEmpty()) {
-            return null;
-        }
-
-        return [
-            'low' => round((float) $values->min(), 2),
-            'mid' => round((float) $values->avg(), 2),
-            'high' => round((float) $values->max(), 2),
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $range
-     */
-    private function hasRangePoints(array $range): bool
-    {
-        return is_numeric($range['low'] ?? null)
-            && is_numeric($range['mid'] ?? null)
-            && is_numeric($range['high'] ?? null);
-    }
-
-    private function ddAdjustmentTotal(mixed ...$groups): float
-    {
-        return round(collect($groups)
-            ->flatMap(function (mixed $group): array {
-                if (! is_array($group)) {
-                    return [];
-                }
-
-                if (isset($group['amount']) || isset($group['value'])) {
-                    return [$group];
-                }
-
-                return array_values(array_filter($group, 'is_array'));
-            })
-            ->filter(fn (mixed $item): bool => is_array($item))
-            ->sum(fn (array $adjustment): float => (float) ($adjustment['amount'] ?? $adjustment['value'] ?? 0)), 2);
-    }
-
-    private function ddValueWalkNote(DdValuation $valuation): string
-    {
-        $walk = data_get($valuation->buyer_position, 'value_walk');
-        if (! is_array($walk)) {
-            return '';
-        }
-
-        $standaloneMid = data_get($walk, 'standalone_value_range_nzd.mid');
-        $buyerSpecificMid = data_get($walk, 'buyer_specific_value_range_nzd.mid');
-
-        return sprintf(
-            "\nValue walk: standalone midpoint %s; deal-structure adjustment %s; synergy adjustment %s; buyer-specific midpoint %s. Standalone and buyer-specific values are deliberately separated.",
-            $this->money($standaloneMid),
-            $this->money($walk['deal_structure_adjustment_nzd'] ?? null),
-            $this->money($walk['synergy_adjustment_nzd'] ?? null),
-            $this->money($buyerSpecificMid),
-        );
-    }
-
-    /**
-     * @param  array{low:float, mid:float, high:float}  $range
-     * @return array{low:float, mid:float, high:float}
-     */
-    private function applyPurchasePriceAdjustments(
-        array $range,
-        float $dealStructureAdjustment,
-        float $synergyAdjustment,
-        float $riskAdjustment,
-    ): array {
-        $netAdjustment = $dealStructureAdjustment + $synergyAdjustment - $riskAdjustment;
-
-        return [
-            'low' => round(max(0, $range['low'] + $netAdjustment), 2),
-            'mid' => round(max(0, $range['mid'] + $netAdjustment), 2),
-            'high' => round(max(0, $range['high'] + $netAdjustment), 2),
-        ];
-    }
-
-    private function severityImpact(FindingSeverity $severity, float $baseValue): float
-    {
-        $ratio = match ($severity) {
-            FindingSeverity::Critical => 0.30,
-            FindingSeverity::High => 0.16,
-            FindingSeverity::Medium => 0.08,
-            FindingSeverity::Low => 0.03,
-            FindingSeverity::Info => 0.01,
-        };
-
-        return round(max(10000.0, $baseValue * $ratio), 2);
-    }
-
-    private function severityProbability(FindingSeverity $severity): float
-    {
-        return match ($severity) {
-            FindingSeverity::Critical => 0.85,
-            FindingSeverity::High => 0.65,
-            FindingSeverity::Medium => 0.45,
-            FindingSeverity::Low => 0.25,
-            FindingSeverity::Info => 0.10,
-        };
-    }
-
-    private function riskLevel(FindingSeverity $severity): string
-    {
-        return match ($severity) {
-            FindingSeverity::Critical => DdRiskRegisterItem::LEVEL_DEAL_KILLER,
-            FindingSeverity::High => DdRiskRegisterItem::LEVEL_MAJOR,
-            FindingSeverity::Medium => DdRiskRegisterItem::LEVEL_MINOR,
-            FindingSeverity::Low, FindingSeverity::Info => DdRiskRegisterItem::LEVEL_INFORMATIONAL,
-        };
-    }
-
-    private function priceAdjustment(string $riskLevel, float $pvOfCost): float
-    {
-        $ratio = match ($riskLevel) {
-            DdRiskRegisterItem::LEVEL_DEAL_KILLER => 1.0,
-            DdRiskRegisterItem::LEVEL_MAJOR => 0.60,
-            DdRiskRegisterItem::LEVEL_MINOR => 0.20,
-            default => 0.0,
-        };
-
-        return round($pvOfCost * $ratio, 2);
-    }
-
-    private function methodValue(mixed $value): string
-    {
-        if (! is_array($value)) {
-            return 'n/a';
-        }
-
-        $mid = $value['mid'] ?? data_get($value, 'reconciled.mid') ?? $value['present_value'] ?? null;
-
-        return is_numeric($mid) ? $this->money($mid) : 'n/a';
-    }
-
-    private function money(mixed $value): string
-    {
-        return is_numeric($value) ? 'NZD '.number_format((float) $value, 0) : 'n/a';
-    }
-
-    /**
-     * @param  callable(Report): array<string, mixed>  $after
+     * @param  callable(Report): array<string, bool|float|int|string|array<int, string>>  $after
      * @param  array<int, string>  $load
      */
     private function renderAndAuditAfterCommit(
