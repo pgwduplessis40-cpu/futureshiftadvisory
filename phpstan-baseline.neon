@@ -8007,15 +8007,9 @@ parameters:
 		-
 			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
 			identifier: function.alreadyNarrowedType
-			count: 2
+			count: 1
 			path: app/Services/Reports/ReportComposer.php
 
-
-		-
-			message: '#^Call to function is_string\(\) with App\\Enums\\ProposalStatus will always evaluate to false\.$#'
-			identifier: function.impossibleType
-			count: 2
-			path: app/Services/Reports/ReportComposer.php
 
 		-
 			message: '#^Expression on left side of \?\? is not nullable\.$#'
@@ -8030,31 +8024,13 @@ parameters:
 			path: app/Services/Reports/ReportComposer.php
 
 		-
-			message: '#^Instanceof between App\\Models\\PlanSection and App\\Models\\PlanSection will always evaluate to true\.$#'
-			identifier: instanceof.alwaysTrue
-			count: 1
-			path: app/Services/Reports/ReportComposer.php
-
-		-
 			message: '#^Using nullsafe method call on non\-nullable type Carbon\\CarbonImmutable\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
 			path: app/Services/Reports/ReportComposer.php
 
 		-
-			message: '#^Using nullsafe property access "\?\-\>legal_name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Services/Reports/ReportComposer.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>suggested_mid" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Services/Reports/ReportComposer.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>target_name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Services/Reports/ReportComposer.php
@@ -9466,18 +9442,6 @@ parameters:
 		-
 			message: '#^Method App\\Services\\Reports\\ReportComposer\:\:generatedSection\(\) has parameter \$metadata with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/Reports/ReportComposer.php
-
-		-
-			message: '#^Unable to resolve the template type TKey in call to function collect$#'
-			identifier: argument.templateType
-			count: 1
-			path: app/Services/Reports/ReportComposer.php
-
-		-
-			message: '#^Unable to resolve the template type TValue in call to function collect$#'
-			identifier: argument.templateType
 			count: 1
 			path: app/Services/Reports/ReportComposer.php
 

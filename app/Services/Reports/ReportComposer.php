@@ -9,28 +9,22 @@ use App\Enums\EngagementType;
 use App\Enums\FindingSeverity;
 use App\Enums\ReportType;
 use App\Models\AnalysisFinding;
-use App\Models\BusinessPlan;
 use App\Models\BusinessValuation;
 use App\Models\Client;
 use App\Models\ClientFunderRecord;
 use App\Models\DdEngagement;
-use App\Models\DdIntegrationPlanItem;
-use App\Models\DdRiskRegisterItem;
 use App\Models\FinancialSnapshot;
 use App\Models\Goal;
 use App\Models\Milestone;
 use App\Models\NpoEngagement;
 use App\Models\PlanAssessment;
-use App\Models\PlanSection;
 use App\Models\PostAcquisitionMigration;
 use App\Models\Proposal;
-use App\Models\QuestionnaireResponse;
 use App\Models\Report;
 use App\Models\ReportSection;
 use App\Models\User;
 use App\Models\WebsiteAuditSnapshot;
 use App\Services\Audit\AuditWriter;
-use App\Services\Dd\AcquisitionPlanRequirements;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Pv\PvWaterfallReportChart;
 use App\Services\Reports\Contracts\AcquisitionGoNoGoReportComposition;
@@ -41,6 +35,7 @@ use App\Services\Reports\Contracts\NpoGovernanceReviewReportComposition;
 use App\Services\Reports\Contracts\NpoHealthReportComposition;
 use App\Services\Reports\Contracts\NpoImpactSummaryReportComposition;
 use App\Services\Reports\Contracts\NpoSocialEnterpriseDualReportComposition;
+use App\Services\Reports\Contracts\PostAcquisitionGapReportComposition;
 use App\Services\Reports\Contracts\ReportArtifactRenderer;
 use App\Services\Reports\Contracts\SuccessionValueGapReportComposition;
 use App\Services\Reports\Contracts\ValuationReportComposition;
@@ -64,7 +59,6 @@ final class ReportComposer implements ProvidesMethodology
         private readonly PvWaterfallBuilder $waterfalls,
         private readonly PvWaterfallReportChart $chart,
         private readonly AuditWriter $audit,
-        private readonly AcquisitionPlanRequirements $acquisitionPlanRequirements,
         private readonly ReportTemplateCatalog $templateCatalog,
         private readonly NpoHealthReportComposition $npoHealthReports,
         private readonly NpoGovernanceReviewReportComposition $npoGovernanceReviews,
@@ -76,6 +70,7 @@ final class ReportComposer implements ProvidesMethodology
         private readonly SuccessionValueGapReportComposition $successionValueGapReports,
         private readonly DueDiligenceReportComposition $dueDiligenceReports,
         private readonly AcquisitionGoNoGoReportComposition $acquisitionGoNoGoReports,
+        private readonly PostAcquisitionGapReportComposition $postAcquisitionGapReports,
     ) {}
 
     public function compose(Client $client, ReportType $type, ?User $actor = null): Report
@@ -156,88 +151,7 @@ final class ReportComposer implements ProvidesMethodology
 
     public function composePostAcquisitionGap(PostAcquisitionMigration $migration, ?User $actor = null): Report
     {
-        $migration->loadMissing([
-            'advisoryClient',
-            'buyerClient',
-            'businessPlan.phases.sections',
-            'ddReport',
-            'engagement',
-            'gapQuestionnaireResponse.answers.question',
-            'proposal.feeCalculation',
-        ]);
-
-        $client = $migration->advisoryClient;
-        $engagement = $migration->engagement;
-
-        if (! $client instanceof Client || ! $engagement instanceof DdEngagement) {
-            throw new InvalidArgumentException('Post-acquisition gap reports require a migration, advisory client, and DD engagement.');
-        }
-
-        return DB::transaction(function () use ($migration, $client, $engagement, $actor): Report {
-            $risks = DdRiskRegisterItem::query()
-                ->where('dd_engagement_id', $engagement->getKey())
-                ->orderBy('rank')
-                ->get();
-            $integrationPlan = DdIntegrationPlanItem::query()
-                ->where('dd_engagement_id', $engagement->getKey())
-                ->orderBy('day')
-                ->get();
-            $plan = $migration->businessPlan;
-            $requirements = $plan instanceof BusinessPlan ? $this->acquisitionPlanRequirements->payload($plan) : [];
-            $completion = $plan instanceof BusinessPlan
-                ? $this->acquisitionPlanRequirements->completion($plan, $requirements)
-                : ['complete' => false, 'missing' => collect($this->acquisitionPlanRequirements->templatePayload())
-                    ->flatMap(fn (array $phase): array => collect($phase['requirements'] ?? [])
-                        ->map(fn (array $requirement): string => $phase['title'].': '.$requirement['title'])
-                        ->values()
-                        ->all())
-                    ->values()
-                    ->all()];
-
-            $report = Report::query()->create([
-                'client_id' => $client->getKey(),
-                'type' => ReportType::PostAcquisitionGap,
-                'title' => ReportType::PostAcquisitionGap->label().' - '.$client->legal_name,
-                'generated_by_user_id' => $actor?->getKey(),
-                'generated_at' => now(),
-                'metadata' => [
-                    'phase' => 'phase_3',
-                    'post_acquisition_migration_id' => $migration->getKey(),
-                    'dd_engagement_id' => $engagement->getKey(),
-                    'buyer_client_id' => $migration->buyer_client_id,
-                    'business_plan_id' => $plan?->getKey(),
-                    'dd_pv_baseline' => $migration->dd_pv_baseline,
-                    'redactions' => [],
-                ],
-                'render_status' => Report::RENDER_STATUS_COMPOSING,
-                'review_status' => 'not_required',
-            ]);
-
-            foreach ($this->postAcquisitionGapSections($migration, $risks, $integrationPlan, $plan, $requirements, $completion) as $position => $section) {
-                ReportSection::query()->create([
-                    ...$section,
-                    'report_id' => $report->getKey(),
-                    'client_id' => $client->getKey(),
-                    'position' => $position + 1,
-                ]);
-            }
-
-            $this->renderAndAuditAfterCommit(
-                $report,
-                $actor,
-                'post_acquisition.gap_report_generated',
-                fn (Report $rendered): array => [
-                    'post_acquisition_migration_id' => $migration->getKey(),
-                    'dd_engagement_id' => $engagement->getKey(),
-                    'sections' => $rendered->sections()->count(),
-                    'missing_plan_requirements' => $completion['missing'],
-                    'pdf_path' => $rendered->pdf_path,
-                ],
-                ['client', 'sections'],
-            );
-
-            return $report->refresh()->load('sections');
-        });
+        return $this->postAcquisitionGapReports->compose($migration, $actor);
     }
 
     public function composeEntrepreneurAssessment(PlanAssessment $assessment, ?User $actor = null): Report
@@ -601,253 +515,6 @@ final class ReportComposer implements ProvidesMethodology
                 'scores' => $snapshot->scores,
             ],
         );
-    }
-
-    /**
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @param  Collection<int, DdIntegrationPlanItem>  $integrationPlan
-     * @param  array<string, array<int, array<string, mixed>>>  $requirements
-     * @param  array{complete: bool, missing: array<int, string>}  $completion
-     * @return array<int, array<string, mixed>>
-     */
-    private function postAcquisitionGapSections(
-        PostAcquisitionMigration $migration,
-        Collection $risks,
-        Collection $integrationPlan,
-        ?BusinessPlan $plan,
-        array $requirements,
-        array $completion,
-    ): array {
-        return [
-            $this->postAcquisitionHandoffSummarySection($migration, $plan, $completion),
-            $this->postAcquisitionDdGapsSection($migration, $risks, $integrationPlan),
-            $this->postAcquisitionBusinessPlanComparisonSection($migration, $risks, $plan, $requirements, $completion),
-            $this->postAcquisitionAdvisorActionsSection($migration, $plan, $completion),
-        ];
-    }
-
-    /**
-     * @param  array{complete: bool, missing: array<int, string>}  $completion
-     * @return array<string, mixed>
-     */
-    private function postAcquisitionHandoffSummarySection(
-        PostAcquisitionMigration $migration,
-        ?BusinessPlan $plan,
-        array $completion,
-    ): array {
-        $response = $migration->gapQuestionnaireResponse;
-        $gapRemaining = $response instanceof QuestionnaireResponse && $response->submitted_at !== null
-            ? 0
-            : count((array) data_get($migration->metadata, 'gap_questions_remaining', []));
-        $proposal = $migration->proposal;
-        $proposalStatus = $proposal instanceof Proposal
-            ? str_replace('_', ' ', (string) (is_string($proposal->status) ? $proposal->status : $proposal->status->value))
-            : 'not generated';
-        $planStatus = $plan instanceof BusinessPlan
-            ? str_replace('_', ' ', (string) $plan->status)
-            : 'not prepared';
-        $body = sprintf(
-            "Target: %s.\nDD PV baseline: %s.\nMigrated DD documents: %d.\nPost-acquisition gap questionnaire: %s.\nAcquisition business plan: %s; %d plan requirement gap(s) remain.\nProposal status: %s.",
-            $migration->engagement?->target_name ?? $migration->advisoryClient?->legal_name ?? 'acquired business',
-            $this->money($migration->dd_pv_baseline),
-            count(is_array($migration->migrated_document_ids) ? $migration->migrated_document_ids : []),
-            $gapRemaining === 0 ? 'submitted or fully prefilled' : "{$gapRemaining} client confirmation item(s) remain",
-            $planStatus,
-            count($completion['missing']),
-            $proposalStatus,
-        );
-
-        return $this->generatedSection(
-            key: 'post_acquisition_handoff_summary',
-            title: 'Handoff summary',
-            body: $body,
-            sourceReference: 'post_acquisition_migration:'.$migration->getKey(),
-            dataQualityNote: 'Data quality note: handoff summary combines DD migration metadata, client gap-questionnaire state, and linked acquisition-plan status.',
-            metadata: [
-                'post_acquisition_migration_id' => $migration->getKey(),
-                'business_plan_id' => $plan?->getKey(),
-                'proposal_id' => $proposal?->getKey(),
-            ],
-        );
-    }
-
-    /**
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @param  Collection<int, DdIntegrationPlanItem>  $integrationPlan
-     * @return array<string, mixed>
-     */
-    private function postAcquisitionDdGapsSection(
-        PostAcquisitionMigration $migration,
-        Collection $risks,
-        Collection $integrationPlan,
-    ): array {
-        $riskBody = $risks->isEmpty()
-            ? 'No ranked DD risk gaps were available at handoff.'
-            : $risks
-                ->map(fn (DdRiskRegisterItem $risk): string => sprintf(
-                    '#%d %s - %s. PV cost: %s. Indicative price adjustment: %s.',
-                    $risk->rank,
-                    str_replace('_', ' ', $risk->risk_level),
-                    $risk->title,
-                    $this->money($risk->pv_of_cost),
-                    $this->money($risk->price_adjustment_nzd),
-                ))
-                ->implode("\n");
-        $integrationBody = $integrationPlan->isEmpty()
-            ? 'No 100-day integration actions were generated from DD yet.'
-            : $integrationPlan
-                ->map(fn (DdIntegrationPlanItem $item): string => sprintf(
-                    'Day %d %s - %s (%s priority).',
-                    $item->day,
-                    $item->phase,
-                    $item->action,
-                    $item->priority,
-                ))
-                ->implode("\n");
-
-        return $this->generatedSection(
-            key: 'post_acquisition_dd_gaps',
-            title: 'DD gaps requiring advisory attention',
-            body: "Ranked DD gaps:\n{$riskBody}\n\nIntegration actions from DD:\n{$integrationBody}",
-            sourceReference: 'dd_gap_sources:'.$migration->dd_engagement_id,
-            dataQualityNote: 'Data quality note: DD gaps come from persisted DD risk-register rows and generated integration-plan actions.',
-            metadata: [
-                'risk_register_ids' => $risks->pluck('id')->values()->all(),
-                'integration_plan_ids' => $integrationPlan->pluck('id')->values()->all(),
-            ],
-        );
-    }
-
-    /**
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @param  array<string, array<int, array<string, mixed>>>  $requirements
-     * @param  array{complete: bool, missing: array<int, string>}  $completion
-     * @return array<string, mixed>
-     */
-    private function postAcquisitionBusinessPlanComparisonSection(
-        PostAcquisitionMigration $migration,
-        Collection $risks,
-        ?BusinessPlan $plan,
-        array $requirements,
-        array $completion,
-    ): array {
-        if (! $plan instanceof BusinessPlan) {
-            $body = "No acquisition business plan is linked to this handoff yet.\nPending plan gaps:\n".implode("\n", $completion['missing']);
-
-            return $this->generatedSection(
-                key: 'post_acquisition_plan_comparison',
-                title: 'DD to business-plan gap comparison',
-                body: $body,
-                sourceReference: 'post_acquisition_plan:none:'.$migration->getKey(),
-                dataQualityNote: 'Data quality note: this comparison is template-only until the DD acquisition business plan is populated.',
-                metadata: [
-                    'missing_requirements' => $completion['missing'],
-                ],
-            );
-        }
-
-        $completeRequirements = collect($requirements)
-            ->flatMap(fn (array $phaseRequirements): array => collect($phaseRequirements)
-                ->filter(fn (array $requirement): bool => (bool) $requirement['complete'])
-                ->map(fn (array $requirement): string => $requirement['phase_title'].': '.$requirement['title'])
-                ->values()
-                ->all())
-            ->values()
-            ->all();
-        $uncoveredRisks = $this->postAcquisitionUncoveredRiskTitles($risks, $plan);
-        $body = sprintf(
-            "Business plan status: %s.\nCompleted plan requirements:\n%s\n\nPending plan requirements:\n%s\n\nDD risks not explicitly referenced in the plan by risk title:\n%s",
-            str_replace('_', ' ', (string) $plan->status),
-            $completeRequirements === [] ? 'None yet.' : implode("\n", $completeRequirements),
-            $completion['missing'] === [] ? 'None.' : implode("\n", $completion['missing']),
-            $uncoveredRisks === [] ? 'None detected by title match.' : implode("\n", $uncoveredRisks),
-        );
-
-        return $this->generatedSection(
-            key: 'post_acquisition_plan_comparison',
-            title: 'DD to business-plan gap comparison',
-            body: $body,
-            sourceReference: 'business_plan:'.$plan->getKey(),
-            dataQualityNote: 'Data quality note: plan comparison checks the DD acquisition-plan requirement template and whether ranked DD risk titles appear in completed plan sections.',
-            metadata: [
-                'business_plan_id' => $plan->getKey(),
-                'missing_requirements' => $completion['missing'],
-                'complete_requirements' => $completeRequirements,
-                'uncovered_risk_titles' => $uncoveredRisks,
-            ],
-        );
-    }
-
-    /**
-     * @param  array{complete: bool, missing: array<int, string>}  $completion
-     * @return array<string, mixed>
-     */
-    private function postAcquisitionAdvisorActionsSection(
-        PostAcquisitionMigration $migration,
-        ?BusinessPlan $plan,
-        array $completion,
-    ): array {
-        $actions = [];
-        $response = $migration->gapQuestionnaireResponse;
-        $proposal = $migration->proposal;
-        $proposalStatus = $proposal instanceof Proposal
-            ? (is_string($proposal->status) ? $proposal->status : $proposal->status->value)
-            : null;
-
-        if (! $response instanceof QuestionnaireResponse || $response->submitted_at === null) {
-            $actions[] = 'Ask the client to complete the post-acquisition gap questionnaire and confirm the DD-prefilled answers.';
-        }
-
-        if (! $plan instanceof BusinessPlan) {
-            $actions[] = 'Prepare or link the DD acquisition business plan before finalising post-acquisition advice.';
-        } elseif (! $completion['complete']) {
-            $actions[] = 'Resolve remaining plan gaps: '.implode('; ', $completion['missing']).'.';
-        }
-
-        if ($proposalStatus === 'draft') {
-            $actions[] = 'Review and release the generated post-acquisition proposal so the client can sign off.';
-        } elseif ($proposalStatus === null) {
-            $actions[] = 'Generate a post-acquisition advisory proposal once scope and gaps are confirmed.';
-        }
-
-        if ($actions === []) {
-            $actions[] = 'Proceed with advisor-led post-acquisition advisory scoping and first 100-day implementation planning.';
-        }
-
-        return $this->generatedSection(
-            key: 'post_acquisition_advisor_actions',
-            title: 'Advisor action list',
-            body: implode("\n", $actions),
-            sourceReference: 'post_acquisition_actions:'.$migration->getKey(),
-            dataQualityNote: 'Data quality note: action list reflects current persisted workflow state and should be reviewed by the advisor before client advice is issued.',
-            metadata: [
-                'actions' => $actions,
-            ],
-        );
-    }
-
-    /**
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @return array<int, string>
-     */
-    private function postAcquisitionUncoveredRiskTitles(Collection $risks, BusinessPlan $plan): array
-    {
-        $plan->loadMissing('phases.sections');
-        $planText = Str::lower($plan->phases
-            ->flatMap(fn ($phase) => $phase->sections)
-            ->filter(fn ($section): bool => $section instanceof PlanSection)
-            ->map(fn (PlanSection $section): string => $section->title."\n".$section->body)
-            ->implode("\n"));
-
-        return $risks
-            ->filter(function (DdRiskRegisterItem $risk) use ($planText): bool {
-                $title = Str::lower(trim($risk->title));
-
-                return $title !== '' && ! str_contains($planText, $title);
-            })
-            ->pluck('title')
-            ->values()
-            ->all();
     }
 
     /**
@@ -1400,11 +1067,6 @@ final class ReportComposer implements ProvidesMethodology
             ->latest('as_at')
             ->latest()
             ->first();
-    }
-
-    private function money(mixed $value): string
-    {
-        return is_numeric($value) ? 'NZD '.number_format((float) $value, 0) : 'n/a';
     }
 
     private function latestProposal(Client $client): ?Proposal

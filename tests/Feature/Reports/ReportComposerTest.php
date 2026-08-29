@@ -37,9 +37,11 @@ use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
+use App\Services\Reports\Contracts\PostAcquisitionGapReportComposition;
 use App\Services\Reports\Contracts\ReportArtifactRenderer;
 use App\Services\Reports\Contracts\SuccessionValueGapReportComposition;
 use App\Services\Reports\Contracts\ValuationReportComposition;
+use App\Services\Reports\PostAcquisitionGapReportComposer;
 use App\Services\Reports\ReportComposer;
 use App\Services\Reports\StoredReportArtifactRenderer;
 use App\Services\Reports\SuccessionValueGapReportComposer;
@@ -66,6 +68,14 @@ final class ReportComposerTest extends TestCase
     private object $pptx;
 
     private bool $connectionBypassesRls = false;
+
+    public function test_post_acquisition_gap_report_uses_typed_composition_contract(): void
+    {
+        $this->assertInstanceOf(
+            PostAcquisitionGapReportComposer::class,
+            app(PostAcquisitionGapReportComposition::class),
+        );
+    }
 
     protected function setUp(): void
     {

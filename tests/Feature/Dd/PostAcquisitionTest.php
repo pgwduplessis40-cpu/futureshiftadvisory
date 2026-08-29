@@ -34,6 +34,8 @@ use App\Services\Dd\DdOnboarding;
 use App\Services\Dd\PostAcquisition;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
+use App\Services\Reports\Contracts\PostAcquisitionGapReportComposition;
+use App\Services\Reports\PostAcquisitionGapReportComposer;
 use App\Support\RequestContext;
 use Database\Seeders\DdSpecificQuestionnaireSeeder;
 use Database\Seeders\PostAcquisitionGapQuestionnaireSeeder;
@@ -110,6 +112,7 @@ final class PostAcquisitionTest extends TestCase
 
         $migration = app(PostAcquisition::class)->convert($engagement, $advisor);
 
+        $this->assertInstanceOf(PostAcquisitionGapReportComposer::class, app(PostAcquisitionGapReportComposition::class));
         $this->assertSame($plan->id, $migration->business_plan_id);
         $this->assertSame($engagement->id, $migration->dd_engagement_id);
         $this->assertSame($engagement->client_id, $migration->buyer_client_id);
@@ -174,8 +177,8 @@ final class PostAcquisitionTest extends TestCase
         $proposal = $migration->proposal()->with('feeCalculation')->firstOrFail();
 
         $this->assertSame($migration->advisory_client_id, $proposal->client_id);
-        $this->assertSame(FeeMethod::OutcomeBased, $proposal->feeCalculation?->method);
-        $this->assertSame(750000.0, $proposal->feeCalculation?->improvement_pv_total);
+        $this->assertSame(FeeMethod::OutcomeBased, $proposal->feeCalculation->method);
+        $this->assertSame(750000.0, $proposal->feeCalculation->improvement_pv_total);
         $this->assertSame(750000, data_get($proposal->feeCalculation?->inputs, 'dd_pv_baseline'));
         $this->assertSame($migration->dd_report_id, data_get($proposal->services, '0.dd_report_id'));
         $this->assertStringContainsString('DD-derived PV baseline NZD 750,000', (string) data_get($proposal->scope, 'summary'));
