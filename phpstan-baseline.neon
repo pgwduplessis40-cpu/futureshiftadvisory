@@ -8010,11 +8010,6 @@ parameters:
 			count: 2
 			path: app/Services/Reports/ReportComposer.php
 
-		-
-			message: '#^Call to function is_array\(\) with array\<mixed\> will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: app/Services/Reports/ReportComposer.php
 
 		-
 			message: '#^Call to function is_string\(\) with App\\Enums\\ProposalStatus will always evaluate to false\.$#'
@@ -9477,13 +9472,13 @@ parameters:
 		-
 			message: '#^Unable to resolve the template type TKey in call to function collect$#'
 			identifier: argument.templateType
-			count: 2
+			count: 1
 			path: app/Services/Reports/ReportComposer.php
 
 		-
 			message: '#^Unable to resolve the template type TValue in call to function collect$#'
 			identifier: argument.templateType
-			count: 2
+			count: 1
 			path: app/Services/Reports/ReportComposer.php
 
 		-
