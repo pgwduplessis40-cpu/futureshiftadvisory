@@ -36,6 +36,8 @@ use App\Services\Dd\DdDisclaimer;
 use App\Services\Dd\DdOnboarding;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
+use App\Services\Reports\Contracts\DueDiligenceReportComposition;
+use App\Services\Reports\DueDiligenceReportComposer;
 use App\Services\Reports\ReportComposer;
 use App\Support\RequestContext;
 use Database\Seeders\DdSpecificQuestionnaireSeeder;
@@ -125,6 +127,7 @@ final class DdReportTest extends TestCase
 
         $report = app(ReportComposer::class)->composeDueDiligence($engagement, $advisor);
 
+        $this->assertInstanceOf(DueDiligenceReportComposer::class, app(DueDiligenceReportComposition::class));
         $this->assertSame(ReportType::DueDiligence, $report->type);
         $this->assertNotNull($report->pdf_path);
         $this->assertNotNull($report->pptx_path);
@@ -237,9 +240,11 @@ final class DdReportTest extends TestCase
             $purchaseRangeSection->metadata['due_diligence_risk_adjustment_nzd'],
             0.01,
         );
+        $this->assertArrayNotHasKey('dcf_range_nzd', $purchaseRangeSection->metadata);
+        $this->assertArrayNotHasKey('purchase_price_range_nzd', $purchaseRangeSection->metadata);
         $this->assertLessThan(
-            $purchaseRangeSection->metadata['dcf_range_nzd']['mid'],
-            $purchaseRangeSection->metadata['purchase_price_range_nzd']['mid'],
+            $purchaseRangeSection->metadata['dcf_mid_nzd'],
+            $purchaseRangeSection->metadata['purchase_price_mid_nzd'],
         );
     }
 

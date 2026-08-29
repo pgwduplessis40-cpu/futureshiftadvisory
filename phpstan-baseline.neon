@@ -8047,19 +8047,7 @@ parameters:
 			path: app/Services/Reports/ReportComposer.php
 
 		-
-			message: '#^Using nullsafe property access "\?\-\>body" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Services/Reports/ReportComposer.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>legal_name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Services/Reports/ReportComposer.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>severity" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Services/Reports/ReportComposer.php
