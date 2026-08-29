@@ -22,6 +22,8 @@ use App\Services\Pdf\PdfRenderer;
 use App\Services\Performance\DashboardLaunchTiming;
 use App\Services\Pptx\Contracts\PptxGenerator;
 use App\Services\Pptx\OpenXmlPptxGenerator;
+use App\Services\Reports\AcquisitionGoNoGoReportComposer;
+use App\Services\Reports\Contracts\AcquisitionGoNoGoReportComposition;
 use App\Services\Reports\Contracts\DueDiligenceReportComposition;
 use App\Services\Reports\Contracts\EntrepreneurAssessmentReportComposition;
 use App\Services\Reports\Contracts\NpoFunderAccountabilityReportComposition;
@@ -101,6 +103,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PdfRenderer::class, BrowsershotRenderer::class);
         $this->app->singleton(PptxGenerator::class, OpenXmlPptxGenerator::class);
         $this->app->singleton(ReportArtifactRenderer::class, StoredReportArtifactRenderer::class);
+        $this->app->singleton(AcquisitionGoNoGoReportComposition::class, AcquisitionGoNoGoReportComposer::class);
         $this->app->singleton(EntrepreneurAssessmentReportComposition::class, EntrepreneurAssessmentReportComposer::class);
         $this->app->singleton(NpoGovernanceReviewReportComposition::class, NpoGovernanceReviewReportComposer::class);
         $this->app->singleton(NpoFunderAccountabilityReportComposition::class, NpoFunderAccountabilityReportComposer::class);

@@ -36,6 +36,8 @@ use App\Services\Dd\DdDisclaimer;
 use App\Services\Dd\DdOnboarding;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
+use App\Services\Reports\AcquisitionGoNoGoReportComposer;
+use App\Services\Reports\Contracts\AcquisitionGoNoGoReportComposition;
 use App\Services\Reports\Contracts\DueDiligenceReportComposition;
 use App\Services\Reports\DueDiligenceReportComposer;
 use App\Services\Reports\ReportComposer;
@@ -184,6 +186,7 @@ final class DdReportTest extends TestCase
 
         $report = app(ReportComposer::class)->composeAcquisitionGoNoGo($engagement, $advisor);
 
+        $this->assertInstanceOf(AcquisitionGoNoGoReportComposer::class, app(AcquisitionGoNoGoReportComposition::class));
         $this->assertSame(ReportType::AcquisitionGoNoGo, $report->type);
         $this->assertSame('pending_review', $report->review_status);
         Storage::disk('secure_local')->assertExists($report->pdf_path);
@@ -197,11 +200,12 @@ final class DdReportTest extends TestCase
             $this->assertTrue($report->sections->contains('key', $key), "Missing Go/No-Go section {$key}.");
         }
 
-        $walkAway = $report->sections->firstWhere('key', 'walk_away_price_chips')?->metadata['walk_away_price'];
-        $this->assertGreaterThan(0, $walkAway['risk_adjustment_nzd']);
-        $this->assertGreaterThan(0, $walkAway['holidays_act_liability_nzd']);
-        $this->assertGreaterThan(0, $walkAway['working_capital_adjustment_nzd']);
-        $this->assertEqualsWithDelta(820000.0, $walkAway['asking_price_nzd'], 0.01);
+        $walkAway = $report->sections->firstWhere('key', 'walk_away_price_chips');
+        $this->assertNotNull($walkAway);
+        $this->assertGreaterThan(0, $walkAway->metadata['risk_adjustment_nzd']);
+        $this->assertGreaterThan(0, $walkAway->metadata['holidays_act_liability_nzd']);
+        $this->assertGreaterThan(0, $walkAway->metadata['working_capital_adjustment_nzd']);
+        $this->assertEqualsWithDelta(820000.0, $walkAway->metadata['asking_price_nzd'], 0.01);
         $this->assertStringContainsString('Walk-away price and red-flag price chips', $this->renderer->html);
         $this->assertStringContainsString('GST going-concern zero-rating', $this->renderer->html);
     }

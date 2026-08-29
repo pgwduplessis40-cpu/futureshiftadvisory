@@ -16,7 +16,6 @@ use App\Models\ClientFunderRecord;
 use App\Models\DdEngagement;
 use App\Models\DdIntegrationPlanItem;
 use App\Models\DdRiskRegisterItem;
-use App\Models\DdValuation;
 use App\Models\FinancialSnapshot;
 use App\Models\Goal;
 use App\Models\Milestone;
@@ -30,11 +29,11 @@ use App\Models\Report;
 use App\Models\ReportSection;
 use App\Models\User;
 use App\Models\WebsiteAuditSnapshot;
-use App\Services\Analysis\HolidaysActLiabilityCalculator;
 use App\Services\Audit\AuditWriter;
 use App\Services\Dd\AcquisitionPlanRequirements;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Pv\PvWaterfallReportChart;
+use App\Services\Reports\Contracts\AcquisitionGoNoGoReportComposition;
 use App\Services\Reports\Contracts\DueDiligenceReportComposition;
 use App\Services\Reports\Contracts\EntrepreneurAssessmentReportComposition;
 use App\Services\Reports\Contracts\NpoFunderAccountabilityReportComposition;
@@ -47,7 +46,6 @@ use App\Services\Reports\Contracts\SuccessionValueGapReportComposition;
 use App\Services\Reports\Contracts\ValuationReportComposition;
 use App\Services\Reports\Data\NpoImpactSummaryInput;
 use App\Support\Methodology\ProvidesMethodology;
-use App\Support\Reports\SourceReferenceLabeler;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -68,7 +66,6 @@ final class ReportComposer implements ProvidesMethodology
         private readonly AuditWriter $audit,
         private readonly AcquisitionPlanRequirements $acquisitionPlanRequirements,
         private readonly ReportTemplateCatalog $templateCatalog,
-        private readonly HolidaysActLiabilityCalculator $holidaysActLiability,
         private readonly NpoHealthReportComposition $npoHealthReports,
         private readonly NpoGovernanceReviewReportComposition $npoGovernanceReviews,
         private readonly NpoSocialEnterpriseDualReportComposition $npoSocialEnterpriseDualReports,
@@ -78,7 +75,7 @@ final class ReportComposer implements ProvidesMethodology
         private readonly ValuationReportComposition $valuationReports,
         private readonly SuccessionValueGapReportComposition $successionValueGapReports,
         private readonly DueDiligenceReportComposition $dueDiligenceReports,
-        private readonly DueDiligenceReportSupport $dueDiligenceSupport,
+        private readonly AcquisitionGoNoGoReportComposition $acquisitionGoNoGoReports,
     ) {}
 
     public function compose(Client $client, ReportType $type, ?User $actor = null): Report
@@ -285,73 +282,7 @@ final class ReportComposer implements ProvidesMethodology
 
     public function composeAcquisitionGoNoGo(DdEngagement $engagement, ?User $actor = null): Report
     {
-        $engagement->loadMissing('client');
-
-        if (! $engagement->client instanceof Client) {
-            throw new InvalidArgumentException('Acquisition Go/No-Go reports require a DD engagement with a client.');
-        }
-
-        return DB::transaction(function () use ($engagement, $actor): Report {
-            $findings = $this->dueDiligenceSupport->findings($engagement);
-            $valuation = $this->dueDiligenceSupport->latestValuation($engagement);
-            $risks = $findings->isEmpty()
-                ? DdRiskRegisterItem::query()
-                    ->where('dd_engagement_id', $engagement->getKey())
-                    ->orderBy('rank')
-                    ->get()
-                : $this->dueDiligenceSupport->refreshRiskRegister($engagement, $findings, $valuation);
-            $recommendation = $this->dueDiligenceSupport->recommendation($risks, $valuation);
-            $recommendationPayload = [
-                'recommendation' => $recommendation->decision,
-                'rationale' => $recommendation->rationale,
-            ];
-
-            $engagement->forceFill([
-                'recommendation' => $recommendation->decision,
-            ])->save();
-
-            $report = Report::query()->create([
-                'client_id' => $engagement->client_id,
-                'type' => ReportType::AcquisitionGoNoGo,
-                'title' => ReportType::AcquisitionGoNoGo->label().' - '.$engagement->target_name,
-                'generated_by_user_id' => $actor?->getKey(),
-                'generated_at' => now(),
-                'metadata' => [
-                    'phase' => 'phase_report_layer_composition',
-                    'dd_engagement_id' => $engagement->getKey(),
-                    'dd_valuation_id' => $valuation?->getKey(),
-                    'recommendation' => $recommendationPayload,
-                    'advisor_review_required' => true,
-                    'redactions' => [],
-                ],
-                'render_status' => Report::RENDER_STATUS_COMPOSING,
-                'review_status' => 'pending_review',
-            ]);
-
-            foreach ($this->acquisitionGoNoGoSections($engagement, $valuation, $risks, $recommendationPayload) as $position => $section) {
-                ReportSection::query()->create([
-                    ...$section,
-                    'report_id' => $report->getKey(),
-                    'client_id' => $engagement->client_id,
-                    'position' => $position + 1,
-                ]);
-            }
-
-            $this->renderAndAuditAfterCommit(
-                $report,
-                $actor,
-                'dd.go_no_go_report_generated',
-                fn (Report $rendered): array => [
-                    'dd_engagement_id' => $engagement->getKey(),
-                    'recommendation' => $recommendation->decision,
-                    'sections' => $rendered->sections()->count(),
-                    'pdf_path' => $rendered->pdf_path,
-                ],
-                ['client', 'sections'],
-            );
-
-            return $report->refresh()->load(['client', 'sections']);
-        });
+        return $this->acquisitionGoNoGoReports->compose($engagement, $actor);
     }
 
     public function composeSuccessionValueGap(Client $client, ?User $actor = null): Report
@@ -674,27 +605,6 @@ final class ReportComposer implements ProvidesMethodology
 
     /**
      * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @param  array{recommendation:string,rationale:string}  $recommendation
-     * @return array<int, array<string, mixed>>
-     */
-    private function acquisitionGoNoGoSections(
-        DdEngagement $engagement,
-        ?DdValuation $valuation,
-        Collection $risks,
-        array $recommendation,
-    ): array {
-        $price = $this->walkAwayPricePayload($engagement, $valuation, $risks);
-
-        return [
-            $this->acquisitionDecisionSection($engagement, $valuation, $risks, $recommendation, $price),
-            $this->walkAwayPriceChipSection($engagement, $risks, $price),
-            $this->dealMechanicsSection($engagement, $price),
-            $this->goNoGoEvidenceSection($engagement, $valuation, $risks),
-        ];
-    }
-
-    /**
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
      * @param  Collection<int, DdIntegrationPlanItem>  $integrationPlan
      * @param  array<string, array<int, array<string, mixed>>>  $requirements
      * @param  array{complete: bool, missing: array<int, string>}  $completion
@@ -938,157 +848,6 @@ final class ReportComposer implements ProvidesMethodology
             ->pluck('title')
             ->values()
             ->all();
-    }
-
-    /**
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @param  array{recommendation:string,rationale:string}  $recommendation
-     * @param  array<string, mixed>  $price
-     * @return array<string, mixed>
-     */
-    private function acquisitionDecisionSection(
-        DdEngagement $engagement,
-        ?DdValuation $valuation,
-        Collection $risks,
-        array $recommendation,
-        array $price,
-    ): array {
-        $priceSignal = is_numeric($price['asking_price_nzd']) && is_numeric($price['walk_away_price_nzd'])
-            ? (((float) $price['asking_price_nzd'] > (float) $price['walk_away_price_nzd'])
-                ? 'Asking price is above the calculated walk-away price.'
-                : 'Asking price is at or below the calculated walk-away price.')
-            : 'Asking price or walk-away price is not available yet.';
-
-        $body = sprintf(
-            "Decision: %s.\nTarget: %s.\nWalk-away price: %s.\nAsking price: %s.\nPrice gap to walk-away: %s.\nMaterial risk chips: %d.\nPrice signal: %s\nRationale: %s",
-            ucfirst(str_replace('_', ' ', $recommendation['recommendation'])),
-            $engagement->target_name,
-            $this->money($price['walk_away_price_nzd']),
-            $this->money($price['asking_price_nzd']),
-            $this->money($price['gap_to_walk_away_nzd']),
-            $risks->filter(fn (DdRiskRegisterItem $risk): bool => $risk->price_adjustment_nzd > 0)->count(),
-            $priceSignal,
-            $recommendation['rationale'],
-        );
-
-        return $this->generatedSection(
-            key: 'go_no_go_decision',
-            title: 'Go/No-Go decision',
-            body: $body,
-            sourceReference: $valuation instanceof DdValuation ? 'dd_valuation:'.$valuation->getKey() : 'dd_engagement:'.$engagement->getKey(),
-            dataQualityNote: 'Data quality note: decision combines valuation, asking price, risk register, and price-chip calculations for advisor review.',
-            metadata: [
-                'recommendation' => $recommendation,
-                'walk_away_price' => $price,
-            ],
-        );
-    }
-
-    /**
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @param  array<string, mixed>  $price
-     * @return array<string, mixed>
-     */
-    private function walkAwayPriceChipSection(DdEngagement $engagement, Collection $risks, array $price): array
-    {
-        $chips = collect($price['price_chips'] ?? [])
-            ->filter(fn (mixed $item): bool => is_array($item))
-            ->map(fn (array $chip): string => sprintf(
-                '%s: %s off price (%s).',
-                $chip['label'] ?? 'Price chip',
-                $this->money($chip['amount_nzd'] ?? null),
-                $chip['basis'] ?? 'advisor review required',
-            ))
-            ->implode("\n");
-
-        $body = sprintf(
-            "Base valuation high point: %s.\nRisk price chips: %s.\nHolidays Act liability chip: %s.\nWorking-capital chip: %s.\nCalculated walk-away price: %s.\n\nPrice chips:\n%s",
-            $this->money($price['base_high_nzd']),
-            $this->money($price['risk_adjustment_nzd']),
-            $this->money($price['holidays_act_liability_nzd']),
-            $this->money($price['working_capital_adjustment_nzd']),
-            $this->money($price['walk_away_price_nzd']),
-            $chips !== '' ? $chips : 'No quantified price chips are available yet.',
-        );
-
-        return $this->generatedSection(
-            key: 'walk_away_price_chips',
-            title: 'Walk-away price and red-flag price chips',
-            body: $body,
-            sourceReference: 'dd_risk_register:'.$engagement->getKey().':walk_away',
-            dataQualityNote: 'Data quality note: walk-away price starts with the valuation high point and deducts quantified DD risk, Holidays Act, and working-capital chips where available.',
-            metadata: [
-                'risk_register_ids' => $risks->pluck('id')->values()->all(),
-                'walk_away_price' => $price,
-            ],
-        );
-    }
-
-    /**
-     * @param  array<string, mixed>  $price
-     * @return array<string, mixed>
-     */
-    private function dealMechanicsSection(DdEngagement $engagement, array $price): array
-    {
-        $mechanics = (array) ($price['deal_mechanics'] ?? []);
-        $body = sprintf(
-            "GST going-concern zero-rating: %s.\nGST cash exposure if not zero-rated: %s.\nWorking-capital peg: %s.\nVendor finance: %s.\nEarn-out: %s.\nCompletion note: these mechanics change cash-to-complete and negotiation structure even when headline price is unchanged.",
-            $mechanics['gst_zero_rating_status'] ?? 'not recorded',
-            $this->money($mechanics['gst_cash_exposure_nzd'] ?? null),
-            $mechanics['working_capital_peg'] ?? 'not recorded',
-            $mechanics['vendor_finance'] ?? 'not recorded',
-            $mechanics['earnout'] ?? 'not recorded',
-        );
-
-        return $this->generatedSection(
-            key: 'deal_mechanics',
-            title: 'NZ deal mechanics',
-            body: $body,
-            sourceReference: 'dd_engagement:'.$engagement->getKey().':deal_mechanics',
-            dataQualityNote: 'Data quality note: deal mechanics are sourced from DD target details and should be checked against transaction documents before client advice is released.',
-            metadata: $mechanics,
-        );
-    }
-
-    /**
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @return array<string, mixed>
-     */
-    private function goNoGoEvidenceSection(DdEngagement $engagement, ?DdValuation $valuation, Collection $risks): array
-    {
-        $riskSources = $risks
-            ->flatMap(fn (DdRiskRegisterItem $risk): array => $risk->source_attributions ?? [])
-            ->filter(fn (mixed $item): bool => is_array($item))
-            ->map(fn (array $source): string => SourceReferenceLabeler::label(
-                (string) ($source['source_reference'] ?? $source['id'] ?? ''),
-                (string) ($source['claim'] ?? ''),
-            ))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-        $valuationSource = $valuation instanceof DdValuation
-            ? SourceReferenceLabeler::label('dd_valuation:'.$valuation->getKey(), 'DD valuation').' as at '.($valuation->as_at?->toDateString() ?? 'not dated')
-            : 'no DD valuation available';
-
-        $body = sprintf(
-            "Valuation source: %s.\nRisk-register rows used: %d.\nEvidence sources: %s.\nAdvisor review: confirm any unquantified legal, tax, employment, and financing conditions before issuing the decision to the client.",
-            $valuationSource,
-            $risks->count(),
-            $riskSources === [] ? 'No explicit risk source attribution recorded.' : implode(', ', $riskSources),
-        );
-
-        return $this->generatedSection(
-            key: 'go_no_go_evidence',
-            title: 'Evidence and limitations',
-            body: $body,
-            sourceReference: 'dd_engagement:'.$engagement->getKey().':go_no_go_evidence',
-            dataQualityNote: 'Data quality note: Go/No-Go report is a one-page decision layer over persisted DD evidence, valuation, and risk PV data.',
-            metadata: [
-                'dd_valuation_id' => $valuation?->getKey(),
-                'risk_register_ids' => $risks->pluck('id')->values()->all(),
-            ],
-        );
     }
 
     /**
@@ -1643,281 +1402,9 @@ final class ReportComposer implements ProvidesMethodology
             ->first();
     }
 
-    /**
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @return array<string, mixed>
-     */
-    private function walkAwayPricePayload(DdEngagement $engagement, ?DdValuation $valuation, Collection $risks): array
-    {
-        $valuation?->loadMissing('businessValuation');
-        $baseRange = $valuation instanceof DdValuation
-            ? ($this->ddValuationRange($valuation, 'dcf_value') ?? $this->ddValuationRange($valuation, 'reconciled'))
-            : null;
-        $baseHigh = is_array($baseRange) ? $baseRange['high'] : null;
-        $riskAdjustment = round((float) $risks->sum('price_adjustment_nzd'), 2);
-        $holidaysAct = $this->holidaysActLiabilityPayload($engagement);
-        $workingCapitalAdjustment = $this->workingCapitalAdjustmentNzd($engagement);
-        $targetDetails = $engagement->target_details ?? [];
-        $dealStructureAdjustment = $this->ddAdjustmentTotal(data_get($targetDetails, 'deal_structure_adjustments', []));
-        $synergyAdjustment = $this->ddAdjustmentTotal(data_get($targetDetails, 'synergy_adjustments', []));
-        $askingPrice = $this->askingPriceNzd($engagement, $valuation);
-        $walkAway = is_numeric($baseHigh)
-            ? round(max(0, (float) $baseHigh + $dealStructureAdjustment + $synergyAdjustment - $riskAdjustment - (float) $holidaysAct['total_liability_nzd'] - $workingCapitalAdjustment), 2)
-            : null;
-
-        return [
-            'base_range_nzd' => $baseRange,
-            'base_high_nzd' => $baseHigh,
-            'deal_structure_adjustment_nzd' => $dealStructureAdjustment,
-            'synergy_adjustment_nzd' => $synergyAdjustment,
-            'risk_adjustment_nzd' => $riskAdjustment,
-            'holidays_act_liability_nzd' => $holidaysAct['total_liability_nzd'],
-            'working_capital_adjustment_nzd' => $workingCapitalAdjustment,
-            'walk_away_price_nzd' => $walkAway,
-            'asking_price_nzd' => $askingPrice,
-            'gap_to_walk_away_nzd' => is_numeric($askingPrice) && is_numeric($walkAway)
-                ? round((float) $askingPrice - (float) $walkAway, 2)
-                : null,
-            'price_chips' => $this->priceChips($risks, $holidaysAct, $workingCapitalAdjustment),
-            'deal_mechanics' => $this->dealMechanicsPayload($engagement, $askingPrice),
-        ];
-    }
-
-    private function askingPriceNzd(DdEngagement $engagement, ?DdValuation $valuation): ?float
-    {
-        $buyerPositionPrice = data_get($valuation?->buyer_position, 'asking_price_nzd');
-
-        if (is_numeric($buyerPositionPrice)) {
-            return round((float) $buyerPositionPrice, 2);
-        }
-
-        $askingPrice = data_get($engagement->target_details ?? [], 'asking_price');
-        $rate = $valuation instanceof DdValuation ? $valuation->source_to_nzd_rate : 1.0;
-
-        return is_numeric($askingPrice) ? round((float) $askingPrice * $rate, 2) : null;
-    }
-
-    /**
-     * @return array{total_liability_nzd:float, basis:string}
-     */
-    private function holidaysActLiabilityPayload(DdEngagement $engagement): array
-    {
-        $details = $engagement->target_details ?? [];
-        $raw = data_get($details, 'holidays_act_liability', data_get($details, 'holidays_act'));
-
-        if (is_numeric($raw)) {
-            return [
-                'total_liability_nzd' => round((float) $raw, 2),
-                'basis' => 'Advisor supplied Holidays Act liability.',
-            ];
-        }
-
-        if (is_array($raw)) {
-            if (is_numeric($raw['total_liability'] ?? $raw['total_liability_nzd'] ?? null)) {
-                return [
-                    'total_liability_nzd' => round((float) ($raw['total_liability'] ?? $raw['total_liability_nzd']), 2),
-                    'basis' => (string) ($raw['basis'] ?? 'Advisor supplied Holidays Act liability.'),
-                ];
-            }
-
-            if (is_numeric($raw['underpaid_hours'] ?? null) && is_numeric($raw['hourly_rate'] ?? null)) {
-                $calculation = $this->holidaysActLiability->calculate(
-                    (float) $raw['underpaid_hours'],
-                    (float) $raw['hourly_rate'],
-                    (float) ($raw['buffer_rate'] ?? 0.15),
-                );
-
-                return [
-                    'total_liability_nzd' => $calculation['total_liability'],
-                    'basis' => sprintf(
-                        'Calculated from %.2f underpaid hours at %s/hour plus remediation buffer.',
-                        $calculation['underpaid_hours'],
-                        $this->money($calculation['hourly_rate']),
-                    ),
-                ];
-            }
-        }
-
-        return [
-            'total_liability_nzd' => 0.0,
-            'basis' => 'No Holidays Act liability chip recorded.',
-        ];
-    }
-
-    private function workingCapitalAdjustmentNzd(DdEngagement $engagement): float
-    {
-        $details = $engagement->target_details ?? [];
-        $direct = data_get($details, 'working_capital_adjustment_nzd');
-
-        if (is_numeric($direct)) {
-            return round(max(0, (float) $direct), 2);
-        }
-
-        return round(max(0, $this->ddAdjustmentTotal(
-            data_get($details, 'working_capital_adjustments', []),
-            data_get($details, 'completion_accounts_adjustments', []),
-        )), 2);
-    }
-
-    /**
-     * @param  Collection<int, DdRiskRegisterItem>  $risks
-     * @param  array{total_liability_nzd:float, basis:string}  $holidaysAct
-     * @return array<int, array{label:string, amount_nzd:float, basis:string, source_reference:string}>
-     */
-    private function priceChips(Collection $risks, array $holidaysAct, float $workingCapitalAdjustment): array
-    {
-        $chips = $risks
-            ->filter(fn (DdRiskRegisterItem $risk): bool => $risk->price_adjustment_nzd > 0)
-            ->map(fn (DdRiskRegisterItem $risk): array => [
-                'label' => $risk->title,
-                'amount_nzd' => round($risk->price_adjustment_nzd, 2),
-                'basis' => str_replace('_', ' ', $risk->risk_level).' DD risk priced from RiskCostPv.',
-                'source_reference' => 'dd_risk_register:'.$risk->getKey(),
-            ])
-            ->values()
-            ->all();
-
-        if ($holidaysAct['total_liability_nzd'] > 0) {
-            $chips[] = [
-                'label' => 'Holidays Act remediation',
-                'amount_nzd' => $holidaysAct['total_liability_nzd'],
-                'basis' => $holidaysAct['basis'],
-                'source_reference' => 'holidays_act_liability:target_details',
-            ];
-        }
-
-        if ($workingCapitalAdjustment > 0) {
-            $chips[] = [
-                'label' => 'Working-capital true-up',
-                'amount_nzd' => $workingCapitalAdjustment,
-                'basis' => 'Advisor supplied working-capital/completion adjustment.',
-                'source_reference' => 'working_capital_adjustment:target_details',
-            ];
-        }
-
-        return $chips;
-    }
-
-    /**
-     * @return array{low:float, mid:float, high:float}|null
-     */
-    private function ddValuationRange(DdValuation $valuation, string $key): ?array
-    {
-        $range = $key === 'reconciled'
-            ? (data_get($valuation->normalised_values, 'reconciled') ?? $valuation->normalised_values)
-            : data_get($valuation->normalised_values, $key);
-
-        if (! is_array($range) && $valuation->businessValuation !== null) {
-            $sourceRange = match ($key) {
-                'sde_value' => $valuation->businessValuation->sde_value,
-                'ebitda_value' => $valuation->businessValuation->ebitda_value,
-                'dcf_value' => $valuation->businessValuation->dcf_value,
-                default => null,
-            };
-
-            $range = is_array($sourceRange)
-                ? $this->convertRangeToNzd($sourceRange, $valuation->source_to_nzd_rate)
-                : null;
-        }
-
-        if (! is_array($range)) {
-            return null;
-        }
-
-        foreach (['low', 'mid', 'high'] as $point) {
-            if (! is_numeric($range[$point] ?? null)) {
-                return null;
-            }
-        }
-
-        return [
-            'low' => round((float) $range['low'], 2),
-            'mid' => round((float) $range['mid'], 2),
-            'high' => round((float) $range['high'], 2),
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $range
-     * @return array<string, mixed>
-     */
-    private function convertRangeToNzd(array $range, float $rate): array
-    {
-        foreach (['low', 'mid', 'high'] as $point) {
-            if (is_numeric($range[$point] ?? null)) {
-                $range[$point] = round((float) $range[$point] * $rate, 2);
-            }
-        }
-
-        return $range;
-    }
-
-    private function ddAdjustmentTotal(mixed ...$groups): float
-    {
-        return round(collect($groups)
-            ->flatMap(function (mixed $group): array {
-                if (! is_array($group)) {
-                    return [];
-                }
-
-                if (isset($group['amount']) || isset($group['value'])) {
-                    return [$group];
-                }
-
-                return array_values(array_filter($group, 'is_array'));
-            })
-            ->filter(fn (mixed $item): bool => is_array($item))
-            ->sum(fn (array $adjustment): float => (float) ($adjustment['amount'] ?? $adjustment['value'] ?? 0)), 2);
-    }
-
     private function money(mixed $value): string
     {
         return is_numeric($value) ? 'NZD '.number_format((float) $value, 0) : 'n/a';
-    }
-
-    /**
-     * @return array{gst_zero_rating_status:string,gst_cash_exposure_nzd:float,working_capital_peg:string,vendor_finance:string,earnout:string}
-     */
-    private function dealMechanicsPayload(DdEngagement $engagement, mixed $askingPriceNzd): array
-    {
-        $details = $engagement->target_details ?? [];
-        $zeroRated = data_get($details, 'gst_going_concern_zero_rating', data_get($details, 'gst.zero_rating'));
-        $zeroRatingStatus = is_bool($zeroRated)
-            ? ($zeroRated ? 'confirmed as intended' : 'not confirmed')
-            : (is_string($zeroRated) && trim($zeroRated) !== '' ? $zeroRated : 'not recorded');
-
-        return [
-            'gst_zero_rating_status' => $zeroRatingStatus,
-            'gst_cash_exposure_nzd' => $zeroRated === false && is_numeric($askingPriceNzd)
-                ? round((float) $askingPriceNzd * 0.15, 2)
-                : 0.0,
-            'working_capital_peg' => $this->dealMechanicText(data_get($details, 'working_capital_peg')),
-            'vendor_finance' => $this->dealMechanicText(data_get($details, 'vendor_finance')),
-            'earnout' => $this->dealMechanicText(data_get($details, 'earnout')),
-        ];
-    }
-
-    private function dealMechanicText(mixed $value): string
-    {
-        if (is_string($value) && trim($value) !== '') {
-            return $value;
-        }
-
-        if (is_numeric($value)) {
-            return $this->money($value);
-        }
-
-        if (is_array($value)) {
-            foreach (['summary', 'status', 'label', 'description'] as $key) {
-                if (is_string($value[$key] ?? null) && trim((string) $value[$key]) !== '') {
-                    return (string) $value[$key];
-                }
-            }
-
-            return json_encode($value, JSON_THROW_ON_ERROR);
-        }
-
-        return 'not recorded';
     }
 
     private function latestProposal(Client $client): ?Proposal
