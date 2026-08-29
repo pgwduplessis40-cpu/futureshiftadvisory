@@ -20,7 +20,6 @@ use App\Models\DdValuation;
 use App\Models\DdWorkstream;
 use App\Models\FinancialSnapshot;
 use App\Models\Goal;
-use App\Models\ImprovementOpportunity;
 use App\Models\Milestone;
 use App\Models\NpoEngagement;
 use App\Models\PlanAssessment;
@@ -31,7 +30,6 @@ use App\Models\QuestionnaireResponse;
 use App\Models\Report;
 use App\Models\ReportSection;
 use App\Models\RiskCost;
-use App\Models\SuccessionPlan;
 use App\Models\User;
 use App\Models\WebsiteAuditSnapshot;
 use App\Services\Analysis\HolidaysActLiabilityCalculator;
@@ -49,6 +47,7 @@ use App\Services\Reports\Contracts\NpoHealthReportComposition;
 use App\Services\Reports\Contracts\NpoImpactSummaryReportComposition;
 use App\Services\Reports\Contracts\NpoSocialEnterpriseDualReportComposition;
 use App\Services\Reports\Contracts\ReportArtifactRenderer;
+use App\Services\Reports\Contracts\SuccessionValueGapReportComposition;
 use App\Services\Reports\Contracts\ValuationReportComposition;
 use App\Services\Reports\Data\NpoImpactSummaryInput;
 use App\Support\Methodology\ProvidesMethodology;
@@ -82,6 +81,7 @@ final class ReportComposer implements ProvidesMethodology
         private readonly NpoFunderAccountabilityReportComposition $npoFunderAccountabilityReports,
         private readonly EntrepreneurAssessmentReportComposition $entrepreneurAssessmentReports,
         private readonly ValuationReportComposition $valuationReports,
+        private readonly SuccessionValueGapReportComposition $successionValueGapReports,
     ) {}
 
     public function compose(Client $client, ReportType $type, ?User $actor = null): Report
@@ -411,53 +411,7 @@ final class ReportComposer implements ProvidesMethodology
 
     public function composeSuccessionValueGap(Client $client, ?User $actor = null): Report
     {
-        return DB::transaction(function () use ($client, $actor): Report {
-            $valuation = $this->latestValuation($client);
-            $successionPlan = $this->latestSuccessionPlan($client);
-            $improvements = $this->latestImprovementOpportunities($client);
-
-            $report = Report::query()->create([
-                'client_id' => $client->getKey(),
-                'type' => ReportType::SuccessionValueGap,
-                'title' => ReportType::SuccessionValueGap->label().' - '.$client->legal_name,
-                'generated_by_user_id' => $actor?->getKey(),
-                'generated_at' => now(),
-                'metadata' => [
-                    'phase' => 'phase_report_layer_composition',
-                    'business_valuation_id' => $valuation?->getKey(),
-                    'succession_plan_id' => $successionPlan?->getKey(),
-                    'advisor_review_required' => true,
-                    'redactions' => [],
-                ],
-                'render_status' => Report::RENDER_STATUS_COMPOSING,
-                'review_status' => 'pending_review',
-            ]);
-
-            foreach ($this->successionValueGapSections($client, $valuation, $successionPlan, $improvements) as $position => $section) {
-                ReportSection::query()->create([
-                    ...$section,
-                    'report_id' => $report->getKey(),
-                    'client_id' => $client->getKey(),
-                    'position' => $position + 1,
-                ]);
-            }
-
-            $this->renderAndAuditAfterCommit(
-                $report,
-                $actor,
-                'succession.value_gap_report_generated',
-                fn (Report $rendered): array => [
-                    'client_id' => $client->getKey(),
-                    'business_valuation_id' => $valuation?->getKey(),
-                    'succession_plan_id' => $successionPlan?->getKey(),
-                    'sections' => $rendered->sections()->count(),
-                    'pdf_path' => $rendered->pdf_path,
-                ],
-                ['client', 'sections'],
-            );
-
-            return $report->refresh()->load(['client', 'sections']);
-        });
+        return $this->successionValueGapReports->compose($client, $actor);
     }
 
     public function markReviewed(Report $report, User $actor): Report
@@ -820,26 +774,6 @@ final class ReportComposer implements ProvidesMethodology
             $this->walkAwayPriceChipSection($engagement, $risks, $price),
             $this->dealMechanicsSection($engagement, $price),
             $this->goNoGoEvidenceSection($engagement, $valuation, $risks),
-        ];
-    }
-
-    /**
-     * @param  Collection<int, ImprovementOpportunity>  $improvements
-     * @return array<int, array<string, mixed>>
-     */
-    private function successionValueGapSections(
-        Client $client,
-        ?BusinessValuation $valuation,
-        ?SuccessionPlan $successionPlan,
-        Collection $improvements,
-    ): array {
-        $gap = $this->successionGapPayload($valuation, $successionPlan, $improvements);
-
-        return [
-            $this->successionGapSummarySection($client, $valuation, $successionPlan, $gap),
-            $this->successionReadinessSection($client, $successionPlan),
-            $this->successionImprovementBridgeSection($client, $improvements, $gap),
-            $this->successionOptionsSection($client, $successionPlan),
         ];
     }
 
@@ -1752,148 +1686,6 @@ final class ReportComposer implements ProvidesMethodology
     }
 
     /**
-     * @param  array<string, float|null>  $gap
-     * @return array<string, mixed>
-     */
-    private function successionGapSummarySection(
-        Client $client,
-        ?BusinessValuation $valuation,
-        ?SuccessionPlan $successionPlan,
-        array $gap,
-    ): array {
-        $body = sprintf(
-            "Current valuation midpoint: %s.\nOwner target exit PV: %s.\nCurrent value gap: %s.\nPV of ranked improvements: %s.\nProjected value after improvements: %s.\nRemaining gap after improvements: %s.\n\nInterpretation: this report connects succession readiness to enterprise value so the owner can see which improvements most directly close the exit gap.",
-            $this->money($gap['current_value_nzd']),
-            $this->money($gap['target_exit_pv_nzd']),
-            $this->money($gap['current_gap_nzd']),
-            $this->money($gap['improvement_pv_nzd']),
-            $this->money($gap['projected_value_nzd']),
-            $this->money($gap['remaining_gap_nzd']),
-        );
-
-        return $this->generatedSection(
-            key: 'succession_value_gap',
-            title: 'Value-gap analysis',
-            body: $body,
-            sourceReference: $successionPlan instanceof SuccessionPlan ? 'succession_plan:'.$successionPlan->getKey() : 'client:'.$client->getKey().':succession_value_gap',
-            dataQualityNote: 'Data quality note: value gap compares latest valuation, latest succession target-exit PV, and ranked improvement PV rows.',
-            metadata: [
-                'business_valuation_id' => $valuation?->getKey(),
-                'succession_plan_id' => $successionPlan?->getKey(),
-                'gap' => $gap,
-            ],
-        );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function successionReadinessSection(Client $client, ?SuccessionPlan $successionPlan): array
-    {
-        if (! $successionPlan instanceof SuccessionPlan) {
-            return $this->generatedSection(
-                key: 'exit_readiness',
-                title: 'Exit readiness',
-                body: 'No succession plan is available yet. Run the succession planner before relying on exit-readiness scoring.',
-                sourceReference: 'succession_plan:none:'.$client->getKey(),
-                dataQualityNote: 'Data quality note: succession readiness is pending a succession-plan run.',
-            );
-        }
-
-        $ownerPlan = collect((array) ($successionPlan->owner_dependency_plan['actions'] ?? []))
-            ->filter()
-            ->map(fn (mixed $action): string => is_scalar($action) ? (string) $action : json_encode($action, JSON_THROW_ON_ERROR))
-            ->implode("\n");
-        $constraint = $successionPlan->owner_readiness_is_primary_constraint
-            ? 'Owner readiness is the primary constraint.'
-            : 'Owner readiness is not currently marked as the primary constraint.';
-
-        $body = sprintf(
-            "Exit readiness score: %d/10.\n%s\nOwner dependency actions:\n%s",
-            $successionPlan->exit_readiness_score,
-            $constraint,
-            $ownerPlan !== '' ? $ownerPlan : 'No owner dependency actions recorded.',
-        );
-
-        return $this->generatedSection(
-            key: 'exit_readiness',
-            title: 'Exit readiness',
-            body: $body,
-            sourceReference: 'succession_plan:'.$successionPlan->getKey().':readiness',
-            dataQualityNote: 'Data quality note: readiness comes from the persisted succession planner output and should be reviewed against current owner intentions.',
-            metadata: [
-                'succession_plan_id' => $successionPlan->getKey(),
-                'exit_readiness_score' => $successionPlan->exit_readiness_score,
-                'owner_readiness_is_primary_constraint' => $successionPlan->owner_readiness_is_primary_constraint,
-            ],
-        );
-    }
-
-    /**
-     * @param  Collection<int, ImprovementOpportunity>  $improvements
-     * @param  array<string, float|null>  $gap
-     * @return array<string, mixed>
-     */
-    private function successionImprovementBridgeSection(Client $client, Collection $improvements, array $gap): array
-    {
-        $rows = $improvements
-            ->map(fn (ImprovementOpportunity $opportunity): string => sprintf(
-                '#%d %s: %s PV impact over %d year(s).',
-                $opportunity->rank,
-                $opportunity->title,
-                $this->money($opportunity->pv_of_impact),
-                $opportunity->duration_years,
-            ))
-            ->implode("\n");
-
-        $body = sprintf(
-            "Improvement PV included in bridge: %s.\n\nRanked improvement bridge:\n%s",
-            $this->money($gap['improvement_pv_nzd']),
-            $rows !== '' ? $rows : 'No ranked improvement opportunities are available yet.',
-        );
-
-        return $this->generatedSection(
-            key: 'improvement_value_bridge',
-            title: 'Improvement value bridge',
-            body: $body,
-            sourceReference: 'improvement_opportunities:'.$client->getKey(),
-            dataQualityNote: 'Data quality note: improvement PV comes from persisted ranked improvement opportunities and shared PV calculations.',
-            metadata: [
-                'improvement_opportunity_ids' => $improvements->pluck('id')->values()->all(),
-                'improvement_pv_nzd' => $gap['improvement_pv_nzd'],
-            ],
-        );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function successionOptionsSection(Client $client, ?SuccessionPlan $successionPlan): array
-    {
-        $options = collect((array) ($successionPlan?->options ?? []))
-            ->filter(fn (mixed $item): bool => is_array($item))
-            ->map(fn (array $option): string => sprintf(
-                '%s: fit score %s. %s',
-                (string) ($option['name'] ?? 'Succession option'),
-                (string) ($option['fit_score'] ?? $option['score'] ?? 'n/a'),
-                (string) ($option['rationale'] ?? 'Advisor review required.'),
-            ))
-            ->implode("\n");
-
-        return $this->generatedSection(
-            key: 'succession_options',
-            title: 'Exit option comparison',
-            body: $options !== '' ? $options : 'No succession options are recorded yet.',
-            sourceReference: $successionPlan instanceof SuccessionPlan ? 'succession_plan:'.$successionPlan->getKey().':options' : 'succession_plan:none:'.$client->getKey(),
-            dataQualityNote: 'Data quality note: option comparison is sourced from the latest succession planner output.',
-            metadata: [
-                'succession_plan_id' => $successionPlan?->getKey(),
-                'options' => $successionPlan?->options ?? [],
-            ],
-        );
-    }
-
-    /**
      * @param  array<string, mixed>  $waterfall
      * @return array<string, mixed>
      */
@@ -2445,30 +2237,6 @@ final class ReportComposer implements ProvidesMethodology
             ->first();
     }
 
-    private function latestSuccessionPlan(Client $client): ?SuccessionPlan
-    {
-        return SuccessionPlan::query()
-            ->where('client_id', $client->getKey())
-            ->latest()
-            ->first();
-    }
-
-    /**
-     * @return Collection<int, ImprovementOpportunity>
-     */
-    private function latestImprovementOpportunities(Client $client): Collection
-    {
-        return ImprovementOpportunity::query()
-            ->where('client_id', $client->getKey())
-            ->active()
-            ->orderBy('rank')
-            ->latest()
-            ->limit(6)
-            ->get()
-            ->sortBy('rank')
-            ->values();
-    }
-
     /**
      * @param  Collection<int, DdRiskRegisterItem>  $risks
      * @return array<string, mixed>
@@ -2667,31 +2435,6 @@ final class ReportComposer implements ProvidesMethodology
         }
 
         return 'not recorded';
-    }
-
-    /**
-     * @param  Collection<int, ImprovementOpportunity>  $improvements
-     * @return array{current_value_nzd:?float, target_exit_pv_nzd:?float, current_gap_nzd:?float, improvement_pv_nzd:float, projected_value_nzd:?float, remaining_gap_nzd:?float}
-     */
-    private function successionGapPayload(?BusinessValuation $valuation, ?SuccessionPlan $successionPlan, Collection $improvements): array
-    {
-        $current = $valuation?->reconciled_mid;
-        $target = $successionPlan?->target_exit_pv;
-        $improvementPv = round((float) $improvements->sum('pv_of_impact'), 2);
-        $projected = is_numeric($current) ? round((float) $current + $improvementPv, 2) : null;
-
-        return [
-            'current_value_nzd' => is_numeric($current) ? round((float) $current, 2) : null,
-            'target_exit_pv_nzd' => is_numeric($target) ? round((float) $target, 2) : null,
-            'current_gap_nzd' => is_numeric($current) && is_numeric($target)
-                ? round((float) $target - (float) $current, 2)
-                : null,
-            'improvement_pv_nzd' => $improvementPv,
-            'projected_value_nzd' => $projected,
-            'remaining_gap_nzd' => is_numeric($projected) && is_numeric($target)
-                ? round((float) $target - (float) $projected, 2)
-                : null,
-        ];
     }
 
     private function latestProposal(Client $client): ?Proposal

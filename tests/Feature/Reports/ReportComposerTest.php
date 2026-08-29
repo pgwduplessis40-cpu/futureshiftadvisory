@@ -38,9 +38,11 @@ use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
 use App\Services\Reports\Contracts\ReportArtifactRenderer;
+use App\Services\Reports\Contracts\SuccessionValueGapReportComposition;
 use App\Services\Reports\Contracts\ValuationReportComposition;
 use App\Services\Reports\ReportComposer;
 use App\Services\Reports\StoredReportArtifactRenderer;
+use App\Services\Reports\SuccessionValueGapReportComposer;
 use App\Services\Reports\ValuationReportComposer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -389,6 +391,7 @@ final class ReportComposerTest extends TestCase
 
         $report = app(ReportComposer::class)->composeSuccessionValueGap($client, $advisor);
 
+        $this->assertInstanceOf(SuccessionValueGapReportComposer::class, app(SuccessionValueGapReportComposition::class));
         $this->assertSame(ReportType::SuccessionValueGap, $report->type);
         $this->assertSame('pending_review', $report->review_status);
 
@@ -401,11 +404,49 @@ final class ReportComposerTest extends TestCase
             $this->assertTrue($report->sections->contains('key', $key), "Missing succession section {$key}.");
         }
 
-        $gap = $report->sections->firstWhere('key', 'succession_value_gap')?->metadata['gap'];
-        $this->assertEqualsWithDelta(400000, $gap['current_gap_nzd'], 0.01);
-        $this->assertEqualsWithDelta(250000, $gap['remaining_gap_nzd'], 0.01);
+        $gap = $report->sections->firstWhere('key', 'succession_value_gap');
+        $options = $report->sections->firstWhere('key', 'succession_options');
+
+        $this->assertInstanceOf(ReportSection::class, $gap);
+        $this->assertInstanceOf(ReportSection::class, $options);
+        $this->assertArrayNotHasKey('gap', $gap->metadata);
+        $this->assertTrue($gap->metadata['current_gap_available']);
+        $this->assertEqualsWithDelta(400000, $gap->metadata['current_gap_nzd'], 0.01);
+        $this->assertEqualsWithDelta(250000, $gap->metadata['remaining_gap_nzd'], 0.01);
+        $this->assertArrayNotHasKey('options', $options->metadata);
+        $this->assertSame(1, $options->metadata['option_count']);
+        $this->assertSame(['Trade sale'], $options->metadata['option_names']);
         $this->assertStringContainsString('Value-gap analysis', $this->renderer->html);
         $this->assertStringContainsString('Trade sale', $this->renderer->html);
+    }
+
+    public function test_succession_value_gap_report_keeps_missing_sources_explicit_without_nested_metadata(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('succession-gap-missing-sources@example.test');
+
+        $report = app(ReportComposer::class)->composeSuccessionValueGap($client, $advisor);
+        $gap = $report->sections->firstWhere('key', 'succession_value_gap');
+        $readiness = $report->sections->firstWhere('key', 'exit_readiness');
+        $bridge = $report->sections->firstWhere('key', 'improvement_value_bridge');
+        $options = $report->sections->firstWhere('key', 'succession_options');
+
+        $this->assertInstanceOf(ReportSection::class, $gap);
+        $this->assertInstanceOf(ReportSection::class, $readiness);
+        $this->assertInstanceOf(ReportSection::class, $bridge);
+        $this->assertInstanceOf(ReportSection::class, $options);
+        $this->assertFalse($gap->metadata['current_value_available']);
+        $this->assertFalse($gap->metadata['target_exit_pv_available']);
+        $this->assertEqualsWithDelta(0.0, (float) $gap->metadata['improvement_pv_nzd'], 0.01);
+        $this->assertSame('', $gap->metadata['business_valuation_id']);
+        $this->assertArrayNotHasKey('gap', $gap->metadata);
+        $this->assertFalse($readiness->metadata['succession_plan_available']);
+        $this->assertSame(0, $bridge->metadata['improvement_count']);
+        $this->assertSame(0, $options->metadata['option_count']);
+        $this->assertSame([], $options->metadata['option_names']);
+        $this->assertArrayNotHasKey('options', $options->metadata);
+        $this->assertStringContainsString('No succession plan is available yet.', $readiness->body);
+        $this->assertStringContainsString('No ranked improvement opportunities are available yet.', $bridge->body);
+        $this->assertStringContainsString('No succession options are recorded yet.', $options->body);
     }
 
     public function test_client_report_uses_active_report_template(): void
