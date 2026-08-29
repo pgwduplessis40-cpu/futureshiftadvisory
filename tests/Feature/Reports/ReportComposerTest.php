@@ -39,10 +39,12 @@ use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
 use App\Services\Reports\Contracts\PostAcquisitionGapReportComposition;
 use App\Services\Reports\Contracts\ReportArtifactRenderer;
+use App\Services\Reports\Contracts\StandardAdvisoryReportComposition;
 use App\Services\Reports\Contracts\SuccessionValueGapReportComposition;
 use App\Services\Reports\Contracts\ValuationReportComposition;
 use App\Services\Reports\PostAcquisitionGapReportComposer;
 use App\Services\Reports\ReportComposer;
+use App\Services\Reports\StandardAdvisoryReportComposer;
 use App\Services\Reports\StoredReportArtifactRenderer;
 use App\Services\Reports\SuccessionValueGapReportComposer;
 use App\Services\Reports\ValuationReportComposer;
@@ -68,6 +70,14 @@ final class ReportComposerTest extends TestCase
     private object $pptx;
 
     private bool $connectionBypassesRls = false;
+
+    public function test_standard_advisory_reports_use_typed_composition_contract(): void
+    {
+        $this->assertInstanceOf(
+            StandardAdvisoryReportComposer::class,
+            app(StandardAdvisoryReportComposition::class),
+        );
+    }
 
     public function test_post_acquisition_gap_report_uses_typed_composition_contract(): void
     {
