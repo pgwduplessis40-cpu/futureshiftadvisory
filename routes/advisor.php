@@ -23,6 +23,7 @@ use App\Http\Controllers\Advisor\EntrepreneurAssessmentController;
 use App\Http\Controllers\Advisor\EntrepreneurController;
 use App\Http\Controllers\Advisor\EntrepreneurDocumentController;
 use App\Http\Controllers\Advisor\EntrepreneurMessageController;
+use App\Http\Controllers\Advisor\EntrepreneurPlanDocumentController;
 use App\Http\Controllers\Advisor\FoundingAdvisoryController;
 use App\Http\Controllers\Advisor\GoalController;
 use App\Http\Controllers\Advisor\IntegrationScopeController;
@@ -457,19 +458,19 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/refresh', [EntrepreneurActionController::class, 'refreshIdea'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.idea-validations.refresh');
-        Route::get('entrepreneurs/{entrepreneurProfile}/plans/preview', [EntrepreneurController::class, 'latestPlanPreview'])
+        Route::get('entrepreneurs/{entrepreneurProfile}/plans/preview', [EntrepreneurPlanDocumentController::class, 'latestPlanPreview'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.plans.latest.preview');
-        Route::get('entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf', [EntrepreneurController::class, 'latestBudgetPackPdf'])
+        Route::get('entrepreneurs/{entrepreneurProfile}/plans/budget-pack/pdf', [EntrepreneurPlanDocumentController::class, 'latestBudgetPackPdf'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.plans.latest.budget-pack.pdf');
-        Route::get('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview', [EntrepreneurController::class, 'planPreview'])
+        Route::get('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/preview', [EntrepreneurPlanDocumentController::class, 'planPreview'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.plans.preview');
-        Route::get('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf', [EntrepreneurController::class, 'budgetPackPdf'])
+        Route::get('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget-pack/pdf', [EntrepreneurPlanDocumentController::class, 'budgetPackPdf'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.plans.budget-pack.pdf');
-        Route::get('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf', [EntrepreneurController::class, 'funderReadyPlanPdf'])
+        Route::get('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready/pdf', [EntrepreneurPlanDocumentController::class, 'funderReadyPlanPdf'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.plans.funder-ready.pdf');
         Route::post('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/executive-summary', [EntrepreneurActionController::class, 'generateExecutiveSummary'])

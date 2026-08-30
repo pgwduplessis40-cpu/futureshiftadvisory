@@ -175,9 +175,6 @@ trait BuildsEntrepreneurAssessmentPayload
     private function entrepreneurVisibleMentorNotes(PlanAssessment $assessment): array
     {
         $notes = $assessment->mentor_notes ?? [];
-        if (! is_array($notes)) {
-            return [];
-        }
 
         unset(
             $notes['private_advisory'],
@@ -222,13 +219,23 @@ trait BuildsEntrepreneurAssessmentPayload
             && collect($criteria)
                 ->filter(fn (array $criterion): bool => ($criterion['source'] ?? null) === 'automated_assessment')
                 ->every(fn (array $criterion): bool => ($criterion['evidence_mode'] ?? null) === 'complete_submitted_plan_snapshot');
-        $sections = collect($planSnapshot['phases'] ?? [])
+        $phases = $planSnapshot['phases'] ?? [];
+        if (! is_array($phases)) {
+            $phases = [];
+        }
+
+        $sections = collect($phases)
             ->flatMap(function (mixed $phase): array {
                 if (! is_array($phase)) {
                     return [];
                 }
 
-                return collect($phase['sections'] ?? [])
+                $phaseSections = $phase['sections'] ?? [];
+                if (! is_array($phaseSections)) {
+                    return [];
+                }
+
+                return collect($phaseSections)
                     ->filter(fn (mixed $section): bool => is_array($section))
                     ->map(fn (array $section): array => [
                         'section_id' => (string) ($section['id'] ?? ''),
