@@ -84,6 +84,10 @@ final class DashboardTest extends TestCase
                 ->where('clientsHealth.summary.total', 1)
                 ->where('clientsHealth.summary.needs_attention', 1)
                 ->where('clientsHealth.clients.0.legal_name', 'Scoped Health Limited')
+                ->where(
+                    'clientsHealth.clients.0.show_url',
+                    route('advisor.clients.show', $client, absolute: false),
+                )
                 ->where('clientsHealth.clients.0.engagement.level', 'red')
                 ->where('clientsHealth.clients.0.engagement.score', 25)
                 ->where('clientsHealth.clients.0.engagement.scores.questionnaire_pct', 0)
