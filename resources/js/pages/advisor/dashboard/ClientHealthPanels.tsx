@@ -1,10 +1,5 @@
 import { Link, router } from '@inertiajs/react';
-import {
-    Banknote,
-    ListChecks,
-    ShieldAlert,
-    UsersRound,
-} from 'lucide-react';
+import { Banknote, ListChecks, ShieldAlert, UsersRound } from 'lucide-react';
 import type React from 'react';
 import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
 import type { InsightHoverCardRow } from '@/components/insight/InsightHoverCard';
