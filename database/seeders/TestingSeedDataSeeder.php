@@ -5981,6 +5981,7 @@ XML);
             StrategicBudget::STATUS_USED_IN_PROPOSAL,
             StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT,
         ], true)) {
+            $budget = $budgetService->assess($budget, $advisor);
             $budget = $budgetService->approve($budget, $advisor);
             $approved = true;
         }

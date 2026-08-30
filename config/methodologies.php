@@ -10,6 +10,7 @@ use App\Services\Dashboards\ClientEngagementScorer;
 use App\Services\Dashboards\EconomicExposureMapper;
 use App\Services\DataQuality\DataQualityScorer;
 use App\Services\DataQuality\QuestionnaireCompletenessCalculator;
+use App\Services\Dd\BuyerDecisionReadiness;
 use App\Services\Dd\FxNormaliser;
 use App\Services\Dd\Valuation as DdValuationService;
 use App\Services\Entrepreneurs\AdvisoryReadiness;
@@ -73,6 +74,7 @@ return [
         'advisor.data_quality' => 'Advisor data quality gate',
         'advisor.dd.risk_register' => 'Advisor DD risk register',
         'advisor.dd.valuation' => 'Advisor DD valuation workflow',
+        'advisor.dd.buyer_decision' => 'Advisor DD buyer decision-readiness workflow',
         'advisor.entrepreneurs.advisory_readiness' => 'Advisor entrepreneur advisory readiness signal',
         'advisor.entrepreneurs.rating_framework' => 'Advisor entrepreneur rating framework manager',
         'advisor.fees.calculator' => 'Advisor fee calculator',
@@ -737,6 +739,35 @@ return [
             ],
             'owning_service' => ReportComposer::class,
             'version' => '2026-05-wo-m02',
+            'internal_only' => true,
+        ],
+
+        'dd.buyer_decision_readiness' => [
+            'id' => 'dd.buyer_decision_readiness',
+            'area' => 'Due diligence',
+            'name' => 'DD Buyer Decision Readiness',
+            'summary' => 'Determines whether the DD report is strong enough to support an informed buy, renegotiate, pause, or walk-away decision.',
+            'formula' => 'Decision-readiness passes only when all required DD workstreams are complete, findings trace to evidence, unresolved document flags are clear, a DD valuation is available, risks are classified, and the engagement has an explicit buy / renegotiate / walk-away recommendation. Confidence is high when those gates pass with verified evidence and valuation support; otherwise the buyer-decision state remains gap-driven.',
+            'inputs' => [
+                'Completed DD workstreams',
+                'Data-room evidence item count',
+                'Analysis findings and document-support status',
+                'DD valuation midpoint',
+                'Risk register levels and price adjustments',
+                'Latest DD recommendation and rationale',
+                'Advisor report review status',
+            ],
+            'config_refs' => [],
+            'where_used' => [
+                'advisor.dd.buyer_decision',
+                'advisor.dd.risk_register',
+            ],
+            'sources' => [
+                'PLAN-METHODOLOGY-REGISTRY.md',
+                'DD decision-readiness quality gate',
+            ],
+            'owning_service' => BuyerDecisionReadiness::class,
+            'version' => '2026-08-dd-decision-quality',
             'internal_only' => true,
         ],
 

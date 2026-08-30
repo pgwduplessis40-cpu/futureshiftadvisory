@@ -10,10 +10,16 @@ use App\Models\DdRiskRegisterItem;
 use App\Models\DdValuation;
 use App\Models\DdWorkstream;
 use App\Models\Report;
+use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Collection;
 
-final class BuyerDecisionReadiness
+final class BuyerDecisionReadiness implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['dd.buyer_decision_readiness'];
+    }
+
     /**
      * @return array<array-key, mixed>
      */
