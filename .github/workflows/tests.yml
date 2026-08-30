@@ -165,6 +165,7 @@ jobs:
           fi
           php scripts/assert-monolith-size.php "${comparison_ref}"
           php scripts/assert-monolith-size.php --production
+          node scripts/assert-explicit-intl-locales.mjs "${comparison_ref}"
           php scripts/assert-boundary-contracts.php "${comparison_ref}"
           node scripts/assert-accessible-checkboxes.mjs "${comparison_ref}"
 
