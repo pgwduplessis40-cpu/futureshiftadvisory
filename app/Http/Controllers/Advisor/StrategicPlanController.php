@@ -118,11 +118,7 @@ final class StrategicPlanController extends Controller
             return ['the client record is available'];
         }
 
-        $engagementType = $client->engagement_type instanceof EngagementType
-            ? $client->engagement_type
-            : EngagementType::tryFrom((string) $client->engagement_type);
-
-        if ($engagementType !== EngagementType::DUE_DILIGENCE) {
+        if ($client->engagement_type !== EngagementType::DUE_DILIGENCE) {
             return [];
         }
 

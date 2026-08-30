@@ -161,11 +161,7 @@ final class AdvisorClientShowPayloadBuilder
 
     private function isDueDiligenceClient(Client $client): bool
     {
-        $engagementType = $client->engagement_type instanceof EngagementType
-            ? $client->engagement_type
-            : EngagementType::tryFrom((string) $client->engagement_type);
-
-        return $engagementType === EngagementType::DUE_DILIGENCE;
+        return $client->engagement_type === EngagementType::DUE_DILIGENCE;
     }
 
     /** @return array<array-key, mixed>|null */
@@ -202,7 +198,7 @@ final class AdvisorClientShowPayloadBuilder
             },
             'report_title' => $latestReport?->title,
             'report_generated_at' => $latestReport?->generated_at?->toIso8601String(),
-            'report_review_status' => $latestReport?->review_status,
+            'report_review_status' => $latestReport instanceof Report ? $latestReport->review_status : null,
             'report_url' => $latestReport instanceof Report
                 ? route('advisor.reports.download', $latestReport, absolute: false)
                 : null,
@@ -257,6 +253,7 @@ final class AdvisorClientShowPayloadBuilder
     }
 
     /**
+     * @param  array<string, mixed>  $decisionReadiness
      * @return array<string, mixed>
      */
     private function dueDiligenceSuggestedReplyPayload(
@@ -269,7 +266,7 @@ final class AdvisorClientShowPayloadBuilder
         $priorities = $this->dueDiligenceFeedbackPriorities($decisionReadiness);
         $suggestedFeedback = $this->suggestedDueDiligenceAdvisorFeedback($engagement, $latestReport, $decisionReadiness, $priorities);
         $suggestedReply = $this->suggestedDueDiligenceClientReply($client, $engagement, $decisionReadiness, $priorities);
-        $status = (string) ($feedback['status'] ?? ($latestReport?->review_status ?? 'not_generated'));
+        $status = (string) ($feedback['status'] ?? ($latestReport instanceof Report ? $latestReport->review_status : 'not_generated'));
         $messageThreadId = data_get($feedback, 'client_message_thread_id');
 
         return [
@@ -295,6 +292,7 @@ final class AdvisorClientShowPayloadBuilder
     }
 
     /**
+     * @param  array<string, mixed>  $decisionReadiness
      * @param  array<int, array<string, mixed>>  $priorities
      */
     private function suggestedDueDiligenceAdvisorFeedback(
@@ -313,17 +311,18 @@ final class AdvisorClientShowPayloadBuilder
             ? $this->formatDdCurrency((float) $decisionReadiness['valuation_midpoint_nzd'])
             : 'not available';
 
-        return implode("\n\n", array_filter([
+        return implode("\n\n", [
             'DD version: '.$latestReport->title,
             'Buyer decision: '.(string) ($decisionReadiness['decision_label'] ?? 'Decision not ready').' ('.Str::of((string) ($decisionReadiness['confidence'] ?? 'low'))->replace('_', ' ')->lower()->toString().' confidence).',
             'Recommendation: '.$this->ddRecommendationLabel((string) ($decisionReadiness['recommendation'] ?? 'pending')).'. '.(string) ($decisionReadiness['recommendation_rationale'] ?? ''),
             'Evidence and risk position: '.(int) ($decisionReadiness['completed_workstreams'] ?? 0).'/'.(int) ($decisionReadiness['required_workstreams'] ?? 0).' workstreams complete; '.(int) ($decisionReadiness['evidence_item_count'] ?? 0).' evidence item(s); '.(int) ($decisionReadiness['verified_finding_count'] ?? 0).' verified finding(s); '.(int) ($decisionReadiness['flagged_finding_count'] ?? 0).' unresolved evidence flag(s); '.(int) ($decisionReadiness['material_risk_count'] ?? 0).' material risk(s); price adjustment '.$priceAdjustment.'; valuation midpoint '.$valuation.'.',
             'Suggested next step: '.$nextStep,
             'Use the suggested client reply as a starting point. Edit it before sending if commercial wording, purchase sensitivity, or legal/accounting caveats need nuance.',
-        ]));
+        ]);
     }
 
     /**
+     * @param  array<string, mixed>  $decisionReadiness
      * @param  array<int, array<string, mixed>>  $priorities
      */
     private function suggestedDueDiligenceClientReply(
@@ -372,8 +371,8 @@ final class AdvisorClientShowPayloadBuilder
                 return [
                     'id' => $report->getKey(),
                     'version' => $index + 1,
-                    'type' => $report->type?->value,
-                    'type_label' => $report->type?->label() ?? 'DD report',
+                    'type' => $report->type->value,
+                    'type_label' => $report->type->label(),
                     'title' => $report->title,
                     'generated_at' => $report->generated_at?->toIso8601String(),
                     'review_status' => $report->review_status,
@@ -403,6 +402,7 @@ final class AdvisorClientShowPayloadBuilder
     }
 
     /**
+     * @param  array<string, mixed>  $decisionReadiness
      * @return array<int, array<string, mixed>>
      */
     private function dueDiligenceFeedbackPriorities(array $decisionReadiness): array
@@ -469,6 +469,7 @@ final class AdvisorClientShowPayloadBuilder
     }
 
     /**
+     * @param  array<string, mixed>  $decisionReadiness
      * @param  array<int, array<string, mixed>>  $priorities
      */
     private function dueDiligenceNextStep(array $decisionReadiness, array $priorities): string
@@ -488,6 +489,9 @@ final class AdvisorClientShowPayloadBuilder
         return 'Review the DD decision report with the buyer and confirm the buy / renegotiate / walk-away decision.';
     }
 
+    /**
+     * @param  array<string, mixed>  $decisionReadiness
+     */
     private function firstDueDiligenceBlocker(array $decisionReadiness): ?string
     {
         $blocker = collect((array) ($decisionReadiness['blockers'] ?? []))

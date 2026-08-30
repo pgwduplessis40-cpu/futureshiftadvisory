@@ -490,11 +490,7 @@ final class DdBusinessPlanController extends Controller
 
     private function requiresOnboardingSupportLevel(Client $client, DdEngagement $engagement): bool
     {
-        $engagementType = $client->engagement_type instanceof EngagementType
-            ? $client->engagement_type
-            : EngagementType::tryFrom((string) $client->engagement_type);
-
-        if ($engagementType !== EngagementType::DUE_DILIGENCE) {
+        if ($client->engagement_type !== EngagementType::DUE_DILIGENCE) {
             return false;
         }
 

@@ -125,7 +125,7 @@ final class StrategicBudget extends Model
     }
 
     /**
-     * @return HasMany<StrategicBudgetAssessment>
+     * @return HasMany<StrategicBudgetAssessment, $this>
      */
     public function assessments(): HasMany
     {

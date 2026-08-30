@@ -624,6 +624,7 @@ final class BudgetCalculator implements ProvidesMethodology
 
     /**
      * @param  array<int, array<string, mixed>>  $rows
+     * @param  array<string, mixed>  $assumptions
      */
     private function contractorDeliveryCostsForMonth(array $rows, int $month, array $assumptions, float $revenueMultiplier): float
     {
@@ -1239,7 +1240,17 @@ final class BudgetCalculator implements ProvidesMethodology
      * @param  array<int, array<string, mixed>>  $fixedRows
      * @param  array<int, array<string, mixed>>  $revenueRows
      * @param  array<string, mixed>  $assumptions
-     * @return array<string, array<int, string>>
+     * @return array{
+     *     unconfirmed_fixed_cost_cadences: array<int, mixed>,
+     *     unconfirmed_revenue_growth: array<int, mixed>,
+     *     revenue_without_capacity: array<int, mixed>,
+     *     revenue_with_unpriced_contractors: array<int, mixed>,
+     *     unverified_fixed_cost_sources: array<int, mixed>,
+     *     unverified_revenue_sources: array<int, mixed>,
+     *     unverified_cash_timing: array<int, string>,
+     *     funding_position_unconfirmed: bool,
+     *     missing_assumptions: array<int, mixed>
+     * }
      */
     private function inputQuality(array $fixedRows, array $revenueRows, array $assumptions): array
     {

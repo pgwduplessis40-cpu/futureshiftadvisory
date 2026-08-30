@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\ComposeReport;
 use App\Models\Client;
 use App\Models\EntrepreneurProfile;
+use App\Models\Message;
 use App\Models\Report;
 use App\Models\ReportSection;
 use App\Models\ReportSectionComment;
@@ -214,6 +215,8 @@ final class ReportController extends Controller
                 body: $proposedReply,
             )
             : null;
+        $messageThreadId = $message instanceof Message ? $message->thread_id : null;
+        $messageId = $message instanceof Message ? $message->getKey() : null;
 
         $metadata['advisor_client_reply'] = [
             'status' => $sendToClient ? 'feedback_sent' : 'feedback_saved',
@@ -227,9 +230,9 @@ final class ReportController extends Controller
             'sent_by_user_id' => $sendToClient
                 ? $user->getKey()
                 : ($existingFeedback['sent_by_user_id'] ?? null),
-            'client_message_thread_id' => $message?->thread_id
+            'client_message_thread_id' => $messageThreadId
                 ?? ($existingFeedback['client_message_thread_id'] ?? null),
-            'client_message_id' => $message?->getKey()
+            'client_message_id' => $messageId
                 ?? ($existingFeedback['client_message_id'] ?? null),
         ];
 

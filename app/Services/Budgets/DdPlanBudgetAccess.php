@@ -117,11 +117,7 @@ final class DdPlanBudgetAccess
 
     private function isDueDiligenceClient(Client $client): bool
     {
-        $engagementType = $client->engagement_type instanceof EngagementType
-            ? $client->engagement_type
-            : EngagementType::tryFrom((string) $client->engagement_type);
-
-        return $engagementType === EngagementType::DUE_DILIGENCE;
+        return $client->engagement_type === EngagementType::DUE_DILIGENCE;
     }
 
     /**

@@ -31,7 +31,7 @@ final class ServiceJourneyMilestoneAward extends Model
     ];
 
     /**
-     * @return BelongsTo<ServiceJourneyEnrollment, ServiceJourneyMilestoneAward>
+     * @return BelongsTo<ServiceJourneyEnrollment, $this>
      */
     public function enrollment(): BelongsTo
     {
@@ -39,7 +39,7 @@ final class ServiceJourneyMilestoneAward extends Model
     }
 
     /**
-     * @return HasOne<ServiceJourneyPointEvent>
+     * @return HasOne<ServiceJourneyPointEvent, $this>
      */
     public function pointEvent(): HasOne
     {

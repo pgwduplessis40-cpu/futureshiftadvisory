@@ -59,7 +59,7 @@ final class ServiceJourneyStateResolver
             'service_key' => $serviceKey,
             'program_version' => $program['version'],
             'stages' => [
-                'scope' => $this->scopeComplete($client, $serviceKey, (int) ($progress['percentage'] ?? 0)),
+                'scope' => $this->scopeComplete($client, $serviceKey, (int) $progress['percentage']),
                 'evidence' => $hasEvidence,
                 'advisor_review' => $hasReview,
                 'outputs' => $hasOutput,

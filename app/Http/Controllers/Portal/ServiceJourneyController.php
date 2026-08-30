@@ -65,7 +65,7 @@ final class ServiceJourneyController extends Controller
     private function assertAccessibleService(Client $client, string $requestedServiceKey): void
     {
         $requestedServiceKey = ServiceJourneyPrograms::normalise($requestedServiceKey);
-        $primaryServiceKey = ServiceJourneyPrograms::normalise($client->engagement_type?->value ?? (string) $client->engagement_type);
+        $primaryServiceKey = ServiceJourneyPrograms::normalise($client->engagement_type->value);
 
         if ($primaryServiceKey === $requestedServiceKey) {
             return;

@@ -35,8 +35,10 @@ final class ServiceJourney
         $pointEvents = $enrollment instanceof ServiceJourneyEnrollment
             ? $enrollment->pointEvents()->get()
             : collect();
-        $stagesByKey = collect((array) data_get($portalJourney, 'stages', []))->keyBy('key');
-        $milestones = collect($program['milestones'])
+        $stages = $this->programMilestones((array) data_get($portalJourney, 'stages', []));
+        $programMilestones = $this->programMilestones((array) ($program['milestones'] ?? []));
+        $stagesByKey = collect($stages)->keyBy('key');
+        $milestones = collect($programMilestones)
             ->map(function (array $milestone) use ($stagesByKey): array {
                 $stage = $stagesByKey->get($milestone['key']);
 
@@ -94,7 +96,7 @@ final class ServiceJourney
 
         return $this->payload($client, $participant, [
             'primary' => ['service_type' => $serviceKey],
-            'stages' => collect($program['milestones'])
+            'stages' => collect($this->programMilestones((array) ($program['milestones'] ?? [])))
                 ->map(function (array $milestone) use ($state): array {
                     $complete = (bool) data_get($state, 'stages.'.$milestone['key'], false);
 
@@ -274,7 +276,8 @@ final class ServiceJourney
      */
     private function awardPayload(ServiceJourneyMilestoneAward $award, array $program): array
     {
-        $milestone = collect($program['milestones'])->firstWhere('key', $award->milestone_key);
+        $milestone = collect($this->programMilestones((array) ($program['milestones'] ?? [])))
+            ->firstWhere('key', $award->milestone_key);
 
         return [
             'id' => $award->getKey(),
@@ -284,5 +287,17 @@ final class ServiceJourney
             'earned_at_estimated' => (bool) data_get($award->evidence_snapshot, 'earned_at_estimated', false),
             'seen_at' => $award->seen_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $milestones
+     * @return array<int, array<string, mixed>>
+     */
+    private function programMilestones(array $milestones): array
+    {
+        return collect($milestones)
+            ->filter(fn (mixed $milestone): bool => is_array($milestone))
+            ->values()
+            ->all();
     }
 }

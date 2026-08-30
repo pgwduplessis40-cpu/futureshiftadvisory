@@ -265,7 +265,9 @@ final class OnboardingWizard
     public function dueDiligenceSupport(Client $client): array
     {
         $engagement = $this->dueDiligenceEngagement($client);
-        $capability = (array) data_get($engagement?->target_details ?? [], 'client_capability', []);
+        $capability = $engagement instanceof DdEngagement
+            ? (array) data_get($engagement->target_details ?? [], 'client_capability', [])
+            : [];
         $confirmed = ! $this->clientCapability->needsConfirmation($capability);
         $mode = $capability['mode'] ?? 'guided';
 
@@ -398,10 +400,6 @@ final class OnboardingWizard
 
     private function isDueDiligenceClient(Client $client): bool
     {
-        $engagementType = $client->engagement_type instanceof EngagementType
-            ? $client->engagement_type
-            : EngagementType::tryFrom((string) $client->engagement_type);
-
-        return $engagementType === EngagementType::DUE_DILIGENCE;
+        return $client->engagement_type === EngagementType::DUE_DILIGENCE;
     }
 }

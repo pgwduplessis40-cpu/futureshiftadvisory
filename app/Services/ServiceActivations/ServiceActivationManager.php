@@ -642,9 +642,7 @@ final class ServiceActivationManager
         }
 
         if ($serviceType === ServiceActivation::SERVICE_DD_PLAN_BUDGET) {
-            $addOnPackage = $packages->first();
-
-            if (! $addOnPackage instanceof ServiceRatePackage) {
+            if ($packages->isEmpty()) {
                 return $this->pricingPreviewPayload(
                     status: 'pricing_to_confirm',
                     message: 'Pricing will be confirmed by your advisor before any charge or Business Plan & Budget access.',
@@ -653,6 +651,7 @@ final class ServiceActivationManager
                 );
             }
 
+            $addOnPackage = $packages->first();
             $addOnSnapshot = $this->withDdPlanBudgetQuoteContext(
                 $this->packageSnapshotForActivation($addOnPackage, $client),
                 $this->matchedDueDiligencePackageSnapshot($client, $intake),

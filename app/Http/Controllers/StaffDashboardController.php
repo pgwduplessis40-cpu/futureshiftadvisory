@@ -902,7 +902,7 @@ final class StaffDashboardController extends Controller
         return [
             'id' => $activation->id,
             'client_id' => $activation->client_id,
-            'client_name' => $activation->client?->legal_name ?? 'Client',
+            'client_name' => $activation->client->legal_name ?? 'Client',
             'client_url' => route('advisor.clients.show', $activation->client_id, absolute: false),
             'service_type' => $activation->service_type,
             'client_label' => $activation->clientLabel(),
@@ -911,7 +911,7 @@ final class StaffDashboardController extends Controller
             'requested_by_name' => $activation->requestedBy?->name,
             'requested_by_email' => $activation->requestedBy?->email,
             'advisor_name' => $activation->advisor?->name,
-            'package_label' => $activation->package?->client_label ?? data_get($activation->selected_package_snapshot, 'client_label'),
+            'package_label' => data_get($activation, 'package.client_label') ?? data_get($activation->selected_package_snapshot, 'client_label'),
             'requested_at' => $activation->created_at?->toIso8601String(),
             'url' => route('advisor.service-activations.show', $activation, absolute: false),
             'action_label' => $status === ServiceActivation::STATUS_REQUESTED
@@ -2213,7 +2213,7 @@ final class StaffDashboardController extends Controller
                 'explanation' => $verification->explanation,
                 'client_explanation' => $verification->clientFacingExplanation(),
                 'client_id' => $verification->client_id ?? $verification->document?->client_id,
-                'client_name' => $verification->client?->legal_name ?? $verification->document?->client?->legal_name,
+                'client_name' => $verification->client?->legal_name ?? $verification->document?->client->legal_name,
                 'client_url' => ($verification->client_id ?? $verification->document?->client_id)
                     ? route('advisor.clients.show', $verification->client_id ?? $verification->document?->client_id, absolute: false)
                     : null,

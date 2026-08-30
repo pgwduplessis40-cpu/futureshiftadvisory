@@ -513,7 +513,7 @@ final class DueDiligenceReportComposer implements DueDiligenceReportComposition
 
     /**
      * @param  Collection<int, AnalysisFinding>  $findings
-     * @param  array<string, bool|float|int|string|array<int, string>>  $metadata
+     * @param  array<string, mixed>  $metadata
      */
     private function sectionWithDocumentSupport(
         string $key,

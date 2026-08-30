@@ -32,7 +32,7 @@ final class ServiceJourneyEnrollment extends Model
     ];
 
     /**
-     * @return BelongsTo<Client, ServiceJourneyEnrollment>
+     * @return BelongsTo<Client, $this>
      */
     public function client(): BelongsTo
     {
@@ -40,7 +40,7 @@ final class ServiceJourneyEnrollment extends Model
     }
 
     /**
-     * @return BelongsTo<User, ServiceJourneyEnrollment>
+     * @return BelongsTo<User, $this>
      */
     public function participant(): BelongsTo
     {
@@ -48,7 +48,7 @@ final class ServiceJourneyEnrollment extends Model
     }
 
     /**
-     * @return HasMany<ServiceJourneyMilestoneAward>
+     * @return HasMany<ServiceJourneyMilestoneAward, $this>
      */
     public function milestoneAwards(): HasMany
     {
@@ -56,7 +56,7 @@ final class ServiceJourneyEnrollment extends Model
     }
 
     /**
-     * @return HasMany<ServiceJourneyPointEvent>
+     * @return HasMany<ServiceJourneyPointEvent, $this>
      */
     public function pointEvents(): HasMany
     {

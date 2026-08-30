@@ -12,6 +12,7 @@ use App\Models\Document;
 use App\Models\DocumentVerification;
 use App\Models\EconomicIndicator;
 use App\Models\FinancialSnapshot;
+use App\Models\Message;
 use App\Models\Proposal;
 use App\Models\QuestionnaireAnswer;
 use App\Models\QuestionnaireResponse;
@@ -338,6 +339,8 @@ final class StrategicBudgetService
                 body: $proposedReply,
             );
         }
+        $messageThreadId = $message instanceof Message ? $message->thread_id : null;
+        $messageId = $message instanceof Message ? $message->getKey() : null;
 
         $assessment->forceFill([
             'status' => $sendToClient
@@ -352,8 +355,8 @@ final class StrategicBudgetService
             'feedback_saved_by_user_id' => $actor->getKey(),
             'feedback_sent_at' => $sendToClient ? now() : $assessment->feedback_sent_at,
             'feedback_sent_by_user_id' => $sendToClient ? $actor->getKey() : $assessment->feedback_sent_by_user_id,
-            'client_message_thread_id' => $message?->thread_id ?? $assessment->client_message_thread_id,
-            'client_message_id' => $message?->getKey() ?? $assessment->client_message_id,
+            'client_message_thread_id' => $messageThreadId ?? $assessment->client_message_thread_id,
+            'client_message_id' => $messageId ?? $assessment->client_message_id,
         ])->save();
 
         $this->audit->record(
@@ -368,7 +371,7 @@ final class StrategicBudgetService
                 'version' => $assessment->round,
                 'feedback_changed_from_suggestion' => data_get($feedbackSnapshot, 'advisor_edits.feedback_changed_from_suggestion'),
                 'proposed_reply_changed_from_suggestion' => data_get($feedbackSnapshot, 'advisor_edits.proposed_reply_changed_from_suggestion'),
-                'client_message_thread_id' => $message?->thread_id,
+                'client_message_thread_id' => $messageThreadId,
             ],
         );
 
@@ -1165,7 +1168,7 @@ final class StrategicBudgetService
             ->filter(fn (mixed $row): bool => is_array($row)
                 && (
                     trim((string) ($row['label'] ?? '')) !== ''
-                    || (is_numeric($row['amount'] ?? null) && (float) ($row['amount'] ?? 0) > 0)
+                    || (is_numeric(data_get($row, 'amount')) && (float) data_get($row, 'amount', 0) > 0)
                 ))
             ->isNotEmpty();
         $missingAssumptions = $this->missingAssumptions($computed);
@@ -1754,18 +1757,33 @@ final class StrategicBudgetService
 
         $canSave = $assessment instanceof StrategicBudgetAssessment
             && $assessment->assessed_at !== null;
+        $status = $assessment instanceof StrategicBudgetAssessment
+            ? (string) $assessment->status
+            : 'not_started';
+        $advisorFeedback = $assessment instanceof StrategicBudgetAssessment
+            ? (string) ($assessment->advisor_feedback ?? $assessment->suggested_feedback ?? '')
+            : '';
+        $proposedReply = $assessment instanceof StrategicBudgetAssessment
+            ? (string) ($assessment->proposed_reply ?? $assessment->suggested_reply ?? '')
+            : '';
+        $suggestedFeedback = $assessment instanceof StrategicBudgetAssessment
+            ? (string) ($assessment->suggested_feedback ?? '')
+            : '';
+        $suggestedReply = $assessment instanceof StrategicBudgetAssessment
+            ? (string) ($assessment->suggested_reply ?? '')
+            : '';
 
         return [
             'id' => $assessment?->getKey(),
             'version' => $assessment?->round,
-            'status' => $assessment?->status ?? 'not_started',
+            'status' => $status,
             'status_label' => $assessment instanceof StrategicBudgetAssessment
-                ? $this->assessmentVersionStatusLabel((string) $assessment->status)
+                ? $this->assessmentVersionStatusLabel($status)
                 : 'Run assessment first',
-            'advisor_feedback' => (string) ($assessment?->advisor_feedback ?? $assessment?->suggested_feedback ?? ''),
-            'proposed_reply' => (string) ($assessment?->proposed_reply ?? $assessment?->suggested_reply ?? ''),
-            'suggested_feedback' => (string) ($assessment?->suggested_feedback ?? ''),
-            'suggested_reply' => (string) ($assessment?->suggested_reply ?? ''),
+            'advisor_feedback' => $advisorFeedback,
+            'proposed_reply' => $proposedReply,
+            'suggested_feedback' => $suggestedFeedback,
+            'suggested_reply' => $suggestedReply,
             'priorities' => $assessment instanceof StrategicBudgetAssessment
                 ? (array) ($assessment->priorities ?? [])
                 : [],
@@ -1793,6 +1811,7 @@ final class StrategicBudgetService
             ->get()
             ->map(function (StrategicBudgetAssessment $assessment) use (&$previousScore): array {
                 $scores = (array) ($assessment->scores ?? []);
+                $snapshot = (array) ($assessment->snapshot ?? []);
                 $readiness = is_numeric($scores['readiness'] ?? null) ? (int) $scores['readiness'] : null;
                 $scoreDelta = $readiness === null || $previousScore === null
                     ? null
@@ -1822,10 +1841,8 @@ final class StrategicBudgetService
                     'message_url' => $assessment->client_message_thread_id
                         ? route('advisor.clients.messages.show', [$assessment->client_id, $assessment->client_message_thread_id], absolute: false)
                         : null,
-                    'snapshot_available' => is_array($assessment->snapshot) && $assessment->snapshot !== [],
-                    'snapshot_captured_at' => is_array($assessment->snapshot)
-                        ? data_get($assessment->snapshot, 'captured_at')
-                        : null,
+                    'snapshot_available' => $snapshot !== [],
+                    'snapshot_captured_at' => data_get($snapshot, 'captured_at'),
                 ];
             })
             ->sortByDesc('version')
@@ -1985,7 +2002,6 @@ final class StrategicBudgetService
     private function normaliseBusinessPlanSections(array $sections, string $pathway): array
     {
         $byKey = collect($sections)
-            ->filter(fn (mixed $section): bool => is_array($section))
             ->keyBy(fn (array $section): string => (string) ($section['key'] ?? ''));
         $prompts = collect($this->businessPlanPrompts($pathway))->keyBy('key');
 
@@ -2191,7 +2207,7 @@ final class StrategicBudgetService
             $drafts[$key] = $this->sourceLinesToText($lines);
         }
 
-        if (($drafts['evidence_documents'] ?? '') === '') {
+        if ($drafts['evidence_documents'] === '') {
             $drafts['evidence_documents'] = 'No supporting evidence has been attached to this plan yet.';
         }
 
@@ -2272,11 +2288,7 @@ final class StrategicBudgetService
 
     private function questionnaireSetForClient(Client $client): QuestionnaireSet
     {
-        $engagementType = $client->engagement_type instanceof EngagementType
-            ? $client->engagement_type
-            : EngagementType::tryFrom((string) $client->engagement_type);
-
-        return match ($engagementType) {
+        return match ($client->engagement_type) {
             EngagementType::DUE_DILIGENCE => QuestionnaireSet::DUE_DILIGENCE,
             EngagementType::POST_ACQUISITION_ADVISORY => QuestionnaireSet::POST_ACQUISITION_GAP,
             EngagementType::NPO => QuestionnaireSet::STANDARD_NPO,
@@ -2288,8 +2300,8 @@ final class StrategicBudgetService
     {
         $question = $answer->question;
         $source = str(implode(' ', [
-            (string) ($question?->section?->title ?? ''),
-            (string) ($question?->prompt ?? ''),
+            (string) data_get($question, 'section.title', ''),
+            (string) ($question->prompt ?? ''),
         ]))->lower()->toString();
 
         if (Str::contains($source, ['swot', 'strength', 'weakness', 'opportunit', 'threat'])) {
@@ -2665,11 +2677,7 @@ final class StrategicBudgetService
 
     private function defaultHorizonMonths(Client $client): int
     {
-        $engagementType = $client->engagement_type instanceof EngagementType
-            ? $client->engagement_type
-            : EngagementType::tryFrom((string) $client->engagement_type);
-
-        return match ($engagementType) {
+        return match ($client->engagement_type) {
             EngagementType::DUE_DILIGENCE,
             EngagementType::POST_ACQUISITION_ADVISORY => 24,
             default => 12,

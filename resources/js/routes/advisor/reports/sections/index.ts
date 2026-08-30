@@ -2,7 +2,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import comments from './comments'
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::update
-* @see app/Http/Controllers/Advisor/ReportController.php:285
+* @see app/Http/Controllers/Advisor/ReportController.php:288
 * @route '/advisor/reports/{report}/sections/{reportSection}'
 */
 export const update = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -17,7 +17,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::update
-* @see app/Http/Controllers/Advisor/ReportController.php:285
+* @see app/Http/Controllers/Advisor/ReportController.php:288
 * @route '/advisor/reports/{report}/sections/{reportSection}'
 */
 update.url = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -47,7 +47,7 @@ update.url = (args: { report: string | { id: string }, reportSection: string | {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::update
-* @see app/Http/Controllers/Advisor/ReportController.php:285
+* @see app/Http/Controllers/Advisor/ReportController.php:288
 * @route '/advisor/reports/{report}/sections/{reportSection}'
 */
 update.patch = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -57,7 +57,7 @@ update.patch = (args: { report: string | { id: string }, reportSection: string |
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::update
-* @see app/Http/Controllers/Advisor/ReportController.php:285
+* @see app/Http/Controllers/Advisor/ReportController.php:288
 * @route '/advisor/reports/{report}/sections/{reportSection}'
 */
 const updateForm = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -72,7 +72,7 @@ const updateForm = (args: { report: string | { id: string }, reportSection: stri
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::update
-* @see app/Http/Controllers/Advisor/ReportController.php:285
+* @see app/Http/Controllers/Advisor/ReportController.php:288
 * @route '/advisor/reports/{report}/sections/{reportSection}'
 */
 updateForm.patch = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

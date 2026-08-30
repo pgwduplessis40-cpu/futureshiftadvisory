@@ -243,7 +243,7 @@ final class BuyerDecisionReadiness
                 'Red flags and ordinary risks are separated',
                 $findings->isNotEmpty()
                     && $risks->isNotEmpty()
-                    && $risks->every(fn (DdRiskRegisterItem $risk): bool => is_numeric($risk->rank) && is_string($risk->risk_level) && $risk->risk_level !== ''),
+                    && $risks->every(fn (DdRiskRegisterItem $risk): bool => $risk->risk_level !== ''),
                 "{$risks->count()} risk(s) are ranked from the completed findings.",
             ),
             $this->gate(
@@ -405,7 +405,7 @@ final class BuyerDecisionReadiness
             ->whereNotNull('analysis_run_id')
             ->with('analysisRun.findings')
             ->get()
-            ->flatMap(fn (DdWorkstream $workstream): Collection => $workstream->analysisRun?->findings ?? collect())
+            ->flatMap(fn (DdWorkstream $workstream): Collection => $workstream->analysisRun->findings ?? collect())
             ->filter(fn (mixed $finding): bool => $finding instanceof AnalysisFinding)
             ->values();
     }

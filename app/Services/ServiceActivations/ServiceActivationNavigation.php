@@ -120,11 +120,7 @@ final class ServiceActivationNavigation
      */
     private function hasDueDiligenceContext(Client $client, Collection $open): bool
     {
-        $engagementType = $client->engagement_type instanceof EngagementType
-            ? $client->engagement_type
-            : EngagementType::tryFrom((string) $client->engagement_type);
-
-        return $engagementType === EngagementType::DUE_DILIGENCE
+        return $client->engagement_type === EngagementType::DUE_DILIGENCE
             || $open->contains(fn (ServiceActivation $activation): bool => $activation->service_type === ServiceActivation::SERVICE_DUE_DILIGENCE);
     }
 

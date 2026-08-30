@@ -81,7 +81,7 @@ generate.form = generateForm
 
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::pdf
-* @see app/Http/Controllers/Advisor/StrategicPlanController.php:134
+* @see app/Http/Controllers/Advisor/StrategicPlanController.php:130
 * @route '/advisor/strategic-plans/{strategicPlan}/pdf'
 */
 export const pdf = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -96,7 +96,7 @@ pdf.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::pdf
-* @see app/Http/Controllers/Advisor/StrategicPlanController.php:134
+* @see app/Http/Controllers/Advisor/StrategicPlanController.php:130
 * @route '/advisor/strategic-plans/{strategicPlan}/pdf'
 */
 pdf.url = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -129,7 +129,7 @@ pdf.url = (args: { strategicPlan: string | { id: string } } | [strategicPlan: st
 
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::pdf
-* @see app/Http/Controllers/Advisor/StrategicPlanController.php:134
+* @see app/Http/Controllers/Advisor/StrategicPlanController.php:130
 * @route '/advisor/strategic-plans/{strategicPlan}/pdf'
 */
 pdf.get = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -139,7 +139,7 @@ pdf.get = (args: { strategicPlan: string | { id: string } } | [strategicPlan: st
 
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::pdf
-* @see app/Http/Controllers/Advisor/StrategicPlanController.php:134
+* @see app/Http/Controllers/Advisor/StrategicPlanController.php:130
 * @route '/advisor/strategic-plans/{strategicPlan}/pdf'
 */
 pdf.head = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -149,7 +149,7 @@ pdf.head = (args: { strategicPlan: string | { id: string } } | [strategicPlan: s
 
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::pdf
-* @see app/Http/Controllers/Advisor/StrategicPlanController.php:134
+* @see app/Http/Controllers/Advisor/StrategicPlanController.php:130
 * @route '/advisor/strategic-plans/{strategicPlan}/pdf'
 */
 const pdfForm = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -159,7 +159,7 @@ const pdfForm = (args: { strategicPlan: string | { id: string } } | [strategicPl
 
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::pdf
-* @see app/Http/Controllers/Advisor/StrategicPlanController.php:134
+* @see app/Http/Controllers/Advisor/StrategicPlanController.php:130
 * @route '/advisor/strategic-plans/{strategicPlan}/pdf'
 */
 pdfForm.get = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -169,7 +169,7 @@ pdfForm.get = (args: { strategicPlan: string | { id: string } } | [strategicPlan
 
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::pdf
-* @see app/Http/Controllers/Advisor/StrategicPlanController.php:134
+* @see app/Http/Controllers/Advisor/StrategicPlanController.php:130
 * @route '/advisor/strategic-plans/{strategicPlan}/pdf'
 */
 pdfForm.head = (args: { strategicPlan: string | { id: string } } | [strategicPlan: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

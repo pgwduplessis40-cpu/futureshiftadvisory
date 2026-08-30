@@ -68,7 +68,7 @@ final class StrategicBudgetAssessment extends Model
     ];
 
     /**
-     * @return BelongsTo<StrategicBudget, StrategicBudgetAssessment>
+     * @return BelongsTo<StrategicBudget, $this>
      */
     public function strategicBudget(): BelongsTo
     {
@@ -76,7 +76,7 @@ final class StrategicBudgetAssessment extends Model
     }
 
     /**
-     * @return BelongsTo<Client, StrategicBudgetAssessment>
+     * @return BelongsTo<Client, $this>
      */
     public function client(): BelongsTo
     {
@@ -84,7 +84,7 @@ final class StrategicBudgetAssessment extends Model
     }
 
     /**
-     * @return BelongsTo<User, StrategicBudgetAssessment>
+     * @return BelongsTo<User, $this>
      */
     public function submittedBy(): BelongsTo
     {
@@ -92,7 +92,7 @@ final class StrategicBudgetAssessment extends Model
     }
 
     /**
-     * @return BelongsTo<User, StrategicBudgetAssessment>
+     * @return BelongsTo<User, $this>
      */
     public function assessedBy(): BelongsTo
     {
@@ -100,7 +100,7 @@ final class StrategicBudgetAssessment extends Model
     }
 
     /**
-     * @return BelongsTo<User, StrategicBudgetAssessment>
+     * @return BelongsTo<User, $this>
      */
     public function feedbackSavedBy(): BelongsTo
     {
@@ -108,7 +108,7 @@ final class StrategicBudgetAssessment extends Model
     }
 
     /**
-     * @return BelongsTo<User, StrategicBudgetAssessment>
+     * @return BelongsTo<User, $this>
      */
     public function feedbackSentBy(): BelongsTo
     {
