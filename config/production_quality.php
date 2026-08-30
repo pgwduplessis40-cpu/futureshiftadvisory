@@ -15,7 +15,7 @@ return [
             'contract_tests' => ['tests/Feature/Advisor'],
         ],
         'app/Http/Controllers/Advisor/EntrepreneurController.php' => [
-            'ceiling' => 1492,
+            'ceiling' => 395,
             'production_limit' => 500,
             'contract_tests' => ['tests/Feature/Advisor', 'tests/Feature/Entrepreneurs'],
         ],
@@ -25,7 +25,7 @@ return [
             'contract_tests' => ['tests/Feature/Advisor', 'tests/Feature/Entrepreneurs'],
         ],
         'app/Http/Controllers/Portal/EntrepreneurPlanController.php' => [
-            'ceiling' => 1342,
+            'ceiling' => 404,
             'production_limit' => 500,
             'contract_tests' => ['tests/Feature/Entrepreneurs'],
         ],
