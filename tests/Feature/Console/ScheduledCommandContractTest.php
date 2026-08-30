@@ -16,6 +16,9 @@ final class ScheduledCommandContractTest extends TestCase
         $this->artisan('screen-share:expire')->assertExitCode(0);
         $this->artisan('co-browse:expire')->assertExitCode(0);
         $this->artisan('communications:bulk-send')->assertExitCode(0);
+        $this->artisan('service-journeys:reconcile')
+            ->expectsOutput('Reconciled 0 enabled service journey(s).')
+            ->assertExitCode(0);
         $this->artisan('npo:impact-summary-auto-release')->assertExitCode(0);
         $this->artisan('outcomes:schedule-follow-ups', ['--now' => '2026-08-24T09:00:00+12:00'])->assertExitCode(0);
         $this->artisan('fsa:audit:verify', ['--since' => '2026-08-23T09:00:00+12:00'])->assertExitCode(0);
