@@ -1130,8 +1130,8 @@ final class StrategicBudgetService
     }
 
     /**
-     * @param  array<string, mixed>  $computed
-     * @param  array<string, mixed>  $confidence
+     * @param  array<array-key, mixed>  $computed
+     * @param  array<array-key, mixed>  $confidence
      * @return array<int, array{key:string,title:string,status:string,status_label:string,score:int,summary:string,evidence:array<int, string>}>
      */
     private function assessmentCriteria(StrategicBudget $budget, array $computed, array $confidence): array
@@ -1495,10 +1495,10 @@ final class StrategicBudgetService
     }
 
     /**
-     * @param  array<string, mixed>  $computed
-     * @param  array<string, mixed>  $confidence
-     * @param  array<int, array<string, mixed>>  $criteria
-     * @return array<string, mixed>
+     * @param  array<array-key, mixed>  $computed
+     * @param  array<array-key, mixed>  $confidence
+     * @param  array<int, array<array-key, mixed>>  $criteria
+     * @return array<array-key, mixed>
      */
     private function assessmentSnapshot(
         StrategicBudget $budget,
@@ -1533,7 +1533,7 @@ final class StrategicBudgetService
     }
 
     /**
-     * @param  array<string, mixed>  $confidence
+     * @param  array<array-key, mixed>  $confidence
      * @return array<string, int>
      */
     private function assessmentScores(StrategicBudget $budget, array $confidence): array
@@ -1547,8 +1547,8 @@ final class StrategicBudgetService
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $criteria
-     * @return array<int, array<string, mixed>>
+     * @param  array<int, mixed>  $criteria
+     * @return array<int, array<array-key, mixed>>
      */
     private function feedbackPriorities(array $criteria): array
     {
@@ -1603,8 +1603,8 @@ final class StrategicBudgetService
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $criteria
-     * @param  array<int, array<string, mixed>>  $priorities
+     * @param  array<int, array<array-key, mixed>>  $criteria
+     * @param  array<int, array<array-key, mixed>>  $priorities
      */
     private function suggestedAdvisorFeedback(StrategicBudget $budget, array $criteria, array $priorities): string
     {
@@ -1633,8 +1633,8 @@ final class StrategicBudgetService
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $criteria
-     * @param  array<int, array<string, mixed>>  $priorities
+     * @param  array<int, array<array-key, mixed>>  $criteria
+     * @param  array<int, array<array-key, mixed>>  $priorities
      */
     private function suggestedClientReply(StrategicBudget $budget, array $criteria, array $priorities): string
     {
@@ -1662,7 +1662,7 @@ final class StrategicBudgetService
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $priorities
+     * @param  array<int, array<array-key, mixed>>  $priorities
      */
     private function formatFeedbackPriorities(array $priorities, bool $includeScores): string
     {
@@ -1698,7 +1698,7 @@ final class StrategicBudgetService
 
     /**
      * @param  array{suggested_feedback:string,suggested_reply:string}  $suggestions
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     private function feedbackSnapshotWithEdits(
         StrategicBudgetAssessment $assessment,
@@ -1748,7 +1748,7 @@ final class StrategicBudgetService
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     private function assessmentFeedbackPayload(StrategicBudget $budget): array
     {
@@ -1799,7 +1799,7 @@ final class StrategicBudgetService
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * @return array<int, array<array-key, mixed>>
      */
     private function assessmentHistoryPayload(StrategicBudget $budget): array
     {
@@ -2215,7 +2215,7 @@ final class StrategicBudgetService
     }
 
     /**
-     * @param  array<string, mixed>  $state
+     * @param  array<array-key, mixed>  $state
      * @return array<int, string>
      */
     private function websiteSourceLines(array $state): array

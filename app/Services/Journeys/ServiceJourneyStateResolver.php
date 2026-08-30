@@ -28,7 +28,7 @@ final class ServiceJourneyStateResolver
     public function __construct(private readonly OnboardingWizard $wizard) {}
 
     /**
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     public function forClient(Client $client, string $serviceKey): array
     {

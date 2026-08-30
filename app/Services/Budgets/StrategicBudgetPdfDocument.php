@@ -27,7 +27,7 @@ final class StrategicBudgetPdfDocument
     }
 
     /**
-     * @param  array<string, mixed>  $budget
+     * @param  array<array-key, mixed>  $budget
      */
     public function businessPlanHtml(Client $client, array $budget): string
     {
@@ -47,7 +47,7 @@ final class StrategicBudgetPdfDocument
     }
 
     /**
-     * @param  array<string, mixed>  $budget
+     * @param  array<array-key, mixed>  $budget
      */
     public function budgetPackHtml(Client $client, array $budget): string
     {
@@ -67,7 +67,7 @@ final class StrategicBudgetPdfDocument
     }
 
     /**
-     * @param  array<string, mixed>  $budget
+     * @param  array<array-key, mixed>  $budget
      * @param  array<string, string>|null  $meta
      */
     private function documentHtml(
@@ -104,7 +104,7 @@ final class StrategicBudgetPdfDocument
     }
 
     /**
-     * @param  array<string, mixed>  $budget
+     * @param  array<array-key, mixed>  $budget
      */
     private function businessPlanContentHtml(array $budget): string
     {
@@ -118,7 +118,7 @@ final class StrategicBudgetPdfDocument
     }
 
     /**
-     * @param  array<string, mixed>  $budget
+     * @param  array<array-key, mixed>  $budget
      */
     private function budgetPackContentHtml(array $budget): string
     {

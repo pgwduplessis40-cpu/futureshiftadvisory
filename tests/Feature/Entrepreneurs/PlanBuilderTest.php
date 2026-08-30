@@ -150,6 +150,9 @@ final class PlanBuilderTest extends TestCase
             ->get(route('portal.entrepreneur.plan.show'))
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('portal/entrepreneur/Plan')
+                ->has('planTemplate')
+                ->has('urls')
                 ->has('portalScreenShare.portal_context_token')
                 ->where('portalScreenShare.connection_url', route('portal.entrepreneur-screen-share.connections.store', absolute: false))
                 ->where('planTemplate.3.title', 'Legal & Operations')

@@ -1069,7 +1069,7 @@ final class ServiceActivationManager
     }
 
     /**
-     * @param  array<string, mixed>  $snapshot
+     * @param  array<array-key, mixed>  $snapshot
      */
     private function ddPlanBudgetAcceptanceQuoteText(array $snapshot, string $currency): string
     {
@@ -1207,8 +1207,8 @@ final class ServiceActivationManager
     }
 
     /**
-     * @param  array<string, mixed>  $intake
-     * @return array<string, mixed>|null
+     * @param  array<array-key, mixed>  $intake
+     * @return array<array-key, mixed>|null
      */
     private function matchedDueDiligencePackageSnapshot(?Client $client, array $intake): ?array
     {
@@ -1244,7 +1244,7 @@ final class ServiceActivationManager
     }
 
     /**
-     * @param  array<string, mixed>  $intake
+     * @param  array<array-key, mixed>  $intake
      */
     private function askingPriceFrom(?Client $client, array $intake): ?float
     {
@@ -1262,9 +1262,9 @@ final class ServiceActivationManager
     }
 
     /**
-     * @param  array<string, mixed>  $addOnSnapshot
-     * @param  array<string, mixed>|null  $ddSnapshot
-     * @return array<string, mixed>
+     * @param  array<array-key, mixed>  $addOnSnapshot
+     * @param  array<array-key, mixed>|null  $ddSnapshot
+     * @return array<array-key, mixed>
      */
     private function withDdPlanBudgetQuoteContext(array $addOnSnapshot, ?array $ddSnapshot): array
     {
@@ -1294,8 +1294,8 @@ final class ServiceActivationManager
     }
 
     /**
-     * @param  array<string, mixed>  $snapshot
-     * @return array<string, mixed>
+     * @param  array<array-key, mixed>  $snapshot
+     * @return array<array-key, mixed>
      */
     private function quoteLineSnapshot(array $snapshot): array
     {
@@ -1314,7 +1314,7 @@ final class ServiceActivationManager
     }
 
     /**
-     * @param  array<string, mixed>  $snapshot
+     * @param  array<array-key, mixed>  $snapshot
      */
     private function snapshotFixedFee(array $snapshot): ?float
     {

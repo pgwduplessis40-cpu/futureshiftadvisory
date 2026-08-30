@@ -21,8 +21,8 @@ final class ServiceJourney
     ) {}
 
     /**
-     * @param  array<string, mixed>  $portalJourney
-     * @return array<string, mixed>
+     * @param  array<array-key, mixed>  $portalJourney
+     * @return array<array-key, mixed>
      */
     public function payload(Client $client, User $participant, array $portalJourney): array
     {
@@ -86,7 +86,7 @@ final class ServiceJourney
      * Builds a conservative recognition payload for an active secondary
      * service where the shared dashboard has no service-specific stage UI.
      *
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     public function payloadForService(Client $client, User $participant, string $serviceKey): array
     {
@@ -185,7 +185,7 @@ final class ServiceJourney
     }
 
     /**
-     * @param  array<string, mixed>  $state
+     * @param  array<array-key, mixed>  $state
      */
     public function reconcile(ServiceJourneyEnrollment $enrollment, array $state): void
     {
@@ -208,8 +208,8 @@ final class ServiceJourney
     }
 
     /**
-     * @param  array<string, mixed>  $milestone
-     * @param  array<string, mixed>  $program
+     * @param  array<array-key, mixed>  $milestone
+     * @param  array<array-key, mixed>  $program
      */
     private function award(ServiceJourneyEnrollment $enrollment, array $milestone, array $program): ServiceJourneyMilestoneAward
     {
@@ -271,8 +271,8 @@ final class ServiceJourney
     }
 
     /**
-     * @param  array<string, mixed>  $program
-     * @return array<string, mixed>
+     * @param  array<array-key, mixed>  $program
+     * @return array<array-key, mixed>
      */
     private function awardPayload(ServiceJourneyMilestoneAward $award, array $program): array
     {
@@ -291,7 +291,7 @@ final class ServiceJourney
 
     /**
      * @param  array<int|string, mixed>  $milestones
-     * @return array<int, array<string, mixed>>
+     * @return array<int, array<array-key, mixed>>
      */
     private function programMilestones(array $milestones): array
     {

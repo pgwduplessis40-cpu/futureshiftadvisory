@@ -285,8 +285,13 @@ export default function StrategicPlanBudgetQuoteApproval({
                             onSubmit={submit}
                             noValidate
                         >
-                            <label className="flex items-start gap-3 rounded-lg border bg-muted/20 p-3 text-sm">
+                            <label
+                                htmlFor="confirm_quote_request"
+                                className="flex items-start gap-3 rounded-lg border bg-muted/20 p-3 text-sm"
+                            >
                                 <input
+                                    id="confirm_quote_request"
+                                    name="confirm_quote_request"
                                     type="checkbox"
                                     className="mt-1 size-4 rounded border-border"
                                     checked={form.data.confirm_quote_request}

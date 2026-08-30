@@ -826,7 +826,7 @@ final class StaffDashboardController extends Controller
 
     /**
      * @param  array<int, string>|null  $clientIds
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     private function serviceActivationRequests(?array $clientIds): array
     {
@@ -876,7 +876,7 @@ final class StaffDashboardController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     private function emptyServiceActivationRequests(): array
     {
@@ -893,7 +893,7 @@ final class StaffDashboardController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     private function serviceActivationRequestItem(ServiceActivation $activation): array
     {

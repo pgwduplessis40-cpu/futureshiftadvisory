@@ -1362,7 +1362,7 @@ HTML,
     }
 
     /**
-     * @param  array<string, mixed>  $assumptions
+     * @param  array<array-key, mixed>  $assumptions
      */
     private function assumptionReviewNote(string $key, array $assumptions): string
     {
@@ -1387,7 +1387,7 @@ HTML,
     }
 
     /**
-     * @param  array<string, mixed>  $assumptions
+     * @param  array<array-key, mixed>  $assumptions
      */
     private function assumptionValue(string $key, array $assumptions): string
     {

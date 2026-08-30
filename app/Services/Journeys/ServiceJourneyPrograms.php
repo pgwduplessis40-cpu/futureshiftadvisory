@@ -12,7 +12,7 @@ final class ServiceJourneyPrograms
     public const VERSION = '2026-08';
 
     /**
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     public static function for(string $serviceKey): array
     {

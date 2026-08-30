@@ -253,8 +253,8 @@ final class AdvisorClientShowPayloadBuilder
     }
 
     /**
-     * @param  array<string, mixed>  $decisionReadiness
-     * @return array<string, mixed>
+     * @param  array<array-key, mixed>  $decisionReadiness
+     * @return array<array-key, mixed>
      */
     private function dueDiligenceSuggestedReplyPayload(
         Client $client,
@@ -292,8 +292,8 @@ final class AdvisorClientShowPayloadBuilder
     }
 
     /**
-     * @param  array<string, mixed>  $decisionReadiness
-     * @param  array<int, array<string, mixed>>  $priorities
+     * @param  array<array-key, mixed>  $decisionReadiness
+     * @param  array<int, array<array-key, mixed>>  $priorities
      */
     private function suggestedDueDiligenceAdvisorFeedback(
         DdEngagement $engagement,
@@ -322,8 +322,8 @@ final class AdvisorClientShowPayloadBuilder
     }
 
     /**
-     * @param  array<string, mixed>  $decisionReadiness
-     * @param  array<int, array<string, mixed>>  $priorities
+     * @param  array<array-key, mixed>  $decisionReadiness
+     * @param  array<int, array<array-key, mixed>>  $priorities
      */
     private function suggestedDueDiligenceClientReply(
         Client $client,
@@ -353,7 +353,7 @@ final class AdvisorClientShowPayloadBuilder
 
     /**
      * @param  Collection<int, Report>  $reports
-     * @return array<int, array<string, mixed>>
+     * @return array<int, array<array-key, mixed>>
      */
     private function dueDiligenceReportVersionsPayload(DdEngagement $engagement, Collection $reports): array
     {
@@ -402,8 +402,8 @@ final class AdvisorClientShowPayloadBuilder
     }
 
     /**
-     * @param  array<string, mixed>  $decisionReadiness
-     * @return array<int, array<string, mixed>>
+     * @param  array<array-key, mixed>  $decisionReadiness
+     * @return array<int, array<array-key, mixed>>
      */
     private function dueDiligenceFeedbackPriorities(array $decisionReadiness): array
     {
@@ -469,8 +469,8 @@ final class AdvisorClientShowPayloadBuilder
     }
 
     /**
-     * @param  array<string, mixed>  $decisionReadiness
-     * @param  array<int, array<string, mixed>>  $priorities
+     * @param  array<array-key, mixed>  $decisionReadiness
+     * @param  array<int, array<array-key, mixed>>  $priorities
      */
     private function dueDiligenceNextStep(array $decisionReadiness, array $priorities): string
     {
@@ -490,7 +490,7 @@ final class AdvisorClientShowPayloadBuilder
     }
 
     /**
-     * @param  array<string, mixed>  $decisionReadiness
+     * @param  array<array-key, mixed>  $decisionReadiness
      */
     private function firstDueDiligenceBlocker(array $decisionReadiness): ?string
     {

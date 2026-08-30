@@ -23,7 +23,7 @@ final class DdPlanBudgetAccess
     public const STATE_ACTIVE_ADD_ON = 'active_add_on';
 
     /**
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     public function payload(Client $client): array
     {
@@ -121,7 +121,7 @@ final class DdPlanBudgetAccess
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     private function payloadForActivation(
         ServiceActivation $activation,
@@ -151,7 +151,7 @@ final class DdPlanBudgetAccess
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     private function basePayload(bool $allowed, string $state, string $label, string $message): array
     {

@@ -93,7 +93,7 @@ final class DueDiligenceReportComposer implements DueDiligenceReportComposition
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     private function decisionReadiness(DueDiligenceReportInputs $inputs): array
     {
@@ -110,7 +110,7 @@ final class DueDiligenceReportComposer implements DueDiligenceReportComposition
     }
 
     /**
-     * @param  array<string, mixed>  $decisionReadiness
+     * @param  array<array-key, mixed>  $decisionReadiness
      * @return list<ReportSectionDraft>
      */
     private function sections(DueDiligenceReportInputs $inputs, array $decisionReadiness): array
@@ -136,7 +136,7 @@ final class DueDiligenceReportComposer implements DueDiligenceReportComposition
         ];
     }
 
-    /** @param  array<string, mixed>  $decisionReadiness */
+    /** @param  array<array-key, mixed>  $decisionReadiness */
     private function executiveSummarySection(DueDiligenceReportInputs $inputs, array $decisionReadiness): ReportSectionDraft
     {
         $materialRisks = $inputs->risks
@@ -407,7 +407,7 @@ final class DueDiligenceReportComposer implements DueDiligenceReportComposition
         );
     }
 
-    /** @param  array<string, mixed>  $decisionReadiness */
+    /** @param  array<array-key, mixed>  $decisionReadiness */
     private function buyerReadinessSection(DueDiligenceReportInputs $inputs, array $decisionReadiness): ReportSectionDraft
     {
         $questions = collect((array) ($decisionReadiness['decision_questions'] ?? []))
@@ -459,7 +459,7 @@ final class DueDiligenceReportComposer implements DueDiligenceReportComposition
         );
     }
 
-    /** @param  array<string, mixed>  $decisionReadiness */
+    /** @param  array<array-key, mixed>  $decisionReadiness */
     private function legacyBuyerReadinessSection(DueDiligenceReportInputs $inputs, array $decisionReadiness): ReportSectionDraft
     {
         $completed = (int) ($decisionReadiness['completed_workstreams'] ?? 0);
@@ -513,7 +513,7 @@ final class DueDiligenceReportComposer implements DueDiligenceReportComposition
 
     /**
      * @param  Collection<int, AnalysisFinding>  $findings
-     * @param  array<string, mixed>  $metadata
+     * @param  array<array-key, mixed>  $metadata
      */
     private function sectionWithDocumentSupport(
         string $key,

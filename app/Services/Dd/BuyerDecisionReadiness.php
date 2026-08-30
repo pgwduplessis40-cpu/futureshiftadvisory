@@ -15,7 +15,7 @@ use Illuminate\Support\Collection;
 final class BuyerDecisionReadiness
 {
     /**
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     public function forEngagement(DdEngagement $engagement, ?Report $report = null): array
     {
@@ -37,7 +37,7 @@ final class BuyerDecisionReadiness
      * @param  Collection<int, AnalysisFinding>  $findings
      * @param  Collection<int, DdRiskRegisterItem>  $risks
      * @param  array{recommendation:string,rationale:string}  $recommendation
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     public function evaluate(
         DdEngagement $engagement,
@@ -115,8 +115,8 @@ final class BuyerDecisionReadiness
     }
 
     /**
-     * @param  array<string, mixed>  $payload
-     * @return array<string, mixed>
+     * @param  array<array-key, mixed>  $payload
+     * @return array<array-key, mixed>
      */
     private function normalise(array $payload): array
     {
@@ -154,8 +154,8 @@ final class BuyerDecisionReadiness
     }
 
     /**
-     * @param  array<string, mixed>  $payload
-     * @return array<string, mixed>
+     * @param  array<array-key, mixed>  $payload
+     * @return array<array-key, mixed>
      */
     private function withReviewGate(array $payload, ?Report $report): array
     {

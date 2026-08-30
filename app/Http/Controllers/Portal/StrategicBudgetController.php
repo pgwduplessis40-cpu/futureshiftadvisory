@@ -337,7 +337,7 @@ final class StrategicBudgetController extends Controller
     }
 
     /**
-     * @param  array<string, mixed>  $access
+     * @param  array<array-key, mixed>  $access
      */
     private function quoteApprovalResponse(Client $client, array $access): Response
     {
@@ -369,7 +369,7 @@ final class StrategicBudgetController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     private function quoteRequestIntake(Client $client): array
     {

@@ -623,8 +623,8 @@ final class BudgetCalculator implements ProvidesMethodology
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $rows
-     * @param  array<string, mixed>  $assumptions
+     * @param  array<int, array<array-key, mixed>>  $rows
+     * @param  array<array-key, mixed>  $assumptions
      */
     private function contractorDeliveryCostsForMonth(array $rows, int $month, array $assumptions, float $revenueMultiplier): float
     {
@@ -1315,7 +1315,7 @@ final class BudgetCalculator implements ProvidesMethodology
     }
 
     /**
-     * @param  array<string, mixed>  $row
+     * @param  array<array-key, mixed>  $row
      */
     private function hasVerifiedSource(array $row): bool
     {

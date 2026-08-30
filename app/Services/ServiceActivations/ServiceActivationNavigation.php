@@ -125,7 +125,7 @@ final class ServiceActivationNavigation
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<array-key, mixed>
      */
     private function ddPlanBudgetOption(bool $available): array
     {
