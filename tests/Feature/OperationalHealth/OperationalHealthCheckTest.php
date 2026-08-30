@@ -529,6 +529,12 @@ final class OperationalHealthCheckTest extends TestCase
             'check_key' => 'admin.audit_trail.index',
             'status' => OperationalHealthCheckResult::STATUS_PASSED,
         ]);
+        $this->assertDatabaseHas('operational_health_check_results', [
+            'check_key' => 'auth.login',
+            'status' => OperationalHealthCheckResult::STATUS_PASSED,
+            'actual_status' => 200,
+            'actor_user_id' => null,
+        ]);
 
         /** @var OperationalHealthCheckRun $run */
         $run = OperationalHealthCheckRun::query()->latest()->firstOrFail();

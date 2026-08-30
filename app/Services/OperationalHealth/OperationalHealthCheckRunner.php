@@ -706,18 +706,13 @@ final class OperationalHealthCheckRunner
         $session = app('session')->driver();
         $originalSessionId = $session->getId();
         $originalSessionData = $session->all();
+        /** @var Request $originalRequest */
+        $originalRequest = app('request');
         $originalUser = Auth::guard('web')->user();
 
         $session->setId(Str::random(40));
         $session->replace([]);
         $session->start();
-        app('auth')->forgetGuards();
-
-        if ($user instanceof User) {
-            $session->put(MfaChallenger::SESSION_USER_ID, (string) $user->getAuthIdentifier());
-            $session->put(MfaChallenger::SESSION_CONFIRMED_AT, now()->getTimestamp());
-            Auth::guard('web')->setUser($user);
-        }
 
         $request = Request::create($url, strtoupper($method), [], [], [], [
             'HTTP_ACCEPT' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -727,6 +722,14 @@ final class OperationalHealthCheckRunner
             'REMOTE_ADDR' => '127.0.0.1',
         ]);
         $request->setLaravelSession($session);
+        app()->instance('request', $request);
+        app('auth')->forgetGuards();
+
+        if ($user instanceof User) {
+            $session->put(MfaChallenger::SESSION_USER_ID, (string) $user->getAuthIdentifier());
+            $session->put(MfaChallenger::SESSION_CONFIRMED_AT, now()->getTimestamp());
+            Auth::guard('web')->setUser($user);
+        }
 
         if ($user instanceof User) {
             $request->setUserResolver(static fn (?string $guard = null): User => $user);
@@ -758,14 +761,14 @@ final class OperationalHealthCheckRunner
                 'headers' => [],
             ];
         } finally {
+            app()->instance('request', $originalRequest);
+            $session->setId($originalSessionId);
+            $session->replace($originalSessionData);
             app('auth')->forgetGuards();
 
             if ($originalUser instanceof User) {
                 Auth::guard('web')->setUser($originalUser);
             }
-
-            $session->setId($originalSessionId);
-            $session->replace($originalSessionData);
         }
     }
 
