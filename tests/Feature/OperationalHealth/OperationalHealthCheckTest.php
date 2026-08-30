@@ -555,6 +555,31 @@ final class OperationalHealthCheckTest extends TestCase
             ->assertOk();
     }
 
+    public function test_run_now_records_failed_checks_without_delivering_alerts_from_browser_request(): void
+    {
+        Notification::fake();
+        Storage::fake('secure_local');
+
+        config()->set('operational_health.ensure_fixtures', false);
+        config()->set('operational_health.require_verified_deployment', true);
+        config()->set('operational_health.alerts.consecutive_failures', 1);
+
+        $this->fakePdfRenderer();
+
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'manual-app-health-alerts@example.test');
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.app-health.run'))
+            ->assertRedirect(route('admin.app-health.index'));
+
+        $this->assertDatabaseHas('operational_health_check_results', [
+            'check_key' => 'deployment.identity',
+            'status' => OperationalHealthCheckResult::STATUS_FAILED,
+        ]);
+
+        Notification::assertNothingSent();
+    }
+
     public function test_dashboard_action_board_payload_includes_app_check_errors(): void
     {
         $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'dashboard-app-health@example.test');
