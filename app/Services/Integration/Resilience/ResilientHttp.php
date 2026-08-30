@@ -136,6 +136,8 @@ final class ResilientHttp
         ?int $maxAttempts = null,
         array $acceptableStatusCodes = [],
     ): IntegrationResult {
+        $this->applyTimeout($options, null);
+
         $correlationId = (string) Str::uuid();
         $attemptLimit = max(1, $maxAttempts ?? $this->retryPolicy->attempts);
 
@@ -377,12 +379,19 @@ final class ResilientHttp
      */
     private function applyTimeout(array &$options, ?int $timeoutSeconds): void
     {
-        if ($timeoutSeconds === null || $timeoutSeconds < 1) {
+        $resolvedTimeoutSeconds = $timeoutSeconds ?? $this->defaultTimeoutSeconds();
+
+        if ($resolvedTimeoutSeconds < 1) {
             return;
         }
 
-        $options['timeout'] = $timeoutSeconds;
-        $options['connect_timeout'] = min(10, $timeoutSeconds);
+        $options['timeout'] ??= $resolvedTimeoutSeconds;
+        $options['connect_timeout'] ??= min(5, $resolvedTimeoutSeconds);
+    }
+
+    private function defaultTimeoutSeconds(): int
+    {
+        return max(1, (int) Config::get('integrations.http.timeout_seconds', 5));
     }
 
     private function pauseBeforeRetry(int $attempt): void

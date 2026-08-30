@@ -33,6 +33,9 @@ final class BudgetFundingReadiness
                 'contingency_amount' => 0.0,
                 'recommended_funding_target' => 0.0,
                 'funding_gap_or_surplus' => 0.0,
+                'funding_position' => 'undecided',
+                'funding_position_label' => 'Funding position not confirmed',
+                'funding_position_aligned' => false,
                 'risk_reasons' => ['No saved budget is available yet.'],
                 'warnings' => ['No saved budget is available yet.'],
                 'scenario_count' => 0,
@@ -40,6 +43,7 @@ final class BudgetFundingReadiness
         }
 
         $computed = (array) ($budget->computed ?? []);
+        $budgetStatus = $budget->status ?: EntrepreneurBudget::STATUS_NOT_STARTED;
         $monthlyRows = collect((array) data_get($computed, 'monthly_detail', []))
             ->filter(fn (mixed $row): bool => is_array($row))
             ->values()
@@ -55,15 +59,25 @@ final class BudgetFundingReadiness
         $recommendedFundingTarget = round($launchCosts + $operatingCover + $contingency, 2);
         $fundingGapOrSurplus = round($availableFunding - $recommendedFundingTarget, 2);
         $requiredAdditionalFunding = round(max($additionalFunding, max(0.0, -$fundingGapOrSurplus)), 2);
+        $assumptions = (array) data_get($computed, 'assumptions', []);
+        $fundingPosition = (string) ($assumptions['funding_position'] ?? 'undecided');
+        $fundingPositionConfirmed = (bool) ($assumptions['funding_position_confirmed'] ?? false);
+        $fundingRequestPurpose = trim((string) ($assumptions['funding_request_purpose'] ?? ''));
+        $fundingPositionAligned = $fundingPositionConfirmed
+            && $fundingPosition !== 'undecided'
+            && ! ($fundingPosition === 'self_funded' && $requiredAdditionalFunding > 0)
+            && ! ($fundingPosition === 'external_funding' && $requiredAdditionalFunding > 0 && $fundingRequestPurpose === '');
         $warnings = $this->warnings($budget);
         $riskReasons = [];
 
-        if ($budget->status !== EntrepreneurBudget::STATUS_COMPLETE) {
+        if ($budgetStatus !== EntrepreneurBudget::STATUS_COMPLETE) {
             $riskReasons[] = 'Budget inputs are not complete.';
         }
 
-        if ($requiredAdditionalFunding > 0) {
-            $riskReasons[] = 'The forecast requires additional funding or revised assumptions before external issue.';
+        if ($requiredAdditionalFunding > 0 && $fundingPosition === 'self_funded') {
+            $riskReasons[] = 'The self-funded position conflicts with the forecast funding requirement.';
+        } elseif ($requiredAdditionalFunding > 0) {
+            $riskReasons[] = 'The forecast requires additional funding; the written funding position and use of funds must remain aligned.';
         }
 
         if (data_get($computed, 'break_even_year') === null) {
@@ -78,8 +92,8 @@ final class BudgetFundingReadiness
             $riskReasons[] = 'Open budget quality warnings need advisor review.';
         }
 
-        $notReady = $budget->status !== EntrepreneurBudget::STATUS_COMPLETE
-            || $requiredAdditionalFunding > 0
+        $notReady = $budgetStatus !== EntrepreneurBudget::STATUS_COMPLETE
+            || ! $fundingPositionAligned
             || data_get($computed, 'cash_flow_positive_year') === null;
         $needsReview = ! $notReady && ($warnings !== [] || data_get($computed, 'break_even_year') === null);
         $readinessLabel = $notReady
@@ -87,12 +101,12 @@ final class BudgetFundingReadiness
             : ($needsReview ? 'Needs advisor review' : 'Ready for external issue');
 
         return [
-            'input_complete' => $budget->status === EntrepreneurBudget::STATUS_COMPLETE,
-            'input_status_label' => $this->inputStatusLabel($budget->status),
+            'input_complete' => $budgetStatus === EntrepreneurBudget::STATUS_COMPLETE,
+            'input_status_label' => $this->inputStatusLabel($budgetStatus),
             'external_issue_ready' => ! $notReady && ! $needsReview,
             'readiness_label' => $readinessLabel,
             'readiness_tone' => $notReady ? 'high' : ($needsReview ? 'medium' : 'good'),
-            'headline' => $this->decisionHeadline($readinessLabel, $requiredAdditionalFunding, $fundingGapOrSurplus),
+            'headline' => $this->decisionHeadline($readinessLabel, $requiredAdditionalFunding, $fundingGapOrSurplus, $fundingPosition),
             'lowest_cash_month' => $trough['month'],
             'lowest_cash' => $trough['value'],
             'additional_funding_needed' => $additionalFunding,
@@ -105,6 +119,9 @@ final class BudgetFundingReadiness
             'contingency_amount' => $contingency,
             'recommended_funding_target' => $recommendedFundingTarget,
             'funding_gap_or_surplus' => $fundingGapOrSurplus,
+            'funding_position' => $fundingPosition,
+            'funding_position_label' => $this->fundingPositionLabel($fundingPosition),
+            'funding_position_aligned' => $fundingPositionAligned,
             'risk_reasons' => $riskReasons,
             'warnings' => $warnings,
             'scenario_count' => count((array) data_get($computed, 'scenarios', [])),
@@ -154,6 +171,30 @@ final class BudgetFundingReadiness
         $missingCapacity = array_values((array) ($quality['revenue_without_capacity'] ?? []));
         if ($missingCapacity !== []) {
             $warnings->push('Set and confirm a monthly capacity for every revenue line before external issue: '.implode(', ', $missingCapacity).'.');
+        }
+
+        $unpricedContractors = array_values((array) ($quality['revenue_with_unpriced_contractors'] ?? []));
+        if ($unpricedContractors !== []) {
+            $warnings->push('Contractor delivery cost is missing or unconfirmed for revenue beyond founder capacity: '.implode(', ', $unpricedContractors).'.');
+        }
+
+        $unverifiedFixedCosts = array_values((array) ($quality['unverified_fixed_cost_sources'] ?? []));
+        if ($unverifiedFixedCosts !== []) {
+            $warnings->push('Verify the source for every fixed cost before external issue: '.implode(', ', $unverifiedFixedCosts).'.');
+        }
+
+        $unverifiedRevenue = array_values((array) ($quality['unverified_revenue_sources'] ?? []));
+        if ($unverifiedRevenue !== []) {
+            $warnings->push('Verify the pipeline, contract, or pricing source for every revenue line before external issue: '.implode(', ', $unverifiedRevenue).'.');
+        }
+
+        $unverifiedCashTiming = array_values((array) ($quality['unverified_cash_timing'] ?? []));
+        if ($unverifiedCashTiming !== []) {
+            $warnings->push('Verify opening cash, payment timing, and the forecast calendar from current records before external issue: '.implode(', ', $unverifiedCashTiming).'.');
+        }
+
+        if ((bool) ($quality['funding_position_unconfirmed'] ?? false)) {
+            $warnings->push('Confirm whether this is a self-funded plan or an external funding request before external issue.');
         }
 
         if (in_array('forecast_start_month', (array) ($quality['missing_assumptions'] ?? []), true)) {
@@ -208,10 +249,14 @@ final class BudgetFundingReadiness
         };
     }
 
-    private function decisionHeadline(string $readinessLabel, float $requiredAdditionalFunding, float $fundingGapOrSurplus): string
+    private function decisionHeadline(string $readinessLabel, float $requiredAdditionalFunding, float $fundingGapOrSurplus, string $fundingPosition): string
     {
-        if ($requiredAdditionalFunding > 0) {
-            return 'The forecast requires '.number_format($requiredAdditionalFunding, 2).' of additional funding or equivalent assumption changes before external issue.';
+        if ($requiredAdditionalFunding > 0 && $fundingPosition === 'self_funded') {
+            return 'The self-funded position conflicts with '.number_format($requiredAdditionalFunding, 2).' of required funding. Revise the assumptions or change the written funding position.';
+        }
+
+        if ($requiredAdditionalFunding > 0 && $fundingPosition === 'external_funding') {
+            return 'The forecast supports an external funding request of '.number_format($requiredAdditionalFunding, 2).' once its stated purpose and source inputs are verified.';
         }
 
         if ($readinessLabel === 'Not ready for external issue') {
@@ -225,6 +270,15 @@ final class BudgetFundingReadiness
         return $fundingGapOrSurplus >= 0
             ? 'Current funding covers the planned costs, operating buffer, contingency, and the monthly cash curve.'
             : 'The forecast is cash-positive, but its planned funding buffer should be discussed with an advisor.';
+    }
+
+    private function fundingPositionLabel(string $fundingPosition): string
+    {
+        return match ($fundingPosition) {
+            'self_funded' => 'Self-funded',
+            'external_funding' => 'External funding request',
+            default => 'Funding position not confirmed',
+        };
     }
 
     /**

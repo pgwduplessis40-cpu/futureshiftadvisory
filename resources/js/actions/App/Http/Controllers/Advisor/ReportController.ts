@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
-* @see app/Http/Controllers/Advisor/ReportController.php:29
+* @see app/Http/Controllers/Advisor/ReportController.php:30
 * @route '/advisor/clients/{client}/reports'
 */
 export const store = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
-* @see app/Http/Controllers/Advisor/ReportController.php:29
+* @see app/Http/Controllers/Advisor/ReportController.php:30
 * @route '/advisor/clients/{client}/reports'
 */
 store.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ store.url = (args: { client: string | { id: string } } | [client: string | { id:
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
-* @see app/Http/Controllers/Advisor/ReportController.php:29
+* @see app/Http/Controllers/Advisor/ReportController.php:30
 * @route '/advisor/clients/{client}/reports'
 */
 store.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
-* @see app/Http/Controllers/Advisor/ReportController.php:29
+* @see app/Http/Controllers/Advisor/ReportController.php:30
 * @route '/advisor/clients/{client}/reports'
 */
 const storeForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const storeForm = (args: { client: string | { id: string } } | [client: string |
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
-* @see app/Http/Controllers/Advisor/ReportController.php:29
+* @see app/Http/Controllers/Advisor/ReportController.php:30
 * @route '/advisor/clients/{client}/reports'
 */
 storeForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -81,7 +81,7 @@ store.form = storeForm
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::download
-* @see app/Http/Controllers/Advisor/ReportController.php:62
+* @see app/Http/Controllers/Advisor/ReportController.php:82
 * @route '/advisor/reports/{report}/download'
 */
 export const download = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -96,7 +96,7 @@ download.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::download
-* @see app/Http/Controllers/Advisor/ReportController.php:62
+* @see app/Http/Controllers/Advisor/ReportController.php:82
 * @route '/advisor/reports/{report}/download'
 */
 download.url = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -129,7 +129,7 @@ download.url = (args: { report: string | { id: string } } | [report: string | { 
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::download
-* @see app/Http/Controllers/Advisor/ReportController.php:62
+* @see app/Http/Controllers/Advisor/ReportController.php:82
 * @route '/advisor/reports/{report}/download'
 */
 download.get = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -139,7 +139,7 @@ download.get = (args: { report: string | { id: string } } | [report: string | { 
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::download
-* @see app/Http/Controllers/Advisor/ReportController.php:62
+* @see app/Http/Controllers/Advisor/ReportController.php:82
 * @route '/advisor/reports/{report}/download'
 */
 download.head = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -149,7 +149,7 @@ download.head = (args: { report: string | { id: string } } | [report: string | {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::download
-* @see app/Http/Controllers/Advisor/ReportController.php:62
+* @see app/Http/Controllers/Advisor/ReportController.php:82
 * @route '/advisor/reports/{report}/download'
 */
 const downloadForm = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -159,7 +159,7 @@ const downloadForm = (args: { report: string | { id: string } } | [report: strin
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::download
-* @see app/Http/Controllers/Advisor/ReportController.php:62
+* @see app/Http/Controllers/Advisor/ReportController.php:82
 * @route '/advisor/reports/{report}/download'
 */
 downloadForm.get = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -169,7 +169,7 @@ downloadForm.get = (args: { report: string | { id: string } } | [report: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::download
-* @see app/Http/Controllers/Advisor/ReportController.php:62
+* @see app/Http/Controllers/Advisor/ReportController.php:82
 * @route '/advisor/reports/{report}/download'
 */
 downloadForm.head = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -186,7 +186,7 @@ download.form = downloadForm
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::downloadPptx
-* @see app/Http/Controllers/Advisor/ReportController.php:67
+* @see app/Http/Controllers/Advisor/ReportController.php:87
 * @route '/advisor/reports/{report}/pptx'
 */
 export const downloadPptx = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -201,7 +201,7 @@ downloadPptx.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::downloadPptx
-* @see app/Http/Controllers/Advisor/ReportController.php:67
+* @see app/Http/Controllers/Advisor/ReportController.php:87
 * @route '/advisor/reports/{report}/pptx'
 */
 downloadPptx.url = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -234,7 +234,7 @@ downloadPptx.url = (args: { report: string | { id: string } } | [report: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::downloadPptx
-* @see app/Http/Controllers/Advisor/ReportController.php:67
+* @see app/Http/Controllers/Advisor/ReportController.php:87
 * @route '/advisor/reports/{report}/pptx'
 */
 downloadPptx.get = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -244,7 +244,7 @@ downloadPptx.get = (args: { report: string | { id: string } } | [report: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::downloadPptx
-* @see app/Http/Controllers/Advisor/ReportController.php:67
+* @see app/Http/Controllers/Advisor/ReportController.php:87
 * @route '/advisor/reports/{report}/pptx'
 */
 downloadPptx.head = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -254,7 +254,7 @@ downloadPptx.head = (args: { report: string | { id: string } } | [report: string
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::downloadPptx
-* @see app/Http/Controllers/Advisor/ReportController.php:67
+* @see app/Http/Controllers/Advisor/ReportController.php:87
 * @route '/advisor/reports/{report}/pptx'
 */
 const downloadPptxForm = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -264,7 +264,7 @@ const downloadPptxForm = (args: { report: string | { id: string } } | [report: s
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::downloadPptx
-* @see app/Http/Controllers/Advisor/ReportController.php:67
+* @see app/Http/Controllers/Advisor/ReportController.php:87
 * @route '/advisor/reports/{report}/pptx'
 */
 downloadPptxForm.get = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -274,7 +274,7 @@ downloadPptxForm.get = (args: { report: string | { id: string } } | [report: str
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::downloadPptx
-* @see app/Http/Controllers/Advisor/ReportController.php:67
+* @see app/Http/Controllers/Advisor/ReportController.php:87
 * @route '/advisor/reports/{report}/pptx'
 */
 downloadPptxForm.head = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -291,7 +291,7 @@ downloadPptx.form = downloadPptxForm
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
-* @see app/Http/Controllers/Advisor/ReportController.php:138
+* @see app/Http/Controllers/Advisor/ReportController.php:158
 * @route '/advisor/reports/{report}/review'
 */
 export const review = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -306,7 +306,7 @@ review.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
-* @see app/Http/Controllers/Advisor/ReportController.php:138
+* @see app/Http/Controllers/Advisor/ReportController.php:158
 * @route '/advisor/reports/{report}/review'
 */
 review.url = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -339,7 +339,7 @@ review.url = (args: { report: string | { id: string } } | [report: string | { id
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
-* @see app/Http/Controllers/Advisor/ReportController.php:138
+* @see app/Http/Controllers/Advisor/ReportController.php:158
 * @route '/advisor/reports/{report}/review'
 */
 review.patch = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -349,7 +349,7 @@ review.patch = (args: { report: string | { id: string } } | [report: string | { 
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
-* @see app/Http/Controllers/Advisor/ReportController.php:138
+* @see app/Http/Controllers/Advisor/ReportController.php:158
 * @route '/advisor/reports/{report}/review'
 */
 const reviewForm = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -364,7 +364,7 @@ const reviewForm = (args: { report: string | { id: string } } | [report: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
-* @see app/Http/Controllers/Advisor/ReportController.php:138
+* @see app/Http/Controllers/Advisor/ReportController.php:158
 * @route '/advisor/reports/{report}/review'
 */
 reviewForm.patch = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -380,8 +380,98 @@ reviewForm.patch = (args: { report: string | { id: string } } | [report: string 
 review.form = reviewForm
 
 /**
+* @see \App\Http\Controllers\Advisor\ReportController::ddFeedback
+* @see app/Http/Controllers/Advisor/ReportController.php:177
+* @route '/advisor/reports/{report}/dd-feedback'
+*/
+export const ddFeedback = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: ddFeedback.url(args, options),
+    method: 'patch',
+})
+
+ddFeedback.definition = {
+    methods: ["patch"],
+    url: '/advisor/reports/{report}/dd-feedback',
+} satisfies RouteDefinition<["patch"]>
+
+/**
+* @see \App\Http\Controllers\Advisor\ReportController::ddFeedback
+* @see app/Http/Controllers/Advisor/ReportController.php:177
+* @route '/advisor/reports/{report}/dd-feedback'
+*/
+ddFeedback.url = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { report: args }
+    }
+
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { report: args.id }
+    }
+
+    if (Array.isArray(args)) {
+        args = {
+            report: args[0],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        report: typeof args.report === 'object'
+        ? args.report.id
+        : args.report,
+    }
+
+    return ddFeedback.definition.url
+            .replace('{report}', parsedArgs.report.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Advisor\ReportController::ddFeedback
+* @see app/Http/Controllers/Advisor/ReportController.php:177
+* @route '/advisor/reports/{report}/dd-feedback'
+*/
+ddFeedback.patch = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: ddFeedback.url(args, options),
+    method: 'patch',
+})
+
+/**
+* @see \App\Http\Controllers\Advisor\ReportController::ddFeedback
+* @see app/Http/Controllers/Advisor/ReportController.php:177
+* @route '/advisor/reports/{report}/dd-feedback'
+*/
+const ddFeedbackForm = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: ddFeedback.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'PATCH',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
+
+/**
+* @see \App\Http\Controllers\Advisor\ReportController::ddFeedback
+* @see app/Http/Controllers/Advisor/ReportController.php:177
+* @route '/advisor/reports/{report}/dd-feedback'
+*/
+ddFeedbackForm.patch = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: ddFeedback.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'PATCH',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
+
+ddFeedback.form = ddFeedbackForm
+
+/**
 * @see \App\Http\Controllers\Advisor\ReportController::release
-* @see app/Http/Controllers/Advisor/ReportController.php:157
+* @see app/Http/Controllers/Advisor/ReportController.php:260
 * @route '/advisor/reports/{report}/release'
 */
 export const release = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -396,7 +486,7 @@ release.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::release
-* @see app/Http/Controllers/Advisor/ReportController.php:157
+* @see app/Http/Controllers/Advisor/ReportController.php:260
 * @route '/advisor/reports/{report}/release'
 */
 release.url = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -429,7 +519,7 @@ release.url = (args: { report: string | { id: string } } | [report: string | { i
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::release
-* @see app/Http/Controllers/Advisor/ReportController.php:157
+* @see app/Http/Controllers/Advisor/ReportController.php:260
 * @route '/advisor/reports/{report}/release'
 */
 release.patch = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -439,7 +529,7 @@ release.patch = (args: { report: string | { id: string } } | [report: string | {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::release
-* @see app/Http/Controllers/Advisor/ReportController.php:157
+* @see app/Http/Controllers/Advisor/ReportController.php:260
 * @route '/advisor/reports/{report}/release'
 */
 const releaseForm = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -454,7 +544,7 @@ const releaseForm = (args: { report: string | { id: string } } | [report: string
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::release
-* @see app/Http/Controllers/Advisor/ReportController.php:157
+* @see app/Http/Controllers/Advisor/ReportController.php:260
 * @route '/advisor/reports/{report}/release'
 */
 releaseForm.patch = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -471,7 +561,7 @@ release.form = releaseForm
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::updateSection
-* @see app/Http/Controllers/Advisor/ReportController.php:182
+* @see app/Http/Controllers/Advisor/ReportController.php:285
 * @route '/advisor/reports/{report}/sections/{reportSection}'
 */
 export const updateSection = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -486,7 +576,7 @@ updateSection.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::updateSection
-* @see app/Http/Controllers/Advisor/ReportController.php:182
+* @see app/Http/Controllers/Advisor/ReportController.php:285
 * @route '/advisor/reports/{report}/sections/{reportSection}'
 */
 updateSection.url = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -516,7 +606,7 @@ updateSection.url = (args: { report: string | { id: string }, reportSection: str
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::updateSection
-* @see app/Http/Controllers/Advisor/ReportController.php:182
+* @see app/Http/Controllers/Advisor/ReportController.php:285
 * @route '/advisor/reports/{report}/sections/{reportSection}'
 */
 updateSection.patch = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -526,7 +616,7 @@ updateSection.patch = (args: { report: string | { id: string }, reportSection: s
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::updateSection
-* @see app/Http/Controllers/Advisor/ReportController.php:182
+* @see app/Http/Controllers/Advisor/ReportController.php:285
 * @route '/advisor/reports/{report}/sections/{reportSection}'
 */
 const updateSectionForm = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -541,7 +631,7 @@ const updateSectionForm = (args: { report: string | { id: string }, reportSectio
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::updateSection
-* @see app/Http/Controllers/Advisor/ReportController.php:182
+* @see app/Http/Controllers/Advisor/ReportController.php:285
 * @route '/advisor/reports/{report}/sections/{reportSection}'
 */
 updateSectionForm.patch = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -558,7 +648,7 @@ updateSection.form = updateSectionForm
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::commentSection
-* @see app/Http/Controllers/Advisor/ReportController.php:218
+* @see app/Http/Controllers/Advisor/ReportController.php:321
 * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
 */
 export const commentSection = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -573,7 +663,7 @@ commentSection.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::commentSection
-* @see app/Http/Controllers/Advisor/ReportController.php:218
+* @see app/Http/Controllers/Advisor/ReportController.php:321
 * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
 */
 commentSection.url = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -603,7 +693,7 @@ commentSection.url = (args: { report: string | { id: string }, reportSection: st
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::commentSection
-* @see app/Http/Controllers/Advisor/ReportController.php:218
+* @see app/Http/Controllers/Advisor/ReportController.php:321
 * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
 */
 commentSection.post = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -613,7 +703,7 @@ commentSection.post = (args: { report: string | { id: string }, reportSection: s
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::commentSection
-* @see app/Http/Controllers/Advisor/ReportController.php:218
+* @see app/Http/Controllers/Advisor/ReportController.php:321
 * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
 */
 const commentSectionForm = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -623,7 +713,7 @@ const commentSectionForm = (args: { report: string | { id: string }, reportSecti
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::commentSection
-* @see app/Http/Controllers/Advisor/ReportController.php:218
+* @see app/Http/Controllers/Advisor/ReportController.php:321
 * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
 */
 commentSectionForm.post = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -633,6 +723,6 @@ commentSectionForm.post = (args: { report: string | { id: string }, reportSectio
 
 commentSection.form = commentSectionForm
 
-const ReportController = { store, download, downloadPptx, review, release, updateSection, commentSection }
+const ReportController = { store, download, downloadPptx, review, ddFeedback, release, updateSection, commentSection }
 
 export default ReportController

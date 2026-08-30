@@ -35,6 +35,8 @@ import { InspirationCard } from '@/components/inspiration/InspirationCard';
 import type { InspirationPost } from '@/components/inspiration/InspirationCard';
 import { NpoHealthPanel } from '@/components/npo/NpoHealthPanel';
 import type { NpoHealthPayload } from '@/components/npo/NpoHealthPanel';
+import { ServiceJourneyRecognitionPanel } from '@/components/portal/ServiceJourneyRecognitionPanel';
+import type { ServiceJourneyRecognitionPayload } from '@/components/portal/ServiceJourneyRecognitionPanel';
 import { WorkspaceSwitcher } from '@/components/portal/WorkspaceSwitcher';
 import type { WorkspaceSwitcherPayload } from '@/components/portal/WorkspaceSwitcher';
 import { Badge } from '@/components/ui/badge';
@@ -101,6 +103,9 @@ type Props = {
     serviceActivations: ServiceActivationsPayload;
     workspaces: WorkspaceSwitcherPayload;
     serviceJourney: ServiceJourneyPayload;
+    journeyRecognition: ServiceJourneyRecognitionPayload;
+    secondaryJourneyRecognition: ServiceJourneyRecognitionPayload[];
+    planBudgetAccess: DdPlanBudgetAccessPayload;
     strategicBudget: StrategicBudgetPayload;
     strategicPlan: StrategicPlanPayload | null;
     standardAdvisory: StandardAdvisoryPortalPayload | null;
@@ -125,6 +130,7 @@ type Props = {
 
 type ServiceType =
     | 'due_diligence'
+    | 'dd_plan_budget'
     | 'entrepreneur'
     | 'standard_advisory'
     | 'post_acquisition_advisory'
@@ -334,12 +340,21 @@ type StrategicBudgetPayload = {
     status: string;
     status_label: string;
     locked: boolean;
+    business_plan_readiness_score: number;
     readiness_score: number;
     progress_score: number;
     source_financials: {
         count?: number;
         system_review?: string;
     };
+};
+
+type DdPlanBudgetAccessPayload = {
+    allowed: boolean;
+    state: string;
+    label: string;
+    message: string;
+    activation_url: string | null;
 };
 
 type StrategicPlanPayload = {
@@ -627,6 +642,230 @@ function WelcomeBanner({ welcomeMessage }: { welcomeMessage: WelcomeMessage }) {
     );
 }
 
+function DueDiligenceDashboard({
+    client,
+    coBrowse,
+    progress,
+    onboardingUrl,
+    ddPlan,
+    workspaces,
+    planBudgetAccess,
+    strategicBudget,
+    journey,
+    recognition,
+    reports,
+    messageSummary,
+    messagesUrl,
+}: {
+    client: ClientPayload;
+    coBrowse: ClientCoBrowseConfig | null;
+    progress: Progress;
+    onboardingUrl: string;
+    ddPlan: DdPlanPayload | null;
+    workspaces: WorkspaceSwitcherPayload;
+    planBudgetAccess: DdPlanBudgetAccessPayload;
+    strategicBudget: StrategicBudgetPayload;
+    journey: ServiceJourneyPayload;
+    recognition: ServiceJourneyRecognitionPayload;
+    reports: ReportPayload[];
+    messageSummary: Props['messageSummary'];
+    messagesUrl: string;
+}) {
+    const onboardingOpen = progress.percentage < 100;
+    const showPlanBudgetProgress =
+        planBudgetAccess.allowed || planBudgetAccess.state !== 'not_requested';
+    const primaryAction = onboardingOpen
+        ? {
+              title: 'Continue due diligence onboarding',
+              description:
+                  'Complete the remaining setup so FSA can assess the acquisition target with the right level of support.',
+              url: onboardingUrl,
+              label: 'Continue onboarding',
+          }
+        : {
+              title: 'Continue due diligence',
+              description: journey.primary.client_next,
+              url: ddPlan?.url ?? journey.primary.action_url,
+              label: ddPlan?.generated ? 'Open DD workspace' : 'Open DD',
+          };
+    const latestReport = reports[0] ?? null;
+
+    return (
+        <>
+            <Head title="Due Diligence" />
+            <ClientCoBrowse config={coBrowse} />
+
+            <main
+                className="flex-1 space-y-6"
+                data-co-browse-target="client.dashboard.workspace"
+            >
+                <div>
+                    <h1 className="text-xl font-semibold">
+                        {client.trading_name || client.legal_name}
+                    </h1>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Due Diligence
+                        {ddPlan?.target_name ? ` · ${ddPlan.target_name}` : ''}
+                    </p>
+                </div>
+
+                <WorkspaceSwitcher workspaces={workspaces} />
+
+                <section className="rounded-md border bg-background p-5 shadow-xs">
+                    <Badge variant="secondary">Your next step</Badge>
+                    <h2 className="mt-3 text-lg font-semibold">
+                        {primaryAction.title}
+                    </h2>
+                    <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                        {primaryAction.description}
+                    </p>
+                    {onboardingOpen ? (
+                        <div className="mt-4 max-w-md">
+                            <div className="flex items-center justify-between text-sm">
+                                <span>Onboarding progress</span>
+                                <span className="text-muted-foreground">
+                                    {progress.completed} of {progress.total}
+                                </span>
+                            </div>
+                            <div
+                                className="mt-2 h-2 rounded-full bg-muted"
+                                role="progressbar"
+                                aria-valuenow={progress.percentage}
+                                aria-valuemin={0}
+                                aria-valuemax={100}
+                                aria-label="Due diligence onboarding completion"
+                            >
+                                <div
+                                    className="h-2 rounded-full bg-[var(--fs-admiralty)]"
+                                    style={{
+                                        width: `${progress.percentage}%`,
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    ) : null}
+                    <div className="mt-5 flex flex-wrap gap-3">
+                        <Button asChild>
+                            <Link href={primaryAction.url}>
+                                {primaryAction.label}
+                            </Link>
+                        </Button>
+                        <Button asChild variant="outline">
+                            <Link href={messagesUrl}>
+                                <MessageSquare
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Messages
+                                {messageSummary.unread_count > 0
+                                    ? ` (${messageSummary.unread_count})`
+                                    : ''}
+                            </Link>
+                        </Button>
+                    </div>
+                </section>
+
+                <ServiceJourneyRecognitionPanel recognition={recognition} />
+
+                {showPlanBudgetProgress ? (
+                    <DdPlanBudgetProgressCard
+                        access={planBudgetAccess}
+                        budget={strategicBudget}
+                    />
+                ) : null}
+
+                {latestReport ? (
+                    <section className="flex flex-col gap-3 rounded-md border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="text-sm font-medium">
+                                Latest released output
+                            </h2>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                {latestReport.title}
+                            </p>
+                        </div>
+                        <Button asChild variant="outline" size="sm">
+                            <Link href={latestReport.view_url}>
+                                View output
+                            </Link>
+                        </Button>
+                    </section>
+                ) : null}
+            </main>
+        </>
+    );
+}
+
+function DdPlanBudgetProgressCard({
+    access,
+    budget,
+}: {
+    access: DdPlanBudgetAccessPayload;
+    budget: StrategicBudgetPayload;
+}) {
+    const href = access.allowed
+        ? '/portal/business-plan-budget'
+        : (access.activation_url ?? '/portal/business-plan-budget');
+    const actionLabel = access.allowed
+        ? 'Open Business Plan & Budget'
+        : access.activation_url
+          ? 'Review quote'
+          : 'Request quote';
+    const financialCount = budget.source_financials.count ?? 0;
+
+    return (
+        <section className="rounded-md border bg-background p-4 shadow-xs">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <FileSpreadsheet
+                            className="size-4 text-primary"
+                            aria-hidden="true"
+                        />
+                        <h2 className="text-sm font-medium">
+                            Business Plan & Budget progress
+                        </h2>
+                        <Badge variant="secondary">
+                            {access.allowed
+                                ? budget.status_label
+                                : access.label}
+                        </Badge>
+                    </div>
+                    <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                        {access.allowed
+                            ? budget.locked
+                                ? (budget.source_financials.system_review ??
+                                  'Upload and verify financial evidence to unlock the budget.')
+                                : `Business plan readiness is ${budget.business_plan_readiness_score}/100 and budget progress is ${budget.progress_score}%.`
+                            : access.message}
+                    </p>
+                </div>
+                <Button asChild size="sm" variant="outline">
+                    <Link href={href}>{actionLabel}</Link>
+                </Button>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <JourneyFact
+                    label="Business plan"
+                    value={`${budget.business_plan_readiness_score}/100`}
+                    detail="Client funding-plan readiness"
+                />
+                <JourneyFact
+                    label="Budget progress"
+                    value={`${budget.progress_score}%`}
+                    detail={budget.locked ? 'Financials needed' : 'In progress'}
+                />
+                <JourneyFact
+                    label="Financial evidence"
+                    value={`${financialCount} file${financialCount === 1 ? '' : 's'}`}
+                    detail={budget.source_financials.system_review}
+                />
+            </div>
+        </section>
+    );
+}
+
 export default function PortalDashboard({
     client,
     coBrowse,
@@ -643,6 +882,9 @@ export default function PortalDashboard({
     serviceActivations,
     workspaces,
     serviceJourney,
+    journeyRecognition,
+    secondaryJourneyRecognition,
+    planBudgetAccess,
     strategicBudget,
     strategicPlan,
     standardAdvisory,
@@ -909,6 +1151,26 @@ export default function PortalDashboard({
         event: MouseEvent<Element>,
     ) => focusDashboardSection(sectionId, 'information', event);
 
+    if (client.engagement_type === 'due_diligence') {
+        return (
+            <DueDiligenceDashboard
+                client={client}
+                coBrowse={coBrowse}
+                progress={progress}
+                onboardingUrl={onboardingUrl}
+                ddPlan={ddPlan}
+                workspaces={workspaces}
+                planBudgetAccess={planBudgetAccess}
+                strategicBudget={strategicBudget}
+                journey={serviceJourney}
+                recognition={journeyRecognition}
+                reports={reports}
+                messageSummary={messageSummary}
+                messagesUrl={messagesUrl}
+            />
+        );
+    }
+
     return (
         <>
             <Head title="Client portal" />
@@ -953,6 +1215,15 @@ export default function PortalDashboard({
                 ) : null}
 
                 <ServiceJourneyPanel journey={serviceJourney} />
+                <ServiceJourneyRecognitionPanel
+                    recognition={journeyRecognition}
+                />
+                {secondaryJourneyRecognition.map((recognition) => (
+                    <ServiceJourneyRecognitionPanel
+                        key={recognition.service_key}
+                        recognition={recognition}
+                    />
+                ))}
 
                 <DashboardTabList
                     activeTab={activeTab}
@@ -2396,6 +2667,10 @@ function serviceIconFor(
 ): ComponentType<{ className?: string; 'aria-hidden'?: boolean }> {
     if (serviceType === 'due_diligence') {
         return BriefcaseBusiness;
+    }
+
+    if (serviceType === 'dd_plan_budget') {
+        return FileSpreadsheet;
     }
 
     if (

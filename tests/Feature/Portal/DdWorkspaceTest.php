@@ -8,12 +8,14 @@ use App\Enums\EngagementType;
 use App\Enums\EntrepreneurStage;
 use App\Enums\QuestionnaireQuestionType;
 use App\Enums\QuestionnaireSet;
+use App\Enums\ReportType;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\ConflictDeclaration;
 use App\Models\DdEngagement;
 use App\Models\EntrepreneurProfile;
 use App\Models\Questionnaire;
+use App\Models\Report;
 use App\Models\ServiceActivation;
 use App\Models\User;
 use Database\Seeders\DdSpecificQuestionnaireV2Seeder;
@@ -117,6 +119,29 @@ final class DdWorkspaceTest extends TestCase
                 ->where('readiness.questionnaire_submitted', true)
                 ->where('questionnaire.submitted', true)
                 ->where('client.engagement_type_label', EngagementType::DUE_DILIGENCE->label()));
+    }
+
+    public function test_due_diligence_workspace_exposes_reviewed_dd_pdf_to_client(): void
+    {
+        [$buyer, $client, $engagement] = $this->entrepreneurClientWithDdWorkspace();
+        $report = Report::query()->create([
+            'client_id' => $client->getKey(),
+            'type' => ReportType::DueDiligence,
+            'title' => 'Main Street Bikes Due Diligence Report',
+            'generated_at' => now(),
+            'metadata' => ['dd_engagement_id' => $engagement->getKey()],
+            'review_status' => 'reviewed',
+            'reviewed_at' => now(),
+            'reviewed_by_user_id' => $buyer->getKey(),
+        ]);
+
+        $this->actingAsMfa($buyer)
+            ->get(route('portal.dd-plan.show', ['client' => $client->getKey()]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('portal/dd/BusinessPlan')
+                ->where('ddReportPdfUrl', route('portal.reports.show', $report, absolute: false))
+                ->where('ddReportTitle', 'Main Street Bikes Due Diligence Report'));
     }
 
     /**

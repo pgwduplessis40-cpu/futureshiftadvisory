@@ -19,11 +19,6 @@ type ClientPayload = {
     engagement_type_label: string;
 };
 
-type Goal = {
-    title: string;
-    measure?: string | null;
-};
-
 type PlanSection = {
     key: string;
     title: string;
@@ -129,8 +124,6 @@ type BudgetPayload = {
     business_plan_readiness_score: number;
     confidence: { message?: string | null; overall?: string | null };
     source_financials: { count?: number; system_review?: string | null };
-    client_goals: Goal[];
-    advisor_goals: Goal[];
     business_plan_sections: PlanSection[];
     assumptions: Record<string, number | string | null>;
     implementation_costs: BudgetRow[];
@@ -331,10 +324,6 @@ export default function StrategicPlanBudgetDocument({
                             number="01"
                             title={planLabel}
                             subtitle="The client-owned plan that guides the financial forecast and advisory priorities."
-                        />
-                        <Goals
-                            clientGoals={budget.client_goals}
-                            advisorGoals={budget.advisor_goals}
                         />
                         <div className="mt-8 divide-y divide-slate-200 border-y border-slate-200">
                             {budget.business_plan_sections.map((section) => (
@@ -599,56 +588,6 @@ function DocumentMetric({ label, value }: { label: string; value: string }) {
                 {label}
             </p>
             <p className="mt-2 text-lg font-semibold text-[#1F3458]">{value}</p>
-        </div>
-    );
-}
-
-function Goals({
-    clientGoals,
-    advisorGoals,
-}: {
-    clientGoals: Goal[];
-    advisorGoals: Goal[];
-}) {
-    if (clientGoals.length === 0 && advisorGoals.length === 0) {
-        return null;
-    }
-
-    return (
-        <div className="mt-8 grid gap-8 border-y border-slate-200 py-6 md:grid-cols-2">
-            <GoalColumn title="Client goals" goals={clientGoals} />
-            <GoalColumn title="Advisor goals" goals={advisorGoals} />
-        </div>
-    );
-}
-
-function GoalColumn({ title, goals }: { title: string; goals: Goal[] }) {
-    return (
-        <div>
-            <h3 className="text-sm font-semibold text-[#1F3458]">{title}</h3>
-            {goals.length === 0 ? (
-                <p className="mt-3 text-sm text-slate-500">
-                    No goals recorded.
-                </p>
-            ) : (
-                <ul className="mt-3 space-y-3">
-                    {goals.map((goal, index) => (
-                        <li
-                            key={`${goal.title}-${index}`}
-                            className="border-l-2 border-[#D4A91F] pl-3 text-sm"
-                        >
-                            <p className="font-medium text-slate-800">
-                                {goal.title}
-                            </p>
-                            {goal.measure ? (
-                                <p className="mt-1 leading-5 text-slate-600">
-                                    {goal.measure}
-                                </p>
-                            ) : null}
-                        </li>
-                    ))}
-                </ul>
-            )}
         </div>
     );
 }

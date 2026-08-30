@@ -30,6 +30,7 @@ use App\Services\Entrepreneurs\Guidance as EntrepreneurGuidance;
 use App\Services\Pdf\ResilientPdfPreviewRenderer;
 use App\Services\Plans\PlanBuilder as SharedPlanBuilder;
 use App\Services\Portal\ClientPortalResolver;
+use App\Services\Portal\OnboardingWizard;
 use App\Services\Portal\ServiceWorkspaces;
 use App\Services\Questionnaires\QuestionnairePayload;
 use App\Services\Questionnaires\QuestionnaireResponseRecorder;
@@ -63,10 +64,16 @@ final class DdBusinessPlanController extends Controller
         private readonly ClientCapability $clientCapability,
     ) {}
 
-    public function show(Request $request): Response
+    public function show(Request $request): Response|RedirectResponse
     {
         $client = $this->clients->resolveForServiceWorkspace($request);
         $engagement = $this->engagementFor($client);
+
+        if ($this->requiresOnboardingSupportLevel($client, $engagement)) {
+            return to_route('portal.onboarding.step', [
+                'step' => OnboardingWizard::STEP_DD_SUPPORT,
+            ]);
+        }
 
         $readiness = $this->readiness($engagement);
 
@@ -88,6 +95,8 @@ final class DdBusinessPlanController extends Controller
             'workspaces' => $this->workspaces->payload($client, ServiceWorkspaces::KEY_DUE_DILIGENCE),
             'questionnaire' => $this->questionnairePayload($client),
             'businessPlanBudgetUrl' => route('portal.business-plan-budget.show', ['client' => $client->id], absolute: false),
+            'ddReportPdfUrl' => $this->clientVisibleDdReportUrl($engagement),
+            'ddReportTitle' => $this->clientVisibleDdReport($engagement)?->title,
             'documentUploadUrl' => route('portal.documents.store', absolute: false),
             'messagesUrl' => route('portal.messages.index', ['client' => $client->id], absolute: false),
             'workstreamOptions' => collect(DataRoom::WORKSTREAMS)
@@ -98,6 +107,37 @@ final class DdBusinessPlanController extends Controller
                 ->values()
                 ->all(),
         ]);
+    }
+
+    private function clientVisibleDdReportUrl(DdEngagement $engagement): ?string
+    {
+        $report = $this->clientVisibleDdReport($engagement);
+
+        return $report instanceof Report
+            ? route('portal.reports.show', $report, absolute: false)
+            : null;
+    }
+
+    private function clientVisibleDdReport(DdEngagement $engagement): ?Report
+    {
+        return Report::query()
+            ->where('client_id', $engagement->client_id)
+            ->whereIn('type', [
+                ReportType::DueDiligence->value,
+                ReportType::AcquisitionGoNoGo->value,
+            ])
+            ->whereIn('review_status', ['not_required', 'reviewed'])
+            ->latest('generated_at')
+            ->latest()
+            ->get()
+            ->first(fn (Report $report): bool => $this->reportMatchesEngagement($report, $engagement));
+    }
+
+    private function reportMatchesEngagement(Report $report, DdEngagement $engagement): bool
+    {
+        $engagementId = data_get($report->metadata, 'dd_engagement_id');
+
+        return $engagementId === null || (string) $engagementId === (string) $engagement->getKey();
     }
 
     public function supportLevel(Request $request): RedirectResponse
@@ -446,6 +486,21 @@ final class DdBusinessPlanController extends Controller
             'requires_confirmation' => $this->clientCapability->needsConfirmation($capability),
             'confirm_url' => route('portal.dd-plan.support-level.store', ['client' => $engagement->client_id], absolute: false),
         ];
+    }
+
+    private function requiresOnboardingSupportLevel(Client $client, DdEngagement $engagement): bool
+    {
+        $engagementType = $client->engagement_type instanceof EngagementType
+            ? $client->engagement_type
+            : EngagementType::tryFrom((string) $client->engagement_type);
+
+        if ($engagementType !== EngagementType::DUE_DILIGENCE) {
+            return false;
+        }
+
+        $capability = (array) data_get($engagement->target_details ?? [], 'client_capability', []);
+
+        return $this->clientCapability->needsConfirmation($capability);
     }
 
     /**

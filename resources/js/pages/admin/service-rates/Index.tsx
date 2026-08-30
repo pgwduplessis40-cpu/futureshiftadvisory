@@ -46,7 +46,12 @@ type EntrepreneurPackageScope = 'idea_validation' | 'plan_budget' | 'combo';
 
 type DueDiligencePackageScope = 'dd_under_300k' | 'dd_300k_1m' | 'dd_1m_3m';
 
-type PackageScope = EntrepreneurPackageScope | DueDiligencePackageScope;
+type DdPlanBudgetPackageScope = 'dd_plan_budget_add_on';
+
+type PackageScope =
+    | EntrepreneurPackageScope
+    | DueDiligencePackageScope
+    | DdPlanBudgetPackageScope;
 
 type PackageScopeOption = {
     value: PackageScope;
@@ -56,7 +61,11 @@ type PackageScopeOption = {
 
 type ServiceRatePackage = {
     id: string;
-    service_type: 'due_diligence' | 'entrepreneur' | 'integration_scoping';
+    service_type:
+        | 'due_diligence'
+        | 'dd_plan_budget'
+        | 'entrepreneur'
+        | 'integration_scoping';
     package_scope: PackageScope | null;
     package_name: string;
     client_label: string;
@@ -215,6 +224,11 @@ export default function ServiceRatesIndex({
         integrationFeeBands.find(
             (band) => band.id === editingIntegrationFeeBandId,
         ) ?? null;
+    const hasActiveDdPlanBudgetPackages = packages.some(
+        (ratePackage) =>
+            ratePackage.service_type === 'dd_plan_budget' &&
+            ratePackage.is_active,
+    );
 
     function submit(event: FormEvent) {
         event.preventDefault();
@@ -278,6 +292,18 @@ export default function ServiceRatesIndex({
         setPackageEditorOpen(false);
         packageForm.clearErrors();
         packageForm.setData(defaultPackageFormData);
+    }
+
+    function prepareDdPlanBudgetPackage() {
+        const template = ddPlanBudgetPackageTemplate();
+
+        setEditingPackageId(null);
+        setPackageEditorOpen(true);
+        packageForm.clearErrors();
+        packageForm.setData({
+            ...defaultPackageFormData,
+            ...template,
+        });
     }
 
     function toggleRate(rate: ServiceRate) {
@@ -612,6 +638,34 @@ export default function ServiceRatesIndex({
                     </form>
                 </section>
 
+                {!hasActiveDdPlanBudgetPackages ? (
+                    <section className="rounded-md border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-950">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                            <div>
+                                <div className="font-medium">
+                                    DD + Business Plan & Budget rates are not
+                                    loaded yet.
+                                </div>
+                                <p className="mt-1 max-w-3xl text-amber-900/80">
+                                    Advisors cannot approve buyer requests for
+                                    DD Business Plan & Budget access until at
+                                    least one active package exists for this
+                                    service. Use a template below, enter the
+                                    FSA-approved fee, then save the package.
+                                </p>
+                            </div>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={prepareDdPlanBudgetPackage}
+                            >
+                                Add Business Plan & Budget rate
+                            </Button>
+                        </div>
+                    </section>
+                ) : null}
+
                 <section className="grid gap-4 lg:grid-cols-[minmax(420px,0.8fr)_minmax(0,1fr)]">
                     <Collapsible
                         open={packageEditorOpen}
@@ -694,6 +748,9 @@ export default function ServiceRatesIndex({
                                             <option value="due_diligence">
                                                 Explore buying a business
                                             </option>
+                                            <option value="dd_plan_budget">
+                                                DD + Business Plan & Budget
+                                            </option>
                                             <option value="entrepreneur">
                                                 Test new Business Idea
                                             </option>
@@ -743,8 +800,9 @@ export default function ServiceRatesIndex({
                                     </div>
                                 </div>
 
-                                {packageForm.data.service_type ===
-                                'due_diligence' ? (
+                                {isDueDiligencePackageService(
+                                    packageForm.data.service_type,
+                                ) ? (
                                     <div className="grid gap-2">
                                         <Label htmlFor="package_scope">
                                             Buying a business package band
@@ -788,6 +846,22 @@ export default function ServiceRatesIndex({
                                                 packageForm.errors.package_scope
                                             }
                                         />
+                                    </div>
+                                ) : null}
+
+                                {packageForm.data.service_type ===
+                                'dd_plan_budget' ? (
+                                    <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                                        <div className="font-medium">
+                                            Single Business Plan & Budget add-on
+                                            rate
+                                        </div>
+                                        <p className="mt-1 text-muted-foreground">
+                                            This package is not banded by
+                                            purchase price. The client quote
+                                            combines the matched DD purchase
+                                            band with this single BP&B fee.
+                                        </p>
                                     </div>
                                 ) : null}
 
@@ -1020,8 +1094,9 @@ export default function ServiceRatesIndex({
                                     </div>
                                 ) : null}
 
-                                {packageForm.data.service_type ===
-                                'due_diligence' ? (
+                                {isDueDiligencePackageService(
+                                    packageForm.data.service_type,
+                                ) ? (
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         <div className="grid gap-2">
                                             <Label htmlFor="purchase_price_min">
@@ -2218,18 +2293,51 @@ function defaultScope(serviceType: ServiceRatePackage['service_type']) {
         return 'dd_300k_1m';
     }
 
+    if (serviceType === 'dd_plan_budget') {
+        return 'dd_plan_budget_add_on';
+    }
+
     return serviceType === 'entrepreneur' ? 'combo' : '';
+}
+
+function ddPlanBudgetPackageTemplate() {
+    return {
+        service_type: 'dd_plan_budget',
+        package_scope: 'dd_plan_budget_add_on',
+        package_name: 'DD + Business Plan & Budget',
+        client_label: 'DD + Business Plan & Budget',
+        billing_model: 'fixed_fee',
+        fixed_fee: '',
+        deposit_percent: '100',
+        hourly_rate: '',
+        retainer_amount: '',
+        purchase_price_min: '',
+        purchase_price_max: '',
+        scope_description:
+            'Single Business Plan & Budget add-on rate. The client quote combines the matched DD purchase-price band with this BP&B fee before approval.',
+        is_active: true,
+    };
 }
 
 function serviceLabel(serviceType: ServiceRatePackage['service_type']) {
     return serviceType === 'due_diligence'
         ? 'Explore buying a business'
-        : serviceType === 'entrepreneur'
-          ? 'Test new Business Idea'
-          : 'Systems integration scoping';
+        : serviceType === 'dd_plan_budget'
+          ? 'DD + Business Plan & Budget'
+          : serviceType === 'entrepreneur'
+            ? 'Test new Business Idea'
+            : 'Systems integration scoping';
+}
+
+function isDueDiligencePackageService(serviceType: string) {
+    return serviceType === 'due_diligence';
 }
 
 function packageScopeLabel(scope: PackageScope | null) {
+    if (scope === 'dd_plan_budget_add_on') {
+        return 'Business Plan + Budget add-on';
+    }
+
     if (scope === 'dd_under_300k') {
         return 'Purchase price below $300k';
     }

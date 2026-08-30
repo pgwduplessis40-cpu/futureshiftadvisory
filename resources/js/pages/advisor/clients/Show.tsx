@@ -79,8 +79,21 @@ import {
     formatPercentage,
 } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import {
+    AdvisorServiceTabList,
+    BusinessPlanBudgetActionPanel,
+    DueDiligenceTargetPanel,
+    StrategicBudgetPanel,
+} from './service-workspaces';
+import type {
+    AdvisorServiceTab,
+    AdvisorServiceTabKey,
+    DueDiligenceSummary,
+    ProposalBudgetGuard,
+    StrategicBudgetSummary,
+    StrategicPlanDeploymentGuard,
+} from './service-workspaces';
 import type { ClientSummary } from './types';
-
 type ClientDetail = ClientSummary & {
     data_quality_summary: DataQualitySummary;
     wellbeing_trend: WellbeingPoint[] | null;
@@ -123,6 +136,7 @@ type ClientDetail = ClientSummary & {
     npo_social_enterprise: NpoSocialEnterpriseSummary | null;
     strategic_budget: StrategicBudgetSummary;
     strategic_plan: StrategicPlanSummary | null;
+    strategic_plan_deployment_guard: StrategicPlanDeploymentGuard;
     proposal_budget_guard: ProposalBudgetGuard;
     invitation: {
         email: string;
@@ -169,8 +183,10 @@ type ClientDetailTab = 'actions' | 'information';
 type AnalysisFindingFilter = 'needs_review' | 'all' | 'reviewed';
 
 const clientSectionTabs: Record<string, ClientDetailTab> = {
+    'section-advisory-service-access': 'actions',
     'section-analysis': 'actions',
     'section-due-diligence': 'actions',
+    'section-founding-advisory': 'actions',
     'section-goals': 'actions',
     'section-lifecycle': 'actions',
     'section-npo-configuration': 'actions',
@@ -181,6 +197,8 @@ const clientSectionTabs: Record<string, ClientDetailTab> = {
     'section-proposals': 'actions',
     'section-standard-advisory': 'actions',
     'section-strategic-budget': 'actions',
+    'section-strategic-budget-assessment': 'actions',
+    'section-strategic-plan': 'actions',
     'section-accounting': 'information',
     'section-engagement': 'information',
     'section-knowledge': 'information',
@@ -193,6 +211,24 @@ const clientSectionTabs: Record<string, ClientDetailTab> = {
     'section-reports': 'information',
     'section-wellbeing': 'information',
 };
+
+const clientSectionServiceTabs: Partial<Record<string, AdvisorServiceTabKey>> =
+    {
+        'section-advisory-service-access': 'advisory_access',
+        'section-due-diligence': 'due_diligence',
+        'section-founding-advisory': 'founding_advisory',
+        'section-npo-configuration': 'npo',
+        'section-npo-conversion': 'npo',
+        'section-npo-funding': 'npo',
+        'section-npo-governance-review': 'npo',
+        'section-npo-health': 'npo',
+        'section-npo-social-enterprise': 'npo',
+        'section-npo-value': 'npo',
+        'section-standard-advisory': 'standard_advisory',
+        'section-strategic-budget': 'business_plan_budget',
+        'section-strategic-budget-assessment': 'business_plan_budget',
+        'section-strategic-plan': 'strategic_plan',
+    };
 
 type WellbeingPoint = {
     id: string;
@@ -320,33 +356,6 @@ type PaymentSummary = {
     retry_url: string;
     drill_url: string;
     contact_url: string;
-};
-
-type DueDiligenceSummary = {
-    id: string;
-    status: string;
-    target_name: string;
-    target_details: Record<string, string | number | boolean | null>;
-    questionnaire: {
-        id: string;
-        set: string;
-        title: string;
-    };
-    standard_advisory_deferred: boolean;
-    liability_disclaimer: string;
-    disclaimer_acknowledged_at: string | null;
-    acquisition_target_tab: boolean;
-    data_room: {
-        artifact_category: string;
-        guest_upload_only: boolean;
-        workstreams: Array<{
-            key: string;
-            label: string;
-            item_count: number;
-            active_guest_links: number;
-            latest_item_at: string | null;
-        }>;
-    };
 };
 
 type NpoConversionSummary = {
@@ -716,83 +725,6 @@ type FoundingAdvisorySummary = {
     replan_url: string | null;
 };
 
-type StrategicBudgetGoal = {
-    title: string;
-    measure?: string | null;
-    owner?: string;
-    locked?: boolean;
-};
-
-type StrategicBudgetSourceFinancial = {
-    id: string;
-    filename: string;
-    detected_as: string;
-    uploaded_at: string | null;
-};
-
-type StrategicBudgetFlag = {
-    key: string;
-    title: string;
-    message: string;
-    severity: string;
-};
-
-type StrategicBudgetSummary = {
-    id: string;
-    label: string;
-    pathway: string;
-    status: string;
-    status_label: string;
-    locked: boolean;
-    horizon_months: number;
-    expected_runway_months: number | null;
-    source_financials: {
-        count?: number;
-        system_review?: string;
-        items?: StrategicBudgetSourceFinancial[];
-    };
-    client_goals: StrategicBudgetGoal[];
-    advisor_goals: StrategicBudgetGoal[];
-    business_plan_readiness_score: number;
-    business_plan_ready: boolean;
-    business_plan_submitted_at: string | null;
-    business_plan_approved_at: string | null;
-    computed: {
-        total_launch_costs?: number;
-        monthly_fixed_costs?: number;
-        total_funding?: number;
-        available_after_launch?: number;
-        break_even_year?: number | null;
-        cash_flow_positive_year?: number | null;
-        runway_months?: number | null;
-        runway_open_ended?: boolean;
-    };
-    flags: StrategicBudgetFlag[];
-    confidence: {
-        score?: number;
-        progress_score?: number;
-        overall?: string;
-        message?: string;
-    };
-    readiness_score: number;
-    progress_score: number;
-    submitted_at: string | null;
-    approved_at: string | null;
-    used_in_proposal_at: string | null;
-    accepted_snapshot_at: string | null;
-    approve_url: string;
-    advisor_goals_url: string;
-};
-
-type ProposalBudgetGuard = {
-    id: string;
-    status: string;
-    status_label: string;
-    approved: boolean;
-    confidence_score: number;
-    warning: string | null;
-};
-
 type ReportSummary = {
     id: string;
     type: string;
@@ -1085,6 +1017,8 @@ export default function ClientsShow({
     const [activeTab, setActiveTab] = useState<ClientDetailTab>(() =>
         initialClientDetailTab(),
     );
+    const [activeServiceTab, setActiveServiceTab] =
+        useState<AdvisorServiceTabKey>(() => initialAdvisorServiceTab(client));
     const [generatingPack, setGeneratingPack] = useState(false);
     const [analysisFindingFilter, setAnalysisFindingFilter] =
         useState<AnalysisFindingFilter>('needs_review');
@@ -1193,6 +1127,12 @@ export default function ClientsShow({
 
     const jumpToSection = (sectionId: string, event?: MouseEvent<Element>) => {
         event?.preventDefault();
+        const serviceTab = clientSectionServiceTabs[sectionId];
+
+        if (serviceTab && advisorServiceTabAvailable(client, serviceTab)) {
+            setActiveServiceTab(serviceTab);
+        }
+
         setActiveTab(clientSectionTabs[sectionId] ?? 'actions');
 
         window.setTimeout(() => {
@@ -1250,16 +1190,154 @@ export default function ClientsShow({
         : client.strategic_budget.status === 'advisor_approved'
           ? 'Approved'
           : `${client.strategic_budget.readiness_score}/100 ready`;
+    const strategicBudgetActionLabel =
+        client.strategic_budget.status === 'submitted_for_review'
+            ? 'Assess'
+            : 'Review';
+    const dueDiligencePriorityValue = client.due_diligence
+        ? client.due_diligence.assessment_ready
+            ? 'Assessed'
+            : client.due_diligence.report_url
+              ? client.due_diligence.assessment_status_label
+              : 'Report needed'
+        : null;
     const signedProposal = client.proposals.find(
         (proposal) => proposal.status === 'signed',
     );
+    const isDueDiligenceClient = isDueDiligenceClientFor(client);
+    const advisoryAccessReady =
+        isDueDiligenceClient &&
+        (client.due_diligence?.assessment_ready ?? false) &&
+        [
+            'advisor_approved',
+            'used_in_proposal',
+            'accepted_proposal_snapshot',
+        ].includes(client.strategic_budget.status);
+    const advisoryAccessPriorityValue = advisoryAccessReady
+        ? 'Ready to scope'
+        : 'After approvals';
     const strategicPlanPriorityValue = client.strategic_plan
         ? client.strategic_plan.status === 'deployed'
             ? `${client.strategic_plan.progress_percent}% progressing`
-            : 'Draft ready'
+            : client.strategic_plan_deployment_guard.allowed
+              ? 'Ready to deploy'
+              : 'Assessment locked'
         : signedProposal
           ? 'Ready to generate'
           : 'After acceptance';
+    const showStrategicPlanActions =
+        !isDueDiligenceClient &&
+        Boolean(client.strategic_plan || signedProposal);
+    const showStrategicPlanServiceTab =
+        !isDueDiligenceClient && Boolean(client.strategic_plan);
+    const advisorServiceTabs: AdvisorServiceTab[] = [
+        {
+            key: 'overview',
+            label: 'Overview',
+            description: 'Client-wide actions and information.',
+            status: client.status_label,
+            icon: Target,
+        },
+        ...(client.due_diligence
+            ? [
+                  {
+                      key: 'due_diligence' as const,
+                      label: 'Due Diligence',
+                      description:
+                          'Target, evidence, data room, assessment, and DD report.',
+                      status: dueDiligencePriorityValue ?? 'Open',
+                      icon: ShieldAlert,
+                  },
+              ]
+            : []),
+        {
+            key: 'business_plan_budget',
+            label: 'Business Plan & Budget',
+            description:
+                'Plan assessment, budget confidence, financial evidence, and advisor approval.',
+            status: strategicBudgetPriorityValue,
+            icon: FileSpreadsheet,
+        },
+        ...(isDueDiligenceClient && client.due_diligence
+            ? [
+                  {
+                      key: 'advisory_access' as const,
+                      label: 'Advisory Access',
+                      description:
+                          'Request or scope advisory service after DD and BP&B approval.',
+                      status: advisoryAccessPriorityValue,
+                      icon: TrendingUp,
+                  },
+              ]
+            : []),
+        ...(client.standard_advisory
+            ? [
+                  {
+                      key: 'standard_advisory' as const,
+                      label: 'Standard Advisory',
+                      description:
+                          'Questionnaire, evidence, analysis, and advisory report pack.',
+                      status: standardAdvisoryReportStatus,
+                      icon: ListChecks,
+                  },
+              ]
+            : []),
+        ...(client.founding_advisory
+            ? [
+                  {
+                      key: 'founding_advisory' as const,
+                      label: 'Founding Advisory',
+                      description:
+                          'Founder roadmap, replan decisions, and transition review.',
+                      status: client.founding_advisory.status_label,
+                      icon: Star,
+                  },
+              ]
+            : []),
+        ...(client.is_npo ||
+        client.npo_conversion ||
+        client.npo_governance_review ||
+        client.npo_configuration ||
+        client.npo_health ||
+        client.npo_funding ||
+        client.npo_values ||
+        client.npo_social_enterprise
+            ? [
+                  {
+                      key: 'npo' as const,
+                      label: 'NPO',
+                      description:
+                          'NPO conversion, governance, funding, value, and social enterprise context.',
+                      status: npoConfigurationSummary,
+                      icon: SlidersHorizontal,
+                  },
+              ]
+            : []),
+        ...(showStrategicPlanServiceTab
+            ? [
+                  {
+                      key: 'strategic_plan' as const,
+                      label: 'Strategic Plan',
+                      description:
+                          'Post-acceptance strategic plan generation and milestones.',
+                      status: strategicPlanPriorityValue,
+                      icon: Trophy,
+                  },
+              ]
+            : []),
+    ];
+    const selectedServiceTab = advisorServiceTabs.some(
+        (tab) => tab.key === activeServiceTab,
+    )
+        ? activeServiceTab
+        : 'overview';
+    const selectAdvisorServiceTab = (tab: AdvisorServiceTabKey) => {
+        setActiveServiceTab(tab);
+
+        if (tab !== 'overview') {
+            setActiveTab('actions');
+        }
+    };
 
     return (
         <>
@@ -1371,652 +1449,881 @@ export default function ClientsShow({
                     </div>
                 </div>
 
-                <ClientDetailTabList
-                    activeTab={activeTab}
-                    onChange={setActiveTab}
+                <AdvisorServiceTabList
+                    tabs={advisorServiceTabs}
+                    activeTab={selectedServiceTab}
+                    onChange={selectAdvisorServiceTab}
                 />
 
-                {activeTab === 'actions' ? (
+                {selectedServiceTab === 'overview' ? (
                     <>
-                        <ClientDetailSection
-                            title="Priority actions"
-                            description="Start with communication, lifecycle, client work, and commercial actions."
-                            collapsible
-                        >
-                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                                <ActionTile
-                                    icon={MessageSquare}
-                                    title="Messages"
-                                    value="Client thread"
-                                    explanation="Open the secure client message thread and review the latest context."
-                                    href={`/advisor/clients/${client.id}/messages`}
-                                    actionLabel="Open"
-                                />
-                                <ActionTile
-                                    icon={Mail}
-                                    title="Email"
-                                    value="Compose update"
-                                    explanation="Send a structured advisory email to the client contact."
-                                    href={`/advisor/clients/${client.id}/compose`}
-                                    actionLabel="Compose"
-                                />
-                                <ActionTile
-                                    icon={RotateCcw}
-                                    title="Lifecycle"
-                                    value={client.status_label}
-                                    explanation="Change lifecycle state, pause access, suspend access, or restore the client."
-                                    href="#section-lifecycle"
-                                    actionLabel="Manage"
-                                    onAction={(event) =>
-                                        jumpToSection(
-                                            'section-lifecycle',
-                                            event,
-                                        )
-                                    }
-                                />
-                                {client.standard_advisory && (
-                                    <ActionTile
-                                        icon={ListChecks}
-                                        title="Standard Advisory"
-                                        value={standardAdvisoryReportStatus}
-                                        explanation="Tracks questionnaire, evidence, analysis, advisory pack generation, and client report release."
-                                        href="#section-standard-advisory"
-                                        actionLabel="Review"
-                                        onAction={(event) =>
-                                            jumpToSection(
-                                                'section-standard-advisory',
-                                                event,
-                                            )
-                                        }
-                                    />
-                                )}
-                                {client.is_npo && (
-                                    <ActionTile
-                                        icon={SlidersHorizontal}
-                                        title="NPO configuration"
-                                        value={npoConfigurationSummary}
-                                        explanation="Review or update NPO classification, Te Tiriti mode, and social-enterprise weighting."
-                                        href={
-                                            client.npo_configuration
-                                                ? '#section-npo-configuration'
-                                                : '#section-overview'
-                                        }
-                                        actionLabel={
-                                            client.npo_configuration
-                                                ? 'Configure'
-                                                : 'Review'
-                                        }
-                                        onAction={(event) =>
-                                            jumpToSection(
-                                                client.npo_configuration
-                                                    ? 'section-npo-configuration'
-                                                    : 'section-overview',
-                                                event,
-                                            )
-                                        }
-                                    />
-                                )}
-                                <ActionTile
-                                    icon={Target}
-                                    title="Goals"
-                                    value={`${client.goals.active_goals} active`}
-                                    explanation="Record goals, milestones, actions, and proof for realised platform value."
-                                    href="#section-goals"
-                                    actionLabel="Open"
-                                    onAction={(event) =>
-                                        jumpToSection('section-goals', event)
-                                    }
-                                />
-                                <ActionTile
-                                    icon={FileSpreadsheet}
-                                    title={client.strategic_budget.label}
-                                    value={strategicBudgetPriorityValue}
-                                    explanation="Review budget readiness, client goals, advisor goals, and approve the budget before proposal generation."
-                                    href="#section-strategic-budget"
-                                    actionLabel="Open"
-                                    onAction={(event) =>
-                                        jumpToSection(
-                                            'section-strategic-budget',
-                                            event,
-                                        )
-                                    }
-                                />
-                                <ActionTile
-                                    icon={CreditCard}
-                                    title="Payment exceptions"
-                                    value={
-                                        paymentExceptionCount > 0
-                                            ? `${paymentExceptionCount} open`
-                                            : 'Clear'
-                                    }
-                                    explanation="Review failed or retrying payments only. Successful payments are hidden from this action view."
-                                    href="#section-payments"
-                                    actionLabel="Review"
-                                    onAction={(event) =>
-                                        jumpToSection('section-payments', event)
-                                    }
-                                />
-                                <ActionTile
-                                    icon={FileText}
-                                    title="Proposals"
-                                    value={
-                                        draftProposalCount > 0
-                                            ? `${draftProposalCount} draft`
-                                            : `${client.proposals.length} total`
-                                    }
-                                    explanation="Create, release, recall, or renew advisory proposals for this client."
-                                    href="#section-proposals"
-                                    actionLabel="Review"
-                                    onAction={(event) =>
-                                        jumpToSection(
-                                            'section-proposals',
-                                            event,
-                                        )
-                                    }
-                                />
-                                {(client.strategic_plan || signedProposal) && (
-                                    <ActionTile
-                                        icon={ListChecks}
-                                        title="Strategic Plan"
-                                        value={strategicPlanPriorityValue}
-                                        explanation="Generate the post-acceptance strategic plan, review it with the client, then deploy milestones."
-                                        href={
-                                            client.strategic_plan
-                                                ? '#section-strategic-plan'
-                                                : '#section-proposals'
-                                        }
-                                        actionLabel={
-                                            client.strategic_plan
-                                                ? 'Open'
-                                                : 'Generate'
-                                        }
-                                        onAction={(event) =>
-                                            jumpToSection(
-                                                client.strategic_plan
-                                                    ? 'section-strategic-plan'
-                                                    : 'section-proposals',
-                                                event,
-                                            )
-                                        }
-                                    />
-                                )}
-                                <ActionTile
-                                    icon={MessageSquarePlus}
-                                    title="Analysis"
-                                    value={`${client.analysis_findings.length} findings`}
-                                    explanation="Review analysis findings, add feedback, and recompute client health."
-                                    href="#section-analysis"
-                                    actionLabel="Review"
-                                    onAction={(event) =>
-                                        jumpToSection('section-analysis', event)
-                                    }
-                                />
-                            </div>
-                        </ClientDetailSection>
+                        <ClientDetailTabList
+                            activeTab={activeTab}
+                            onChange={setActiveTab}
+                        />
 
-                        <ClientDetailSection
-                            title="Client status"
-                            description="Keep the top-level status signals visible before opening detailed workflow panels."
-                        >
-                            <div
-                                id="section-overview"
-                                className="grid gap-4 md:grid-cols-3"
-                            >
-                                <Metric
-                                    label="NZBN"
-                                    value={client.nzbn ?? '-'}
-                                />
-                                <Metric label="Account">
-                                    <Badge
-                                        variant={statusVariant(
-                                            client.account_status,
-                                        )}
-                                    >
-                                        {client.account_status_label}
-                                    </Badge>
-                                </Metric>
-                                <Metric label="Data quality">
-                                    <div id="section-questionnaire">
-                                        <div id="section-documents">
-                                            <DataQualityBadge
-                                                summary={
-                                                    client.data_quality_summary
+                        {activeTab === 'actions' ? (
+                            <>
+                                <ClientDetailSection
+                                    title="Priority actions"
+                                    description="Start with communication, lifecycle, client work, and commercial actions."
+                                    collapsible
+                                >
+                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                                        <ActionTile
+                                            icon={MessageSquare}
+                                            title="Messages"
+                                            value="Client thread"
+                                            explanation="Open the secure client message thread and review the latest context."
+                                            href={`/advisor/clients/${client.id}/messages`}
+                                            actionLabel="Open"
+                                        />
+                                        <ActionTile
+                                            icon={Mail}
+                                            title="Email"
+                                            value="Compose update"
+                                            explanation="Send a structured advisory email to the client contact."
+                                            href={`/advisor/clients/${client.id}/compose`}
+                                            actionLabel="Compose"
+                                        />
+                                        <ActionTile
+                                            icon={RotateCcw}
+                                            title="Lifecycle"
+                                            value={client.status_label}
+                                            explanation="Change lifecycle state, pause access, suspend access, or restore the client."
+                                            href="#section-lifecycle"
+                                            actionLabel="Manage"
+                                            onAction={(event) =>
+                                                jumpToSection(
+                                                    'section-lifecycle',
+                                                    event,
+                                                )
+                                            }
+                                        />
+                                        {client.due_diligence && (
+                                            <ActionTile
+                                                icon={ShieldAlert}
+                                                title="Due Diligence"
+                                                value={
+                                                    dueDiligencePriorityValue ??
+                                                    'Open'
+                                                }
+                                                explanation="Review the DD target, evidence, workstreams, and the reviewed DD report before moving into funding-plan work."
+                                                href="#section-due-diligence"
+                                                actionLabel="Review"
+                                                onAction={(event) =>
+                                                    jumpToSection(
+                                                        'section-due-diligence',
+                                                        event,
+                                                    )
                                                 }
                                             />
-                                        </div>
-                                    </div>
-                                </Metric>
-                            </div>
-                        </ClientDetailSection>
-
-                        <ClientDetailSection
-                            title="Action panels"
-                            description="Editable work areas and operational decisions sit here; use the Information tab for supporting context."
-                        >
-                            {client.standard_advisory && (
-                                <StandardAdvisoryPanel
-                                    summary={client.standard_advisory}
-                                    onRunAnalysis={runStandardAdvisoryAnalysis}
-                                    onGeneratePack={
-                                        generateStandardAdvisoryPack
-                                    }
-                                    generatingPack={generatingPack}
-                                />
-                            )}
-
-                            {client.founding_advisory && (
-                                <FoundingAdvisoryPanel
-                                    summary={client.founding_advisory}
-                                />
-                            )}
-
-                            {client.due_diligence && (
-                                <DueDiligenceTargetPanel
-                                    payload={client.due_diligence}
-                                />
-                            )}
-
-                            {client.npo_conversion && (
-                                <NpoConversionPanel
-                                    conversion={client.npo_conversion}
-                                />
-                            )}
-
-                            {client.npo_governance_review && (
-                                <NpoGovernanceReviewPanel
-                                    summary={client.npo_governance_review}
-                                />
-                            )}
-
-                            {client.npo_configuration && (
-                                <NpoConfigurationPanel
-                                    configuration={client.npo_configuration}
-                                />
-                            )}
-
-                            <StrategicBudgetPanel
-                                budget={client.strategic_budget}
-                            />
-
-                            <StrategicPlanPanel plan={client.strategic_plan} />
-
-                            <GoalsPanel client={client} />
-
-                            <PaymentsPanel client={client} />
-
-                            <ProposalsPanel client={client} />
-
-                            <section
-                                id="section-lifecycle"
-                                className="space-y-4 rounded-md border p-4"
-                            >
-                                <div className="flex flex-wrap items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2">
-                                        <RotateCcw
-                                            className="size-4"
-                                            aria-hidden="true"
+                                        )}
+                                        <ActionTile
+                                            icon={FileSpreadsheet}
+                                            title="Business Plan & Budget"
+                                            value={strategicBudgetPriorityValue}
+                                            explanation="Assess the DD-sourced business plan, budget evidence, funding assumptions, and readiness before advisor approval."
+                                            href="#section-strategic-budget"
+                                            actionLabel={
+                                                strategicBudgetActionLabel
+                                            }
+                                            onAction={(event) =>
+                                                jumpToSection(
+                                                    'section-strategic-budget',
+                                                    event,
+                                                )
+                                            }
                                         />
-                                        <h2 className="text-sm font-medium">
-                                            Lifecycle
-                                        </h2>
-                                        <Badge
-                                            variant={statusVariant(
-                                                client.status,
-                                            )}
-                                        >
-                                            {client.status_label}
-                                        </Badge>
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        Portal access is revoked while
-                                        suspended.
-                                    </div>
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="lifecycle_reason">
-                                        Reason
-                                    </Label>
-                                    <textarea
-                                        id="lifecycle_reason"
-                                        value={lifecycleForm.data.reason}
-                                        onChange={(event) =>
-                                            lifecycleForm.setData(
-                                                'reason',
-                                                event.target.value,
-                                            )
-                                        }
-                                        rows={3}
-                                        className="min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                    />
-                                    <InputError
-                                        message={lifecycleForm.errors.reason}
-                                    />
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {lifecycleActions(client.status).map(
-                                        (action) => {
-                                            const Icon = lifecycleIcon(
-                                                action.status,
-                                            );
-
-                                            return (
-                                                <Button
-                                                    key={action.status}
-                                                    type="button"
-                                                    variant={
-                                                        action.status ===
-                                                        'suspended'
-                                                            ? 'destructive'
-                                                            : 'outline'
+                                        {isDueDiligenceClient &&
+                                            client.due_diligence && (
+                                                <ActionTile
+                                                    icon={TrendingUp}
+                                                    title="Advisory access"
+                                                    value={
+                                                        advisoryAccessPriorityValue
                                                     }
-                                                    disabled={
-                                                        lifecycleForm.processing
-                                                    }
-                                                    onClick={() =>
-                                                        submitLifecycle(
-                                                            action.status,
+                                                    explanation="After the DD report and Business Plan & Budget assessment are approved, confirm whether the client wants an advisory service proposal."
+                                                    href="#section-advisory-service-access"
+                                                    actionLabel="Next step"
+                                                    onAction={(event) =>
+                                                        jumpToSection(
+                                                            'section-advisory-service-access',
+                                                            event,
                                                         )
                                                     }
-                                                >
-                                                    <Icon
-                                                        className="size-4"
-                                                        aria-hidden="true"
-                                                    />
-                                                    {action.label}
-                                                </Button>
-                                            );
-                                        },
-                                    )}
-                                </div>
-                                <InputError
-                                    message={lifecycleForm.errors.status}
-                                />
-                            </section>
-
-                            <section
-                                id="section-analysis"
-                                className="space-y-4 rounded-md border p-4"
-                            >
-                                <div className="flex flex-wrap items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2">
-                                        <MessageSquarePlus
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        <h2 className="text-sm font-medium">
-                                            Analysis findings
-                                        </h2>
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <div
-                                            className="inline-flex rounded-md border bg-muted/30 p-1"
-                                            role="tablist"
-                                            aria-label="Filter analysis findings"
-                                        >
-                                            <AnalysisFindingFilterButton
-                                                active={
-                                                    analysisFindingFilter ===
-                                                    'needs_review'
+                                                />
+                                            )}
+                                        {client.standard_advisory && (
+                                            <ActionTile
+                                                icon={ListChecks}
+                                                title="Standard Advisory"
+                                                value={
+                                                    standardAdvisoryReportStatus
                                                 }
-                                                count={
-                                                    analysisFindingsNeedingReview.length
-                                                }
-                                                onClick={() =>
-                                                    setAnalysisFindingFilter(
-                                                        'needs_review',
+                                                explanation="Tracks questionnaire, evidence, analysis, advisory pack generation, and client report release."
+                                                href="#section-standard-advisory"
+                                                actionLabel="Review"
+                                                onAction={(event) =>
+                                                    jumpToSection(
+                                                        'section-standard-advisory',
+                                                        event,
                                                     )
                                                 }
-                                            >
-                                                Needs review
-                                            </AnalysisFindingFilterButton>
-                                            <AnalysisFindingFilterButton
-                                                active={
-                                                    analysisFindingFilter ===
-                                                    'all'
-                                                }
-                                                count={
-                                                    client.analysis_findings
-                                                        .length
-                                                }
-                                                onClick={() =>
-                                                    setAnalysisFindingFilter(
-                                                        'all',
-                                                    )
-                                                }
-                                            >
-                                                All
-                                            </AnalysisFindingFilterButton>
-                                            <AnalysisFindingFilterButton
-                                                active={
-                                                    analysisFindingFilter ===
-                                                    'reviewed'
-                                                }
-                                                count={
-                                                    reviewedAnalysisFindings.length
-                                                }
-                                                onClick={() =>
-                                                    setAnalysisFindingFilter(
-                                                        'reviewed',
-                                                    )
-                                                }
-                                            >
-                                                Reviewed
-                                            </AnalysisFindingFilterButton>
-                                        </div>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={recomputeHealthRadar}
-                                        >
-                                            <RotateCcw
-                                                className="size-4"
-                                                aria-hidden="true"
                                             />
-                                            Recompute health
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                {client.analysis_findings.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">
-                                        No analysis findings yet.
-                                    </p>
-                                ) : visibleAnalysisFindings.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">
-                                        No findings in this view.
-                                    </p>
-                                ) : (
-                                    <div className="grid gap-2 xl:grid-cols-2">
-                                        {visibleAnalysisFindings.map(
-                                            (finding) => (
-                                                <FindingFeedbackCard
-                                                    key={finding.id}
-                                                    finding={finding}
-                                                />
-                                            ),
                                         )}
+                                        {client.is_npo && (
+                                            <ActionTile
+                                                icon={SlidersHorizontal}
+                                                title="NPO configuration"
+                                                value={npoConfigurationSummary}
+                                                explanation="Review or update NPO classification, Te Tiriti mode, and social-enterprise weighting."
+                                                href={
+                                                    client.npo_configuration
+                                                        ? '#section-npo-configuration'
+                                                        : '#section-overview'
+                                                }
+                                                actionLabel={
+                                                    client.npo_configuration
+                                                        ? 'Configure'
+                                                        : 'Review'
+                                                }
+                                                onAction={(event) =>
+                                                    jumpToSection(
+                                                        client.npo_configuration
+                                                            ? 'section-npo-configuration'
+                                                            : 'section-overview',
+                                                        event,
+                                                    )
+                                                }
+                                            />
+                                        )}
+                                        <ActionTile
+                                            icon={Target}
+                                            title="Goals"
+                                            value={`${client.goals.active_goals} active`}
+                                            explanation="Record goals, milestones, actions, and proof for realised platform value."
+                                            href="#section-goals"
+                                            actionLabel="Open"
+                                            onAction={(event) =>
+                                                jumpToSection(
+                                                    'section-goals',
+                                                    event,
+                                                )
+                                            }
+                                        />
+                                        <ActionTile
+                                            icon={CreditCard}
+                                            title="Payment exceptions"
+                                            value={
+                                                paymentExceptionCount > 0
+                                                    ? `${paymentExceptionCount} open`
+                                                    : 'Clear'
+                                            }
+                                            explanation="Review failed or retrying payments only. Successful payments are hidden from this action view."
+                                            href="#section-payments"
+                                            actionLabel="Review"
+                                            onAction={(event) =>
+                                                jumpToSection(
+                                                    'section-payments',
+                                                    event,
+                                                )
+                                            }
+                                        />
+                                        <ActionTile
+                                            icon={FileText}
+                                            title="Proposals"
+                                            value={
+                                                draftProposalCount > 0
+                                                    ? `${draftProposalCount} draft`
+                                                    : `${client.proposals.length} total`
+                                            }
+                                            explanation="Create, release, recall, or renew advisory proposals for this client."
+                                            href="#section-proposals"
+                                            actionLabel="Review"
+                                            onAction={(event) =>
+                                                jumpToSection(
+                                                    'section-proposals',
+                                                    event,
+                                                )
+                                            }
+                                        />
+                                        {showStrategicPlanActions && (
+                                            <ActionTile
+                                                icon={ListChecks}
+                                                title="Strategic Plan"
+                                                value={
+                                                    strategicPlanPriorityValue
+                                                }
+                                                explanation="Generate the post-acceptance strategic plan, review it with the client, then deploy milestones."
+                                                href={
+                                                    client.strategic_plan
+                                                        ? '#section-strategic-plan'
+                                                        : '#section-proposals'
+                                                }
+                                                actionLabel={
+                                                    client.strategic_plan
+                                                        ? 'Open'
+                                                        : 'Generate'
+                                                }
+                                                onAction={(event) =>
+                                                    jumpToSection(
+                                                        client.strategic_plan
+                                                            ? 'section-strategic-plan'
+                                                            : 'section-proposals',
+                                                        event,
+                                                    )
+                                                }
+                                            />
+                                        )}
+                                        <ActionTile
+                                            icon={MessageSquarePlus}
+                                            title="Analysis"
+                                            value={`${client.analysis_findings.length} findings`}
+                                            explanation="Review analysis findings, add feedback, and recompute client health."
+                                            href="#section-analysis"
+                                            actionLabel="Review"
+                                            onAction={(event) =>
+                                                jumpToSection(
+                                                    'section-analysis',
+                                                    event,
+                                                )
+                                            }
+                                        />
                                     </div>
-                                )}
-                            </section>
-                        </ClientDetailSection>
-                    </>
-                ) : (
-                    <>
-                        <ClientDetailSection
-                            title="Client information"
-                            description="Registry and engagement context used to interpret the active work."
-                        >
-                            <div className="grid gap-6 lg:grid-cols-2">
-                                <section
-                                    id="section-registry"
-                                    className="space-y-4 rounded-md border p-4"
+                                </ClientDetailSection>
+
+                                <ClientDetailSection
+                                    title="Client status"
+                                    description="Keep the top-level status signals visible before opening detailed workflow panels."
                                 >
-                                    <h2 className="text-sm font-medium">
-                                        Registry
-                                    </h2>
-                                    <dl className="grid gap-3 text-sm">
-                                        <Detail
-                                            label="Entity"
-                                            value={client.entity_type}
+                                    <div
+                                        id="section-overview"
+                                        className="grid gap-4 md:grid-cols-3"
+                                    >
+                                        <Metric
+                                            label="NZBN"
+                                            value={client.nzbn ?? '-'}
                                         />
-                                        <Detail
-                                            label="Filing"
-                                            value={client.filing_status}
-                                        />
-                                        <Detail
-                                            label="Trading"
-                                            value={client.trading_name}
-                                        />
-                                    </dl>
-                                    <div className="flex flex-wrap gap-2">
-                                        {Object.entries(
-                                            client.registry_sources,
-                                        ).map(([service, badge]) => (
+                                        <Metric label="Account">
                                             <Badge
-                                                key={service}
-                                                variant="secondary"
+                                                variant={statusVariant(
+                                                    client.account_status,
+                                                )}
                                             >
-                                                {service}: {badge}
+                                                {client.account_status_label}
                                             </Badge>
-                                        ))}
+                                        </Metric>
+                                        <Metric label="Data quality">
+                                            <div id="section-questionnaire">
+                                                <div id="section-documents">
+                                                    <DataQualityBadge
+                                                        summary={
+                                                            client.data_quality_summary
+                                                        }
+                                                    />
+                                                </div>
+                                            </div>
+                                        </Metric>
                                     </div>
-                                </section>
+                                </ClientDetailSection>
 
-                                <section
-                                    id="section-engagement"
-                                    className="space-y-4 rounded-md border p-4"
+                                <ClientDetailSection
+                                    title="Action panels"
+                                    description="Client-wide operating controls sit here. Open a service tab above for Due Diligence, Business Plan & Budget, advisory access, or other service-specific actions."
                                 >
-                                    <div className="flex items-center gap-2">
-                                        <h2 className="text-sm font-medium">
-                                            Engagement
-                                        </h2>
-                                        {client.engagement_type_locked && (
-                                            <Badge variant="outline">
-                                                <LockKeyhole
-                                                    className="size-3"
-                                                    aria-hidden="true"
-                                                />
-                                                locked
-                                            </Badge>
-                                        )}
-                                    </div>
-                                    <dl className="grid gap-3 text-sm">
-                                        <Detail
-                                            label="Type"
-                                            value={client.engagement_type_label}
-                                        />
-                                        <Detail
-                                            label="Status"
-                                            value={client.status_label}
-                                        />
-                                        <Detail
-                                            label="Conflict"
-                                            value={
-                                                conflictDeclaration
-                                                    ? 'declared'
-                                                    : 'missing'
-                                            }
-                                        />
-                                        <Detail
-                                            label="Offboarding"
-                                            value={
-                                                client.offboarding
-                                                    ? formatDate(
-                                                          client.offboarding
-                                                              .triggered_at,
-                                                      )
-                                                    : 'not started'
-                                            }
-                                        />
-                                        <Detail
-                                            label="Relationship"
-                                            value={
-                                                conflictDeclaration?.declaration
-                                                    .existing_relationship
-                                                    ? 'yes'
-                                                    : 'no'
-                                            }
-                                        />
-                                    </dl>
-                                    {client.offboarding && (
-                                        <div className="flex justify-end">
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={createKnowledgeDraft}
-                                            >
-                                                <Brain
+                                    <GoalsPanel client={client} />
+
+                                    <PaymentsPanel client={client} />
+
+                                    <ProposalsPanel client={client} />
+
+                                    <section
+                                        id="section-lifecycle"
+                                        className="space-y-4 rounded-md border p-4"
+                                    >
+                                        <div className="flex flex-wrap items-center justify-between gap-3">
+                                            <div className="flex items-center gap-2">
+                                                <RotateCcw
                                                     className="size-4"
                                                     aria-hidden="true"
                                                 />
-                                                Draft insight
-                                            </Button>
+                                                <h2 className="text-sm font-medium">
+                                                    Lifecycle
+                                                </h2>
+                                                <Badge
+                                                    variant={statusVariant(
+                                                        client.status,
+                                                    )}
+                                                >
+                                                    {client.status_label}
+                                                </Badge>
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                                Portal access is revoked while
+                                                suspended.
+                                            </div>
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="lifecycle_reason">
+                                                Reason
+                                            </Label>
+                                            <textarea
+                                                id="lifecycle_reason"
+                                                value={
+                                                    lifecycleForm.data.reason
+                                                }
+                                                onChange={(event) =>
+                                                    lifecycleForm.setData(
+                                                        'reason',
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                rows={3}
+                                                className="min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                            />
+                                            <InputError
+                                                message={
+                                                    lifecycleForm.errors.reason
+                                                }
+                                            />
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {lifecycleActions(
+                                                client.status,
+                                            ).map((action) => {
+                                                const Icon = lifecycleIcon(
+                                                    action.status,
+                                                );
+
+                                                return (
+                                                    <Button
+                                                        key={action.status}
+                                                        type="button"
+                                                        variant={
+                                                            action.status ===
+                                                            'suspended'
+                                                                ? 'destructive'
+                                                                : 'outline'
+                                                        }
+                                                        disabled={
+                                                            lifecycleForm.processing
+                                                        }
+                                                        onClick={() =>
+                                                            submitLifecycle(
+                                                                action.status,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Icon
+                                                            className="size-4"
+                                                            aria-hidden="true"
+                                                        />
+                                                        {action.label}
+                                                    </Button>
+                                                );
+                                            })}
+                                        </div>
+                                        <InputError
+                                            message={
+                                                lifecycleForm.errors.status
+                                            }
+                                        />
+                                    </section>
+
+                                    <section
+                                        id="section-analysis"
+                                        className="space-y-4 rounded-md border p-4"
+                                    >
+                                        <div className="flex flex-wrap items-center justify-between gap-3">
+                                            <div className="flex items-center gap-2">
+                                                <MessageSquarePlus
+                                                    className="size-4"
+                                                    aria-hidden="true"
+                                                />
+                                                <h2 className="text-sm font-medium">
+                                                    Analysis findings
+                                                </h2>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <div
+                                                    className="inline-flex rounded-md border bg-muted/30 p-1"
+                                                    role="tablist"
+                                                    aria-label="Filter analysis findings"
+                                                >
+                                                    <AnalysisFindingFilterButton
+                                                        active={
+                                                            analysisFindingFilter ===
+                                                            'needs_review'
+                                                        }
+                                                        count={
+                                                            analysisFindingsNeedingReview.length
+                                                        }
+                                                        onClick={() =>
+                                                            setAnalysisFindingFilter(
+                                                                'needs_review',
+                                                            )
+                                                        }
+                                                    >
+                                                        Needs review
+                                                    </AnalysisFindingFilterButton>
+                                                    <AnalysisFindingFilterButton
+                                                        active={
+                                                            analysisFindingFilter ===
+                                                            'all'
+                                                        }
+                                                        count={
+                                                            client
+                                                                .analysis_findings
+                                                                .length
+                                                        }
+                                                        onClick={() =>
+                                                            setAnalysisFindingFilter(
+                                                                'all',
+                                                            )
+                                                        }
+                                                    >
+                                                        All
+                                                    </AnalysisFindingFilterButton>
+                                                    <AnalysisFindingFilterButton
+                                                        active={
+                                                            analysisFindingFilter ===
+                                                            'reviewed'
+                                                        }
+                                                        count={
+                                                            reviewedAnalysisFindings.length
+                                                        }
+                                                        onClick={() =>
+                                                            setAnalysisFindingFilter(
+                                                                'reviewed',
+                                                            )
+                                                        }
+                                                    >
+                                                        Reviewed
+                                                    </AnalysisFindingFilterButton>
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={
+                                                        recomputeHealthRadar
+                                                    }
+                                                >
+                                                    <RotateCcw
+                                                        className="size-4"
+                                                        aria-hidden="true"
+                                                    />
+                                                    Recompute health
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        {client.analysis_findings.length ===
+                                        0 ? (
+                                            <p className="text-sm text-muted-foreground">
+                                                No analysis findings yet.
+                                            </p>
+                                        ) : visibleAnalysisFindings.length ===
+                                          0 ? (
+                                            <p className="text-sm text-muted-foreground">
+                                                No findings in this view.
+                                            </p>
+                                        ) : (
+                                            <div className="grid gap-2 xl:grid-cols-2">
+                                                {visibleAnalysisFindings.map(
+                                                    (finding) => (
+                                                        <FindingFeedbackCard
+                                                            key={finding.id}
+                                                            finding={finding}
+                                                        />
+                                                    ),
+                                                )}
+                                            </div>
+                                        )}
+                                    </section>
+                                </ClientDetailSection>
+                            </>
+                        ) : (
+                            <>
+                                <ClientDetailSection
+                                    title="Client information"
+                                    description="Registry and engagement context used to interpret the active work."
+                                >
+                                    <div className="grid gap-6 lg:grid-cols-2">
+                                        <section
+                                            id="section-registry"
+                                            className="space-y-4 rounded-md border p-4"
+                                        >
+                                            <h2 className="text-sm font-medium">
+                                                Registry
+                                            </h2>
+                                            <dl className="grid gap-3 text-sm">
+                                                <Detail
+                                                    label="Entity"
+                                                    value={client.entity_type}
+                                                />
+                                                <Detail
+                                                    label="Filing"
+                                                    value={client.filing_status}
+                                                />
+                                                <Detail
+                                                    label="Trading"
+                                                    value={client.trading_name}
+                                                />
+                                            </dl>
+                                            <div className="flex flex-wrap gap-2">
+                                                {Object.entries(
+                                                    client.registry_sources,
+                                                ).map(([service, badge]) => (
+                                                    <Badge
+                                                        key={service}
+                                                        variant="secondary"
+                                                    >
+                                                        {service}: {badge}
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                        </section>
+
+                                        <section
+                                            id="section-engagement"
+                                            className="space-y-4 rounded-md border p-4"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <h2 className="text-sm font-medium">
+                                                    Engagement
+                                                </h2>
+                                                {client.engagement_type_locked && (
+                                                    <Badge variant="outline">
+                                                        <LockKeyhole
+                                                            className="size-3"
+                                                            aria-hidden="true"
+                                                        />
+                                                        locked
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                            <dl className="grid gap-3 text-sm">
+                                                <Detail
+                                                    label="Type"
+                                                    value={
+                                                        client.engagement_type_label
+                                                    }
+                                                />
+                                                <Detail
+                                                    label="Status"
+                                                    value={client.status_label}
+                                                />
+                                                <Detail
+                                                    label="Conflict"
+                                                    value={
+                                                        conflictDeclaration
+                                                            ? 'declared'
+                                                            : 'missing'
+                                                    }
+                                                />
+                                                <Detail
+                                                    label="Offboarding"
+                                                    value={
+                                                        client.offboarding
+                                                            ? formatDate(
+                                                                  client
+                                                                      .offboarding
+                                                                      .triggered_at,
+                                                              )
+                                                            : 'not started'
+                                                    }
+                                                />
+                                                <Detail
+                                                    label="Relationship"
+                                                    value={
+                                                        conflictDeclaration
+                                                            ?.declaration
+                                                            .existing_relationship
+                                                            ? 'yes'
+                                                            : 'no'
+                                                    }
+                                                />
+                                            </dl>
+                                            {client.offboarding && (
+                                                <div className="flex justify-end">
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={
+                                                            createKnowledgeDraft
+                                                        }
+                                                    >
+                                                        <Brain
+                                                            className="size-4"
+                                                            aria-hidden="true"
+                                                        />
+                                                        Draft insight
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </section>
+                                    </div>
+                                </ClientDetailSection>
+
+                                <ClientDetailSection
+                                    title="Decision context"
+                                    description="Review health, funding, value, reports, and operating history after action work is clear."
+                                >
+                                    {client.npo_health && (
+                                        <div id="section-npo-health">
+                                            <NpoHealthPanel
+                                                payload={client.npo_health}
+                                            />
                                         </div>
                                     )}
-                                </section>
-                            </div>
-                        </ClientDetailSection>
 
-                        <ClientDetailSection
-                            title="Decision context"
-                            description="Review health, funding, value, reports, and operating history after action work is clear."
-                        >
-                            {client.npo_health && (
-                                <div id="section-npo-health">
-                                    <NpoHealthPanel
-                                        payload={client.npo_health}
-                                    />
-                                </div>
-                            )}
-
-                            {client.npo_funding && (
-                                <NpoFundingPanel funding={client.npo_funding} />
-                            )}
-
-                            {client.npo_values && (
-                                <NpoValuePanel values={client.npo_values} />
-                            )}
-
-                            {client.npo_social_enterprise && (
-                                <NpoSocialEnterprisePanel
-                                    summary={client.npo_social_enterprise}
-                                />
-                            )}
-
-                            <KnowledgeAssessmentPanel client={client} />
-
-                            <AccountingConnectionsPanel client={client} />
-
-                            <ReportsPanel client={client} />
-
-                            <MeetingsBriefingsPanel client={client} />
-
-                            {client.wellbeing_trend && (
-                                <section
-                                    id="section-wellbeing"
-                                    className="space-y-4 rounded-md border p-4"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <HeartPulse
-                                            className="size-4"
-                                            aria-hidden="true"
+                                    {client.npo_funding && (
+                                        <NpoFundingPanel
+                                            funding={client.npo_funding}
                                         />
-                                        <h2 className="text-sm font-medium">
-                                            Wellbeing
-                                        </h2>
-                                    </div>
-                                    <WellbeingTrend
-                                        points={client.wellbeing_trend}
+                                    )}
+
+                                    {client.npo_values && (
+                                        <NpoValuePanel
+                                            values={client.npo_values}
+                                        />
+                                    )}
+
+                                    {client.npo_social_enterprise && (
+                                        <NpoSocialEnterprisePanel
+                                            summary={
+                                                client.npo_social_enterprise
+                                            }
+                                        />
+                                    )}
+
+                                    <KnowledgeAssessmentPanel client={client} />
+
+                                    <AccountingConnectionsPanel
+                                        client={client}
                                     />
-                                </section>
-                            )}
-                        </ClientDetailSection>
+
+                                    <ReportsPanel client={client} />
+
+                                    <MeetingsBriefingsPanel client={client} />
+
+                                    {client.wellbeing_trend && (
+                                        <section
+                                            id="section-wellbeing"
+                                            className="space-y-4 rounded-md border p-4"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <HeartPulse
+                                                    className="size-4"
+                                                    aria-hidden="true"
+                                                />
+                                                <h2 className="text-sm font-medium">
+                                                    Wellbeing
+                                                </h2>
+                                            </div>
+                                            <WellbeingTrend
+                                                points={client.wellbeing_trend}
+                                            />
+                                        </section>
+                                    )}
+                                </ClientDetailSection>
+                            </>
+                        )}
                     </>
+                ) : (
+                    <AdvisorServiceWorkspace
+                        activeTab={selectedServiceTab}
+                        client={client}
+                        generatingPack={generatingPack}
+                        onGenerateStandardAdvisoryPack={
+                            generateStandardAdvisoryPack
+                        }
+                        onRunStandardAdvisoryAnalysis={
+                            runStandardAdvisoryAnalysis
+                        }
+                    />
                 )}
             </div>
         </>
+    );
+}
+
+function AdvisorServiceWorkspace({
+    activeTab,
+    client,
+    generatingPack,
+    onGenerateStandardAdvisoryPack,
+    onRunStandardAdvisoryAnalysis,
+}: {
+    activeTab: AdvisorServiceTabKey;
+    client: ClientDetail;
+    generatingPack: boolean;
+    onGenerateStandardAdvisoryPack: (
+        payload?: StandardAdvisoryGeneratePayload,
+    ) => void;
+    onRunStandardAdvisoryAnalysis: () => void;
+}) {
+    if (activeTab === 'due_diligence' && client.due_diligence) {
+        return (
+            <ClientDetailSection
+                title="Due Diligence workspace"
+                description="Keep the DD target, evidence, data room, assessment, and report actions together."
+            >
+                <DueDiligenceTargetPanel
+                    payload={client.due_diligence}
+                    reportStoreUrl={client.report_store_url}
+                />
+            </ClientDetailSection>
+        );
+    }
+
+    if (activeTab === 'business_plan_budget') {
+        return (
+            <ClientDetailSection
+                title="Business Plan & Budget workspace"
+                description="Assess the DD-sourced plan, budget confidence, financial evidence, funding assumptions, and advisor approval in one place."
+            >
+                <BusinessPlanBudgetActionPanel
+                    budget={client.strategic_budget}
+                />
+                <StrategicBudgetPanel budget={client.strategic_budget} />
+            </ClientDetailSection>
+        );
+    }
+
+    if (
+        activeTab === 'advisory_access' &&
+        isDueDiligenceClientFor(client) &&
+        client.due_diligence
+    ) {
+        return (
+            <ClientDetailSection
+                title="Advisory access workspace"
+                description="After DD and Business Plan & Budget are approved, manage whether the client requests advisory service access."
+            >
+                <AdvisoryServiceAccessPanel
+                    client={client}
+                    budget={client.strategic_budget}
+                />
+                <ProposalsPanel client={client} />
+            </ClientDetailSection>
+        );
+    }
+
+    if (activeTab === 'standard_advisory' && client.standard_advisory) {
+        return (
+            <ClientDetailSection
+                title="Standard Advisory workspace"
+                description="Review questionnaire evidence, analysis modules, advisory pack readiness, and report release."
+            >
+                <StandardAdvisoryPanel
+                    summary={client.standard_advisory}
+                    onRunAnalysis={onRunStandardAdvisoryAnalysis}
+                    onGeneratePack={onGenerateStandardAdvisoryPack}
+                    generatingPack={generatingPack}
+                />
+            </ClientDetailSection>
+        );
+    }
+
+    if (activeTab === 'founding_advisory' && client.founding_advisory) {
+        return (
+            <ClientDetailSection
+                title="Founding Advisory workspace"
+                description="Review founder roadmap state, replanning, and transition-readiness actions."
+            >
+                <FoundingAdvisoryPanel summary={client.founding_advisory} />
+            </ClientDetailSection>
+        );
+    }
+
+    if (activeTab === 'npo') {
+        const hasNpoPanels = Boolean(
+            client.npo_conversion ||
+            client.npo_governance_review ||
+            client.npo_configuration ||
+            client.npo_health ||
+            client.npo_funding ||
+            client.npo_values ||
+            client.npo_social_enterprise,
+        );
+
+        return (
+            <ClientDetailSection
+                title="NPO workspace"
+                description="Keep NPO conversion, governance, funding, value, and social-enterprise decisions together."
+            >
+                {client.npo_conversion && (
+                    <NpoConversionPanel conversion={client.npo_conversion} />
+                )}
+
+                {client.npo_governance_review && (
+                    <NpoGovernanceReviewPanel
+                        summary={client.npo_governance_review}
+                    />
+                )}
+
+                {client.npo_configuration && (
+                    <NpoConfigurationPanel
+                        configuration={client.npo_configuration}
+                    />
+                )}
+
+                {client.npo_health && (
+                    <div id="section-npo-health">
+                        <NpoHealthPanel payload={client.npo_health} />
+                    </div>
+                )}
+
+                {client.npo_funding && (
+                    <NpoFundingPanel funding={client.npo_funding} />
+                )}
+
+                {client.npo_values && (
+                    <NpoValuePanel values={client.npo_values} />
+                )}
+
+                {client.npo_social_enterprise && (
+                    <NpoSocialEnterprisePanel
+                        summary={client.npo_social_enterprise}
+                    />
+                )}
+
+                {!hasNpoPanels && (
+                    <p className="rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
+                        No NPO-specific panels are ready for this client yet.
+                    </p>
+                )}
+            </ClientDetailSection>
+        );
+    }
+
+    if (activeTab === 'strategic_plan' && !isDueDiligenceClientFor(client)) {
+        return (
+            <ClientDetailSection
+                title="Strategic Plan workspace"
+                description="Use this only for clients whose accepted advisory proposal unlocks strategic-plan work."
+            >
+                <StrategicPlanPanel
+                    plan={client.strategic_plan}
+                    deploymentGuard={client.strategic_plan_deployment_guard}
+                />
+            </ClientDetailSection>
+        );
+    }
+
+    return (
+        <ClientDetailSection
+            title="Service workspace"
+            description="This service is not available for the client yet."
+        >
+            <p className="rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
+                Select another service tab or return to Overview.
+            </p>
+        </ClientDetailSection>
     );
 }
 
@@ -3663,87 +3970,6 @@ function AxisList({
     );
 }
 
-function DueDiligenceTargetPanel({
-    payload,
-}: {
-    payload: DueDiligenceSummary;
-}) {
-    return (
-        <section
-            id="section-due-diligence"
-            className="space-y-4 rounded-md border p-4"
-        >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2">
-                    <ShieldAlert className="size-4" aria-hidden="true" />
-                    <h2 className="text-sm font-medium">Acquisition target</h2>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">
-                        {formatLabel(payload.status)}
-                    </Badge>
-                    <Badge variant="outline">{payload.questionnaire.set}</Badge>
-                </div>
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
-                <dl className="grid gap-3 text-sm">
-                    <Detail label="Target" value={payload.target_name} />
-                    <Detail
-                        label="Vendor"
-                        value={stringDetail(payload.target_details.vendor_name)}
-                    />
-                    <Detail
-                        label="Industry"
-                        value={stringDetail(payload.target_details.industry)}
-                    />
-                    <Detail
-                        label="Target NZBN"
-                        value={stringDetail(payload.target_details.nzbn)}
-                    />
-                    <Detail
-                        label="Questionnaire"
-                        value={payload.questionnaire.title}
-                    />
-                </dl>
-                <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
-                    {payload.liability_disclaimer}
-                </div>
-            </div>
-
-            <div className="space-y-3 border-t pt-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                        <ListChecks className="size-4" aria-hidden="true" />
-                        <h3 className="text-sm font-medium">Data room</h3>
-                    </div>
-                    <Badge variant="outline">
-                        {formatLabel(payload.data_room.artifact_category)}
-                    </Badge>
-                </div>
-                <div className="divide-y text-sm">
-                    {payload.data_room.workstreams.map((workstream) => (
-                        <div
-                            key={workstream.key}
-                            className="grid gap-2 py-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
-                        >
-                            <span>{workstream.label}</span>
-                            <span className="text-muted-foreground">
-                                {workstream.item_count} item
-                                {workstream.item_count === 1 ? '' : 's'}
-                            </span>
-                            <span className="text-muted-foreground">
-                                {workstream.active_guest_links} active link
-                                {workstream.active_guest_links === 1 ? '' : 's'}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </section>
-    );
-}
-
 function AccountingConnectionsPanel({ client }: { client: ClientDetail }) {
     const pullSnapshot = (url: string) => {
         router.post(url, {}, { preserveScroll: true });
@@ -4074,7 +4300,13 @@ function PaymentsPanel({ client }: { client: ClientDetail }) {
     );
 }
 
-function StrategicPlanPanel({ plan }: { plan: StrategicPlanSummary | null }) {
+function StrategicPlanPanel({
+    plan,
+    deploymentGuard,
+}: {
+    plan: StrategicPlanSummary | null;
+    deploymentGuard: StrategicPlanDeploymentGuard;
+}) {
     const [deploying, setDeploying] = useState(false);
 
     if (!plan) {
@@ -4084,6 +4316,7 @@ function StrategicPlanPanel({ plan }: { plan: StrategicPlanSummary | null }) {
     return (
         <StrategicPlanEditor
             plan={plan}
+            deploymentGuard={deploymentGuard}
             deploying={deploying}
             setDeploying={setDeploying}
         />
@@ -4092,14 +4325,17 @@ function StrategicPlanPanel({ plan }: { plan: StrategicPlanSummary | null }) {
 
 function StrategicPlanEditor({
     plan,
+    deploymentGuard,
     deploying,
     setDeploying,
 }: {
     plan: StrategicPlanSummary;
+    deploymentGuard: StrategicPlanDeploymentGuard;
     deploying: boolean;
     setDeploying: (deploying: boolean) => void;
 }) {
     const deployed = plan.status === 'deployed';
+    const canDeploy = !deployed && deploymentGuard.allowed;
     const form = useForm<StrategicPlanForm>({
         summary: plan.summary ?? '',
         sections: plan.sections,
@@ -4118,6 +4354,10 @@ function StrategicPlanEditor({
     };
 
     const deploy = () => {
+        if (!canDeploy) {
+            return;
+        }
+
         router.patch(
             plan.deploy_url,
             {},
@@ -4206,8 +4446,8 @@ function StrategicPlanEditor({
                     </div>
                     <p className="text-sm text-muted-foreground">
                         Generated after proposal acceptance. Review with the
-                        client, edit the structure if needed, then deploy
-                        milestones.
+                        client and deploy milestones only after DD and Business
+                        Plan &amp; Budget assessment are complete.
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -4229,21 +4469,30 @@ function StrategicPlanEditor({
                             Save draft
                         </Button>
                     )}
-                    <Button
-                        type="button"
-                        size="sm"
-                        disabled={deployed || deploying}
-                        onClick={deploy}
-                    >
-                        <Send className="size-4" aria-hidden="true" />
-                        {deployed
-                            ? 'Deployed'
-                            : deploying
-                              ? 'Deploying'
-                              : 'Deploy strategic plan'}
-                    </Button>
+                    {(deployed || deploymentGuard.allowed) && (
+                        <Button
+                            type="button"
+                            size="sm"
+                            disabled={!canDeploy || deploying}
+                            onClick={deploy}
+                        >
+                            <Send className="size-4" aria-hidden="true" />
+                            {deployed
+                                ? 'Deployed'
+                                : deploying
+                                  ? 'Deploying'
+                                  : 'Deploy strategic plan'}
+                        </Button>
+                    )}
                 </div>
             </div>
+
+            {!deployed && !deploymentGuard.allowed && (
+                <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                    {deploymentGuard.message ??
+                        'Strategic plan deployment is locked until the DD and Business Plan & Budget assessments are complete.'}
+                </div>
+            )}
 
             <div className="grid gap-3 md:grid-cols-5">
                 <Metric label="Progress" value={`${plan.progress_percent}%`} />
@@ -4457,469 +4706,104 @@ function StrategicPlanEditor({
     );
 }
 
-function StrategicBudgetPanel({ budget }: { budget: StrategicBudgetSummary }) {
-    const [approving, setApproving] = useState(false);
-    const advisorGoalForm = useForm<{ advisor_goals: StrategicBudgetGoal[] }>({
-        advisor_goals:
-            budget.advisor_goals.length > 0
-                ? budget.advisor_goals.map((goal) => ({
-                      title: goal.title,
-                      measure: goal.measure ?? '',
-                      owner: 'advisor',
-                      locked: false,
-                  }))
-                : [
-                      {
-                          title: '',
-                          measure: '',
-                          owner: 'advisor',
-                          locked: false,
-                      },
-                  ],
-    });
-    const sourceItems = budget.source_financials.items ?? [];
-    const canApprove =
-        !budget.locked &&
-        budget.business_plan_ready &&
-        budget.status !== 'advisor_approved';
-    const confidenceScore = budget.confidence.score ?? 0;
-
-    const updateAdvisorGoal = (
-        index: number,
-        field: 'title' | 'measure',
-        value: string,
-    ) => {
-        const next = advisorGoalForm.data.advisor_goals.map(
-            (goal, goalIndex) =>
-                goalIndex === index ? { ...goal, [field]: value } : goal,
-        );
-
-        advisorGoalForm.setData('advisor_goals', next);
-    };
-
-    const addAdvisorGoal = () => {
-        advisorGoalForm.setData('advisor_goals', [
-            ...advisorGoalForm.data.advisor_goals,
-            {
-                title: '',
-                measure: '',
-                owner: 'advisor',
-                locked: false,
-            },
-        ]);
-    };
-
-    const removeAdvisorGoal = (index: number) => {
-        const next = advisorGoalForm.data.advisor_goals.filter(
-            (_goal, goalIndex) => goalIndex !== index,
-        );
-
-        advisorGoalForm.setData(
-            'advisor_goals',
-            next.length > 0
-                ? next
-                : [
-                      {
-                          title: '',
-                          measure: '',
-                          owner: 'advisor',
-                          locked: false,
-                      },
-                  ],
-        );
-    };
-
-    const saveAdvisorGoals = () => {
-        advisorGoalForm.patch(budget.advisor_goals_url, {
-            preserveScroll: true,
-            onSuccess: () => toast.success('Advisor goals saved.'),
-        });
-    };
-
-    const approveBudget = () => {
-        if (!canApprove) {
-            return;
-        }
-
-        router.patch(
-            budget.approve_url,
-            {},
-            {
-                preserveScroll: true,
-                onStart: () => setApproving(true),
-                onFinish: () => setApproving(false),
-                onSuccess: () =>
-                    toast.success(
-                        'Business Plan & Budget approved for proposal.',
-                    ),
-            },
-        );
-    };
+function AdvisoryServiceAccessPanel({
+    client,
+    budget,
+}: {
+    client: ClientDetail;
+    budget: StrategicBudgetSummary;
+}) {
+    const ddReportReviewed = client.due_diligence?.assessment_ready ?? false;
+    const planBudgetApproved = [
+        'advisor_approved',
+        'used_in_proposal',
+        'accepted_proposal_snapshot',
+    ].includes(budget.status);
+    const blockers = [
+        !ddReportReviewed ? 'Review and release the DD report.' : null,
+        !planBudgetApproved
+            ? 'Approve the Business Plan & Budget assessment.'
+            : null,
+    ].filter((item): item is string => item !== null);
+    const ready = blockers.length === 0;
 
     return (
         <section
-            id="section-strategic-budget"
+            id="section-advisory-service-access"
             className="space-y-4 rounded-md border p-4"
         >
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                        <FileSpreadsheet
-                            className="size-4"
-                            aria-hidden="true"
-                        />
-                        <h2 className="text-sm font-medium">{budget.label}</h2>
-                        <Badge variant={budgetStatusVariant(budget.status)}>
-                            {budget.status_label}
+                        <TrendingUp className="size-4" aria-hidden="true" />
+                        <h2 className="text-sm font-medium">
+                            Advisory service access
+                        </h2>
+                        <Badge variant={ready ? 'secondary' : 'outline'}>
+                            {ready ? 'Ready to scope' : 'After approvals'}
                         </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                        Figures are maintained ex GST. GST is added only at
-                        final Stripe collection.
+                        Strategic planning is not part of the DD workspace. Once
+                        DD and the Business Plan &amp; Budget are approved, use
+                        this handoff to confirm whether the client wants an
+                        advisory service proposal.
                     </p>
                 </div>
-                <Button
-                    type="button"
-                    size="sm"
-                    disabled={!canApprove || approving}
-                    onClick={approveBudget}
-                >
-                    <CheckCircle2 className="size-4" aria-hidden="true" />
-                    {budget.status === 'advisor_approved'
-                        ? 'Approved'
-                        : 'Approve plan & budget'}
-                </Button>
-            </div>
-
-            {budget.locked && (
-                <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-                    The client can see this task, but it stays locked until a
-                    P&amp;L or management accounts file is uploaded and tagged
-                    as financial evidence.
-                </div>
-            )}
-
-            {!budget.business_plan_ready && (
-                <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-                    The client still needs to complete every plan section before
-                    this combined plan and budget can be approved for proposal
-                    readiness.
-                </div>
-            )}
-
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                <BudgetScore
-                    label={
-                        budget.pathway === 'npo'
-                            ? 'Operating Plan'
-                            : 'Business Plan'
-                    }
-                    value={budget.business_plan_readiness_score}
-                />
-                <BudgetScore label="Progress" value={budget.progress_score} />
-                <BudgetScore label="Readiness" value={budget.readiness_score} />
-                <Metric
-                    label="Confidence"
-                    value={`${confidenceScore}/100 ${budget.confidence.overall ?? ''}`.trim()}
-                />
-                <Metric
-                    label="Horizon"
-                    value={`${budget.horizon_months} months`}
-                />
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                <div className="space-y-3 rounded-md border p-3">
-                    <div className="flex items-center justify-between gap-3">
-                        <h3 className="text-sm font-medium">
-                            Source financials
-                        </h3>
-                        <Badge variant="outline">
-                            {budget.source_financials.count ?? 0}
-                        </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                        {budget.source_financials.system_review ??
-                            'No system review yet.'}
-                    </p>
-                    {sourceItems.length > 0 ? (
-                        <div className="space-y-2">
-                            {sourceItems.map((item) => (
-                                <div
-                                    key={item.id}
-                                    className="rounded-md bg-muted/30 px-3 py-2 text-sm"
-                                >
-                                    <div className="font-medium">
-                                        {item.filename}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        {formatLabel(item.detected_as)} ·{' '}
-                                        {formatDate(item.uploaded_at)}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-sm text-muted-foreground">
-                            Waiting on a P&amp;L or management accounts upload.
-                        </p>
-                    )}
-                </div>
-
-                <div className="grid gap-3 rounded-md border p-3 text-sm md:grid-cols-2">
-                    <Metric
-                        label="Implementation costs"
-                        value={formatCurrency(
-                            budget.computed.total_launch_costs ?? 0,
-                        )}
-                    />
-                    <Metric
-                        label="Monthly fixed costs"
-                        value={formatCurrency(
-                            budget.computed.monthly_fixed_costs ?? 0,
-                        )}
-                    />
-                    <Metric
-                        label="Funding available"
-                        value={formatCurrency(
-                            budget.computed.total_funding ?? 0,
-                        )}
-                    />
-                    <Metric
-                        label="Runway"
-                        value={
-                            budget.computed.runway_open_ended
-                                ? 'Open ended'
-                                : budget.computed.runway_months !== null &&
-                                    budget.computed.runway_months !== undefined
-                                  ? `${budget.computed.runway_months} months`
-                                  : '-'
-                        }
-                    />
-                </div>
-            </div>
-
-            {budget.flags.length > 0 && (
-                <div className="space-y-2 rounded-md border p-3">
-                    <h3 className="text-sm font-medium">Readiness signals</h3>
-                    <div className="grid gap-2 lg:grid-cols-2">
-                        {budget.flags.map((flag) => (
-                            <div
-                                key={flag.key}
-                                className="rounded-md bg-muted/30 p-3 text-sm"
-                            >
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="font-medium">
-                                        {flag.title}
-                                    </span>
-                                    <Badge
-                                        variant={
-                                            flag.severity === 'critical'
-                                                ? 'destructive'
-                                                : 'outline'
-                                        }
-                                    >
-                                        {formatLabel(flag.severity)}
-                                    </Badge>
-                                </div>
-                                <p className="mt-1 text-muted-foreground">
-                                    {flag.message}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            <div className="grid gap-4 lg:grid-cols-2">
-                <GoalReadOnlyPanel
-                    title="Client goals"
-                    empty="No client-owned onboarding goals yet."
-                    goals={budget.client_goals}
-                />
-
-                <div className="space-y-3 rounded-md border p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <h3 className="text-sm font-medium">
-                                Advisor goals
-                            </h3>
-                            <p className="text-xs text-muted-foreground">
-                                Visible to the client, owned by the advisor.
-                            </p>
-                        </div>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={addAdvisorGoal}
-                        >
-                            <PlusCircle className="size-4" aria-hidden="true" />
-                            Add
-                        </Button>
-                    </div>
-
-                    <div className="space-y-3">
-                        {advisorGoalForm.data.advisor_goals.map(
-                            (goal, index) => (
-                                <div
-                                    key={index}
-                                    className="grid gap-2 rounded-md bg-muted/30 p-3"
-                                >
-                                    <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-                                        <div className="grid gap-1">
-                                            <Label
-                                                htmlFor={`advisor_goal_title_${index}`}
-                                            >
-                                                Goal
-                                            </Label>
-                                            <Input
-                                                id={`advisor_goal_title_${index}`}
-                                                value={goal.title}
-                                                onChange={(event) =>
-                                                    updateAdvisorGoal(
-                                                        index,
-                                                        'title',
-                                                        event.target.value,
-                                                    )
-                                                }
-                                            />
-                                        </div>
-                                        <div className="grid gap-1">
-                                            <Label
-                                                htmlFor={`advisor_goal_measure_${index}`}
-                                            >
-                                                Measure
-                                            </Label>
-                                            <Input
-                                                id={`advisor_goal_measure_${index}`}
-                                                value={goal.measure ?? ''}
-                                                onChange={(event) =>
-                                                    updateAdvisorGoal(
-                                                        index,
-                                                        'measure',
-                                                        event.target.value,
-                                                    )
-                                                }
-                                            />
-                                        </div>
-                                        <Button
-                                            type="button"
-                                            size="icon"
-                                            variant="outline"
-                                            className="self-end"
-                                            onClick={() =>
-                                                removeAdvisorGoal(index)
-                                            }
-                                        >
-                                            <Ban
-                                                className="size-4"
-                                                aria-hidden="true"
-                                            />
-                                            <span className="sr-only">
-                                                Remove advisor goal
-                                            </span>
-                                        </Button>
-                                    </div>
-                                    <InputError
-                                        message={
-                                            (
-                                                advisorGoalForm.errors as Record<
-                                                    string,
-                                                    string
-                                                >
-                                            )[`advisor_goals.${index}.title`]
-                                        }
-                                    />
-                                </div>
-                            ),
-                        )}
-                    </div>
-                    <InputError
-                        message={
-                            (advisorGoalForm.errors as Record<string, string>)
-                                .advisor_goals
-                        }
-                    />
-                    <Button
-                        type="button"
-                        size="sm"
-                        disabled={advisorGoalForm.processing}
-                        onClick={saveAdvisorGoals}
-                    >
-                        <FileCheck2 className="size-4" aria-hidden="true" />
-                        Save advisor goals
+                <div className="flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant="outline">
+                        <Link href={`/advisor/clients/${client.id}/messages`}>
+                            <MessageSquare
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                            Message client
+                        </Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline">
+                        <a href="#section-proposals">
+                            <FileText className="size-4" aria-hidden="true" />
+                            Review proposals
+                        </a>
                     </Button>
                 </div>
             </div>
-        </section>
-    );
-}
 
-function BudgetScore({ label, value }: { label: string; value: number }) {
-    const safeValue = Math.max(0, Math.min(100, value));
-
-    return (
-        <div className="rounded-md border p-4">
-            <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                <span>{label}</span>
-                <span>{safeValue}/100</span>
-            </div>
-            <div className="mt-3 h-2 rounded-full bg-muted">
-                <div
-                    className="h-2 rounded-full bg-[var(--fs-admiralty)]"
-                    style={{ width: `${safeValue}%` }}
+            <div className="grid gap-3 md:grid-cols-2">
+                <Metric
+                    label="Due Diligence"
+                    value={ddReportReviewed ? 'Assessed' : 'Report review due'}
+                />
+                <Metric
+                    label="Business Plan & Budget"
+                    value={
+                        planBudgetApproved
+                            ? 'Assessment approved'
+                            : budget.status_label
+                    }
                 />
             </div>
-        </div>
-    );
-}
 
-function GoalReadOnlyPanel({
-    title,
-    empty,
-    goals,
-}: {
-    title: string;
-    empty: string;
-    goals: StrategicBudgetGoal[];
-}) {
-    return (
-        <div className="space-y-3 rounded-md border p-3">
-            <div>
-                <h3 className="text-sm font-medium">{title}</h3>
-                <p className="text-xs text-muted-foreground">
-                    Client-owned goals stay transparent and locked here.
-                </p>
-            </div>
-            {goals.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{empty}</p>
+            {ready ? (
+                <div className="rounded-md border bg-emerald-50 p-3 text-sm text-emerald-950">
+                    DD and BP&amp;B are ready. Confirm the advisory scope,
+                    service fee, and proposal with the client before opening the
+                    advisory service path.
+                </div>
             ) : (
-                <div className="space-y-2">
-                    {goals.map((goal, index) => (
-                        <div
-                            key={`${goal.title}-${index}`}
-                            className="rounded-md bg-muted/30 p-3 text-sm"
-                        >
-                            <div className="flex flex-wrap items-center gap-2">
-                                <LockKeyhole
-                                    className="size-3"
-                                    aria-hidden="true"
-                                />
-                                <span className="font-medium">
-                                    {goal.title}
-                                </span>
-                            </div>
-                            {goal.measure && (
-                                <p className="mt-1 text-muted-foreground">
-                                    {goal.measure}
-                                </p>
-                            )}
-                        </div>
-                    ))}
+                <div className="space-y-2 rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                    <p>Finish these items before requesting advisory access:</p>
+                    <ul className="grid gap-1">
+                        {blockers.map((blocker) => (
+                            <li key={blocker} className="flex gap-2">
+                                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-foreground/60" />
+                                <span>{blocker}</span>
+                            </li>
+                        ))}
+                    </ul>
                 </div>
             )}
-        </div>
+        </section>
     );
 }
 
@@ -7336,6 +7220,69 @@ function initialClientDetailTab(): ClientDetailTab {
     return clientSectionTabs[window.location.hash.slice(1)] ?? 'actions';
 }
 
+function initialAdvisorServiceTab(client: ClientDetail): AdvisorServiceTabKey {
+    if (typeof window === 'undefined') {
+        return 'overview';
+    }
+
+    const serviceTab = clientSectionServiceTabs[window.location.hash.slice(1)];
+
+    return serviceTab && advisorServiceTabAvailable(client, serviceTab)
+        ? serviceTab
+        : 'overview';
+}
+
+function advisorServiceTabAvailable(
+    client: ClientDetail,
+    tab: AdvisorServiceTabKey,
+): boolean {
+    if (tab === 'overview') {
+        return true;
+    }
+
+    if (tab === 'due_diligence') {
+        return client.due_diligence !== null;
+    }
+
+    if (tab === 'business_plan_budget') {
+        return Boolean(client.strategic_budget);
+    }
+
+    if (tab === 'advisory_access') {
+        return isDueDiligenceClientFor(client) && client.due_diligence !== null;
+    }
+
+    if (tab === 'standard_advisory') {
+        return client.standard_advisory !== null;
+    }
+
+    if (tab === 'founding_advisory') {
+        return client.founding_advisory !== null;
+    }
+
+    if (tab === 'npo') {
+        return Boolean(
+            client.is_npo ||
+            client.npo_conversion ||
+            client.npo_governance_review ||
+            client.npo_configuration ||
+            client.npo_health ||
+            client.npo_funding ||
+            client.npo_values ||
+            client.npo_social_enterprise,
+        );
+    }
+
+    return !isDueDiligenceClientFor(client) && Boolean(client.strategic_plan);
+}
+
+function isDueDiligenceClientFor(client: ClientDetail): boolean {
+    return (
+        client.engagement_type === 'due_diligence' ||
+        client.due_diligence !== null
+    );
+}
+
 function Metric({
     label,
     value,
@@ -7554,30 +7501,6 @@ function standardAdvisoryStatusVariant(
     }
 
     return 'outline';
-}
-
-function budgetStatusVariant(
-    status: string,
-): 'secondary' | 'destructive' | 'outline' {
-    if (
-        [
-            'advisor_approved',
-            'used_in_proposal',
-            'accepted_proposal_snapshot',
-        ].includes(status)
-    ) {
-        return 'secondary';
-    }
-
-    if (status === 'locked') {
-        return 'destructive';
-    }
-
-    return 'outline';
-}
-
-function stringDetail(value: string | number | boolean | null | undefined) {
-    return value === null || value === undefined ? null : String(value);
 }
 
 function formatMetric(value: unknown) {

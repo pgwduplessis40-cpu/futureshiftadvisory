@@ -43,6 +43,7 @@ final class BudgetPackBuilder
                 'monthly_by_year' => [],
                 'scenarios' => [],
                 'fixed_costs' => [],
+                'revenue_capacity' => [],
                 'assumptions' => [],
                 'explanations' => [],
                 'summary' => [],
@@ -95,6 +96,7 @@ final class BudgetPackBuilder
             'monthly_by_year' => $monthlyByYear,
             'scenarios' => $scenarios,
             'fixed_costs' => $this->fixedCosts($budget),
+            'revenue_capacity' => $this->revenueCapacity($budget),
             'fixed_cost_reconciliation' => $this->fixedCostReconciliation($budget, $computed),
             'future_costs' => $this->futureCosts($budget),
             'active_flags' => collect((array) ($budget->flags ?? []))
@@ -158,6 +160,17 @@ final class BudgetPackBuilder
                 $this->escape($this->formatLabel((string) ($row['confidence'] ?? 'estimate'))),
             ))
             ->implode('');
+        $capacityRows = collect((array) ($payload['revenue_capacity'] ?? []))
+            ->map(fn (array $row): string => sprintf(
+                '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+                $this->escape($row['label'] ?? ''),
+                $this->escape($row['unit_label'] ?? 'units'),
+                $this->escape($this->unitCount($row['founder_capacity_units'] ?? null)),
+                $this->escape($this->unitCount($row['monthly_capacity_units'] ?? null)),
+                $this->money($row['contractor_unit_cost'] ?? 0),
+                $this->escape($row['review_note'] ?? ''),
+            ))
+            ->implode('');
         $scenarioRows = collect((array) ($payload['scenarios'] ?? []))
             ->map(fn (array $scenario): string => sprintf(
                 '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
@@ -184,11 +197,12 @@ final class BudgetPackBuilder
 <div class="decision-kicker">Funding position</div>
 <h2>%s</h2>
 <p class="decision-headline">%s</p>
-<div class="summary funding-summary">%s%s%s%s</div>
+<div class="summary funding-summary">%s%s%s%s%s</div>
 </article>
 HTML,
             'Funding position',
             $this->escape($this->fundingPositionHeadline($decision)),
+            $this->metricHtml('Declared funding position', (string) ($decision['funding_position_label'] ?? 'Funding position not confirmed')),
             $this->metricHtml('Lowest cash point', $this->moneyWithMonth($decision['lowest_cash'] ?? null, $decision['lowest_cash_month'] ?? null)),
             $this->metricHtml('Required additional funding', $this->money($decision['required_additional_funding'] ?? 0)),
             $this->metricHtml('Funding available', $this->money($decision['available_funding'] ?? 0)),
@@ -224,6 +238,10 @@ HTML,
             $this->money($fixedCostReconciliation['model_base'] ?? ($decision['monthly_fixed_costs'] ?? 0)),
             $fixedCostReconciliationNote,
             $fixedCostRows === '' ? '<tr><td colspan="6">No monthly fixed costs saved.</td></tr>' : $fixedCostRows,
+        );
+        $capacitySection = sprintf(
+            '<article class="report-section"><h2>Revenue capacity and delivery resourcing</h2><p class="section-intro">Revenue is capped at the saved monthly capacity. Where total capacity exceeds founder capacity, the forecast includes the saved contractor delivery cost for the extra units.</p><table class="decision-table"><thead><tr><th>Revenue line</th><th>Unit</th><th>Founder capacity</th><th>Total capacity</th><th>Contractor cost / unit</th><th>Review note</th></tr></thead><tbody>%s</tbody></table></article>',
+            $capacityRows === '' ? '<tr><td colspan="6">No revenue capacity inputs saved.</td></tr>' : $capacityRows,
         );
         $futureCostsSection = sprintf(
             '<article class="report-section"><h2>Later-year cost trace</h2><p class="section-intro">Operating costs affect profit when incurred. Capital assets are paid in cash at purchase and depreciated over their stated useful life.</p><table class="decision-table"><thead><tr><th>Cost item</th><th>Amount</th><th>Timing</th><th>Treatment</th><th>Confidence</th></tr></thead><tbody>%s</tbody></table></article>',
@@ -285,7 +303,7 @@ HTML,
                 'GST basis' => 'GST exclusive',
                 'Forecast starts' => (string) ($payload['forecast_start_month'] ?: 'Not set'),
             ],
-            contentHtml: $draftNotice.$decisionView.$cashStorySection.$revenueBridgeSection.$useOfFundsSection.$fixedCostsSection.$futureCostsSection.$scenariosSection.$assumptionsSection.$annualForecast.$financialBridgeSection.$monthlyPages,
+            contentHtml: $draftNotice.$decisionView.$cashStorySection.$revenueBridgeSection.$useOfFundsSection.$fixedCostsSection.$capacitySection.$futureCostsSection.$scenariosSection.$assumptionsSection.$annualForecast.$financialBridgeSection.$monthlyPages,
             footer: $this->footerText('Generated '.$generatedAt.' using Future Shift Advisory budget pack', $issueReadiness),
             snapshotTitle: 'Document details',
             template: $template,
@@ -315,6 +333,7 @@ HTML,
                 'type' => 'table',
                 'headers' => ['Metric', 'Value'],
                 'rows' => [
+                    ['Declared funding position', (string) ($decision['funding_position_label'] ?? 'Funding position not confirmed')],
                     ['Lowest cash point', $this->moneyWithMonth($decision['lowest_cash'] ?? null, $decision['lowest_cash_month'] ?? null)],
                     ['Required additional funding', $this->money($decision['required_additional_funding'] ?? 0)],
                     ['Funding available', $this->money($decision['available_funding'] ?? 0)],
@@ -392,6 +411,27 @@ HTML,
                 'headers' => ['Cost item', 'Entered', 'Cadence', 'Monthly equivalent', 'Starts', 'Review note'],
                 'rows' => $fixedCosts,
                 'widths' => [1.15, 0.7, 0.75, 0.85, 0.55, 1.25],
+            ];
+
+        $revenueCapacity = collect((array) ($payload['revenue_capacity'] ?? []))
+            ->map(fn (array $row): array => [
+                (string) ($row['label'] ?? ''),
+                (string) ($row['unit_label'] ?? 'units'),
+                $this->unitCount($row['founder_capacity_units'] ?? null),
+                $this->unitCount($row['monthly_capacity_units'] ?? null),
+                $this->money($row['contractor_unit_cost'] ?? 0),
+                (string) ($row['review_note'] ?? ''),
+            ])
+            ->values()
+            ->all();
+        $this->appendFallbackSection($blocks, 'Revenue capacity and delivery resourcing');
+        $blocks[] = $revenueCapacity === []
+            ? ['type' => 'paragraph', 'text' => 'No revenue capacity inputs have been saved yet.']
+            : [
+                'type' => 'table',
+                'headers' => ['Revenue line', 'Unit', 'Founder cap.', 'Total cap.', 'Contractor cost / unit', 'Review note'],
+                'rows' => $revenueCapacity,
+                'widths' => [1.1, 0.55, 0.65, 0.65, 0.9, 1.35],
             ];
 
         $futureCosts = collect((array) ($payload['future_costs'] ?? []))
@@ -618,6 +658,44 @@ HTML,
     }
 
     /**
+     * @return array<int, array{label:string,unit_label:string,founder_capacity_units:float|null,monthly_capacity_units:float|null,contractor_unit_cost:float,review_note:string}>
+     */
+    private function revenueCapacity(EntrepreneurBudget $budget): array
+    {
+        return collect((array) ($budget->revenue_forecast ?? []))
+            ->map(function (array $row): array {
+                $totalCapacity = is_numeric($row['monthly_capacity_units'] ?? null)
+                    ? round((float) $row['monthly_capacity_units'], 2)
+                    : null;
+                $founderCapacity = is_numeric($row['founder_capacity_units'] ?? null)
+                    ? round((float) $row['founder_capacity_units'], 2)
+                    : null;
+                $contractorCapacity = $totalCapacity !== null && $founderCapacity !== null
+                    ? max(0.0, $totalCapacity - $founderCapacity)
+                    : 0.0;
+                $contractorCostConfirmed = (bool) ($row['contractor_cost_confirmed'] ?? false);
+                $sourceReference = trim((string) ($row['source_reference'] ?? ''));
+
+                return [
+                    'label' => (string) ($row['label'] ?? 'Unlabelled revenue'),
+                    'unit_label' => trim((string) ($row['unit_label'] ?? 'units')) ?: 'units',
+                    'founder_capacity_units' => $founderCapacity,
+                    'monthly_capacity_units' => $totalCapacity,
+                    'contractor_unit_cost' => round((float) ($row['contractor_unit_cost'] ?? 0), 2),
+                    'review_note' => $totalCapacity === null || ! (bool) ($row['capacity_confirmed'] ?? false)
+                        ? 'Confirm the maximum monthly delivery capacity before external issue.'
+                        : ($contractorCapacity > 0 && (! $contractorCostConfirmed || (float) ($row['contractor_unit_cost'] ?? 0) <= 0)
+                            ? 'Confirm the contractor cost for '.$this->unitCount($contractorCapacity).' extra unit(s) of monthly capacity.'
+                            : ($sourceReference === '' || ! (bool) ($row['source_confirmed'] ?? false)
+                                ? 'Record the source for pricing, pipeline, or contracted demand before external issue.'
+                                : 'Capacity, contractor cost, and demand source are recorded: '.$sourceReference.'.')),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
      * @param  array<string, mixed>  $computed
      * @return array{listed_total:float,model_base:float,difference:float,reconciled:bool,message:string}
      */
@@ -658,7 +736,11 @@ HTML,
             return 'Confirm the saved billing cadence before external issue.';
         }
 
-        return 'Traces to saved fixed-cost row and converted monthly equivalent.';
+        if (! (bool) ($row['source_confirmed'] ?? false) || trim((string) ($row['source_reference'] ?? '')) === '') {
+            return 'Record the bank, ledger, quote, contract, or owner record that verifies this cost.';
+        }
+
+        return 'Source: '.trim((string) ($row['source_reference'] ?? '')).'.';
     }
 
     private function fixedCostDisplayLabel(string $label): string
@@ -1210,6 +1292,8 @@ HTML,
             'opening_cash_balance',
             'debtor_days',
             'creditor_days',
+            'funding_position',
+            'funding_request_purpose',
             'cost_inflation_percent',
             'target_gross_profit_percent',
             'target_net_profit_before_tax_percent',
@@ -1218,19 +1302,9 @@ HTML,
         ])
             ->map(fn (string $key): array => [
                 'label' => (string) ($labels[$key] ?? $this->formatLabel($key)),
-                'value' => $key === 'year_two_revenue_basis'
-                    ? (($assumptions[$key] ?? 'exit_run_rate') === 'year_one_average'
-                        ? 'Year 1 average monthly revenue'
-                        : 'Year 1 exit run-rate')
-                    : ($key === 'forecast_start_month'
-                        ? ((string) ($assumptions[$key] ?? '') ?: 'Not set')
-                        : (in_array($key, ['opening_cash_balance'], true)
-                            ? $this->money($assumptions[$key] ?? 0)
-                            : (in_array($key, ['debtor_days', 'creditor_days'], true)
-                                ? ((int) ($assumptions[$key] ?? 0)).' days'
-                                : ((float) ($assumptions[$key] ?? 0)).'%'))),
+                'value' => $this->assumptionValue($key, $assumptions),
                 'basis' => $this->assumptionBasis($key, $assumptions, $provided, $missing),
-                'review_note' => $this->assumptionReviewNote($key),
+                'review_note' => $this->assumptionReviewNote($key, $assumptions),
                 'provided' => ! in_array($key, $missing, true),
             ])
             ->values()
@@ -1258,6 +1332,20 @@ HTML,
             return 'Founder/advisor selection';
         }
 
+        if ($key === 'funding_position') {
+            return (bool) ($assumptions['funding_position_confirmed'] ?? false)
+                ? 'Founder/advisor confirmed'
+                : 'Not confirmed';
+        }
+
+        if ($key === 'funding_request_purpose') {
+            if (($assumptions['funding_position'] ?? 'undecided') === 'self_funded') {
+                return 'Self-funded position';
+            }
+
+            return trim((string) ($assumptions[$key] ?? '')) === '' ? 'Missing input' : 'Founder/advisor input';
+        }
+
         if (in_array($key, ['forecast_start_month', 'opening_cash_balance', 'debtor_days', 'creditor_days'], true)) {
             return in_array($key, $provided, true) ? 'Founder/advisor input' : 'Missing input';
         }
@@ -1273,7 +1361,10 @@ HTML,
         return 'Model default';
     }
 
-    private function assumptionReviewNote(string $key): string
+    /**
+     * @param  array<string, mixed>  $assumptions
+     */
+    private function assumptionReviewNote(string $key, array $assumptions): string
     {
         return match ($key) {
             'revenue_growth_percent' => 'Check against pipeline, pricing tests, signed work, or demand evidence.',
@@ -1282,12 +1373,40 @@ HTML,
             'opening_cash_balance' => 'Keep opening cash separate from Month 1 cash movement and funding inflows.',
             'debtor_days' => 'Match deposit and invoice collection timing; zero means cash is collected in the same month.',
             'creditor_days' => 'Match supplier-payment timing; zero means direct costs are paid in the same month.',
+            'funding_position' => 'Choose self-funded only when the cash forecast supports it; otherwise state the external funding request.',
+            'funding_request_purpose' => ($assumptions['funding_position'] ?? 'undecided') === 'self_funded'
+                ? 'No external use-of-funds statement applies to a self-funded plan.'
+                : 'State exactly what external funding will cover so the plan and budget use one funding story.',
             'cost_inflation_percent' => 'Check against current supplier pricing, rent, wages, software, and CPI context.',
             'target_gross_profit_percent' => 'Check price, direct delivery cost, capacity, and product or service mix.',
             'target_net_profit_before_tax_percent' => 'Check whether overheads and owner capacity support the target.',
             'target_net_profit_after_tax_percent' => 'Check tax treatment and whether retained profit is realistic.',
             'company_tax_rate_percent' => 'Confirm reference data before relying on after-tax profit.',
             default => 'Check the source before relying on the forecast.',
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $assumptions
+     */
+    private function assumptionValue(string $key, array $assumptions): string
+    {
+        return match ($key) {
+            'year_two_revenue_basis' => ($assumptions[$key] ?? 'exit_run_rate') === 'year_one_average'
+                ? 'Year 1 average monthly revenue'
+                : 'Year 1 exit run-rate',
+            'forecast_start_month' => (string) ($assumptions[$key] ?? '') ?: 'Not set',
+            'opening_cash_balance' => $this->money($assumptions[$key] ?? 0),
+            'debtor_days', 'creditor_days' => ((int) ($assumptions[$key] ?? 0)).' days',
+            'funding_position' => match ($assumptions[$key] ?? 'undecided') {
+                'self_funded' => 'Self-funded',
+                'external_funding' => 'External funding request',
+                default => 'Not confirmed',
+            },
+            'funding_request_purpose' => ($assumptions['funding_position'] ?? 'undecided') === 'self_funded'
+                ? 'Not applicable (self-funded)'
+                : (trim((string) ($assumptions[$key] ?? '')) ?: 'Not set'),
+            default => ((float) ($assumptions[$key] ?? 0)).'%',
         };
     }
 
@@ -1689,6 +1808,11 @@ CSS;
         $sign = $amount < 0 ? '-' : '';
 
         return $sign.'$'.number_format(abs($amount), 0);
+    }
+
+    private function unitCount(mixed $value): string
+    {
+        return is_numeric($value) ? number_format((float) $value, 2, '.', '') : 'Not set';
     }
 
     private function signedMoney(mixed $value): string

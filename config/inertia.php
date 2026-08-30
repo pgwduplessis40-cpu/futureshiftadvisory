@@ -24,7 +24,7 @@ return [
     | See docs/deployment-ssr.md.
     */
     'ssr' => [
-        'enabled' => true,
+        'enabled' => (bool) env('INERTIA_SSR_ENABLED', env('APP_ENV') === 'production'),
         'url' => 'http://127.0.0.1:13714',
         'bundle' => base_path('bootstrap/ssr/app.js'),
     ],

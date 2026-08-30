@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::redirect
-* @see app/Http/Controllers/Portal/OnboardingController.php:55
+* @see app/Http/Controllers/Portal/OnboardingController.php:56
 * @route '/portal/onboarding'
 */
 export const redirect = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ redirect.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::redirect
-* @see app/Http/Controllers/Portal/OnboardingController.php:55
+* @see app/Http/Controllers/Portal/OnboardingController.php:56
 * @route '/portal/onboarding'
 */
 redirect.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ redirect.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::redirect
-* @see app/Http/Controllers/Portal/OnboardingController.php:55
+* @see app/Http/Controllers/Portal/OnboardingController.php:56
 * @route '/portal/onboarding'
 */
 redirect.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ redirect.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::redirect
-* @see app/Http/Controllers/Portal/OnboardingController.php:55
+* @see app/Http/Controllers/Portal/OnboardingController.php:56
 * @route '/portal/onboarding'
 */
 redirect.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ redirect.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::redirect
-* @see app/Http/Controllers/Portal/OnboardingController.php:55
+* @see app/Http/Controllers/Portal/OnboardingController.php:56
 * @route '/portal/onboarding'
 */
 const redirectForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const redirectForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::redirect
-* @see app/Http/Controllers/Portal/OnboardingController.php:55
+* @see app/Http/Controllers/Portal/OnboardingController.php:56
 * @route '/portal/onboarding'
 */
 redirectForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ redirectForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::redirect
-* @see app/Http/Controllers/Portal/OnboardingController.php:55
+* @see app/Http/Controllers/Portal/OnboardingController.php:56
 * @route '/portal/onboarding'
 */
 redirectForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ redirect.form = redirectForm
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::saveQuestionnaireDraft
-* @see app/Http/Controllers/Portal/OnboardingController.php:108
+* @see app/Http/Controllers/Portal/OnboardingController.php:109
 * @route '/portal/onboarding/questionnaire/draft'
 */
 export const saveQuestionnaireDraft = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -97,7 +97,7 @@ saveQuestionnaireDraft.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::saveQuestionnaireDraft
-* @see app/Http/Controllers/Portal/OnboardingController.php:108
+* @see app/Http/Controllers/Portal/OnboardingController.php:109
 * @route '/portal/onboarding/questionnaire/draft'
 */
 saveQuestionnaireDraft.url = (options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ saveQuestionnaireDraft.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::saveQuestionnaireDraft
-* @see app/Http/Controllers/Portal/OnboardingController.php:108
+* @see app/Http/Controllers/Portal/OnboardingController.php:109
 * @route '/portal/onboarding/questionnaire/draft'
 */
 saveQuestionnaireDraft.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -116,7 +116,7 @@ saveQuestionnaireDraft.post = (options?: RouteQueryOptions): RouteDefinition<'po
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::saveQuestionnaireDraft
-* @see app/Http/Controllers/Portal/OnboardingController.php:108
+* @see app/Http/Controllers/Portal/OnboardingController.php:109
 * @route '/portal/onboarding/questionnaire/draft'
 */
 const saveQuestionnaireDraftForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -126,7 +126,7 @@ const saveQuestionnaireDraftForm = (options?: RouteQueryOptions): RouteFormDefin
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::saveQuestionnaireDraft
-* @see app/Http/Controllers/Portal/OnboardingController.php:108
+* @see app/Http/Controllers/Portal/OnboardingController.php:109
 * @route '/portal/onboarding/questionnaire/draft'
 */
 saveQuestionnaireDraftForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -138,7 +138,7 @@ saveQuestionnaireDraft.form = saveQuestionnaireDraftForm
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::show
-* @see app/Http/Controllers/Portal/OnboardingController.php:64
+* @see app/Http/Controllers/Portal/OnboardingController.php:65
 * @route '/portal/onboarding/{step}'
 */
 export const show = (args: { step: string | number } | [step: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -153,7 +153,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::show
-* @see app/Http/Controllers/Portal/OnboardingController.php:64
+* @see app/Http/Controllers/Portal/OnboardingController.php:65
 * @route '/portal/onboarding/{step}'
 */
 show.url = (args: { step: string | number } | [step: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -180,7 +180,7 @@ show.url = (args: { step: string | number } | [step: string | number ] | string 
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::show
-* @see app/Http/Controllers/Portal/OnboardingController.php:64
+* @see app/Http/Controllers/Portal/OnboardingController.php:65
 * @route '/portal/onboarding/{step}'
 */
 show.get = (args: { step: string | number } | [step: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -190,7 +190,7 @@ show.get = (args: { step: string | number } | [step: string | number ] | string 
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::show
-* @see app/Http/Controllers/Portal/OnboardingController.php:64
+* @see app/Http/Controllers/Portal/OnboardingController.php:65
 * @route '/portal/onboarding/{step}'
 */
 show.head = (args: { step: string | number } | [step: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -200,7 +200,7 @@ show.head = (args: { step: string | number } | [step: string | number ] | string
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::show
-* @see app/Http/Controllers/Portal/OnboardingController.php:64
+* @see app/Http/Controllers/Portal/OnboardingController.php:65
 * @route '/portal/onboarding/{step}'
 */
 const showForm = (args: { step: string | number } | [step: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -210,7 +210,7 @@ const showForm = (args: { step: string | number } | [step: string | number ] | s
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::show
-* @see app/Http/Controllers/Portal/OnboardingController.php:64
+* @see app/Http/Controllers/Portal/OnboardingController.php:65
 * @route '/portal/onboarding/{step}'
 */
 showForm.get = (args: { step: string | number } | [step: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -220,7 +220,7 @@ showForm.get = (args: { step: string | number } | [step: string | number ] | str
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::show
-* @see app/Http/Controllers/Portal/OnboardingController.php:64
+* @see app/Http/Controllers/Portal/OnboardingController.php:65
 * @route '/portal/onboarding/{step}'
 */
 showForm.head = (args: { step: string | number } | [step: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -237,7 +237,7 @@ show.form = showForm
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::store
-* @see app/Http/Controllers/Portal/OnboardingController.php:93
+* @see app/Http/Controllers/Portal/OnboardingController.php:94
 * @route '/portal/onboarding/{step}'
 */
 export const store = (args: { step: string | number } | [step: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -252,7 +252,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::store
-* @see app/Http/Controllers/Portal/OnboardingController.php:93
+* @see app/Http/Controllers/Portal/OnboardingController.php:94
 * @route '/portal/onboarding/{step}'
 */
 store.url = (args: { step: string | number } | [step: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -279,7 +279,7 @@ store.url = (args: { step: string | number } | [step: string | number ] | string
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::store
-* @see app/Http/Controllers/Portal/OnboardingController.php:93
+* @see app/Http/Controllers/Portal/OnboardingController.php:94
 * @route '/portal/onboarding/{step}'
 */
 store.post = (args: { step: string | number } | [step: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -289,7 +289,7 @@ store.post = (args: { step: string | number } | [step: string | number ] | strin
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::store
-* @see app/Http/Controllers/Portal/OnboardingController.php:93
+* @see app/Http/Controllers/Portal/OnboardingController.php:94
 * @route '/portal/onboarding/{step}'
 */
 const storeForm = (args: { step: string | number } | [step: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -299,7 +299,7 @@ const storeForm = (args: { step: string | number } | [step: string | number ] | 
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::store
-* @see app/Http/Controllers/Portal/OnboardingController.php:93
+* @see app/Http/Controllers/Portal/OnboardingController.php:94
 * @route '/portal/onboarding/{step}'
 */
 storeForm.post = (args: { step: string | number } | [step: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

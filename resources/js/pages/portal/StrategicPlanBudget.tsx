@@ -1,3 +1,4 @@
+import type { RequestPayload } from '@inertiajs/core';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     AlertTriangle,
@@ -5,23 +6,23 @@ import {
     BookOpen,
     CheckCircle2,
     Download,
-    Eye,
     ExternalLink,
     FileSpreadsheet,
     FileText,
     Info,
     LockKeyhole,
     Plus,
-    Save,
     Send,
     TrendingUp,
     Upload,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType, CSSProperties, ReactNode } from 'react';
 import { BudgetCashChart } from '@/components/budget-cash-chart';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
+import { WorkspaceSwitcher } from '@/components/portal/WorkspaceSwitcher';
+import type { WorkspaceSwitcherPayload } from '@/components/portal/WorkspaceSwitcher';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -104,8 +105,6 @@ type BudgetPayload = {
             uploaded_at: string | null;
         }>;
     };
-    client_goals: GoalPayload[];
-    advisor_goals: GoalPayload[];
     business_plan_sections: BusinessPlanSection[];
     business_plan_source_drafts: BusinessPlanSourceDraft[];
     business_plan_prompts: Array<{
@@ -154,6 +153,10 @@ type BudgetPayload = {
     progress_score: number;
     submitted_at: string | null;
     approved_at: string | null;
+    can_submit_for_review: boolean;
+    review_submitted_or_later: boolean;
+    review_approved_or_later: boolean;
+    review_action_label: string;
     used_in_proposal_at: string | null;
     accepted_snapshot_at: string | null;
     update_url: string;
@@ -249,20 +252,15 @@ type BudgetAnalytics = {
     };
 };
 
-type GoalPayload = {
-    title: string;
-    measure?: string | null;
-    owner?: string;
-    locked?: boolean;
-};
-
 type Props = {
     client: ClientPayload;
     budget: BudgetPayload;
     documentUploadUrl: string;
     onboardingUrl: string;
     dashboardUrl: string;
-    pdfUrl: string;
+    businessPlanPdfUrl: string;
+    budgetPdfUrl: string;
+    workspaces: WorkspaceSwitcherPayload;
 };
 
 type BudgetForm = {
@@ -287,6 +285,8 @@ type BudgetForm = {
 
 type WorkspaceTab = 'business_plan' | 'budget' | 'insights';
 
+type AutosaveState = 'saved' | 'pending' | 'saving' | 'error';
+
 type BudgetGroupKey =
     | 'implementation_costs'
     | 'monthly_fixed_costs'
@@ -299,7 +299,9 @@ export default function StrategicPlanBudget({
     documentUploadUrl,
     onboardingUrl,
     dashboardUrl,
-    pdfUrl,
+    businessPlanPdfUrl,
+    budgetPdfUrl,
+    workspaces,
 }: Props) {
     const [file, setFile] = useState<File | null>(null);
     const [uploadKey, setUploadKey] = useState(0);
@@ -361,6 +363,100 @@ export default function StrategicPlanBudget({
                 : [blankRow()],
         funding_scenarios: budget.funding_scenarios,
     });
+    const [autosaveState, setAutosaveState] = useState<AutosaveState>('saved');
+    const [autosaveError, setAutosaveError] = useState<string | null>(null);
+    const serializedForm = useMemo(
+        () => JSON.stringify(form.data),
+        [form.data],
+    );
+    const lastSavedSignature = useRef(serializedForm);
+    const latestSignature = useRef(serializedForm);
+    const autosaveTimer = useRef<number | null>(null);
+    const saveSequence = useRef(0);
+
+    const clearAutosaveTimer = useCallback(() => {
+        if (autosaveTimer.current === null) {
+            return;
+        }
+
+        window.clearTimeout(autosaveTimer.current);
+        autosaveTimer.current = null;
+    }, []);
+
+    const postDraft = useCallback(
+        (
+            signature: string,
+            options: {
+                onSuccess?: () => void;
+                onError?: () => void;
+            } = {},
+        ) => {
+            const payload = JSON.parse(signature) as BudgetForm;
+            const sequence = saveSequence.current + 1;
+
+            saveSequence.current = sequence;
+            clearAutosaveTimer();
+            setAutosaveState('saving');
+            setAutosaveError(null);
+
+            router.post(
+                budget.update_url,
+                payload as unknown as RequestPayload,
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: () => {
+                        if (sequence === saveSequence.current) {
+                            lastSavedSignature.current = signature;
+                            setAutosaveState(
+                                latestSignature.current === signature
+                                    ? 'saved'
+                                    : 'pending',
+                            );
+                        }
+
+                        options.onSuccess?.();
+                    },
+                    onError: (errors) => {
+                        if (sequence === saveSequence.current) {
+                            const firstError = Object.values(errors)[0];
+
+                            setAutosaveState('error');
+                            setAutosaveError(
+                                typeof firstError === 'string'
+                                    ? firstError
+                                    : 'Autosave failed. Please try again.',
+                            );
+                        }
+
+                        options.onError?.();
+                    },
+                },
+            );
+        },
+        [budget.update_url, clearAutosaveTimer],
+    );
+
+    useEffect(() => {
+        latestSignature.current = serializedForm;
+
+        if (serializedForm === lastSavedSignature.current) {
+            setAutosaveState('saved');
+            setAutosaveError(null);
+            clearAutosaveTimer();
+
+            return;
+        }
+
+        setAutosaveState('pending');
+        setAutosaveError(null);
+        clearAutosaveTimer();
+        autosaveTimer.current = window.setTimeout(() => {
+            postDraft(serializedForm);
+        }, 900);
+
+        return clearAutosaveTimer;
+    }, [clearAutosaveTimer, postDraft, serializedForm]);
 
     const uploadFinancials = async () => {
         if (!file) {
@@ -404,28 +500,48 @@ export default function StrategicPlanBudget({
         router.reload();
     };
 
-    const save = () => {
-        form.post(budget.update_url, { preserveScroll: true });
-    };
+    const reviewSubmittedOrLater = budget.review_submitted_or_later;
+    const reviewStatusLabel = budget.review_action_label;
+    const canSubmitForReview = budget.can_submit_for_review;
 
     const submit = () => {
-        router.post(budget.submit_url, {}, { preserveScroll: true });
+        if (!canSubmitForReview) {
+            return;
+        }
+
+        const submitDraft = () => {
+            router.post(budget.submit_url, {}, { preserveScroll: true });
+        };
+
+        if (serializedForm === lastSavedSignature.current) {
+            submitDraft();
+
+            return;
+        }
+
+        postDraft(serializedForm, { onSuccess: submitDraft });
     };
 
-    const viewPdf = () => {
+    const openSavedPdf = (url: string) => {
         const previewWindow = window.open('about:blank', '_blank');
+        const openPdf = () => {
+            if (previewWindow) {
+                previewWindow.location.replace(url);
 
-        form.post(budget.update_url, {
-            preserveScroll: true,
-            onSuccess: () => {
-                if (previewWindow) {
-                    previewWindow.location.replace(pdfUrl);
+                return;
+            }
 
-                    return;
-                }
+            window.location.assign(url);
+        };
 
-                window.location.assign(pdfUrl);
-            },
+        if (serializedForm === lastSavedSignature.current) {
+            openPdf();
+
+            return;
+        }
+
+        postDraft(serializedForm, {
+            onSuccess: openPdf,
             onError: () => previewWindow?.close(),
         });
     };
@@ -491,7 +607,11 @@ export default function StrategicPlanBudget({
                             <span>{client.engagement_type_label}</span>
                         </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <AutosaveStatus
+                            state={autosaveState}
+                            error={autosaveError}
+                        />
                         <Button asChild variant="outline">
                             <Link href={dashboardUrl}>
                                 <ArrowLeft
@@ -504,20 +624,23 @@ export default function StrategicPlanBudget({
                         <Button
                             type="button"
                             variant="outline"
-                            disabled={form.processing}
-                            onClick={viewPdf}
+                            disabled={autosaveState === 'saving'}
+                            onClick={() => openSavedPdf(businessPlanPdfUrl)}
                         >
-                            <Eye className="size-4" aria-hidden="true" />
-                            View PDF
+                            <FileText className="size-4" aria-hidden="true" />
+                            Business plan PDF
                         </Button>
                         <Button
                             type="button"
                             variant="outline"
-                            disabled={form.processing}
-                            onClick={save}
+                            disabled={autosaveState === 'saving'}
+                            onClick={() => openSavedPdf(budgetPdfUrl)}
                         >
-                            <Save className="size-4" aria-hidden="true" />
-                            Save
+                            <FileSpreadsheet
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                            Budget PDF
                         </Button>
                         <Button asChild variant="outline">
                             <a href={budget.export_url}>
@@ -530,14 +653,31 @@ export default function StrategicPlanBudget({
                         </Button>
                         <Button
                             type="button"
-                            disabled={budget.locked}
+                            disabled={!canSubmitForReview}
                             onClick={submit}
                         >
-                            <Send className="size-4" aria-hidden="true" />
-                            Submit for review
+                            {reviewSubmittedOrLater ? (
+                                <>
+                                    <CheckCircle2
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    {reviewStatusLabel}
+                                </>
+                            ) : (
+                                <>
+                                    <Send
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Submit for review
+                                </>
+                            )}
                         </Button>
                     </div>
                 </div>
+
+                <WorkspaceSwitcher workspaces={workspaces} />
 
                 <section
                     id="budget-section-financials"
@@ -640,21 +780,6 @@ export default function StrategicPlanBudget({
                                         )
                                     }
                                 />
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                    <Button
-                                        type="button"
-                                        disabled={form.processing}
-                                        onClick={save}
-                                    >
-                                        <Save
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        {form.processing
-                                            ? 'Saving'
-                                            : 'Save plan'}
-                                    </Button>
-                                </div>
                             </div>
                         ) : (
                             <LockedFinancialsPanel
@@ -793,8 +918,10 @@ export default function StrategicPlanBudget({
                                         </label>
                                         <div className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
                                             Client and advisor see the same
-                                            budget numbers. Advisor goals are
-                                            visible but locked to the client.
+                                            budget numbers. Advisory-service
+                                            goals are handled separately once
+                                            advisory access is requested or
+                                            approved.
                                         </div>
                                     </div>
 
@@ -885,34 +1012,34 @@ export default function StrategicPlanBudget({
                                 />
                             )}
 
-                            <div className="flex flex-wrap gap-2">
-                                {activeTab !== 'insights' ? (
-                                    <Button
-                                        type="button"
-                                        disabled={form.processing}
-                                        onClick={save}
-                                    >
-                                        <Save
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        {form.processing
-                                            ? 'Saving'
-                                            : activeTab === 'business_plan'
-                                              ? 'Save plan'
-                                              : 'Save budget'}
-                                    </Button>
-                                ) : null}
+                            <div className="flex flex-wrap items-center gap-2">
+                                <AutosaveStatus
+                                    state={autosaveState}
+                                    error={autosaveError}
+                                />
                                 <Button
                                     type="button"
                                     variant="outline"
+                                    disabled={!canSubmitForReview}
                                     onClick={submit}
                                 >
-                                    <Send
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    Submit for advisor review
+                                    {reviewSubmittedOrLater ? (
+                                        <>
+                                            <CheckCircle2
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            {reviewStatusLabel}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Send
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            Submit for advisor review
+                                        </>
+                                    )}
                                 </Button>
                             </div>
                         </section>
@@ -920,10 +1047,6 @@ export default function StrategicPlanBudget({
                         {activeTab !== 'insights' ? (
                             <aside className="space-y-4">
                                 <SummaryPanel budget={budget} />
-                                <GoalsPanel
-                                    clientGoals={budget.client_goals}
-                                    advisorGoals={budget.advisor_goals}
-                                />
                                 <FlagsPanel
                                     flags={budget.flags}
                                     onboardingUrl={onboardingUrl}
@@ -936,6 +1059,32 @@ export default function StrategicPlanBudget({
             </div>
         </>
     );
+}
+
+function AutosaveStatus({
+    state,
+    error,
+}: {
+    state: AutosaveState;
+    error: string | null;
+}) {
+    if (state === 'error') {
+        return (
+            <Badge variant="destructive" title={error ?? undefined}>
+                Autosave failed
+            </Badge>
+        );
+    }
+
+    if (state === 'saving') {
+        return <Badge variant="outline">Autosaving…</Badge>;
+    }
+
+    if (state === 'pending') {
+        return <Badge variant="outline">Saving shortly…</Badge>;
+    }
+
+    return <Badge variant="secondary">Saved automatically</Badge>;
 }
 
 function LockedFinancialsPanel({
@@ -2158,58 +2307,6 @@ function SummaryPanel({ budget }: { budget: BudgetPayload }) {
                 />
             </div>
         </section>
-    );
-}
-
-function GoalsPanel({
-    clientGoals,
-    advisorGoals,
-}: {
-    clientGoals: GoalPayload[];
-    advisorGoals: GoalPayload[];
-}) {
-    return (
-        <section className="space-y-3 rounded-md border bg-background p-4">
-            <h2 className="text-sm font-medium">Goals</h2>
-            <GoalList title="Client goals" goals={clientGoals} />
-            <GoalList title="Advisor goals" goals={advisorGoals} locked />
-        </section>
-    );
-}
-
-function GoalList({
-    title,
-    goals,
-    locked = false,
-}: {
-    title: string;
-    goals: GoalPayload[];
-    locked?: boolean;
-}) {
-    return (
-        <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase">
-                {title}
-                {locked ? <LockKeyhole className="size-3" /> : null}
-            </div>
-            {goals.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No goals yet.</p>
-            ) : (
-                goals.map((goal, index) => (
-                    <div
-                        key={`${title}-${index}`}
-                        className="rounded-md border p-3"
-                    >
-                        <div className="text-sm font-medium">{goal.title}</div>
-                        {goal.measure ? (
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                {goal.measure}
-                            </p>
-                        ) : null}
-                    </div>
-                ))
-            )}
-        </div>
     );
 }
 

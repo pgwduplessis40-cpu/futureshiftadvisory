@@ -33,6 +33,7 @@ import BriefingController from './BriefingController'
 import EntrepreneurController from './EntrepreneurController'
 import EntrepreneurMessageController from './EntrepreneurMessageController'
 import EntrepreneurActionController from './EntrepreneurActionController'
+import EntrepreneurPlanDocumentController from './EntrepreneurPlanDocumentController'
 import EntrepreneurAssessmentController from './EntrepreneurAssessmentController'
 import EntrepreneurDocumentController from './EntrepreneurDocumentController'
 import MethodologyController from './MethodologyController'
@@ -79,6 +80,7 @@ const Advisor = {
     EntrepreneurController: Object.assign(EntrepreneurController, EntrepreneurController),
     EntrepreneurMessageController: Object.assign(EntrepreneurMessageController, EntrepreneurMessageController),
     EntrepreneurActionController: Object.assign(EntrepreneurActionController, EntrepreneurActionController),
+    EntrepreneurPlanDocumentController: Object.assign(EntrepreneurPlanDocumentController, EntrepreneurPlanDocumentController),
     EntrepreneurAssessmentController: Object.assign(EntrepreneurAssessmentController, EntrepreneurAssessmentController),
     EntrepreneurDocumentController: Object.assign(EntrepreneurDocumentController, EntrepreneurDocumentController),
     MethodologyController: Object.assign(MethodologyController, MethodologyController),

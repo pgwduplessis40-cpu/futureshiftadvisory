@@ -1,4 +1,5 @@
 import DashboardController from './DashboardController'
+import ServiceJourneyController from './ServiceJourneyController'
 import StrategicBudgetController from './StrategicBudgetController'
 import StrategicPlanMilestoneController from './StrategicPlanMilestoneController'
 import ServiceActivationController from './ServiceActivationController'
@@ -6,7 +7,11 @@ import NpoBoardDashboardController from './NpoBoardDashboardController'
 import ClientLeavePeriodController from './ClientLeavePeriodController'
 import DdBusinessPlanController from './DdBusinessPlanController'
 import EntrepreneurDashboardController from './EntrepreneurDashboardController'
+import EntrepreneurPlanWorkspaceController from './EntrepreneurPlanWorkspaceController'
+import EntrepreneurPlanDocumentController from './EntrepreneurPlanDocumentController'
 import EntrepreneurPlanController from './EntrepreneurPlanController'
+import EntrepreneurPlanBudgetController from './EntrepreneurPlanBudgetController'
+import EntrepreneurAdvisoryRequestController from './EntrepreneurAdvisoryRequestController'
 import EntrepreneurGamificationController from './EntrepreneurGamificationController'
 import EntrepreneurAssessmentController from './EntrepreneurAssessmentController'
 import EntrepreneurSurveyController from './EntrepreneurSurveyController'
@@ -22,6 +27,7 @@ import OnboardingController from './OnboardingController'
 
 const Portal = {
     DashboardController: Object.assign(DashboardController, DashboardController),
+    ServiceJourneyController: Object.assign(ServiceJourneyController, ServiceJourneyController),
     StrategicBudgetController: Object.assign(StrategicBudgetController, StrategicBudgetController),
     StrategicPlanMilestoneController: Object.assign(StrategicPlanMilestoneController, StrategicPlanMilestoneController),
     ServiceActivationController: Object.assign(ServiceActivationController, ServiceActivationController),
@@ -29,7 +35,11 @@ const Portal = {
     ClientLeavePeriodController: Object.assign(ClientLeavePeriodController, ClientLeavePeriodController),
     DdBusinessPlanController: Object.assign(DdBusinessPlanController, DdBusinessPlanController),
     EntrepreneurDashboardController: Object.assign(EntrepreneurDashboardController, EntrepreneurDashboardController),
+    EntrepreneurPlanWorkspaceController: Object.assign(EntrepreneurPlanWorkspaceController, EntrepreneurPlanWorkspaceController),
+    EntrepreneurPlanDocumentController: Object.assign(EntrepreneurPlanDocumentController, EntrepreneurPlanDocumentController),
     EntrepreneurPlanController: Object.assign(EntrepreneurPlanController, EntrepreneurPlanController),
+    EntrepreneurPlanBudgetController: Object.assign(EntrepreneurPlanBudgetController, EntrepreneurPlanBudgetController),
+    EntrepreneurAdvisoryRequestController: Object.assign(EntrepreneurAdvisoryRequestController, EntrepreneurAdvisoryRequestController),
     EntrepreneurGamificationController: Object.assign(EntrepreneurGamificationController, EntrepreneurGamificationController),
     EntrepreneurAssessmentController: Object.assign(EntrepreneurAssessmentController, EntrepreneurAssessmentController),
     EntrepreneurSurveyController: Object.assign(EntrepreneurSurveyController, EntrepreneurSurveyController),

@@ -33,6 +33,7 @@ type ActivationPackage = {
         | 'dd_under_300k'
         | 'dd_1m_3m'
         | 'dd_300k_1m'
+        | 'dd_plan_budget_add_on'
         | null;
     billing_model?: string;
     fixed_fee?: number | null;
@@ -60,12 +61,33 @@ type ActivationPackage = {
         expires_at?: string | null;
         stripe_required?: boolean;
     };
+    quote_context?: DdPlanBudgetQuoteContext | null;
+};
+
+type QuoteLine = {
+    client_label?: string | null;
+    package_name?: string | null;
+    package_scope_label?: string | null;
+    fixed_fee?: number | null;
+    currency?: string | null;
+};
+
+type DdPlanBudgetQuoteContext = {
+    type?: string;
+    summary?: string | null;
+    currency?: string | null;
+    dd_package?: QuoteLine | null;
+    plan_budget_package?: QuoteLine | null;
+    plan_budget_fixed_fee?: number | null;
+    combined_fixed_fee?: number | null;
+    amount_due_for_this_activation?: number | null;
 };
 
 type Activation = {
     id: string;
     service_type:
         | 'due_diligence'
+        | 'dd_plan_budget'
         | 'entrepreneur'
         | 'integration_scoping'
         | 'integration'
@@ -120,6 +142,7 @@ export default function ServiceActivation({ activation, urls }: Props) {
     const selectedPackage = activation.package;
     const requestPricing = activation.request_pricing;
     const fullPaymentReceived = activation.full_payment_received;
+    const isDdPlanBudget = activation.service_type === 'dd_plan_budget';
     const paymentSplit = selectedPackage
         ? packagePaymentSplit(selectedPackage)
         : null;
@@ -157,7 +180,9 @@ export default function ServiceActivation({ activation, urls }: Props) {
                             {activation.client_label}
                         </h1>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Workspace request and fee/scope acknowledgement.
+                            {isDdPlanBudget
+                                ? 'FSA quote, service fee, and scope acknowledgement for the DD + Business Plan & Budget add-on.'
+                                : 'Workspace request and fee/scope acknowledgement.'}
                         </p>
                     </div>
                     <Badge variant="secondary">{activation.status_label}</Badge>
@@ -176,7 +201,7 @@ export default function ServiceActivation({ activation, urls }: Props) {
                                         {formatLabel(key)}
                                     </dt>
                                     <dd className="text-sm">
-                                        {String(value ?? '-')}
+                                        {formatIntakeValue(key, value)}
                                     </dd>
                                 </div>
                             ),
@@ -265,6 +290,9 @@ export default function ServiceActivation({ activation, urls }: Props) {
                                     />
                                 ) : null}
                             </div>
+                            <DdPlanBudgetQuoteSummary
+                                quoteContext={selectedPackage.quote_context}
+                            />
                             {selectedPackage.pilot_fee_waiver?.active ? (
                                 <p className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
                                     This client has an active pilot fee waiver.
@@ -580,6 +608,9 @@ function PreRequestPricing({
                     />
                 ) : null}
             </div>
+            <DdPlanBudgetQuoteSummary
+                quoteContext={servicePackage.quote_context}
+            />
 
             {servicePackage.scope_description ? (
                 <p>{servicePackage.scope_description}</p>
@@ -592,6 +623,94 @@ function PreRequestPricing({
             ) : null}
         </div>
     );
+}
+
+function DdPlanBudgetQuoteSummary({
+    quoteContext,
+}: {
+    quoteContext?: DdPlanBudgetQuoteContext | null;
+}) {
+    if (quoteContext?.type !== 'dd_plus_business_plan_budget') {
+        return null;
+    }
+
+    const currency = quoteContext.currency ?? 'NZD';
+    const ddPackage = quoteContext.dd_package;
+    const planBudgetPackage = quoteContext.plan_budget_package;
+
+    return (
+        <div className="rounded-md border bg-muted/25 p-3">
+            <div className="text-sm font-medium">
+                Combined DD + Business Plan & Budget quote
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+                {quoteContext.summary ??
+                    'FSA combines the selected DD price band with the single Business Plan & Budget add-on fee.'}
+            </p>
+            <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                <QuoteFact
+                    label="DD price band"
+                    value={quoteLineValue(ddPackage, currency)}
+                />
+                <QuoteFact
+                    label="BP&B add-on"
+                    value={quoteLineValue(planBudgetPackage, currency)}
+                />
+                <QuoteFact
+                    label="Combined quote"
+                    value={
+                        quoteContext.combined_fixed_fee !== null &&
+                        quoteContext.combined_fixed_fee !== undefined
+                            ? `${formatMoney(
+                                  quoteContext.combined_fixed_fee,
+                                  currency,
+                              )} ex GST`
+                            : 'DD band to confirm'
+                    }
+                />
+                <QuoteFact
+                    label="Due for this add-on"
+                    value={
+                        quoteContext.amount_due_for_this_activation !== null &&
+                        quoteContext.amount_due_for_this_activation !==
+                            undefined
+                            ? `${formatMoney(
+                                  quoteContext.amount_due_for_this_activation,
+                                  currency,
+                              )} ex GST`
+                            : 'To confirm'
+                    }
+                />
+            </dl>
+        </div>
+    );
+}
+
+function QuoteFact({ label, value }: { label: string; value: string }) {
+    return (
+        <div>
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="font-medium">{value}</dd>
+        </div>
+    );
+}
+
+function quoteLineValue(line: QuoteLine | null | undefined, currency: string) {
+    if (!line) {
+        return 'To confirm';
+    }
+
+    const label =
+        line.package_scope_label ??
+        line.client_label ??
+        line.package_name ??
+        'Selected package';
+    const fee =
+        line.fixed_fee !== null && line.fixed_fee !== undefined
+            ? ` / ${formatMoney(line.fixed_fee, line.currency ?? currency)} ex GST`
+            : '';
+
+    return `${label}${fee}`;
 }
 
 function Metric({
@@ -696,6 +815,10 @@ function PaymentGateMessage({
 }
 
 function packageScopeLabel(scope: string) {
+    if (scope === 'dd_plan_budget_add_on') {
+        return 'Business Plan + Budget add-on';
+    }
+
     if (scope === 'dd_under_300k') {
         return 'Purchase price below $300k';
     }
@@ -764,6 +887,62 @@ function formatLabel(value: string) {
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
+}
+
+function formatIntakeValue(key: string, value: string | number | null): string {
+    if (value === null || value === '') {
+        return '-';
+    }
+
+    if (!isMoneyIntakeKey(key)) {
+        return String(value);
+    }
+
+    const numericValue = parseNumericValue(value);
+
+    if (numericValue === null) {
+        return String(value);
+    }
+
+    return formatIntakeMoney(numericValue);
+}
+
+function isMoneyIntakeKey(key: string): boolean {
+    const normalized = key.toLowerCase();
+
+    return (
+        normalized.includes('price') ||
+        normalized.endsWith('_fee') ||
+        normalized.endsWith('_amount')
+    );
+}
+
+function parseNumericValue(value: string | number): number | null {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : null;
+    }
+
+    const numericText = value.replace(/[^0-9.-]/g, '');
+
+    if (numericText === '' || numericText === '-' || numericText === '.') {
+        return null;
+    }
+
+    const numericValue = Number(numericText);
+
+    return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function formatIntakeMoney(value: number): string {
+    const hasCents = !Number.isInteger(value);
+
+    return new Intl.NumberFormat('en-NZ', {
+        style: 'currency',
+        currency: 'NZD',
+        currencyDisplay: 'narrowSymbol',
+        minimumFractionDigits: hasCents ? 2 : 0,
+        maximumFractionDigits: hasCents ? 2 : 0,
+    }).format(value);
 }
 
 function formatMoney(value: number, currency: string) {

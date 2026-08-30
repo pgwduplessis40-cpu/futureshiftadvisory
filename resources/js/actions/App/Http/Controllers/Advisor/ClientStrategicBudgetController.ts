@@ -90,8 +90,178 @@ approveForm.patch = (args: { client: string | { id: string } } | [client: string
 approve.form = approveForm
 
 /**
+* @see \App\Http\Controllers\Advisor\ClientStrategicBudgetController::assess
+* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:52
+* @route '/advisor/clients/{client}/strategic-budget/assess'
+*/
+export const assess = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: assess.url(args, options),
+    method: 'post',
+})
+
+assess.definition = {
+    methods: ["post"],
+    url: '/advisor/clients/{client}/strategic-budget/assess',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \App\Http\Controllers\Advisor\ClientStrategicBudgetController::assess
+* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:52
+* @route '/advisor/clients/{client}/strategic-budget/assess'
+*/
+assess.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { client: args }
+    }
+
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { client: args.id }
+    }
+
+    if (Array.isArray(args)) {
+        args = {
+            client: args[0],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        client: typeof args.client === 'object'
+        ? args.client.id
+        : args.client,
+    }
+
+    return assess.definition.url
+            .replace('{client}', parsedArgs.client.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Advisor\ClientStrategicBudgetController::assess
+* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:52
+* @route '/advisor/clients/{client}/strategic-budget/assess'
+*/
+assess.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: assess.url(args, options),
+    method: 'post',
+})
+
+/**
+* @see \App\Http\Controllers\Advisor\ClientStrategicBudgetController::assess
+* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:52
+* @route '/advisor/clients/{client}/strategic-budget/assess'
+*/
+const assessForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: assess.url(args, options),
+    method: 'post',
+})
+
+/**
+* @see \App\Http\Controllers\Advisor\ClientStrategicBudgetController::assess
+* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:52
+* @route '/advisor/clients/{client}/strategic-budget/assess'
+*/
+assessForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: assess.url(args, options),
+    method: 'post',
+})
+
+assess.form = assessForm
+
+/**
+* @see \App\Http\Controllers\Advisor\ClientStrategicBudgetController::feedback
+* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:82
+* @route '/advisor/clients/{client}/strategic-budget/feedback'
+*/
+export const feedback = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: feedback.url(args, options),
+    method: 'patch',
+})
+
+feedback.definition = {
+    methods: ["patch"],
+    url: '/advisor/clients/{client}/strategic-budget/feedback',
+} satisfies RouteDefinition<["patch"]>
+
+/**
+* @see \App\Http\Controllers\Advisor\ClientStrategicBudgetController::feedback
+* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:82
+* @route '/advisor/clients/{client}/strategic-budget/feedback'
+*/
+feedback.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { client: args }
+    }
+
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { client: args.id }
+    }
+
+    if (Array.isArray(args)) {
+        args = {
+            client: args[0],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        client: typeof args.client === 'object'
+        ? args.client.id
+        : args.client,
+    }
+
+    return feedback.definition.url
+            .replace('{client}', parsedArgs.client.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Advisor\ClientStrategicBudgetController::feedback
+* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:82
+* @route '/advisor/clients/{client}/strategic-budget/feedback'
+*/
+feedback.patch = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: feedback.url(args, options),
+    method: 'patch',
+})
+
+/**
+* @see \App\Http\Controllers\Advisor\ClientStrategicBudgetController::feedback
+* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:82
+* @route '/advisor/clients/{client}/strategic-budget/feedback'
+*/
+const feedbackForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: feedback.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'PATCH',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
+
+/**
+* @see \App\Http\Controllers\Advisor\ClientStrategicBudgetController::feedback
+* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:82
+* @route '/advisor/clients/{client}/strategic-budget/feedback'
+*/
+feedbackForm.patch = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: feedback.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'PATCH',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'post',
+})
+
+feedback.form = feedbackForm
+
+/**
 * @see \App\Http\Controllers\Advisor\ClientStrategicBudgetController::advisorGoals
-* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:43
+* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:112
 * @route '/advisor/clients/{client}/strategic-budget/advisor-goals'
 */
 export const advisorGoals = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -106,7 +276,7 @@ advisorGoals.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientStrategicBudgetController::advisorGoals
-* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:43
+* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:112
 * @route '/advisor/clients/{client}/strategic-budget/advisor-goals'
 */
 advisorGoals.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -139,7 +309,7 @@ advisorGoals.url = (args: { client: string | { id: string } } | [client: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientStrategicBudgetController::advisorGoals
-* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:43
+* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:112
 * @route '/advisor/clients/{client}/strategic-budget/advisor-goals'
 */
 advisorGoals.patch = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -149,7 +319,7 @@ advisorGoals.patch = (args: { client: string | { id: string } } | [client: strin
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientStrategicBudgetController::advisorGoals
-* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:43
+* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:112
 * @route '/advisor/clients/{client}/strategic-budget/advisor-goals'
 */
 const advisorGoalsForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -164,7 +334,7 @@ const advisorGoalsForm = (args: { client: string | { id: string } } | [client: s
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientStrategicBudgetController::advisorGoals
-* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:43
+* @see app/Http/Controllers/Advisor/ClientStrategicBudgetController.php:112
 * @route '/advisor/clients/{client}/strategic-budget/advisor-goals'
 */
 advisorGoalsForm.patch = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -179,6 +349,6 @@ advisorGoalsForm.patch = (args: { client: string | { id: string } } | [client: s
 
 advisorGoals.form = advisorGoalsForm
 
-const ClientStrategicBudgetController = { approve, advisorGoals }
+const ClientStrategicBudgetController = { approve, assess, feedback, advisorGoals }
 
 export default ClientStrategicBudgetController

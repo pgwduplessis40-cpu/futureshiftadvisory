@@ -27,8 +27,14 @@ final class ExternalIssueReview
         $warnings = [];
 
         if (preg_match('/\{\{\s*[^}]+\s*\}\}|\[\s*(?:blank|tbd|todo|insert|business type|founder(?:\'s)? name|company name|owner name|business name|location)\s*\]/i', $content) === 1
-            || preg_match('/\b(?:business type|founder(?:\'s)? name|company name)\s*:\s*(?:[,.;-]*\s*)?(?:\R|$)/im', $content) === 1) {
+            || preg_match('/\b(?:business type|founder(?:\'s)? name|company name)\s*:\s*(?:[,.;-]*\s*)?(?:\R|$)/im', $content) === 1
+            || preg_match('/(?:^|\R)\s*(?:,\s*){2,}(?=\S)/', $content) === 1
+            || preg_match('/\b(?:is|are|by|for)\s*-\s*(?=(?:an?|the)\b)/i', $content) === 1) {
             $blocking[] = 'Resolve blank merge fields or placeholder identity details before external issue.';
+        }
+
+        if (preg_match('/\bchatgbt\b/i', $content) === 1) {
+            $blocking[] = 'Correct product-name typos before external issue.';
         }
 
         if ($this->hasDatedUpdateHeading($content)) {
@@ -88,9 +94,24 @@ final class ExternalIssueReview
             ->filter(fn (mixed $row): bool => is_numeric(data_get($row, 'cumulative_cash')))
             ->min(fn (mixed $row): float => (float) data_get($row, 'cumulative_cash'));
         $signalsNoCapitalNeed = preg_match('/\b(?:no external capital|no borrowing|borrowing (?:is )?not anticipated|no outside funding|self[- ]funded)\b/i', $content) === 1;
+        $fundingDecision = $budget instanceof EntrepreneurBudget
+            ? (new BudgetFundingReadiness)->evaluate($budget)
+            : null;
+        $requiredAdditionalFunding = (float) ($fundingDecision['required_additional_funding'] ?? 0);
+        $declaredFundingPosition = (string) data_get($computed, 'assumptions.funding_position', 'undecided');
 
-        if (is_numeric($cashTrough) && $cashTrough < 0 && $signalsNoCapitalNeed) {
-            $blocking[] = 'The written funding position conflicts with a negative forecast cash balance.';
+        if (($requiredAdditionalFunding > 0 || (is_numeric($cashTrough) && $cashTrough < 0)) && $signalsNoCapitalNeed) {
+            $blocking[] = is_numeric($cashTrough) && $cashTrough < 0
+                ? 'The written funding position conflicts with a negative forecast cash balance.'
+                : 'The written funding position conflicts with the forecast funding requirement.';
+        }
+
+        if ($declaredFundingPosition === 'self_funded' && $requiredAdditionalFunding > 0) {
+            $blocking[] = 'The saved self-funded position conflicts with the required additional funding in the budget.';
+        }
+
+        if ($declaredFundingPosition === 'external_funding' && $signalsNoCapitalNeed) {
+            $blocking[] = 'The saved external funding position conflicts with the written self-funded or no-capital statement.';
         }
 
         if ($this->hasRepeatedSentence($bodies) || $this->hasRepeatedSignaturePhrase($content)) {

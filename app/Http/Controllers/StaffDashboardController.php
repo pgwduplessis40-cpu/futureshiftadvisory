@@ -712,6 +712,7 @@ final class StaffDashboardController extends Controller
             'documentVerificationFlags' => $this->documentVerificationFlags($clientIds),
             'messagesPending' => $this->messagesPending($user, $clientIds),
             'clientTransferQueue' => $this->clientTransferQueue($user),
+            'serviceActivationRequests' => $this->serviceActivationRequests($clientIds),
             'entrepreneurReviews' => $this->entrepreneurReviews($user),
             'strategicPlanDeployments' => $this->strategicPlanDeployments($clientIds),
             'pendingTermsReacceptance' => $this->pendingTermsReacceptance($clientIds, $termsGate),
@@ -820,6 +821,105 @@ final class StaffDashboardController extends Controller
                 ? 'Review transfers'
                 : 'View transfer requests',
             'can_review' => $canReview,
+        ];
+    }
+
+    /**
+     * @param  array<int, string>|null  $clientIds
+     * @return array<string, mixed>
+     */
+    private function serviceActivationRequests(?array $clientIds): array
+    {
+        if (! $this->schema->hasTable('service_activations')) {
+            return $this->emptyServiceActivationRequests();
+        }
+
+        if ($clientIds === []) {
+            return $this->emptyServiceActivationRequests();
+        }
+
+        $baseQuery = ServiceActivation::query()
+            ->whereIn('status', [
+                ServiceActivation::STATUS_REQUESTED,
+                ServiceActivation::STATUS_PACKAGE_SELECTED,
+            ]);
+
+        if (is_array($clientIds)) {
+            $baseQuery->whereIn('client_id', $clientIds);
+        }
+
+        $items = (clone $baseQuery)
+            ->with(['client', 'requestedBy', 'advisor', 'package'])
+            ->latest()
+            ->limit(8)
+            ->get();
+
+        return [
+            'summary' => [
+                'total' => (clone $baseQuery)->count(),
+                'requested' => (clone $baseQuery)
+                    ->where('status', ServiceActivation::STATUS_REQUESTED)
+                    ->count(),
+                'package_selected' => (clone $baseQuery)
+                    ->where('status', ServiceActivation::STATUS_PACKAGE_SELECTED)
+                    ->count(),
+                'dd_plan_budget' => (clone $baseQuery)
+                    ->where('service_type', ServiceActivation::SERVICE_DD_PLAN_BUDGET)
+                    ->count(),
+            ],
+            'items' => $items
+                ->map(fn (ServiceActivation $activation): array => $this->serviceActivationRequestItem($activation))
+                ->values()
+                ->all(),
+            'index_url' => route('advisor.service-activations.index', absolute: false),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function emptyServiceActivationRequests(): array
+    {
+        return [
+            'summary' => [
+                'total' => 0,
+                'requested' => 0,
+                'package_selected' => 0,
+                'dd_plan_budget' => 0,
+            ],
+            'items' => [],
+            'index_url' => route('advisor.service-activations.index', absolute: false),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serviceActivationRequestItem(ServiceActivation $activation): array
+    {
+        $status = (string) $activation->status;
+
+        return [
+            'id' => $activation->id,
+            'client_id' => $activation->client_id,
+            'client_name' => $activation->client?->legal_name ?? 'Client',
+            'client_url' => route('advisor.clients.show', $activation->client_id, absolute: false),
+            'service_type' => $activation->service_type,
+            'client_label' => $activation->clientLabel(),
+            'status' => $status,
+            'status_label' => str($status)->replace('_', ' ')->title()->toString(),
+            'requested_by_name' => $activation->requestedBy?->name,
+            'requested_by_email' => $activation->requestedBy?->email,
+            'advisor_name' => $activation->advisor?->name,
+            'package_label' => $activation->package?->client_label ?? data_get($activation->selected_package_snapshot, 'client_label'),
+            'requested_at' => $activation->created_at?->toIso8601String(),
+            'url' => route('advisor.service-activations.show', $activation, absolute: false),
+            'action_label' => $status === ServiceActivation::STATUS_REQUESTED
+                ? 'Select package'
+                : 'Track approval',
+            'priority_label' => $activation->service_type === ServiceActivation::SERVICE_DD_PLAN_BUDGET
+                ? 'BP&B access request'
+                : 'Service request',
         ];
     }
 

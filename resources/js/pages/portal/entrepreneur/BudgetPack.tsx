@@ -70,6 +70,9 @@ type FundingDecision = {
     recommended_funding_target: number;
     funding_gap_or_surplus: number;
     operating_cover_months: number;
+    funding_position: 'self_funded' | 'external_funding' | 'undecided' | string;
+    funding_position_label: string;
+    funding_position_aligned: boolean;
     risk_reasons: string[];
 };
 
@@ -582,6 +585,10 @@ function FundingDecisionPanel({ decision }: { decision: FundingDecision }) {
             </div>
 
             <dl className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+                <DecisionMetric
+                    label="Declared funding position"
+                    value={decision.funding_position_label}
+                />
                 <DecisionMetric
                     label="Lowest cash point"
                     value={formatCashMonth(

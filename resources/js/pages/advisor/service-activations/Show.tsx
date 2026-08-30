@@ -11,7 +11,11 @@ type Activation = {
     client_id: string;
     client_name: string | null;
     client_label: string;
-    service_type: 'due_diligence' | 'entrepreneur';
+    service_type:
+        | 'due_diligence'
+        | 'dd_plan_budget'
+        | 'entrepreneur'
+        | (string & {});
     status: string;
     status_label: string;
     intake: Record<string, string | number | null>;
@@ -40,6 +44,7 @@ type PackagePayload = {
         | 'dd_under_300k'
         | 'dd_300k_1m'
         | 'dd_1m_3m'
+        | 'dd_plan_budget_add_on'
         | null;
     package_name: string;
     client_label: string;
@@ -56,6 +61,7 @@ type PackagePayload = {
     client_outcomes?: string[];
     payment_split?: PaymentSplit;
     is_active: boolean;
+    recommended?: boolean;
 };
 
 type PaymentSplit = {
@@ -73,6 +79,7 @@ type Props = {
         package: string;
         balanceReceived: string;
         client: string;
+        serviceRates: string | null;
     };
 };
 
@@ -81,8 +88,12 @@ export default function ServiceActivationShow({
     packages,
     urls,
 }: Props) {
+    const recommendedPackage = packages.find(
+        (servicePackage) => servicePackage.recommended,
+    );
     const form = useForm({
-        service_rate_package_id: activation.package?.id ?? '',
+        service_rate_package_id:
+            activation.package?.id ?? recommendedPackage?.id ?? '',
     });
     const balanceForm = useForm({});
 
@@ -138,7 +149,7 @@ export default function ServiceActivationShow({
                                         {formatLabel(key)}
                                     </dt>
                                     <dd className="text-sm">
-                                        {String(value ?? '-')}
+                                        {formatIntakeValue(key, value)}
                                     </dd>
                                 </div>
                             ),
@@ -232,6 +243,9 @@ export default function ServiceActivationShow({
                                         servicePackage.package_scope ?? null,
                                     )}{' '}
                                     / {packageFee(servicePackage)}
+                                    {servicePackage.recommended
+                                        ? ' (recommended from DD intake)'
+                                        : ''}
                                 </option>
                             ))}
                         </select>
@@ -241,11 +255,28 @@ export default function ServiceActivationShow({
                     </div>
 
                     {packages.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                            No active package exists for this service. Add one
-                            under Admin / Service Rates before approving the
-                            request.
-                        </p>
+                        <div className="rounded-md border border-amber-200 bg-amber-50/70 p-3 text-sm text-amber-950">
+                            <div className="font-medium">
+                                No active DD + Business Plan & Budget package is
+                                loaded yet.
+                            </div>
+                            <p className="mt-1 text-amber-900/80">
+                                Add an active package under Admin / Service
+                                Rates before approving this buyer request.
+                            </p>
+                            {urls.serviceRates ? (
+                                <Button
+                                    asChild
+                                    size="sm"
+                                    variant="outline"
+                                    className="mt-3 bg-background"
+                                >
+                                    <Link href={urls.serviceRates}>
+                                        Open Service Rates
+                                    </Link>
+                                </Button>
+                            ) : null}
+                        </div>
                     ) : null}
 
                     <div className="grid gap-3 lg:grid-cols-2">
@@ -257,14 +288,21 @@ export default function ServiceActivationShow({
                                 <div className="font-medium">
                                     {servicePackage.client_label}
                                 </div>
-                                {servicePackage.package_scope ? (
-                                    <Badge className="mt-2" variant="outline">
-                                        {packageScopeLabel(
-                                            servicePackage.package_scope ??
-                                                null,
-                                        )}
-                                    </Badge>
-                                ) : null}
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                    {servicePackage.package_scope ? (
+                                        <Badge variant="outline">
+                                            {packageScopeLabel(
+                                                servicePackage.package_scope ??
+                                                    null,
+                                            )}
+                                        </Badge>
+                                    ) : null}
+                                    {servicePackage.recommended ? (
+                                        <Badge variant="secondary">
+                                            Recommended from DD intake
+                                        </Badge>
+                                    ) : null}
+                                </div>
                                 <div className="mt-1 text-sm text-muted-foreground">
                                     {packageFee(servicePackage)}
                                 </div>
@@ -335,6 +373,10 @@ function packageFee(servicePackage: PackagePayload) {
 }
 
 function packageScopeLabel(scope: PackagePayload['package_scope']) {
+    if (scope === 'dd_plan_budget_add_on') {
+        return 'Business Plan + Budget add-on';
+    }
+
     if (scope === 'dd_under_300k') {
         return 'Purchase price below $300k';
     }
@@ -450,6 +492,62 @@ function formatLabel(value: string) {
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
+}
+
+function formatIntakeValue(key: string, value: string | number | null): string {
+    if (value === null || value === '') {
+        return '-';
+    }
+
+    if (!isMoneyIntakeKey(key)) {
+        return String(value);
+    }
+
+    const numericValue = parseNumericValue(value);
+
+    if (numericValue === null) {
+        return String(value);
+    }
+
+    return formatIntakeMoney(numericValue);
+}
+
+function isMoneyIntakeKey(key: string): boolean {
+    const normalized = key.toLowerCase();
+
+    return (
+        normalized.includes('price') ||
+        normalized.endsWith('_fee') ||
+        normalized.endsWith('_amount')
+    );
+}
+
+function parseNumericValue(value: string | number): number | null {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : null;
+    }
+
+    const numericText = value.replace(/[^0-9.-]/g, '');
+
+    if (numericText === '' || numericText === '-' || numericText === '.') {
+        return null;
+    }
+
+    const numericValue = Number(numericText);
+
+    return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function formatIntakeMoney(value: number): string {
+    const hasCents = !Number.isInteger(value);
+
+    return new Intl.NumberFormat('en-NZ', {
+        style: 'currency',
+        currency: 'NZD',
+        currencyDisplay: 'narrowSymbol',
+        minimumFractionDigits: hasCents ? 2 : 0,
+        maximumFractionDigits: hasCents ? 2 : 0,
+    }).format(value);
 }
 
 ServiceActivationShow.layout = {

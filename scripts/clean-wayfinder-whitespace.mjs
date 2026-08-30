@@ -128,7 +128,7 @@ function normalizeWayfinderTypes(source, path) {
 
     cleaned = normalizePlatformRouteTypes(cleaned, path);
 
-    return `${cleaned.replace(/^[\t ]+$/gm, '').replace(/\n*$/, '')}\n`;
+    return `${cleaned.replace(/[ \t]+$/gm, '').replace(/\n*$/, '')}\n`;
 }
 
 function normalizeWayfinderTypesUntilStable(source, path) {

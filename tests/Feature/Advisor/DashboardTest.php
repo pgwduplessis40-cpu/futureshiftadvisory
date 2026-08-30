@@ -122,6 +122,61 @@ final class DashboardTest extends TestCase
                     ->where('integrationHealth.services.0.service', 'nzbn')));
     }
 
+    public function test_advisor_dashboard_surfaces_dd_plan_budget_access_requests(): void
+    {
+        $advisor = $this->advisor('dd-plan-budget-queue@example.test');
+        $otherAdvisor = $this->advisor('hidden-dd-plan-budget-queue@example.test');
+        $client = $this->clientFor($advisor, 'Southern Lights');
+        $clientUser = $this->clientContactFor($client, 'Seed Buyer Principal', 'seed.buyer.primary@example.test');
+        $otherClient = $this->clientFor($otherAdvisor, 'Hidden Buyer Limited');
+        $otherClientUser = $this->clientContactFor($otherClient, 'Hidden Buyer', 'hidden.buyer@example.test');
+
+        $activation = ServiceActivation::query()->create([
+            'client_id' => $client->getKey(),
+            'requested_by_user_id' => $clientUser->getKey(),
+            'advisor_id' => $advisor->getKey(),
+            'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+            'client_label' => 'DD + Business Plan & Budget',
+            'status' => ServiceActivation::STATUS_REQUESTED,
+            'payment_status' => ServiceActivation::PAYMENT_NOT_REQUIRED,
+            'intake' => [
+                'support_level' => 'guided',
+                'capability_mode' => 'guided',
+            ],
+        ]);
+
+        ServiceActivation::query()->create([
+            'client_id' => $otherClient->getKey(),
+            'requested_by_user_id' => $otherClientUser->getKey(),
+            'advisor_id' => $otherAdvisor->getKey(),
+            'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+            'client_label' => 'DD + Business Plan & Budget',
+            'status' => ServiceActivation::STATUS_REQUESTED,
+            'payment_status' => ServiceActivation::PAYMENT_NOT_REQUIRED,
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/Dashboard')
+                ->where('serviceActivationRequests.summary.total', 1)
+                ->where('serviceActivationRequests.summary.requested', 1)
+                ->where('serviceActivationRequests.summary.package_selected', 0)
+                ->where('serviceActivationRequests.summary.dd_plan_budget', 1)
+                ->where('serviceActivationRequests.items.0.id', $activation->id)
+                ->where('serviceActivationRequests.items.0.client_name', 'Southern Lights')
+                ->where('serviceActivationRequests.items.0.client_label', 'DD + Business Plan & Budget')
+                ->where('serviceActivationRequests.items.0.requested_by_email', 'seed.buyer.primary@example.test')
+                ->where('serviceActivationRequests.items.0.priority_label', 'BP&B access request')
+                ->where('serviceActivationRequests.items.0.action_label', 'Select package')
+                ->where(
+                    'serviceActivationRequests.items.0.url',
+                    route('advisor.service-activations.show', $activation, absolute: false),
+                )
+                ->has('serviceActivationRequests.items', 1));
+    }
+
     public function test_super_admin_dashboard_surfaces_inactive_rates_free_access_mode(): void
     {
         $admin = User::factory()->superAdmin()->withTwoFactor()->create([

@@ -15,6 +15,7 @@ use App\Models\Report;
 use App\Models\ReportSection;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Dd\BuyerDecisionReadiness;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdDisclaimer;
 use App\Services\Reports\Contracts\DueDiligenceReportComposition;
@@ -32,6 +33,7 @@ final class DueDiligenceReportComposer implements DueDiligenceReportComposition
 {
     public function __construct(
         private readonly DueDiligenceReportSupport $support,
+        private readonly BuyerDecisionReadiness $buyerDecisionReadiness,
         private readonly ReportArtifactRenderer $artifacts,
         private readonly AuditWriter $audit,
     ) {}
@@ -39,8 +41,9 @@ final class DueDiligenceReportComposer implements DueDiligenceReportComposition
     public function compose(DdEngagement $engagement, ?User $actor = null): Report
     {
         $inputs = $this->inputs($engagement);
+        $decisionReadiness = $this->decisionReadiness($inputs);
 
-        return DB::transaction(function () use ($inputs, $actor): Report {
+        return DB::transaction(function () use ($inputs, $decisionReadiness, $actor): Report {
             $inputs->engagement->forceFill([
                 'recommendation' => $inputs->recommendation->decision,
             ])->save();
@@ -57,13 +60,14 @@ final class DueDiligenceReportComposer implements DueDiligenceReportComposition
                     'target_name' => $inputs->engagement->target_name,
                     'recommendation' => $inputs->recommendation->decision,
                     'recommendation_rationale' => $inputs->recommendation->rationale,
+                    'buyer_decision_readiness' => $decisionReadiness,
                     'redactions' => [],
                 ],
                 'render_status' => Report::RENDER_STATUS_COMPOSING,
                 'review_status' => 'pending_review',
             ]);
 
-            $this->persistSections($report, $this->sections($inputs));
+            $this->persistSections($report, $this->sections($inputs, $decisionReadiness));
             $this->renderAndAuditAfterCommit($report, $actor, $inputs);
 
             return $report->refresh()->load('sections');
@@ -88,18 +92,39 @@ final class DueDiligenceReportComposer implements DueDiligenceReportComposition
         );
     }
 
-    /** @return list<ReportSectionDraft> */
-    private function sections(DueDiligenceReportInputs $inputs): array
+    /**
+     * @return array<string, mixed>
+     */
+    private function decisionReadiness(DueDiligenceReportInputs $inputs): array
+    {
+        return $this->buyerDecisionReadiness->evaluate(
+            $inputs->engagement,
+            $inputs->findings,
+            $inputs->valuation,
+            $inputs->risks,
+            [
+                'recommendation' => $inputs->recommendation->decision,
+                'rationale' => $inputs->recommendation->rationale,
+            ],
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $decisionReadiness
+     * @return list<ReportSectionDraft>
+     */
+    private function sections(DueDiligenceReportInputs $inputs, array $decisionReadiness): array
     {
         return [
-            $this->executiveSummarySection($inputs),
+            $this->executiveSummarySection($inputs, $decisionReadiness),
             $this->valuationSection($inputs),
             $this->purchasePriceRangeSection($inputs),
             $this->workstreamFindingsSection($inputs),
             $this->riskRegisterSection($inputs),
             $this->priceAdjustmentSection($inputs),
             $this->integrationPlanSection($inputs),
-            $this->buyerReadinessSection($inputs),
+            $this->buyerReadinessSection($inputs, $decisionReadiness),
+            $this->legacyBuyerReadinessSection($inputs, $decisionReadiness),
             $this->recommendationSection($inputs),
             ReportSectionDraft::generated(
                 key: 'dd_liability_disclaimer',
@@ -111,15 +136,18 @@ final class DueDiligenceReportComposer implements DueDiligenceReportComposition
         ];
     }
 
-    private function executiveSummarySection(DueDiligenceReportInputs $inputs): ReportSectionDraft
+    /** @param  array<string, mixed>  $decisionReadiness */
+    private function executiveSummarySection(DueDiligenceReportInputs $inputs, array $decisionReadiness): ReportSectionDraft
     {
         $materialRisks = $inputs->risks
             ->whereIn('risk_level', [DdRiskRegisterItem::LEVEL_DEAL_KILLER, DdRiskRegisterItem::LEVEL_MAJOR])
             ->count();
         $body = sprintf(
-            "Target: %s.\nRecommendation: %s.\nFindings reviewed: %d.\nMaterial DD risks: %d.\nValuation midpoint: %s.\nRationale: %s",
+            "Target: %s.\nBuyer decision: %s.\nRecommendation: %s.\nDecision confidence: %s.\nFindings reviewed: %d.\nMaterial DD risks: %d.\nValuation midpoint: %s.\nRationale: %s",
             $inputs->engagement->target_name,
+            (string) ($decisionReadiness['decision_label'] ?? 'Decision not ready'),
             ucfirst(str_replace('_', ' ', $inputs->recommendation->decision)),
+            ucfirst((string) ($decisionReadiness['confidence'] ?? 'low')),
             $inputs->findings->count(),
             $materialRisks,
             $this->money($this->support->valuationMidpoint($inputs->valuation)),
@@ -138,6 +166,7 @@ final class DueDiligenceReportComposer implements DueDiligenceReportComposition
                 'recommendation' => $inputs->recommendation->decision,
                 'finding_count' => $inputs->findings->count(),
                 'material_risk_count' => $materialRisks,
+                'buyer_decision_readiness' => $decisionReadiness,
             ],
         );
     }
@@ -378,38 +407,85 @@ final class DueDiligenceReportComposer implements DueDiligenceReportComposition
         );
     }
 
-    private function buyerReadinessSection(DueDiligenceReportInputs $inputs): ReportSectionDraft
+    /** @param  array<string, mixed>  $decisionReadiness */
+    private function buyerReadinessSection(DueDiligenceReportInputs $inputs, array $decisionReadiness): ReportSectionDraft
     {
-        $completed = DdWorkstream::query()
-            ->where('dd_engagement_id', $inputs->engagement->getKey())
-            ->where('status', DdWorkstream::STATUS_COMPLETED)
+        $questions = collect((array) ($decisionReadiness['decision_questions'] ?? []))
+            ->map(function (mixed $item): string {
+                $item = is_array($item) ? $item : [];
+
+                return sprintf(
+                    '%s: %s [%s]',
+                    (string) ($item['question'] ?? 'Decision question'),
+                    (string) ($item['answer'] ?? 'No answer available yet.'),
+                    str_replace('_', ' ', (string) ($item['status'] ?? 'pending')),
+                );
+            })
+            ->implode("\n");
+        $gates = collect((array) ($decisionReadiness['gates'] ?? []))
+            ->map(function (mixed $item): string {
+                $item = is_array($item) ? $item : [];
+
+                return sprintf(
+                    '%s: %s. %s',
+                    (bool) ($item['passed'] ?? false) ? 'Passed' : 'Needs attention',
+                    (string) ($item['label'] ?? 'Quality gate'),
+                    (string) ($item['detail'] ?? ''),
+                );
+            })
+            ->implode("\n");
+        $blockers = collect((array) ($decisionReadiness['blockers'] ?? []))
+            ->filter(fn (mixed $blocker): bool => is_scalar($blocker) && trim((string) $blocker) !== '')
+            ->values()
+            ->implode('; ');
+
+        return ReportSectionDraft::generated(
+            key: 'dd_buyer_decision_readiness',
+            title: 'Buyer decision readiness',
+            body: sprintf(
+                "Buyer decision-ready standard: %s.\nDecision: %s.\nDecision position: %s.\nConfidence: %s - %s.\n\nThe purpose of this DD report is to help the buyer make an informed buy, renegotiate, pause, or walk-away decision. It should not merely summarise documents; it must connect evidence, valuation, risks, price protection, and settlement conditions.\n\nClient decision questions:\n%s\n\nQuality gates:\n%s\n\nOpen decision gaps: %s",
+                (string) ($decisionReadiness['label'] ?? 'Decision gaps to resolve'),
+                (string) ($decisionReadiness['decision_label'] ?? 'Decision not ready'),
+                (string) ($decisionReadiness['decision_headline'] ?? 'The buyer decision cannot be relied on until the DD report quality gates pass.'),
+                ucfirst((string) ($decisionReadiness['confidence'] ?? 'low')),
+                (string) ($decisionReadiness['confidence_reason'] ?? 'DD evidence and valuation gates have not all passed.'),
+                $questions === '' ? 'No decision questions have been generated yet.' : $questions,
+                $gates === '' ? 'No quality gates have been generated yet.' : $gates,
+                $blockers === '' ? 'None based on the current DD assessment.' : $blockers,
+            ),
+            sourceReference: 'dd_buyer_decision_readiness:'.$inputs->engagement->getKey(),
+            dataQualityNote: 'Data quality note: buyer decision readiness is the DD external-quality gate, modelled on the entrepreneur lender-ready controls but focused on an informed buy / renegotiate / walk-away decision.',
+            metadata: $decisionReadiness,
+        );
+    }
+
+    /** @param  array<string, mixed>  $decisionReadiness */
+    private function legacyBuyerReadinessSection(DueDiligenceReportInputs $inputs, array $decisionReadiness): ReportSectionDraft
+    {
+        $completed = (int) ($decisionReadiness['completed_workstreams'] ?? 0);
+        $required = (int) ($decisionReadiness['required_workstreams'] ?? count(DataRoom::WORKSTREAMS));
+        $dataRoomItems = (int) ($decisionReadiness['evidence_item_count'] ?? $inputs->engagement->dataRoomItems()->count());
+        $dealKillers = $inputs->risks
+            ->where('risk_level', DdRiskRegisterItem::LEVEL_DEAL_KILLER)
             ->count();
-        $dataRoomItems = $inputs->engagement->dataRoomItems()->count();
-        $dealKillers = $inputs->risks->where('risk_level', DdRiskRegisterItem::LEVEL_DEAL_KILLER)->count();
-        $readiness = match (true) {
-            $dealKillers > 0 => 'not ready until deal-killer risks are resolved',
-            $completed < count(DataRoom::WORKSTREAMS) => 'partially ready; DD workstreams remain incomplete',
-            ! ($inputs->valuation instanceof DdValuation) => 'partially ready; valuation is missing',
-            default => 'ready for advisor-led acquisition decision review',
-        };
 
         return ReportSectionDraft::generated(
             key: 'dd_buyer_readiness',
             title: 'Buyer readiness',
             body: sprintf(
                 "Readiness: %s.\nCompleted workstreams: %d of %d.\nData room items reviewed: %d.\nDeal-killer risks: %d.",
-                $readiness,
+                (string) ($decisionReadiness['decision_headline'] ?? 'DD decision-readiness gates must be checked before the buyer relies on the report.'),
                 $completed,
-                count(DataRoom::WORKSTREAMS),
+                $required,
                 $dataRoomItems,
                 $dealKillers,
             ),
             sourceReference: 'dd_buyer_readiness:'.$inputs->engagement->getKey(),
-            dataQualityNote: 'Data quality note: buyer readiness reflects platform DD completion signals and is not acquisition advice.',
+            dataQualityNote: 'Data quality note: buyer readiness is retained for report compatibility; use Buyer decision readiness for the decision-quality gate.',
             metadata: [
-                'readiness' => $readiness,
+                'readiness' => $decisionReadiness['label'] ?? 'Decision gaps to resolve',
                 'completed_workstreams' => $completed,
-                'required_workstreams' => count(DataRoom::WORKSTREAMS),
+                'required_workstreams' => $required,
                 'data_room_items' => $dataRoomItems,
                 'deal_killer_risks' => $dealKillers,
             ],

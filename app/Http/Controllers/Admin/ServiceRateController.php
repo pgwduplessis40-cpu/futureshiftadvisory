@@ -310,6 +310,7 @@ final class ServiceRateController extends Controller
         return $request->validate([
             'service_type' => ['required', Rule::in([
                 ServiceRatePackage::SERVICE_DUE_DILIGENCE,
+                ServiceRatePackage::SERVICE_DD_PLAN_BUDGET,
                 ServiceRatePackage::SERVICE_ENTREPRENEUR,
                 ServiceRatePackage::SERVICE_INTEGRATION_SCOPING,
             ])],
@@ -321,7 +322,13 @@ final class ServiceRateController extends Controller
                 ServiceRatePackage::BILLING_HOURLY_RETAINER,
                 ServiceRatePackage::BILLING_PROPOSAL,
             ])],
-            'fixed_fee' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
+            'fixed_fee' => [
+                Rule::requiredIf(fn (): bool => $request->input('billing_model') === ServiceRatePackage::BILLING_FIXED_FEE),
+                'nullable',
+                'numeric',
+                'min:0',
+                'max:999999999.99',
+            ],
             'deposit_percent' => ['nullable', 'numeric', 'min:1', 'max:100'],
             'hourly_rate' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
             'retainer_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
@@ -347,6 +354,7 @@ final class ServiceRateController extends Controller
                 (string) $validated['package_name'],
                 (string) $validated['client_label'],
             ),
+            ServiceRatePackage::SERVICE_DD_PLAN_BUDGET => ServiceRatePackage::normaliseDdPlanBudgetScope((string) ($validated['package_scope'] ?? '')),
             ServiceRatePackage::SERVICE_ENTREPRENEUR => ServiceRatePackage::normaliseEntrepreneurScope((string) ($validated['package_scope'] ?? '')),
             default => null,
         };
@@ -361,8 +369,8 @@ final class ServiceRateController extends Controller
             'deposit_percent' => $validated['deposit_percent'] ?? 100,
             'hourly_rate' => $validated['hourly_rate'] ?? null,
             'retainer_amount' => $validated['retainer_amount'] ?? null,
-            'purchase_price_min' => $validated['purchase_price_min'] ?? null,
-            'purchase_price_max' => $validated['purchase_price_max'] ?? null,
+            'purchase_price_min' => $serviceType === ServiceRatePackage::SERVICE_DD_PLAN_BUDGET ? null : ($validated['purchase_price_min'] ?? null),
+            'purchase_price_max' => $serviceType === ServiceRatePackage::SERVICE_DD_PLAN_BUDGET ? null : ($validated['purchase_price_max'] ?? null),
             'scope_description' => trim((string) $validated['scope_description']),
             'is_active' => (bool) ($validated['is_active'] ?? true),
         ];

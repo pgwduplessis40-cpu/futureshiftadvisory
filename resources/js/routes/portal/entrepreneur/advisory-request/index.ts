@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
-* @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
-* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:682
+* @see \App\Http\Controllers\Portal\EntrepreneurAdvisoryRequestController::store
+* @see app/Http/Controllers/Portal/EntrepreneurAdvisoryRequestController.php:26
 * @route '/portal/entrepreneur/advisory-request'
 */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -15,8 +15,8 @@ store.definition = {
 } satisfies RouteDefinition<["post"]>
 
 /**
-* @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
-* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:682
+* @see \App\Http\Controllers\Portal\EntrepreneurAdvisoryRequestController::store
+* @see app/Http/Controllers/Portal/EntrepreneurAdvisoryRequestController.php:26
 * @route '/portal/entrepreneur/advisory-request'
 */
 store.url = (options?: RouteQueryOptions) => {
@@ -24,8 +24,8 @@ store.url = (options?: RouteQueryOptions) => {
 }
 
 /**
-* @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
-* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:682
+* @see \App\Http\Controllers\Portal\EntrepreneurAdvisoryRequestController::store
+* @see app/Http/Controllers/Portal/EntrepreneurAdvisoryRequestController.php:26
 * @route '/portal/entrepreneur/advisory-request'
 */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -34,8 +34,8 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 })
 
 /**
-* @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
-* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:682
+* @see \App\Http\Controllers\Portal\EntrepreneurAdvisoryRequestController::store
+* @see app/Http/Controllers/Portal/EntrepreneurAdvisoryRequestController.php:26
 * @route '/portal/entrepreneur/advisory-request'
 */
 const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -44,8 +44,8 @@ const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 })
 
 /**
-* @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
-* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:682
+* @see \App\Http\Controllers\Portal\EntrepreneurAdvisoryRequestController::store
+* @see app/Http/Controllers/Portal/EntrepreneurAdvisoryRequestController.php:26
 * @route '/portal/entrepreneur/advisory-request'
 */
 storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

@@ -122,6 +122,28 @@ final class OnboardingWizardTest extends TestCase
                 ->where('workspaces.items.1.label', 'Integration scoping'));
     }
 
+    public function test_post_acquisition_dashboard_shows_included_business_plan_budget_workspace(): void
+    {
+        $this->seed(RoleSeeder::class);
+        [$user, $client] = $this->clientUserWithClient(EngagementType::POST_ACQUISITION_ADVISORY);
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('portal/Dashboard')
+                ->where('client.engagement_type', EngagementType::POST_ACQUISITION_ADVISORY->value)
+                ->where('planBudgetAccess.allowed', true)
+                ->where('planBudgetAccess.label', 'Included for this service')
+                ->where('workspaces.active_key', 'post_acquisition_advisory')
+                ->has('workspaces.items', 2)
+                ->where('workspaces.items.0.key', 'post_acquisition_advisory')
+                ->where('workspaces.items.0.label', 'Post-acquisition')
+                ->where('workspaces.items.1.key', ServiceActivation::SERVICE_DD_PLAN_BUDGET)
+                ->where('workspaces.items.1.label', 'Business Plan & Budget')
+                ->where('workspaces.items.1.href', route('portal.business-plan-budget.show', ['client' => $client->getKey()], absolute: false)));
+    }
+
     public function test_wizard_step_order_is_enforced_server_side(): void
     {
         $this->seed(RoleSeeder::class);
@@ -267,7 +289,7 @@ final class OnboardingWizardTest extends TestCase
     {
         $this->seed(RoleSeeder::class);
         $wizard = app(OnboardingWizard::class);
-        $expectedSteps = [
+        $standardSteps = [
             OnboardingWizard::STEP_WELCOME,
             OnboardingWizard::STEP_GOALS,
             OnboardingWizard::STEP_WEBSITE,
@@ -279,8 +301,21 @@ final class OnboardingWizardTest extends TestCase
         foreach (EngagementType::cases() as $engagementType) {
             [, $client] = $this->clientUserWithClient($engagementType);
             $steps = array_column($wizard->navigation($client), 'slug');
+            $expectedSteps = $engagementType === EngagementType::DUE_DILIGENCE
+                ? [
+                    OnboardingWizard::STEP_WELCOME,
+                    OnboardingWizard::STEP_DD_SUPPORT,
+                    OnboardingWizard::STEP_QUESTIONNAIRE,
+                    OnboardingWizard::STEP_DOCUMENTS,
+                    OnboardingWizard::STEP_REVIEW,
+                ]
+                : $standardSteps;
 
             $this->assertSame($expectedSteps, $steps);
+            if ($engagementType === EngagementType::DUE_DILIGENCE) {
+                $this->assertNotContains(OnboardingWizard::STEP_GOALS, $steps);
+                $this->assertNotContains(OnboardingWizard::STEP_WEBSITE, $steps);
+            }
             $this->assertNotContains(OnboardingWizard::STEP_IDENTITY, $steps);
             $this->assertNotContains(
                 OnboardingWizard::STEP_BUSINESS_SNAPSHOT,
@@ -334,21 +369,25 @@ final class OnboardingWizardTest extends TestCase
             );
     }
 
-    public function test_due_diligence_questionnaire_requires_dd_engagement(): void
+    public function test_due_diligence_support_level_waits_for_an_active_dd_engagement(): void
     {
         $this->seed(RoleSeeder::class);
         [$user] = $this->clientUserWithClient(EngagementType::DUE_DILIGENCE);
 
-        $this->advanceToQuestionnaire($user);
+        $this->actingAsMfa($user)
+            ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_WELCOME]), [
+                'acknowledged' => true,
+            ])
+            ->assertRedirect(route('portal.onboarding.step', [
+                'step' => OnboardingWizard::STEP_DD_SUPPORT,
+            ], absolute: false));
 
         $this->actingAsMfa($user)
-            ->get(route('portal.onboarding.step', ['step' => OnboardingWizard::STEP_QUESTIONNAIRE]))
+            ->get(route('portal.onboarding.step', ['step' => OnboardingWizard::STEP_DD_SUPPORT]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('portal/onboarding/Step')
-                ->where('questionnaire.set', 'dd_specific')
-                ->where('questionnaire.available', false)
-                ->where('questionnaire.phase', 'Phase 3')
+                ->where('ddSupport.available', false)
             );
     }
 
@@ -356,9 +395,32 @@ final class OnboardingWizardTest extends TestCase
     {
         $this->seed(RoleSeeder::class);
         [$user, $client] = $this->clientUserWithClient(EngagementType::DUE_DILIGENCE);
-        $this->createDdEngagement($client, $user);
+        $engagement = $this->createDdEngagement($client, $user);
 
-        $this->advanceToQuestionnaire($user);
+        $this->actingAsMfa($user)
+            ->get(route('portal.dd-plan.show', ['client' => $client->getKey()]))
+            ->assertRedirect(route('portal.onboarding.step', [
+                'step' => OnboardingWizard::STEP_DD_SUPPORT,
+            ], absolute: false));
+
+        $this->actingAsMfa($user)
+            ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_WELCOME]), [
+                'acknowledged' => true,
+            ])
+            ->assertRedirect(route('portal.onboarding.step', [
+                'step' => OnboardingWizard::STEP_DD_SUPPORT,
+            ], absolute: false));
+
+        $this->actingAsMfa($user)
+            ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_DD_SUPPORT]), [
+                'dd_experience' => 'first_time',
+                'business_ownership_experience' => 'none',
+                'financial_confidence' => 'low',
+                'preferred_guidance' => 'guided',
+            ])
+            ->assertRedirect(route('portal.onboarding.step', [
+                'step' => OnboardingWizard::STEP_QUESTIONNAIRE,
+            ], absolute: false));
 
         $this->actingAsMfa($user)
             ->get(route('portal.onboarding.step', ['step' => OnboardingWizard::STEP_QUESTIONNAIRE]))
@@ -367,7 +429,48 @@ final class OnboardingWizardTest extends TestCase
                 ->component('portal/onboarding/Step')
                 ->where('questionnaire.set', 'dd_specific')
                 ->where('questionnaire.available', true)
-                ->where('questionnaire.phase', 'Phase 3')
+                ->where('ddSupport.confirmed', true)
+                ->where('ddSupport.label', 'Guided DD support')
+            );
+
+        $this->assertSame(
+            'first_time',
+            data_get($client->refresh()->onboarding_wizard_state, 'steps.dd-support-level.dd_experience'),
+        );
+        $this->assertSame(
+            'dd_onboarding',
+            data_get($engagement->refresh(), 'target_details.client_capability.captured_from'),
+        );
+    }
+
+    public function test_completed_documents_remain_reopenable_while_the_questionnaire_is_current(): void
+    {
+        $this->seed(RoleSeeder::class);
+        [$user, $client] = $this->clientUserWithClient(EngagementType::DUE_DILIGENCE);
+
+        $client->forceFill([
+            'onboarding_wizard_state' => [
+                'journey_version' => 3,
+                'current_step' => 3,
+                'completed_steps' => [
+                    OnboardingWizard::STEP_WELCOME,
+                    OnboardingWizard::STEP_DD_SUPPORT,
+                    OnboardingWizard::STEP_DOCUMENTS,
+                ],
+            ],
+        ])->save();
+
+        $documents = collect(app(OnboardingWizard::class)->navigation($client))
+            ->firstWhere('slug', OnboardingWizard::STEP_DOCUMENTS);
+
+        $this->assertTrue($documents['completed']);
+        $this->assertFalse($documents['locked']);
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.onboarding.step', ['step' => OnboardingWizard::STEP_DOCUMENTS]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('step.slug', OnboardingWizard::STEP_DOCUMENTS)
             );
     }
 

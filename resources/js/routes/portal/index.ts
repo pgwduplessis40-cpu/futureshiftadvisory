@@ -2,6 +2,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import coBrowse from './co-browse'
 import screenShare from './screen-share'
 import entrepreneurScreenShare from './entrepreneur-screen-share'
+import serviceJourney from './service-journey'
 import businessPlanBudget from './business-plan-budget'
 import strategicPlan from './strategic-plan'
 import serviceActivations from './service-activations'
@@ -21,7 +22,7 @@ import surveys from './surveys'
 import onboarding from './onboarding'
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
-* @see app/Http/Controllers/Portal/DashboardController.php:87
+* @see app/Http/Controllers/Portal/DashboardController.php:91
 * @route '/portal'
 */
 export const dashboard = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -36,7 +37,7 @@ dashboard.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
-* @see app/Http/Controllers/Portal/DashboardController.php:87
+* @see app/Http/Controllers/Portal/DashboardController.php:91
 * @route '/portal'
 */
 dashboard.url = (options?: RouteQueryOptions) => {
@@ -45,7 +46,7 @@ dashboard.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
-* @see app/Http/Controllers/Portal/DashboardController.php:87
+* @see app/Http/Controllers/Portal/DashboardController.php:91
 * @route '/portal'
 */
 dashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -55,7 +56,7 @@ dashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
-* @see app/Http/Controllers/Portal/DashboardController.php:87
+* @see app/Http/Controllers/Portal/DashboardController.php:91
 * @route '/portal'
 */
 dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -65,7 +66,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
-* @see app/Http/Controllers/Portal/DashboardController.php:87
+* @see app/Http/Controllers/Portal/DashboardController.php:91
 * @route '/portal'
 */
 const dashboardForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -75,7 +76,7 @@ const dashboardForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> 
 
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
-* @see app/Http/Controllers/Portal/DashboardController.php:87
+* @see app/Http/Controllers/Portal/DashboardController.php:91
 * @route '/portal'
 */
 dashboardForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -85,7 +86,7 @@ dashboardForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =>
 
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
-* @see app/Http/Controllers/Portal/DashboardController.php:87
+* @see app/Http/Controllers/Portal/DashboardController.php:91
 * @route '/portal'
 */
 dashboardForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -105,6 +106,7 @@ const portal = {
     screenShare: Object.assign(screenShare, screenShare),
     entrepreneurScreenShare: Object.assign(entrepreneurScreenShare, entrepreneurScreenShare),
     dashboard: Object.assign(dashboard, dashboard),
+    serviceJourney: Object.assign(serviceJourney, serviceJourney),
     businessPlanBudget: Object.assign(businessPlanBudget, businessPlanBudget),
     strategicPlan: Object.assign(strategicPlan, strategicPlan),
     serviceActivations: Object.assign(serviceActivations, serviceActivations),

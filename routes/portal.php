@@ -27,6 +27,7 @@ use App\Http\Controllers\Portal\OutcomeFollowUpController;
 use App\Http\Controllers\Portal\ProposalSignoffController;
 use App\Http\Controllers\Portal\ReportController;
 use App\Http\Controllers\Portal\ServiceActivationController;
+use App\Http\Controllers\Portal\ServiceJourneyController;
 use App\Http\Controllers\Portal\StrategicBudgetController;
 use App\Http\Controllers\Portal\StrategicPlanMilestoneController;
 use App\Http\Controllers\Portal\SurveyController;
@@ -56,10 +57,15 @@ Route::middleware(['auth', 'verified', 'mfa'])
             ->whereUuid('session')
             ->name('screen-share.sessions.browser-permission');
         Route::get('/', ClientPortalDashboardController::class)->name('dashboard');
+        Route::post('service-journey/preference', [ServiceJourneyController::class, 'preference'])->name('service-journey.preference');
+        Route::post('service-journey/seen', [ServiceJourneyController::class, 'seen'])->name('service-journey.seen');
         Route::redirect('strategic-plan-budget', 'business-plan-budget');
         Route::get('business-plan-budget', [StrategicBudgetController::class, 'show'])->name('business-plan-budget.show');
+        Route::post('business-plan-budget/quote-request', [StrategicBudgetController::class, 'requestQuote'])->name('business-plan-budget.quote.store');
         Route::get('business-plan-budget/document', [StrategicBudgetController::class, 'document'])->name('business-plan-budget.document');
         Route::get('business-plan-budget/pdf', [StrategicBudgetController::class, 'pdf'])->name('business-plan-budget.pdf');
+        Route::get('business-plan-budget/business-plan/pdf', [StrategicBudgetController::class, 'businessPlanPdf'])->name('business-plan-budget.business-plan.pdf');
+        Route::get('business-plan-budget/budget-pack/pdf', [StrategicBudgetController::class, 'budgetPackPdf'])->name('business-plan-budget.budget-pack.pdf');
         Route::post('business-plan-budget', [StrategicBudgetController::class, 'update'])->name('business-plan-budget.update');
         Route::post('business-plan-budget/submit', [StrategicBudgetController::class, 'submit'])->name('business-plan-budget.submit');
         Route::get('business-plan-budget/export', [StrategicBudgetController::class, 'export'])->name('business-plan-budget.export');

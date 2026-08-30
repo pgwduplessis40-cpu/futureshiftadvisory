@@ -187,7 +187,7 @@ show.form = showForm
 
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
-* @see app/Http/Controllers/Advisor/ServiceActivationController.php:68
+* @see app/Http/Controllers/Advisor/ServiceActivationController.php:72
 * @route '/advisor/service-activations/{serviceActivation}/package'
 */
 export const packageMethod = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -202,7 +202,7 @@ packageMethod.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
-* @see app/Http/Controllers/Advisor/ServiceActivationController.php:68
+* @see app/Http/Controllers/Advisor/ServiceActivationController.php:72
 * @route '/advisor/service-activations/{serviceActivation}/package'
 */
 packageMethod.url = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -235,7 +235,7 @@ packageMethod.url = (args: { serviceActivation: string | { id: string } } | [ser
 
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
-* @see app/Http/Controllers/Advisor/ServiceActivationController.php:68
+* @see app/Http/Controllers/Advisor/ServiceActivationController.php:72
 * @route '/advisor/service-activations/{serviceActivation}/package'
 */
 packageMethod.post = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -245,7 +245,7 @@ packageMethod.post = (args: { serviceActivation: string | { id: string } } | [se
 
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
-* @see app/Http/Controllers/Advisor/ServiceActivationController.php:68
+* @see app/Http/Controllers/Advisor/ServiceActivationController.php:72
 * @route '/advisor/service-activations/{serviceActivation}/package'
 */
 const packageMethodForm = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -255,7 +255,7 @@ const packageMethodForm = (args: { serviceActivation: string | { id: string } } 
 
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
-* @see app/Http/Controllers/Advisor/ServiceActivationController.php:68
+* @see app/Http/Controllers/Advisor/ServiceActivationController.php:72
 * @route '/advisor/service-activations/{serviceActivation}/package'
 */
 packageMethodForm.post = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -267,7 +267,7 @@ packageMethod.form = packageMethodForm
 
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
-* @see app/Http/Controllers/Advisor/ServiceActivationController.php:88
+* @see app/Http/Controllers/Advisor/ServiceActivationController.php:92
 * @route '/advisor/service-activations/{serviceActivation}/balance-received'
 */
 export const balanceReceived = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -282,7 +282,7 @@ balanceReceived.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
-* @see app/Http/Controllers/Advisor/ServiceActivationController.php:88
+* @see app/Http/Controllers/Advisor/ServiceActivationController.php:92
 * @route '/advisor/service-activations/{serviceActivation}/balance-received'
 */
 balanceReceived.url = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -315,7 +315,7 @@ balanceReceived.url = (args: { serviceActivation: string | { id: string } } | [s
 
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
-* @see app/Http/Controllers/Advisor/ServiceActivationController.php:88
+* @see app/Http/Controllers/Advisor/ServiceActivationController.php:92
 * @route '/advisor/service-activations/{serviceActivation}/balance-received'
 */
 balanceReceived.post = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -325,7 +325,7 @@ balanceReceived.post = (args: { serviceActivation: string | { id: string } } | [
 
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
-* @see app/Http/Controllers/Advisor/ServiceActivationController.php:88
+* @see app/Http/Controllers/Advisor/ServiceActivationController.php:92
 * @route '/advisor/service-activations/{serviceActivation}/balance-received'
 */
 const balanceReceivedForm = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -335,7 +335,7 @@ const balanceReceivedForm = (args: { serviceActivation: string | { id: string } 
 
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
-* @see app/Http/Controllers/Advisor/ServiceActivationController.php:88
+* @see app/Http/Controllers/Advisor/ServiceActivationController.php:92
 * @route '/advisor/service-activations/{serviceActivation}/balance-received'
 */
 balanceReceivedForm.post = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

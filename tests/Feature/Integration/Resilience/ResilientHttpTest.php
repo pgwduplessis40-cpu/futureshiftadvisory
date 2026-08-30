@@ -126,6 +126,31 @@ final class ResilientHttpTest extends TestCase
         Http::assertSent(fn (Request $request): bool => $request->hasHeader('Ocp-Apim-Subscription-Key', 'subscription-key'));
     }
 
+    public function test_request_applies_default_timeout_when_caller_omits_timeout(): void
+    {
+        Config::set('integrations.http.timeout_seconds', 4);
+        Config::set('integrations.retry.attempts', 1);
+        app()->forgetInstance(RetryPolicy::class);
+        app()->forgetInstance(ResilientHttp::class);
+
+        $capturedOptions = [];
+
+        Http::fake(function (Request $request, array $options) use (&$capturedOptions) {
+            $capturedOptions = $options;
+
+            return Http::response(['ok' => true], 200);
+        });
+
+        $result = app(ResilientHttp::class)->get(
+            service: 'nzbn',
+            endpoint: 'https://api.example.test/nzbn/9429000000000',
+        );
+
+        $this->assertTrue($result->successful());
+        $this->assertSame(4, $capturedOptions['timeout'] ?? null);
+        $this->assertSame(4, $capturedOptions['connect_timeout'] ?? null);
+    }
+
     public function test_failure_result_includes_provider_error_payload_for_callers(): void
     {
         Config::set('integrations.retry.attempts', 1);

@@ -1,4 +1,5 @@
 import DeploymentController from './DeploymentController'
+import Telemetry from './Telemetry'
 import DdGuestUploadController from './DdGuestUploadController'
 import Webhook from './Webhook'
 import AdvisorApi from './AdvisorApi'
@@ -24,6 +25,7 @@ import Settings from './Settings'
 
 const Controllers = {
     DeploymentController: Object.assign(DeploymentController, DeploymentController),
+    Telemetry: Object.assign(Telemetry, Telemetry),
     DdGuestUploadController: Object.assign(DdGuestUploadController, DdGuestUploadController),
     Webhook: Object.assign(Webhook, Webhook),
     AdvisorApi: Object.assign(AdvisorApi, AdvisorApi),

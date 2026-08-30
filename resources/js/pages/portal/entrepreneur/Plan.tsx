@@ -12,26 +12,16 @@ import {
     MessageSquare,
     Pencil,
     RefreshCw,
-    RotateCcw,
     Send,
     Trash2,
     Trophy,
     Upload,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type {
-    ComponentType,
-    Dispatch,
-    FormEvent,
-    ReactNode,
-    SetStateAction,
-} from 'react';
+import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import { BudgetCashChart } from '@/components/budget-cash-chart';
 import FileDropzone from '@/components/file-dropzone';
-import {
-    FormattedMarkdown,
-    FormattedTextarea,
-} from '@/components/formatted-textarea';
+import { FormattedTextarea } from '@/components/formatted-textarea';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -41,8 +31,22 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { formatNzdCurrency, formatNzDate } from '@/lib/formatters';
+import { formatNzdCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import {
+    ActionPanel,
+    Detail,
+    IdeaValidationHistory,
+    IdeaValidationSnapshot,
+    PlainLanguageGuide,
+    TabList,
+    displayStageLabel,
+    formatDate,
+    formatLabel,
+    ideaFields,
+    journeyLevelLabel,
+} from './plan-dashboard-panels';
+import type { IdeaValidationVersion, Tab } from './plan-dashboard-panels';
 import {
     csrfToken,
     currentSectionTextareaPosition,
@@ -94,19 +98,6 @@ type IdeaValidationPayload = {
     advisor_gate_note: string | null;
     plan_builder_unlocked: boolean;
 } | null;
-
-type IdeaValidationVersion = {
-    id: string;
-    revision_number: number;
-    problem: string;
-    target_customer: string;
-    demand_signal: string;
-    evaluated_at: string | null;
-    advisor_gate_status: string;
-    recalled_at: string | null;
-    is_current: boolean;
-    restore_url: string;
-};
 
 type IdeaValidationForm = {
     problem: string;
@@ -204,11 +195,24 @@ type BudgetRow = {
     growth_cadence_confirmed?: boolean;
     monthly_capacity_units?: string | number;
     capacity_confirmed?: boolean;
+    founder_capacity_units?: string | number;
+    contractor_unit_cost?: string | number;
+    contractor_cost_confirmed?: boolean;
     unit_label?: string;
     variable_cost_percent?: string | number;
     unit_cost?: string | number;
     gross_profit_percent?: string | number;
     confidence?: 'known' | 'estimate' | 'guess';
+    source_type?:
+        | 'bank_statement'
+        | 'xero_ledger'
+        | 'supplier_quote'
+        | 'signed_contract'
+        | 'pipeline_evidence'
+        | 'owner_record'
+        | 'unverified';
+    source_reference?: string;
+    source_confirmed?: boolean;
     description?: string;
 };
 
@@ -223,6 +227,12 @@ type BudgetAssumptions = {
     target_net_profit_before_tax_percent: string | number;
     target_net_profit_after_tax_percent: string | number;
     forecast_start_month?: string;
+    opening_cash_verified?: boolean;
+    working_capital_verified?: boolean;
+    forecast_start_confirmed?: boolean;
+    funding_position?: 'self_funded' | 'external_funding' | 'undecided';
+    funding_position_confirmed?: boolean;
+    funding_request_purpose?: string;
 };
 
 type FutureCostRow = BudgetRow & {
@@ -457,8 +467,6 @@ type Props = {
         advisoryRequest: string;
     };
 };
-
-type Tab = 'actions' | 'information';
 
 export default function EntrepreneurPlan({
     profile,
@@ -2565,101 +2573,6 @@ export default function EntrepreneurPlan({
     );
 }
 
-function TabList({
-    activeTab,
-    onChange,
-}: {
-    activeTab: Tab;
-    onChange: (tab: Tab) => void;
-}) {
-    return (
-        <div
-            className="inline-flex w-full max-w-md rounded-md border bg-muted/30 p-1"
-            role="tablist"
-            aria-label="Business plan sections"
-        >
-            {(['actions', 'information'] as Tab[]).map((tab) => (
-                <button
-                    key={tab}
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTab === tab}
-                    className={cn(
-                        'flex-1 rounded-sm px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
-                        activeTab === tab &&
-                            'bg-background text-foreground shadow-xs',
-                    )}
-                    onClick={() => onChange(tab)}
-                >
-                    {formatLabel(tab)}
-                </button>
-            ))}
-        </div>
-    );
-}
-
-function PlainLanguageGuide() {
-    return (
-        <section className="space-y-3 rounded-md border bg-background p-4">
-            <div>
-                <h2 className="text-sm font-medium">Plain English guide</h2>
-                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-                    These are the business terms used in the workspace, written
-                    as the practical questions your advisor needs answered.
-                </p>
-            </div>
-            <dl className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-3">
-                {plainLanguageTerms.map((term) => (
-                    <div key={term.term}>
-                        <dt className="font-medium">{term.term}</dt>
-                        <dd className="mt-1 text-muted-foreground">
-                            {term.meaning}
-                        </dd>
-                    </div>
-                ))}
-            </dl>
-        </section>
-    );
-}
-
-function ActionPanel({
-    icon: Icon,
-    title,
-    value,
-    explanation,
-    children,
-}: {
-    icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
-    title: string;
-    value: ReactNode;
-    explanation: string;
-    children: ReactNode;
-}) {
-    return (
-        <Tooltip>
-            <TooltipTrigger asChild>
-                <section className="space-y-4 rounded-md border bg-background p-4">
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
-                            <div className="flex items-center gap-2 text-sm font-medium">
-                                <Icon className="size-4" aria-hidden={true} />
-                                {title}
-                            </div>
-                            <div className="mt-2 text-sm text-muted-foreground">
-                                {value}
-                            </div>
-                        </div>
-                    </div>
-                    {children}
-                </section>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-xs">
-                {explanation}
-            </TooltipContent>
-        </Tooltip>
-    );
-}
-
 type BudgetTemplateKey =
     | 'service'
     | 'consulting'
@@ -3617,35 +3530,50 @@ function BudgetRowsEditor({
                             />
                         ) : null}
                         {fixedCost ? (
-                            <label className="grid gap-1 text-xs">
-                                <span className="text-muted-foreground">
-                                    Billing cadence
-                                </span>
-                                <select
-                                    value={row.cadence ?? 'monthly'}
-                                    onChange={(event) =>
+                            <>
+                                <label className="grid gap-1 text-xs">
+                                    <span className="text-muted-foreground">
+                                        Billing cadence
+                                    </span>
+                                    <select
+                                        value={row.cadence ?? 'monthly'}
+                                        onChange={(event) =>
+                                            updateBudgetRow(
+                                                onFormChange,
+                                                group,
+                                                index,
+                                                {
+                                                    cadence: event.target
+                                                        .value as BudgetRow['cadence'],
+                                                    cadence_confirmed: true,
+                                                },
+                                            )
+                                        }
+                                        className="h-9 rounded-md border bg-background px-2 text-sm"
+                                    >
+                                        <option value="weekly">Weekly</option>
+                                        <option value="fortnightly">
+                                            Fortnightly
+                                        </option>
+                                        <option value="monthly">Monthly</option>
+                                        <option value="quarterly">
+                                            Quarterly
+                                        </option>
+                                        <option value="annual">Annual</option>
+                                    </select>
+                                </label>
+                                <BudgetEvidenceInputs
+                                    row={row}
+                                    onChange={(changes) =>
                                         updateBudgetRow(
                                             onFormChange,
                                             group,
                                             index,
-                                            {
-                                                cadence: event.target
-                                                    .value as BudgetRow['cadence'],
-                                                cadence_confirmed: true,
-                                            },
+                                            changes,
                                         )
                                     }
-                                    className="h-9 rounded-md border bg-background px-2 text-sm"
-                                >
-                                    <option value="weekly">Weekly</option>
-                                    <option value="fortnightly">
-                                        Fortnightly
-                                    </option>
-                                    <option value="monthly">Monthly</option>
-                                    <option value="quarterly">Quarterly</option>
-                                    <option value="annual">Annual</option>
-                                </select>
-                            </label>
+                                />
+                            </>
                         ) : null}
                         {revenue ? (
                             <>
@@ -3724,6 +3652,20 @@ function BudgetRowsEditor({
                                     }
                                 />
                                 <BudgetInput
+                                    label="Founder units / month"
+                                    type="number"
+                                    min={0}
+                                    value={row.founder_capacity_units ?? ''}
+                                    onChange={(value) =>
+                                        updateBudgetRow(
+                                            onFormChange,
+                                            group,
+                                            index,
+                                            { founder_capacity_units: value },
+                                        )
+                                    }
+                                />
+                                <BudgetInput
                                     label="Unit label"
                                     value={row.unit_label ?? 'units'}
                                     onChange={(value) =>
@@ -3762,6 +3704,24 @@ function BudgetRowsEditor({
                                     }
                                 />
                                 <BudgetInput
+                                    label="Contractor cost / unit"
+                                    type="number"
+                                    min={0}
+                                    value={row.contractor_unit_cost ?? ''}
+                                    onChange={(value) =>
+                                        updateBudgetRow(
+                                            onFormChange,
+                                            group,
+                                            index,
+                                            {
+                                                contractor_unit_cost: value,
+                                                contractor_cost_confirmed:
+                                                    value !== '',
+                                            },
+                                        )
+                                    }
+                                />
+                                <BudgetInput
                                     label="GP %"
                                     type="number"
                                     value={row.gross_profit_percent ?? ''}
@@ -3783,6 +3743,18 @@ function BudgetRowsEditor({
                                                                   ),
                                                           ),
                                             },
+                                        )
+                                    }
+                                />
+                                <BudgetEvidenceInputs
+                                    row={row}
+                                    revenue
+                                    onChange={(changes) =>
+                                        updateBudgetRow(
+                                            onFormChange,
+                                            group,
+                                            index,
+                                            changes,
                                         )
                                     }
                                 />
@@ -3819,6 +3791,65 @@ function BudgetRowsEditor({
                 ))}
             </div>
         </section>
+    );
+}
+
+function BudgetEvidenceInputs({
+    row,
+    revenue = false,
+    onChange,
+}: {
+    row: BudgetRow;
+    revenue?: boolean;
+    onChange: (changes: Partial<BudgetRow>) => void;
+}) {
+    return (
+        <>
+            <label className="grid gap-1 text-xs">
+                <span className="text-muted-foreground">Evidence source</span>
+                <select
+                    value={row.source_type ?? 'unverified'}
+                    onChange={(event) =>
+                        onChange({
+                            source_type: event.target
+                                .value as BudgetRow['source_type'],
+                            source_confirmed: false,
+                        })
+                    }
+                    className="h-9 rounded-md border bg-background px-2 text-sm"
+                >
+                    <option value="unverified">Select source</option>
+                    <option value="bank_statement">Bank statement</option>
+                    <option value="xero_ledger">Xero ledger</option>
+                    <option value="supplier_quote">Supplier quote</option>
+                    <option value="signed_contract">Signed contract</option>
+                    <option value="pipeline_evidence">
+                        {revenue ? 'Pipeline evidence' : 'Pricing evidence'}
+                    </option>
+                    <option value="owner_record">Owner record</option>
+                </select>
+            </label>
+            <BudgetInput
+                label="Evidence reference"
+                value={row.source_reference ?? ''}
+                onChange={(value) =>
+                    onChange({
+                        source_reference: value,
+                        source_confirmed: false,
+                    })
+                }
+            />
+            <label className="flex items-end gap-2 pb-2 text-xs text-muted-foreground">
+                <input
+                    type="checkbox"
+                    checked={Boolean(row.source_confirmed)}
+                    onChange={(event) =>
+                        onChange({ source_confirmed: event.target.checked })
+                    }
+                />
+                Source checked
+            </label>
+        </>
     );
 }
 
@@ -3876,6 +3907,7 @@ function BudgetAssumptionsEditor({
                             assumptions: {
                                 ...current.assumptions,
                                 forecast_start_month: event.target.value,
+                                forecast_start_confirmed: false,
                             },
                         }))
                     }
@@ -3884,6 +3916,23 @@ function BudgetAssumptionsEditor({
                 <span className="text-[11px] leading-snug text-muted-foreground">
                     This anchors Month 1 to the written milestones and cash
                     forecast.
+                </span>
+                <span className="flex items-center gap-2 text-[11px] leading-snug text-muted-foreground">
+                    <input
+                        type="checkbox"
+                        checked={Boolean(assumptions.forecast_start_confirmed)}
+                        onChange={(event) =>
+                            onFormChange((current) => ({
+                                ...current,
+                                assumptions: {
+                                    ...current.assumptions,
+                                    forecast_start_confirmed:
+                                        event.target.checked,
+                                },
+                            }))
+                        }
+                    />
+                    I have checked Month 1 against the written milestones.
                 </span>
             </label>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
@@ -3913,6 +3962,41 @@ function BudgetAssumptionsEditor({
                         />
                     </label>
                 ))}
+            </div>
+            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                <label className="flex items-center gap-2">
+                    <input
+                        type="checkbox"
+                        checked={Boolean(assumptions.opening_cash_verified)}
+                        onChange={(event) =>
+                            onFormChange((current) => ({
+                                ...current,
+                                assumptions: {
+                                    ...current.assumptions,
+                                    opening_cash_verified: event.target.checked,
+                                },
+                            }))
+                        }
+                    />
+                    Opening cash checked against current bank records
+                </label>
+                <label className="flex items-center gap-2">
+                    <input
+                        type="checkbox"
+                        checked={Boolean(assumptions.working_capital_verified)}
+                        onChange={(event) =>
+                            onFormChange((current) => ({
+                                ...current,
+                                assumptions: {
+                                    ...current.assumptions,
+                                    working_capital_verified:
+                                        event.target.checked,
+                                },
+                            }))
+                        }
+                    />
+                    Debtor and creditor days checked against actual terms
+                </label>
             </div>
             <label className="grid max-w-md gap-1 text-xs">
                 <span className="text-muted-foreground">
@@ -3947,6 +4031,71 @@ function BudgetAssumptionsEditor({
                     averaged forecast.
                 </span>
             </label>
+            <div className="grid gap-3 rounded-md border bg-muted/20 p-3 text-xs md:grid-cols-[minmax(14rem,0.8fr)_minmax(16rem,1.2fr)]">
+                <label className="grid gap-1">
+                    <span className="text-muted-foreground">
+                        Funding position
+                    </span>
+                    <select
+                        value={assumptions.funding_position ?? 'undecided'}
+                        onChange={(event) =>
+                            onFormChange((current) => ({
+                                ...current,
+                                assumptions: {
+                                    ...current.assumptions,
+                                    funding_position:
+                                        event.target.value === 'self_funded'
+                                            ? 'self_funded'
+                                            : event.target.value ===
+                                                'external_funding'
+                                              ? 'external_funding'
+                                              : 'undecided',
+                                    funding_position_confirmed: false,
+                                },
+                            }))
+                        }
+                        className="h-9 rounded-md border bg-background px-2 text-sm"
+                    >
+                        <option value="undecided">Confirm the position</option>
+                        <option value="self_funded">Self-funded</option>
+                        <option value="external_funding">
+                            External funding request
+                        </option>
+                    </select>
+                    <span className="flex items-center gap-2 leading-snug text-muted-foreground">
+                        <input
+                            type="checkbox"
+                            checked={Boolean(
+                                assumptions.funding_position_confirmed,
+                            )}
+                            onChange={(event) =>
+                                onFormChange((current) => ({
+                                    ...current,
+                                    assumptions: {
+                                        ...current.assumptions,
+                                        funding_position_confirmed:
+                                            event.target.checked,
+                                    },
+                                }))
+                            }
+                        />
+                        I confirm this matches the written plan.
+                    </span>
+                </label>
+                <BudgetInput
+                    label="Funding purpose (required for an external request)"
+                    value={assumptions.funding_request_purpose ?? ''}
+                    onChange={(value) =>
+                        onFormChange((current) => ({
+                            ...current,
+                            assumptions: {
+                                ...current.assumptions,
+                                funding_request_purpose: value,
+                            },
+                        }))
+                    }
+                />
+            </div>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
                 {fields.map((field) => (
                     <label
@@ -3969,7 +4118,7 @@ function BudgetAssumptionsEditor({
                                     ? 100
                                     : 500
                             }
-                            value={assumptions[field.key]}
+                            value={String(assumptions[field.key] ?? '')}
                             onChange={(event) =>
                                 onFormChange((current) => ({
                                     ...current,
@@ -4786,13 +4935,19 @@ function mergeBudgetAssumptions(
 ): BudgetAssumptions {
     return {
         opening_cash_balance: current.opening_cash_balance,
+        opening_cash_verified: current.opening_cash_verified,
         debtor_days: current.debtor_days,
         creditor_days: current.creditor_days,
+        working_capital_verified: current.working_capital_verified,
         revenue_growth_percent:
             current.revenue_growth_percent ||
             suggested.revenue_growth_percent ||
             '',
         forecast_start_month: current.forecast_start_month,
+        forecast_start_confirmed: current.forecast_start_confirmed,
+        funding_position: current.funding_position,
+        funding_position_confirmed: current.funding_position_confirmed,
+        funding_request_purpose: current.funding_request_purpose,
         year_two_revenue_basis: current.year_two_revenue_basis,
         cost_inflation_percent:
             current.cost_inflation_percent ||
@@ -5025,11 +5180,17 @@ function blankBudgetRow(
               growth_cadence_confirmed: false,
               monthly_capacity_units: '',
               capacity_confirmed: false,
+              founder_capacity_units: '',
+              contractor_unit_cost: '',
+              contractor_cost_confirmed: false,
               unit_label: 'units',
               variable_cost_percent: 0,
               unit_cost: '',
               gross_profit_percent: '',
               confidence: 'estimate',
+              source_type: 'unverified',
+              source_reference: '',
+              source_confirmed: false,
           }
         : timed
           ? {
@@ -5047,6 +5208,9 @@ function blankBudgetRow(
                   cadence: 'monthly',
                   cadence_confirmed: false,
                   confidence: 'estimate',
+                  source_type: 'unverified',
+                  source_reference: '',
+                  source_confirmed: false,
               }
             : {
                   label: '',
@@ -5094,9 +5258,29 @@ function cleanBudgetForm(form: BudgetFormState) {
             opening_cash_balance: numberFromInput(
                 form.assumptions.opening_cash_balance,
             ),
+            opening_cash_verified: Boolean(
+                form.assumptions.opening_cash_verified,
+            ),
             debtor_days: numberFromInput(form.assumptions.debtor_days),
             creditor_days: numberFromInput(form.assumptions.creditor_days),
+            working_capital_verified: Boolean(
+                form.assumptions.working_capital_verified,
+            ),
             forecast_start_month: form.assumptions.forecast_start_month ?? '',
+            forecast_start_confirmed: Boolean(
+                form.assumptions.forecast_start_confirmed,
+            ),
+            funding_position:
+                form.assumptions.funding_position === 'self_funded' ||
+                form.assumptions.funding_position === 'external_funding'
+                    ? form.assumptions.funding_position
+                    : 'undecided',
+            funding_position_confirmed: Boolean(
+                form.assumptions.funding_position_confirmed,
+            ),
+            funding_request_purpose: String(
+                form.assumptions.funding_request_purpose ?? '',
+            ).trim(),
             revenue_growth_percent: signedNumberFromInput(
                 form.assumptions.revenue_growth_percent,
             ),
@@ -5164,6 +5348,23 @@ function cleanBudgetRows(
                       cadence_confirmed: Boolean(row.cadence_confirmed),
                   }
                 : {}),
+            ...(fixedCost || revenue
+                ? {
+                      source_type:
+                          row.source_type === 'bank_statement' ||
+                          row.source_type === 'xero_ledger' ||
+                          row.source_type === 'supplier_quote' ||
+                          row.source_type === 'signed_contract' ||
+                          row.source_type === 'pipeline_evidence' ||
+                          row.source_type === 'owner_record'
+                              ? row.source_type
+                              : 'unverified',
+                      source_reference: String(
+                          row.source_reference ?? '',
+                      ).trim(),
+                      source_confirmed: Boolean(row.source_confirmed),
+                  }
+                : {}),
             ...(revenue
                 ? {
                       growth_percent: signedNumberFromInput(
@@ -5182,6 +5383,19 @@ function cleanBudgetRows(
                               ? null
                               : numberFromInput(row.monthly_capacity_units),
                       capacity_confirmed: Boolean(row.capacity_confirmed),
+                      founder_capacity_units:
+                          row.founder_capacity_units === '' ||
+                          row.founder_capacity_units === undefined
+                              ? null
+                              : numberFromInput(row.founder_capacity_units),
+                      contractor_unit_cost:
+                          row.contractor_unit_cost === '' ||
+                          row.contractor_unit_cost === undefined
+                              ? null
+                              : numberFromInput(row.contractor_unit_cost),
+                      contractor_cost_confirmed: Boolean(
+                          row.contractor_cost_confirmed,
+                      ),
                       unit_label:
                           String(row.unit_label ?? 'units').trim() || 'units',
                       variable_cost_percent: numberFromInput(
@@ -5275,6 +5489,21 @@ function normaliseBudgetRow(
                   cadence_confirmed: Boolean(row.cadence_confirmed),
               }
             : {}),
+        ...(fixedCost || revenue
+            ? {
+                  source_type:
+                      row.source_type === 'bank_statement' ||
+                      row.source_type === 'xero_ledger' ||
+                      row.source_type === 'supplier_quote' ||
+                      row.source_type === 'signed_contract' ||
+                      row.source_type === 'pipeline_evidence' ||
+                      row.source_type === 'owner_record'
+                          ? row.source_type
+                          : 'unverified',
+                  source_reference: String(row.source_reference ?? '').trim(),
+                  source_confirmed: Boolean(row.source_confirmed),
+              }
+            : {}),
         ...(revenue
             ? {
                   growth_percent: signedNumberFromInput(
@@ -5291,6 +5520,19 @@ function normaliseBudgetRow(
                           ? ''
                           : row.monthly_capacity_units,
                   capacity_confirmed: Boolean(row.capacity_confirmed),
+                  founder_capacity_units:
+                      row.founder_capacity_units === undefined ||
+                      row.founder_capacity_units === null
+                          ? ''
+                          : row.founder_capacity_units,
+                  contractor_unit_cost:
+                      row.contractor_unit_cost === undefined ||
+                      row.contractor_unit_cost === null
+                          ? ''
+                          : row.contractor_unit_cost,
+                  contractor_cost_confirmed: Boolean(
+                      row.contractor_cost_confirmed,
+                  ),
                   unit_label: String(row.unit_label ?? 'units'),
                   variable_cost_percent: numberFromInput(
                       row.variable_cost_percent ?? 0,
@@ -5345,10 +5587,26 @@ function normaliseBudgetAssumptions(
 ): BudgetAssumptions {
     return {
         opening_cash_balance: assumptions?.opening_cash_balance ?? '',
+        opening_cash_verified: Boolean(assumptions?.opening_cash_verified),
         debtor_days: assumptions?.debtor_days ?? '',
         creditor_days: assumptions?.creditor_days ?? '',
+        working_capital_verified: Boolean(
+            assumptions?.working_capital_verified,
+        ),
         revenue_growth_percent: assumptions?.revenue_growth_percent ?? '',
         forecast_start_month: assumptions?.forecast_start_month ?? '',
+        forecast_start_confirmed: Boolean(
+            assumptions?.forecast_start_confirmed,
+        ),
+        funding_position:
+            assumptions?.funding_position === 'self_funded' ||
+            assumptions?.funding_position === 'external_funding'
+                ? assumptions.funding_position
+                : 'undecided',
+        funding_position_confirmed: Boolean(
+            assumptions?.funding_position_confirmed,
+        ),
+        funding_request_purpose: assumptions?.funding_request_purpose ?? '',
         year_two_revenue_basis:
             assumptions?.year_two_revenue_basis === 'year_one_average'
                 ? 'year_one_average'
@@ -5434,21 +5692,6 @@ function formatYear(value: number | null | undefined): string {
     return value ? `Year ${value}` : 'Not reached';
 }
 
-function Detail({
-    label,
-    value,
-}: {
-    label: string;
-    value: string | null | undefined;
-}) {
-    return (
-        <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-3">
-            <dt className="text-muted-foreground">{label}</dt>
-            <dd className="min-w-0 break-words">{value || '-'}</dd>
-        </div>
-    );
-}
-
 function findSection(
     plan: BusinessPlanPayload,
     requirement: PlanRequirementPayload,
@@ -5486,51 +5729,6 @@ function requirementId(requirement: PlanRequirementPayload): string {
     return `${requirement.phase_key}:${requirement.key}`;
 }
 
-function displayStageLabel(
-    stage: string | null | undefined,
-    label: string | null | undefined,
-): string {
-    if (stage === 'onboarding' || label === 'Onboarding') {
-        return 'Getting started';
-    }
-
-    return label ?? '-';
-}
-
-function journeyLevelLabel(
-    level: GamificationPayload['current_level'] | undefined,
-): string {
-    if (!level) {
-        return 'Journey active';
-    }
-
-    if (level.stage === 'onboarding') {
-        return level.phase
-            ? `Getting started phase ${level.phase}`
-            : 'Getting started';
-    }
-
-    return level.label;
-}
-
-function formatLabel(value: string): string {
-    return value
-        .split('_')
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(' ');
-}
-
-function formatDate(value: string | null): string {
-    if (!value) {
-        return '-';
-    }
-
-    return formatNzDate(value, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    });
-}
-
 function planWorkspaceKey(profileId: string): string {
     return `fsa:entrepreneur-plan-workspace:${profileId}:v1`;
 }
@@ -5558,242 +5756,6 @@ function ideaValidationToForm(
         revenue_model: ideaValidation?.revenue_model ?? '',
     };
 }
-
-function IdeaValidationSnapshot({
-    fields,
-    revisionNumber,
-    submittedAt,
-}: {
-    fields: { label: string; value: string }[];
-    revisionNumber: number | null;
-    submittedAt: string | null;
-}) {
-    return (
-        <div className="rounded-md border bg-muted/20 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-xs font-medium text-muted-foreground">
-                    Submitted idea validation
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                    {revisionNumber ? (
-                        <Badge variant="outline">
-                            Version {revisionNumber}
-                        </Badge>
-                    ) : null}
-                    {submittedAt ? (
-                        <Badge variant="outline">
-                            Submitted {formatDate(submittedAt)}
-                        </Badge>
-                    ) : null}
-                </div>
-            </div>
-            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {fields.map((field) => (
-                    <div
-                        key={field.label}
-                        className="rounded-md border bg-card p-3"
-                    >
-                        <div className="text-xs font-medium text-muted-foreground">
-                            {field.label}
-                        </div>
-                        <FormattedMarkdown
-                            value={field.value}
-                            className="mt-1"
-                        />
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
-
-function IdeaValidationHistory({
-    versions,
-    restoringVersionId,
-    onRestore,
-}: {
-    versions: IdeaValidationVersion[];
-    restoringVersionId: string | null;
-    onRestore: (version: IdeaValidationVersion) => void;
-}) {
-    return (
-        <div className="space-y-3 border-t pt-4">
-            <h3 className="text-sm font-medium">Revision history</h3>
-            <div className="grid gap-3 lg:grid-cols-2">
-                {versions.map((version) => (
-                    <div
-                        key={version.id}
-                        className="space-y-3 rounded-md border bg-muted/20 p-3"
-                    >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-sm font-medium">
-                                    Version {version.revision_number}
-                                </span>
-                                {version.is_current ? (
-                                    <Badge variant="secondary">Current</Badge>
-                                ) : (
-                                    <Badge variant="outline">
-                                        {ideaVersionStatusLabel(version)}
-                                    </Badge>
-                                )}
-                            </div>
-                            {version.evaluated_at ? (
-                                <span className="text-xs text-muted-foreground">
-                                    {formatDate(version.evaluated_at)}
-                                </span>
-                            ) : null}
-                        </div>
-                        <dl className="grid gap-2 text-sm">
-                            <VersionDetail
-                                label="Problem"
-                                value={version.problem}
-                            />
-                            <VersionDetail
-                                label="Target customer"
-                                value={version.target_customer}
-                            />
-                            <VersionDetail
-                                label="Demand signal"
-                                value={version.demand_signal}
-                            />
-                        </dl>
-                        {!version.is_current ? (
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                disabled={restoringVersionId !== null}
-                                onClick={() => onRestore(version)}
-                            >
-                                <RotateCcw
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
-                                {restoringVersionId === version.id
-                                    ? 'Restoring...'
-                                    : 'Restore as new revision'}
-                            </Button>
-                        ) : null}
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
-
-function VersionDetail({ label, value }: { label: string; value: string }) {
-    return (
-        <div>
-            <dt className="text-xs font-medium text-muted-foreground">
-                {label}
-            </dt>
-            <dd className="mt-1">
-                <FormattedMarkdown value={value} />
-            </dd>
-        </div>
-    );
-}
-
-function ideaVersionStatusLabel(version: IdeaValidationVersion): string {
-    if (version.recalled_at) {
-        return 'Recalled';
-    }
-
-    if (version.advisor_gate_status === 'approved') {
-        return 'Approved';
-    }
-
-    if (version.advisor_gate_status === 'changes_requested') {
-        return 'Changes requested';
-    }
-
-    return 'Advisor review';
-}
-
-const ideaFields = [
-    {
-        key: 'problem',
-        label: 'Problem',
-        minimum: 5,
-        placeholder: 'What specific customer problem are you solving?',
-        plain: 'What is hard, costly, risky, or frustrating for the customer right now?',
-    },
-    {
-        key: 'target_customer',
-        label: 'Target customer',
-        minimum: 3,
-        placeholder: 'Who has this problem and how do you know?',
-        plain: 'Who exactly would pay attention to this problem first?',
-    },
-    {
-        key: 'solution',
-        label: 'Solution',
-        minimum: 10,
-        placeholder: 'What will you offer and how will it work?',
-        plain: 'What will you sell or deliver, and what changes for the customer?',
-    },
-    {
-        key: 'value_proposition',
-        label: 'Value proposition',
-        minimum: 10,
-        placeholder: 'Why would the customer choose this over alternatives?',
-        plain: 'Why would a customer choose you instead of doing nothing or choosing another option?',
-    },
-    {
-        key: 'demand_signal',
-        label: 'Demand signal',
-        minimum: 5,
-        placeholder: 'What evidence shows people want or need this?',
-        plain: 'What have real people done or said that shows this is worth testing further?',
-    },
-    {
-        key: 'revenue_model',
-        label: 'Revenue model',
-        minimum: 5,
-        placeholder: 'How will the business earn, collect, and retain revenue?',
-        plain: 'How will money come in, how often, and from whom?',
-    },
-] satisfies {
-    key: keyof IdeaValidationForm;
-    label: string;
-    minimum: number;
-    placeholder: string;
-    plain: string;
-}[];
-
-const plainLanguageTerms = [
-    {
-        term: 'Target customer',
-        meaning:
-            'The specific person or business most likely to need this first.',
-    },
-    {
-        term: 'Demand signal',
-        meaning:
-            'Evidence that someone wants the offer, such as interviews, bookings, pilots, deposits, or repeated requests.',
-    },
-    {
-        term: 'Value proposition',
-        meaning:
-            'The reason a customer would choose this option instead of another option or doing nothing.',
-    },
-    {
-        term: 'Revenue model',
-        meaning:
-            'How the business gets paid, how often it gets paid, and what keeps that income going.',
-    },
-    {
-        term: 'Evidence',
-        meaning:
-            'Real support for a claim: a quote, customer note, test result, sale, supplier price, contract, or clear calculation.',
-    },
-    {
-        term: 'Advisory ready',
-        meaning:
-            'Ready for an advisor to rely on the plan enough to agree the next service or roadmap.',
-    },
-] satisfies Array<{ term: string; meaning: string }>;
 
 EntrepreneurPlan.layout = {
     breadcrumbs: [

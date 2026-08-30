@@ -31,6 +31,7 @@ use App\Models\RiskCost;
 use App\Models\User;
 use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Conflicts\ConflictDeclarer;
+use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Dd\DdDisclaimer;
 use App\Services\Dd\DdOnboarding;
@@ -146,6 +147,7 @@ final class DdReportTest extends TestCase
             'dd_risk_register',
             'dd_price_adjustment',
             'dd_integration_plan',
+            'dd_buyer_decision_readiness',
             'dd_buyer_readiness',
             'dd_recommendation',
             'dd_liability_disclaimer',
@@ -155,11 +157,51 @@ final class DdReportTest extends TestCase
 
         $this->assertStringContainsString(DdDisclaimer::STANDARD, $this->renderer->html);
         $this->assertStringContainsString('Primary basis: Discounted Cash Flow (DCF)', $this->renderer->html);
+        $this->assertStringContainsString('Buyer decision readiness', $this->renderer->html);
         $this->assertStringContainsString('Liability disclaimer', $this->pptx->payload);
+        $this->assertArrayHasKey('buyer_decision_readiness', $report->metadata);
         $this->assertDatabaseHas('audit_events', [
             'action' => 'dd.report_generated',
             'subject_id' => $report->id,
         ]);
+    }
+
+    public function test_due_diligence_report_records_buyer_decision_ready_quality_gate(): void
+    {
+        [$advisor, $engagement] = $this->ddEngagement('buyer-decision-ready-dd-advisor@example.test');
+        $engagement->forceFill([
+            'target_details' => [
+                ...$engagement->target_details,
+                'asking_price' => 720000,
+            ],
+        ])->save();
+        $this->dataRoomItem($engagement);
+        $this->ddValuation($engagement, 720000);
+
+        foreach (DataRoom::WORKSTREAMS as $key => $label) {
+            $this->finding(
+                $engagement,
+                $key,
+                FindingSeverity::Low,
+                "{$label} reviewed",
+                "{$label} evidence supports a controlled acquisition decision.",
+            );
+        }
+
+        $report = app(ReportComposer::class)->composeDueDiligence($engagement, $advisor);
+        $readiness = $report->metadata['buyer_decision_readiness'];
+
+        $this->assertTrue($readiness['ready']);
+        $this->assertSame('Buyer decision-ready', $readiness['label']);
+        $this->assertSame('high', $readiness['confidence']);
+        $this->assertSame('Proceed subject to normal completion controls', $readiness['decision_label']);
+        $this->assertCount(6, $readiness['gates']);
+        $this->assertCount(5, $readiness['decision_questions']);
+
+        $section = $report->sections->firstWhere('key', 'dd_buyer_decision_readiness');
+        $this->assertNotNull($section);
+        $this->assertStringContainsString('Should I buy this business?', $section->body);
+        $this->assertStringContainsString('Quality gates:', $section->body);
     }
 
     public function test_acquisition_go_no_go_report_surfaces_walk_away_price_chips(): void
@@ -193,6 +235,7 @@ final class DdReportTest extends TestCase
 
         foreach ([
             'go_no_go_decision',
+            'go_no_go_decision_responsibility',
             'walk_away_price_chips',
             'deal_mechanics',
             'go_no_go_evidence',
@@ -208,6 +251,8 @@ final class DdReportTest extends TestCase
         $this->assertEqualsWithDelta(820000.0, $walkAway->metadata['asking_price_nzd'], 0.01);
         $this->assertStringContainsString('Walk-away price and red-flag price chips', $this->renderer->html);
         $this->assertStringContainsString('GST going-concern zero-rating', $this->renderer->html);
+        $this->assertStringContainsString('Decision responsibility disclaimer', $this->renderer->html);
+        $this->assertStringContainsString('ultimate and final decision whether to buy', $this->renderer->html);
     }
 
     public function test_dd_risk_register_is_ranked_by_pv_cost_and_feeds_price_adjustment(): void

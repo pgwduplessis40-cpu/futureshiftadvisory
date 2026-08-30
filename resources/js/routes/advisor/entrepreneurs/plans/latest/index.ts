@@ -1,8 +1,8 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 import budgetPack from './budget-pack'
 /**
-* @see \App\Http\Controllers\Advisor\EntrepreneurController::preview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:462
+* @see \App\Http\Controllers\Advisor\EntrepreneurPlanDocumentController::preview
+* @see app/Http/Controllers/Advisor/EntrepreneurPlanDocumentController.php:28
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
 */
 export const preview = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,8 +16,8 @@ preview.definition = {
 } satisfies RouteDefinition<["get","head"]>
 
 /**
-* @see \App\Http\Controllers\Advisor\EntrepreneurController::preview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:462
+* @see \App\Http\Controllers\Advisor\EntrepreneurPlanDocumentController::preview
+* @see app/Http/Controllers/Advisor/EntrepreneurPlanDocumentController.php:28
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
 */
 preview.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,8 +49,8 @@ preview.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepr
 }
 
 /**
-* @see \App\Http\Controllers\Advisor\EntrepreneurController::preview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:462
+* @see \App\Http\Controllers\Advisor\EntrepreneurPlanDocumentController::preview
+* @see app/Http/Controllers/Advisor/EntrepreneurPlanDocumentController.php:28
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
 */
 preview.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -59,8 +59,8 @@ preview.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepr
 })
 
 /**
-* @see \App\Http\Controllers\Advisor\EntrepreneurController::preview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:462
+* @see \App\Http\Controllers\Advisor\EntrepreneurPlanDocumentController::preview
+* @see app/Http/Controllers/Advisor/EntrepreneurPlanDocumentController.php:28
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
 */
 preview.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -69,8 +69,8 @@ preview.head = (args: { entrepreneurProfile: string | { id: string } } | [entrep
 })
 
 /**
-* @see \App\Http\Controllers\Advisor\EntrepreneurController::preview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:462
+* @see \App\Http\Controllers\Advisor\EntrepreneurPlanDocumentController::preview
+* @see app/Http/Controllers/Advisor/EntrepreneurPlanDocumentController.php:28
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
 */
 const previewForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,8 +79,8 @@ const previewForm = (args: { entrepreneurProfile: string | { id: string } } | [e
 })
 
 /**
-* @see \App\Http\Controllers\Advisor\EntrepreneurController::preview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:462
+* @see \App\Http\Controllers\Advisor\EntrepreneurPlanDocumentController::preview
+* @see app/Http/Controllers/Advisor/EntrepreneurPlanDocumentController.php:28
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
 */
 previewForm.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -89,8 +89,8 @@ previewForm.get = (args: { entrepreneurProfile: string | { id: string } } | [ent
 })
 
 /**
-* @see \App\Http\Controllers\Advisor\EntrepreneurController::preview
-* @see app/Http/Controllers/Advisor/EntrepreneurController.php:462
+* @see \App\Http\Controllers\Advisor\EntrepreneurPlanDocumentController::preview
+* @see app/Http/Controllers/Advisor/EntrepreneurPlanDocumentController.php:28
 * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/preview'
 */
 previewForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

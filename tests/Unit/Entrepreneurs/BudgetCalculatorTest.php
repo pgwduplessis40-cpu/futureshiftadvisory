@@ -466,6 +466,64 @@ final class BudgetCalculatorTest extends TestCase
         $this->assertFalse($computed['break_even_reached']);
     }
 
+    public function test_contractor_capacity_is_costed_after_founder_capacity_is_used(): void
+    {
+        $computed = $this->calculator()->compute(
+            launchCosts: [],
+            monthlyFixedCosts: [],
+            revenueForecast: [[
+                'label' => 'Advisory intensives',
+                'amount' => 1_500,
+                'quantity' => 5,
+                'month' => 1,
+                'monthly_capacity_units' => 5,
+                'capacity_confirmed' => true,
+                'founder_capacity_units' => 2,
+                'contractor_unit_cost' => 500,
+                'contractor_cost_confirmed' => true,
+                'source_type' => 'signed_contract',
+                'source_reference' => 'Signed delivery agreement',
+                'source_confirmed' => true,
+            ]],
+            fundingSources: [],
+            expectedRunwayMonths: null,
+            forecastYears: 1,
+        );
+
+        $monthOne = $computed['monthly_detail'][0];
+
+        $this->assertSame(7_500.0, $monthOne['revenue']);
+        $this->assertSame(1_500.0, $monthOne['contractor_delivery_costs']);
+        $this->assertSame(1_500.0, $monthOne['variable_costs']);
+        $this->assertSame([], $computed['input_quality']['revenue_with_unpriced_contractors']);
+    }
+
+    public function test_verification_gaps_and_zero_loan_terms_are_normalised_for_the_external_issue_gate(): void
+    {
+        $scenarios = $this->calculator()->normaliseFundingScenarios([[
+            'name' => 'Bank facility',
+            'type' => 'bank_loan',
+            'amount' => 12_000,
+            'term_years' => 0,
+            'interest_only_months' => 120,
+        ]]);
+        $computed = $this->calculator()->compute(
+            launchCosts: [],
+            monthlyFixedCosts: [['label' => 'Software', 'amount' => 100]],
+            revenueForecast: [['label' => 'Advisory', 'amount' => 1_000, 'monthly_capacity_units' => 1, 'capacity_confirmed' => true]],
+            fundingSources: [],
+            expectedRunwayMonths: null,
+            forecastYears: 1,
+        );
+
+        $this->assertSame(1, $scenarios[0]['term_years']);
+        $this->assertSame(11, $scenarios[0]['interest_only_months']);
+        $this->assertSame(['Software'], $computed['input_quality']['unverified_fixed_cost_sources']);
+        $this->assertSame(['Advisory'], $computed['input_quality']['unverified_revenue_sources']);
+        $this->assertContains('opening_cash_balance', $computed['input_quality']['unverified_cash_timing']);
+        $this->assertTrue($computed['input_quality']['funding_position_unconfirmed']);
+    }
+
     private function calculator(): BudgetCalculator
     {
         return new BudgetCalculator;

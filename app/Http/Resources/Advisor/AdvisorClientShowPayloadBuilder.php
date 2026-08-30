@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Resources\Advisor;
 
 use App\Enums\ClientStatus;
+use App\Enums\EngagementType;
 use App\Enums\FeeMethod;
 use App\Enums\ProposalStatus;
+use App\Enums\ReportType;
 use App\Models\AccountingConnection;
 use App\Models\AnalysisFeedback;
 use App\Models\AnalysisFinding;
@@ -17,6 +19,7 @@ use App\Models\EntrepreneurProfile;
 use App\Models\FeeCalculation;
 use App\Models\FinancialSnapshot;
 use App\Models\Proposal;
+use App\Models\Report;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\Budgets\StrategicBudgetService;
@@ -24,6 +27,7 @@ use App\Services\Clients\AdvisorClientCollaborationPayloadBuilder;
 use App\Services\Clients\AdvisorClientPayloadBuilder;
 use App\Services\Dashboards\PaymentStatusReport;
 use App\Services\DataQuality\DataQualityScorer;
+use App\Services\Dd\BuyerDecisionReadiness;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdOnboarding;
 use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
@@ -41,6 +45,7 @@ use App\Services\Proposals\ProposalBrief;
 use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
 use App\Services\StrategicPlans\StrategicPlanDurationPolicy;
 use App\Services\StrategicPlans\StrategicPlanService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 
 /**
@@ -60,6 +65,7 @@ final class AdvisorClientShowPayloadBuilder
         private readonly DataQualityScorer $dataQuality,
         private readonly GoalTracker $goals,
         private readonly DdOnboarding $ddOnboarding,
+        private readonly BuyerDecisionReadiness $buyerDecisionReadiness,
         private readonly DataRoom $dataRoom,
         private readonly IntegrationActivationResolver $integrations,
         private readonly ProposalBrief $proposalBriefs,
@@ -89,6 +95,7 @@ final class AdvisorClientShowPayloadBuilder
         $dataQuality = $this->dataQuality->score($client);
         $strategicBudget = $this->strategicBudgets->ensureForClient($client);
         $invite = $this->clientPayloads->inviteFor($client);
+        $isDueDiligenceClient = $this->isDueDiligenceClient($client);
 
         return [
             'client' => [
@@ -110,7 +117,7 @@ final class AdvisorClientShowPayloadBuilder
                 'proposal_store_url' => route('advisor.clients.proposals.store', $client, absolute: false),
                 'proposal_expiry_days' => (int) config('proposals.expiry_days', 30),
                 'fee_calculations' => $this->feeCalculationSummaries($client),
-                'proposals' => $this->proposalSummaries($client),
+                'proposals' => $this->proposalSummaries($client, strategicPlanGenerationAllowed: ! $isDueDiligenceClient),
                 'business_health_recompute_url' => route('advisor.clients.health-radar.recompute', $client, absolute: false),
                 'report_store_url' => route('advisor.clients.reports.store', $client, absolute: false),
                 'reports' => $this->workspacePayloads->reports($client),
@@ -129,7 +136,8 @@ final class AdvisorClientShowPayloadBuilder
                 'standard_advisory' => $this->standardAdvisory->clientSummary($client),
                 'founding_advisory' => $this->foundingAdvisory->advisorPayload($client),
                 'strategic_budget' => $this->strategicBudgets->advisorPayload($strategicBudget),
-                'strategic_plan' => $this->strategicPlans->advisorPayload($client),
+                'strategic_plan' => $isDueDiligenceClient ? null : $this->strategicPlans->advisorPayload($client),
+                'strategic_plan_deployment_guard' => $this->strategicPlanDeploymentGuard($client),
                 'proposal_budget_guard' => $this->strategicBudgets->proposalGuardPayload($strategicBudget),
                 'due_diligence' => $this->dueDiligenceSummary($client),
                 'npo_conversion' => $this->npoConversion->clientSummary($client),
@@ -151,6 +159,15 @@ final class AdvisorClientShowPayloadBuilder
         ];
     }
 
+    private function isDueDiligenceClient(Client $client): bool
+    {
+        $engagementType = $client->engagement_type instanceof EngagementType
+            ? $client->engagement_type
+            : EngagementType::tryFrom((string) $client->engagement_type);
+
+        return $engagementType === EngagementType::DUE_DILIGENCE;
+    }
+
     /** @return array<array-key, mixed>|null */
     private function dueDiligenceSummary(Client $client): ?array
     {
@@ -163,9 +180,373 @@ final class AdvisorClientShowPayloadBuilder
             return null;
         }
 
+        $reports = $this->dueDiligenceReports($client);
+        $latestReport = $reports->last();
+        $latestReportReviewed = $latestReport instanceof Report
+            && in_array((string) $latestReport->review_status, ['not_required', 'reviewed'], true);
+        $decisionReadiness = $this->buyerDecisionReadiness->forEngagement($engagement, $latestReport);
+        $decisionReady = (bool) ($decisionReadiness['ready'] ?? false);
+
         return array_merge($this->ddOnboarding->targetPanel($engagement), [
             'data_room' => $this->dataRoom->summary($engagement),
+            'decision_readiness' => $decisionReadiness,
+            'assessment_ready' => $latestReportReviewed && $decisionReady,
+            'assessment_status_label' => $latestReport instanceof Report
+                ? str((string) $latestReport->review_status)->replace('_', ' ')->title()->toString()
+                : 'Report not generated',
+            'assessment_summary' => match (true) {
+                $latestReportReviewed && $decisionReady => 'DD report has been reviewed and is buyer decision-ready before Business Plan & Budget approval.',
+                $latestReportReviewed => 'DD report has been reviewed, but buyer decision-readiness gaps remain before it should be relied on for the buy / renegotiate / walk-away decision.',
+                $latestReport instanceof Report => 'Review the DD report and resolve buyer decision-readiness gaps before approving the Business Plan & Budget.',
+                default => 'Generate and review the buyer decision-ready DD report before approving the Business Plan & Budget.',
+            },
+            'report_title' => $latestReport?->title,
+            'report_generated_at' => $latestReport?->generated_at?->toIso8601String(),
+            'report_review_status' => $latestReport?->review_status,
+            'report_url' => $latestReport instanceof Report
+                ? route('advisor.reports.download', $latestReport, absolute: false)
+                : null,
+            'report_review_url' => $latestReport instanceof Report
+                ? route('advisor.reports.review', $latestReport, absolute: false)
+                : null,
+            'suggested_reply' => $this->dueDiligenceSuggestedReplyPayload(
+                client: $client,
+                engagement: $engagement,
+                latestReport: $latestReport,
+                decisionReadiness: $decisionReadiness,
+            ),
+            'report_versions' => $this->dueDiligenceReportVersionsPayload($engagement, $reports),
         ]);
+    }
+
+    /**
+     * @return array{allowed: bool, missing: array<int, string>, message: ?string}
+     */
+    private function strategicPlanDeploymentGuard(Client $client): array
+    {
+        if (! $this->isDueDiligenceClient($client)) {
+            return [
+                'allowed' => true,
+                'missing' => [],
+                'message' => null,
+            ];
+        }
+
+        return [
+            'allowed' => false,
+            'missing' => ['advisory service access'],
+            'message' => 'Strategic planning is not part of the DD workspace. After the DD report and Business Plan & Budget are approved, open advisory service access through the advisory/proposal workflow.',
+        ];
+    }
+
+    /**
+     * @return Collection<int, Report>
+     */
+    private function dueDiligenceReports(Client $client): Collection
+    {
+        return Report::query()
+            ->where('client_id', $client->getKey())
+            ->whereIn('type', [
+                ReportType::DueDiligence->value,
+                ReportType::AcquisitionGoNoGo->value,
+            ])
+            ->withCount('sections')
+            ->orderBy('generated_at')
+            ->orderBy('created_at')
+            ->get();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function dueDiligenceSuggestedReplyPayload(
+        Client $client,
+        DdEngagement $engagement,
+        ?Report $latestReport,
+        array $decisionReadiness,
+    ): array {
+        $feedback = (array) data_get($latestReport?->metadata, 'advisor_client_reply', []);
+        $priorities = $this->dueDiligenceFeedbackPriorities($decisionReadiness);
+        $suggestedFeedback = $this->suggestedDueDiligenceAdvisorFeedback($engagement, $latestReport, $decisionReadiness, $priorities);
+        $suggestedReply = $this->suggestedDueDiligenceClientReply($client, $engagement, $decisionReadiness, $priorities);
+        $status = (string) ($feedback['status'] ?? ($latestReport?->review_status ?? 'not_generated'));
+        $messageThreadId = data_get($feedback, 'client_message_thread_id');
+
+        return [
+            'id' => $latestReport?->getKey(),
+            'status' => $status,
+            'status_label' => $this->ddFeedbackStatusLabel($status),
+            'advisor_feedback' => (string) ($feedback['advisor_feedback'] ?? $suggestedFeedback),
+            'proposed_reply' => (string) ($feedback['proposed_reply'] ?? $suggestedReply),
+            'suggested_feedback' => $suggestedFeedback,
+            'suggested_reply' => $suggestedReply,
+            'priorities' => $priorities,
+            'saved_at' => $feedback['saved_at'] ?? null,
+            'sent_at' => $feedback['sent_at'] ?? null,
+            'can_save' => $latestReport instanceof Report,
+            'can_send' => $latestReport instanceof Report,
+            'action_url' => $latestReport instanceof Report
+                ? route('advisor.reports.dd-feedback', $latestReport, absolute: false)
+                : '',
+            'message_url' => is_string($messageThreadId) && $messageThreadId !== ''
+                ? route('advisor.clients.messages.show', [$client, $messageThreadId], absolute: false)
+                : null,
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $priorities
+     */
+    private function suggestedDueDiligenceAdvisorFeedback(
+        DdEngagement $engagement,
+        ?Report $latestReport,
+        array $decisionReadiness,
+        array $priorities,
+    ): string {
+        if (! $latestReport instanceof Report) {
+            return 'Generate the DD assessment or DD decision report first. The advisor summary will then capture the decision-readiness gaps, evidence position, valuation/risk position, and proposed client reply.';
+        }
+
+        $nextStep = $this->dueDiligenceNextStep($decisionReadiness, $priorities);
+        $priceAdjustment = $this->formatDdCurrency((float) ($decisionReadiness['price_adjustment_nzd'] ?? 0));
+        $valuation = is_numeric($decisionReadiness['valuation_midpoint_nzd'] ?? null)
+            ? $this->formatDdCurrency((float) $decisionReadiness['valuation_midpoint_nzd'])
+            : 'not available';
+
+        return implode("\n\n", array_filter([
+            'DD version: '.$latestReport->title,
+            'Buyer decision: '.(string) ($decisionReadiness['decision_label'] ?? 'Decision not ready').' ('.Str::of((string) ($decisionReadiness['confidence'] ?? 'low'))->replace('_', ' ')->lower()->toString().' confidence).',
+            'Recommendation: '.$this->ddRecommendationLabel((string) ($decisionReadiness['recommendation'] ?? 'pending')).'. '.(string) ($decisionReadiness['recommendation_rationale'] ?? ''),
+            'Evidence and risk position: '.(int) ($decisionReadiness['completed_workstreams'] ?? 0).'/'.(int) ($decisionReadiness['required_workstreams'] ?? 0).' workstreams complete; '.(int) ($decisionReadiness['evidence_item_count'] ?? 0).' evidence item(s); '.(int) ($decisionReadiness['verified_finding_count'] ?? 0).' verified finding(s); '.(int) ($decisionReadiness['flagged_finding_count'] ?? 0).' unresolved evidence flag(s); '.(int) ($decisionReadiness['material_risk_count'] ?? 0).' material risk(s); price adjustment '.$priceAdjustment.'; valuation midpoint '.$valuation.'.',
+            'Suggested next step: '.$nextStep,
+            'Use the suggested client reply as a starting point. Edit it before sending if commercial wording, purchase sensitivity, or legal/accounting caveats need nuance.',
+        ]));
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $priorities
+     */
+    private function suggestedDueDiligenceClientReply(
+        Client $client,
+        DdEngagement $engagement,
+        array $decisionReadiness,
+        array $priorities,
+    ): string {
+        $clientName = $client->trading_name ?: $client->legal_name ?: 'there';
+        $targetName = $engagement->target_name !== '' ? $engagement->target_name : 'the acquisition target';
+        $decisionLabel = (string) ($decisionReadiness['decision_label'] ?? 'Decision not ready');
+        $confidence = Str::of((string) ($decisionReadiness['confidence'] ?? 'low'))->replace('_', ' ')->lower()->toString();
+        $nextStep = $this->dueDiligenceNextStep($decisionReadiness, $priorities);
+        $priorityLines = collect($priorities)
+            ->take(3)
+            ->map(fn (array $priority): string => '- '.$priority['title'].': '.$priority['suggested_next_step'])
+            ->implode("\n");
+
+        return trim(implode("\n\n", array_filter([
+            "Hi {$clientName},",
+            "I have reviewed the Due Diligence assessment for {$targetName}. Based on the financials and information available at the time of assessment, the current buyer decision position is: {$decisionLabel} ({$confidence} confidence).",
+            'Recommendation: '.$this->ddRecommendationLabel((string) ($decisionReadiness['recommendation'] ?? 'pending')).'. '.(string) ($decisionReadiness['recommendation_rationale'] ?? ''),
+            $priorityLines !== '' ? "Key DD points:\n{$priorityLines}" : null,
+            "Suggested next step: {$nextStep}",
+            'Please remember that this DD view is advisory support based on the information provided. The final decision to buy, renegotiate, pause, or walk away remains yours as the buyer.',
+        ])));
+    }
+
+    /**
+     * @param  Collection<int, Report>  $reports
+     * @return array<int, array<string, mixed>>
+     */
+    private function dueDiligenceReportVersionsPayload(DdEngagement $engagement, Collection $reports): array
+    {
+        return $reports
+            ->values()
+            ->map(function (Report $report, int $index) use ($engagement): array {
+                $readiness = $this->buyerDecisionReadiness->forEngagement($engagement, $report);
+                $feedback = (array) data_get($report->metadata, 'advisor_client_reply', []);
+                $messageThreadId = data_get($feedback, 'client_message_thread_id');
+                $gateCount = count((array) ($readiness['gates'] ?? []));
+                $passedGateCount = collect((array) ($readiness['gates'] ?? []))
+                    ->filter(fn (mixed $gate): bool => is_array($gate) && (bool) ($gate['passed'] ?? false))
+                    ->count();
+
+                return [
+                    'id' => $report->getKey(),
+                    'version' => $index + 1,
+                    'type' => $report->type?->value,
+                    'type_label' => $report->type?->label() ?? 'DD report',
+                    'title' => $report->title,
+                    'generated_at' => $report->generated_at?->toIso8601String(),
+                    'review_status' => $report->review_status,
+                    'review_status_label' => $this->reportReviewStatusLabel((string) $report->review_status),
+                    'render_status' => $report->render_status,
+                    'render_status_label' => $this->reportRenderStatusLabel((string) $report->render_status),
+                    'decision_label' => (string) ($readiness['decision_label'] ?? 'Decision not ready'),
+                    'confidence' => (string) ($readiness['confidence'] ?? 'low'),
+                    'recommendation' => (string) ($readiness['recommendation'] ?? 'pending'),
+                    'recommendation_label' => $this->ddRecommendationLabel((string) ($readiness['recommendation'] ?? 'pending')),
+                    'gates_passed' => $passedGateCount,
+                    'gates_total' => $gateCount,
+                    'sections_count' => (int) ($report->sections_count ?? 0),
+                    'report_url' => route('advisor.reports.download', $report, absolute: false),
+                    'feedback_status' => (string) ($feedback['status'] ?? 'not_started'),
+                    'feedback_status_label' => $this->ddFeedbackStatusLabel((string) ($feedback['status'] ?? 'not_started')),
+                    'feedback_sent_at' => $feedback['sent_at'] ?? null,
+                    'suggested_reply_excerpt' => Str::limit((string) ($feedback['proposed_reply'] ?? ''), 180),
+                    'message_url' => is_string($messageThreadId) && $messageThreadId !== ''
+                        ? route('advisor.clients.messages.show', [$report->client_id, $messageThreadId], absolute: false)
+                        : null,
+                ];
+            })
+            ->sortByDesc('version')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function dueDiligenceFeedbackPriorities(array $decisionReadiness): array
+    {
+        $required = max(1, (int) ($decisionReadiness['required_workstreams'] ?? 0));
+        $completed = (int) ($decisionReadiness['completed_workstreams'] ?? 0);
+        $gates = collect((array) ($decisionReadiness['gates'] ?? []));
+        $passedGates = $gates->filter(fn (mixed $gate): bool => is_array($gate) && (bool) ($gate['passed'] ?? false))->count();
+        $gateTotal = max(1, $gates->count());
+        $flaggedFindings = (int) ($decisionReadiness['flagged_finding_count'] ?? 0);
+        $evidenceItems = (int) ($decisionReadiness['evidence_item_count'] ?? 0);
+        $verifiedFindings = (int) ($decisionReadiness['verified_finding_count'] ?? 0);
+
+        return collect([
+            [
+                'key' => 'workstream_coverage',
+                'title' => 'Workstream coverage',
+                'score' => min(100, (int) round(($completed / $required) * 100)),
+                'summary' => "{$completed}/{$required} DD workstreams are complete.",
+                'suggested_next_step' => $completed >= $required
+                    ? 'Keep the DD workstream record current before relying on the decision report.'
+                    : 'Complete the remaining DD workstreams before asking the client to rely on the decision report.',
+            ],
+            [
+                'key' => 'evidence_quality',
+                'title' => 'Evidence quality',
+                'score' => min(100, ($evidenceItems > 0 ? 35 : 0) + ($verifiedFindings > 0 ? 35 : 0) + ($flaggedFindings === 0 ? 30 : 0)),
+                'summary' => "{$evidenceItems} evidence item(s), {$verifiedFindings} verified finding(s), {$flaggedFindings} unresolved evidence flag(s).",
+                'suggested_next_step' => $flaggedFindings === 0
+                    ? 'Keep evidence references visible in the DD report and decision notes.'
+                    : 'Resolve or explain unresolved evidence flags before sending decision guidance.',
+            ],
+            [
+                'key' => 'buyer_decision_readiness',
+                'title' => 'Buyer decision readiness',
+                'score' => min(100, (int) round(($passedGates / $gateTotal) * 100)),
+                'summary' => (string) ($decisionReadiness['decision_headline'] ?? $decisionReadiness['label'] ?? 'Decision readiness has not been assessed.'),
+                'suggested_next_step' => $this->firstDueDiligenceBlocker($decisionReadiness)
+                    ?? 'Review the final buy / renegotiate / walk-away position with the client before release.',
+            ],
+        ])
+            ->sortBy('score')
+            ->values()
+            ->map(function (array $priority, int $index): array {
+                $score = (int) $priority['score'];
+                $status = match (true) {
+                    $score >= 90 => 'met',
+                    $score >= 50 => 'review',
+                    default => 'missing',
+                };
+
+                return [
+                    ...$priority,
+                    'rank' => $index + 1,
+                    'status' => $status,
+                    'status_label' => match ($status) {
+                        'met' => 'Met',
+                        'review' => 'Needs review',
+                        default => 'Missing',
+                    },
+                ];
+            })
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $priorities
+     */
+    private function dueDiligenceNextStep(array $decisionReadiness, array $priorities): string
+    {
+        $blocker = $this->firstDueDiligenceBlocker($decisionReadiness);
+        if ($blocker !== null) {
+            return $blocker;
+        }
+
+        $priority = collect($priorities)->firstWhere('status', 'review')
+            ?? collect($priorities)->firstWhere('status', 'missing');
+
+        if (is_array($priority)) {
+            return (string) $priority['suggested_next_step'];
+        }
+
+        return 'Review the DD decision report with the buyer and confirm the buy / renegotiate / walk-away decision.';
+    }
+
+    private function firstDueDiligenceBlocker(array $decisionReadiness): ?string
+    {
+        $blocker = collect((array) ($decisionReadiness['blockers'] ?? []))
+            ->map(fn (mixed $item): string => trim((string) $item))
+            ->first(fn (string $item): bool => $item !== '');
+
+        return is_string($blocker) && $blocker !== ''
+            ? 'Resolve this DD decision-readiness gap: '.$blocker.'.'
+            : null;
+    }
+
+    private function ddRecommendationLabel(string $recommendation): string
+    {
+        return match ($recommendation) {
+            DdEngagement::RECOMMENDATION_PROCEED => 'Proceed',
+            DdEngagement::RECOMMENDATION_RENEGOTIATE => 'Renegotiate',
+            DdEngagement::RECOMMENDATION_ABANDON => 'Walk away',
+            default => 'Pending',
+        };
+    }
+
+    private function ddFeedbackStatusLabel(string $status): string
+    {
+        return match ($status) {
+            'feedback_sent' => 'Feedback sent',
+            'feedback_saved' => 'Feedback saved',
+            'reviewed' => 'Reviewed',
+            'pending_review' => 'Pending review',
+            'not_required' => 'Review not required',
+            'not_generated' => 'Generate report first',
+            'not_started' => 'No feedback yet',
+            default => str($status)->replace('_', ' ')->title()->toString(),
+        };
+    }
+
+    private function reportReviewStatusLabel(string $status): string
+    {
+        return match ($status) {
+            'reviewed' => 'Reviewed',
+            'pending_review' => 'Pending review',
+            'not_required' => 'Review not required',
+            default => str($status)->replace('_', ' ')->title()->toString(),
+        };
+    }
+
+    private function reportRenderStatusLabel(string $status): string
+    {
+        return match ($status) {
+            Report::RENDER_STATUS_COMPOSING => 'Rendering',
+            Report::RENDER_STATUS_RENDERED => 'Rendered',
+            Report::RENDER_STATUS_FAILED => 'Render failed',
+            '' => 'Not rendered',
+            default => str($status)->replace('_', ' ')->title()->toString(),
+        };
+    }
+
+    private function formatDdCurrency(float $amount): string
+    {
+        return 'NZ$'.number_format($amount, 0);
     }
 
     /** @return list<array{id:string,method:string,suggested_mid:float|int|null,roi_ratio:float|int|null,created_at:?string,proposal_scope_summary:?string,strategic_plan_duration_months:int,strategic_plan_duration_label:string,strategic_plan_complexity_band:string,strategic_plan_complexity_label:string}> */
@@ -260,7 +641,7 @@ final class AdvisorClientShowPayloadBuilder
     }
 
     /** @return list<array{id:string,status:string,status_label:string,version:int,fee_method_label:string,brief:string,suggested_mid:float|int|null,roi_ratio:float|int|null,strategic_plan_duration_months:int,strategic_plan_duration_label:string,strategic_plan_complexity_band:string,strategic_plan_complexity_label:string,released_at:?string,expires_at:?string,days_to_expiry:?int,pdf_byte_size:?int,can_release:bool,can_recall:bool,can_renew:bool,release_url:string,recall_url:string,renew_url:string,view_url:string,download_url:string,strategic_plan_generate_url:?string}> */
-    private function proposalSummaries(Client $client): array
+    private function proposalSummaries(Client $client, bool $strategicPlanGenerationAllowed = true): array
     {
         return Proposal::query()
             ->with('feeCalculation.integrationScope')
@@ -268,7 +649,7 @@ final class AdvisorClientShowPayloadBuilder
             ->latest()
             ->limit(8)
             ->get()
-            ->map(function (Proposal $proposal): array {
+            ->map(function (Proposal $proposal) use ($strategicPlanGenerationAllowed): array {
                 $status = $proposal->status;
                 $method = $proposal->feeCalculation?->method->value ?? 'advisory';
                 $duration = $this->durations->forProposal($proposal);
@@ -300,7 +681,7 @@ final class AdvisorClientShowPayloadBuilder
                     'renew_url' => route('advisor.proposals.renew', $proposal, absolute: false),
                     'view_url' => route('advisor.proposals.show', $proposal, absolute: false),
                     'download_url' => route('advisor.proposals.download', $proposal, absolute: false),
-                    'strategic_plan_generate_url' => $status === ProposalStatus::Signed
+                    'strategic_plan_generate_url' => $strategicPlanGenerationAllowed && $status === ProposalStatus::Signed
                         ? route('advisor.proposals.strategic-plan.generate', $proposal, absolute: false)
                         : null,
                 ];

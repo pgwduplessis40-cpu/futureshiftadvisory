@@ -28,7 +28,7 @@ final class StrategicBudgetPresentationTest extends TestCase
         app(RequestContext::class)->apply('system', []);
     }
 
-    public function test_client_can_view_a_single_plan_budget_and_insights_document(): void
+    public function test_client_can_view_separate_plan_and_budget_pdf_outputs(): void
     {
         $renderer = new class implements PdfRenderer
         {
@@ -90,19 +90,39 @@ final class StrategicBudgetPresentationTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('portal/StrategicPlanBudget')
-                ->where('pdfUrl', route('portal.business-plan-budget.pdf', absolute: false)));
+                ->where('businessPlanPdfUrl', route('portal.business-plan-budget.business-plan.pdf', absolute: false))
+                ->where('budgetPdfUrl', route('portal.business-plan-budget.budget-pack.pdf', absolute: false)));
 
         $response = $this->actingAsMfa($clientUser)
-            ->get(route('portal.business-plan-budget.pdf'))
+            ->get(route('portal.business-plan-budget.business-plan.pdf'))
             ->assertOk()
             ->assertHeader('Content-Type', 'application/pdf')
             ->assertHeader('X-Content-Type-Options', 'nosniff');
 
         self::assertStringContainsString('inline; filename=', (string) $response->headers->get('Content-Disposition'));
+        self::assertStringContainsString('Client business plan', $renderer->html);
+        self::assertStringContainsString('Improve cash resilience and monthly reporting.', $renderer->html);
+        self::assertStringNotContainsString('Revenue, costs and net cash', $renderer->html);
+
+        $response = $this->actingAsMfa($clientUser)
+            ->get(route('portal.business-plan-budget.budget-pack.pdf'))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
+
+        self::assertStringContainsString('inline; filename=', (string) $response->headers->get('Content-Disposition'));
+        self::assertStringContainsString('Client budget pack', $renderer->html);
+        self::assertStringContainsString('Budget summary', $renderer->html);
         self::assertStringContainsString('Revenue, costs and net cash', $renderer->html);
         self::assertStringContainsString('Profit margin story', $renderer->html);
         self::assertStringContainsString('Cash available over time', $renderer->html);
         self::assertStringContainsString('Scenario sensitivity impact', $renderer->html);
         self::assertStringContainsString('Evidence confidence mix', $renderer->html);
+
+        $this->actingAsMfa($clientUser)
+            ->get(route('portal.business-plan-budget.pdf'))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
     }
 }

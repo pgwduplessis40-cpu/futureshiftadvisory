@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Budgets;
 
 use App\Enums\EngagementType;
+use App\Enums\QuestionnaireSet;
 use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\Document;
@@ -12,13 +13,18 @@ use App\Models\DocumentVerification;
 use App\Models\EconomicIndicator;
 use App\Models\FinancialSnapshot;
 use App\Models\Proposal;
+use App\Models\QuestionnaireAnswer;
+use App\Models\QuestionnaireResponse;
 use App\Models\StrategicBudget;
+use App\Models\StrategicBudgetAssessment;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\BudgetCalculator;
+use App\Services\Messaging\MessageThreadService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 final class StrategicBudgetService
 {
@@ -53,6 +59,7 @@ final class StrategicBudgetService
     public function __construct(
         private readonly BudgetCalculator $calculator,
         private readonly AuditWriter $audit,
+        private readonly MessageThreadService $messages,
     ) {}
 
     public function ensureForClient(Client $client, ?BusinessPlan $plan = null): StrategicBudget
@@ -194,24 +201,34 @@ final class StrategicBudgetService
     public function submit(StrategicBudget $budget, User $actor): StrategicBudget
     {
         abort_unless($budget->isUnlocked(), 422);
+
+        if ($this->reviewSubmittedOrLater($budget)) {
+            return $budget->refresh();
+        }
+
         abort_unless($this->businessPlanReady($budget), 422);
 
         $budget = $this->recompute($budget);
+        $submittedAt = now();
         $budget->forceFill([
             'status' => StrategicBudget::STATUS_SUBMITTED_FOR_REVIEW,
-            'submitted_at' => now(),
-            'business_plan_submitted_at' => now(),
+            'submitted_at' => $submittedAt,
+            'business_plan_submitted_at' => $submittedAt,
             'approved_at' => null,
             'approved_by_user_id' => null,
             'business_plan_approved_at' => null,
             'business_plan_approved_by_user_id' => null,
         ])->save();
 
+        $assessment = $this->createAssessmentVersion($budget->refresh(), $actor, StrategicBudgetAssessment::STATUS_SUBMITTED);
+
         $this->audit->record('strategic_budget.submitted', subject: $budget, actor: $actor, after: [
             'client_id' => $budget->client_id,
             'pathway' => $budget->pathway,
             'confidence_score' => data_get($budget->confidence, 'score'),
             'business_plan_readiness' => $this->businessPlanReadiness($budget),
+            'assessment_id' => $assessment->getKey(),
+            'version' => $assessment->round,
         ]);
 
         return $budget->refresh();
@@ -221,6 +238,8 @@ final class StrategicBudgetService
     {
         abort_unless($budget->isUnlocked(), 422);
         abort_unless($this->businessPlanReady($budget), 422);
+        abort_unless($this->reviewSubmittedOrLater($budget), 422);
+        abort_unless($this->latestAssessmentForCurrentSubmission($budget)?->assessed_at !== null, 422);
 
         $budget = $this->recompute($budget);
         $budget->forceFill([
@@ -231,6 +250,8 @@ final class StrategicBudgetService
             'business_plan_approved_by_user_id' => $actor->getKey(),
         ])->save();
 
+        $this->markLatestAssessmentApproved($budget->refresh(), $actor);
+
         $this->audit->record('strategic_budget.approved', subject: $budget, actor: $actor, after: [
             'client_id' => $budget->client_id,
             'pathway' => $budget->pathway,
@@ -238,6 +259,120 @@ final class StrategicBudgetService
         ]);
 
         return $budget->refresh();
+    }
+
+    public function assess(StrategicBudget $budget, User $actor): StrategicBudget
+    {
+        abort_unless($budget->isUnlocked(), 422);
+        abort_unless($this->businessPlanReady($budget), 422);
+        abort_unless($this->reviewSubmittedOrLater($budget), 422);
+
+        $before = [
+            'client_id' => $budget->client_id,
+            'pathway' => $budget->pathway,
+            'status' => $budget->status,
+            'confidence_score' => data_get($budget->confidence, 'score'),
+            'business_plan_readiness' => $this->businessPlanReadiness($budget),
+        ];
+
+        $budget = $this->recompute($budget);
+        $assessment = $this->recordAssessmentRun($budget->refresh(), $actor);
+
+        $this->audit->record('strategic_budget.assessed', subject: $budget, actor: $actor, before: $before, after: [
+            'client_id' => $budget->client_id,
+            'pathway' => $budget->pathway,
+            'status' => $budget->status,
+            'confidence_score' => data_get($budget->confidence, 'score'),
+            'business_plan_readiness' => $this->businessPlanReadiness($budget),
+            'active_flags' => count((array) ($budget->flags ?? [])),
+            'assessment_id' => $assessment->getKey(),
+            'version' => $assessment->round,
+        ]);
+
+        return $budget->refresh();
+    }
+
+    public function saveAssessmentFeedback(
+        StrategicBudget $budget,
+        User $actor,
+        string $advisorFeedback,
+        string $proposedReply,
+        bool $sendToClient,
+    ): StrategicBudgetAssessment {
+        abort_unless($budget->isUnlocked(), 422);
+
+        $assessment = $this->latestAssessmentForCurrentSubmission($budget)
+            ?? $this->latestAssessment($budget);
+
+        abort_unless($assessment instanceof StrategicBudgetAssessment && $assessment->assessed_at !== null, 422);
+
+        $advisorFeedback = trim($advisorFeedback);
+        $proposedReply = trim($proposedReply);
+        $suggestions = [
+            'suggested_feedback' => (string) ($assessment->suggested_feedback ?: $this->suggestedAdvisorFeedback(
+                $budget,
+                (array) ($assessment->assessment_criteria ?? []),
+                (array) ($assessment->priorities ?? []),
+            )),
+            'suggested_reply' => (string) ($assessment->suggested_reply ?: $this->suggestedClientReply(
+                $budget,
+                (array) ($assessment->assessment_criteria ?? []),
+                (array) ($assessment->priorities ?? []),
+            )),
+        ];
+        $feedbackSnapshot = $this->feedbackSnapshotWithEdits(
+            assessment: $assessment,
+            suggestions: $suggestions,
+            advisorFeedback: $advisorFeedback,
+            proposedReply: $proposedReply,
+            sentToClient: $sendToClient,
+            actor: $actor,
+        );
+
+        $message = null;
+        if ($sendToClient) {
+            $message = $this->messages->startClientThread(
+                client: $budget->client()->firstOrFail(),
+                sender: $actor,
+                subject: 'Business Plan & Budget assessment feedback',
+                body: $proposedReply,
+            );
+        }
+
+        $assessment->forceFill([
+            'status' => $sendToClient
+                ? StrategicBudgetAssessment::STATUS_FEEDBACK_SENT
+                : StrategicBudgetAssessment::STATUS_FEEDBACK_SAVED,
+            'advisor_feedback' => $advisorFeedback,
+            'proposed_reply' => $proposedReply,
+            'suggested_feedback' => $suggestions['suggested_feedback'],
+            'suggested_reply' => $suggestions['suggested_reply'],
+            'feedback_snapshot' => $feedbackSnapshot,
+            'feedback_saved_at' => now(),
+            'feedback_saved_by_user_id' => $actor->getKey(),
+            'feedback_sent_at' => $sendToClient ? now() : $assessment->feedback_sent_at,
+            'feedback_sent_by_user_id' => $sendToClient ? $actor->getKey() : $assessment->feedback_sent_by_user_id,
+            'client_message_thread_id' => $message?->thread_id ?? $assessment->client_message_thread_id,
+            'client_message_id' => $message?->getKey() ?? $assessment->client_message_id,
+        ])->save();
+
+        $this->audit->record(
+            $sendToClient
+                ? 'strategic_budget.assessment_feedback_sent'
+                : 'strategic_budget.assessment_feedback_saved',
+            subject: $assessment,
+            actor: $actor,
+            after: [
+                'strategic_budget_id' => $budget->getKey(),
+                'client_id' => $budget->client_id,
+                'version' => $assessment->round,
+                'feedback_changed_from_suggestion' => data_get($feedbackSnapshot, 'advisor_edits.feedback_changed_from_suggestion'),
+                'proposed_reply_changed_from_suggestion' => data_get($feedbackSnapshot, 'advisor_edits.proposed_reply_changed_from_suggestion'),
+                'client_message_thread_id' => $message?->thread_id,
+            ],
+        );
+
+        return $assessment->refresh();
     }
 
     /**
@@ -287,14 +422,18 @@ final class StrategicBudgetService
      */
     public function portalPayload(StrategicBudget $budget): array
     {
+        $budgetPackAvailable = $budget->pathway === StrategicBudget::PATHWAY_DUE_DILIGENCE
+            ? $budget->isUnlocked()
+            : $budget->accepted_snapshot_at !== null;
+
         return [
             ...$this->basePayload($budget),
             'update_url' => route('portal.business-plan-budget.update', absolute: false),
             'submit_url' => route('portal.business-plan-budget.submit', absolute: false),
             'export_url' => route('portal.business-plan-budget.export', absolute: false),
-            'budget_pack_available' => $budget->accepted_snapshot_at !== null,
-            'budget_pack_locked_reason' => $budget->accepted_snapshot_at === null
-                ? 'Budget Pack PDF unlocks automatically after the proposal is accepted.'
+            'budget_pack_available' => $budgetPackAvailable,
+            'budget_pack_locked_reason' => ! $budgetPackAvailable
+                ? $this->budgetPackLockedReason($budget)
                 : null,
         ];
     }
@@ -307,8 +446,27 @@ final class StrategicBudgetService
         return [
             ...$this->basePayload($budget),
             'approve_url' => route('advisor.clients.strategic-budget.approve', $budget->client_id, absolute: false),
+            'run_assessment_url' => route('advisor.clients.strategic-budget.assess', $budget->client_id, absolute: false),
+            'can_run_assessment' => $budget->isUnlocked()
+                && $this->businessPlanReady($budget)
+                && $this->reviewSubmittedOrLater($budget),
+            'assessment_ready_for_approval' => $this->latestAssessmentForCurrentSubmission($budget)?->assessed_at !== null,
+            'assessment_action_label' => $this->reviewApprovedOrLater($budget)
+                ? 'Run reassessment'
+                : 'Run assessment',
+            'assessment_feedback' => $this->assessmentFeedbackPayload($budget),
+            'assessment_history' => $this->assessmentHistoryPayload($budget),
             'advisor_goals_url' => route('advisor.clients.strategic-budget.advisor-goals', $budget->client_id, absolute: false),
         ];
+    }
+
+    private function budgetPackLockedReason(StrategicBudget $budget): string
+    {
+        if ($budget->pathway === StrategicBudget::PATHWAY_DUE_DILIGENCE) {
+            return 'Upload and verify a P&L or management accounts file to unlock the Budget PDF.';
+        }
+
+        return 'Budget Pack PDF unlocks automatically after the proposal is accepted.';
     }
 
     /**
@@ -486,6 +644,8 @@ final class StrategicBudgetService
     {
         $computed = $this->computedForRead($budget);
         $confidence = (array) ($budget->confidence ?? []);
+        $reviewApprovedOrLater = $this->reviewApprovedOrLater($budget);
+        $reviewSubmittedOrLater = $this->reviewSubmittedOrLater($budget);
 
         return [
             'id' => $budget->id,
@@ -517,10 +677,17 @@ final class StrategicBudgetService
             'flags' => $budget->flags ?? [],
             'confidence' => $confidence,
             'analytics' => $this->analyticsPayload($budget),
+            'assessment_criteria' => $this->assessmentCriteria($budget, $computed, $confidence),
             'readiness_score' => (int) data_get($confidence, 'score', 0),
             'progress_score' => (int) data_get($confidence, 'progress_score', 0),
             'submitted_at' => $budget->submitted_at?->toIso8601String(),
             'approved_at' => $budget->approved_at?->toIso8601String(),
+            'can_submit_for_review' => $budget->isUnlocked() && ! $reviewSubmittedOrLater,
+            'review_submitted_or_later' => $reviewSubmittedOrLater,
+            'review_approved_or_later' => $reviewApprovedOrLater,
+            'review_action_label' => $reviewApprovedOrLater
+                ? 'Advisor approved'
+                : ($reviewSubmittedOrLater ? 'Submitted for review' : 'Submit for review'),
             'used_in_proposal_at' => $budget->used_in_proposal_at?->toIso8601String(),
             'accepted_snapshot_at' => $budget->accepted_snapshot_at?->toIso8601String(),
         ];
@@ -959,6 +1126,725 @@ final class StrategicBudgetService
         return $actions->values()->all();
     }
 
+    /**
+     * @param  array<string, mixed>  $computed
+     * @param  array<string, mixed>  $confidence
+     * @return array<int, array{key:string,title:string,status:string,status_label:string,score:int,summary:string,evidence:array<int, string>}>
+     */
+    private function assessmentCriteria(StrategicBudget $budget, array $computed, array $confidence): array
+    {
+        $sections = collect((array) ($budget->business_plan_sections ?? []))
+            ->filter(fn (mixed $section): bool => is_array($section))
+            ->keyBy(fn (array $section): string => (string) ($section['key'] ?? ''));
+        $sectionComplete = fn (string $key): bool => trim((string) data_get($sections->get($key), 'answer', '')) !== '';
+        $sectionTitle = fn (string $key): string => (string) data_get(
+            $sections->get($key),
+            'title',
+            str($key)->replace('_', ' ')->title()->toString(),
+        );
+        $completedSections = collect(self::PLAN_SECTION_KEYS)
+            ->filter(fn (string $key): bool => $sectionComplete($key))
+            ->count();
+        $missingSections = collect(self::PLAN_SECTION_KEYS)
+            ->reject(fn (string $key): bool => $sectionComplete($key))
+            ->map(fn (string $key): string => $sectionTitle($key))
+            ->values()
+            ->all();
+
+        $sourceFinancials = (array) ($budget->source_financials ?? []);
+        $sourceFinancialCount = (int) ($sourceFinancials['count'] ?? 0);
+        $hasFinancials = (bool) ($sourceFinancials['unlocked'] ?? false);
+        $sourceDraftCount = collect((array) ($budget->business_plan_source_drafts ?? []))
+            ->filter(fn (mixed $draft): bool => is_array($draft)
+                && (
+                    trim((string) ($draft['body'] ?? '')) !== ''
+                    || trim((string) ($draft['source_label'] ?? '')) !== ''
+                ))
+            ->count();
+        $hasRows = fn (string $attribute): bool => collect((array) ($budget->{$attribute} ?? []))
+            ->filter(fn (mixed $row): bool => is_array($row)
+                && (
+                    trim((string) ($row['label'] ?? '')) !== ''
+                    || (is_numeric($row['amount'] ?? null) && (float) ($row['amount'] ?? 0) > 0)
+                ))
+            ->isNotEmpty();
+        $missingAssumptions = $this->missingAssumptions($computed);
+        $hasBudgetInputs = $this->hasBudgetInputs($budget);
+        $hasRevenueForecast = $hasRows('revenue_forecast');
+        $hasImplementationCosts = $hasRows('implementation_costs');
+        $hasMonthlyCosts = $hasRows('monthly_fixed_costs');
+        $hasFunding = $hasRows('funding_sources') || $hasRows('funding_scenarios');
+        $marketComplete = $sectionComplete('market_customers');
+        $operationsComplete = $sectionComplete('operations');
+        $evidenceComplete = $sectionComplete('evidence_documents');
+        $riskSectionCount = collect(['risks', 'swot', 'action_priorities'])
+            ->filter(fn (string $key): bool => $sectionComplete($key))
+            ->count();
+        $availableAfterLaunch = (float) data_get($computed, 'available_after_launch', 0);
+        $runwayOpenEnded = (bool) data_get($computed, 'runway_open_ended', false);
+        $runwayMonths = data_get($computed, 'runway_months');
+        $expectedRunway = $budget->expected_runway_months;
+        $runwayMeetsRequirement = $runwayOpenEnded
+            || $expectedRunway === null
+            || (is_numeric($runwayMonths) && (int) $runwayMonths >= (int) $expectedRunway);
+        $breakEvenVisible = data_get($computed, 'break_even_year') !== null
+            || (bool) data_get($computed, 'break_even_reached', false);
+        $confidenceScore = (int) data_get($confidence, 'score', 0);
+        $activeFlags = count((array) ($budget->flags ?? []));
+        $reviewSubmitted = $this->reviewSubmittedOrLater($budget);
+        $financialEvidenceScore = match (true) {
+            ! $hasFinancials => 0,
+            $sourceFinancialCount >= 2 => 100,
+            default => 70,
+        };
+        $evidenceLinkageScore = min(
+            100,
+            ($evidenceComplete ? 50 : 0)
+            + min(25, $sourceDraftCount * 10)
+            + min(25, $sourceFinancialCount * 10),
+        );
+        $fundingScore = ($hasFunding ? 40 : 0)
+            + ($availableAfterLaunch >= 0 ? 25 : 0)
+            + ($runwayMeetsRequirement ? 20 : 0)
+            + ($breakEvenVisible ? 15 : 0);
+
+        return [
+            $this->criterion(
+                'plan_structure',
+                'Plan structure and completeness',
+                $completedSections === count(self::PLAN_SECTION_KEYS)
+                    ? 'met'
+                    : ($completedSections > 0 ? 'review' : 'missing'),
+                $this->businessPlanReadiness($budget),
+                $completedSections.'/'.count(self::PLAN_SECTION_KEYS).' DD BP&B plan sections are complete.',
+                $missingSections === []
+                    ? ['All required DD BP&B sections have client answers.']
+                    : ['Missing sections: '.implode(', ', $missingSections).'.'],
+            ),
+            $this->criterion(
+                'dd_evidence_linkage',
+                $budget->pathway === StrategicBudget::PATHWAY_DUE_DILIGENCE
+                    ? 'DD evidence linkage'
+                    : 'Evidence linkage',
+                $evidenceComplete && ($sourceDraftCount > 0 || $sourceFinancialCount > 0)
+                    ? 'met'
+                    : ($evidenceComplete || $sourceDraftCount > 0 || $sourceFinancialCount > 0 ? 'review' : 'missing'),
+                $evidenceLinkageScore,
+                $sourceDraftCount.' source draft(s) and '.$sourceFinancialCount.' verified financial evidence file(s) support the plan.',
+                [
+                    $evidenceComplete
+                        ? 'Evidence/documents section is complete.'
+                        : 'Evidence/documents section needs completion.',
+                    $sourceFinancialCount > 0
+                        ? $sourceFinancialCount.' verified financial upload(s) are linked.'
+                        : 'No verified financial uploads are linked yet.',
+                ],
+            ),
+            $this->criterion(
+                'financial_evidence_quality',
+                'Financial evidence quality',
+                ! $hasFinancials
+                    ? 'missing'
+                    : ($sourceFinancialCount >= 2 ? 'met' : 'review'),
+                $financialEvidenceScore,
+                $hasFinancials
+                    ? $sourceFinancialCount.' qualifying P&L or management-accounts upload(s) are available.'
+                    : 'A verified P&L or management-accounts upload is required.',
+                [
+                    $sourceFinancialCount >= 2
+                        ? 'Evidence base is stronger than the minimum unlock threshold.'
+                        : 'One upload is enough to start, but another source file improves reliance.',
+                ],
+            ),
+            $this->criterion(
+                'forecast_assumptions',
+                'Forecast assumptions',
+                ! $hasBudgetInputs
+                    ? 'missing'
+                    : ($missingAssumptions === [] ? 'met' : 'review'),
+                $hasBudgetInputs ? max(0, 100 - (count($missingAssumptions) * 20)) : 0,
+                $missingAssumptions === []
+                    ? 'No missing growth, margin, inflation, or profit-target assumptions are active.'
+                    : count($missingAssumptions).' assumption(s) need detail.',
+                $missingAssumptions === []
+                    ? ['Budget assumptions are complete for the current forecast.']
+                    : ['Missing assumptions: '.collect($missingAssumptions)->pluck('label')->implode(', ').'.'],
+            ),
+            $this->criterion(
+                'revenue_customer_risk',
+                'Revenue and customer risk',
+                $hasRevenueForecast && $marketComplete
+                    ? 'met'
+                    : ($hasRevenueForecast || $marketComplete ? 'review' : 'missing'),
+                ($hasRevenueForecast ? 50 : 0) + ($marketComplete ? 50 : 0),
+                $hasRevenueForecast
+                    ? 'Revenue forecast is present and can be checked against customer/market assumptions.'
+                    : 'Revenue forecast is missing.',
+                [
+                    $marketComplete
+                        ? 'Market/customers section is complete.'
+                        : 'Market/customers section needs completion.',
+                    $hasRevenueForecast
+                        ? 'Revenue rows are present.'
+                        : 'Revenue rows need to be added.',
+                ],
+            ),
+            $this->criterion(
+                'cost_integration_budget',
+                'Cost and integration budget',
+                $hasImplementationCosts && $hasMonthlyCosts && $operationsComplete
+                    ? 'met'
+                    : ($hasImplementationCosts || $hasMonthlyCosts || $operationsComplete ? 'review' : 'missing'),
+                ($operationsComplete ? 34 : 0) + ($hasImplementationCosts ? 33 : 0) + ($hasMonthlyCosts ? 33 : 0),
+                'Checks acquisition/setup costs, recurring costs, and the operating handover/integration narrative.',
+                [
+                    $operationsComplete ? 'Operations section is complete.' : 'Operations section needs completion.',
+                    $hasImplementationCosts ? 'Implementation/setup cost rows are present.' : 'Implementation/setup cost rows are missing.',
+                    $hasMonthlyCosts ? 'Monthly fixed cost rows are present.' : 'Monthly fixed cost rows are missing.',
+                ],
+            ),
+            $this->criterion(
+                'funding_runway_affordability',
+                'Funding, runway, and affordability',
+                ! $hasFunding
+                    ? 'missing'
+                    : ($availableAfterLaunch >= 0 && $runwayMeetsRequirement ? 'met' : 'review'),
+                $fundingScore,
+                $hasFunding
+                    ? 'Funding has been entered; affordability depends on cash after setup, runway, and break-even visibility.'
+                    : 'Funding sources are missing.',
+                [
+                    'Available after setup/acquisition costs: '.$this->money($availableAfterLaunch).'.',
+                    $runwayOpenEnded
+                        ? 'Runway is open ended.'
+                        : 'Runway is '.(is_numeric($runwayMonths) ? (int) $runwayMonths.' months' : 'not yet visible').'.',
+                    $breakEvenVisible ? 'Break-even timing is visible.' : 'Break-even timing is not yet visible.',
+                ],
+            ),
+            $this->criterion(
+                'risk_action_readiness',
+                'Risk, SWOT, and first 100-day actions',
+                $riskSectionCount === 3
+                    ? 'met'
+                    : ($riskSectionCount > 0 ? 'review' : 'missing'),
+                (int) round(($riskSectionCount / 3) * 100),
+                $riskSectionCount.'/3 risk and action sections are complete.',
+                [
+                    $sectionComplete('risks') ? 'Risks section is complete.' : 'Risks section needs completion.',
+                    $sectionComplete('swot') ? 'SWOT section is complete.' : 'SWOT section needs completion.',
+                    $sectionComplete('action_priorities') ? 'Action priorities are complete.' : 'Action priorities need completion.',
+                ],
+            ),
+            $this->criterion(
+                'advisor_funder_readiness',
+                'Advisor and funder readiness',
+                $confidenceScore >= 80 && $this->businessPlanReady($budget) && $reviewSubmitted && $hasFinancials
+                    ? 'met'
+                    : ($confidenceScore >= 55 || $reviewSubmitted ? 'review' : 'missing'),
+                $confidenceScore,
+                'Overall BP&B confidence is '.$confidenceScore.'/100 with '.$activeFlags.' active readiness flag(s).',
+                [
+                    $reviewSubmitted ? 'BP&B has been submitted for advisor review.' : 'BP&B still needs to be submitted for advisor review.',
+                    $this->businessPlanReady($budget) ? 'Business plan is complete.' : 'Business plan still has incomplete sections.',
+                    $hasFinancials ? 'Financial evidence is available.' : 'Financial evidence is not yet available.',
+                ],
+            ),
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $evidence
+     * @return array{key:string,title:string,status:string,status_label:string,score:int,summary:string,evidence:array<int, string>}
+     */
+    private function criterion(string $key, string $title, string $status, int $score, string $summary, array $evidence): array
+    {
+        $safeStatus = in_array($status, ['met', 'review', 'missing'], true) ? $status : 'review';
+
+        return [
+            'key' => $key,
+            'title' => $title,
+            'status' => $safeStatus,
+            'status_label' => match ($safeStatus) {
+                'met' => 'Met',
+                'missing' => 'Missing',
+                default => 'Needs review',
+            },
+            'score' => max(0, min(100, $score)),
+            'summary' => $summary,
+            'evidence' => collect($evidence)
+                ->map(fn (string $item): string => trim($item))
+                ->filter()
+                ->values()
+                ->all(),
+        ];
+    }
+
+    private function createAssessmentVersion(
+        StrategicBudget $budget,
+        User $actor,
+        string $status,
+    ): StrategicBudgetAssessment {
+        $budget = $budget->refresh();
+        $computed = $this->computedForRead($budget);
+        $confidence = (array) ($budget->confidence ?? []);
+        $criteria = $this->assessmentCriteria($budget, $computed, $confidence);
+
+        return DB::transaction(function () use ($budget, $actor, $status, $computed, $confidence, $criteria): StrategicBudgetAssessment {
+            StrategicBudget::query()
+                ->whereKey($budget->getKey())
+                ->lockForUpdate()
+                ->first();
+
+            $round = ((int) StrategicBudgetAssessment::query()
+                ->where('strategic_budget_id', $budget->getKey())
+                ->max('round')) + 1;
+
+            $assessment = StrategicBudgetAssessment::query()->create([
+                'strategic_budget_id' => $budget->getKey(),
+                'client_id' => $budget->client_id,
+                'round' => $round,
+                'status' => $status,
+                'snapshot' => $this->assessmentSnapshot($budget, $computed, $confidence, $criteria),
+                'assessment_criteria' => $criteria,
+                'scores' => $this->assessmentScores($budget, $confidence),
+                'priorities' => [],
+                'submitted_at' => $budget->business_plan_submitted_at ?? $budget->submitted_at ?? now(),
+                'submitted_by_user_id' => $actor->getKey(),
+            ]);
+
+            $this->audit->record('strategic_budget.version_created', subject: $assessment, actor: $actor, after: [
+                'strategic_budget_id' => $budget->getKey(),
+                'client_id' => $budget->client_id,
+                'version' => $assessment->round,
+                'status' => $assessment->status,
+            ]);
+
+            return $assessment->refresh();
+        });
+    }
+
+    private function recordAssessmentRun(StrategicBudget $budget, User $actor): StrategicBudgetAssessment
+    {
+        $budget = $budget->refresh();
+        $computed = $this->computedForRead($budget);
+        $confidence = (array) ($budget->confidence ?? []);
+        $criteria = $this->assessmentCriteria($budget, $computed, $confidence);
+        $priorities = $this->feedbackPriorities($criteria);
+        $assessment = $this->latestAssessmentForCurrentSubmission($budget)
+            ?? $this->createAssessmentVersion($budget, $actor, StrategicBudgetAssessment::STATUS_SUBMITTED);
+        $suggestedFeedback = $this->suggestedAdvisorFeedback($budget, $criteria, $priorities);
+        $suggestedReply = $this->suggestedClientReply($budget, $criteria, $priorities);
+
+        $assessment->forceFill([
+            'status' => StrategicBudgetAssessment::STATUS_ASSESSED,
+            'snapshot' => $this->assessmentSnapshot($budget, $computed, $confidence, $criteria),
+            'assessment_criteria' => $criteria,
+            'scores' => $this->assessmentScores($budget, $confidence),
+            'priorities' => $priorities,
+            'suggested_feedback' => $suggestedFeedback,
+            'suggested_reply' => $suggestedReply,
+            'advisor_feedback' => $assessment->advisor_feedback ?: $suggestedFeedback,
+            'proposed_reply' => $assessment->proposed_reply ?: $suggestedReply,
+            'assessed_at' => now(),
+            'assessed_by_user_id' => $actor->getKey(),
+        ])->save();
+
+        return $assessment->refresh();
+    }
+
+    private function markLatestAssessmentApproved(StrategicBudget $budget, User $actor): void
+    {
+        $assessment = $this->latestAssessmentForCurrentSubmission($budget)
+            ?? $this->latestAssessment($budget);
+
+        if (! $assessment instanceof StrategicBudgetAssessment) {
+            return;
+        }
+
+        $assessment->forceFill([
+            'status' => StrategicBudgetAssessment::STATUS_APPROVED,
+            'approved_at' => now(),
+            'approved_by_user_id' => $actor->getKey(),
+        ])->save();
+    }
+
+    private function latestAssessment(StrategicBudget $budget): ?StrategicBudgetAssessment
+    {
+        return StrategicBudgetAssessment::query()
+            ->where('strategic_budget_id', $budget->getKey())
+            ->latest('round')
+            ->first();
+    }
+
+    private function latestAssessmentForCurrentSubmission(StrategicBudget $budget): ?StrategicBudgetAssessment
+    {
+        $submittedAt = $budget->business_plan_submitted_at ?? $budget->submitted_at;
+
+        if ($submittedAt === null) {
+            return $this->latestAssessment($budget);
+        }
+
+        return StrategicBudgetAssessment::query()
+            ->where('strategic_budget_id', $budget->getKey())
+            ->where('submitted_at', $submittedAt)
+            ->latest('round')
+            ->first();
+    }
+
+    /**
+     * @param  array<string, mixed>  $computed
+     * @param  array<string, mixed>  $confidence
+     * @param  array<int, array<string, mixed>>  $criteria
+     * @return array<string, mixed>
+     */
+    private function assessmentSnapshot(
+        StrategicBudget $budget,
+        array $computed,
+        array $confidence,
+        array $criteria,
+    ): array {
+        return [
+            'captured_at' => now()->toIso8601String(),
+            'strategic_budget_id' => $budget->getKey(),
+            'client_id' => $budget->client_id,
+            'pathway' => $budget->pathway,
+            'status' => $budget->status,
+            'horizon_months' => $budget->horizon_months,
+            'expected_runway_months' => $budget->expected_runway_months,
+            'business_plan_sections' => $budget->business_plan_sections ?? [],
+            'business_plan_source_drafts' => $budget->business_plan_source_drafts ?? [],
+            'business_plan_prompts' => $budget->business_plan_prompts ?? [],
+            'source_financials' => $budget->source_financials ?? [],
+            'assumptions' => $budget->assumptions ?? [],
+            'implementation_costs' => $budget->implementation_costs ?? [],
+            'monthly_fixed_costs' => $budget->monthly_fixed_costs ?? [],
+            'future_costs' => $budget->future_costs ?? [],
+            'revenue_forecast' => $budget->revenue_forecast ?? [],
+            'funding_sources' => $budget->funding_sources ?? [],
+            'funding_scenarios' => $budget->funding_scenarios ?? [],
+            'computed' => $computed,
+            'flags' => $budget->flags ?? [],
+            'confidence' => $confidence,
+            'assessment_criteria' => $criteria,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $confidence
+     * @return array<string, int>
+     */
+    private function assessmentScores(StrategicBudget $budget, array $confidence): array
+    {
+        return [
+            'business_plan_readiness' => $this->businessPlanReadiness($budget),
+            'progress' => (int) data_get($confidence, 'progress_score', 0),
+            'readiness' => (int) data_get($confidence, 'score', 0),
+            'confidence' => (int) data_get($confidence, 'score', 0),
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $criteria
+     * @return array<int, array<string, mixed>>
+     */
+    private function feedbackPriorities(array $criteria): array
+    {
+        $statusRank = [
+            'missing' => 0,
+            'review' => 1,
+            'met' => 2,
+        ];
+
+        return collect($criteria)
+            ->filter(fn (mixed $criterion): bool => is_array($criterion))
+            ->sortBy(fn (array $criterion): string => sprintf(
+                '%d-%03d-%s',
+                $statusRank[(string) ($criterion['status'] ?? 'review')] ?? 1,
+                (int) ($criterion['score'] ?? 0),
+                (string) ($criterion['title'] ?? ''),
+            ))
+            ->take(3)
+            ->values()
+            ->map(fn (array $criterion, int $index): array => [
+                'rank' => $index + 1,
+                'key' => (string) ($criterion['key'] ?? ''),
+                'title' => (string) ($criterion['title'] ?? 'Assessment priority'),
+                'score' => (int) ($criterion['score'] ?? 0),
+                'status' => (string) ($criterion['status'] ?? 'review'),
+                'status_label' => (string) ($criterion['status_label'] ?? 'Needs review'),
+                'summary' => (string) ($criterion['summary'] ?? ''),
+                'evidence' => array_values((array) ($criterion['evidence'] ?? [])),
+                'suggested_next_step' => $this->priorityNextStep((string) ($criterion['key'] ?? ''), (string) ($criterion['status'] ?? 'review')),
+            ])
+            ->all();
+    }
+
+    private function priorityNextStep(string $key, string $status): string
+    {
+        $prefix = $status === 'met'
+            ? 'Keep this evidence current: '
+            : 'Ask the client to strengthen this area: ';
+
+        return $prefix.match ($key) {
+            'plan_structure' => 'complete any missing BP&B sections so the advisor can review the whole funding story.',
+            'dd_evidence_linkage' => 'link the DD findings, verified evidence, and source documents that support the plan.',
+            'financial_evidence_quality' => 'upload or confirm additional P&L or management accounts evidence before relying on the budget.',
+            'forecast_assumptions' => 'explain the growth, margin, inflation, timing, and profit assumptions behind the forecast.',
+            'revenue_customer_risk' => 'show how revenue is supported by customer evidence, market position, retention, and concentration risk.',
+            'cost_integration_budget' => 'confirm setup, handover, recurring, and integration costs with owner and timing detail.',
+            'funding_runway_affordability' => 'show the funding source, available cash after setup, runway position, and affordability buffer.',
+            'risk_action_readiness' => 'turn the DD risks and SWOT into first 100-day actions with clear priorities.',
+            'advisor_funder_readiness' => 'make the plan reliable enough for advisor approval and funding conversations.',
+            default => 'add the missing evidence and plain-English explanation for this assessment item.',
+        };
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $criteria
+     * @param  array<int, array<string, mixed>>  $priorities
+     */
+    private function suggestedAdvisorFeedback(StrategicBudget $budget, array $criteria, array $priorities): string
+    {
+        $confidenceScore = (int) data_get($budget->confidence, 'score', 0);
+        $businessPlanScore = $this->businessPlanReadiness($budget);
+        $reviewCount = collect($criteria)
+            ->filter(fn (array $criterion): bool => ($criterion['status'] ?? null) !== 'met')
+            ->count();
+        $intro = sprintf(
+            'BP&B assessment completed: readiness is %d/100 and business-plan completeness is %d/100.',
+            $confidenceScore,
+            $businessPlanScore,
+        );
+
+        if ($priorities === [] || $reviewCount === 0) {
+            return $intro."\n\nThe current DD-sourced Business Plan & Budget is ready for advisor approval, subject to final professional judgement and any required funding-provider checks.";
+        }
+
+        return implode("\n\n", [
+            $intro,
+            sprintf('%d assessment area(s) still need advisor judgement or client strengthening before approval.', $reviewCount),
+            'Suggested feedback priorities:',
+            $this->formatFeedbackPriorities($priorities, includeScores: true),
+            'Use the suggested client reply as a starting point; edit it before sending if commercial wording or funding context needs nuance.',
+        ]);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $criteria
+     * @param  array<int, array<string, mixed>>  $priorities
+     */
+    private function suggestedClientReply(StrategicBudget $budget, array $criteria, array $priorities): string
+    {
+        $clientName = $this->clientDisplayName($budget);
+        $confidenceScore = (int) data_get($budget->confidence, 'score', 0);
+        $openPriorities = collect($priorities)
+            ->filter(fn (array $priority): bool => ($priority['status'] ?? null) !== 'met')
+            ->values()
+            ->all();
+
+        if ($openPriorities === []) {
+            return implode("\n\n", [
+                "Hi {$clientName},",
+                "I have reviewed the DD-sourced Business Plan & Budget. The current assessment is {$confidenceScore}/100, and the plan is ready for advisor approval subject to final checks.",
+                'I will confirm the approval position and let you know if any funding-provider wording needs to be tightened before you use the plan and budget for funding discussions.',
+            ]);
+        }
+
+        return implode("\n\n", [
+            "Hi {$clientName},",
+            'I have reviewed the DD-sourced Business Plan & Budget. You do not need to start again; the useful next step is to strengthen the few areas that will matter most for approval and funding conversations.',
+            $this->formatFeedbackPriorities($openPriorities, includeScores: false),
+            'Once you have updated those points, please resubmit the Business Plan & Budget and I will run the next assessment version.',
+        ]);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $priorities
+     */
+    private function formatFeedbackPriorities(array $priorities, bool $includeScores): string
+    {
+        return collect($priorities)
+            ->values()
+            ->map(function (array $priority, int $index) use ($includeScores): string {
+                $heading = sprintf('%d. %s', $index + 1, (string) ($priority['title'] ?? 'Assessment priority'));
+                if ($includeScores) {
+                    $heading .= sprintf(' (%d/100, %s)', (int) ($priority['score'] ?? 0), (string) ($priority['status_label'] ?? 'Needs review'));
+                }
+
+                return implode("\n", array_values(array_filter([
+                    $heading,
+                    (string) ($priority['summary'] ?? ''),
+                    'Suggested next step: '.(string) ($priority['suggested_next_step'] ?? 'Strengthen this area before approval.'),
+                ])));
+            })
+            ->implode("\n\n");
+    }
+
+    private function clientDisplayName(StrategicBudget $budget): string
+    {
+        $client = $budget->relationLoaded('client')
+            ? $budget->client
+            : $budget->client()->first();
+
+        if ($client instanceof Client) {
+            return trim((string) ($client->trading_name ?: $client->legal_name)) ?: 'there';
+        }
+
+        return 'there';
+    }
+
+    /**
+     * @param  array{suggested_feedback:string,suggested_reply:string}  $suggestions
+     * @return array<string, mixed>
+     */
+    private function feedbackSnapshotWithEdits(
+        StrategicBudgetAssessment $assessment,
+        array $suggestions,
+        string $advisorFeedback,
+        string $proposedReply,
+        bool $sentToClient,
+        User $actor,
+    ): array {
+        $advisorFeedback = trim($advisorFeedback);
+        $proposedReply = trim($proposedReply);
+        $suggestedFeedback = trim($suggestions['suggested_feedback']);
+        $suggestedReply = trim($suggestions['suggested_reply']);
+
+        return [
+            'saved_at' => now()->toIso8601String(),
+            'saved_by_user_id' => $actor->getKey(),
+            'sent_to_client' => $sentToClient,
+            'source' => [
+                'strategic_budget_assessment_id' => $assessment->getKey(),
+                'strategic_budget_id' => $assessment->strategic_budget_id,
+                'client_id' => $assessment->client_id,
+                'version' => $assessment->round,
+            ],
+            'suggested_feedback' => [
+                'sha256' => $this->textHash($suggestedFeedback),
+                'length' => Str::length($suggestedFeedback),
+            ],
+            'suggested_reply' => [
+                'sha256' => $this->textHash($suggestedReply),
+                'length' => Str::length($suggestedReply),
+            ],
+            'advisor_edits' => [
+                'feedback_sha256' => $this->textHash($advisorFeedback),
+                'proposed_reply_sha256' => $this->textHash($proposedReply),
+                'feedback_changed_from_suggestion' => $this->textHash($advisorFeedback) !== $this->textHash($suggestedFeedback),
+                'proposed_reply_changed_from_suggestion' => $this->textHash($proposedReply) !== $this->textHash($suggestedReply),
+                'feedback_length_delta' => Str::length($advisorFeedback) - Str::length($suggestedFeedback),
+                'proposed_reply_length_delta' => Str::length($proposedReply) - Str::length($suggestedReply),
+            ],
+        ];
+    }
+
+    private function textHash(string $text): string
+    {
+        return hash('sha256', Str::squish($text));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function assessmentFeedbackPayload(StrategicBudget $budget): array
+    {
+        $assessment = $this->latestAssessmentForCurrentSubmission($budget)
+            ?? $this->latestAssessment($budget);
+
+        $canSave = $assessment instanceof StrategicBudgetAssessment
+            && $assessment->assessed_at !== null;
+
+        return [
+            'id' => $assessment?->getKey(),
+            'version' => $assessment?->round,
+            'status' => $assessment?->status ?? 'not_started',
+            'status_label' => $assessment instanceof StrategicBudgetAssessment
+                ? $this->assessmentVersionStatusLabel((string) $assessment->status)
+                : 'Run assessment first',
+            'advisor_feedback' => (string) ($assessment?->advisor_feedback ?? $assessment?->suggested_feedback ?? ''),
+            'proposed_reply' => (string) ($assessment?->proposed_reply ?? $assessment?->suggested_reply ?? ''),
+            'suggested_feedback' => (string) ($assessment?->suggested_feedback ?? ''),
+            'suggested_reply' => (string) ($assessment?->suggested_reply ?? ''),
+            'priorities' => $assessment instanceof StrategicBudgetAssessment
+                ? (array) ($assessment->priorities ?? [])
+                : [],
+            'sent_at' => $assessment?->feedback_sent_at?->toIso8601String(),
+            'saved_at' => $assessment?->feedback_saved_at?->toIso8601String(),
+            'can_save' => $canSave,
+            'can_send' => $canSave,
+            'action_url' => route('advisor.clients.strategic-budget.feedback', $budget->client_id, absolute: false),
+            'message_url' => $assessment?->client_message_thread_id
+                ? route('advisor.clients.messages.show', [$budget->client_id, $assessment->client_message_thread_id], absolute: false)
+                : null,
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function assessmentHistoryPayload(StrategicBudget $budget): array
+    {
+        $previousScore = null;
+
+        return StrategicBudgetAssessment::query()
+            ->where('strategic_budget_id', $budget->getKey())
+            ->orderBy('round')
+            ->get()
+            ->map(function (StrategicBudgetAssessment $assessment) use (&$previousScore): array {
+                $scores = (array) ($assessment->scores ?? []);
+                $readiness = is_numeric($scores['readiness'] ?? null) ? (int) $scores['readiness'] : null;
+                $scoreDelta = $readiness === null || $previousScore === null
+                    ? null
+                    : $readiness - $previousScore;
+                if ($readiness !== null) {
+                    $previousScore = $readiness;
+                }
+
+                return [
+                    'id' => $assessment->getKey(),
+                    'version' => $assessment->round,
+                    'status' => (string) $assessment->status,
+                    'status_label' => $this->assessmentVersionStatusLabel((string) $assessment->status),
+                    'submitted_at' => $assessment->submitted_at?->toIso8601String(),
+                    'assessed_at' => $assessment->assessed_at?->toIso8601String(),
+                    'feedback_sent_at' => $assessment->feedback_sent_at?->toIso8601String(),
+                    'approved_at' => $assessment->approved_at?->toIso8601String(),
+                    'readiness_score' => $readiness,
+                    'business_plan_score' => is_numeric($scores['business_plan_readiness'] ?? null) ? (int) $scores['business_plan_readiness'] : null,
+                    'budget_confidence_score' => is_numeric($scores['confidence'] ?? null) ? (int) $scores['confidence'] : null,
+                    'score_delta' => $scoreDelta,
+                    'priorities' => collect((array) ($assessment->priorities ?? []))
+                        ->take(3)
+                        ->values()
+                        ->all(),
+                    'suggested_reply_excerpt' => Str::limit((string) ($assessment->proposed_reply ?? $assessment->suggested_reply ?? ''), 180),
+                    'message_url' => $assessment->client_message_thread_id
+                        ? route('advisor.clients.messages.show', [$assessment->client_id, $assessment->client_message_thread_id], absolute: false)
+                        : null,
+                    'snapshot_available' => is_array($assessment->snapshot) && $assessment->snapshot !== [],
+                    'snapshot_captured_at' => is_array($assessment->snapshot)
+                        ? data_get($assessment->snapshot, 'captured_at')
+                        : null,
+                ];
+            })
+            ->sortByDesc('version')
+            ->values()
+            ->all();
+    }
+
+    private function assessmentVersionStatusLabel(string $status): string
+    {
+        return match ($status) {
+            StrategicBudgetAssessment::STATUS_SUBMITTED => 'Submitted',
+            StrategicBudgetAssessment::STATUS_ASSESSED => 'Assessed',
+            StrategicBudgetAssessment::STATUS_FEEDBACK_SAVED => 'Feedback saved',
+            StrategicBudgetAssessment::STATUS_FEEDBACK_SENT => 'Feedback sent',
+            StrategicBudgetAssessment::STATUS_APPROVED => 'Approved',
+            default => str($status)->replace('_', ' ')->title()->toString(),
+        };
+    }
+
     private function plural(string $word, int $count): string
     {
         return $count === 1 ? $word : $word.'s';
@@ -1199,16 +2085,6 @@ final class StrategicBudgetService
             ->where('client_id', $client->getKey())
             ->count();
 
-        $sourceLabel = $pathway === StrategicBudget::PATHWAY_DUE_DILIGENCE
-            ? 'Source draft from Due Diligence'
-            : 'Source draft from onboarding and evidence';
-        $sourceUrl = $pathway === StrategicBudget::PATHWAY_DUE_DILIGENCE
-            ? route('portal.dd-plan.show', absolute: false)
-            : route('portal.onboarding.step', ['step' => 'documents'], absolute: false);
-        $sourceHelp = $pathway === StrategicBudget::PATHWAY_DUE_DILIGENCE
-            ? 'Open the due diligence workspace used to populate this source draft.'
-            : 'Open onboarding documents and uploaded evidence used as source material for this draft.';
-
         $drafts = [
             'goals' => $goalDraft,
             'current_position' => $ddDraft !== ''
@@ -1223,19 +2099,280 @@ final class StrategicBudgetService
                 ? "{$documentCount} document(s) are available as plan evidence. Confirm which documents support each section."
                 : 'No supporting evidence has been attached to this plan yet.',
         ];
+
+        if ($pathway !== StrategicBudget::PATHWAY_DUE_DILIGENCE) {
+            $drafts = array_replace(
+                $drafts,
+                $this->onboardingSourceDrafts($client, $goalDraft, $documentCount),
+            );
+        }
+
         $prompts = collect($this->businessPlanPrompts($pathway))->keyBy('key');
 
         return collect(self::PLAN_SECTION_KEYS)
-            ->map(fn (string $key): array => [
-                'key' => $key,
-                'title' => (string) data_get($prompts->get($key), 'title', str($key)->replace('_', ' ')->title()->toString()),
-                'source_label' => $sourceLabel,
-                'source_url' => $sourceUrl,
-                'source_help' => $sourceHelp,
-                'body' => trim((string) ($drafts[$key] ?? '')),
-            ])
+            ->map(function (string $key) use ($drafts, $pathway, $prompts): array {
+                $source = $this->sourceDraftLink($pathway, $key);
+
+                return [
+                    'key' => $key,
+                    'title' => (string) data_get($prompts->get($key), 'title', str($key)->replace('_', ' ')->title()->toString()),
+                    'source_label' => $source['label'],
+                    'source_url' => $source['url'],
+                    'source_help' => $source['help'],
+                    'body' => trim((string) ($drafts[$key] ?? '')),
+                ];
+            })
             ->values()
             ->all();
+    }
+
+    /**
+     * @return array{label:string,url:string,help:string}
+     */
+    private function sourceDraftLink(string $pathway, string $key): array
+    {
+        if ($pathway === StrategicBudget::PATHWAY_DUE_DILIGENCE) {
+            return [
+                'label' => 'Source draft from Due Diligence',
+                'url' => route('portal.dd-plan.show', absolute: false),
+                'help' => 'Open the due diligence workspace used to populate this source draft.',
+            ];
+        }
+
+        $step = match ($key) {
+            'goals' => 'goals',
+            'evidence_documents' => 'documents',
+            default => 'questionnaire',
+        };
+
+        return [
+            'label' => match ($key) {
+                'goals' => 'Source goals from onboarding',
+                'evidence_documents' => 'Source evidence documents',
+                default => 'Source questionnaire answers',
+            },
+            'url' => route('portal.onboarding.step', ['step' => $step], absolute: false),
+            'help' => match ($key) {
+                'goals' => 'Open the onboarding goals used as source material for this section.',
+                'evidence_documents' => 'Open onboarding documents and uploaded evidence used as source material for this section.',
+                default => 'Open the onboarding questionnaire answers used as source material for this section.',
+            },
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function onboardingSourceDrafts(Client $client, string $goalDraft, int $documentCount): array
+    {
+        $state = is_array($client->onboarding_wizard_state) ? $client->onboarding_wizard_state : [];
+        $questionnaireLines = $this->questionnaireSourceLines($client);
+        $websiteLines = $this->websiteSourceLines($state);
+
+        $drafts = [];
+        foreach (self::PLAN_SECTION_KEYS as $key) {
+            $lines = (array) ($questionnaireLines[$key] ?? []);
+
+            if ($key === 'goals' && $goalDraft !== '') {
+                array_unshift($lines, $goalDraft);
+            }
+
+            if ($key === 'current_position') {
+                $lines = array_merge($websiteLines, $lines);
+            }
+
+            if ($key === 'evidence_documents' && $documentCount > 0) {
+                array_unshift(
+                    $lines,
+                    "{$documentCount} document(s) are available as plan evidence. Confirm which documents support each section.",
+                );
+            }
+
+            $drafts[$key] = $this->sourceLinesToText($lines);
+        }
+
+        if (($drafts['evidence_documents'] ?? '') === '') {
+            $drafts['evidence_documents'] = 'No supporting evidence has been attached to this plan yet.';
+        }
+
+        return $drafts;
+    }
+
+    /**
+     * @param  array<string, mixed>  $state
+     * @return array<int, string>
+     */
+    private function websiteSourceLines(array $state): array
+    {
+        $websiteUrl = trim((string) data_get($state, 'steps.website.website_url', ''));
+        $websiteSkipped = (bool) data_get($state, 'steps.website.website_skipped', false);
+
+        if ($websiteUrl !== '') {
+            return ['Website supplied during onboarding: '.$websiteUrl];
+        }
+
+        if ($websiteSkipped) {
+            return ['Website supplied during onboarding: client confirmed the business does not have a public website.'];
+        }
+
+        return [];
+    }
+
+    /**
+     * @return array<string, array<int, string>>
+     */
+    private function questionnaireSourceLines(Client $client): array
+    {
+        $lines = collect(self::PLAN_SECTION_KEYS)
+            ->mapWithKeys(fn (string $key): array => [$key => []])
+            ->all();
+        $response = $this->latestQuestionnaireResponse($client);
+
+        if (! $response instanceof QuestionnaireResponse) {
+            return $lines;
+        }
+
+        $response->answers->each(function (QuestionnaireAnswer $answer) use (&$lines): void {
+            $question = $answer->question;
+            if ($question === null) {
+                return;
+            }
+
+            $answerText = $this->answerValueToText($answer->value);
+            $prompt = trim((string) $question->prompt);
+
+            if ($answerText !== '') {
+                $key = $this->planSectionKeyForAnswer($answer);
+                $lines[$key][] = $prompt !== '' ? "{$prompt}: {$answerText}" : $answerText;
+            }
+
+            $attachedCount = count((array) ($answer->attached_document_ids ?? []));
+            if ($attachedCount > 0) {
+                $lines['evidence_documents'][] = $prompt !== ''
+                    ? "{$prompt}: {$attachedCount} attached document(s)."
+                    : "{$attachedCount} attached document(s).";
+            }
+        });
+
+        return $lines;
+    }
+
+    private function latestQuestionnaireResponse(Client $client): ?QuestionnaireResponse
+    {
+        $set = $this->questionnaireSetForClient($client);
+
+        return QuestionnaireResponse::query()
+            ->where('client_id', $client->getKey())
+            ->whereHas('questionnaire', fn ($query) => $query->where('set', $set->value))
+            ->with(['answers.question.section'])
+            ->latest('submitted_at')
+            ->latest('updated_at')
+            ->first();
+    }
+
+    private function questionnaireSetForClient(Client $client): QuestionnaireSet
+    {
+        $engagementType = $client->engagement_type instanceof EngagementType
+            ? $client->engagement_type
+            : EngagementType::tryFrom((string) $client->engagement_type);
+
+        return match ($engagementType) {
+            EngagementType::DUE_DILIGENCE => QuestionnaireSet::DUE_DILIGENCE,
+            EngagementType::POST_ACQUISITION_ADVISORY => QuestionnaireSet::POST_ACQUISITION_GAP,
+            EngagementType::NPO => QuestionnaireSet::STANDARD_NPO,
+            default => QuestionnaireSet::STANDARD_ADVISORY,
+        };
+    }
+
+    private function planSectionKeyForAnswer(QuestionnaireAnswer $answer): string
+    {
+        $question = $answer->question;
+        $source = str(implode(' ', [
+            (string) ($question?->section?->title ?? ''),
+            (string) ($question?->prompt ?? ''),
+        ]))->lower()->toString();
+
+        if (Str::contains($source, ['swot', 'strength', 'weakness', 'opportunit', 'threat'])) {
+            return 'swot';
+        }
+
+        if (Str::contains($source, ['document', 'evidence', 'upload', 'file attach', 'management account', 'financial statement', 'migrated dd document set'])) {
+            return 'evidence_documents';
+        }
+
+        if (Str::contains($source, ['risk', 'red flag', 'legal', 'tax', 'compliance', 'insurance', 'dispute', 'dependency', 'concentration', 'not covered by dd'])) {
+            return 'risks';
+        }
+
+        if (Str::contains($source, ['goal', 'objective', 'outcome', 'success measure', 'purpose'])) {
+            return 'goals';
+        }
+
+        if (Str::contains($source, ['priority', 'action', 'next step', 'first 100', 'settlement', 'post-close', 'fix first', 'improve first'])) {
+            return 'action_priorities';
+        }
+
+        if (Str::contains($source, ['customer', 'market', 'sales', 'demand', 'competitor', 'channel', 'supplier', 'product', 'service', 'revenue'])) {
+            return 'market_customers';
+        }
+
+        if (Str::contains($source, ['operation', 'system', 'staff', 'people', 'hr', 'capacity', 'process', 'owner', 'leadership', 'handover', 'delivery'])) {
+            return 'operations';
+        }
+
+        return 'current_position';
+    }
+
+    private function answerValueToText(mixed $value): string
+    {
+        if (is_string($value)) {
+            return trim($value);
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+
+        if (! is_array($value)) {
+            return '';
+        }
+
+        foreach (['value', 'label', 'text'] as $key) {
+            if (array_key_exists($key, $value)) {
+                return $this->answerValueToText($value[$key]);
+            }
+        }
+
+        $parts = [];
+        foreach ($value as $key => $item) {
+            $itemText = $this->answerValueToText($item);
+            if ($itemText === '') {
+                continue;
+            }
+
+            $parts[] = is_string($key) && ! is_numeric($key)
+                ? str($key)->replace('_', ' ')->title()->toString().': '.$itemText
+                : $itemText;
+        }
+
+        return implode('; ', $parts);
+    }
+
+    /**
+     * @param  array<int, string>  $lines
+     */
+    private function sourceLinesToText(array $lines): string
+    {
+        return collect($lines)
+            ->map(fn (string $line): string => trim($line))
+            ->filter()
+            ->unique()
+            ->take(8)
+            ->implode("\n");
     }
 
     private function ddSourceDraft(?BusinessPlan $plan): string
@@ -1279,6 +2416,21 @@ final class StrategicBudgetService
     private function businessPlanReady(StrategicBudget $budget): bool
     {
         return $this->businessPlanReadiness($budget) >= 100;
+    }
+
+    private function reviewSubmittedOrLater(StrategicBudget $budget): bool
+    {
+        return $this->reviewApprovedOrLater($budget)
+            || $budget->submitted_at !== null
+            || $budget->business_plan_submitted_at !== null
+            || $budget->status === StrategicBudget::STATUS_SUBMITTED_FOR_REVIEW;
+    }
+
+    private function reviewApprovedOrLater(StrategicBudget $budget): bool
+    {
+        return $budget->approved_at !== null
+            || $budget->business_plan_approved_at !== null
+            || $budget->isApprovedForProposal();
     }
 
     /**

@@ -43,6 +43,12 @@ import { DocumentVerificationFlagPanel } from '@/components/verification/Documen
 import type { DocumentVerificationFlag } from '@/components/verification/DocumentVerificationFlagPanel';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
+import {
+    HealthIcon,
+    PanelOperations,
+    healthVariant,
+} from './dashboard-panel-operations';
+import type { PanelOperationsPayload } from './dashboard-panel-operations';
 
 type HealthLevel = 'green' | 'amber' | 'red';
 type DashboardTab = 'priorities' | 'signals';
@@ -175,6 +181,34 @@ type ClientTransferQueuePayload = {
     action_url: string | null;
     action_label: string;
     can_review: boolean;
+};
+
+type ServiceActivationRequestsPayload = {
+    summary: {
+        total: number;
+        requested: number;
+        package_selected: number;
+        dd_plan_budget: number;
+    };
+    items: Array<{
+        id: string;
+        client_id: string;
+        client_name: string;
+        client_url: string;
+        service_type: string;
+        client_label: string;
+        status: string;
+        status_label: string;
+        requested_by_name: string | null;
+        requested_by_email: string | null;
+        advisor_name: string | null;
+        package_label: string | null;
+        requested_at: string | null;
+        url: string;
+        action_label: string;
+        priority_label: string;
+    }>;
+    index_url: string;
 };
 
 type EntrepreneurReviewsPayload = {
@@ -673,71 +707,6 @@ type ReferenceDataTasksPayload = {
     }>;
 };
 
-type PanelReferralQueue = {
-    summary: {
-        total: number;
-        active: number;
-        terminal: number;
-    };
-    stage_counts: Record<string, number>;
-    items: Array<{
-        id: string;
-        subject_name: string;
-        panel_name: string;
-        stage: string;
-        stage_label: string;
-        reason: string | null;
-        sent_at: string | null;
-        detail_url: string | null;
-    }>;
-};
-
-type PanelApprovalQueue = {
-    summary: {
-        total: number;
-        broker: number;
-        coach: number;
-    };
-    review_url: string | null;
-    items: Array<{
-        id: string;
-        panel_type: string;
-        panel_label: string;
-        business_name: string;
-        contact_name: string;
-        email: string | null;
-        status: string;
-        status_label: string;
-        applied_at: string | null;
-        review_url: string | null;
-    }>;
-};
-
-type LearningQueuePayload = {
-    summary: {
-        detected: number;
-        staged: number;
-    };
-    queue_url: string | null;
-    items: Array<{
-        id: string;
-        summary: string;
-        status: string;
-        source_type: string | null;
-        confidence: number;
-        clients_affected: number;
-        created_at: string | null;
-        detail_url: string | null;
-    }>;
-};
-
-type PanelOperationsPayload = {
-    broker: PanelReferralQueue;
-    coach: PanelReferralQueue;
-    learning: LearningQueuePayload;
-    approvals: PanelApprovalQueue;
-};
-
 type FeeStatusPayload = {
     free_access_mode: boolean;
     charging_enabled: boolean;
@@ -908,6 +877,7 @@ type Props = {
     documentVerificationFlags: DocumentVerificationFlag[];
     messagesPending: MessagesPendingPayload;
     clientTransferQueue: ClientTransferQueuePayload;
+    serviceActivationRequests: ServiceActivationRequestsPayload;
     entrepreneurReviews: EntrepreneurReviewsPayload;
     strategicPlanDeployments: StrategicPlanDeploymentsPayload;
     pendingTermsReacceptance: PendingTermsPayload;
@@ -939,6 +909,7 @@ export default function AdvisorDashboard({
     documentVerificationFlags,
     messagesPending,
     clientTransferQueue,
+    serviceActivationRequests,
     entrepreneurReviews,
     strategicPlanDeployments,
     pendingTermsReacceptance,
@@ -981,6 +952,7 @@ export default function AdvisorDashboard({
         redFlags,
         documentVerificationFlags,
         clientTransferQueue,
+        serviceActivationRequests,
         entrepreneurReviews,
         strategicPlanDeployments,
         pendingTermsReacceptance,
@@ -1110,6 +1082,11 @@ export default function AdvisorDashboard({
                             description="Work the live queues before moving into planning and portfolio decisions."
                         >
                             <div className="grid items-start gap-4 xl:grid-cols-2">
+                                {serviceActivationRequests.summary.total > 0 ? (
+                                    <ServiceActivationRequestPanel
+                                        payload={serviceActivationRequests}
+                                    />
+                                ) : null}
                                 <EntrepreneurReviewPanel
                                     payload={entrepreneurReviews}
                                 />
@@ -1543,6 +1520,7 @@ type ActionSummaryInput = Pick<
     | 'redFlags'
     | 'documentVerificationFlags'
     | 'clientTransferQueue'
+    | 'serviceActivationRequests'
     | 'entrepreneurReviews'
     | 'strategicPlanDeployments'
     | 'pendingTermsReacceptance'
@@ -1566,6 +1544,7 @@ function buildActionSummaryItems({
     redFlags,
     documentVerificationFlags,
     clientTransferQueue,
+    serviceActivationRequests,
     entrepreneurReviews,
     strategicPlanDeployments,
     pendingTermsReacceptance,
@@ -1598,6 +1577,27 @@ function buildActionSummaryItems({
     const coachApprovalActionCount = panelOperations.approvals.summary.coach;
     const operationalHealthActionCount =
         operationalHealth.summary.failed + operationalHealth.summary.warning;
+    const serviceActivationAction =
+        serviceActivationRequests.summary.total > 0
+            ? {
+                  key: 'service-activation-requests',
+                  label: 'Quote requests',
+                  value: serviceActivationRequests.summary.total,
+                  statusLabel:
+                      serviceActivationRequests.summary.dd_plan_budget > 0
+                          ? 'BP&B'
+                          : 'Review',
+                  href: '#advisor-service-activation-requests',
+                  targetId: 'advisor-service-activation-requests',
+                  tab: 'priorities' as const,
+                  priority: 'warning' as const,
+                  explanation:
+                      'Quote requests are client-requested service activations waiting for FSA to choose the package, scope, and fee.',
+                  nextStep:
+                      'Open the request, select the active service-rate package, then let the client complete payment and scope acceptance.',
+                  icon: <Banknote className="size-4" aria-hidden="true" />,
+              }
+            : null;
     const aiOperationalAction =
         aiOperationalAlert.available &&
         aiOperationalAlert.action_url &&
@@ -1697,6 +1697,7 @@ function buildActionSummaryItems({
     return [
         ...(aiOperationalAction ? [aiOperationalAction] : []),
         ...(operationalHealthAction ? [operationalHealthAction] : []),
+        ...(serviceActivationAction ? [serviceActivationAction] : []),
         {
             key: 'cash-flow-risks',
             label: 'Cash flow risks',
@@ -3831,6 +3832,93 @@ function StrategicPlanDeploymentPanel({
     );
 }
 
+function ServiceActivationRequestPanel({
+    payload,
+}: {
+    payload: ServiceActivationRequestsPayload;
+}) {
+    return (
+        <section
+            id="advisor-service-activation-requests"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <Banknote className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">
+                        Quote & access requests
+                    </h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">
+                        {payload.summary.total} open
+                    </Badge>
+                    {payload.summary.dd_plan_budget > 0 ? (
+                        <Badge variant="outline">
+                            {payload.summary.dd_plan_budget} BP&B
+                        </Badge>
+                    ) : null}
+                    <Button asChild size="sm" variant="outline">
+                        <Link href={payload.index_url}>All requests</Link>
+                    </Button>
+                </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+                Client requests that need FSA to confirm the service package,
+                scope, and fee before the client can approve access.
+            </p>
+
+            <div className="divide-y rounded-md border">
+                {payload.items.map((item) => {
+                    const requestedBy =
+                        item.requested_by_name ??
+                        item.requested_by_email ??
+                        'Client request';
+
+                    return (
+                        <article
+                            key={item.id}
+                            className="flex flex-wrap items-center justify-between gap-3 p-3"
+                        >
+                            <div className="min-w-0 space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Badge variant="outline">
+                                        {item.priority_label}
+                                    </Badge>
+                                    <Badge variant="secondary">
+                                        {item.status_label}
+                                    </Badge>
+                                </div>
+                                <Link
+                                    href={item.client_url}
+                                    className="block text-sm font-medium hover:underline focus-visible:underline focus-visible:outline-none"
+                                >
+                                    {item.client_name}
+                                </Link>
+                                <div className="text-sm">
+                                    {item.client_label}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    Requested by {requestedBy} -{' '}
+                                    {formatDate(item.requested_at)}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    {item.package_label ??
+                                        'Package not selected yet'}
+                                </div>
+                            </div>
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={item.url}>{item.action_label}</Link>
+                            </Button>
+                        </article>
+                    );
+                })}
+            </div>
+        </section>
+    );
+}
+
 function EntrepreneurReviewPanel({
     payload,
 }: {
@@ -4430,327 +4518,6 @@ function IntegrationHealth({ payload }: { payload: IntegrationHealthPayload }) {
     );
 }
 
-function PanelOperations({ payload }: { payload: PanelOperationsPayload }) {
-    return (
-        <div
-            id="advisor-panel-operations"
-            className="grid gap-4 xl:grid-cols-2 2xl:grid-cols-4"
-        >
-            <PanelApprovalQueuePanel payload={payload.approvals} />
-            <PanelReferralQueuePanel
-                id="advisor-broker-referrals"
-                title="Broker referrals"
-                description="Broker panel hand-offs and cover-placement progress."
-                icon={<Inbox className="size-4" aria-hidden="true" />}
-                payload={payload.broker}
-                empty="No broker referrals in the current scope."
-            />
-            <PanelReferralQueuePanel
-                id="advisor-coach-referrals"
-                title="Coach referrals"
-                description="Founder and client coaching hand-offs."
-                icon={<HeartHandshake className="size-4" aria-hidden="true" />}
-                payload={payload.coach}
-                empty="No coach referrals in the current scope."
-            />
-            <LearningQueuePanel payload={payload.learning} />
-        </div>
-    );
-}
-
-function PanelApprovalQueuePanel({ payload }: { payload: PanelApprovalQueue }) {
-    return (
-        <section
-            id="advisor-panel-approvals"
-            className="space-y-4 rounded-md border bg-background p-4"
-        >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                    <div className="flex items-center gap-2">
-                        <UsersRound className="size-4" aria-hidden="true" />
-                        <h2 className="text-sm font-medium">
-                            Partner approvals
-                        </h2>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        Broker and coach applications waiting for review.
-                    </p>
-                </div>
-                <Badge
-                    variant={payload.summary.total > 0 ? 'default' : 'outline'}
-                >
-                    {payload.summary.total} pending
-                </Badge>
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-3">
-                <PortfolioMetric
-                    label="Total"
-                    value={payload.summary.total.toString()}
-                />
-                <PortfolioMetric
-                    label="Brokers"
-                    value={payload.summary.broker.toString()}
-                />
-                <PortfolioMetric
-                    label="Coaches"
-                    value={payload.summary.coach.toString()}
-                />
-            </div>
-
-            {payload.review_url && (
-                <Button asChild size="sm" variant="outline">
-                    <Link href={payload.review_url}>Open approval queue</Link>
-                </Button>
-            )}
-
-            {payload.items.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                    No partner applications are waiting for approval.
-                </p>
-            ) : (
-                <div className="divide-y rounded-md border">
-                    {payload.items.map((item) => (
-                        <article
-                            key={item.id}
-                            className="grid gap-3 p-3 sm:grid-cols-[1fr_auto]"
-                        >
-                            <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="truncate text-sm font-medium">
-                                        {item.business_name}
-                                    </span>
-                                    <Badge variant="outline">
-                                        {item.panel_label}
-                                    </Badge>
-                                </div>
-                                <div className="mt-1 text-xs text-muted-foreground">
-                                    {item.contact_name} -{' '}
-                                    {formatDate(item.applied_at)}
-                                </div>
-                                {item.email && (
-                                    <div className="mt-1 truncate text-xs text-muted-foreground">
-                                        {item.email}
-                                    </div>
-                                )}
-                            </div>
-                            {item.review_url && (
-                                <Button asChild size="sm" variant="outline">
-                                    <Link href={item.review_url}>Review</Link>
-                                </Button>
-                            )}
-                        </article>
-                    ))}
-                </div>
-            )}
-        </section>
-    );
-}
-
-function PanelReferralQueuePanel({
-    id,
-    title,
-    description,
-    icon,
-    payload,
-    empty,
-}: {
-    id: string;
-    title: string;
-    description: string;
-    icon: React.ReactNode;
-    payload: PanelReferralQueue;
-    empty: string;
-}) {
-    const activeStages = Object.entries(payload.stage_counts).filter(
-        ([, count]) => count > 0,
-    );
-
-    return (
-        <section
-            id={id}
-            className="space-y-4 rounded-md border bg-background p-4"
-        >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                    <div className="flex items-center gap-2">
-                        {icon}
-                        <h2 className="text-sm font-medium">{title}</h2>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        {description}
-                    </p>
-                </div>
-                <Badge
-                    variant={payload.summary.active > 0 ? 'default' : 'outline'}
-                >
-                    {payload.summary.active} active
-                </Badge>
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-3">
-                <PortfolioMetric
-                    label="Total"
-                    value={payload.summary.total.toString()}
-                />
-                <PortfolioMetric
-                    label="Active"
-                    value={payload.summary.active.toString()}
-                />
-                <PortfolioMetric
-                    label="Closed"
-                    value={payload.summary.terminal.toString()}
-                />
-            </div>
-
-            {activeStages.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                    {activeStages.map(([stage, count]) => (
-                        <Badge key={stage} variant="secondary">
-                            {formatLabel(stage)} {count}
-                        </Badge>
-                    ))}
-                </div>
-            )}
-
-            {payload.items.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{empty}</p>
-            ) : (
-                <div className="divide-y rounded-md border">
-                    {payload.items.map((item) => (
-                        <article
-                            key={item.id}
-                            className="grid gap-3 p-3 sm:grid-cols-[1fr_auto]"
-                        >
-                            <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="truncate text-sm font-medium">
-                                        {item.subject_name}
-                                    </span>
-                                    <Badge variant="outline">
-                                        {item.stage_label}
-                                    </Badge>
-                                </div>
-                                <div className="mt-1 text-xs text-muted-foreground">
-                                    {item.panel_name} ·{' '}
-                                    {formatDate(item.sent_at)}
-                                </div>
-                                {item.reason && (
-                                    <p className="mt-2 line-clamp-2 text-sm">
-                                        {item.reason}
-                                    </p>
-                                )}
-                            </div>
-                            {item.detail_url && (
-                                <Button asChild size="sm" variant="outline">
-                                    <Link href={item.detail_url}>Open</Link>
-                                </Button>
-                            )}
-                        </article>
-                    ))}
-                </div>
-            )}
-        </section>
-    );
-}
-
-function LearningQueuePanel({ payload }: { payload: LearningQueuePayload }) {
-    return (
-        <section
-            id="advisor-learning-queue"
-            className="space-y-4 rounded-md border bg-background p-4"
-        >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                    <div className="flex items-center gap-2">
-                        <Sparkles className="size-4" aria-hidden="true" />
-                        <h2 className="text-sm font-medium">Learning queue</h2>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        Governed updates awaiting review or approval.
-                    </p>
-                </div>
-                {payload.queue_url && (
-                    <Button asChild size="sm" variant="outline">
-                        <Link href={payload.queue_url}>Open queue</Link>
-                    </Button>
-                )}
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-2">
-                <PortfolioMetric
-                    label="Awaiting review"
-                    value={payload.summary.detected.toString()}
-                />
-                <PortfolioMetric
-                    label="Awaiting approval"
-                    value={payload.summary.staged.toString()}
-                />
-            </div>
-
-            {payload.items.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                    No learning updates are waiting for review.
-                </p>
-            ) : (
-                <div className="divide-y rounded-md border">
-                    {payload.items.map((item) => (
-                        <article
-                            key={item.id}
-                            className="grid gap-3 p-3 sm:grid-cols-[1fr_auto]"
-                        >
-                            <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="line-clamp-1 text-sm font-medium">
-                                        {item.summary}
-                                    </span>
-                                    <Badge variant="outline">
-                                        {formatLabel(item.status)}
-                                    </Badge>
-                                </div>
-                                <div className="mt-1 text-xs text-muted-foreground">
-                                    {item.source_type
-                                        ? formatLabel(item.source_type)
-                                        : 'Learning update'}{' '}
-                                    · {formatPercent(item.confidence)}{' '}
-                                    confidence · {item.clients_affected} clients
-                                </div>
-                            </div>
-                            {item.detail_url && (
-                                <Button asChild size="sm" variant="outline">
-                                    <Link href={item.detail_url}>Review</Link>
-                                </Button>
-                            )}
-                        </article>
-                    ))}
-                </div>
-            )}
-        </section>
-    );
-}
-
-function HealthIcon({ health }: { health: HealthLevel }) {
-    if (health === 'green') {
-        return (
-            <CheckCircle2
-                className="size-4 text-emerald-600"
-                aria-hidden="true"
-            />
-        );
-    }
-
-    return (
-        <AlertTriangle
-            className={
-                health === 'amber'
-                    ? 'size-4 text-amber-600'
-                    : 'size-4 text-destructive'
-            }
-            aria-hidden="true"
-        />
-    );
-}
-
 function engagementLabel(level: HealthLevel): string {
     return level.charAt(0).toUpperCase() + level.slice(1);
 }
@@ -4774,20 +4541,6 @@ function paymentStatusVariant(
     }
 
     return 'outline';
-}
-
-function healthVariant(
-    health: HealthLevel,
-): 'default' | 'secondary' | 'outline' | 'destructive' {
-    if (health === 'green') {
-        return 'secondary';
-    }
-
-    if (health === 'amber') {
-        return 'outline';
-    }
-
-    return 'destructive';
 }
 
 function formatDate(value: string | null): string {

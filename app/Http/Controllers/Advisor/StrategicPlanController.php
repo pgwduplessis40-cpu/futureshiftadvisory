@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Advisor;
 
+use App\Enums\EngagementType;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Proposal;
@@ -94,10 +95,40 @@ final class StrategicPlanController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 403);
 
+        $blockers = $this->deploymentBlockers($strategicPlan->client);
+        if ($blockers !== []) {
+            return to_route('advisor.clients.show', $strategicPlan->client)
+                ->withErrors([
+                    'strategic_plan' => 'Strategic plan deployment is locked until '.implode(' and ', $blockers).'.',
+                ]);
+        }
+
         $this->plans->deploy($strategicPlan, $user);
 
         return to_route('advisor.clients.show', $strategicPlan->client)
             ->with('status', 'strategic-plan-deployed');
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function deploymentBlockers(?Client $client): array
+    {
+        if (! $client instanceof Client) {
+            return ['the client record is available'];
+        }
+
+        $engagementType = $client->engagement_type instanceof EngagementType
+            ? $client->engagement_type
+            : EngagementType::tryFrom((string) $client->engagement_type);
+
+        if ($engagementType !== EngagementType::DUE_DILIGENCE) {
+            return [];
+        }
+
+        return [
+            'advisory service access has been requested and accepted outside the DD workspace',
+        ];
     }
 
     public function pdf(Request $request, StrategicPlan $strategicPlan): Response

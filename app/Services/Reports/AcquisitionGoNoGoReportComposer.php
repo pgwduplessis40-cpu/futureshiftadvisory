@@ -14,6 +14,7 @@ use App\Models\ReportSection;
 use App\Models\User;
 use App\Services\Analysis\HolidaysActLiabilityCalculator;
 use App\Services\Audit\AuditWriter;
+use App\Services\Dd\DdDisclaimer;
 use App\Services\Reports\Contracts\AcquisitionGoNoGoReportComposition;
 use App\Services\Reports\Contracts\ReportArtifactRenderer;
 use App\Services\Reports\Data\AcquisitionDealMechanics;
@@ -107,6 +108,7 @@ final class AcquisitionGoNoGoReportComposer implements AcquisitionGoNoGoReportCo
     {
         return [
             $this->decisionSection($inputs),
+            $this->decisionResponsibilitySection($inputs),
             $this->walkAwayPriceChipSection($inputs),
             $this->dealMechanicsSection($inputs),
             $this->evidenceSection($inputs),
@@ -126,7 +128,7 @@ final class AcquisitionGoNoGoReportComposer implements AcquisitionGoNoGoReportCo
             key: 'go_no_go_decision',
             title: 'Go/No-Go decision',
             body: sprintf(
-                "Decision: %s.\nTarget: %s.\nWalk-away price: %s.\nAsking price: %s.\nPrice gap to walk-away: %s.\nMaterial risk chips: %d.\nPrice signal: %s\nRationale: %s",
+                "Decision: %s.\nTarget: %s.\nWalk-away price: %s.\nAsking price: %s.\nPrice gap to walk-away: %s.\nMaterial risk chips: %d.\nPrice signal: %s\nRationale: %s\n\nDecision responsibility disclaimer: %s",
                 ucfirst(str_replace('_', ' ', $inputs->recommendation->decision)),
                 $inputs->engagement->target_name,
                 $this->money($price->walkAwayPriceNzd),
@@ -135,6 +137,7 @@ final class AcquisitionGoNoGoReportComposer implements AcquisitionGoNoGoReportCo
                 $inputs->risks->filter(fn (DdRiskRegisterItem $risk): bool => $risk->price_adjustment_nzd > 0)->count(),
                 $priceSignal,
                 $inputs->recommendation->rationale,
+                DdDisclaimer::DECISION_RESPONSIBILITY,
             ),
             sourceReference: $inputs->valuation instanceof DdValuation
                 ? 'dd_valuation:'.$inputs->valuation->getKey()
@@ -143,7 +146,23 @@ final class AcquisitionGoNoGoReportComposer implements AcquisitionGoNoGoReportCo
             metadata: [
                 'recommendation' => $inputs->recommendation->decision,
                 'recommendation_rationale' => $inputs->recommendation->rationale,
+                'decision_responsibility_disclaimer' => DdDisclaimer::DECISION_RESPONSIBILITY,
                 ...$price->metadata(),
+            ],
+        );
+    }
+
+    private function decisionResponsibilitySection(AcquisitionGoNoGoReportInputs $inputs): ReportSectionDraft
+    {
+        return ReportSectionDraft::generated(
+            key: 'go_no_go_decision_responsibility',
+            title: 'Decision responsibility disclaimer',
+            body: DdDisclaimer::DECISION_RESPONSIBILITY,
+            sourceReference: 'dd_engagement:'.$inputs->engagement->getKey().':decision_responsibility',
+            dataQualityNote: 'Data quality note: decision responsibility wording is included on every DD decision report.',
+            metadata: [
+                'dd_engagement_id' => (string) $inputs->engagement->getKey(),
+                'disclaimer' => DdDisclaimer::DECISION_RESPONSIBILITY,
             ],
         );
     }
