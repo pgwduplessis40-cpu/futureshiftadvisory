@@ -26,6 +26,7 @@ use App\Services\Dd\Workstreams\DdNzCheckProvider;
 use App\Services\Dd\Workstreams\DdWorkstreamModule;
 use App\Services\Dd\Workstreams\DdWorkstreamRunner;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
+use App\Services\Entrepreneurs\AdvisorEntrepreneurWorkspacePayload;
 use App\Services\Entrepreneurs\AdvisoryConversion;
 use App\Services\Entrepreneurs\AssessmentFeedback;
 use App\Services\Entrepreneurs\AssessmentScoring;
@@ -140,6 +141,7 @@ final class MethodologyDriftGuardTest extends TestCase
         DdWorkstreamModule::class => 'Analysis module adapter.',
         DdWorkstreamRunner::class => 'Workstream runner/orchestrator.',
         AdvisorEntrepreneurCapacity::class => 'Capacity gate, not a methodology surface in this track.',
+        AdvisorEntrepreneurWorkspacePayload::class => 'Advisor workspace presentation assembly; it renders existing assessments and readiness outputs without owning a calculation methodology.',
         AdvisoryConversion::class => 'Conversion workflow from entrepreneur to advisory client.',
         AssessmentFeedback::class => 'Advisor and founder assessment-feedback drafting workflow, not a methodology calculation.',
         AssessmentScoring::class => 'Shared scoring helper; owned methodology services disclose the scoring formula.',
