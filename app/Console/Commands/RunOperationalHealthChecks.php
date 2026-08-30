@@ -16,6 +16,7 @@ final class RunOperationalHealthChecks extends Command
     protected $signature = 'fsa:operational-health-check
                             {--ensure-fixtures : Provision idempotent monitor fixtures before running checks.}
                             {--sentinel : Run only the low-cost always-on client-facing checks.}
+                            {--without-alerts : Record the check run without sending operational health notifications.}
                             {--fail-on-warning : Return a non-zero exit code when checks are skipped or warning.}';
 
     protected $description = 'Run synthetic application checks and record operational health findings.';
@@ -33,7 +34,9 @@ final class RunOperationalHealthChecks extends Command
             ? OperationalHealthCheckRunner::SCOPE_SENTINEL
             : OperationalHealthCheckRunner::SCOPE_FULL;
         $run = $runner->run($scope);
-        $notifications = $alerter->notify($run);
+        $notifications = $this->option('without-alerts')
+            ? 0
+            : $alerter->notify($run);
 
         $this->info(sprintf(
             'Operational health %s check %s: %d passed, %d failed, %d warning, %d skipped.',
