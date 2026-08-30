@@ -35,7 +35,7 @@ return [
             'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Advisor'],
         ],
         'resources/js/pages/advisor/Dashboard.tsx' => [
-            'ceiling' => 4880,
+            'ceiling' => 376,
             'production_limit' => 1000,
             'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Advisor/DashboardTest.php'],
         ],
