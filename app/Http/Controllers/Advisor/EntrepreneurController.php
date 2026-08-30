@@ -14,7 +14,6 @@ use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
-use App\Services\Entrepreneurs\AdvisorEntrepreneurWorkspacePayload;
 use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
 use App\Services\Security\InviteIssuer;
 use Illuminate\Http\RedirectResponse;

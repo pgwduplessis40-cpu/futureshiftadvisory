@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Entrepreneurs;
+namespace App\Http\Controllers\Advisor;
 
 use App\Enums\EntrepreneurStage;
 use App\Enums\ReportType;
@@ -27,6 +27,13 @@ use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\SurveyAssignment;
 use App\Models\User;
+use App\Services\Entrepreneurs\AssessmentScoring;
+use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
+use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
+use App\Services\Entrepreneurs\EntrepreneurGamification;
+use App\Services\Entrepreneurs\FounderChangeRequestMessage;
+use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
+use App\Services\Entrepreneurs\IdeaViabilityGate;
 use App\Services\ScreenShare\ScreenShareAuthorizer;
 use App\Services\Surveys\SurveyActivationService;
 use Illuminate\Database\Eloquent\Builder;
