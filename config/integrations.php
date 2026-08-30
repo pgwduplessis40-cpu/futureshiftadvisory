@@ -7,6 +7,10 @@ $mbieGatewaySegment = (string) env('MBIE_API_GATEWAY_SEGMENT', env('APP_ENV') ==
 $mbieGatewayBaseUrl = 'https://api.business.govt.nz/'.trim($mbieGatewaySegment, '/');
 
 return [
+    'http' => [
+        'timeout_seconds' => (int) env('INTEGRATION_HTTP_TIMEOUT_SECONDS', 5),
+    ],
+
     'retry' => [
         'attempts' => (int) env('INTEGRATION_RETRY_ATTEMPTS', 3),
         'base_delay_ms' => (int) env('INTEGRATION_RETRY_BASE_DELAY_MS', 100),

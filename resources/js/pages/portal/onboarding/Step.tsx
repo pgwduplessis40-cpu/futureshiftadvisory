@@ -23,6 +23,13 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { queueQuestionnaireSubmission } from '@/lib/portal-offline';
 import { cn } from '@/lib/utils';
 import type { QuestionnaireAnswers } from '@/types/questionnaire';
@@ -49,6 +56,7 @@ type Props = {
     stepData: Record<string, unknown>;
     progress: Progress;
     questionnaire: Questionnaire;
+    ddSupport: DdSupport;
     website: WebsiteSubmission;
     documentUploadUrl: string;
     documentCount: number;
@@ -65,12 +73,26 @@ type WebsiteSubmission = {
         | 'not_listed';
 };
 
+type DdSupport = {
+    available: boolean;
+    confirmed: boolean;
+    label: string;
+    dd_experience: string | null;
+    business_ownership_experience: string | null;
+    financial_confidence: string | null;
+    preferred_guidance: string | null;
+};
+
 type OnboardingForm = {
     acknowledged: boolean;
     primary_goal: string;
     success_measure: string;
     website_url: string;
     website_skipped: boolean;
+    dd_experience: string;
+    business_ownership_experience: string;
+    financial_confidence: string;
+    preferred_guidance: string;
     questionnaire_set_acknowledged: boolean;
     phase_three_acknowledged: boolean;
     answers: QuestionnaireAnswers;
@@ -94,6 +116,7 @@ export default function OnboardingStep({
     stepData,
     progress,
     questionnaire,
+    ddSupport,
     website,
     documentUploadUrl,
     documentCount,
@@ -107,6 +130,22 @@ export default function OnboardingStep({
         success_measure: stringValue(stepData.success_measure),
         website_url: stringValue(stepData.website_url, website.url ?? ''),
         website_skipped: booleanValue(stepData.website_skipped),
+        dd_experience: stringValue(
+            stepData.dd_experience,
+            ddSupport.dd_experience ?? '',
+        ),
+        business_ownership_experience: stringValue(
+            stepData.business_ownership_experience,
+            ddSupport.business_ownership_experience ?? '',
+        ),
+        financial_confidence: stringValue(
+            stepData.financial_confidence,
+            ddSupport.financial_confidence ?? '',
+        ),
+        preferred_guidance: stringValue(
+            stepData.preferred_guidance,
+            ddSupport.preferred_guidance ?? '',
+        ),
         questionnaire_set_acknowledged: booleanValue(
             stepData.questionnaire_set_acknowledged,
         ),
@@ -207,12 +246,12 @@ export default function OnboardingStep({
             preserveScroll: true,
         });
     };
-    const saveDraftAndExit = async () => {
+    const returnToDashboard = async () => {
         if (step.slug === 'questionnaire') {
             const saved = await saveQuestionnaireDraft(form.data.answers);
 
             if (!saved) {
-                toast.error('Your draft could not be saved.');
+                toast.error('Your answers could not be saved automatically.');
 
                 return;
             }
@@ -255,7 +294,11 @@ export default function OnboardingStep({
                         title={
                             <span id="wizard-stepper-heading">Onboarding</span>
                         }
-                        description="The steps collect your goals, website, questionnaire answers, and evidence for advisor review."
+                        description={
+                            client.engagement_type === 'due_diligence'
+                                ? 'The steps collect your DD support needs, questionnaire answers, and acquisition evidence for advisor review.'
+                                : 'The steps collect your goals, website, questionnaire answers, and evidence for advisor review.'
+                        }
                         explanation={{
                             title: 'Onboarding progress',
                             what: 'This shows where you are in the client onboarding workflow and which steps are available.',
@@ -268,7 +311,7 @@ export default function OnboardingStep({
                             </span>
                         }
                     />
-                    <ol className="mt-4 grid gap-2 md:grid-cols-6">
+                    <ol className="mt-4 grid [grid-template-columns:repeat(auto-fit,minmax(10rem,1fr))] gap-2">
                         {steps.map((item) => (
                             <li key={item.slug}>
                                 {item.locked ? (
@@ -313,13 +356,10 @@ export default function OnboardingStep({
                             form={form}
                             errors={errors}
                             questionnaire={questionnaire}
+                            ddSupport={ddSupport}
                             website={website}
                             documentUploadUrl={documentUploadUrl}
                             documentCount={documentCount}
-                            questionnaireDraftStatus={questionnaireDraftStatus}
-                            onSaveQuestionnaireDraft={() =>
-                                void saveQuestionnaireDraft(form.data.answers)
-                            }
                         />
                     </section>
 
@@ -328,13 +368,18 @@ export default function OnboardingStep({
                             type="button"
                             variant="outline"
                             disabled={questionnaireDraftStatus === 'saving'}
-                            onClick={() => void saveDraftAndExit()}
+                            onClick={() => void returnToDashboard()}
                         >
-                            {step.slug === 'questionnaire'
-                                ? 'Save draft and exit'
-                                : 'Back to dashboard'}
+                            Back to dashboard
                         </Button>
-                        <Button type="submit" disabled={form.processing}>
+                        <Button
+                            type="submit"
+                            disabled={
+                                form.processing ||
+                                (step.slug === 'dd-support-level' &&
+                                    !ddSupport.available)
+                            }
+                        >
                             {step.slug === 'review-submit'
                                 ? 'Submit onboarding'
                                 : 'Save and continue'}
@@ -355,11 +400,10 @@ function StepContent({
     form,
     errors,
     questionnaire,
+    ddSupport,
     website,
     documentUploadUrl,
     documentCount,
-    questionnaireDraftStatus,
-    onSaveQuestionnaireDraft,
 }: {
     client: ClientPayload;
     step: WizardStep;
@@ -368,11 +412,10 @@ function StepContent({
     form: ReturnType<typeof useForm<OnboardingForm>>;
     errors: Record<string, string | undefined>;
     questionnaire: Questionnaire;
+    ddSupport: DdSupport;
     website: WebsiteSubmission;
     documentUploadUrl: string;
     documentCount: number;
-    questionnaireDraftStatus: QuestionnaireDraftStatus;
-    onSaveQuestionnaireDraft: () => void;
 }) {
     const [documentFile, setDocumentFile] = useState<File | null>(null);
     const [uploadedDocumentCount, setUploadedDocumentCount] =
@@ -543,6 +586,117 @@ function StepContent({
                     />
                 </ContentShell>
             );
+        case 'dd-support-level':
+            return (
+                <ContentShell
+                    icon={ShieldCheck}
+                    title="Confirm your DD support level"
+                    description="Tell us how much help would be most useful as you prepare due diligence."
+                    explanation={stepExplanations['dd-support-level']}
+                >
+                    {ddSupport.available ? (
+                        <>
+                            <p className="text-sm text-muted-foreground">
+                                You can still ask FSA for help at any point.
+                                This only sets the starting DD path.
+                            </p>
+                            <div className="grid gap-4 lg:grid-cols-2">
+                                <SupportSelect
+                                    label="Have you worked through due diligence before?"
+                                    value={form.data.dd_experience}
+                                    error={errors.dd_experience}
+                                    onChange={(value) =>
+                                        form.setData('dd_experience', value)
+                                    }
+                                    options={[
+                                        [
+                                            'first_time',
+                                            'No, this is my first time',
+                                        ],
+                                        [
+                                            'helped_before',
+                                            'I have helped with DD',
+                                        ],
+                                        [
+                                            'completed_before',
+                                            'Yes, I have completed DD',
+                                        ],
+                                    ]}
+                                />
+                                <SupportSelect
+                                    label="Have you managed, owned, bought, or sold a business?"
+                                    value={
+                                        form.data.business_ownership_experience
+                                    }
+                                    error={errors.business_ownership_experience}
+                                    onChange={(value) =>
+                                        form.setData(
+                                            'business_ownership_experience',
+                                            value,
+                                        )
+                                    }
+                                    options={[
+                                        ['none', 'No, not yet'],
+                                        [
+                                            'managed_business',
+                                            'I managed a business',
+                                        ],
+                                        [
+                                            'owned_business',
+                                            'I owned a business',
+                                        ],
+                                        [
+                                            'bought_or_sold_business',
+                                            'I bought or sold a business',
+                                        ],
+                                    ]}
+                                />
+                                <SupportSelect
+                                    label="How confident are you with financial reports?"
+                                    value={form.data.financial_confidence}
+                                    error={errors.financial_confidence}
+                                    onChange={(value) =>
+                                        form.setData(
+                                            'financial_confidence',
+                                            value,
+                                        )
+                                    }
+                                    options={[
+                                        ['low', 'I need plain-language help'],
+                                        ['medium', 'I understand the basics'],
+                                        [
+                                            'high',
+                                            'I am confident with financials',
+                                        ],
+                                    ]}
+                                />
+                                <SupportSelect
+                                    label="What kind of help would you prefer?"
+                                    value={form.data.preferred_guidance}
+                                    error={errors.preferred_guidance}
+                                    onChange={(value) =>
+                                        form.setData(
+                                            'preferred_guidance',
+                                            value,
+                                        )
+                                    }
+                                    options={[
+                                        ['guided', 'Step-by-step help'],
+                                        ['balanced', 'Balanced support'],
+                                        ['fast_track', 'Shorter path'],
+                                    ]}
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <p className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                            FSA will make this step available once the due
+                            diligence engagement and acquisition target are set
+                            up.
+                        </p>
+                    )}
+                </ContentShell>
+            );
         case 'questionnaire':
             return (
                 <ContentShell
@@ -551,36 +705,6 @@ function StepContent({
                     description={questionnaire.description}
                     explanation={stepExplanations.questionnaire}
                 >
-                    <div className="flex flex-wrap gap-2">
-                        <Badge
-                            variant={
-                                questionnaire.available
-                                    ? 'secondary'
-                                    : 'outline'
-                            }
-                        >
-                            {questionnaire.set}
-                        </Badge>
-                        <Badge variant="outline">{questionnaire.phase}</Badge>
-                        <Badge
-                            variant={
-                                questionnaireDraftStatus === 'error'
-                                    ? 'destructive'
-                                    : 'outline'
-                            }
-                        >
-                            {questionnaireDraftLabel(questionnaireDraftStatus)}
-                        </Badge>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={questionnaireDraftStatus === 'saving'}
-                            onClick={onSaveQuestionnaireDraft}
-                        >
-                            Save draft
-                        </Button>
-                    </div>
                     {questionnaire.available && questionnaire.schema ? (
                         <QuestionnaireRenderer
                             schema={questionnaire.schema}
@@ -610,7 +734,7 @@ function StepContent({
                     ) : (
                         <CheckboxField
                             id="phase_three_acknowledged"
-                            label="I understand this questionnaire is gated until Phase 3."
+                            label="I understand that FSA will make this questionnaire available when the engagement is ready."
                             checked={form.data.phase_three_acknowledged}
                             onCheckedChange={(checked) =>
                                 form.setData(
@@ -628,7 +752,11 @@ function StepContent({
                 <ContentShell
                     icon={FileText}
                     title="Documents"
-                    description="Upload the evidence your advisor needs before the Standard Advisory review can move into analysis."
+                    description={
+                        client.engagement_type === 'due_diligence'
+                            ? 'Upload acquisition evidence that FSA needs to assess the target business.'
+                            : 'Upload the evidence your advisor needs before the Standard Advisory review can move into analysis.'
+                    }
                     explanation={stepExplanations.documents}
                 >
                     <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
@@ -683,17 +811,33 @@ function StepContent({
                     explanation={stepExplanations['review-submit']}
                 >
                     <dl className="grid gap-3 text-sm md:grid-cols-2">
-                        <Detail
-                            label="Website"
-                            value={
-                                summaryValue(state, 'website', 'website_url') ??
-                                'No public website listed'
-                            }
-                        />
-                        <Detail
-                            label="Primary goal"
-                            value={summaryValue(state, 'goals', 'primary_goal')}
-                        />
+                        {client.engagement_type === 'due_diligence' ? (
+                            <Detail
+                                label="DD support"
+                                value={ddSupport.label}
+                            />
+                        ) : (
+                            <>
+                                <Detail
+                                    label="Website"
+                                    value={
+                                        summaryValue(
+                                            state,
+                                            'website',
+                                            'website_url',
+                                        ) ?? 'No public website listed'
+                                    }
+                                />
+                                <Detail
+                                    label="Primary goal"
+                                    value={summaryValue(
+                                        state,
+                                        'goals',
+                                        'primary_goal',
+                                    )}
+                                />
+                            </>
+                        )}
                         <Detail
                             label="Questionnaire"
                             value={summaryValue(
@@ -768,6 +912,12 @@ const stepExplanations: Record<string, Explanation> = {
         action: 'Enter the website address, or confirm that the business does not have a public website.',
         why: 'A confirmed website gives the advisor a reliable source for the website review and any related recommendations.',
     },
+    'dd-support-level': {
+        title: 'DD support level',
+        what: 'This matches the due diligence workspace to your prior experience and the help you want.',
+        action: 'Choose the options that best describe your due diligence, business ownership, and financial-report experience.',
+        why: 'FSA can make the next DD actions either more guided or more concise without removing access to help.',
+    },
     questionnaire: {
         title: 'Questionnaire',
         what: 'This captures structured business information needed for the selected advisory pathway.',
@@ -836,6 +986,39 @@ function CheckboxField({
     );
 }
 
+function SupportSelect({
+    label,
+    value,
+    error,
+    options,
+    onChange,
+}: {
+    label: string;
+    value: string;
+    error?: string;
+    options: Array<[string, string]>;
+    onChange: (value: string) => void;
+}) {
+    return (
+        <div className="grid gap-2">
+            <Label>{label}</Label>
+            <Select value={value} onValueChange={onChange}>
+                <SelectTrigger>
+                    <SelectValue placeholder="Choose one" />
+                </SelectTrigger>
+                <SelectContent>
+                    {options.map(([optionValue, optionLabel]) => (
+                        <SelectItem key={optionValue} value={optionValue}>
+                            {optionLabel}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+            <InputError message={error} />
+        </div>
+    );
+}
+
 function Detail({
     label,
     value,
@@ -868,16 +1051,6 @@ function StepIcon({ step }: { step: WizardStep }) {
 
 function booleanValue(value: unknown): boolean {
     return value === true;
-}
-
-function questionnaireDraftLabel(status: QuestionnaireDraftStatus): string {
-    return {
-        idle: 'Draft ready',
-        saving: 'Saving draft',
-        saved: 'Draft saved',
-        offline: 'Offline changes',
-        error: 'Draft needs saving',
-    }[status];
 }
 
 function stringValue(value: unknown, fallback = ''): string {

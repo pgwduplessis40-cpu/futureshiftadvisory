@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::index
-* @see app/Http/Controllers/Advisor/ClientController.php:93
+* @see app/Http/Controllers/Advisor/ClientController.php:48
 * @route '/advisor/clients'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::index
-* @see app/Http/Controllers/Advisor/ClientController.php:93
+* @see app/Http/Controllers/Advisor/ClientController.php:48
 * @route '/advisor/clients'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::index
-* @see app/Http/Controllers/Advisor/ClientController.php:93
+* @see app/Http/Controllers/Advisor/ClientController.php:48
 * @route '/advisor/clients'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::index
-* @see app/Http/Controllers/Advisor/ClientController.php:93
+* @see app/Http/Controllers/Advisor/ClientController.php:48
 * @route '/advisor/clients'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::index
-* @see app/Http/Controllers/Advisor/ClientController.php:93
+* @see app/Http/Controllers/Advisor/ClientController.php:48
 * @route '/advisor/clients'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::index
-* @see app/Http/Controllers/Advisor/ClientController.php:93
+* @see app/Http/Controllers/Advisor/ClientController.php:48
 * @route '/advisor/clients'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::index
-* @see app/Http/Controllers/Advisor/ClientController.php:93
+* @see app/Http/Controllers/Advisor/ClientController.php:48
 * @route '/advisor/clients'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ index.form = indexForm
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::create
-* @see app/Http/Controllers/Advisor/ClientController.php:241
+* @see app/Http/Controllers/Advisor/ClientController.php:55
 * @route '/advisor/clients/create'
 */
 export const create = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -97,7 +97,7 @@ create.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::create
-* @see app/Http/Controllers/Advisor/ClientController.php:241
+* @see app/Http/Controllers/Advisor/ClientController.php:55
 * @route '/advisor/clients/create'
 */
 create.url = (options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ create.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::create
-* @see app/Http/Controllers/Advisor/ClientController.php:241
+* @see app/Http/Controllers/Advisor/ClientController.php:55
 * @route '/advisor/clients/create'
 */
 create.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -116,7 +116,7 @@ create.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::create
-* @see app/Http/Controllers/Advisor/ClientController.php:241
+* @see app/Http/Controllers/Advisor/ClientController.php:55
 * @route '/advisor/clients/create'
 */
 create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -126,7 +126,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::create
-* @see app/Http/Controllers/Advisor/ClientController.php:241
+* @see app/Http/Controllers/Advisor/ClientController.php:55
 * @route '/advisor/clients/create'
 */
 const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -136,7 +136,7 @@ const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::create
-* @see app/Http/Controllers/Advisor/ClientController.php:241
+* @see app/Http/Controllers/Advisor/ClientController.php:55
 * @route '/advisor/clients/create'
 */
 createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -146,7 +146,7 @@ createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::create
-* @see app/Http/Controllers/Advisor/ClientController.php:241
+* @see app/Http/Controllers/Advisor/ClientController.php:55
 * @route '/advisor/clients/create'
 */
 createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -163,7 +163,7 @@ create.form = createForm
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::invite
-* @see app/Http/Controllers/Advisor/ClientController.php:248
+* @see app/Http/Controllers/Advisor/ClientController.php:62
 * @route '/advisor/clients/invite'
 */
 export const invite = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -178,7 +178,7 @@ invite.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::invite
-* @see app/Http/Controllers/Advisor/ClientController.php:248
+* @see app/Http/Controllers/Advisor/ClientController.php:62
 * @route '/advisor/clients/invite'
 */
 invite.url = (options?: RouteQueryOptions) => {
@@ -187,7 +187,7 @@ invite.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::invite
-* @see app/Http/Controllers/Advisor/ClientController.php:248
+* @see app/Http/Controllers/Advisor/ClientController.php:62
 * @route '/advisor/clients/invite'
 */
 invite.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -197,7 +197,7 @@ invite.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::invite
-* @see app/Http/Controllers/Advisor/ClientController.php:248
+* @see app/Http/Controllers/Advisor/ClientController.php:62
 * @route '/advisor/clients/invite'
 */
 invite.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -207,7 +207,7 @@ invite.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::invite
-* @see app/Http/Controllers/Advisor/ClientController.php:248
+* @see app/Http/Controllers/Advisor/ClientController.php:62
 * @route '/advisor/clients/invite'
 */
 const inviteForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -217,7 +217,7 @@ const inviteForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::invite
-* @see app/Http/Controllers/Advisor/ClientController.php:248
+* @see app/Http/Controllers/Advisor/ClientController.php:62
 * @route '/advisor/clients/invite'
 */
 inviteForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -227,7 +227,7 @@ inviteForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::invite
-* @see app/Http/Controllers/Advisor/ClientController.php:248
+* @see app/Http/Controllers/Advisor/ClientController.php:62
 * @route '/advisor/clients/invite'
 */
 inviteForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -244,7 +244,7 @@ invite.form = inviteForm
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::storeInvite
-* @see app/Http/Controllers/Advisor/ClientController.php:266
+* @see app/Http/Controllers/Advisor/ClientController.php:80
 * @route '/advisor/clients/invite'
 */
 export const storeInvite = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -259,7 +259,7 @@ storeInvite.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::storeInvite
-* @see app/Http/Controllers/Advisor/ClientController.php:266
+* @see app/Http/Controllers/Advisor/ClientController.php:80
 * @route '/advisor/clients/invite'
 */
 storeInvite.url = (options?: RouteQueryOptions) => {
@@ -268,7 +268,7 @@ storeInvite.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::storeInvite
-* @see app/Http/Controllers/Advisor/ClientController.php:266
+* @see app/Http/Controllers/Advisor/ClientController.php:80
 * @route '/advisor/clients/invite'
 */
 storeInvite.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -278,7 +278,7 @@ storeInvite.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::storeInvite
-* @see app/Http/Controllers/Advisor/ClientController.php:266
+* @see app/Http/Controllers/Advisor/ClientController.php:80
 * @route '/advisor/clients/invite'
 */
 const storeInviteForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -288,7 +288,7 @@ const storeInviteForm = (options?: RouteQueryOptions): RouteFormDefinition<'post
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::storeInvite
-* @see app/Http/Controllers/Advisor/ClientController.php:266
+* @see app/Http/Controllers/Advisor/ClientController.php:80
 * @route '/advisor/clients/invite'
 */
 storeInviteForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -300,7 +300,7 @@ storeInvite.form = storeInviteForm
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::resendInvite
-* @see app/Http/Controllers/Advisor/ClientController.php:322
+* @see app/Http/Controllers/Advisor/ClientController.php:130
 * @route '/advisor/clients/{client}/invite/resend'
 */
 export const resendInvite = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -315,7 +315,7 @@ resendInvite.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::resendInvite
-* @see app/Http/Controllers/Advisor/ClientController.php:322
+* @see app/Http/Controllers/Advisor/ClientController.php:130
 * @route '/advisor/clients/{client}/invite/resend'
 */
 resendInvite.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -348,7 +348,7 @@ resendInvite.url = (args: { client: string | { id: string } } | [client: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::resendInvite
-* @see app/Http/Controllers/Advisor/ClientController.php:322
+* @see app/Http/Controllers/Advisor/ClientController.php:130
 * @route '/advisor/clients/{client}/invite/resend'
 */
 resendInvite.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -358,7 +358,7 @@ resendInvite.post = (args: { client: string | { id: string } } | [client: string
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::resendInvite
-* @see app/Http/Controllers/Advisor/ClientController.php:322
+* @see app/Http/Controllers/Advisor/ClientController.php:130
 * @route '/advisor/clients/{client}/invite/resend'
 */
 const resendInviteForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -368,7 +368,7 @@ const resendInviteForm = (args: { client: string | { id: string } } | [client: s
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::resendInvite
-* @see app/Http/Controllers/Advisor/ClientController.php:322
+* @see app/Http/Controllers/Advisor/ClientController.php:130
 * @route '/advisor/clients/{client}/invite/resend'
 */
 resendInviteForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -380,7 +380,7 @@ resendInvite.form = resendInviteForm
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::cancelInvite
-* @see app/Http/Controllers/Advisor/ClientController.php:384
+* @see app/Http/Controllers/Advisor/ClientController.php:181
 * @route '/advisor/clients/{client}/invite'
 */
 export const cancelInvite = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -395,7 +395,7 @@ cancelInvite.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::cancelInvite
-* @see app/Http/Controllers/Advisor/ClientController.php:384
+* @see app/Http/Controllers/Advisor/ClientController.php:181
 * @route '/advisor/clients/{client}/invite'
 */
 cancelInvite.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -428,7 +428,7 @@ cancelInvite.url = (args: { client: string | { id: string } } | [client: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::cancelInvite
-* @see app/Http/Controllers/Advisor/ClientController.php:384
+* @see app/Http/Controllers/Advisor/ClientController.php:181
 * @route '/advisor/clients/{client}/invite'
 */
 cancelInvite.delete = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -438,7 +438,7 @@ cancelInvite.delete = (args: { client: string | { id: string } } | [client: stri
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::cancelInvite
-* @see app/Http/Controllers/Advisor/ClientController.php:384
+* @see app/Http/Controllers/Advisor/ClientController.php:181
 * @route '/advisor/clients/{client}/invite'
 */
 const cancelInviteForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -453,7 +453,7 @@ const cancelInviteForm = (args: { client: string | { id: string } } | [client: s
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::cancelInvite
-* @see app/Http/Controllers/Advisor/ClientController.php:384
+* @see app/Http/Controllers/Advisor/ClientController.php:181
 * @route '/advisor/clients/{client}/invite'
 */
 cancelInviteForm.delete = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -470,7 +470,7 @@ cancelInvite.form = cancelInviteForm
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::lookupNzbn
-* @see app/Http/Controllers/Advisor/ClientController.php:421
+* @see app/Http/Controllers/Advisor/ClientController.php:213
 * @route '/advisor/clients/lookup-nzbn'
 */
 export const lookupNzbn = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -485,7 +485,7 @@ lookupNzbn.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::lookupNzbn
-* @see app/Http/Controllers/Advisor/ClientController.php:421
+* @see app/Http/Controllers/Advisor/ClientController.php:213
 * @route '/advisor/clients/lookup-nzbn'
 */
 lookupNzbn.url = (options?: RouteQueryOptions) => {
@@ -494,7 +494,7 @@ lookupNzbn.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::lookupNzbn
-* @see app/Http/Controllers/Advisor/ClientController.php:421
+* @see app/Http/Controllers/Advisor/ClientController.php:213
 * @route '/advisor/clients/lookup-nzbn'
 */
 lookupNzbn.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -504,7 +504,7 @@ lookupNzbn.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::lookupNzbn
-* @see app/Http/Controllers/Advisor/ClientController.php:421
+* @see app/Http/Controllers/Advisor/ClientController.php:213
 * @route '/advisor/clients/lookup-nzbn'
 */
 const lookupNzbnForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -514,7 +514,7 @@ const lookupNzbnForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::lookupNzbn
-* @see app/Http/Controllers/Advisor/ClientController.php:421
+* @see app/Http/Controllers/Advisor/ClientController.php:213
 * @route '/advisor/clients/lookup-nzbn'
 */
 lookupNzbnForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -526,7 +526,7 @@ lookupNzbn.form = lookupNzbnForm
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::store
-* @see app/Http/Controllers/Advisor/ClientController.php:435
+* @see app/Http/Controllers/Advisor/ClientController.php:225
 * @route '/advisor/clients'
 */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -541,7 +541,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::store
-* @see app/Http/Controllers/Advisor/ClientController.php:435
+* @see app/Http/Controllers/Advisor/ClientController.php:225
 * @route '/advisor/clients'
 */
 store.url = (options?: RouteQueryOptions) => {
@@ -550,7 +550,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::store
-* @see app/Http/Controllers/Advisor/ClientController.php:435
+* @see app/Http/Controllers/Advisor/ClientController.php:225
 * @route '/advisor/clients'
 */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -560,7 +560,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::store
-* @see app/Http/Controllers/Advisor/ClientController.php:435
+* @see app/Http/Controllers/Advisor/ClientController.php:225
 * @route '/advisor/clients'
 */
 const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -570,7 +570,7 @@ const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::store
-* @see app/Http/Controllers/Advisor/ClientController.php:435
+* @see app/Http/Controllers/Advisor/ClientController.php:225
 * @route '/advisor/clients'
 */
 storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -582,7 +582,7 @@ store.form = storeForm
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::show
-* @see app/Http/Controllers/Advisor/ClientController.php:515
+* @see app/Http/Controllers/Advisor/ClientController.php:299
 * @route '/advisor/clients/{client}'
 */
 export const show = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -597,7 +597,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::show
-* @see app/Http/Controllers/Advisor/ClientController.php:515
+* @see app/Http/Controllers/Advisor/ClientController.php:299
 * @route '/advisor/clients/{client}'
 */
 show.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -630,7 +630,7 @@ show.url = (args: { client: string | { id: string } } | [client: string | { id: 
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::show
-* @see app/Http/Controllers/Advisor/ClientController.php:515
+* @see app/Http/Controllers/Advisor/ClientController.php:299
 * @route '/advisor/clients/{client}'
 */
 show.get = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -640,7 +640,7 @@ show.get = (args: { client: string | { id: string } } | [client: string | { id: 
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::show
-* @see app/Http/Controllers/Advisor/ClientController.php:515
+* @see app/Http/Controllers/Advisor/ClientController.php:299
 * @route '/advisor/clients/{client}'
 */
 show.head = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -650,7 +650,7 @@ show.head = (args: { client: string | { id: string } } | [client: string | { id:
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::show
-* @see app/Http/Controllers/Advisor/ClientController.php:515
+* @see app/Http/Controllers/Advisor/ClientController.php:299
 * @route '/advisor/clients/{client}'
 */
 const showForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -660,7 +660,7 @@ const showForm = (args: { client: string | { id: string } } | [client: string | 
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::show
-* @see app/Http/Controllers/Advisor/ClientController.php:515
+* @see app/Http/Controllers/Advisor/ClientController.php:299
 * @route '/advisor/clients/{client}'
 */
 showForm.get = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -670,7 +670,7 @@ showForm.get = (args: { client: string | { id: string } } | [client: string | { 
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::show
-* @see app/Http/Controllers/Advisor/ClientController.php:515
+* @see app/Http/Controllers/Advisor/ClientController.php:299
 * @route '/advisor/clients/{client}'
 */
 showForm.head = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

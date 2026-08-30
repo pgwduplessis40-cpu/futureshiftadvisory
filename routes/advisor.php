@@ -197,6 +197,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('clients/{client}/strategic-budget/approve', [ClientStrategicBudgetController::class, 'approve'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.strategic-budget.approve');
+        Route::post('clients/{client}/strategic-budget/assess', [ClientStrategicBudgetController::class, 'assess'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.strategic-budget.assess');
+        Route::patch('clients/{client}/strategic-budget/feedback', [ClientStrategicBudgetController::class, 'feedback'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.strategic-budget.feedback');
         Route::patch('clients/{client}/strategic-budget/advisor-goals', [ClientStrategicBudgetController::class, 'advisorGoals'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.strategic-budget.advisor-goals');
@@ -387,6 +393,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('reports/{report}/review', [ReportController::class, 'review'])
             ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
             ->name('reports.review');
+        Route::patch('reports/{report}/dd-feedback', [ReportController::class, 'ddFeedback'])
+            ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
+            ->name('reports.dd-feedback');
         Route::patch('reports/{report}/release', [ReportController::class, 'release'])
             ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
             ->name('reports.release');

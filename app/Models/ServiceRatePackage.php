@@ -15,6 +15,8 @@ final class ServiceRatePackage extends Model
 
     public const SERVICE_DUE_DILIGENCE = 'due_diligence';
 
+    public const SERVICE_DD_PLAN_BUDGET = 'dd_plan_budget';
+
     public const SERVICE_ENTREPRENEUR = 'entrepreneur';
 
     public const SERVICE_INTEGRATION_SCOPING = 'integration_scoping';
@@ -36,6 +38,8 @@ final class ServiceRatePackage extends Model
     public const SCOPE_DD_300K_1M = 'dd_300k_1m';
 
     public const SCOPE_DD_1M_3M = 'dd_1m_3m';
+
+    public const SCOPE_DD_PLAN_BUDGET_ADD_ON = 'dd_plan_budget_add_on';
 
     protected $guarded = [];
 
@@ -127,6 +131,7 @@ final class ServiceRatePackage extends Model
         return [
             ...self::entrepreneurPackageScopes(),
             ...self::dueDiligencePackageScopes(),
+            self::SCOPE_DD_PLAN_BUDGET_ADD_ON,
         ];
     }
 
@@ -242,6 +247,7 @@ final class ServiceRatePackage extends Model
             self::SCOPE_DD_UNDER_300K => 'Purchase price below $300k',
             self::SCOPE_DD_300K_1M => 'Purchase price $300k-$1m',
             self::SCOPE_DD_1M_3M => 'Purchase price $1m-$3m',
+            self::SCOPE_DD_PLAN_BUDGET_ADD_ON => 'Business Plan + Budget add-on',
             default => 'Standard workspace',
         };
     }
@@ -261,6 +267,19 @@ final class ServiceRatePackage extends Model
                 'includes_plan_budget' => false,
                 'included_stages' => self::includedStagesFor($scope),
                 'client_outcomes' => self::clientOutcomesFor($scope),
+            ];
+        }
+
+        if ($serviceType === self::SERVICE_DD_PLAN_BUDGET) {
+            $scope = self::normaliseDdPlanBudgetScope($scope);
+
+            return [
+                'package_scope' => $scope,
+                'package_scope_label' => self::packageScopeLabel($scope),
+                'includes_idea_validation' => false,
+                'includes_plan_budget' => true,
+                'included_stages' => self::ddPlanBudgetIncludedStagesFor($scope),
+                'client_outcomes' => self::ddPlanBudgetClientOutcomesFor($scope),
             ];
         }
 
@@ -344,6 +363,11 @@ final class ServiceRatePackage extends Model
         return self::SCOPE_DD_300K_1M;
     }
 
+    public static function normaliseDdPlanBudgetScope(?string $scope = null): string
+    {
+        return self::SCOPE_DD_PLAN_BUDGET_ADD_ON;
+    }
+
     public function packageScope(): ?string
     {
         if ($this->service_type === self::SERVICE_DUE_DILIGENCE) {
@@ -354,6 +378,10 @@ final class ServiceRatePackage extends Model
                 $this->package_name,
                 $this->client_label,
             );
+        }
+
+        if ($this->service_type === self::SERVICE_DD_PLAN_BUDGET) {
+            return self::normaliseDdPlanBudgetScope($this->package_scope);
         }
 
         if ($this->service_type === self::SERVICE_ENTREPRENEUR) {
@@ -368,6 +396,10 @@ final class ServiceRatePackage extends Model
      */
     public function includedStages(): array
     {
+        if ($this->service_type === self::SERVICE_DD_PLAN_BUDGET) {
+            return self::ddPlanBudgetIncludedStagesFor($this->packageScope());
+        }
+
         return self::includedStagesFor($this->packageScope());
     }
 
@@ -376,6 +408,10 @@ final class ServiceRatePackage extends Model
      */
     public function clientOutcomes(): array
     {
+        if ($this->service_type === self::SERVICE_DD_PLAN_BUDGET) {
+            return self::ddPlanBudgetClientOutcomesFor($this->packageScope());
+        }
+
         return self::clientOutcomesFor($this->packageScope());
     }
 
@@ -492,6 +528,38 @@ final class ServiceRatePackage extends Model
             self::SCOPE_DD_UNDER_300K, self::SCOPE_DD_300K_1M, self::SCOPE_DD_1M_3M => [
                 'A structured acquisition plan for the target business.',
                 'Clearer risk, evidence, and purchase-decision signals before committing further.',
+            ],
+            default => [],
+        };
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function ddPlanBudgetIncludedStagesFor(?string $scope): array
+    {
+        return match ($scope) {
+            self::SCOPE_DD_PLAN_BUDGET_ADD_ON, self::SCOPE_DD_UNDER_300K, self::SCOPE_DD_300K_1M, self::SCOPE_DD_1M_3M => [
+                'FSA quote and approval before the module opens',
+                'DD onboarding support profile carried into fee/scope selection',
+                'Acquisition business plan built from DD evidence',
+                'Funding budget and cash-flow assumptions',
+                'Advisor assessment before client uses the plan for funding',
+            ],
+            default => [],
+        };
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function ddPlanBudgetClientOutcomesFor(?string $scope): array
+    {
+        return match ($scope) {
+            self::SCOPE_DD_PLAN_BUDGET_ADD_ON, self::SCOPE_DD_UNDER_300K, self::SCOPE_DD_300K_1M, self::SCOPE_DD_1M_3M => [
+                'A structured acquisition business plan for funding conversations.',
+                'A supporting budget that uses DD evidence, financial records, and purchase assumptions.',
+                'Advisor-reviewed readiness signals before the plan is shared with lenders or funders.',
             ],
             default => [],
         };

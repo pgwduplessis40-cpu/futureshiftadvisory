@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::draft
-* @see app/Http/Controllers/Portal/OnboardingController.php:108
+* @see app/Http/Controllers/Portal/OnboardingController.php:109
 * @route '/portal/onboarding/questionnaire/draft'
 */
 export const draft = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ draft.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::draft
-* @see app/Http/Controllers/Portal/OnboardingController.php:108
+* @see app/Http/Controllers/Portal/OnboardingController.php:109
 * @route '/portal/onboarding/questionnaire/draft'
 */
 draft.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ draft.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::draft
-* @see app/Http/Controllers/Portal/OnboardingController.php:108
+* @see app/Http/Controllers/Portal/OnboardingController.php:109
 * @route '/portal/onboarding/questionnaire/draft'
 */
 draft.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ draft.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::draft
-* @see app/Http/Controllers/Portal/OnboardingController.php:108
+* @see app/Http/Controllers/Portal/OnboardingController.php:109
 * @route '/portal/onboarding/questionnaire/draft'
 */
 const draftForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,7 +45,7 @@ const draftForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::draft
-* @see app/Http/Controllers/Portal/OnboardingController.php:108
+* @see app/Http/Controllers/Portal/OnboardingController.php:109
 * @route '/portal/onboarding/questionnaire/draft'
 */
 draftForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

@@ -211,6 +211,7 @@ type ActionSummaryInput = Pick<
     | 'redFlags'
     | 'documentVerificationFlags'
     | 'clientTransferQueue'
+    | 'serviceActivationRequests'
     | 'entrepreneurReviews'
     | 'strategicPlanDeployments'
     | 'pendingTermsReacceptance'
@@ -234,6 +235,7 @@ export function buildActionSummaryItems({
     redFlags,
     documentVerificationFlags,
     clientTransferQueue,
+    serviceActivationRequests,
     entrepreneurReviews,
     strategicPlanDeployments,
     pendingTermsReacceptance,
@@ -266,6 +268,27 @@ export function buildActionSummaryItems({
     const coachApprovalActionCount = panelOperations.approvals.summary.coach;
     const operationalHealthActionCount =
         operationalHealth.summary.failed + operationalHealth.summary.warning;
+    const serviceActivationAction =
+        serviceActivationRequests.summary.total > 0
+            ? {
+                  key: 'service-activation-requests',
+                  label: 'Quote requests',
+                  value: serviceActivationRequests.summary.total,
+                  statusLabel:
+                      serviceActivationRequests.summary.dd_plan_budget > 0
+                          ? 'BP&B'
+                          : 'Review',
+                  href: '#advisor-service-activation-requests',
+                  targetId: 'advisor-service-activation-requests',
+                  tab: 'priorities' as const,
+                  priority: 'warning' as const,
+                  explanation:
+                      'Quote requests are client-requested service activations waiting for FSA to choose the package, scope, and fee.',
+                  nextStep:
+                      'Open the request, select the active service-rate package, then let the client complete payment and scope acceptance.',
+                  icon: <Banknote className="size-4" aria-hidden="true" />,
+              }
+            : null;
     const aiOperationalAction =
         aiOperationalAlert.available &&
         aiOperationalAlert.action_url &&
@@ -365,6 +388,7 @@ export function buildActionSummaryItems({
     return [
         ...(aiOperationalAction ? [aiOperationalAction] : []),
         ...(operationalHealthAction ? [operationalHealthAction] : []),
+        ...(serviceActivationAction ? [serviceActivationAction] : []),
         {
             key: 'cash-flow-risks',
             label: 'Cash flow risks',

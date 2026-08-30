@@ -23,6 +23,7 @@ use App\Models\QuestionnaireQuestion;
 use App\Models\Report;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
+use App\Models\StrategicBudget;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\Pdf\PdfRenderer;
@@ -169,6 +170,7 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertAtLeast(6, 'service_rate_packages');
         $this->assertAtLeast(3, 'service_activations');
         $this->assertSeededServiceActivationPricingFlow();
+        $this->assertSouthernLightsPlanBudgetSubmitFixture();
         $this->assertSeededProposalTemplate();
         $this->assertSeededProposalSignoffFlow();
         $this->assertWebsiteAuditDemoFixture();
@@ -418,6 +420,15 @@ final class TestingSeedDataSeederTest extends TestCase
             'deposit_percent' => '100.00',
         ]);
 
+        $this->assertDatabaseHas('service_rate_packages', [
+            'service_type' => ServiceRatePackage::SERVICE_DD_PLAN_BUDGET,
+            'package_scope' => ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
+            'fixed_fee' => '2400.00',
+            'deposit_percent' => '100.00',
+            'purchase_price_min' => null,
+            'purchase_price_max' => null,
+        ]);
+
         $balancePending = DB::table('service_activations')
             ->where('payment_status', ServiceActivation::PAYMENT_BALANCE_PENDING)
             ->first();
@@ -459,6 +470,64 @@ final class TestingSeedDataSeederTest extends TestCase
             $this->assertNotNull($persona, "Expected seeded DD persona [{$email}] to have an active DD workspace.");
             $targetDetails = json_decode((string) $persona->target_details, true, flags: JSON_THROW_ON_ERROR);
             $this->assertSame($mode, data_get($targetDetails, 'client_capability.mode'));
+        }
+    }
+
+    private function assertSouthernLightsPlanBudgetSubmitFixture(): void
+    {
+        $client = DB::table('clients')->where('nzbn', '9429000000027')->first();
+        $this->assertNotNull($client, 'Expected Southern Lights seed client.');
+
+        $activation = DB::table('service_activations')
+            ->where('client_id', $client->id)
+            ->where('service_type', ServiceActivation::SERVICE_DD_PLAN_BUDGET)
+            ->first();
+
+        $this->assertNotNull($activation, 'Expected Southern Lights to have active BP&B add-on access.');
+        $this->assertSame(ServiceActivation::STATUS_ACTIVE, $activation->status);
+        $this->assertSame(ServiceActivation::PAYMENT_PAID, $activation->payment_status);
+
+        $snapshot = json_decode((string) $activation->selected_package_snapshot, true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame(ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON, data_get($snapshot, 'package_scope'));
+        $this->assertSame(ServiceRatePackage::SCOPE_DD_1M_3M, data_get($snapshot, 'quote_context.dd_package.package_scope'));
+        $this->assertSame(14500.0, (float) data_get($snapshot, 'quote_context.dd_package.fixed_fee'));
+        $this->assertSame(2400.0, (float) data_get($snapshot, 'quote_context.plan_budget_fixed_fee'));
+        $this->assertSame(16900.0, (float) data_get($snapshot, 'quote_context.combined_fixed_fee'));
+        $this->assertSame(2400.0, (float) data_get($snapshot, 'quote_context.amount_due_for_this_activation'));
+
+        $document = DB::table('documents')
+            ->where('client_id', $client->id)
+            ->where('original_filename', 'target-management-accounts.xlsx')
+            ->first();
+
+        $this->assertNotNull($document, 'Expected Southern Lights management accounts upload.');
+        $this->assertDatabaseHas('document_verifications', [
+            'document_id' => $document->id,
+            'context_hash' => hash('sha256', 'seed-verification-dd-plan-budget-management-accounts'),
+            'outcome' => 'verified',
+        ]);
+
+        $budget = DB::table('strategic_budgets')
+            ->where('client_id', $client->id)
+            ->where('pathway', StrategicBudget::PATHWAY_DUE_DILIGENCE)
+            ->first();
+
+        $this->assertNotNull($budget, 'Expected Southern Lights DD Business Plan & Budget fixture.');
+        $this->assertSame(StrategicBudget::STATUS_CLIENT_WORKING_DRAFT, $budget->status);
+        $this->assertNull($budget->submitted_at);
+        $this->assertNull($budget->business_plan_submitted_at);
+        $this->assertNull($budget->accepted_snapshot_at);
+
+        $sourceFinancials = json_decode((string) $budget->source_financials, true, flags: JSON_THROW_ON_ERROR);
+        $this->assertTrue((bool) data_get($sourceFinancials, 'unlocked'));
+        $this->assertGreaterThanOrEqual(1, (int) data_get($sourceFinancials, 'count'));
+
+        $planSections = json_decode((string) $budget->business_plan_sections, true, flags: JSON_THROW_ON_ERROR);
+        $this->assertCount(8, collect($planSections)->filter(fn (array $section): bool => trim((string) ($section['answer'] ?? '')) !== ''));
+
+        foreach (['implementation_costs', 'monthly_fixed_costs', 'revenue_forecast', 'funding_sources'] as $column) {
+            $rows = json_decode((string) $budget->{$column}, true, flags: JSON_THROW_ON_ERROR);
+            $this->assertNotEmpty($rows, "Expected seeded [{$column}] rows for submit-for-review testing.");
         }
     }
 

@@ -32,6 +32,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -71,7 +72,7 @@ final class OnboardingController extends Controller
             ]);
         }
 
-        $stepMeta = $this->wizard->step($step);
+        $stepMeta = $this->wizard->step($client, $step);
 
         if (! $this->wizard->canAccess($client, $step)) {
             return to_route('portal.onboarding.step', [
@@ -156,7 +157,7 @@ final class OnboardingController extends Controller
 
     private function storeForClient(Request $request, string $step, Client $client, bool $sync): RedirectResponse|JsonResponse
     {
-        $stepMeta = $this->wizard->step($step);
+        $stepMeta = $this->wizard->step($client, $step);
 
         if (! $this->wizard->canAccess($client, $step)) {
             if ($sync) {
@@ -174,6 +175,11 @@ final class OnboardingController extends Controller
         }
 
         $payload = $this->validatedPayload($request, $step, $client);
+
+        if ($step === OnboardingWizard::STEP_DD_SUPPORT) {
+            $this->wizard->saveDueDiligenceSupport($client, $payload);
+        }
+
         $this->wizard->saveStep($client, $step, $payload);
 
         /** @var User $user */
@@ -237,6 +243,7 @@ final class OnboardingController extends Controller
             'stepData' => Arr::get($state, "steps.{$step['slug']}", []),
             'progress' => $this->wizard->progress($client),
             'questionnaire' => $this->questionnaireFor($client),
+            'ddSupport' => $this->wizard->dueDiligenceSupport($client),
             'website' => $this->websiteFor($client),
             'documentUploadUrl' => route('portal.documents.store'),
             'documentCount' => Document::query()
@@ -263,6 +270,12 @@ final class OnboardingController extends Controller
                 'success_measure' => ['nullable', 'string', 'max:1000'],
             ]),
             OnboardingWizard::STEP_WEBSITE => $this->validateWebsite($request, $client),
+            OnboardingWizard::STEP_DD_SUPPORT => $request->validate([
+                'dd_experience' => ['required', 'string', Rule::in(['first_time', 'helped_before', 'completed_before'])],
+                'business_ownership_experience' => ['required', 'string', Rule::in(['none', 'managed_business', 'owned_business', 'bought_or_sold_business'])],
+                'financial_confidence' => ['required', 'string', Rule::in(['low', 'medium', 'high'])],
+                'preferred_guidance' => ['required', 'string', Rule::in(['guided', 'balanced', 'fast_track'])],
+            ]),
             OnboardingWizard::STEP_QUESTIONNAIRE => $this->validateQuestionnaire($request, $client),
             OnboardingWizard::STEP_DOCUMENTS => $this->validateDocuments($request, $client),
             OnboardingWizard::STEP_REVIEW => $request->validate([

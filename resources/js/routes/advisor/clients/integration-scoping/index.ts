@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::offer
-* @see app/Http/Controllers/Advisor/ServiceActivationController.php:100
+* @see app/Http/Controllers/Advisor/ServiceActivationController.php:104
 * @route '/advisor/clients/{client}/integration-scoping-offer'
 */
 export const offer = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ offer.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::offer
-* @see app/Http/Controllers/Advisor/ServiceActivationController.php:100
+* @see app/Http/Controllers/Advisor/ServiceActivationController.php:104
 * @route '/advisor/clients/{client}/integration-scoping-offer'
 */
 offer.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ offer.url = (args: { client: string | { id: string } } | [client: string | { id:
 
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::offer
-* @see app/Http/Controllers/Advisor/ServiceActivationController.php:100
+* @see app/Http/Controllers/Advisor/ServiceActivationController.php:104
 * @route '/advisor/clients/{client}/integration-scoping-offer'
 */
 offer.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ offer.post = (args: { client: string | { id: string } } | [client: string | { id
 
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::offer
-* @see app/Http/Controllers/Advisor/ServiceActivationController.php:100
+* @see app/Http/Controllers/Advisor/ServiceActivationController.php:104
 * @route '/advisor/clients/{client}/integration-scoping-offer'
 */
 const offerForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const offerForm = (args: { client: string | { id: string } } | [client: string |
 
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::offer
-* @see app/Http/Controllers/Advisor/ServiceActivationController.php:100
+* @see app/Http/Controllers/Advisor/ServiceActivationController.php:104
 * @route '/advisor/clients/{client}/integration-scoping-offer'
 */
 offerForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

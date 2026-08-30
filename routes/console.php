@@ -16,6 +16,7 @@ Schedule::command('entrepreneurs:recompute-streaks')
     ->dailyAt('00:15')
     ->timezone((string) config('gamification.timezone', 'Pacific/Auckland'))
     ->withoutOverlapping();
+Schedule::command('service-journeys:reconcile')->everyTenMinutes()->withoutOverlapping();
 Schedule::command('npo:impact-summary-auto-release')->hourly()->withoutOverlapping();
 Schedule::command('inspiration:release-due-rotations')->everyMinute()->withoutOverlapping();
 Schedule::command('inspiration:select-weekly-quote')

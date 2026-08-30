@@ -11,6 +11,8 @@ use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\OperationalHealthCheckResult;
 use App\Models\OperationalHealthCheckRun;
+use App\Models\Report;
+use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Notifications\OperationalHealthAttentionNotification;
 use App\Services\OperationalHealth\OperationalHealthAlerter;
@@ -198,6 +200,10 @@ final class OperationalHealthCheckTest extends TestCase
         $this->assertContains('portal.entrepreneur.dashboard', $checkKeys);
         $this->assertContains('portal.documents.show', $checkKeys);
         $this->assertNotContains('portal.business_plan_budget.pdf', $checkKeys);
+        $this->assertNotContains('advisor.dd_client.show', $checkKeys);
+        $this->assertNotContains('portal.dd_business_plan_budget.workspace', $checkKeys);
+        $this->assertNotContains('portal.dd_business_plan_budget.business_plan_pdf', $checkKeys);
+        $this->assertNotContains('portal.dd_business_plan_budget.budget_pack_pdf', $checkKeys);
         $this->assertNotContains('portal.dd_plan.preview', $checkKeys);
         $this->assertNotContains('advisor.templates.preview', $checkKeys);
 
@@ -221,6 +227,17 @@ final class OperationalHealthCheckTest extends TestCase
         $this->artisan('fsa:seed-operational-health-fixtures')
             ->assertSuccessful();
 
+        $this->assertDatabaseHas('service_activations', [
+            'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+            'status' => ServiceActivation::STATUS_ACTIVE,
+            'payment_status' => ServiceActivation::PAYMENT_PAID,
+        ]);
+        $this->assertDatabaseHas('reports', [
+            'title' => 'Operational Health DD Decision Report',
+            'render_status' => Report::RENDER_STATUS_RENDERED,
+            'review_status' => 'reviewed',
+        ]);
+
         $this->artisan(RunOperationalHealthChecks::class)
             ->assertSuccessful();
 
@@ -242,8 +259,12 @@ final class OperationalHealthCheckTest extends TestCase
             'system.pending_migrations',
             'portal.dashboard',
             'advisor.clients.show',
+            'advisor.dd_client.show',
+            'portal.dd_business_plan_budget.workspace',
             'portal.business_plan_budget.document',
             'portal.business_plan_budget.pdf',
+            'portal.dd_business_plan_budget.business_plan_pdf',
+            'portal.dd_business_plan_budget.budget_pack_pdf',
             'portal.dd_plan.preview',
             'portal.entrepreneur.plan.preview',
             'portal.entrepreneur.dashboard',
@@ -507,6 +528,12 @@ final class OperationalHealthCheckTest extends TestCase
         $this->assertDatabaseHas('operational_health_check_results', [
             'check_key' => 'admin.audit_trail.index',
             'status' => OperationalHealthCheckResult::STATUS_PASSED,
+        ]);
+        $this->assertDatabaseHas('operational_health_check_results', [
+            'check_key' => 'auth.login',
+            'status' => OperationalHealthCheckResult::STATUS_PASSED,
+            'actual_status' => 200,
+            'actor_user_id' => null,
         ]);
 
         /** @var OperationalHealthCheckRun $run */

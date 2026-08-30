@@ -349,6 +349,7 @@ final class FunderReadyBusinessPlanBuilder
         return '<article class="funder-section funder-finance"><header><p class="funder-kicker">Section 10</p><h2>'.$this->escape($heading).'</h2></header>'
             .$narrative
             .'<section class="funder-finance-block"><h3>10.1 Financial Snapshot</h3><table><tbody>'
+            .'<tr><th>Declared funding position</th><td>'.$this->escape((string) ($decision['funding_position_label'] ?? 'Funding position not confirmed')).'</td></tr>'
             .'<tr><th>Lowest cash position</th><td>'.$this->moneyWithMonth($decision['lowest_cash'] ?? null, $decision['lowest_cash_month'] ?? null).'</td></tr>'
             .'<tr><th>Required additional funding</th><td>'.$this->money($decision['required_additional_funding'] ?? 0).'</td></tr>'
             .'<tr><th>Funding available</th><td>'.$this->money($decision['available_funding'] ?? 0).'</td></tr>'
@@ -359,7 +360,7 @@ final class FunderReadyBusinessPlanBuilder
             .'<section class="funder-finance-block"><h3>10.3 Key Assumptions</h3><table><thead><tr><th>Assumption</th><th>Value</th><th>Basis</th><th>Review note</th></tr></thead><tbody>'.($assumptions === '' ? '<tr><td colspan="4" class="funder-missing">No assumptions have been saved.</td></tr>' : $assumptions).'</tbody></table></section>'
             .'<section class="funder-finance-block"><h3>10.4 Break-Even &amp; Sensitivity Summary</h3><table><thead><tr><th>Scenario</th><th>Test</th><th>Break-even</th><th>Lowest cash</th><th>Cash need</th></tr></thead><tbody>'.($scenarios === '' ? '<tr><td colspan="5" class="funder-missing">No sensitivity scenarios have been saved.</td></tr>' : $scenarios).'</tbody></table></section>'
             .'<section class="funder-finance-block"><h3>10.5 Funding Request &amp; Use of Funds</h3><p class="funder-finance-headline">'.$this->escape((string) ($decision['headline'] ?? 'Complete the budget pack before relying on the funding position externally.')).'</p><table><thead><tr><th>Category</th><th>Amount</th><th>Why it matters</th></tr></thead><tbody>'.($useOfFunds === '' ? '<tr><td colspan="3" class="funder-missing">No use-of-funds data has been saved.</td></tr>' : $useOfFunds).'</tbody></table></section>'
-            .'<section class="funder-finance-block funder-reconciliation"><h3>10.6 Reconciliation Gate</h3><p>'.($budgetReady ? 'The linked Budget Pack has passed its external-issue checks. This plan remains subject to the document controls above.' : 'This plan is an internal draft until the linked Budget Pack and all source-plan checks pass.').'</p></section>'
+            .'<section class="funder-finance-block funder-reconciliation"><h3>10.6 Reconciliation Gate</h3><p>'.($budgetReady && (bool) ($decision['funding_position_aligned'] ?? false) ? 'The linked Budget Pack has passed its external-issue checks and its declared funding position is aligned to the forecast. This plan remains subject to the document controls above.' : 'This plan is an internal draft until the linked Budget Pack, source evidence, and written funding position all reconcile.').'</p></section>'
             .'<section class="funder-finance-block"><h3>10.7 Path to Profitability / Repayment Capacity</h3><p>Break-even is '.$this->escape($this->yearValue($summary['break_even_year'] ?? null)).'; cumulative cash turns positive '.$this->escape($this->yearValue($summary['cash_flow_positive_year'] ?? null)).'. Lender repayment capacity must be assessed against the saved cash curve, required funding, and downside scenarios above.</p></section>'
             .'</article>';
     }
@@ -437,6 +438,7 @@ final class FunderReadyBusinessPlanBuilder
             'headers' => ['Metric', 'Value'],
             'rows' => [
                 ['Lowest cash position', $this->moneyWithMonth($decision['lowest_cash'] ?? null, $decision['lowest_cash_month'] ?? null)],
+                ['Declared funding position', (string) ($decision['funding_position_label'] ?? 'Funding position not confirmed')],
                 ['Required additional funding', $this->money($decision['required_additional_funding'] ?? 0)],
                 ['Funding available', $this->money($decision['available_funding'] ?? 0)],
                 ['Break-even', $this->yearValue($summary['break_even_year'] ?? null)],

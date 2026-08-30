@@ -143,6 +143,8 @@ final class BudgetCalculator implements ProvidesMethodology
                 $cadence = $this->cadence($row['cadence'] ?? null);
                 $growthCadence = $this->growthCadence($row['growth_cadence'] ?? null);
                 $monthlyCapacityUnits = $this->nullableNonNegativeNumber($row['monthly_capacity_units'] ?? null);
+                $founderCapacityUnits = $this->nullableNonNegativeNumber($row['founder_capacity_units'] ?? null);
+                $contractorUnitCost = $this->number($row['contractor_unit_cost'] ?? 0);
 
                 if ($grossProfitPercent !== null) {
                     $variableCostPercent = max(0.0, min(100.0, 100.0 - $grossProfitPercent));
@@ -165,11 +167,17 @@ final class BudgetCalculator implements ProvidesMethodology
                     'growth_cadence_confirmed' => (bool) ($row['growth_cadence_confirmed'] ?? false),
                     'monthly_capacity_units' => $monthlyCapacityUnits === null ? null : round($monthlyCapacityUnits, 2),
                     'capacity_confirmed' => (bool) ($row['capacity_confirmed'] ?? false),
+                    'founder_capacity_units' => $founderCapacityUnits === null ? null : round(min($founderCapacityUnits, $monthlyCapacityUnits ?? $founderCapacityUnits), 2),
+                    'contractor_unit_cost' => round($contractorUnitCost, 2),
+                    'contractor_cost_confirmed' => (bool) ($row['contractor_cost_confirmed'] ?? false),
                     'unit_label' => trim((string) ($row['unit_label'] ?? 'units')),
                     'variable_cost_percent' => round($variableCostPercent, 2),
                     'unit_cost' => round($unitCost, 2),
                     'gross_profit_percent' => $grossProfitPercent === null ? null : round($grossProfitPercent, 2),
                     'confidence' => $confidence,
+                    'source_type' => $this->sourceType($row['source_type'] ?? null),
+                    'source_reference' => $this->sourceReference($row['source_reference'] ?? null),
+                    'source_confirmed' => (bool) ($row['source_confirmed'] ?? false),
                 ];
             })
             ->filter(fn (array $row): bool => $row['label'] !== '' || $row['amount'] > 0)
@@ -211,6 +219,10 @@ final class BudgetCalculator implements ProvidesMethodology
                     ? (string) $row['type']
                     : 'bank_loan';
 
+                $termYears = in_array($type, ['bank_loan', 'mixed'], true)
+                    ? min(30, max(1, (int) ($row['term_years'] ?? 1)))
+                    : 0;
+
                 return [
                     'key' => 'scenario_'.($index + 1),
                     'name' => trim((string) ($row['name'] ?? $this->scenarioName($type, $index + 1))),
@@ -218,8 +230,10 @@ final class BudgetCalculator implements ProvidesMethodology
                     'amount' => round($this->number($row['amount'] ?? 0), 2),
                     'year' => min(5, max(1, (int) ($row['year'] ?? 1))),
                     'interest_rate_percent' => round($this->number($row['interest_rate_percent'] ?? 0), 2),
-                    'term_years' => min(30, max(0, (int) ($row['term_years'] ?? 0))),
-                    'interest_only_months' => min(120, max(0, (int) ($row['interest_only_months'] ?? 0))),
+                    'term_years' => $termYears,
+                    'interest_only_months' => in_array($type, ['bank_loan', 'mixed'], true)
+                        ? min(max(0, ($termYears * self::MONTHS_PER_YEAR) - 1), max(0, (int) ($row['interest_only_months'] ?? 0)))
+                        : 0,
                     'investor_equity_percent' => round($this->number($row['investor_equity_percent'] ?? 0), 2),
                     'confidence' => $this->confidence($row['confidence'] ?? null),
                 ];
@@ -297,6 +311,10 @@ final class BudgetCalculator implements ProvidesMethodology
             $provided[] = 'forecast_start_month';
         }
 
+        $fundingPosition = in_array($assumptions['funding_position'] ?? null, ['self_funded', 'external_funding'], true)
+            ? (string) $assumptions['funding_position']
+            : 'undecided';
+
         return [
             ...$normalised,
             'year_two_revenue_basis' => $yearTwoRevenueBasis,
@@ -304,6 +322,12 @@ final class BudgetCalculator implements ProvidesMethodology
             'opening_cash_balance' => round($openingCash, 2),
             'debtor_days' => $debtorDays ?? 0,
             'creditor_days' => $creditorDays ?? 0,
+            'opening_cash_verified' => (bool) ($assumptions['opening_cash_verified'] ?? false),
+            'working_capital_verified' => (bool) ($assumptions['working_capital_verified'] ?? false),
+            'forecast_start_confirmed' => (bool) ($assumptions['forecast_start_confirmed'] ?? false),
+            'funding_position' => $fundingPosition,
+            'funding_position_confirmed' => (bool) ($assumptions['funding_position_confirmed'] ?? false),
+            'funding_request_purpose' => $this->sourceReference($assumptions['funding_request_purpose'] ?? null),
             'working_capital_timing' => [
                 'debtor_days' => $debtorDays ?? 0,
                 'creditor_days' => $creditorDays ?? 0,
@@ -323,6 +347,11 @@ final class BudgetCalculator implements ProvidesMethodology
                 'opening_cash_balance' => 'Opening cash balance',
                 'debtor_days' => 'Debtor days',
                 'creditor_days' => 'Creditor days',
+                'opening_cash_verified' => 'Opening cash verification',
+                'working_capital_verified' => 'Working-capital timing verification',
+                'forecast_start_confirmed' => 'Forecast start-month confirmation',
+                'funding_position' => 'Funding position',
+                'funding_position_confirmed' => 'Funding-position confirmation',
             ],
         ];
     }
@@ -370,9 +399,11 @@ final class BudgetCalculator implements ProvidesMethodology
             $year = (int) ceil($month / self::MONTHS_PER_YEAR);
             $monthInYear = (($month - 1) % self::MONTHS_PER_YEAR) + 1;
             $revenue = $this->revenueForMonth($revenueRows, $month, $assumptions) * $revenueMultiplier;
-            $variableCosts = $this->variableCostsForMonth($revenueRows, $month, $assumptions) * $costMultiplier * $revenueMultiplier;
+            $contractorDeliveryCosts = $this->contractorDeliveryCostsForMonth($revenueRows, $month, $assumptions, $revenueMultiplier) * $costMultiplier;
+            $variableCosts = ($this->variableCostsForMonth($revenueRows, $month, $assumptions) * $revenueMultiplier * $costMultiplier) + $contractorDeliveryCosts;
             $cashCollected = $this->cashCollectedForMonth($revenueRows, $month, $assumptions, $debtorLagMonths) * $revenueMultiplier;
-            $variableCostsPaid = $this->variableCostsPaidForMonth($revenueRows, $month, $assumptions, $creditorLagMonths) * $costMultiplier * $revenueMultiplier;
+            $variableCostsPaid = ($this->variableCostsPaidForMonth($revenueRows, $month, $assumptions, $creditorLagMonths) * $revenueMultiplier * $costMultiplier)
+                + ($this->contractorDeliveryCostsForMonth($revenueRows, $month - $creditorLagMonths, $assumptions, $revenueMultiplier) * $costMultiplier);
             $workingCapitalTimingAdjustment = ($cashCollected - $revenue) + ($variableCosts - $variableCostsPaid);
             $fixedCosts = $this->fixedCostsForMonth($fixedRows, $month, $assumptions) * $costMultiplier;
             $futureOperatingCosts = $this->futureOperatingCostsForMonth($futureRows, $year, $monthInYear) * $costMultiplier;
@@ -417,6 +448,7 @@ final class BudgetCalculator implements ProvidesMethodology
                 'month_in_year' => $monthInYear,
                 'revenue' => round($revenue, 2),
                 'variable_costs' => round($variableCosts, 2),
+                'contractor_delivery_costs' => round($contractorDeliveryCosts, 2),
                 'cash_collected' => round($cashCollected, 2),
                 'variable_costs_paid' => round($variableCostsPaid, 2),
                 'working_capital_timing_adjustment' => round($workingCapitalTimingAdjustment, 2),
@@ -445,6 +477,7 @@ final class BudgetCalculator implements ProvidesMethodology
                 'year' => $year,
                 'revenue' => round((float) $yearRows->sum('revenue'), 2),
                 'variable_costs' => round((float) $yearRows->sum('variable_costs'), 2),
+                'contractor_delivery_costs' => round((float) $yearRows->sum('contractor_delivery_costs'), 2),
                 'cash_collected' => round((float) $yearRows->sum('cash_collected'), 2),
                 'variable_costs_paid' => round((float) $yearRows->sum('variable_costs_paid'), 2),
                 'working_capital_timing_adjustment' => round((float) $yearRows->sum('working_capital_timing_adjustment'), 2),
@@ -586,6 +619,34 @@ final class BudgetCalculator implements ProvidesMethodology
             $percent = min(100.0, ((float) $row['variable_cost_percent']) * $ratioAdjustment);
 
             return $total + ($revenue * ($percent / 100));
+        }, 0.0);
+    }
+
+    /**
+     * @param  array<int, array<array-key, mixed>>  $rows
+     * @param  array<array-key, mixed>  $assumptions
+     */
+    private function contractorDeliveryCostsForMonth(array $rows, int $month, array $assumptions, float $revenueMultiplier): float
+    {
+        if ($month < 1) {
+            return 0.0;
+        }
+
+        return array_reduce($rows, function (float $total, array $row) use ($month, $assumptions, $revenueMultiplier): float {
+            $founderCapacity = $row['founder_capacity_units'] ?? null;
+            $totalCapacity = $row['monthly_capacity_units'] ?? null;
+            $unitPrice = (float) ($row['amount'] ?? 0);
+            $contractorUnitCost = (float) ($row['contractor_unit_cost'] ?? 0);
+
+            if (! is_numeric($founderCapacity) || ! is_numeric($totalCapacity) || $unitPrice <= 0 || $contractorUnitCost <= 0) {
+                return $total;
+            }
+
+            $revenue = $this->revenueForRow($row, $month, $assumptions) * $revenueMultiplier;
+            $unitsRequired = $revenue / $unitPrice;
+            $contractorUnits = max(0.0, min($unitsRequired, (float) $totalCapacity) - (float) $founderCapacity);
+
+            return $total + ($contractorUnits * $contractorUnitCost);
         }, 0.0);
     }
 
@@ -1179,7 +1240,17 @@ final class BudgetCalculator implements ProvidesMethodology
      * @param  array<int, array<string, mixed>>  $fixedRows
      * @param  array<int, array<string, mixed>>  $revenueRows
      * @param  array<string, mixed>  $assumptions
-     * @return array<string, array<int, string>>
+     * @return array{
+     *     unconfirmed_fixed_cost_cadences: array<int, mixed>,
+     *     unconfirmed_revenue_growth: array<int, mixed>,
+     *     revenue_without_capacity: array<int, mixed>,
+     *     revenue_with_unpriced_contractors: array<int, mixed>,
+     *     unverified_fixed_cost_sources: array<int, mixed>,
+     *     unverified_revenue_sources: array<int, mixed>,
+     *     unverified_cash_timing: array<int, string>,
+     *     funding_position_unconfirmed: bool,
+     *     missing_assumptions: array<int, mixed>
+     * }
      */
     private function inputQuality(array $fixedRows, array $revenueRows, array $assumptions): array
     {
@@ -1202,6 +1273,37 @@ final class BudgetCalculator implements ProvidesMethodology
                 ->filter()
                 ->values()
                 ->all(),
+            'revenue_with_unpriced_contractors' => collect($revenueRows)
+                ->filter(fn (array $row): bool => is_numeric($row['monthly_capacity_units'] ?? null)
+                    && is_numeric($row['founder_capacity_units'] ?? null)
+                    && (float) $row['monthly_capacity_units'] > (float) $row['founder_capacity_units']
+                    && ((float) ($row['contractor_unit_cost'] ?? 0) <= 0 || ! (bool) ($row['contractor_cost_confirmed'] ?? false)))
+                ->pluck('label')
+                ->filter()
+                ->values()
+                ->all(),
+            'unverified_fixed_cost_sources' => collect($fixedRows)
+                ->filter(fn (array $row): bool => ! $this->hasVerifiedSource($row))
+                ->pluck('label')
+                ->filter()
+                ->values()
+                ->all(),
+            'unverified_revenue_sources' => collect($revenueRows)
+                ->filter(fn (array $row): bool => ! $this->hasVerifiedSource($row))
+                ->pluck('label')
+                ->filter()
+                ->values()
+                ->all(),
+            'unverified_cash_timing' => collect([
+                'opening_cash_balance' => (bool) ($assumptions['opening_cash_verified'] ?? false),
+                'debtor_and_creditor_days' => (bool) ($assumptions['working_capital_verified'] ?? false),
+                'forecast_start_month' => (bool) ($assumptions['forecast_start_confirmed'] ?? false),
+            ])
+                ->filter(fn (bool $confirmed): bool => ! $confirmed)
+                ->keys()
+                ->all(),
+            'funding_position_unconfirmed' => ! (bool) ($assumptions['funding_position_confirmed'] ?? false)
+                || (string) ($assumptions['funding_position'] ?? 'undecided') === 'undecided',
             'missing_assumptions' => collect([
                 ...(array) ($assumptions['missing_fields'] ?? []),
                 ...(($assumptions['forecast_start_month'] ?? null) === null ? ['forecast_start_month'] : []),
@@ -1210,5 +1312,27 @@ final class BudgetCalculator implements ProvidesMethodology
                 ->values()
                 ->all(),
         ];
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $row
+     */
+    private function hasVerifiedSource(array $row): bool
+    {
+        return (bool) ($row['source_confirmed'] ?? false)
+            && (string) ($row['source_type'] ?? 'unverified') !== 'unverified'
+            && trim((string) ($row['source_reference'] ?? '')) !== '';
+    }
+
+    private function sourceType(mixed $value): string
+    {
+        return in_array($value, ['bank_statement', 'xero_ledger', 'supplier_quote', 'signed_contract', 'pipeline_evidence', 'owner_record'], true)
+            ? (string) $value
+            : 'unverified';
+    }
+
+    private function sourceReference(mixed $value): string
+    {
+        return mb_substr(trim((string) $value), 0, 180);
     }
 }

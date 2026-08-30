@@ -401,6 +401,7 @@ type PortalClient = {
 
 type PortalServiceType =
     | 'due_diligence'
+    | 'dd_plan_budget'
     | 'entrepreneur'
     | 'standard_advisory'
     | 'post_acquisition_advisory'
@@ -575,6 +576,10 @@ function portalServiceIcon(serviceType: PortalServiceType) {
         return BriefcaseBusiness;
     }
 
+    if (serviceType === 'dd_plan_budget') {
+        return FileSpreadsheet;
+    }
+
     if (
         serviceType === 'entrepreneur' ||
         serviceType === 'entrepreneur_module'
@@ -602,9 +607,14 @@ function portalServiceIcon(serviceType: PortalServiceType) {
 
 function activeWorkspaceNavItems(
     workspaces: WorkspaceSwitcherPayload | null | undefined,
+    excludedServiceTypes: string[] = [],
 ): NavItem[] {
     return (workspaces?.items ?? [])
-        .filter((workspace) => !workspace.primary)
+        .filter(
+            (workspace) =>
+                !workspace.primary &&
+                !excludedServiceTypes.includes(workspace.service_type),
+        )
         .map((workspace) => ({
             title: workspace.label,
             href: workspace.href,
@@ -635,6 +645,10 @@ function navGroupsFor(
 
     if (userType === 'client_primary' || userType === 'client_team') {
         const serviceItems = portalServiceNavItems(portalServices);
+        const clientSecondaryWorkspaceNavItems = activeWorkspaceNavItems(
+            workspaces,
+            ['dd_plan_budget'],
+        );
         const onboardingComplete = portalClient?.onboarding_complete === true;
         const onboardingNavItem: NavItem = {
             ...portalOnboardingNavItem,
@@ -669,11 +683,11 @@ function navGroupsFor(
                 ? acquisitionPlanNavItem
                 : null;
         const activePathItems = [
-            planBudgetNavItem,
             ...(dueDiligenceWorkspaceNavItem
                 ? [dueDiligenceWorkspaceNavItem]
                 : []),
-            ...secondaryWorkspaceNavItems,
+            planBudgetNavItem,
+            ...clientSecondaryWorkspaceNavItems,
         ];
         const supportingItems = [
             portalWellbeingNavItem,

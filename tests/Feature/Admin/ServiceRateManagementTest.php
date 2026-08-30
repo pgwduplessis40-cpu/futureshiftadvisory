@@ -213,6 +213,44 @@ final class ServiceRateManagementTest extends TestCase
         ]);
     }
 
+    public function test_super_admin_can_create_single_dd_plan_budget_add_on_package(): void
+    {
+        $admin = $this->superAdmin();
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.service-rates.packages.store'), [
+                'service_type' => ServiceRatePackage::SERVICE_DD_PLAN_BUDGET,
+                'package_scope' => ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
+                'package_name' => 'DD + Business Plan & Budget',
+                'client_label' => 'DD + Business Plan & Budget',
+                'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+                'fixed_fee' => 2400,
+                'deposit_percent' => 100,
+                'hourly_rate' => null,
+                'retainer_amount' => null,
+                'purchase_price_min' => null,
+                'purchase_price_max' => null,
+                'scope_description' => 'Acquisition business plan, funding budget, lender-readiness pack, and advisor assessment built from DD evidence.',
+                'is_active' => true,
+            ])
+            ->assertRedirect(route('admin.service-rates.index', absolute: false));
+
+        $package = ServiceRatePackage::query()
+            ->where('service_type', ServiceRatePackage::SERVICE_DD_PLAN_BUDGET)
+            ->where('package_scope', ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON)
+            ->firstOrFail();
+
+        $this->assertSame('DD + Business Plan & Budget', $package->client_label);
+        $this->assertSame(2400.0, $package->fixed_fee);
+        $this->assertNull($package->purchase_price_min);
+        $this->assertNull($package->purchase_price_max);
+        $this->assertTrue($package->is_active);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'service_rate_package.created',
+            'subject_id' => $package->id,
+        ]);
+    }
+
     public function test_hours_based_fees_only_use_admin_service_rate(): void
     {
         $admin = $this->superAdmin();

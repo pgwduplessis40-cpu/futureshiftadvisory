@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import {
     AlertTriangle,
+    Banknote,
     Clock,
     DatabaseZap,
     HeartHandshake,
@@ -39,8 +40,96 @@ import type {
     PanelReferralQueue,
     ProspectInboxPayload,
     ReferenceDataTasksPayload,
+    ServiceActivationRequestsPayload,
     TrendDirection,
 } from './types';
+
+export function ServiceActivationRequestPanel({
+    payload,
+}: {
+    payload: ServiceActivationRequestsPayload;
+}) {
+    return (
+        <section
+            id="advisor-service-activation-requests"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <Banknote className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">
+                        Quote & access requests
+                    </h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">
+                        {payload.summary.total} open
+                    </Badge>
+                    {payload.summary.dd_plan_budget > 0 ? (
+                        <Badge variant="outline">
+                            {payload.summary.dd_plan_budget} BP&B
+                        </Badge>
+                    ) : null}
+                    <Button asChild size="sm" variant="outline">
+                        <Link href={payload.index_url}>All requests</Link>
+                    </Button>
+                </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+                Client requests that need FSA to confirm the service package,
+                scope, and fee before the client can approve access.
+            </p>
+
+            <div className="divide-y rounded-md border">
+                {payload.items.map((item) => {
+                    const requestedBy =
+                        item.requested_by_name ??
+                        item.requested_by_email ??
+                        'Client request';
+
+                    return (
+                        <article
+                            key={item.id}
+                            className="flex flex-wrap items-center justify-between gap-3 p-3"
+                        >
+                            <div className="min-w-0 space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Badge variant="outline">
+                                        {item.priority_label}
+                                    </Badge>
+                                    <Badge variant="secondary">
+                                        {item.status_label}
+                                    </Badge>
+                                </div>
+                                <Link
+                                    href={item.client_url}
+                                    className="block text-sm font-medium hover:underline focus-visible:underline focus-visible:outline-none"
+                                >
+                                    {item.client_name}
+                                </Link>
+                                <div className="text-sm">
+                                    {item.client_label}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    Requested by {requestedBy} -{' '}
+                                    {formatDate(item.requested_at)}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    {item.package_label ??
+                                        'Package not selected yet'}
+                                </div>
+                            </div>
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={item.url}>{item.action_label}</Link>
+                            </Button>
+                        </article>
+                    );
+                })}
+            </div>
+        </section>
+    );
+}
 
 export function EntrepreneurReviewPanel({
     payload,

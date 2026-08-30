@@ -54,13 +54,17 @@ final class ServiceActivationController extends Controller
         return Inertia::render('advisor/service-activations/Show', [
             'activation' => $this->activationDetail($serviceActivation->refresh()->load('client', 'advisor', 'package')),
             'packages' => collect($this->activations->activePackagesFor($serviceActivation->service_type))
-                ->map(fn (ServiceRatePackage $package): array => $this->packagePayload($package))
+                ->map(fn (ServiceRatePackage $package): array => $this->packagePayload($package, $serviceActivation))
+                ->sortByDesc(fn (array $package): bool => (bool) ($package['recommended'] ?? false))
                 ->values(),
             'urls' => [
                 'index' => route('advisor.service-activations.index', absolute: false),
                 'package' => route('advisor.service-activations.package', $serviceActivation, absolute: false),
                 'balanceReceived' => route('advisor.service-activations.balance-received', $serviceActivation, absolute: false),
                 'client' => route('advisor.clients.show', $serviceActivation->client_id, absolute: false),
+                'serviceRates' => $user->user_type === User::TYPE_SUPER_ADMIN
+                    ? route('admin.service-rates.index', absolute: false)
+                    : null,
             ],
         ]);
     }
@@ -176,11 +180,46 @@ final class ServiceActivationController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function packagePayload(ServiceRatePackage $package): array
+    private function packagePayload(ServiceRatePackage $package, ?ServiceActivation $activation = null): array
     {
         return [
             ...$package->snapshot(),
             'is_active' => $package->is_active,
+            'recommended' => $activation instanceof ServiceActivation
+                ? $this->packageMatchesActivationIntake($package, $activation)
+                : false,
         ];
+    }
+
+    private function packageMatchesActivationIntake(ServiceRatePackage $package, ServiceActivation $activation): bool
+    {
+        if ($activation->service_type === ServiceActivation::SERVICE_DD_PLAN_BUDGET) {
+            return $package->service_type === ServiceRatePackage::SERVICE_DD_PLAN_BUDGET
+                && $package->packageScope() === ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON;
+        }
+
+        if ($activation->service_type !== ServiceActivation::SERVICE_DUE_DILIGENCE) {
+            return false;
+        }
+
+        $askingPrice = data_get($activation->intake, 'asking_price');
+
+        if (! is_numeric($askingPrice)) {
+            return false;
+        }
+
+        $minimum = $package->purchase_price_min !== null ? (float) $package->purchase_price_min : null;
+        $maximum = $package->purchase_price_max !== null ? (float) $package->purchase_price_max : null;
+        $askingPrice = (float) $askingPrice;
+
+        if ($minimum !== null && $askingPrice < $minimum) {
+            return false;
+        }
+
+        if ($maximum !== null && $askingPrice > $maximum) {
+            return false;
+        }
+
+        return true;
     }
 }

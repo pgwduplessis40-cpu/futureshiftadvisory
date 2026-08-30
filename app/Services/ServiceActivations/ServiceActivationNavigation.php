@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\ServiceActivations;
 
+use App\Enums\EngagementType;
 use App\Models\Client;
 use App\Models\ServiceActivation;
+use Illuminate\Support\Collection;
 
 final class ServiceActivationNavigation
 {
@@ -23,6 +25,7 @@ final class ServiceActivationNavigation
         $open = $activations
             ->filter(fn (ServiceActivation $activation): bool => $activation->isOpen())
             ->values();
+        $hasDueDiligenceContext = $this->hasDueDiligenceContext($client, $open);
 
         return [
             'request_url' => route('portal.service-activations.store', absolute: false),
@@ -34,6 +37,11 @@ final class ServiceActivationNavigation
                     ! $open->contains(fn (ServiceActivation $activation): bool => $activation->service_type === ServiceActivation::SERVICE_DUE_DILIGENCE),
                     'self_start',
                 ),
+                ...($hasDueDiligenceContext ? [
+                    $this->ddPlanBudgetOption(
+                        ! $open->contains(fn (ServiceActivation $activation): bool => $activation->service_type === ServiceActivation::SERVICE_DD_PLAN_BUDGET),
+                    ),
+                ] : []),
                 $this->optionPayload(
                     ServiceActivation::SERVICE_ENTREPRENEUR,
                     'Test new Business Idea',
@@ -108,6 +116,32 @@ final class ServiceActivationNavigation
     }
 
     /**
+     * @param  Collection<int, ServiceActivation>  $open
+     */
+    private function hasDueDiligenceContext(Client $client, Collection $open): bool
+    {
+        return $client->engagement_type === EngagementType::DUE_DILIGENCE
+            || $open->contains(fn (ServiceActivation $activation): bool => $activation->service_type === ServiceActivation::SERVICE_DUE_DILIGENCE);
+    }
+
+    /**
+     * @return array<array-key, mixed>
+     */
+    private function ddPlanBudgetOption(bool $available): array
+    {
+        return [
+            'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+            'label' => 'DD + Business Plan & Budget',
+            'description' => 'Request FSA quote approval for the acquisition business plan and funding budget add-on.',
+            'available' => $available,
+            'delivery_mode' => 'quote_approval',
+            'availability_label' => $available ? 'FSA quote required' : 'Already requested',
+            'unavailable_reason' => 'You already have an open Business Plan & Budget quote or add-on for this DD workspace.',
+            'start_url' => $available ? route('portal.business-plan-budget.show', absolute: false) : null,
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function optionPayload(
@@ -163,6 +197,7 @@ final class ServiceActivationNavigation
 
         return match ($activation->service_type) {
             ServiceActivation::SERVICE_DUE_DILIGENCE => route('portal.dd-plan.show', absolute: false),
+            ServiceActivation::SERVICE_DD_PLAN_BUDGET => route('portal.business-plan-budget.show', absolute: false),
             ServiceActivation::SERVICE_ENTREPRENEUR => route('portal.entrepreneur.dashboard', absolute: false),
             default => null,
         };

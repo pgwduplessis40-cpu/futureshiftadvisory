@@ -314,6 +314,60 @@ final class EntrepreneurBudgetService
             );
         }
 
+        $unpricedContractors = array_values((array) ($inputQuality['revenue_with_unpriced_contractors'] ?? []));
+        if ($unpricedContractors !== []) {
+            $flags[] = $this->flag(
+                'contractor_delivery_cost_needs_confirmation',
+                'Contractor delivery cost needs confirmation',
+                'These revenue lines extend beyond founder capacity, but contractor delivery cost is missing or unconfirmed: '.implode(', ', $unpricedContractors).'.',
+                'high',
+                $existingByKey->get('contractor_delivery_cost_needs_confirmation'),
+            );
+        }
+
+        $unverifiedFixedCostSources = array_values((array) ($inputQuality['unverified_fixed_cost_sources'] ?? []));
+        if ($unverifiedFixedCostSources !== []) {
+            $flags[] = $this->flag(
+                'fixed_cost_sources_need_verification',
+                'Fixed-cost sources need verification',
+                'Record the source and reference for every fixed-cost line before external issue: '.implode(', ', $unverifiedFixedCostSources).'.',
+                'high',
+                $existingByKey->get('fixed_cost_sources_need_verification'),
+            );
+        }
+
+        $unverifiedRevenueSources = array_values((array) ($inputQuality['unverified_revenue_sources'] ?? []));
+        if ($unverifiedRevenueSources !== []) {
+            $flags[] = $this->flag(
+                'revenue_sources_need_verification',
+                'Revenue sources need verification',
+                'Record the pipeline, contract, or pricing source for every revenue line before external issue: '.implode(', ', $unverifiedRevenueSources).'.',
+                'high',
+                $existingByKey->get('revenue_sources_need_verification'),
+            );
+        }
+
+        $unverifiedCashTiming = array_values((array) ($inputQuality['unverified_cash_timing'] ?? []));
+        if ($unverifiedCashTiming !== []) {
+            $flags[] = $this->flag(
+                'cash_timing_needs_verification',
+                'Cash timing needs verification',
+                'Verify current records for: '.implode(', ', $unverifiedCashTiming).'.',
+                'high',
+                $existingByKey->get('cash_timing_needs_verification'),
+            );
+        }
+
+        if ((bool) ($inputQuality['funding_position_unconfirmed'] ?? false)) {
+            $flags[] = $this->flag(
+                'funding_position_needs_confirmation',
+                'Funding position needs confirmation',
+                'Choose and confirm either a self-funded plan or an external funding request before external issue.',
+                'high',
+                $existingByKey->get('funding_position_needs_confirmation'),
+            );
+        }
+
         if (! (bool) data_get($computed, 'assumptions.company_tax_configured', false)) {
             $flags[] = $this->flag(
                 'tax_not_configured',

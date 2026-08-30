@@ -27,12 +27,20 @@ $profile = new EntrepreneurProfile([
 ]);
 $calculator = app(BudgetCalculator::class);
 $launchCosts = $calculator->normaliseRows([
-    ['label' => 'Initial legal and setup', 'amount' => 3_000, 'month' => 1, 'confidence' => 'known'],
+    [
+        'label' => 'Initial legal and setup',
+        'amount' => 3_000,
+        'month' => 1,
+        'confidence' => 'known',
+        'source_type' => 'supplier_quote',
+        'source_reference' => 'Legal setup quote, August 2026',
+        'source_confirmed' => true,
+    ],
 ]);
 $fixedCosts = $calculator->normaliseRows([
-    ['label' => 'Founder compensation', 'amount' => 1_000, 'cadence' => 'weekly', 'cadence_confirmed' => true, 'confidence' => 'estimate'],
-    ['label' => 'Annual registry fee', 'amount' => 1_200, 'cadence' => 'annual', 'cadence_confirmed' => true, 'confidence' => 'known'],
-    ['label' => 'Client software', 'amount' => 850, 'cadence' => 'monthly', 'cadence_confirmed' => true, 'confidence' => 'known'],
+    ['label' => 'Founder compensation', 'amount' => 1_000, 'cadence' => 'weekly', 'cadence_confirmed' => true, 'confidence' => 'estimate', 'source_type' => 'owner_record', 'source_reference' => 'Founder draw schedule, August 2026', 'source_confirmed' => true],
+    ['label' => 'Annual registry fee', 'amount' => 1_200, 'cadence' => 'annual', 'cadence_confirmed' => true, 'confidence' => 'known', 'source_type' => 'xero_ledger', 'source_reference' => 'Xero annual registry ledger', 'source_confirmed' => true],
+    ['label' => 'Client software', 'amount' => 850, 'cadence' => 'monthly', 'cadence_confirmed' => true, 'confidence' => 'known', 'source_type' => 'supplier_quote', 'source_reference' => 'Current software vendor quote', 'source_confirmed' => true],
 ]);
 $revenue = $calculator->normaliseRows([
     [
@@ -45,13 +53,19 @@ $revenue = $calculator->normaliseRows([
         'growth_cadence_confirmed' => true,
         'monthly_capacity_units' => 3,
         'capacity_confirmed' => true,
+        'founder_capacity_units' => 2,
+        'contractor_unit_cost' => 450,
+        'contractor_cost_confirmed' => true,
         'unit_label' => 'intensives',
         'gross_profit_percent' => 78,
         'confidence' => 'estimate',
+        'source_type' => 'pipeline_evidence',
+        'source_reference' => 'Signed pipeline and contractor rate schedule, August 2026',
+        'source_confirmed' => true,
     ],
 ]);
 $funding = $calculator->normaliseRows([
-    ['label' => 'Founder cash', 'amount' => 30_000, 'month' => 1, 'confidence' => 'known'],
+    ['label' => 'Founder cash', 'amount' => 80_000, 'month' => 1, 'confidence' => 'known'],
 ]);
 $futureCosts = $calculator->normaliseFutureCosts([
     ['label' => 'Workshop equipment', 'amount' => 6_000, 'year' => 2, 'classification' => 'capital', 'useful_life_years' => 3, 'confidence' => 'estimate'],
@@ -59,8 +73,14 @@ $futureCosts = $calculator->normaliseFutureCosts([
 $assumptions = [
     'forecast_start_month' => '2026-09',
     'opening_cash_balance' => 5_000,
+    'opening_cash_verified' => true,
     'debtor_days' => 30,
     'creditor_days' => 30,
+    'working_capital_verified' => true,
+    'forecast_start_confirmed' => true,
+    'funding_position' => 'self_funded',
+    'funding_position_confirmed' => true,
+    'funding_request_purpose' => '',
     'revenue_growth_percent' => 12,
     'cost_inflation_percent' => 3,
     'target_gross_profit_percent' => 70,

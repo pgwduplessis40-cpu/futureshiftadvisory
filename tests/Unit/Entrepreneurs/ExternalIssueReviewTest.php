@@ -92,4 +92,41 @@ final class ExternalIssueReviewTest extends TestCase
 
         $this->assertStringContainsString('Cite the source or attach evidence', implode("\n", $review['blocking_reasons']));
     }
+
+    public function test_blocks_a_saved_self_funded_position_when_the_budget_requires_external_capital(): void
+    {
+        $plan = new BusinessPlan;
+        $plan->setRelation('sections', new EloquentCollection([
+            new PlanSection(['body' => 'The business will pursue an appropriately sized external funding facility.']),
+        ]));
+        $plan->setRelation('budgetRunway', new EntrepreneurBudget([
+            'status' => EntrepreneurBudget::STATUS_COMPLETE,
+            'expected_runway_months' => 6,
+            'computed' => [
+                'opening_cash_balance' => 0,
+                'total_funding' => 0,
+                'total_launch_costs' => 10_000,
+                'monthly_fixed_costs' => 2_000,
+                'break_even_year' => 1,
+                'cash_flow_positive_year' => 1,
+                'assumptions' => [
+                    'company_tax_configured' => true,
+                    'funding_position' => 'self_funded',
+                    'funding_position_confirmed' => true,
+                ],
+                'monthly_detail' => [
+                    ['month' => 1, 'cumulative_cash' => 5_000],
+                ],
+                'input_quality' => [],
+            ],
+            'flags' => [],
+        ]));
+
+        $review = (new ExternalIssueReview)->evaluate($plan);
+
+        $this->assertStringContainsString(
+            'saved self-funded position conflicts with the required additional funding',
+            implode("\n", $review['blocking_reasons']),
+        );
+    }
 }

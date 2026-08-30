@@ -2,8 +2,8 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import flags from './flags'
 import advisorNudge from './advisor-nudge'
 /**
-* @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
-* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:436
+* @see \App\Http\Controllers\Portal\EntrepreneurPlanBudgetController::update
+* @see app/Http/Controllers/Portal/EntrepreneurPlanBudgetController.php:24
 * @route '/portal/entrepreneur/plan/budget'
 */
 export const update = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -17,8 +17,8 @@ update.definition = {
 } satisfies RouteDefinition<["post"]>
 
 /**
-* @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
-* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:436
+* @see \App\Http\Controllers\Portal\EntrepreneurPlanBudgetController::update
+* @see app/Http/Controllers/Portal/EntrepreneurPlanBudgetController.php:24
 * @route '/portal/entrepreneur/plan/budget'
 */
 update.url = (options?: RouteQueryOptions) => {
@@ -26,8 +26,8 @@ update.url = (options?: RouteQueryOptions) => {
 }
 
 /**
-* @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
-* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:436
+* @see \App\Http\Controllers\Portal\EntrepreneurPlanBudgetController::update
+* @see app/Http/Controllers/Portal/EntrepreneurPlanBudgetController.php:24
 * @route '/portal/entrepreneur/plan/budget'
 */
 update.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -36,8 +36,8 @@ update.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 })
 
 /**
-* @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
-* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:436
+* @see \App\Http\Controllers\Portal\EntrepreneurPlanBudgetController::update
+* @see app/Http/Controllers/Portal/EntrepreneurPlanBudgetController.php:24
 * @route '/portal/entrepreneur/plan/budget'
 */
 const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -46,8 +46,8 @@ const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 })
 
 /**
-* @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
-* @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:436
+* @see \App\Http\Controllers\Portal\EntrepreneurPlanBudgetController::update
+* @see app/Http/Controllers/Portal/EntrepreneurPlanBudgetController.php:24
 * @route '/portal/entrepreneur/plan/budget'
 */
 updateForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

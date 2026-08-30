@@ -134,6 +134,34 @@ export type ClientTransferQueuePayload = {
     can_review: boolean;
 };
 
+export type ServiceActivationRequestsPayload = {
+    summary: {
+        total: number;
+        requested: number;
+        package_selected: number;
+        dd_plan_budget: number;
+    };
+    items: Array<{
+        id: string;
+        client_id: string;
+        client_name: string;
+        client_url: string;
+        service_type: string;
+        client_label: string;
+        status: string;
+        status_label: string;
+        requested_by_name: string | null;
+        requested_by_email: string | null;
+        advisor_name: string | null;
+        package_label: string | null;
+        requested_at: string | null;
+        url: string;
+        action_label: string;
+        priority_label: string;
+    }>;
+    index_url: string;
+};
+
 export type EntrepreneurReviewsPayload = {
     summary: {
         total: number;

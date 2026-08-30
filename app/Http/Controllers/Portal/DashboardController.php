@@ -32,12 +32,14 @@ use App\Models\SurveyAssignment;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\Board\InspirationBoard;
+use App\Services\Budgets\DdPlanBudgetAccess;
 use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Dashboards\BusinessHealthRadarBuilder;
 use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Dd\DataRoom;
 use App\Services\Fees\ProposalPricingTerms;
 use App\Services\Goals\GoalTracker;
+use App\Services\Journeys\ServiceJourney;
 use App\Services\Notifications\NotificationCenter;
 use App\Services\Npo\NpoFunderMonitor;
 use App\Services\Npo\NpoHealthScorer;
@@ -67,6 +69,7 @@ final class DashboardController extends Controller
         private readonly DataQualityScorer $dataQuality,
         private readonly NotificationCenter $notifications,
         private readonly GoalTracker $goals,
+        private readonly ServiceJourney $journeys,
         private readonly BusinessHealthRadarBuilder $businessHealth,
         private readonly NpoHealthScorer $npoHealth,
         private readonly NpoFunderMonitor $npoFunding,
@@ -76,6 +79,7 @@ final class DashboardController extends Controller
         private readonly InspirationBoard $inspirationBoard,
         private readonly ServiceActivationNavigation $serviceActivationNavigation,
         private readonly ServiceWorkspaces $workspaces,
+        private readonly DdPlanBudgetAccess $ddPlanBudgetAccess,
         private readonly StrategicBudgetService $strategicBudgets,
         private readonly StrategicPlanService $strategicPlans,
         private readonly ProposalBrief $proposalBriefs,
@@ -135,6 +139,31 @@ final class DashboardController extends Controller
         $surveys = $this->surveyPayload($client);
         $outcomeFollowUps = $this->outcomeFollowUpPayload($client);
 
+        $serviceJourney = $this->serviceJourneyPayload(
+            client: $client,
+            progress: $progress,
+            standardAdvisory: $standardAdvisory,
+            ddPlan: $ddPlanPayload,
+            postAcquisition: $postAcquisitionPayload,
+            npoPortal: $npoPortal,
+            documents: $documents,
+            reports: $reports,
+            surveys: $surveys,
+            outcomeFollowUps: $outcomeFollowUps,
+            onboardingUrl: $onboardingUrl,
+        );
+        $journeyRecognition = $this->journeys->payload($client, $viewer, $serviceJourney);
+        $secondaryJourneyRecognition = ServiceActivation::query()
+            ->where('client_id', $client->getKey())
+            ->where('status', ServiceActivation::STATUS_ACTIVE)
+            ->whereNotIn('service_type', [ServiceActivation::SERVICE_ENTREPRENEUR])
+            ->pluck('service_type')
+            ->map(fn (string $serviceKey): array => $this->journeys->payloadForService($client, $viewer, $serviceKey))
+            ->reject(fn (array $recognition): bool => $recognition['service_key'] === $journeyRecognition['service_key'])
+            ->unique('service_key')
+            ->values()
+            ->all();
+
         return Inertia::render('portal/Dashboard', [
             'client' => $this->clientPayload($client),
             'screenShare' => $request->query('client') === (string) $client->getKey()
@@ -189,19 +218,10 @@ final class DashboardController extends Controller
             'postAcquisition' => $postAcquisitionPayload,
             'serviceActivations' => $serviceActivations,
             'workspaces' => $this->workspaces->payload($client, $client->engagement_type),
-            'serviceJourney' => $this->serviceJourneyPayload(
-                client: $client,
-                progress: $progress,
-                standardAdvisory: $standardAdvisory,
-                ddPlan: $ddPlanPayload,
-                postAcquisition: $postAcquisitionPayload,
-                npoPortal: $npoPortal,
-                documents: $documents,
-                reports: $reports,
-                surveys: $surveys,
-                outcomeFollowUps: $outcomeFollowUps,
-                onboardingUrl: $onboardingUrl,
-            ),
+            'serviceJourney' => $serviceJourney,
+            'journeyRecognition' => $journeyRecognition,
+            'secondaryJourneyRecognition' => $secondaryJourneyRecognition,
+            'planBudgetAccess' => $this->ddPlanBudgetAccess->payload($client),
             'strategicBudget' => $this->strategicBudgets->portalPayload($strategicBudget),
             'strategicPlan' => $this->strategicPlans->portalPayload($client),
             'standardAdvisory' => $standardAdvisory,

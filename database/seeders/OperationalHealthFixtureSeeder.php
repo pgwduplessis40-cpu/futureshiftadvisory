@@ -7,12 +7,15 @@ namespace Database\Seeders;
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
 use App\Enums\EntrepreneurStage;
+use App\Enums\ReportType;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\ConflictDeclaration;
 use App\Models\DdEngagement;
 use App\Models\Document;
 use App\Models\EntrepreneurProfile;
+use App\Models\Report;
+use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\Template;
 use App\Models\TermsAcceptance;
@@ -83,7 +86,9 @@ final class OperationalHealthFixtureSeeder extends Seeder
                     'portal',
                     EngagementType::DUE_DILIGENCE->value,
                 ]);
-                $this->ddEngagement($ddClient, $admin);
+                $ddEngagement = $this->ddEngagement($ddClient, $admin);
+                $this->ddPlanBudgetActivation($ddClient, $ddEngagement, $ddUser, $admin);
+                $this->ddDecisionReport($ddClient, $admin);
 
                 $this->entrepreneurProfile($entrepreneurUser, $admin);
                 $this->template($admin);
@@ -270,6 +275,168 @@ final class OperationalHealthFixtureSeeder extends Seeder
                 'conflict_declaration_id' => $conflict->getKey(),
                 'created_by_user_id' => $admin->getKey(),
                 'disclaimer_acknowledged_at' => now(),
+            ],
+        );
+    }
+
+    private function ddPlanBudgetActivation(
+        Client $client,
+        DdEngagement $engagement,
+        User $clientUser,
+        User $admin,
+    ): ServiceActivation {
+        $package = ServiceRatePackage::query()->updateOrCreate(
+            [
+                'service_type' => ServiceRatePackage::SERVICE_DD_PLAN_BUDGET,
+                'package_name' => 'Operational Health DD + Business Plan & Budget',
+            ],
+            [
+                'package_scope' => ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
+                'client_label' => 'DD + Business Plan & Budget',
+                'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+                'fixed_fee' => 2400,
+                'deposit_percent' => 100,
+                'purchase_price_min' => null,
+                'purchase_price_max' => null,
+                'currency' => 'NZD',
+                'scope_description' => 'Operational health fixture for active DD Business Plan & Budget access.',
+                'is_active' => true,
+                'effective_from' => now(),
+                'effective_to' => null,
+                'created_by_user_id' => $admin->getKey(),
+            ],
+        );
+        $snapshot = $package->snapshot();
+        $snapshot['quote_context'] = [
+            'plan_budget_fixed_fee' => 2400,
+            'amount_due_for_this_activation' => 0,
+            'combined_fixed_fee' => 2400,
+            'source' => 'operational_health_fixture',
+        ];
+
+        return ServiceActivation::query()->updateOrCreate(
+            [
+                'client_id' => $client->getKey(),
+                'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+            ],
+            [
+                'requested_by_user_id' => $clientUser->getKey(),
+                'advisor_id' => $admin->getKey(),
+                'approved_by_user_id' => $admin->getKey(),
+                'client_label' => 'DD + Business Plan & Budget',
+                'service_rate_package_id' => $package->getKey(),
+                'status' => ServiceActivation::STATUS_ACTIVE,
+                'intake' => [
+                    'target_name' => $engagement->target_name,
+                    'asking_price' => 750000,
+                    'source' => 'operational_health_fixture',
+                ],
+                'selected_package_snapshot' => $snapshot,
+                'accepted_by_user_id' => $clientUser->getKey(),
+                'accepted_at' => now(),
+                'acceptance_text' => 'Operational health fixture acceptance for DD Business Plan & Budget access.',
+                'terms_reference' => [
+                    'source' => 'operational_health_fixture',
+                ],
+                'related_dd_engagement_id' => $engagement->getKey(),
+                'payment_status' => ServiceActivation::PAYMENT_PAID,
+                'payment_completed_at' => now(),
+                'metadata' => [
+                    'source' => 'operational_health_fixture',
+                    'monitor_only' => true,
+                ],
+            ],
+        );
+    }
+
+    private function ddDecisionReport(Client $client, User $admin): Report
+    {
+        $path = 'operational-health/reports/dd-decision-report.pdf';
+        $contents = $this->fixturePdf('Operational health DD decision report', $path);
+        $disk = Storage::disk('secure_local');
+
+        if (! $disk->put($path, $contents)) {
+            throw new \RuntimeException("Unable to write operational health fixture report [{$path}].");
+        }
+
+        return Report::query()->updateOrCreate(
+            [
+                'client_id' => $client->getKey(),
+                'type' => ReportType::AcquisitionGoNoGo->value,
+                'title' => 'Operational Health DD Decision Report',
+            ],
+            [
+                'pdf_path' => $path,
+                'pdf_byte_size' => strlen($contents),
+                'pptx_path' => null,
+                'pptx_byte_size' => null,
+                'generated_by_user_id' => $admin->getKey(),
+                'generated_at' => now(),
+                'render_status' => Report::RENDER_STATUS_RENDERED,
+                'render_failed_at' => null,
+                'render_error' => null,
+                'review_status' => 'reviewed',
+                'reviewed_at' => now(),
+                'reviewed_by_user_id' => $admin->getKey(),
+                'metadata' => [
+                    'source' => 'operational_health_fixture',
+                    'buyer_decision_readiness' => [
+                        'ready' => true,
+                        'label' => 'Buyer decision-ready',
+                        'decision_label' => 'Renegotiate with conditions',
+                        'decision_headline' => 'The DD decision report gives the buyer enough evidence to decide whether to buy, renegotiate, pause, or walk away.',
+                        'decision_status' => 'renegotiate',
+                        'confidence' => 'high',
+                        'confidence_reason' => 'Synthetic monitor evidence is sufficient for routed smoke testing.',
+                        'recommendation' => DdEngagement::RECOMMENDATION_RENEGOTIATE,
+                        'recommendation_rationale' => 'Proceed only if price protection and completion-account conditions remain in the purchase agreement.',
+                        'completed_workstreams' => 8,
+                        'required_workstreams' => 8,
+                        'evidence_item_count' => 2,
+                        'finding_count' => 3,
+                        'verified_finding_count' => 3,
+                        'flagged_finding_count' => 0,
+                        'material_risk_count' => 1,
+                        'deal_killer_risk_count' => 0,
+                        'major_risk_count' => 1,
+                        'total_risk_count' => 2,
+                        'price_adjustment_nzd' => 25000,
+                        'valuation_midpoint_nzd' => 725000,
+                        'gates' => [
+                            [
+                                'key' => 'workstream_coverage',
+                                'label' => 'All DD workstreams assessed',
+                                'passed' => true,
+                                'detail' => '8 of 8 workstreams are complete.',
+                            ],
+                            [
+                                'key' => 'client_decision',
+                                'label' => 'Buy / renegotiate / walk-away position is explicit',
+                                'passed' => true,
+                                'detail' => 'Renegotiate with conditions.',
+                            ],
+                        ],
+                        'blockers' => [],
+                        'decision_questions' => [
+                            [
+                                'question' => 'Can the buyer make an informed decision?',
+                                'answer' => 'Yes, subject to independent legal and accounting advice.',
+                                'status' => 'met',
+                            ],
+                        ],
+                    ],
+                    'advisor_client_reply' => [
+                        'status' => 'feedback_saved',
+                        'advisor_feedback' => 'Operational health DD feedback fixture.',
+                        'proposed_reply' => 'Operational health DD client reply fixture.',
+                        'saved_at' => now()->toIso8601String(),
+                        'saved_by_user_id' => $admin->getKey(),
+                        'sent_at' => null,
+                        'sent_by_user_id' => null,
+                        'client_message_thread_id' => null,
+                        'client_message_id' => null,
+                    ],
+                ],
             ],
         );
     }

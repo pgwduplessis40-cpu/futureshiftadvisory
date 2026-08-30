@@ -17,21 +17,117 @@ final class StrategicBudgetPdfDocument
      */
     public function html(Client $client, array $budget): string
     {
+        return $this->documentHtml(
+            client: $client,
+            budget: $budget,
+            heading: (string) ($budget['label'] ?? 'Business plan and budget'),
+            documentTag: 'Client planning document',
+            contentHtml: $this->businessPlanContentHtml($budget).$this->budgetPackContentHtml($budget),
+        );
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $budget
+     */
+    public function businessPlanHtml(Client $client, array $budget): string
+    {
+        return $this->documentHtml(
+            client: $client,
+            budget: $budget,
+            heading: 'Business plan',
+            documentTag: 'Client business plan',
+            contentHtml: $this->businessPlanContentHtml($budget),
+            meta: [
+                'Plan status' => (string) ($budget['status_label'] ?? 'Draft'),
+                'Plan readiness' => (string) ($budget['business_plan_readiness_score'] ?? 0).'/100',
+                'Budget confidence' => (string) ($budget['readiness_score'] ?? 0).'/100',
+                'Financial evidence' => (string) data_get($budget, 'source_financials.count', 0).' files',
+            ],
+        );
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $budget
+     */
+    public function budgetPackHtml(Client $client, array $budget): string
+    {
+        return $this->documentHtml(
+            client: $client,
+            budget: $budget,
+            heading: 'Budget Pack',
+            documentTag: 'Client budget pack',
+            contentHtml: $this->budgetPackContentHtml($budget),
+            meta: [
+                'Budget confidence' => (string) ($budget['readiness_score'] ?? 0).'/100',
+                'Forecast horizon' => (string) ($budget['horizon_months'] ?? 12).' months',
+                'Financial evidence' => (string) data_get($budget, 'source_financials.count', 0).' files',
+                'Plan readiness' => (string) ($budget['business_plan_readiness_score'] ?? 0).'/100',
+            ],
+        );
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $budget
+     * @param  array<string, string>|null  $meta
+     */
+    private function documentHtml(
+        Client $client,
+        array $budget,
+        string $heading,
+        string $documentTag,
+        string $contentHtml,
+        ?array $meta = null,
+    ): string {
         $businessName = $client->trading_name ?: $client->legal_name;
         $engagementLabel = $client->engagement_type instanceof EngagementType
             ? $client->engagement_type->label()
             : str((string) $client->engagement_type)->replace('_', ' ')->title()->toString();
-        $computed = (array) ($budget['computed'] ?? []);
-        $analytics = (array) ($budget['analytics'] ?? []);
-        $charts = (array) ($analytics['charts'] ?? []);
-        $planSections = (array) ($budget['business_plan_sections'] ?? []);
-        $annualForecast = (array) data_get($analytics, 'predictive.annual_forecast', []);
 
-        $content = $this->layout->section(
+        return $this->layout->document(
+            title: $heading.' - '.$businessName,
+            templateKey: 'strategic-budget-document',
+            documentTag: $documentTag,
+            eyebrow: 'Future Shift Advisory',
+            heading: $heading,
+            subheading: $businessName.' / '.$engagementLabel,
+            meta: $meta ?? [
+                'Plan status' => (string) ($budget['status_label'] ?? 'Draft'),
+                'Readiness' => (string) ($budget['readiness_score'] ?? 0).'/100',
+                'Forecast horizon' => (string) ($budget['horizon_months'] ?? 12).' months',
+                'Financial evidence' => (string) data_get($budget, 'source_financials.count', 0).' files',
+            ],
+            contentHtml: $contentHtml,
+            footer: 'Prepared for '.$businessName.' by Future Shift Advisory on '.now()->format('j M Y').'.',
+            metaColumns: 4,
+            extraCss: $this->chartCss(),
+        );
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $budget
+     */
+    private function businessPlanContentHtml(array $budget): string
+    {
+        $planSections = (array) ($budget['business_plan_sections'] ?? []);
+
+        return $this->layout->section(
             'Business plan',
             $this->planHtml($planSections),
             key: 'business-plan',
         );
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $budget
+     */
+    private function budgetPackContentHtml(array $budget): string
+    {
+        $computed = (array) ($budget['computed'] ?? []);
+        $analytics = (array) ($budget['analytics'] ?? []);
+        $charts = (array) ($analytics['charts'] ?? []);
+        $annualForecast = (array) data_get($analytics, 'predictive.annual_forecast', []);
+
+        $content = '';
         $content .= $this->layout->section(
             'Budget summary',
             $this->summaryHtml($computed).$this->annualForecastHtml($annualForecast),
@@ -48,24 +144,7 @@ final class StrategicBudgetPdfDocument
             key: 'decision-insights',
         );
 
-        return $this->layout->document(
-            title: ($budget['label'] ?? 'Business plan and budget').' - '.$businessName,
-            templateKey: 'strategic-budget-document',
-            documentTag: 'Client planning document',
-            eyebrow: 'Future Shift Advisory',
-            heading: (string) ($budget['label'] ?? 'Business plan and budget'),
-            subheading: $businessName.' / '.$engagementLabel,
-            meta: [
-                'Plan status' => (string) ($budget['status_label'] ?? 'Draft'),
-                'Readiness' => (string) ($budget['readiness_score'] ?? 0).'/100',
-                'Forecast horizon' => (string) ($budget['horizon_months'] ?? 12).' months',
-                'Financial evidence' => (string) data_get($budget, 'source_financials.count', 0).' files',
-            ],
-            contentHtml: $content,
-            footer: 'Prepared for '.$businessName.' by Future Shift Advisory on '.now()->format('j M Y').'.',
-            metaColumns: 4,
-            extraCss: $this->chartCss(),
-        );
+        return $content;
     }
 
     /**

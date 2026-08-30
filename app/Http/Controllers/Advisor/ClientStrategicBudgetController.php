@@ -26,18 +26,87 @@ final class ClientStrategicBudgetController extends Controller
         abort_unless($user instanceof User, 403);
 
         $budget = $this->budgets->ensureForClient($client);
+        $payload = $this->budgets->advisorPayload($budget);
         if (! $budget->isUnlocked()) {
             return to_route('advisor.clients.show', $client)
                 ->withErrors(['strategic_budget' => 'A verified P&L or management accounts file must be available before approving the plan and budget.']);
         }
-        if (($this->budgets->advisorPayload($budget)['business_plan_ready'] ?? false) !== true) {
+        if (($payload['business_plan_ready'] ?? false) !== true) {
             return to_route('advisor.clients.show', $client)
                 ->withErrors(['strategic_budget' => 'The client must complete every plan section before the combined Plan & Budget can be approved.']);
+        }
+        if (($payload['review_submitted_or_later'] ?? false) !== true) {
+            return to_route('advisor.clients.show', $client)
+                ->withErrors(['strategic_budget' => 'The client must submit the Business Plan & Budget for advisor review before it can be approved.']);
+        }
+        if (($payload['assessment_ready_for_approval'] ?? false) !== true) {
+            return to_route('advisor.clients.show', $client)
+                ->withErrors(['strategic_budget' => 'Run the Business Plan & Budget assessment before approving it.']);
         }
 
         $this->budgets->approve($budget, $user);
 
         return to_route('advisor.clients.show', $client)->with('status', 'business-plan-budget-approved');
+    }
+
+    public function assess(Request $request, Client $client): RedirectResponse
+    {
+        Gate::authorize('view', $client);
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $budget = $this->budgets->ensureForClient($client);
+        $payload = $this->budgets->advisorPayload($budget);
+
+        if (! $budget->isUnlocked()) {
+            return to_route('advisor.clients.show', $client)
+                ->withErrors(['strategic_budget' => 'A verified P&L or management accounts file must be available before running the plan and budget assessment.']);
+        }
+
+        if (($payload['business_plan_ready'] ?? false) !== true) {
+            return to_route('advisor.clients.show', $client)
+                ->withErrors(['strategic_budget' => 'The client must complete every plan section before the combined Plan & Budget can be assessed.']);
+        }
+
+        if (($payload['review_submitted_or_later'] ?? false) !== true) {
+            return to_route('advisor.clients.show', $client)
+                ->withErrors(['strategic_budget' => 'The client must submit the Business Plan & Budget for advisor review before the assessment is run.']);
+        }
+
+        $this->budgets->assess($budget, $user);
+
+        return to_route('advisor.clients.show', $client)->with('status', 'business-plan-budget-assessed');
+    }
+
+    public function feedback(Request $request, Client $client): RedirectResponse
+    {
+        Gate::authorize('view', $client);
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $validated = $request->validate([
+            'advisor_feedback' => ['required', 'string', 'min:10', 'max:5000'],
+            'proposed_reply' => ['required', 'string', 'min:10', 'max:5000'],
+            'send_to_client' => ['required', 'boolean'],
+        ]);
+
+        $budget = $this->budgets->ensureForClient($client);
+        $this->budgets->saveAssessmentFeedback(
+            budget: $budget,
+            actor: $user,
+            advisorFeedback: (string) $validated['advisor_feedback'],
+            proposedReply: (string) $validated['proposed_reply'],
+            sendToClient: (bool) $validated['send_to_client'],
+        );
+
+        return to_route('advisor.clients.show', $client)->with(
+            'status',
+            (bool) $validated['send_to_client']
+                ? 'business-plan-budget-feedback-sent'
+                : 'business-plan-budget-feedback-saved',
+        );
     }
 
     public function advisorGoals(Request $request, Client $client): RedirectResponse

@@ -33,6 +33,9 @@ final class BudgetPackBuilderTest extends TestCase
                     'gst_exclusive' => true,
                     'company_tax_configured' => true,
                     'company_tax_rate_percent' => 28,
+                    'funding_position' => 'self_funded',
+                    'funding_position_confirmed' => true,
+                    'funding_request_purpose' => '',
                     'field_labels' => [],
                 ],
                 'annual_totals' => [[
@@ -73,6 +76,19 @@ final class BudgetPackBuilderTest extends TestCase
             'monthly_fixed_costs' => [
                 ['label' => 'Studio rent', 'amount' => 2_000, 'quantity' => 1, 'month' => 1, 'confidence' => 'known'],
             ],
+            'revenue_forecast' => [
+                [
+                    'label' => 'Advisory intensives',
+                    'unit_label' => 'intensives',
+                    'monthly_capacity_units' => 4,
+                    'capacity_confirmed' => true,
+                    'founder_capacity_units' => 2,
+                    'contractor_unit_cost' => 500,
+                    'contractor_cost_confirmed' => true,
+                    'source_reference' => 'Signed delivery agreement',
+                    'source_confirmed' => true,
+                ],
+            ],
             'flags' => [],
         ]);
 
@@ -93,6 +109,11 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringNotContainsString('Budget inputs', $html);
         $this->assertStringContainsString('Internal draft - not for external issue', $html);
         $this->assertStringContainsString('Monthly fixed-cost trace', $html);
+        $this->assertStringContainsString('Revenue capacity and delivery resourcing', $html);
+        $this->assertStringContainsString('Advisory intensives', $html);
+        $this->assertStringContainsString('Signed delivery agreement', $html);
+        $this->assertStringContainsString('Not applicable (self-funded)', $html);
+        $this->assertStringContainsString('Self-funded position', $html);
         $this->assertStringContainsString('Each row shows the entered amount, billing cadence, and monthly equivalent used by the model.', $html);
         $this->assertStringContainsString('Confirm the saved billing cadence before external issue.', $html);
         $this->assertStringContainsString('Year 2 revenue bridge', $html);

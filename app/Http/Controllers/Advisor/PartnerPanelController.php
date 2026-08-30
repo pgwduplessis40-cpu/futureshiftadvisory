@@ -488,7 +488,7 @@ final class PartnerPanelController extends Controller
 
     private function inviteEmail(PanelMember $panelMember): string
     {
-        return (string) ($panelMember->user?->email ?? $panelMember->inviteToken?->email);
+        return (string) (data_get($panelMember, 'user.email') ?? data_get($panelMember, 'inviteToken.email'));
     }
 
     private function emailKey(PanelMember $panelMember): string

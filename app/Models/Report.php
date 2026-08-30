@@ -35,7 +35,7 @@ final class Report extends Model
         'generated_at',
         'render_status',
         'render_failed_at',
-        'render_failure_reason',
+        'render_error',
         'metadata',
         'review_status',
         'reviewed_at',

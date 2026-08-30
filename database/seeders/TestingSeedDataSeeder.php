@@ -1095,6 +1095,17 @@ XML);
                 'purchase_price_max' => 3000000,
                 'scope_description' => 'Business purchase price is between $1m and $3m.',
             ],
+            'dd_plan_budget_add_on' => [
+                'service_type' => ServiceRatePackage::SERVICE_DD_PLAN_BUDGET,
+                'package_scope' => ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
+                'package_name' => 'DD + Business Plan & Budget',
+                'client_label' => 'DD + Business Plan & Budget',
+                'fixed_fee' => 2400,
+                'deposit_percent' => 100,
+                'purchase_price_min' => null,
+                'purchase_price_max' => null,
+                'scope_description' => 'Single Business Plan & Budget add-on rate. The client quote combines the matched DD purchase-price band with this BP&B fee before approval.',
+            ],
             'entrepreneur_combo' => [
                 'service_type' => ServiceRatePackage::SERVICE_ENTREPRENEUR,
                 'package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO,
@@ -1317,6 +1328,15 @@ XML);
             outcome: 'discrepancy',
             confidence: 0.89,
             explanation: 'The certificate expiry date is in the past.',
+        );
+        $this->ids['verification_dd_target_financials'] = $this->verification(
+            documentId: (string) $this->ids['doc_dd_target'],
+            context: 'dd-plan-budget-management-accounts',
+            client: $this->clients['dd'],
+            claim: 'Target management accounts support the DD Business Plan & Budget financial model.',
+            outcome: 'verified',
+            confidence: 0.91,
+            explanation: 'Seeded verified management accounts for Southern Lights DD Business Plan & Budget submit-for-review testing.',
         );
         $this->verification(
             documentId: (string) $this->ids['doc_dd_contracts'],
@@ -5470,6 +5490,7 @@ XML);
     {
         $ddAcquisitionPlanId = $this->seedDdAcquisitionBusinessPlan();
         $this->ids['dd_acquisition_plan'] = $ddAcquisitionPlanId;
+        $this->seedActiveDdPlanBudgetAddOnForSouthernLights();
 
         $this->ids['doc_post_acquisition_financials'] = $this->document(
             key: 'post-acquisition-management-accounts',
@@ -5525,7 +5546,7 @@ XML);
             scenario: 'due_diligence',
             businessPlanId: $ddAcquisitionPlanId,
             proposalId: $ddProposalId,
-            state: StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT,
+            state: StrategicBudget::STATUS_CLIENT_WORKING_DRAFT,
         );
         $this->ids['strategic_budget_dd'] = $ddBudget->getKey();
 
@@ -5594,6 +5615,135 @@ XML);
         );
 
         $this->removeStrategicPlanForProposal($postAcquisitionProposalId);
+    }
+
+    private function seedActiveDdPlanBudgetAddOnForSouthernLights(): void
+    {
+        $client = $this->clients['dd'] ?? null;
+        $buyer = $this->users['buyer'] ?? null;
+        $advisor = $this->users['advisor'] ?? null;
+
+        if (! $client instanceof Client || ! $buyer instanceof User || ! $advisor instanceof User) {
+            return;
+        }
+
+        $ddPackage = ServiceRatePackage::query()
+            ->where('service_type', ServiceRatePackage::SERVICE_DUE_DILIGENCE)
+            ->where('package_scope', ServiceRatePackage::SCOPE_DD_1M_3M)
+            ->where('is_active', true)
+            ->first();
+        $planBudgetPackage = ServiceRatePackage::query()
+            ->where('service_type', ServiceRatePackage::SERVICE_DD_PLAN_BUDGET)
+            ->where('is_active', true)
+            ->first();
+
+        if (! $planBudgetPackage instanceof ServiceRatePackage) {
+            return;
+        }
+
+        $planBudgetSnapshot = $planBudgetPackage->snapshot();
+        $ddSnapshot = $ddPackage instanceof ServiceRatePackage ? $ddPackage->snapshot() : null;
+        $ddFee = is_numeric(data_get($ddSnapshot, 'fixed_fee')) ? (float) data_get($ddSnapshot, 'fixed_fee') : null;
+        $planBudgetFee = is_numeric($planBudgetSnapshot['fixed_fee'] ?? null) ? (float) $planBudgetSnapshot['fixed_fee'] : null;
+        $combinedFee = $ddFee !== null && $planBudgetFee !== null
+            ? round($ddFee + $planBudgetFee, 2)
+            : null;
+
+        $planBudgetSnapshot = [
+            ...$planBudgetSnapshot,
+            'quote_context' => [
+                'type' => 'dd_plus_business_plan_budget',
+                'summary' => 'DD price band plus Business Plan & Budget add-on.',
+                'currency' => 'NZD',
+                'dd_package' => $ddSnapshot === null ? null : [
+                    'id' => $ddSnapshot['id'] ?? null,
+                    'service_type' => $ddSnapshot['service_type'] ?? null,
+                    'package_scope' => $ddSnapshot['package_scope'] ?? null,
+                    'package_scope_label' => data_get($ddSnapshot, 'access.package_scope_label'),
+                    'package_name' => $ddSnapshot['package_name'] ?? null,
+                    'client_label' => $ddSnapshot['client_label'] ?? null,
+                    'fixed_fee' => $ddFee,
+                    'currency' => $ddSnapshot['currency'] ?? 'NZD',
+                    'scope_description' => $ddSnapshot['scope_description'] ?? null,
+                ],
+                'plan_budget_package' => [
+                    'id' => $planBudgetSnapshot['id'] ?? null,
+                    'service_type' => $planBudgetSnapshot['service_type'] ?? null,
+                    'package_scope' => $planBudgetSnapshot['package_scope'] ?? null,
+                    'package_scope_label' => data_get($planBudgetSnapshot, 'access.package_scope_label'),
+                    'package_name' => $planBudgetSnapshot['package_name'] ?? null,
+                    'client_label' => $planBudgetSnapshot['client_label'] ?? null,
+                    'fixed_fee' => $planBudgetFee,
+                    'currency' => $planBudgetSnapshot['currency'] ?? 'NZD',
+                    'scope_description' => $planBudgetSnapshot['scope_description'] ?? null,
+                ],
+                'plan_budget_fixed_fee' => $planBudgetFee,
+                'combined_fixed_fee' => $combinedFee,
+                'amount_due_for_this_activation' => $planBudgetFee,
+            ],
+        ];
+
+        $this->ids['service_activation_dd_plan_budget_active'] = $this->upsert('service_activations', [
+            'client_id' => $client->getKey(),
+            'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+            'client_label' => 'DD + Business Plan & Budget',
+        ], [
+            'requested_by_user_id' => $buyer->getKey(),
+            'advisor_id' => $advisor->getKey(),
+            'approved_by_user_id' => $advisor->getKey(),
+            'service_rate_package_id' => $planBudgetPackage->getKey(),
+            'status' => ServiceActivation::STATUS_ACTIVE,
+            'intake' => $this->json([
+                'target_name' => 'Kauri Kitchens Group Limited',
+                'vendor_name' => 'Kauri Kitchens Group',
+                'industry' => 'Food manufacturing and retail fitout',
+                'asking_price' => 2_400_000,
+                'capability_mode' => 'guided',
+                'support_level' => 'guided',
+                'dd_experience' => 'first_time',
+                'business_ownership_experience' => 'none',
+                'financial_confidence' => 'low',
+                'preferred_guidance' => 'balanced',
+                'timing' => 'Seeded active add-on so Submit for review can be tested.',
+                'notes' => 'Seed scenario: Southern Lights has BP&B access and a client working draft generated from DD evidence.',
+            ]),
+            'selected_package_snapshot' => $this->json($planBudgetSnapshot),
+            'payment_status' => ServiceActivation::PAYMENT_PAID,
+            'payment_completed_at' => $this->now->copy()->subDays(1),
+            'payment_completed_by_user_id' => $buyer->getKey(),
+            'payment_reference' => 'seed-dd-plan-budget-paid',
+            'deposit_paid_at' => $this->now->copy()->subDays(1),
+            'deposit_paid_by_user_id' => $buyer->getKey(),
+            'deposit_reference' => 'seed-dd-plan-budget-card',
+            'balance_received_at' => null,
+            'balance_received_by_user_id' => null,
+            'balance_reference' => null,
+            'accepted_by_user_id' => $buyer->getKey(),
+            'accepted_at' => $this->now->copy()->subDay(),
+            'acceptance_text' => 'Seeded accepted DD + Business Plan & Budget add-on for submit-for-review testing.',
+            'terms_reference' => $this->json([
+                'standard_terms_already_accepted' => true,
+                'workspace_specific_fee_scope_acknowledged' => true,
+                'quote_context' => [
+                    'dd_package_scope' => ServiceRatePackage::SCOPE_DD_1M_3M,
+                    'plan_budget_scope' => ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
+                    'combined_fixed_fee' => $combinedFee,
+                    'plan_budget_fixed_fee' => $planBudgetFee,
+                ],
+            ]),
+            'related_dd_engagement_id' => $this->ids['dd_engagement'] ?? null,
+            'related_entrepreneur_profile_id' => null,
+            'client_message_thread_id' => null,
+            'closed_at' => null,
+            'cancelled_at' => null,
+            'metadata' => $this->json([
+                'fixture' => true,
+                'fixture_key' => 'service_activation_dd_plan_budget_active',
+                'pricing_source' => 'testing_seed_data',
+                'combined_quote_seeded' => true,
+                'payment_required_before_workspace_access' => true,
+            ]),
+        ]);
     }
 
     private function seedDdAcquisitionBusinessPlan(): string|int|null
@@ -5831,6 +5981,7 @@ XML);
             StrategicBudget::STATUS_USED_IN_PROPOSAL,
             StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT,
         ], true)) {
+            $budget = $budgetService->assess($budget, $advisor);
             $budget = $budgetService->approve($budget, $advisor);
             $approved = true;
         }

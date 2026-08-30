@@ -15,6 +15,8 @@ final class ServiceActivation extends Model
 
     public const SERVICE_DUE_DILIGENCE = 'due_diligence';
 
+    public const SERVICE_DD_PLAN_BUDGET = 'dd_plan_budget';
+
     public const SERVICE_ENTREPRENEUR = 'entrepreneur';
 
     public const SERVICE_INTEGRATION_SCOPING = 'integration_scoping';
@@ -150,6 +152,7 @@ final class ServiceActivation extends Model
     {
         return match ($this->service_type) {
             self::SERVICE_DUE_DILIGENCE => 'Explore buying a business',
+            self::SERVICE_DD_PLAN_BUDGET => 'DD + Business Plan & Budget',
             self::SERVICE_ENTREPRENEUR => 'Test new Business Idea',
             self::SERVICE_INTEGRATION_SCOPING => 'Systems integration scoping',
             self::SERVICE_INTEGRATION => 'Systems integration delivery',

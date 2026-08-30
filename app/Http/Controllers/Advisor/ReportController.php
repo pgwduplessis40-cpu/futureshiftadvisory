@@ -9,11 +9,13 @@ use App\Http\Controllers\Controller;
 use App\Jobs\ComposeReport;
 use App\Models\Client;
 use App\Models\EntrepreneurProfile;
+use App\Models\Message;
 use App\Models\Report;
 use App\Models\ReportSection;
 use App\Models\ReportSectionComment;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Messaging\MessageThreadService;
 use App\Services\Reports\ReportComposer;
 use App\Services\Reports\ReportSectionEditor;
 use Illuminate\Http\RedirectResponse;
@@ -55,8 +57,27 @@ final class ReportController extends Controller
 
         $type = ReportType::from((string) $validated['type']);
         ComposeReport::dispatch((string) $client->getKey(), $type->value, (int) $user->getKey())->afterCommit();
+        [$status, $message] = match ($type) {
+            ReportType::DueDiligence => [
+                'dd-assessment-generation-queued',
+                'DD assessment has been queued for background generation.',
+            ],
+            ReportType::AcquisitionGoNoGo => [
+                'dd-decision-report-generation-queued',
+                'DD decision report has been queued for background generation.',
+            ],
+            default => [
+                'report-generation-queued',
+                'Report generation has started.',
+            ],
+        };
 
-        return to_route('advisor.clients.show', $client)->with('status', 'report-generation-queued');
+        return to_route('advisor.clients.show', $client)
+            ->with('status', $status)
+            ->with('toast', [
+                'type' => 'success',
+                'message' => $message,
+            ]);
     }
 
     public function download(Request $request, Report $report, AuditWriter $audit, ReportComposer $reports): Response
@@ -152,6 +173,91 @@ final class ReportController extends Controller
         $reports->markReviewed($report, $user);
 
         return to_route('advisor.clients.show', $report->client)->with('status', 'report-reviewed');
+    }
+
+    public function ddFeedback(
+        Request $request,
+        Report $report,
+        MessageThreadService $messages,
+        AuditWriter $audit,
+    ): RedirectResponse {
+        $report->loadMissing('client');
+        $client = $report->client;
+        abort_unless($client instanceof Client, 404);
+        Gate::authorize('view', $client);
+        abort_unless(in_array($report->type, [
+            ReportType::DueDiligence,
+            ReportType::AcquisitionGoNoGo,
+        ], true), 404);
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $validated = $request->validate([
+            'advisor_feedback' => ['required', 'string', 'min:10', 'max:5000'],
+            'proposed_reply' => ['required', 'string', 'min:10', 'max:5000'],
+            'send_to_client' => ['required', 'boolean'],
+        ]);
+
+        $sendToClient = (bool) $validated['send_to_client'];
+        $advisorFeedback = trim((string) $validated['advisor_feedback']);
+        $proposedReply = trim((string) $validated['proposed_reply']);
+        $metadata = is_array($report->metadata) ? $report->metadata : [];
+        $existingFeedback = (array) data_get($metadata, 'advisor_client_reply', []);
+        $savedAt = now();
+        $message = $sendToClient
+            ? $messages->startClientThread(
+                client: $client,
+                sender: $user,
+                subject: $report->type === ReportType::AcquisitionGoNoGo
+                    ? 'DD decision report feedback'
+                    : 'Due Diligence assessment feedback',
+                body: $proposedReply,
+            )
+            : null;
+        $messageThreadId = $message instanceof Message ? $message->thread_id : null;
+        $messageId = $message instanceof Message ? $message->getKey() : null;
+
+        $metadata['advisor_client_reply'] = [
+            'status' => $sendToClient ? 'feedback_sent' : 'feedback_saved',
+            'advisor_feedback' => $advisorFeedback,
+            'proposed_reply' => $proposedReply,
+            'saved_at' => $savedAt->toIso8601String(),
+            'saved_by_user_id' => $user->getKey(),
+            'sent_at' => $sendToClient
+                ? $savedAt->toIso8601String()
+                : ($existingFeedback['sent_at'] ?? null),
+            'sent_by_user_id' => $sendToClient
+                ? $user->getKey()
+                : ($existingFeedback['sent_by_user_id'] ?? null),
+            'client_message_thread_id' => $messageThreadId
+                ?? ($existingFeedback['client_message_thread_id'] ?? null),
+            'client_message_id' => $messageId
+                ?? ($existingFeedback['client_message_id'] ?? null),
+        ];
+
+        $report->forceFill(['metadata' => $metadata])->save();
+
+        $audit->record(
+            $sendToClient ? 'dd.report_feedback_sent' : 'dd.report_feedback_saved',
+            subject: $report,
+            actor: $user,
+            after: [
+                'client_id' => $client->getKey(),
+                'report_type' => $report->type->value,
+                'feedback_status' => data_get($metadata, 'advisor_client_reply.status'),
+                'client_message_thread_id' => data_get($metadata, 'advisor_client_reply.client_message_thread_id'),
+            ],
+        );
+
+        return to_route('advisor.clients.show', $client)
+            ->with('status', $sendToClient ? 'dd-feedback-sent' : 'dd-feedback-saved')
+            ->with('toast', [
+                'type' => 'success',
+                'message' => $sendToClient
+                    ? 'DD feedback sent to the client.'
+                    : 'DD feedback draft saved.',
+            ]);
     }
 
     public function release(Request $request, Report $report, ReportComposer $reports): RedirectResponse

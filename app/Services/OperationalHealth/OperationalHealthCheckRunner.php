@@ -79,6 +79,7 @@ final class OperationalHealthCheckRunner
         $ddUser = $this->clientPortalUser(EngagementType::DUE_DILIGENCE, 'dd_client_email');
         $entrepreneurUser = $this->entrepreneurUser();
         $advisorClient = $this->advisorClientCandidate();
+        $advisorDueDiligenceClient = $this->advisorClientCandidate(EngagementType::DUE_DILIGENCE);
         $document = $this->clientDocumentCandidate();
         $documentUser = $document instanceof Document && is_string($document->client_id)
             ? $this->clientPortalUserForClient($document->client_id)
@@ -244,6 +245,39 @@ final class OperationalHealthCheckRunner
                 ] : null,
             ],
             [
+                'key' => 'advisor.dd_client.show',
+                'name' => 'Advisor DD service workspace',
+                'area' => 'Advisor workflow',
+                'method' => 'GET',
+                'url' => $advisorDueDiligenceClient instanceof Client
+                    ? route('advisor.clients.show', $advisorDueDiligenceClient, absolute: false)
+                    : null,
+                'route_name' => 'advisor.clients.show',
+                'user' => $superAdmin,
+                'expected_statuses' => [200],
+                'expected_behavior' => 'An authorised advisor or super administrator should be able to open a DD client with DD, BP&B, DD suggested-reply, and DD version-history props available.',
+                'missing_fixture' => 'No active due-diligence advisor client monitor fixture is available.',
+                'subject' => $advisorDueDiligenceClient instanceof Client ? [
+                    'type' => 'client',
+                    'id' => (string) $advisorDueDiligenceClient->getKey(),
+                    'label' => $advisorDueDiligenceClient->legal_name,
+                ] : null,
+            ],
+            [
+                'key' => 'portal.dd_business_plan_budget.workspace',
+                'name' => 'DD Business Plan & Budget workspace',
+                'area' => 'Client portal',
+                'method' => 'GET',
+                'url' => $advisorDueDiligenceClient instanceof Client
+                    ? route('portal.business-plan-budget.show', absolute: false).'?client='.$advisorDueDiligenceClient->getKey()
+                    : null,
+                'route_name' => 'portal.business-plan-budget.show',
+                'user' => $ddUser,
+                'expected_statuses' => [200],
+                'expected_behavior' => 'A DD client with active BP&B access should open the combined Business Plan & Budget workspace rather than the quote request screen.',
+                'missing_fixture' => 'No due-diligence client portal monitor user with active BP&B access is available.',
+            ],
+            [
                 'key' => 'portal.business_plan_budget.document',
                 'name' => 'Business plan and budget document',
                 'area' => 'Plan preview',
@@ -267,6 +301,36 @@ final class OperationalHealthCheckRunner
                 'expected_content_type' => 'application/pdf',
                 'expected_behavior' => 'A client portal user should be able to generate the business plan and budget PDF preview.',
                 'missing_fixture' => 'No client portal monitor user with a client assignment is available.',
+            ],
+            [
+                'key' => 'portal.dd_business_plan_budget.business_plan_pdf',
+                'name' => 'DD Business Plan PDF',
+                'area' => 'Plan preview',
+                'method' => 'GET',
+                'url' => $advisorDueDiligenceClient instanceof Client
+                    ? route('portal.business-plan-budget.business-plan.pdf', absolute: false).'?client='.$advisorDueDiligenceClient->getKey()
+                    : null,
+                'route_name' => 'portal.business-plan-budget.business-plan.pdf',
+                'user' => $ddUser,
+                'expected_statuses' => [200],
+                'expected_content_type' => 'application/pdf',
+                'expected_behavior' => 'A DD client with active BP&B access should be able to open the client-facing Business Plan PDF.',
+                'missing_fixture' => 'No due-diligence client portal monitor user with active BP&B access is available.',
+            ],
+            [
+                'key' => 'portal.dd_business_plan_budget.budget_pack_pdf',
+                'name' => 'DD Budget PDF',
+                'area' => 'Plan preview',
+                'method' => 'GET',
+                'url' => $advisorDueDiligenceClient instanceof Client
+                    ? route('portal.business-plan-budget.budget-pack.pdf', absolute: false).'?client='.$advisorDueDiligenceClient->getKey()
+                    : null,
+                'route_name' => 'portal.business-plan-budget.budget-pack.pdf',
+                'user' => $ddUser,
+                'expected_statuses' => [200],
+                'expected_content_type' => 'application/pdf',
+                'expected_behavior' => 'A DD client with active BP&B access should be able to open the client-facing Budget PDF.',
+                'missing_fixture' => 'No due-diligence client portal monitor user with active BP&B access is available.',
             ],
             [
                 'key' => 'portal.dd_plan.preview',
@@ -642,18 +706,13 @@ final class OperationalHealthCheckRunner
         $session = app('session')->driver();
         $originalSessionId = $session->getId();
         $originalSessionData = $session->all();
+        /** @var Request $originalRequest */
+        $originalRequest = app('request');
         $originalUser = Auth::guard('web')->user();
 
         $session->setId(Str::random(40));
         $session->replace([]);
         $session->start();
-        app('auth')->forgetGuards();
-
-        if ($user instanceof User) {
-            $session->put(MfaChallenger::SESSION_USER_ID, (string) $user->getAuthIdentifier());
-            $session->put(MfaChallenger::SESSION_CONFIRMED_AT, now()->getTimestamp());
-            Auth::guard('web')->setUser($user);
-        }
 
         $request = Request::create($url, strtoupper($method), [], [], [], [
             'HTTP_ACCEPT' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -663,6 +722,14 @@ final class OperationalHealthCheckRunner
             'REMOTE_ADDR' => '127.0.0.1',
         ]);
         $request->setLaravelSession($session);
+        app()->instance('request', $request);
+        app('auth')->forgetGuards();
+
+        if ($user instanceof User) {
+            $session->put(MfaChallenger::SESSION_USER_ID, (string) $user->getAuthIdentifier());
+            $session->put(MfaChallenger::SESSION_CONFIRMED_AT, now()->getTimestamp());
+            Auth::guard('web')->setUser($user);
+        }
 
         if ($user instanceof User) {
             $request->setUserResolver(static fn (?string $guard = null): User => $user);
@@ -694,14 +761,14 @@ final class OperationalHealthCheckRunner
                 'headers' => [],
             ];
         } finally {
+            app()->instance('request', $originalRequest);
+            $session->setId($originalSessionId);
+            $session->replace($originalSessionData);
             app('auth')->forgetGuards();
 
             if ($originalUser instanceof User) {
                 Auth::guard('web')->setUser($originalUser);
             }
-
-            $session->setId($originalSessionId);
-            $session->replace($originalSessionData);
         }
     }
 
@@ -1090,7 +1157,7 @@ final class OperationalHealthCheckRunner
             ->first();
     }
 
-    private function advisorClientCandidate(): ?Client
+    private function advisorClientCandidate(?EngagementType $engagementType = null): ?Client
     {
         if (! Schema::hasTable('clients')) {
             return null;
@@ -1098,6 +1165,10 @@ final class OperationalHealthCheckRunner
 
         $query = Client::query()
             ->where('registry_sources->source', OperationalHealthFixtures::CLIENT_SOURCE);
+
+        if ($engagementType instanceof EngagementType) {
+            $query->where('engagement_type', $engagementType->value);
+        }
 
         if (Schema::hasColumn('clients', 'status')) {
             $query->where('status', '!=', ClientStatus::SUSPENDED->value);

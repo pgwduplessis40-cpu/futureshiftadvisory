@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class StrategicBudget extends Model
 {
@@ -121,6 +122,14 @@ final class StrategicBudget extends Model
     public function proposal(): BelongsTo
     {
         return $this->belongsTo(Proposal::class);
+    }
+
+    /**
+     * @return HasMany<StrategicBudgetAssessment, $this>
+     */
+    public function assessments(): HasMany
+    {
+        return $this->hasMany(StrategicBudgetAssessment::class);
     }
 
     /**

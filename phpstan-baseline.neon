@@ -357,7 +357,7 @@ parameters:
 		-
 			message: '#^Using nullsafe property access "\?\-\>email" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
-			count: 3
+			count: 2
 			path: app/Http/Controllers/Advisor/PartnerPanelController.php
 
 		-
@@ -6345,7 +6345,7 @@ parameters:
 		-
 			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
 			identifier: function.alreadyNarrowedType
-			count: 3
+			count: 2
 			path: app/Services/Budgets/StrategicBudgetService.php
 
 		-
@@ -6363,7 +6363,7 @@ parameters:
 		-
 			message: '#^Instanceof between App\\Enums\\EngagementType and App\\Enums\\EngagementType will always evaluate to true\.$#'
 			identifier: instanceof.alwaysTrue
-			count: 3
+			count: 2
 			path: app/Services/Budgets/StrategicBudgetService.php
 
 		-

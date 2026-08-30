@@ -24,6 +24,7 @@ import type {
     RedFlagsPayload,
     ReferenceDataTasksPayload,
     ScenarioPlanningPayload,
+    ServiceActivationRequestsPayload,
     StrategicPlanDeploymentsPayload,
     PendingTermsPayload,
     WellbeingAnalyticsPayload,
@@ -36,6 +37,7 @@ export type DashboardProps = {
     documentVerificationFlags: DocumentVerificationFlag[];
     messagesPending: MessagesPendingPayload;
     clientTransferQueue: ClientTransferQueuePayload;
+    serviceActivationRequests: ServiceActivationRequestsPayload;
     entrepreneurReviews: EntrepreneurReviewsPayload;
     strategicPlanDeployments: StrategicPlanDeploymentsPayload;
     pendingTermsReacceptance: PendingTermsPayload;

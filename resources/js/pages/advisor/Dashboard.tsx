@@ -1,20 +1,13 @@
 import { Deferred, Head } from '@inertiajs/react';
 import { Activity } from 'lucide-react';
 import { useState } from 'react';
-import { DocumentVerificationFlagPanel } from '@/components/verification/DocumentVerificationFlagPanel';
 import { dashboard } from '@/routes';
 import {
     ActionCommandCentre,
     buildActionSummaryItems,
     initialDashboardTab,
 } from './dashboard/ActionCommandCentre';
-import {
-    Metric,
-    MyClientsHealth,
-    CashFlowRiskPanel,
-    StrategicPlanDeploymentPanel,
-    PendingTermsReacceptance,
-} from './dashboard/ClientHealthPanels';
+import { Metric, MyClientsHealth } from './dashboard/ClientHealthPanels';
 import {
     AdvisorPortfolioFallback,
     AdvisorSignalsFallback,
@@ -35,8 +28,6 @@ import {
     advisorSignalDeferredProps,
 } from './dashboard/defaults';
 import {
-    ProposalStatusPanel,
-    PaymentStatusPanel,
     NpoPendingConversions,
     NpoFundingPanel,
     PracticeHealth,
@@ -51,9 +42,9 @@ import {
     PvWaterfallPanel,
     RedFlagPanel,
 } from './dashboard/PlanningPanels';
+import { PriorityActionPanels } from './dashboard/PriorityActionPanels';
 import type { DashboardProps } from './dashboard/props';
 import {
-    EntrepreneurReviewPanel,
     ProspectInbox,
     EconomicIndicators,
     ReferenceDataTasksPanel,
@@ -69,6 +60,7 @@ export default function AdvisorDashboard({
     documentVerificationFlags,
     messagesPending,
     clientTransferQueue,
+    serviceActivationRequests,
     entrepreneurReviews,
     strategicPlanDeployments,
     pendingTermsReacceptance,
@@ -111,6 +103,7 @@ export default function AdvisorDashboard({
         redFlags,
         documentVerificationFlags,
         clientTransferQueue,
+        serviceActivationRequests,
         entrepreneurReviews,
         strategicPlanDeployments,
         pendingTermsReacceptance,
@@ -234,27 +227,24 @@ export default function AdvisorDashboard({
                             title="Action panel"
                             description="Work the live queues before moving into planning and portfolio decisions."
                         >
-                            <div className="grid items-start gap-4 xl:grid-cols-2">
-                                <EntrepreneurReviewPanel
-                                    payload={entrepreneurReviews}
-                                />
-                                <CashFlowRiskPanel payload={cashFlowStatus} />
-                                <StrategicPlanDeploymentPanel
-                                    payload={strategicPlanDeployments}
-                                />
-                                <div id="advisor-documents">
-                                    <DocumentVerificationFlagPanel
-                                        flags={documentVerificationFlags}
-                                    />
-                                </div>
-                                <PendingTermsReacceptance
-                                    payload={pendingTermsReacceptance}
-                                />
-                            </div>
-                            <div className="grid items-start gap-4 xl:grid-cols-2">
-                                <ProposalStatusPanel payload={proposalStatus} />
-                                <PaymentStatusPanel payload={paymentStatus} />
-                            </div>
+                            <PriorityActionPanels
+                                cashFlowStatus={cashFlowStatus}
+                                documentVerificationFlags={
+                                    documentVerificationFlags
+                                }
+                                entrepreneurReviews={entrepreneurReviews}
+                                pendingTermsReacceptance={
+                                    pendingTermsReacceptance
+                                }
+                                proposalStatus={proposalStatus}
+                                paymentStatus={paymentStatus}
+                                serviceActivationRequests={
+                                    serviceActivationRequests
+                                }
+                                strategicPlanDeployments={
+                                    strategicPlanDeployments
+                                }
+                            />
                         </DashboardSection>
                         <DashboardSection
                             title="Portfolio decisions"

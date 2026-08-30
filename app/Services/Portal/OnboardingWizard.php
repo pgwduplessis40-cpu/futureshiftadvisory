@@ -10,12 +10,15 @@ use App\Enums\QuestionnaireSet;
 use App\Models\Client;
 use App\Models\DdEngagement;
 use App\Models\NpoEngagement;
+use App\Services\Dd\ClientCapability;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 
 final class OnboardingWizard
 {
-    private const JOURNEY_VERSION = 2;
+    private const JOURNEY_VERSION = 3;
+
+    public function __construct(private readonly ClientCapability $clientCapability) {}
 
     public const STEP_WELCOME = 'welcome';
 
@@ -29,6 +32,8 @@ final class OnboardingWizard
 
     public const STEP_WEBSITE = 'website';
 
+    public const STEP_DD_SUPPORT = 'dd-support-level';
+
     public const STEP_QUESTIONNAIRE = 'questionnaire';
 
     public const STEP_DOCUMENTS = 'documents';
@@ -38,24 +43,44 @@ final class OnboardingWizard
     /**
      * @return array<int, array{number:int, slug:string, title:string, description:string}>
      */
-    public function steps(): array
+    public function steps(Client $client): array
     {
-        return [
-            ['number' => 1, 'slug' => self::STEP_WELCOME, 'title' => 'Welcome', 'description' => 'Confirm the onboarding path.'],
-            ['number' => 2, 'slug' => self::STEP_GOALS, 'title' => 'Goals', 'description' => 'Capture immediate priorities.'],
-            ['number' => 3, 'slug' => self::STEP_WEBSITE, 'title' => 'Website', 'description' => 'Share your public website.'],
-            ['number' => 4, 'slug' => self::STEP_QUESTIONNAIRE, 'title' => 'Questionnaire', 'description' => 'Match the engagement questionnaire.'],
-            ['number' => 5, 'slug' => self::STEP_DOCUMENTS, 'title' => 'Documents', 'description' => 'Prepare supporting files.'],
-            ['number' => 6, 'slug' => self::STEP_REVIEW, 'title' => 'Review and submit', 'description' => 'Confirm the onboarding summary.'],
+        $steps = [
+            ['slug' => self::STEP_WELCOME, 'title' => 'Welcome', 'description' => 'Confirm the onboarding path.'],
         ];
+
+        if ($this->isDueDiligenceClient($client)) {
+            $steps = [
+                ...$steps,
+                ['slug' => self::STEP_DD_SUPPORT, 'title' => 'DD support level', 'description' => 'Choose the due diligence support path.'],
+                ['slug' => self::STEP_QUESTIONNAIRE, 'title' => 'Questionnaire', 'description' => 'Answer the due diligence questions.'],
+                ['slug' => self::STEP_DOCUMENTS, 'title' => 'Documents', 'description' => 'Prepare acquisition evidence.'],
+                ['slug' => self::STEP_REVIEW, 'title' => 'Review and submit', 'description' => 'Confirm the due diligence onboarding summary.'],
+            ];
+        } else {
+            $steps = [
+                ...$steps,
+                ['slug' => self::STEP_GOALS, 'title' => 'Goals', 'description' => 'Capture immediate priorities.'],
+                ['slug' => self::STEP_WEBSITE, 'title' => 'Website', 'description' => 'Share your public website.'],
+                ['slug' => self::STEP_QUESTIONNAIRE, 'title' => 'Questionnaire', 'description' => 'Match the engagement questionnaire.'],
+                ['slug' => self::STEP_DOCUMENTS, 'title' => 'Documents', 'description' => 'Prepare supporting files.'],
+                ['slug' => self::STEP_REVIEW, 'title' => 'Review and submit', 'description' => 'Confirm the onboarding summary.'],
+            ];
+        }
+
+        return array_map(
+            fn (array $step, int $index): array => ['number' => $index + 1, ...$step],
+            $steps,
+            array_keys($steps),
+        );
     }
 
     /**
      * @return array{number:int, slug:string, title:string, description:string}
      */
-    public function step(string $slug): array
+    public function step(Client $client, string $slug): array
     {
-        $step = collect($this->steps())->firstWhere('slug', $slug);
+        $step = collect($this->steps($client))->firstWhere('slug', $slug);
         abort_unless(is_array($step), 404);
 
         return $step;
@@ -71,15 +96,22 @@ final class OnboardingWizard
             : [];
 
         $journeyVersion = (int) ($state['journey_version'] ?? 1);
-        $currentStep = $journeyVersion < self::JOURNEY_VERSION
-            ? $this->currentStepForLegacyJourney($state)
-            : (int) ($state['current_step'] ?? 1);
-        $currentStep = max(1, min($this->totalSteps(), $currentStep));
-
         $completedSteps = array_values(array_filter(
             (array) ($state['completed_steps'] ?? []),
-            fn (mixed $slug): bool => is_string($slug) && $this->hasStep($slug),
+            fn (mixed $slug): bool => is_string($slug) && $this->hasStep($client, $slug),
         ));
+
+        if ($this->isDueDiligenceClient($client) && $this->dueDiligenceSupport($client)['confirmed']) {
+            $completedSteps[] = self::STEP_DD_SUPPORT;
+        }
+
+        $completedSteps = array_values(array_unique($completedSteps));
+        $currentStep = match (true) {
+            $journeyVersion < 2 => $this->currentStepForLegacyJourney($state),
+            $journeyVersion < self::JOURNEY_VERSION && $this->isDueDiligenceClient($client) => $this->nextIncompleteStepNumber($client, $completedSteps, 1),
+            default => (int) ($state['current_step'] ?? 1),
+        };
+        $currentStep = max(1, min($this->totalSteps($client), $currentStep));
 
         return [
             'journey_version' => self::JOURNEY_VERSION,
@@ -97,12 +129,12 @@ final class OnboardingWizard
      */
     public function saveStep(Client $client, string $slug, array $payload, ?Carbon $now = null): array
     {
-        $step = $this->step($slug);
+        $step = $this->step($client, $slug);
         $state = $this->state($client);
         $completed = array_values(array_unique([...$state['completed_steps'], $slug]));
         $nextStep = max(
             (int) $state['current_step'],
-            $this->nextIncompleteStepNumber($completed, (int) $step['number'] + 1),
+            $this->nextIncompleteStepNumber($client, $completed, (int) $step['number'] + 1),
         );
 
         $state['steps'][$slug] = $payload;
@@ -130,7 +162,7 @@ final class OnboardingWizard
      */
     public function saveDraft(Client $client, string $slug, array $payload, ?Carbon $now = null): array
     {
-        $this->step($slug);
+        $this->step($client, $slug);
 
         $state = $this->state($client);
         $savedAt = ($now ?? now())->toIso8601String();
@@ -158,7 +190,7 @@ final class OnboardingWizard
         return array_map(function (array $step) use ($state): array {
             $number = (int) $step['number'];
             $completed = in_array($step['slug'], $state['completed_steps'], true);
-            $locked = $number > (int) $state['current_step'];
+            $locked = ! $completed && $number > (int) $state['current_step'];
 
             return [
                 ...$step,
@@ -167,7 +199,7 @@ final class OnboardingWizard
                 'locked' => $locked,
                 'status' => $completed ? 'completed' : ($locked ? 'locked' : 'current'),
             ];
-        }, $this->steps());
+        }, $this->steps($client));
     }
 
     /**
@@ -176,7 +208,7 @@ final class OnboardingWizard
     public function progress(Client $client): array
     {
         $completed = count($this->state($client)['completed_steps']);
-        $total = $this->totalSteps();
+        $total = $this->totalSteps($client);
 
         return [
             'completed' => $completed,
@@ -227,29 +259,71 @@ final class OnboardingWizard
         };
     }
 
+    /**
+     * @return array{available:bool, confirmed:bool, label:string, dd_experience:?string, business_ownership_experience:?string, financial_confidence:?string, preferred_guidance:?string}
+     */
+    public function dueDiligenceSupport(Client $client): array
+    {
+        $engagement = $this->dueDiligenceEngagement($client);
+        $capability = $engagement instanceof DdEngagement
+            ? (array) data_get($engagement->target_details ?? [], 'client_capability', [])
+            : [];
+        $confirmed = ! $this->clientCapability->needsConfirmation($capability);
+        $mode = $capability['mode'] ?? 'guided';
+
+        return [
+            'available' => $engagement instanceof DdEngagement,
+            'confirmed' => $engagement instanceof DdEngagement && $confirmed,
+            'label' => $mode === 'experienced' ? 'Experienced DD support' : 'Guided DD support',
+            'dd_experience' => is_string($capability['dd_experience'] ?? null) ? $capability['dd_experience'] : null,
+            'business_ownership_experience' => is_string($capability['business_ownership_experience'] ?? null) ? $capability['business_ownership_experience'] : null,
+            'financial_confidence' => is_string($capability['financial_confidence'] ?? null) ? $capability['financial_confidence'] : null,
+            'preferred_guidance' => is_string($capability['preferred_guidance'] ?? null) ? $capability['preferred_guidance'] : null,
+        ];
+    }
+
+    /**
+     * @param  array<string, string>  $intake
+     */
+    public function saveDueDiligenceSupport(Client $client, array $intake): void
+    {
+        $engagement = $this->dueDiligenceEngagement($client);
+        abort_unless($engagement instanceof DdEngagement, 409, 'FSA needs to set up the due diligence engagement before you can choose a support level.');
+
+        $targetDetails = $engagement->target_details ?? [];
+        $targetDetails['client_capability'] = $this->clientCapability->fromIntake(
+            $intake,
+            'dd_onboarding',
+        );
+
+        $engagement->forceFill(['target_details' => $targetDetails])->save();
+    }
+
     public function currentStepSlug(Client $client): string
     {
         $currentStep = (int) $this->state($client)['current_step'];
-        $step = Arr::first($this->steps(), fn (array $step): bool => (int) $step['number'] === $currentStep);
+        $step = Arr::first($this->steps($client), fn (array $step): bool => (int) $step['number'] === $currentStep);
 
         return is_array($step) ? (string) $step['slug'] : self::STEP_WELCOME;
     }
 
     public function canAccess(Client $client, string $slug): bool
     {
-        $step = $this->step($slug);
+        $step = $this->step($client, $slug);
+        $state = $this->state($client);
 
-        return (int) $step['number'] <= (int) $this->state($client)['current_step'];
+        return in_array($slug, $state['completed_steps'], true)
+            || (int) $step['number'] <= (int) $state['current_step'];
     }
 
-    public function totalSteps(): int
+    public function totalSteps(Client $client): int
     {
-        return count($this->steps());
+        return count($this->steps($client));
     }
 
-    private function hasStep(string $slug): bool
+    private function hasStep(Client $client, string $slug): bool
     {
-        return collect($this->steps())->contains(fn (array $step): bool => $step['slug'] === $slug);
+        return collect($this->steps($client))->contains(fn (array $step): bool => $step['slug'] === $slug);
     }
 
     /**
@@ -271,13 +345,13 @@ final class OnboardingWizard
     /**
      * @param  array<int, string>  $completedSteps
      */
-    private function nextIncompleteStepNumber(array $completedSteps, int $startingAt): int
+    private function nextIncompleteStepNumber(Client $client, array $completedSteps, int $startingAt): int
     {
-        $next = collect($this->steps())
+        $next = collect($this->steps($client))
             ->first(fn (array $candidate): bool => (int) $candidate['number'] >= $startingAt
                 && ! in_array($candidate['slug'], $completedSteps, true));
 
-        return is_array($next) ? (int) $next['number'] : $this->totalSteps();
+        return is_array($next) ? (int) $next['number'] : $this->totalSteps($client);
     }
 
     /**
@@ -322,5 +396,10 @@ final class OnboardingWizard
             ->where('client_id', $client->getKey())
             ->latest()
             ->first();
+    }
+
+    private function isDueDiligenceClient(Client $client): bool
+    {
+        return $client->engagement_type === EngagementType::DUE_DILIGENCE;
     }
 }

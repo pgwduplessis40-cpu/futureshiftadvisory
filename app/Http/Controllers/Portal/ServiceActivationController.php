@@ -188,6 +188,10 @@ final class ServiceActivationController extends Controller
             return to_route('portal.dd-plan.show')->with('status', 'service-activation-accepted');
         }
 
+        if ($activation->service_type === ServiceActivation::SERVICE_DD_PLAN_BUDGET) {
+            return to_route('portal.business-plan-budget.show')->with('status', 'service-activation-accepted');
+        }
+
         if ($activation->service_type === ServiceActivation::SERVICE_ENTREPRENEUR) {
             return to_route('portal.entrepreneur.dashboard')->with('status', 'service-activation-accepted');
         }
@@ -255,6 +259,7 @@ final class ServiceActivationController extends Controller
 
         return match ($activation->service_type) {
             ServiceActivation::SERVICE_DUE_DILIGENCE => route('portal.dd-plan.show', absolute: false),
+            ServiceActivation::SERVICE_DD_PLAN_BUDGET => route('portal.business-plan-budget.show', absolute: false),
             ServiceActivation::SERVICE_ENTREPRENEUR => route('portal.entrepreneur.dashboard', absolute: false),
             default => null,
         };
