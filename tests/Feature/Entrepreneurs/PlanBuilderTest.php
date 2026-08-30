@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature\Entrepreneurs;
 
 use App\Enums\EntrepreneurStage;
+use App\Http\Controllers\Portal\EntrepreneurAdvisoryRequestController;
+use App\Http\Controllers\Portal\EntrepreneurPlanBudgetController;
+use App\Http\Controllers\Portal\EntrepreneurPlanDocumentController;
+use App\Http\Controllers\Portal\EntrepreneurPlanWorkspaceController;
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurProfile;
 use App\Models\PlanSection;
@@ -68,6 +72,25 @@ final class PlanBuilderTest extends TestCase
         }
 
         parent::tearDown();
+    }
+
+    public function test_plan_routes_are_owned_by_focused_controllers(): void
+    {
+        $expectedActions = [
+            'portal.entrepreneur.plan.show' => EntrepreneurPlanWorkspaceController::class.'@show',
+            'portal.entrepreneur.plan.preview' => EntrepreneurPlanDocumentController::class.'@preview',
+            'portal.entrepreneur.plan.budget-pack.show' => EntrepreneurPlanDocumentController::class.'@budgetPack',
+            'portal.entrepreneur.plan.budget-pack.pdf' => EntrepreneurPlanDocumentController::class.'@budgetPackPdf',
+            'portal.entrepreneur.plan.budget.update' => EntrepreneurPlanBudgetController::class.'@budget',
+            'portal.entrepreneur.advisory-request.store' => EntrepreneurAdvisoryRequestController::class.'@requestAdvisory',
+        ];
+
+        foreach ($expectedActions as $name => $action) {
+            $route = app('router')->getRoutes()->getByName($name);
+
+            $this->assertNotNull($route);
+            $this->assertSame($action, $route->getActionName());
+        }
     }
 
     public function test_plan_builder_stays_locked_until_advisor_gate_passes(): void
