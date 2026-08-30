@@ -157,6 +157,7 @@ final class ServiceJourney
         return $this->context->withSystemContext(fn (): int => ServiceJourneyMilestoneAward::query()
             ->where('service_journey_enrollment_id', $enrollment->getKey())
             ->whereNull('seen_at')
+            ->toBase()
             ->update(['seen_at' => now()]));
     }
 

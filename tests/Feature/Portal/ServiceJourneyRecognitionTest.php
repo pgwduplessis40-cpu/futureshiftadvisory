@@ -80,6 +80,11 @@ final class ServiceJourneyRecognitionTest extends TestCase
                 ->where('journeyRecognition.new_badge_count', 5)
             );
 
+        $awardUpdatedAtBeforeSeen = $enrollment->milestoneAwards()
+            ->pluck('updated_at', 'id')
+            ->map(fn ($timestamp): ?string => $timestamp?->toJSON())
+            ->all();
+
         $this->actingAsMfa($user)
             ->post(route('portal.service-journey.seen'), [
                 'service_key' => EngagementType::STANDARD_ADVISORY->value,
@@ -87,6 +92,13 @@ final class ServiceJourneyRecognitionTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame(0, $enrollment->refresh()->milestoneAwards()->whereNull('seen_at')->count());
+        $this->assertSame(
+            $awardUpdatedAtBeforeSeen,
+            $enrollment->milestoneAwards()
+                ->pluck('updated_at', 'id')
+                ->map(fn ($timestamp): ?string => $timestamp?->toJSON())
+                ->all(),
+        );
     }
 
     public function test_client_cannot_enable_recognition_for_another_service_workspace(): void
