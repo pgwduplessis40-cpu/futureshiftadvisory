@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Advisor;
 
 use App\Enums\EntrepreneurStage;
+use App\Http\Controllers\Advisor\EntrepreneurPlanDocumentController;
 use App\Jobs\RefreshIdeaValidationAiReview;
 use App\Mail\InvitationMail;
 use App\Models\AdvisoryReadinessSignal;
@@ -37,6 +38,17 @@ use Tests\TestCase;
 final class AddEntrepreneurTest extends TestCase
 {
     use MakesIdeaReviewEligible, RefreshDatabase;
+
+    public function test_plan_document_routes_use_the_dedicated_controller(): void
+    {
+        $route = app('router')->getRoutes()->getByName('advisor.entrepreneurs.plans.latest.preview');
+
+        $this->assertNotNull($route);
+        $this->assertSame(
+            EntrepreneurPlanDocumentController::class.'@latestPlanPreview',
+            $route->getActionName(),
+        );
+    }
 
     public function test_advisor_can_create_entrepreneur_profile_and_issue_invite(): void
     {

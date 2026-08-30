@@ -19,6 +19,11 @@ return [
             'production_limit' => 500,
             'contract_tests' => ['tests/Feature/Advisor', 'tests/Feature/Entrepreneurs'],
         ],
+        'app/Services/Entrepreneurs/AdvisorEntrepreneurWorkspacePayload.php' => [
+            'ceiling' => 1064,
+            'production_limit' => 500,
+            'contract_tests' => ['tests/Feature/Advisor', 'tests/Feature/Entrepreneurs'],
+        ],
         'app/Http/Controllers/Portal/EntrepreneurPlanController.php' => [
             'ceiling' => 1342,
             'production_limit' => 500,
