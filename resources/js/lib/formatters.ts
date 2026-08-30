@@ -1,4 +1,5 @@
 export const NZ_LOCALE = 'en-NZ';
+export const NZ_TIME_ZONE = 'Pacific/Auckland';
 
 type CurrencyOptions = Omit<Intl.NumberFormatOptions, 'currency' | 'style'>;
 
@@ -46,11 +47,20 @@ export function formatNzDate(
     value: string | Date,
     options: Intl.DateTimeFormatOptions = { dateStyle: 'medium' },
 ): string {
-    return new Intl.DateTimeFormat(NZ_LOCALE, options).format(new Date(value));
+    const dateOnly =
+        typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+    const date = dateOnly
+        ? new Date(`${value}T00:00:00.000Z`)
+        : new Date(value);
+
+    return new Intl.DateTimeFormat(NZ_LOCALE, {
+        ...options,
+        timeZone: options.timeZone ?? (dateOnly ? 'UTC' : NZ_TIME_ZONE),
+    }).format(date);
 }
 
 export function formatNzMonth(value: string): string {
-    return formatNzDate(`${value}T00:00:00`, {
+    return formatNzDate(`${value}-01`, {
         month: 'short',
         year: 'numeric',
     });

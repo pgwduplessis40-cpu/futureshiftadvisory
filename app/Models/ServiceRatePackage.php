@@ -41,7 +41,28 @@ final class ServiceRatePackage extends Model
 
     public const SCOPE_DD_PLAN_BUDGET_ADD_ON = 'dd_plan_budget_add_on';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'service_type',
+        'package_scope',
+        'package_name',
+        'client_label',
+        'billing_model',
+        'fixed_fee',
+        'deposit_percent',
+        'hourly_rate',
+        'retainer_amount',
+        'purchase_price_min',
+        'purchase_price_max',
+        'currency',
+        'scope_description',
+        'included_stages',
+        'client_outcomes',
+        'access',
+        'is_active',
+        'effective_from',
+        'effective_to',
+    ];
 
     protected $casts = [
         'fixed_fee' => 'float',

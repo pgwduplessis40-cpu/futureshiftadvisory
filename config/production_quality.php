@@ -64,6 +64,10 @@ return [
      * amounts, tokens and approvals; request input is never passed through.
      */
     'sensitive_models' => [
+        'App\\Models\\AccountingInvoice' => 'app/Models/AccountingInvoice.php',
+        'App\\Models\\FeeCalculation' => 'app/Models/FeeCalculation.php',
+        'App\\Models\\ClientFunderRecord' => 'app/Models/ClientFunderRecord.php',
+        'App\\Models\\ServiceRatePackage' => 'app/Models/ServiceRatePackage.php',
         'App\\Models\\Payment' => 'app/Models/Payment.php',
         'App\\Models\\PaymentAuthority' => 'app/Models/PaymentAuthority.php',
         'App\\Models\\PaymentInstallment' => 'app/Models/PaymentInstallment.php',
@@ -102,4 +106,9 @@ return [
         'App\\Models\\CoBrowseAction' => 'app/Models/CoBrowseAction.php',
         'App\\Models\\DdGuestLink' => 'app/Models/DdGuestLink.php',
     ],
+
+    // This count starts after the first financial-model migration. Every
+    // touched broad model must move to an explicit allow-list and lower this
+    // ceiling; it must never increase.
+    'legacy_broad_guarded_model_ceiling' => 150,
 ];

@@ -411,16 +411,43 @@ async function assertKeyboardFocus(page, flow, viewport) {
     const focused = await page.evaluate(() => {
         const element = document.activeElement;
 
-        return (
-            element instanceof HTMLElement &&
-            element !== document.body &&
-            element.tabIndex >= 0
-        );
+        if (
+            !(
+                element instanceof HTMLElement &&
+                element !== document.body &&
+                element.tabIndex >= 0
+            )
+        ) {
+            return { reachable: false, visible: false };
+        }
+
+        const style = window.getComputedStyle(element);
+        const outlineWidth = Number.parseFloat(style.outlineWidth || '0');
+        const hasOutline =
+            outlineWidth > 0 &&
+            style.outlineStyle !== 'none' &&
+            style.outlineColor !== 'transparent' &&
+            style.outlineColor !== 'rgba(0, 0, 0, 0)';
+        const hasShadow =
+            style.boxShadow !== 'none' &&
+            !style.boxShadow.includes('rgba(0, 0, 0, 0)');
+
+        return {
+            reachable: true,
+            visible:
+                element.matches(':focus-visible') && (hasOutline || hasShadow),
+        };
     });
 
-    if (!focused) {
+    if (!focused.reachable) {
         throw new Error(
             `${flow.name} has no reachable keyboard focus target on ${viewport}.`,
+        );
+    }
+
+    if (!focused.visible) {
+        throw new Error(
+            `${flow.name} has no visible keyboard focus indicator on ${viewport}.`,
         );
     }
 }

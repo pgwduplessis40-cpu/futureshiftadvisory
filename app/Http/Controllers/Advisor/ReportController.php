@@ -125,8 +125,8 @@ final class ReportController extends Controller
             || ! $disk->exists($path)
             || ! $reports->usesCurrentTemplate($report)
         )) {
-            $report = $reports->rerenderArtifacts($report);
-            $path = $report->pdf_path;
+            $reports->queueArtifactRerender($report);
+            abort(409, 'Report rendering has been queued. Please try again shortly.');
         }
 
         abort_if($path === null || ! $disk->exists($path), 404);
@@ -165,9 +165,9 @@ final class ReportController extends Controller
         abort_unless($user instanceof User, 403);
 
         if (! $reports->usesCurrentTemplate($report)) {
-            $reports->rerenderArtifacts($report);
+            $reports->queueArtifactRerender($report);
 
-            return to_route('advisor.clients.show', $report->client)->with('status', 'report-template-refreshed');
+            return to_route('advisor.clients.show', $report->client)->with('status', 'report-template-refresh-queued');
         }
 
         $reports->markReviewed($report, $user);
@@ -270,7 +270,14 @@ final class ReportController extends Controller
         abort_unless($user instanceof User, 403);
 
         if (! $reports->usesCurrentTemplate($report)) {
-            $report = $reports->rerenderArtifacts($report);
+            $reports->queueArtifactRerender($report);
+
+            return to_route('advisor.clients.show', $report->client)
+                ->with('status', 'client-report-template-refresh-queued')
+                ->with('toast', [
+                    'type' => 'info',
+                    'message' => 'The report template is being refreshed. Release it once rendering is complete.',
+                ]);
         }
 
         if (! $report->reviewed()) {

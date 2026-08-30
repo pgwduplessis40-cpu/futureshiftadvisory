@@ -83,8 +83,11 @@ final class FeeCalculator implements ProvidesMethodology
             'risk_cost_pv_total' => $pv['risk'],
             'roi_ratio' => $this->roiRatio($pv['improvement'], $result['mid']),
             'justification' => $result['justification'],
-            'created_by_user_id' => $this->normaliseUserId($options['created_by_user_id'] ?? null),
         ]);
+
+        $calculation->forceFill([
+            'created_by_user_id' => $this->normaliseUserId($options['created_by_user_id'] ?? null),
+        ])->save();
 
         $this->audit->record('fee_calculation.created', subject: $calculation, after: [
             'method' => $method->value,

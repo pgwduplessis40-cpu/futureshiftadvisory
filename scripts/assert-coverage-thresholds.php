@@ -7,14 +7,30 @@ $summaryPath = $argv[2] ?? 'storage/logs/coverage-summary.json';
 $overallMinimum = coverageMinimum('COVERAGE_MIN_OVERALL', 85);
 $moduleMinimum = coverageMinimum('COVERAGE_MIN_MODULE', 80);
 $defaultCriticalMinimum = coverageMinimum('COVERAGE_MIN_CRITICAL', 90);
-$criticalMinimums = [
-    'payments' => coverageMinimum('COVERAGE_MIN_PAYMENTS', $defaultCriticalMinimum),
-    'dates' => coverageMinimum('COVERAGE_MIN_DATES', $defaultCriticalMinimum),
-    'scoring' => coverageMinimum('COVERAGE_MIN_SCORING', $defaultCriticalMinimum),
-    'calculations' => coverageMinimum('COVERAGE_MIN_CALCULATIONS', $defaultCriticalMinimum),
-    'reports' => coverageMinimum('COVERAGE_MIN_REPORTS', $defaultCriticalMinimum),
-    'client_screen' => coverageMinimum('COVERAGE_MIN_CLIENT_SCREEN', $defaultCriticalMinimum),
-];
+$criticalManifest = require __DIR__.'/../quality/coverage-critical-paths.php';
+
+if (! is_array($criticalManifest) || $criticalManifest === []) {
+    fwrite(STDERR, "Critical coverage manifest is missing or invalid.\n");
+
+    exit(1);
+}
+
+$criticalMinimums = [];
+foreach ($criticalManifest as $name => $definition) {
+    if (! is_string($name) || ! is_array($definition)
+        || ! is_array($definition['paths'] ?? null)
+        || ! is_array($definition['prefixes'] ?? null)
+    ) {
+        fwrite(STDERR, "Critical coverage manifest entry is invalid.\n");
+
+        exit(1);
+    }
+
+    $criticalMinimums[$name] = coverageMinimum(
+        'COVERAGE_MIN_'.strtoupper($name),
+        $defaultCriticalMinimum,
+    );
+}
 
 if (! is_file($cloverPath)) {
     fwrite(STDERR, "Coverage report not found at {$cloverPath}.\n");
@@ -33,6 +49,8 @@ if (! $xml instanceof SimpleXMLElement) {
 $totals = emptyCoverage();
 $modules = [];
 $criticalGroups = array_fill_keys(array_keys($criticalMinimums), emptyCoverage());
+$criticalFiles = array_fill_keys(array_keys($criticalMinimums), []);
+$coveredFiles = [];
 $root = str_replace('\\', '/', realpath(__DIR__.'/..') ?: dirname(__DIR__));
 
 foreach ($xml->xpath('//file') ?: [] as $file) {
@@ -55,6 +73,7 @@ foreach ($xml->xpath('//file') ?: [] as $file) {
         continue;
     }
 
+    $coveredFiles[$relativePath] = true;
     addCoverage($totals, $coverage);
 
     $module = applicationModule($relativePath);
@@ -63,8 +82,9 @@ foreach ($xml->xpath('//file') ?: [] as $file) {
         addCoverage($modules[$module], $coverage);
     }
 
-    foreach (criticalCoverageGroups($relativePath) as $group) {
+    foreach (criticalCoverageGroups($relativePath, $criticalManifest) as $group) {
         addCoverage($criticalGroups[$group], $coverage);
+        $criticalFiles[$group][] = $relativePath;
     }
 }
 
@@ -89,7 +109,28 @@ foreach ($modules as $name => $coverage) {
 $criticalSummary = [];
 foreach ($criticalGroups as $name => $coverage) {
     $minimum = $criticalMinimums[$name];
-    $criticalSummary[$name] = coverageSummary($coverage, $minimum);
+    $definition = $criticalManifest[$name];
+    $matchedFiles = array_values(array_unique($criticalFiles[$name]));
+    sort($matchedFiles);
+    $missingFiles = array_values(array_filter(
+        $definition['paths'],
+        static fn (mixed $path): bool => is_string($path) && ! array_key_exists($path, $coveredFiles),
+    ));
+    sort($missingFiles);
+    $criticalSummary[$name] = [
+        ...coverageSummary($coverage, $minimum),
+        'matched_files' => $matchedFiles,
+        'required_paths' => $definition['paths'],
+        'missing_paths' => $missingFiles,
+    ];
+
+    if ($missingFiles !== []) {
+        $failures[] = sprintf(
+            'Critical coverage group [%s] did not report required files: %s.',
+            $name,
+            implode(', ', $missingFiles),
+        );
+    }
 
     if ($coverage['total'] === 0) {
         $failures[] = "Critical coverage group [{$name}] matched no executable lines.";
@@ -198,34 +239,30 @@ function applicationModule(string $relativePath): ?string
 /**
  * @return list<string>
  */
-function criticalCoverageGroups(string $relativePath): array
+function criticalCoverageGroups(string $relativePath, array $manifest): array
 {
     $groups = [];
 
-    if (preg_match('#^app/(Enums|Http|Models|Services|Jobs)/.*Payment#', $relativePath)
-        || str_starts_with($relativePath, 'app/Services/Payments/')) {
-        $groups[] = 'payments';
-    }
+    foreach ($manifest as $name => $definition) {
+        if (! is_string($name) || ! is_array($definition)) {
+            continue;
+        }
 
-    if (preg_match('#^app/(Actions|Services|Support)/.*(Calendar|Date|Period|Schedule|Timeline)#', $relativePath)) {
-        $groups[] = 'dates';
-    }
+        $paths = $definition['paths'] ?? [];
+        $prefixes = $definition['prefixes'] ?? [];
+        if (in_array($relativePath, $paths, true)) {
+            $groups[] = $name;
 
-    if (preg_match('#^app/(Actions|Services|Support)/.*(Assessment|Health|Readiness|Score|Scoring)#', $relativePath)) {
-        $groups[] = 'scoring';
-    }
+            continue;
+        }
 
-    if (preg_match('#^app/(Actions|Services|Support)/.*(Budget|Calculation|Calculator|Forecast|Pricing|Rate|Valuation)#', $relativePath)) {
-        $groups[] = 'calculations';
-    }
+        foreach ($prefixes as $prefix) {
+            if (is_string($prefix) && str_starts_with($relativePath, $prefix)) {
+                $groups[] = $name;
 
-    if (preg_match('#^app/(Http/Controllers/.*/Report|Jobs/ComposeReport|Models/Report|Services/Reports/)#', $relativePath)
-        || preg_match('#^app/Services/Entrepreneurs/(BusinessPlanExecutiveSummary|BusinessPlanPreviewRenderer|BudgetPackBuilder|FunderReadyBusinessPlanBuilder)\.php$#', $relativePath)) {
-        $groups[] = 'reports';
-    }
-
-    if (preg_match('#^app/(Events|Http/Controllers|Models|Services)/.*(CoBrowse|ScreenShare)#', $relativePath)) {
-        $groups[] = 'client_screen';
+                break;
+            }
+        }
     }
 
     return $groups;

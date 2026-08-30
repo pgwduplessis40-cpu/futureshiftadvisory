@@ -20,7 +20,11 @@ final class AccountingInvoice extends Model
 
     public const STATUS_FAILED = 'failed';
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'accounting_invoice_batch_id',
+        'sequence',
+    ];
 
     protected $casts = [
         'sequence' => 'integer',

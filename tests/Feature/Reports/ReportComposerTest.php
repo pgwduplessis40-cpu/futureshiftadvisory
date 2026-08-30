@@ -14,6 +14,7 @@ use App\Enums\ProposalStatus;
 use App\Enums\PvType;
 use App\Enums\ReportType;
 use App\Jobs\ComposeReport;
+use App\Jobs\RerenderReportArtifacts;
 use App\Models\AccountingConnection;
 use App\Models\AnalysisFinding;
 use App\Models\AnalysisRun;
@@ -53,6 +54,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use RuntimeException;
@@ -666,7 +668,7 @@ HTML,
         $this->assertStringNotContainsString('class="report-cover"', $this->renderer->html);
     }
 
-    public function test_advisor_report_download_rerenders_existing_uploaded_docx_pdf_without_renderer_marker(): void
+    public function test_advisor_report_download_queues_uploaded_docx_refresh_without_renderer_marker(): void
     {
         [$advisor, $client] = $this->clientWithTeam('uploaded-docx-existing-report-advisor@example.test');
         $this->businessValuation($client, 500000);
@@ -702,17 +704,17 @@ HTML,
         $metadata = $report->metadata;
         unset($metadata['template']['render_strategy']);
         $report->forceFill(['metadata' => $metadata])->save();
+        Queue::fake();
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.reports.download', $report))
-            ->assertOk();
+            ->assertStatus(409);
 
         $report->refresh();
 
-        $this->assertNotSame($oldPdfPath, $report->pdf_path);
-        $this->assertSame('uploaded_docx_html_v5', data_get($report->metadata, 'template.render_strategy'));
-        $this->assertStringContainsString('Current uploaded DOCX report shell', $this->renderer->html);
-        $this->assertStringContainsString('data-report-template-source="uploaded-docx"', $this->renderer->html);
+        $this->assertSame($oldPdfPath, $report->pdf_path);
+        $this->assertSame(Report::RENDER_STATUS_COMPOSING, $report->render_status);
+        Queue::assertPushed(RerenderReportArtifacts::class, fn (RerenderReportArtifacts $job): bool => $job->reportId === $report->getKey());
     }
 
     public function test_uploaded_docx_report_template_uses_word_page_furniture_and_bracket_tokens(): void
@@ -906,6 +908,7 @@ HTML,
         $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
         $section = $report->sections->firstOrFail();
         $oldPdfPath = $report->pdf_path;
+        Queue::fake();
 
         $this->actingAsMfa($advisor)
             ->patch(route('advisor.reports.review', $report))
@@ -923,8 +926,10 @@ HTML,
         $this->assertSame('Advisor-edited section body with source-checked wording.', $section->refresh()->body);
         $this->assertSame('pending_review', $report->refresh()->review_status);
         $this->assertNull($report->reviewed_at);
-        $this->assertNotSame($oldPdfPath, $report->pdf_path);
+        $this->assertSame($oldPdfPath, $report->pdf_path);
+        $this->assertSame(Report::RENDER_STATUS_COMPOSING, $report->render_status);
         Storage::disk('secure_local')->assertExists($report->pdf_path);
+        Queue::assertPushed(RerenderReportArtifacts::class, fn (RerenderReportArtifacts $job): bool => $job->reportId === $report->getKey());
         $this->assertDatabaseHas('report_section_revisions', [
             'report_id' => $report->id,
             'report_section_id' => $section->id,
@@ -979,21 +984,35 @@ HTML,
         ]);
     }
 
-    public function test_advisor_report_download_rerenders_when_pdf_missing(): void
+    public function test_advisor_report_download_queues_when_pdf_is_missing(): void
     {
         [$advisor, $client] = $this->clientWithTeam('report-missing@example.test');
         $report = $this->storedReport($client); // no pdf_path set
+        Queue::fake();
 
         $response = $this->actingAsMfa($advisor)
             ->get(route('advisor.reports.download', $report));
 
-        $response->assertOk();
-        $this->assertStringStartsWith('%PDF', $response->getContent());
-        $this->assertNotNull($report->refresh()->pdf_path);
-        Storage::disk('secure_local')->assertExists($report->pdf_path);
+        $response->assertStatus(409);
+        $this->assertSame(Report::RENDER_STATUS_COMPOSING, $report->refresh()->render_status);
+        $this->assertNull($report->pdf_path);
+        Queue::assertPushed(RerenderReportArtifacts::class, fn (RerenderReportArtifacts $job): bool => $job->reportId === $report->getKey());
     }
 
-    public function test_advisor_report_download_rerenders_when_template_is_historic(): void
+    public function test_report_artifact_refresh_is_queued_only_once_while_rendering(): void
+    {
+        [, $client] = $this->clientWithTeam('report-rerender-deduplication@example.test');
+        $report = $this->storedReport($client);
+        $composer = app(ReportComposer::class);
+        Queue::fake();
+
+        $this->assertTrue($composer->queueArtifactRerender($report));
+        $this->assertFalse($composer->queueArtifactRerender($report));
+        $this->assertSame(Report::RENDER_STATUS_COMPOSING, $report->refresh()->render_status);
+        Queue::assertPushed(RerenderReportArtifacts::class, 1);
+    }
+
+    public function test_advisor_report_download_queues_when_template_is_historic(): void
     {
         [$advisor, $client] = $this->clientWithTeam('report-historic-template@example.test');
         $this->businessValuation($client, 480000);
@@ -1019,6 +1038,7 @@ HTML,
         $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
         $oldPdfPath = $report->pdf_path;
         $this->assertSame($historicTemplate->id, data_get($report->metadata, 'template.id'));
+        Queue::fake();
 
         Carbon::setTestNow('2026-06-19 09:00:00');
         $historicTemplate->forceFill(['status' => Template::STATUS_ARCHIVED])->save();
@@ -1040,23 +1060,23 @@ HTML,
         $response = $this->actingAsMfa($advisor)
             ->get(route('advisor.reports.download', $report));
 
-        $response->assertOk();
+        $response->assertStatus(409);
         $report->refresh();
 
-        $this->assertNotSame($oldPdfPath, $report->pdf_path);
-        $this->assertSame($currentTemplate->id, data_get($report->metadata, 'template.id'));
-        $this->assertSame(2, data_get($report->metadata, 'template.version'));
-        $this->assertStringContainsString('Current Report Template v2', $response->getContent());
+        $this->assertSame($oldPdfPath, $report->pdf_path);
+        $this->assertSame($historicTemplate->id, data_get($report->metadata, 'template.id'));
+        $this->assertSame(Report::RENDER_STATUS_COMPOSING, $report->render_status);
         Storage::disk('secure_local')->assertExists($report->pdf_path);
         $this->assertDatabaseHas('audit_events', [
-            'action' => 'report.rerendered',
+            'action' => 'report.rerender_queued',
             'subject_id' => $report->id,
         ]);
+        Queue::assertPushed(RerenderReportArtifacts::class, fn (RerenderReportArtifacts $job): bool => $job->reportId === $report->getKey());
 
         Carbon::setTestNow();
     }
 
-    public function test_advisor_report_download_prefers_newer_active_template_over_older_higher_version(): void
+    public function test_advisor_report_download_queues_newer_active_template_refresh(): void
     {
         [$advisor, $client] = $this->clientWithTeam('report-active-template-version@example.test');
         $this->businessValuation($client, 480000);
@@ -1077,6 +1097,7 @@ HTML,
         $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
         $oldPdfPath = $report->pdf_path;
         $this->assertSame($lowerTemplate->id, data_get($report->metadata, 'template.id'));
+        Queue::fake();
 
         Carbon::setTestNow('2026-06-19 09:00:00');
         /** @var Template $higherTemplate */
@@ -1092,15 +1113,13 @@ HTML,
         $response = $this->actingAsMfa($advisor)
             ->get(route('advisor.reports.download', $report));
 
-        $response->assertOk();
+        $response->assertStatus(409);
         $report->refresh();
 
-        $this->assertNotSame($oldPdfPath, $report->pdf_path);
-        $this->assertSame($higherTemplate->id, data_get($report->metadata, 'template.id'));
-        $this->assertSame(1, data_get($report->metadata, 'template.version'));
-        $this->assertStringContainsString('Report Template VS 2 v1', $response->getContent());
-        $this->assertStringContainsString('data-report-template="higher-version"', $this->renderer->html);
-        $this->assertStringNotContainsString('data-report-template="lower-version"', $this->renderer->html);
+        $this->assertSame($oldPdfPath, $report->pdf_path);
+        $this->assertSame($lowerTemplate->id, data_get($report->metadata, 'template.id'));
+        $this->assertSame(Report::RENDER_STATUS_COMPOSING, $report->render_status);
+        Queue::assertPushed(RerenderReportArtifacts::class, fn (RerenderReportArtifacts $job): bool => $job->reportId === $report->getKey());
 
         Carbon::setTestNow();
     }
@@ -1124,6 +1143,7 @@ HTML,
 
         $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
         $oldPdfPath = $report->pdf_path;
+        Queue::fake();
 
         Carbon::setTestNow('2026-06-19 09:00:00');
         /** @var Template $higherTemplate */
@@ -1139,20 +1159,20 @@ HTML,
         $this->actingAsMfa($advisor)
             ->patch(route('advisor.reports.review', $report))
             ->assertRedirect(route('advisor.clients.show', $client, absolute: false))
-            ->assertSessionHas('status', 'report-template-refreshed');
+            ->assertSessionHas('status', 'report-template-refresh-queued');
 
         $report->refresh();
 
         $this->assertSame('pending_review', $report->review_status);
         $this->assertNull($report->reviewed_at);
-        $this->assertNotSame($oldPdfPath, $report->pdf_path);
-        $this->assertSame($higherTemplate->id, data_get($report->metadata, 'template.id'));
-        $this->assertSame(2, data_get($report->metadata, 'template.version'));
+        $this->assertSame($oldPdfPath, $report->pdf_path);
+        $this->assertSame(Report::RENDER_STATUS_COMPOSING, $report->render_status);
+        Queue::assertPushed(RerenderReportArtifacts::class, fn (RerenderReportArtifacts $job): bool => $job->reportId === $report->getKey());
 
         Carbon::setTestNow();
     }
 
-    public function test_client_report_release_refreshes_stale_template_and_releases_in_one_action(): void
+    public function test_client_report_release_queues_stale_template_without_releasing(): void
     {
         [$advisor, $client] = $this->clientWithTeam('client-report-release-template-refresh@example.test');
         $this->businessValuation($client, 480000);
@@ -1171,6 +1191,7 @@ HTML,
 
         $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
         $oldPdfPath = $report->pdf_path;
+        Queue::fake();
 
         Carbon::setTestNow('2026-06-19 09:00:00');
         /** @var Template $higherTemplate */
@@ -1186,20 +1207,15 @@ HTML,
         $this->actingAsMfa($advisor)
             ->patch(route('advisor.reports.release', $report))
             ->assertRedirect(route('advisor.clients.show', $client, absolute: false))
-            ->assertSessionHas('status', 'client-report-released')
-            ->assertSessionHas('toast.type', 'success');
+            ->assertSessionHas('status', 'client-report-template-refresh-queued')
+            ->assertSessionHas('toast.type', 'info');
 
         $report->refresh();
 
-        $this->assertTrue($report->reviewed());
-        $this->assertSame($advisor->getKey(), $report->reviewed_by_user_id);
-        $this->assertNotSame($oldPdfPath, $report->pdf_path);
-        $this->assertSame($higherTemplate->id, data_get($report->metadata, 'template.id'));
-        $this->assertSame(2, data_get($report->metadata, 'template.version'));
-        $this->assertDatabaseHas('audit_events', [
-            'action' => 'report.reviewed',
-            'subject_id' => $report->id,
-        ]);
+        $this->assertFalse($report->reviewed());
+        $this->assertSame($oldPdfPath, $report->pdf_path);
+        $this->assertSame(Report::RENDER_STATUS_COMPOSING, $report->render_status);
+        Queue::assertPushed(RerenderReportArtifacts::class, fn (RerenderReportArtifacts $job): bool => $job->reportId === $report->getKey());
 
         Carbon::setTestNow();
     }
@@ -1262,27 +1278,25 @@ HTML,
                 ->where('reports.0.download_url', route('portal.reports.show', $clientReport, absolute: false)));
     }
 
-    public function test_client_portal_report_view_rerenders_when_pdf_missing(): void
+    public function test_client_portal_report_view_queues_when_pdf_is_missing(): void
     {
         [, $client, $clientUser] = $this->clientWithTeamAndClientUser('portal-missing-report@example.test');
         $report = $this->storedReport($client);
 
         $this->assertNull($report->pdf_path);
+        Queue::fake();
 
         $response = $this->actingAsMfa($clientUser)
             ->get(route('portal.reports.show', $report));
 
-        $response->assertOk();
-        $this->assertStringContainsString('application/pdf', (string) $response->headers->get('content-type'));
-        $this->assertStringContainsString('inline;', (string) $response->headers->get('content-disposition'));
-        $this->assertStringStartsWith('%PDF', $response->getContent());
-
-        $this->assertNotNull($report->refresh()->pdf_path);
-        Storage::disk('secure_local')->assertExists($report->pdf_path);
+        $response->assertStatus(409);
+        $this->assertSame(Report::RENDER_STATUS_COMPOSING, $report->refresh()->render_status);
+        $this->assertNull($report->pdf_path);
         $this->assertDatabaseHas('audit_events', [
-            'action' => 'portal.report.downloaded',
+            'action' => 'report.rerender_queued',
             'subject_id' => $report->id,
         ]);
+        Queue::assertPushed(RerenderReportArtifacts::class, fn (RerenderReportArtifacts $job): bool => $job->reportId === $report->getKey());
     }
 
     public function test_client_portal_applies_each_engagement_specific_report_release_rule(): void

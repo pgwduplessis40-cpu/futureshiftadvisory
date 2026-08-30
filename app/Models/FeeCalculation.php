@@ -14,7 +14,21 @@ final class FeeCalculation extends Model
 {
     use HasUuids;
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'client_id',
+        'npo_engagement_id',
+        'integration_scope_id',
+        'method',
+        'inputs',
+        'suggested_low',
+        'suggested_mid',
+        'suggested_high',
+        'improvement_pv_total',
+        'risk_cost_pv_total',
+        'roi_ratio',
+        'justification',
+    ];
 
     protected $casts = [
         'method' => FeeMethod::class,

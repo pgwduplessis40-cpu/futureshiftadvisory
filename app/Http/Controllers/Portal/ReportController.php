@@ -45,7 +45,8 @@ final class ReportController extends Controller
         $this->abortIfReportIsNotRenderable($report);
 
         if ($report->pdf_path === null || ! $disk->exists($report->pdf_path) || ! $this->reports->usesCurrentTemplate($report)) {
-            $report = $this->reports->rerenderArtifacts($report);
+            $this->reports->queueArtifactRerender($report);
+            abort(409, 'Report rendering has been queued. Please try again shortly.');
         }
 
         abort_if($report->pdf_path === null || ! $disk->exists($report->pdf_path), 404);
@@ -85,7 +86,8 @@ final class ReportController extends Controller
         $this->abortIfReportIsNotRenderable($report);
 
         if ($report->pdf_path === null || ! $disk->exists($report->pdf_path) || ! $this->reports->usesCurrentTemplate($report)) {
-            $report = $this->reports->rerenderArtifacts($report);
+            $this->reports->queueArtifactRerender($report);
+            abort(409, 'Report rendering has been queued. Please try again shortly.');
         }
 
         abort_if($report->pdf_path === null || ! $disk->exists($report->pdf_path), 404);
