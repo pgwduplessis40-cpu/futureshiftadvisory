@@ -18,18 +18,23 @@ use App\Models\PaymentSchedule;
 use App\Models\PaymentWebhookEvent;
 use App\Models\Proposal;
 use App\Models\User;
+use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\Stripe\LiveStripeClient;
+use App\Services\Payments\AuthorityCapture;
 use App\Services\Payments\ClientBillingCode;
 use App\Services\Payments\Gateway;
+use App\Services\Payments\GstCalculator;
 use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentGatewayException;
+use App\Services\Payments\PaymentWebhookVerifier;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Storage\KeyEnvelope;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\Request as HttpRequest;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
@@ -194,6 +199,102 @@ final class PaymentGatewayTest extends TestCase
         $code = app(ClientBillingCode::class)->shortCode($client);
 
         $this->assertSame('FSA-DRAFTC', $code);
+    }
+
+    public function test_gst_calculator_rejects_invalid_amounts_and_calculates_the_tax_component(): void
+    {
+        $calculator = app(GstCalculator::class);
+
+        $this->assertSame('15.00', $calculator->gstFromExclusive('100.00'));
+
+        foreach ([
+            [fn (): string => $calculator->grossFromExclusive('not-a-number'), 'GST calculation amount must be numeric.'],
+            [fn (): string => $calculator->grossFromExclusive(-1), 'GST calculation amount must not be negative.'],
+            [fn (): string => $calculator->gstFromExclusive('not-a-number'), 'GST calculation amount must be numeric.'],
+            [fn (): string => $calculator->gstFromExclusive(-1), 'GST calculation amount must not be negative.'],
+        ] as [$operation, $message]) {
+            try {
+                $operation();
+                $this->fail('Invalid GST inputs must be rejected.');
+            } catch (\InvalidArgumentException $exception) {
+                $this->assertSame($message, $exception->getMessage());
+            }
+        }
+    }
+
+    public function test_billing_code_retries_with_a_hashed_suffix_after_a_short_code_collision(): void
+    {
+        $first = new Client([
+            'billing_code' => 'FSA-111111',
+            'engagement_type' => EngagementType::STANDARD_ADVISORY,
+            'legal_name' => 'Existing Billing Code Limited',
+            'data_quality' => Client::DATA_QUALITY_LOW,
+        ]);
+        $first->setAttribute('id', '11111111-1111-4111-8111-111111111111');
+        $first->save();
+
+        $second = new Client([
+            'engagement_type' => EngagementType::STANDARD_ADVISORY,
+            'legal_name' => 'Colliding Billing Code Limited',
+            'data_quality' => Client::DATA_QUALITY_LOW,
+        ]);
+        $second->setAttribute('id', '11111122-1111-4111-8111-111111111111');
+        $second->save();
+
+        $code = app(ClientBillingCode::class)->shortCode($second);
+
+        $this->assertNotSame('FSA-111111', $code);
+        $this->assertMatchesRegularExpression('/^FSA-[A-F0-9]{6}$/', $code);
+        $this->assertSame($code, $second->refresh()->billing_code);
+    }
+
+    public function test_payment_webhook_verifier_rejects_missing_invalid_and_expired_signatures(): void
+    {
+        $credentials = app(IntegrationCredentials::class);
+        $admin = $this->superAdmin();
+        $credentials->set('stripe', 'webhook_secret', 'stripe-calendar-secret', $admin);
+        $credentials->set('windcave', 'webhook_secret', 'windcave-calendar-secret', $admin);
+        $verifier = app(PaymentWebhookVerifier::class);
+        $body = '{"id":"evt_signature_validation"}';
+
+        $this->assertSame([false, 'signature_missing'], $verifier->verifyStripe(HttpRequest::create('/webhooks/payments/stripe', 'POST', [], [], [], [], $body)));
+        $this->assertSame([false, 'signature_missing'], $verifier->verifyStripe(HttpRequest::create('/webhooks/payments/stripe', 'POST', [], [], [], [
+            'HTTP_STRIPE_SIGNATURE' => 't=not-a-timestamp,v1=invalid',
+        ], $body)));
+
+        $expired = now()->subHour()->getTimestamp();
+        $expiredSignature = hash_hmac('sha256', $expired.'.'.$body, 'stripe-calendar-secret');
+        $this->assertSame([false, 'timestamp_out_of_window'], $verifier->verifyStripe(HttpRequest::create('/webhooks/payments/stripe', 'POST', [], [], [], [
+            'HTTP_STRIPE_SIGNATURE' => 't='.$expired.',v1='.$expiredSignature,
+        ], $body)));
+
+        $timestamp = now()->getTimestamp();
+        $windcaveSignature = hash_hmac('sha256', $timestamp.'.'.$body, 'windcave-calendar-secret');
+        $this->assertSame([true, null], $verifier->verifyWindcave(HttpRequest::create('/webhooks/payments/windcave', 'POST', [], [], [], [
+            'HTTP_X_WINDCAVE_TIMESTAMP' => (string) $timestamp,
+            'HTTP_X_WINDCAVE_SIGNATURE' => 'sha256='.$windcaveSignature,
+        ], $body)));
+    }
+
+    public function test_authority_capture_rejects_unsupported_and_raw_card_inputs_before_gateway_calls(): void
+    {
+        [$authority, $advisor] = $this->authority('authority-capture-validation@example.test');
+        $proposal = $authority->proposal()->firstOrFail();
+        $capture = app(AuthorityCapture::class);
+
+        foreach ([
+            ['unsupported-type', PaymentAuthority::GATEWAY_STRIPE, [], 'Unsupported payment authority type.'],
+            [PaymentAuthority::TYPE_CARD, 'unsupported-gateway', [], 'Unsupported payment gateway.'],
+            [PaymentAuthority::TYPE_CARD, PaymentAuthority::GATEWAY_STRIPE, ['card_number' => '4242424242424242'], 'Raw card numbers must not be submitted or stored.'],
+            [PaymentAuthority::TYPE_CARD, PaymentAuthority::GATEWAY_STRIPE, ['payment_card' => '4242 4242 4242 4242'], 'Raw card numbers must not be submitted or stored.'],
+        ] as [$type, $gateway, $payload, $message]) {
+            try {
+                $capture->capture($proposal, $type, $gateway, $payload, $advisor);
+                $this->fail('Unsafe payment authority input must be rejected.');
+            } catch (\InvalidArgumentException $exception) {
+                $this->assertSame($message, $exception->getMessage());
+            }
+        }
     }
 
     public function test_live_stripe_client_uses_resilient_http_when_enabled(): void
