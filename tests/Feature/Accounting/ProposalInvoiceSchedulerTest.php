@@ -123,6 +123,103 @@ final class ProposalInvoiceSchedulerTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_signed_proposal_is_not_invoiced_until_practice_xero_is_live_and_connected(): void
+    {
+        [$advisor, , $proposal] = $this->signedProposal();
+
+        Config::set('integrations.accounting.xero.live', false);
+
+        $this->assertNull(app(ProposalInvoiceScheduler::class)->sync($proposal, $advisor));
+        $this->assertDatabaseCount('accounting_invoice_batches', 0);
+
+        Config::set('integrations.accounting.xero.live', true);
+
+        $this->assertNull(app(ProposalInvoiceScheduler::class)->sync($proposal, $advisor));
+        $this->assertDatabaseCount('accounting_invoice_batches', 0);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'accounting_invoice_batch.skipped',
+            'subject_id' => $proposal->getKey(),
+            'after' => json_encode(['reason' => 'practice_xero_not_connected']),
+        ]);
+
+        Http::assertNothingSent();
+    }
+
+    public function test_xero_invoice_failures_are_recorded_without_losing_successful_invoices(): void
+    {
+        [$advisor, , $proposal] = $this->signedProposal();
+        $this->practiceXeroConnection($advisor);
+        $invoiceCalls = 0;
+
+        Http::fake([
+            'https://api.xero.com/api.xro/2.0/Contacts' => Http::response([
+                'Contacts' => [[
+                    'ContactID' => 'xero-contact-partial-fixture',
+                ]],
+            ], 200),
+            'https://api.xero.com/api.xro/2.0/Invoices' => function () use (&$invoiceCalls) {
+                $invoiceCalls++;
+
+                return $invoiceCalls === 1
+                    ? Http::response([
+                        'Invoices' => [[
+                            'InvoiceID' => 'xero-invoice-partial-fixture',
+                            'InvoiceNumber' => 'INV-PARTIAL-0001',
+                            'Status' => 'AUTHORISED',
+                        ]],
+                    ], 200)
+                    : Http::response(['Invoices' => []], 200);
+            },
+        ]);
+
+        $batch = app(ProposalInvoiceScheduler::class)->sync($proposal, $advisor);
+
+        $this->assertInstanceOf(AccountingInvoiceBatch::class, $batch);
+        $this->assertSame(AccountingInvoiceBatch::STATUS_PARTIAL, $batch->refresh()->status);
+        $this->assertSame(1, AccountingInvoice::query()
+            ->where('accounting_invoice_batch_id', $batch->getKey())
+            ->whereNotNull('external_invoice_id')
+            ->count());
+        $this->assertSame(11, AccountingInvoice::query()
+            ->where('accounting_invoice_batch_id', $batch->getKey())
+            ->where('status', AccountingInvoice::STATUS_FAILED)
+            ->count());
+        $this->assertSame('11 Xero invoice(s) failed to create.', $batch->error_message);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'accounting_invoice_batch.synced',
+            'subject_id' => $batch->getKey(),
+        ]);
+    }
+
+    public function test_xero_invoice_response_without_an_invoice_marks_the_batch_as_failed(): void
+    {
+        [$advisor, , $proposal] = $this->signedProposal();
+        $this->practiceXeroConnection($advisor);
+
+        Http::fake([
+            'https://api.xero.com/api.xro/2.0/Contacts' => Http::response([
+                'Contacts' => [[
+                    'ContactID' => 'xero-contact-failure-fixture',
+                ]],
+            ], 200),
+            'https://api.xero.com/api.xro/2.0/Invoices' => Http::response(['Invoices' => []], 200),
+        ]);
+
+        $batch = app(ProposalInvoiceScheduler::class)->sync($proposal, $advisor);
+
+        $this->assertInstanceOf(AccountingInvoiceBatch::class, $batch);
+        $this->assertSame(AccountingInvoiceBatch::STATUS_FAILED, $batch->refresh()->status);
+        $this->assertSame(0, AccountingInvoice::query()
+            ->where('accounting_invoice_batch_id', $batch->getKey())
+            ->whereNotNull('external_invoice_id')
+            ->count());
+        $this->assertSame(12, AccountingInvoice::query()
+            ->where('accounting_invoice_batch_id', $batch->getKey())
+            ->where('status', AccountingInvoice::STATUS_FAILED)
+            ->count());
+        $this->assertSame('12 Xero invoice(s) failed to create.', $batch->error_message);
+    }
+
     /**
      * @return array{0: User, 1: Client, 2: Proposal}
      */

@@ -25,7 +25,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           SOURCE_SHA: ${{ github.sha }}
         run: |
-          required_checks=("quality" "ci (8.4)" "ci (8.5)")
+          required_checks=("quality" "ci (8.4)" "ci (8.5)" "authenticated-browser-e2e")
           check_sha="$SOURCE_SHA"
 
           for attempt in {1..180}; do

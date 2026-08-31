@@ -105,7 +105,7 @@ final class ReportSectionEditor
             return $locked->refresh();
         });
 
-        $this->composer->rerenderArtifacts($report->refresh());
+        $this->composer->queueArtifactRerender($report->refresh());
 
         return $updated->refresh();
     }

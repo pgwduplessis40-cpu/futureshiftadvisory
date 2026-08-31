@@ -59,6 +59,10 @@ import { VerificationBadge } from '@/components/verification/Badge';
 import type { VerificationOutcome } from '@/components/verification/Badge';
 import { FlagBanner } from '@/components/verification/FlagBanner';
 import { useDrillFocus } from '@/hooks/use-drill-focus';
+import {
+    formatCurrency as formatCurrencyValue,
+    formatNumber as formatNumberValue,
+} from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 
 type ClientPayload = {
@@ -3558,32 +3562,28 @@ function formatOverlay(scenario: ScenarioPayload): string {
 }
 
 function formatCurrency(value: number): string {
-    return new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency: 'NZD',
+    return formatCurrencyValue(value, 'NZD', {
         maximumFractionDigits: 0,
-    }).format(value);
+    });
 }
 
 function formatPercent(value: number): string {
-    return new Intl.NumberFormat(undefined, {
+    return formatNumberValue(value / 100, {
         style: 'percent',
         maximumFractionDigits: 1,
-    }).format(value / 100);
+    });
 }
 
 function formatMoney(value: number, currency: string): string {
-    return new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency,
+    return formatCurrencyValue(value, currency, {
         maximumFractionDigits: 2,
-    }).format(value);
+    });
 }
 
 function formatNumber(value: number): string {
-    return new Intl.NumberFormat(undefined, {
+    return formatNumberValue(value, {
         maximumFractionDigits: 0,
-    }).format(value);
+    });
 }
 
 function formatMetricValue(metric: NpoImpactMetricPayload): string {

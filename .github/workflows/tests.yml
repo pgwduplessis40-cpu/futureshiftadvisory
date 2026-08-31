@@ -164,6 +164,8 @@ jobs:
             comparison_ref="origin/${{ github.base_ref }}"
           fi
           php scripts/assert-monolith-size.php "${comparison_ref}"
+          php scripts/assert-monolith-size.php --production
+          node scripts/assert-explicit-intl-locales.mjs "${comparison_ref}"
           php scripts/assert-boundary-contracts.php "${comparison_ref}"
           node scripts/assert-accessible-checkboxes.mjs "${comparison_ref}"
 
@@ -196,6 +198,16 @@ jobs:
             php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --log-junit storage/logs/phpunit.xml --no-coverage 2>&1 | tee storage/logs/phpunit-console.log
           fi
 
+      - name: Verify coverage artifacts
+        if: ${{ always() && matrix.coverage-gates == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s storage/logs/phpunit.xml
+          test -s storage/logs/clover.xml
+          test -s storage/logs/coverage-summary.json
+          php -r 'simplexml_load_file("storage/logs/clover.xml") ?: exit(1);'
+
       - name: Upload Clover coverage report
         if: ${{ always() && matrix.coverage-gates == 'true' }}
         uses: actions/upload-artifact@v4
@@ -204,7 +216,9 @@ jobs:
           path: |
             storage/logs/clover.xml
             storage/logs/coverage-summary.json
-          if-no-files-found: warn
+            storage/logs/phpunit.xml
+            storage/logs/phpunit-console.log
+          if-no-files-found: error
 
       - name: Publish coverage summary
         if: ${{ always() && matrix.coverage-gates == 'true' }}
@@ -212,7 +226,7 @@ jobs:
         run: |
           if [ ! -f storage/logs/coverage-summary.json ]; then
             echo "Coverage summary was not produced."
-            exit 0
+            exit 1
           fi
 
           {

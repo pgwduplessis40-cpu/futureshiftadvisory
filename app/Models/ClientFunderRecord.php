@@ -13,7 +13,25 @@ final class ClientFunderRecord extends Model
 {
     use HasUuids;
 
-    protected $guarded = [];
+    /** @var list<string> */
+    protected $fillable = [
+        'client_id',
+        'npo_engagement_id',
+        'funder_id',
+        'grant_name',
+        'grant_amount',
+        'currency',
+        'period_start',
+        'period_end',
+        'conditions',
+        'reporting_deadline',
+        'next_application_window_opens_at',
+        'next_application_window_closes_at',
+        'grant_expiry_at',
+        'renewal_probability',
+        'notes',
+        'history',
+    ];
 
     protected $casts = [
         'grant_amount' => 'float',

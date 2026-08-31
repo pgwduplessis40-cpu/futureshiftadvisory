@@ -11,7 +11,10 @@ if (!/^[A-Za-z0-9._/-]+$/.test(comparisonRef)) {
 const patch = execFileSync(
     'git',
     ['diff', '--unified=0', comparisonRef, '--', 'resources/js'],
-    { encoding: 'utf8' },
+    // The protected workspace extractions can legitimately produce a diff
+    // larger than Node's 1 MiB default buffer. This gate must inspect the
+    // complete PR diff instead of failing before it can check a control.
+    { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 },
 );
 
 for (const filePatch of patch.split(/^diff --git /m)) {

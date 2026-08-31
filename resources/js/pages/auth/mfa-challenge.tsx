@@ -93,7 +93,7 @@ export default function MfaChallenge() {
 
                 <button
                     type="button"
-                    className="w-full text-center text-sm text-muted-foreground underline underline-offset-4"
+                    className="w-full rounded-sm text-center text-sm text-muted-foreground underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     onClick={() => {
                         form.clearErrors();
                         form.reset();

@@ -18,9 +18,17 @@ use App\Models\PaymentSchedule;
 use App\Models\PaymentWebhookEvent;
 use App\Models\Proposal;
 use App\Models\User;
+use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Payments\ClientBillingCode;
+use App\Services\Payments\Gateway;
 use App\Services\Payments\InstallmentPaymentProcessor;
 use App\Services\Payments\InstallmentScheduleBuilder;
+use App\Services\Payments\PaymentAuthorityRequest;
+use App\Services\Payments\PaymentAuthorityToken;
+use App\Services\Payments\PaymentChargeLookup;
+use App\Services\Payments\PaymentChargeRequest;
+use App\Services\Payments\PaymentChargeResult;
+use App\Services\Payments\PaymentSetupIntent;
 use App\Services\Payments\PaymentWebhookReconciler;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Storage\KeyEnvelope;
@@ -210,6 +218,121 @@ final class InstallmentPaymentProcessorTest extends TestCase
             'action' => 'payment_installment.manual_review',
             'subject_id' => $missingPayment->id,
         ]);
+    }
+
+    public function test_processing_charge_is_settled_when_the_gateway_confirmation_arrives(): void
+    {
+        $now = CarbonImmutable::parse('2026-08-21 20:00:00');
+        [, $schedule] = $this->paymentFixture();
+        $installment = $this->installment($schedule, $now);
+        [$processor, $stripe] = $this->processorWithStripeResponse(
+            new PaymentChargeResult(
+                gateway: PaymentAuthority::GATEWAY_STRIPE,
+                gatewayRef: 'pi_processing_confirmation',
+                status: 'processing',
+                amount: '115.00',
+                currency: 'NZD',
+            ),
+            PaymentChargeLookup::unknown(),
+        );
+
+        $pending = $processor->processDue($now);
+        $payment = Payment::query()->sole();
+
+        $this->assertSame(['scanned' => 1, 'succeeded' => 0, 'retrying' => 1, 'failed' => 0, 'receipts' => 0], $pending);
+        $this->assertSame(PaymentInstallment::STATUS_AWAITING_GATEWAY_CONFIRMATION, $installment->refresh()->status);
+        $this->assertSame('gateway_processing', $payment->refresh()->failed_reason);
+
+        $stripe->lookup = PaymentChargeLookup::succeeded(new PaymentChargeResult(
+            gateway: PaymentAuthority::GATEWAY_STRIPE,
+            gatewayRef: 'pi_processing_confirmation',
+            status: 'succeeded',
+            amount: '115.00',
+            currency: 'NZD',
+        ));
+
+        $confirmed = $processor->confirmAmbiguous($now->addMinutes(5));
+
+        $this->assertSame(['swept' => 0, 'confirmed' => 1, 'reopened' => 0, 'manual_review' => 0], $confirmed);
+        $this->assertSame(Payment::STATUS_SUCCEEDED, $payment->refresh()->status);
+        $this->assertSame(PaymentInstallment::STATUS_SETTLED, $installment->refresh()->status);
+        $this->assertSame(PaymentSchedule::STATUS_COMPLETED, $schedule->refresh()->status);
+    }
+
+    public function test_confirmation_reopens_not_charged_attempts_and_escalates_expired_ones(): void
+    {
+        $now = CarbonImmutable::parse('2026-08-21 20:00:00');
+        [, $retrySchedule] = $this->paymentFixture();
+        [$retryInstallment] = $this->claimedAttempt($retrySchedule, $now, attemptCount: 1);
+        $retryInstallment->forceFill([
+            'status' => PaymentInstallment::STATUS_AWAITING_GATEWAY_CONFIRMATION,
+            'next_confirmation_at' => $now,
+        ])->save();
+        [, $terminalSchedule] = $this->paymentFixture();
+        [$terminalInstallment] = $this->claimedAttempt($terminalSchedule, $now, attemptCount: 2);
+        $terminalInstallment->forceFill([
+            'status' => PaymentInstallment::STATUS_AWAITING_GATEWAY_CONFIRMATION,
+            'next_confirmation_at' => $now,
+        ])->save();
+        [, $deadlineSchedule] = $this->paymentFixture();
+        [$deadlineInstallment] = $this->claimedAttempt($deadlineSchedule, $now, attemptCount: 1);
+        $deadlineInstallment->forceFill([
+            'status' => PaymentInstallment::STATUS_AWAITING_GATEWAY_CONFIRMATION,
+            'next_confirmation_at' => $now,
+            'confirmation_deadline' => $now,
+        ])->save();
+        [, $expiredSchedule] = $this->paymentFixture();
+        $expired = $this->installment($expiredSchedule, $now, [
+            'status' => PaymentInstallment::STATUS_AWAITING_GATEWAY_CONFIRMATION,
+            'confirmation_deadline' => $now,
+            'next_confirmation_at' => $now->addMinute(),
+        ]);
+        [$processor] = $this->processorWithStripeResponse(
+            new PaymentChargeResult(
+                gateway: PaymentAuthority::GATEWAY_STRIPE,
+                gatewayRef: 'unused',
+                status: 'processing',
+                amount: '115.00',
+                currency: 'NZD',
+            ),
+            PaymentChargeLookup::notCharged(),
+        );
+
+        $result = $processor->confirmAmbiguous($now);
+
+        $this->assertSame(['swept' => 0, 'confirmed' => 0, 'reopened' => 1, 'manual_review' => 2], $result);
+        $this->assertSame(PaymentInstallment::STATUS_DUE, $retryInstallment->refresh()->status);
+        $this->assertSame(PaymentInstallment::STATUS_FAILED, $terminalInstallment->refresh()->status);
+        $this->assertSame(PaymentSchedule::STATUS_PAUSED, $terminalSchedule->refresh()->status);
+        $this->assertSame(PaymentInstallment::STATUS_MANUAL_REVIEW, $deadlineInstallment->refresh()->status);
+        $this->assertSame(1, $processor->escalateExpiredConfirmations($now));
+        $this->assertSame(PaymentInstallment::STATUS_MANUAL_REVIEW, $expired->refresh()->status);
+    }
+
+    public function test_installment_processing_refuses_unclaimable_and_inactive_authority_attempts(): void
+    {
+        $now = CarbonImmutable::parse('2026-08-21 20:00:00');
+        [, $schedule] = $this->paymentFixture();
+        $futureInstallment = $this->installment($schedule, $now, [
+            'next_attempt_at' => $now->addMinute(),
+        ]);
+
+        $this->assertSame([
+            'claimed' => false,
+            'status' => 'retrying',
+            'receipt' => false,
+        ], app(InstallmentPaymentProcessor::class)->processInstallment($futureInstallment, $now));
+
+        [, $authoritySchedule] = $this->paymentFixture();
+        $authoritySchedule->paymentAuthority->forceFill([
+            'status' => PaymentAuthority::STATUS_REVOKED,
+            'revoked_at' => $now,
+        ])->save();
+        $authorityInstallment = $this->installment($authoritySchedule, $now);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('The installment has no active payment authority.');
+        app(InstallmentPaymentProcessor::class)->processInstallment($authorityInstallment, $now);
     }
 
     public function test_stripe_success_webhook_settles_an_installment_payment(): void
@@ -576,6 +699,54 @@ final class InstallmentPaymentProcessorTest extends TestCase
             'status' => Payment::STATUS_PENDING,
             'attempt' => $attempt,
         ]);
+    }
+
+    /**
+     * @return array{0: InstallmentPaymentProcessor, 1: object{lookup: PaymentChargeLookup}}
+     */
+    private function processorWithStripeResponse(PaymentChargeResult $charge, PaymentChargeLookup $lookup): array
+    {
+        $stripe = new class($charge, $lookup) implements StripeClient
+        {
+            public function __construct(
+                private readonly PaymentChargeResult $charge,
+                public PaymentChargeLookup $lookup,
+            ) {}
+
+            public function createSetupIntent(PaymentAuthorityRequest $request): PaymentSetupIntent
+            {
+                return new PaymentSetupIntent(
+                    publishableKey: 'pk_processing_fixture',
+                    clientSecret: 'seti_processing_fixture_secret',
+                    setupIntentRef: 'seti_processing_fixture',
+                    customerRef: 'cus_processing_fixture',
+                );
+            }
+
+            public function captureAuthority(PaymentAuthorityRequest $request): PaymentAuthorityToken
+            {
+                return new PaymentAuthorityToken(
+                    token: 'tok_processing_fixture',
+                    customerRef: 'cus_processing_fixture',
+                );
+            }
+
+            public function charge(PaymentChargeRequest $request): PaymentChargeResult
+            {
+                return $this->charge;
+            }
+
+            public function findCharge(?string $gatewayRef, string $idempotencyKey, string $paymentId): PaymentChargeLookup
+            {
+                return $this->lookup;
+            }
+        };
+
+        $this->app->instance(StripeClient::class, $stripe);
+        $this->app->forgetInstance(Gateway::class);
+        $this->app->forgetInstance(InstallmentPaymentProcessor::class);
+
+        return [app(InstallmentPaymentProcessor::class), $stripe];
     }
 
     /**

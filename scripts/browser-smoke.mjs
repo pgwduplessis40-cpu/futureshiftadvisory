@@ -411,16 +411,74 @@ async function assertKeyboardFocus(page, flow, viewport) {
     const focused = await page.evaluate(() => {
         const element = document.activeElement;
 
-        return (
-            element instanceof HTMLElement &&
-            element !== document.body &&
-            element.tabIndex >= 0
-        );
+        if (
+            !(
+                element instanceof HTMLElement &&
+                element !== document.body &&
+                element.tabIndex >= 0
+            )
+        ) {
+            return { reachable: false, visible: false };
+        }
+
+        const focusScope = [element];
+        let ancestor = element.parentElement;
+
+        while (ancestor instanceof HTMLElement) {
+            focusScope.push(ancestor);
+            ancestor = ancestor.parentElement;
+        }
+
+        const hasVisibleFocusStyle = (candidate) => {
+            const style = window.getComputedStyle(candidate);
+            const outlineWidth = Number.parseFloat(style.outlineWidth || '0');
+            const hasOutline =
+                outlineWidth > 0 &&
+                style.outlineStyle !== 'none' &&
+                style.outlineColor !== 'transparent' &&
+                style.outlineColor !== 'rgba(0, 0, 0, 0)';
+            const shadowLayers =
+                style.boxShadow.match(/(?:[^,(]|\([^)]*\))+/g) ?? [];
+            const hasShadow = shadowLayers.some((layer) => {
+                const rgba = layer.match(/rgba?\(([^)]+)\)/i);
+
+                if (rgba === null) {
+                    return !layer.includes('transparent');
+                }
+
+                const channels = rgba[1]
+                    .split(',')
+                    .map((channel) => channel.trim());
+
+                return (
+                    channels.length < 4 || Number.parseFloat(channels[3]) > 0
+                );
+            });
+
+            return hasOutline || hasShadow;
+        };
+
+        return {
+            reachable: true,
+            visible:
+                element.matches(':focus-visible') &&
+                focusScope.some(
+                    (candidate) =>
+                        candidate.matches(':focus-within') &&
+                        hasVisibleFocusStyle(candidate),
+                ),
+        };
     });
 
-    if (!focused) {
+    if (!focused.reachable) {
         throw new Error(
             `${flow.name} has no reachable keyboard focus target on ${viewport}.`,
+        );
+    }
+
+    if (!focused.visible) {
+        throw new Error(
+            `${flow.name} has no visible keyboard focus indicator on ${viewport}.`,
         );
     }
 }

@@ -147,11 +147,14 @@ final class ProposalInvoiceScheduler
                 $gstAmount = $this->gst->gstFromExclusive($amountExGst);
                 $amountIncGst = $this->gst->grossFromExclusive($amountExGst);
 
-                AccountingInvoice::query()->updateOrCreate(
+                $invoice = AccountingInvoice::query()->firstOrNew(
                     [
                         'accounting_invoice_batch_id' => $batch->getKey(),
                         'sequence' => $sequence,
                     ],
+                );
+
+                $invoice->forceFill(
                     [
                         'client_id' => $proposal->client_id,
                         'proposal_id' => $proposal->getKey(),
@@ -164,7 +167,7 @@ final class ProposalInvoiceScheduler
                         'status' => AccountingInvoice::STATUS_PENDING,
                         'error_message' => null,
                     ],
-                );
+                )->save();
             }
 
             $this->audit->record('accounting_invoice_batch.prepared', subject: $batch, actor: $actor, after: [

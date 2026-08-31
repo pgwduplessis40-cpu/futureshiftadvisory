@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Architecture;
 
+use App\Models\AccountingInvoice;
 use App\Models\AdvisoryReadinessSignal;
 use App\Models\BusinessPlan;
 use App\Models\Client;
+use App\Models\ClientFunderRecord;
 use App\Models\Document;
+use App\Models\FeeCalculation;
 use App\Models\PlanAssessment;
+use App\Models\ServiceRatePackage;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\File;
 use Tests\TestCase;
@@ -50,9 +54,28 @@ final class ModelMassAssignmentTest extends TestCase
             ->count();
 
         $this->assertLessThanOrEqual(
-            192,
+            (int) config('production_quality.legacy_broad_guarded_model_ceiling'),
             $broadGuardedModels,
             'Do not add new models with protected $guarded = []; migrate touched models to explicit fillable fields instead.',
         );
+    }
+
+    public function test_financial_models_reject_unexpected_mass_assigned_fields(): void
+    {
+        foreach ([
+            AccountingInvoice::class,
+            FeeCalculation::class,
+            ClientFunderRecord::class,
+            ServiceRatePackage::class,
+        ] as $model) {
+            $instance = new $model;
+            $instance->fill(['untrusted_financial_field' => 'must-not-persist']);
+
+            $this->assertArrayNotHasKey(
+                'untrusted_financial_field',
+                $instance->getAttributes(),
+                $model.' must reject unexpected request-backed attributes.',
+            );
+        }
     }
 }

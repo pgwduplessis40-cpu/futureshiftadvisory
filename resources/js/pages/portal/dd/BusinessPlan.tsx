@@ -25,6 +25,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { formatNzDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type {
     QuestionnaireAnswers,
@@ -1308,9 +1309,9 @@ function formatDate(value: string | null): string {
         return '-';
     }
 
-    return new Intl.DateTimeFormat(undefined, {
+    return formatNzDate(value, {
         dateStyle: 'medium',
-    }).format(new Date(value));
+    });
 }
 
 function formatLabel(value: string): string {

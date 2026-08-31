@@ -19,6 +19,7 @@
         "quality:phpstan-baseline": "php scripts/assert-phpstan-baseline.php",
         "quality:monoliths": "php scripts/assert-monolith-size.php",
         "quality:production-monoliths": "php scripts/assert-monolith-size.php --production",
+        "quality:ssr-locales": "node scripts/assert-explicit-intl-locales.mjs",
         "test:client-contracts": "tsx --test resources/js/**/*.test.ts resources/js/**/*.test.tsx"
     },
     "devDependencies": {

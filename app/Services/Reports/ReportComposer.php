@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Reports;
 
 use App\Enums\ReportType;
+use App\Jobs\RerenderReportArtifacts;
 use App\Models\Client;
 use App\Models\ClientFunderRecord;
 use App\Models\DdEngagement;
@@ -30,6 +31,8 @@ use App\Services\Reports\Contracts\ValuationReportComposition;
 use App\Services\Reports\Data\NpoImpactSummaryInput;
 use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
@@ -157,6 +160,76 @@ final class ReportComposer implements ProvidesMethodology
         ]);
 
         return $report->refresh();
+    }
+
+    /**
+     * Claim a stale artifact refresh exactly once and queue it after the
+     * current transaction commits. A download request must never wait for the
+     * external PDF renderer.
+     */
+    public function queueArtifactRerender(Report $report): bool
+    {
+        $requestToken = (string) Str::uuid();
+        $queued = DB::transaction(function () use ($report, $requestToken): bool {
+            $locked = Report::query()
+                ->lockForUpdate()
+                ->find($report->getKey());
+
+            if (! $locked instanceof Report || $locked->render_status === Report::RENDER_STATUS_COMPOSING) {
+                return false;
+            }
+
+            $metadata = is_array($locked->metadata) ? $locked->metadata : [];
+            $metadata['artifact_rerender_request'] = [
+                'token' => $requestToken,
+                'requested_at' => now()->toIso8601String(),
+            ];
+
+            $locked->forceFill([
+                'render_status' => Report::RENDER_STATUS_COMPOSING,
+                'render_failed_at' => null,
+                'render_error' => null,
+                'metadata' => $metadata,
+            ])->save();
+
+            RerenderReportArtifacts::dispatch((string) $locked->getKey(), $requestToken)->afterCommit();
+
+            return true;
+        });
+
+        if ($queued) {
+            $this->audit->record('report.rerender_queued', subject: $report, after: [
+                'type' => $report->type->value,
+            ]);
+        }
+
+        return $queued;
+    }
+
+    public function rerenderQueuedArtifacts(Report $report, string $requestToken, bool $retrying = false): void
+    {
+        $report->refresh();
+        $metadata = is_array($report->metadata) ? $report->metadata : [];
+
+        if (data_get($metadata, 'artifact_rerender_request.token') !== $requestToken) {
+            return;
+        }
+
+        if ($report->render_status === Report::RENDER_STATUS_FAILED && $retrying) {
+            $report->forceFill([
+                'render_status' => Report::RENDER_STATUS_COMPOSING,
+                'render_failed_at' => null,
+                'render_error' => null,
+            ])->save();
+        } elseif ($report->render_status !== Report::RENDER_STATUS_COMPOSING) {
+            return;
+        }
+
+        $this->rerenderArtifacts($report);
+
+        $metadata = is_array($report->refresh()->metadata) ? $report->metadata : [];
+        unset($metadata['artifact_rerender_request']);
+        $report->forceFill(['metadata' => $metadata])->save();
     }
 
     public function usesCurrentTemplate(Report $report): bool
