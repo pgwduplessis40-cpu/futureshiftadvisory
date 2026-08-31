@@ -49,8 +49,6 @@ final class ReportController extends Controller
             abort(409, 'Report rendering has been queued. Please try again shortly.');
         }
 
-        abort_if($report->pdf_path === null || ! $disk->exists($report->pdf_path), 404);
-
         $contents = $disk->get($report->pdf_path);
         abort_if($contents === null, 404);
 
@@ -89,8 +87,6 @@ final class ReportController extends Controller
             $this->reports->queueArtifactRerender($report);
             abort(409, 'Report rendering has been queued. Please try again shortly.');
         }
-
-        abort_if($report->pdf_path === null || ! $disk->exists($report->pdf_path), 404);
 
         $contents = $disk->get($report->pdf_path);
         abort_if($contents === null, 404);
