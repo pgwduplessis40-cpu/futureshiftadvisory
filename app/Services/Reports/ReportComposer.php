@@ -30,8 +30,8 @@ use App\Services\Reports\Contracts\SuccessionValueGapReportComposition;
 use App\Services\Reports\Contracts\ValuationReportComposition;
 use App\Services\Reports\Data\NpoImpactSummaryInput;
 use App\Support\Methodology\ProvidesMethodology;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 

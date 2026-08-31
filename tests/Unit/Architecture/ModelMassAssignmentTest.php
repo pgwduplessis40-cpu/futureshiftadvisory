@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Architecture;
 
+use App\Models\AccountingInvoice;
 use App\Models\AdvisoryReadinessSignal;
 use App\Models\BusinessPlan;
 use App\Models\Client;
@@ -12,7 +13,6 @@ use App\Models\Document;
 use App\Models\FeeCalculation;
 use App\Models\PlanAssessment;
 use App\Models\ServiceRatePackage;
-use App\Models\AccountingInvoice;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\File;
 use Tests\TestCase;

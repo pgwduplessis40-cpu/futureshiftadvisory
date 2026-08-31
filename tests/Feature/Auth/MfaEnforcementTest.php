@@ -242,6 +242,23 @@ final class MfaEnforcementTest extends TestCase
         $this->assertStringNotContainsString('invert', $component);
     }
 
+    public function test_authentication_challenge_controls_expose_keyboard_focus_indicators(): void
+    {
+        $layout = file_get_contents(resource_path('js/layouts/auth/auth-simple-layout.tsx'));
+        $otp = file_get_contents(resource_path('js/components/ui/input-otp.tsx'));
+        $mfaChallenge = file_get_contents(resource_path('js/pages/auth/mfa-challenge.tsx'));
+        $twoFactorChallenge = file_get_contents(resource_path('js/pages/auth/two-factor-challenge.tsx'));
+
+        $this->assertIsString($layout);
+        $this->assertIsString($otp);
+        $this->assertIsString($mfaChallenge);
+        $this->assertIsString($twoFactorChallenge);
+        $this->assertStringContainsString('focus-visible:outline-ring', $layout);
+        $this->assertStringContainsString('focus-within:outline-ring', $otp);
+        $this->assertStringContainsString('focus-visible:outline-ring', $mfaChallenge);
+        $this->assertStringContainsString('focus-visible:outline-ring', $twoFactorChallenge);
+    }
+
     public function test_mfa_challenge_locks_after_three_failed_attempts(): void
     {
         config([
