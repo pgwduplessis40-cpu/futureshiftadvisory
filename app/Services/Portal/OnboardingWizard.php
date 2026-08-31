@@ -16,7 +16,7 @@ use Illuminate\Support\Carbon;
 
 final class OnboardingWizard
 {
-    private const JOURNEY_VERSION = 3;
+    private const JOURNEY_VERSION = 4;
 
     public function __construct(private readonly ClientCapability $clientCapability) {}
 
@@ -56,6 +56,13 @@ final class OnboardingWizard
                 ['slug' => self::STEP_QUESTIONNAIRE, 'title' => 'Questionnaire', 'description' => 'Answer the due diligence questions.'],
                 ['slug' => self::STEP_DOCUMENTS, 'title' => 'Documents', 'description' => 'Prepare acquisition evidence.'],
                 ['slug' => self::STEP_REVIEW, 'title' => 'Review and submit', 'description' => 'Confirm the due diligence onboarding summary.'],
+            ];
+        } elseif ($this->isPostAcquisitionClient($client)) {
+            $steps = [
+                ...$steps,
+                ['slug' => self::STEP_QUESTIONNAIRE, 'title' => 'Questionnaire', 'description' => 'Review DD-prefilled gaps and post-close updates.'],
+                ['slug' => self::STEP_DOCUMENTS, 'title' => 'Documents', 'description' => 'Confirm migrated DD evidence and upload any post-close files.'],
+                ['slug' => self::STEP_REVIEW, 'title' => 'Review and submit', 'description' => 'Confirm the post-acquisition handoff summary.'],
             ];
         } else {
             $steps = [
@@ -108,7 +115,7 @@ final class OnboardingWizard
         $completedSteps = array_values(array_unique($completedSteps));
         $currentStep = match (true) {
             $journeyVersion < 2 => $this->currentStepForLegacyJourney($state),
-            $journeyVersion < self::JOURNEY_VERSION && $this->isDueDiligenceClient($client) => $this->nextIncompleteStepNumber($client, $completedSteps, 1),
+            $journeyVersion < self::JOURNEY_VERSION && $this->usesDdEvidenceOnboarding($client) => $this->nextIncompleteStepNumber($client, $completedSteps, 1),
             default => (int) ($state['current_step'] ?? 1),
         };
         $currentStep = max(1, min($this->totalSteps($client), $currentStep));
@@ -401,5 +408,15 @@ final class OnboardingWizard
     private function isDueDiligenceClient(Client $client): bool
     {
         return $client->engagement_type === EngagementType::DUE_DILIGENCE;
+    }
+
+    private function isPostAcquisitionClient(Client $client): bool
+    {
+        return $client->engagement_type === EngagementType::POST_ACQUISITION_ADVISORY;
+    }
+
+    private function usesDdEvidenceOnboarding(Client $client): bool
+    {
+        return $this->isDueDiligenceClient($client) || $this->isPostAcquisitionClient($client);
     }
 }

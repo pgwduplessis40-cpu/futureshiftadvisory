@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Database;
 
+use App\Enums\EngagementType;
 use App\Models\AnalysisFinding;
 use App\Models\AnalysisRun;
 use App\Models\Client;
@@ -27,6 +28,7 @@ use App\Models\StrategicBudget;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Portal\OnboardingWizard;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Storage\KeyEnvelope;
 use Database\Seeders\TestingSeedDataSeeder;
@@ -34,6 +36,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -170,6 +173,7 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertAtLeast(6, 'service_rate_packages');
         $this->assertAtLeast(3, 'service_activations');
         $this->assertSeededServiceActivationPricingFlow();
+        $this->assertSeedClientPersonasStayScoped();
         $this->assertSouthernLightsPlanBudgetSubmitFixture();
         $this->assertSeededProposalTemplate();
         $this->assertSeededProposalSignoffFlow();
@@ -312,6 +316,113 @@ final class TestingSeedDataSeederTest extends TestCase
             // not a valid backing value for its enum (mirrors app hydration).
             $this->assertIsArray($record->toArray());
         }
+    }
+
+    public function test_testing_seed_data_keeps_dd_and_post_acquisition_personas_separate(): void
+    {
+        $this->seed(TestingSeedDataSeeder::class);
+
+        $this->assertSeedClientPersonasStayScoped();
+    }
+
+    public function test_seed_buyer_portal_resolves_to_southern_lights_and_rejects_post_acquisition_client(): void
+    {
+        $this->seed(TestingSeedDataSeeder::class);
+
+        $buyer = User::query()
+            ->where('email', 'seed.buyer.primary@futureshiftadvisory.test')
+            ->firstOrFail();
+        $southernLights = Client::query()
+            ->where('nzbn', '9429000000027')
+            ->firstOrFail();
+        $kauriKitchens = Client::query()
+            ->where('nzbn', '9429000000034')
+            ->firstOrFail();
+
+        $this->actingAsMfa($buyer)
+            ->get(route('portal.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('portal/Dashboard')
+                ->where('client.id', $southernLights->getKey())
+                ->where('client.legal_name', 'Southern Lights Holdings Limited')
+                ->where('client.engagement_type', EngagementType::DUE_DILIGENCE->value)
+            );
+
+        $this->actingAsMfa($buyer)
+            ->get(route('portal.dashboard', ['client' => $kauriKitchens->getKey()]))
+            ->assertNotFound();
+    }
+
+    public function test_testing_seed_data_reconciles_retired_dd_post_acquisition_cross_links(): void
+    {
+        $this->seed(TestingSeedDataSeeder::class);
+
+        $buyer = DB::table('users')
+            ->where('email', 'seed.buyer.primary@futureshiftadvisory.test')
+            ->first();
+        $advisor = DB::table('users')
+            ->where('email', 'seed.advisor@futureshiftadvisory.test')
+            ->first();
+        $kauriKitchens = DB::table('clients')
+            ->where('nzbn', '9429000000034')
+            ->first();
+        $packageId = DB::table('service_rate_packages')
+            ->where('service_type', ServiceRatePackage::SERVICE_DUE_DILIGENCE)
+            ->where('package_scope', ServiceRatePackage::SCOPE_DD_1M_3M)
+            ->value('id');
+
+        $this->assertNotNull($buyer);
+        $this->assertNotNull($advisor);
+        $this->assertNotNull($kauriKitchens);
+        $this->assertNotNull($packageId);
+
+        DB::table('client_team')->insert([
+            'client_id' => $kauriKitchens->id,
+            'user_id' => $buyer->id,
+            'role' => 'primary_contact',
+            'granted_modules' => json_encode(['portal', 'documents', 'post_acquisition'], JSON_THROW_ON_ERROR),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('service_activations')->insert([
+            'client_id' => $kauriKitchens->id,
+            'requested_by_user_id' => $buyer->id,
+            'advisor_id' => $advisor->id,
+            'approved_by_user_id' => $advisor->id,
+            'service_rate_package_id' => $packageId,
+            'service_type' => ServiceActivation::SERVICE_DUE_DILIGENCE,
+            'client_label' => 'Explore buying a business',
+            'status' => ServiceActivation::STATUS_PACKAGE_SELECTED,
+            'intake' => json_encode(['fixture' => 'retired-dd-post-acquisition-cross-link'], JSON_THROW_ON_ERROR),
+            'selected_package_snapshot' => json_encode(['fixture' => 'retired-dd-post-acquisition-cross-link'], JSON_THROW_ON_ERROR),
+            'payment_status' => ServiceActivation::PAYMENT_DEPOSIT_PENDING,
+            'metadata' => json_encode([
+                'fixture' => true,
+                'fixture_key' => 'service_activation_dd_deposit_due',
+            ], JSON_THROW_ON_ERROR),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->assertSame(
+            1,
+            DB::table('client_team')
+                ->where('client_id', $kauriKitchens->id)
+                ->where('user_id', $buyer->id)
+                ->count(),
+        );
+        $this->assertSame(
+            1,
+            DB::table('service_activations')
+                ->where('client_id', $kauriKitchens->id)
+                ->where('service_type', ServiceActivation::SERVICE_DUE_DILIGENCE)
+                ->count(),
+        );
+
+        $this->seed(TestingSeedDataSeeder::class);
+
+        $this->assertSeedClientPersonasStayScoped();
     }
 
     private function assertAtLeast(int $minimum, string $table): void
@@ -471,6 +582,103 @@ final class TestingSeedDataSeederTest extends TestCase
             $targetDetails = json_decode((string) $persona->target_details, true, flags: JSON_THROW_ON_ERROR);
             $this->assertSame($mode, data_get($targetDetails, 'client_capability.mode'));
         }
+    }
+
+    private function assertSeedClientPersonasStayScoped(): void
+    {
+        $ddBuyer = DB::table('users')
+            ->where('email', 'seed.buyer.primary@futureshiftadvisory.test')
+            ->first();
+        $postAcquisitionBuyer = DB::table('users')
+            ->where('email', 'seed.postacquisition.primary@futureshiftadvisory.test')
+            ->first();
+        $depositPendingBuyer = DB::table('users')
+            ->where('email', 'seed.dd.deposit@futureshiftadvisory.test')
+            ->first();
+        $southernLights = DB::table('clients')
+            ->where('nzbn', '9429000000027')
+            ->first();
+        $kauriKitchens = DB::table('clients')
+            ->where('nzbn', '9429000000034')
+            ->first();
+        $depositPendingDd = DB::table('clients')
+            ->where('nzbn', '9429000000164')
+            ->first();
+
+        $this->assertNotNull($ddBuyer, 'Expected the seeded DD buyer persona.');
+        $this->assertNotNull($postAcquisitionBuyer, 'Expected the seeded post-acquisition buyer persona.');
+        $this->assertNotNull($depositPendingBuyer, 'Expected the seeded DD deposit-pending persona.');
+        $this->assertNotNull($southernLights, 'Expected the seeded DD client.');
+        $this->assertNotNull($kauriKitchens, 'Expected the seeded post-acquisition client.');
+        $this->assertNotNull($depositPendingDd, 'Expected the seeded DD deposit-pending client.');
+        $this->assertNotSame((string) $ddBuyer->id, (string) $postAcquisitionBuyer->id);
+        $this->assertNotSame((string) $ddBuyer->id, (string) $depositPendingBuyer->id);
+        $this->assertNotSame((string) $postAcquisitionBuyer->id, (string) $depositPendingBuyer->id);
+        $this->assertSame((string) $ddBuyer->id, (string) $southernLights->primary_contact_user_id);
+        $this->assertSame((string) $postAcquisitionBuyer->id, (string) $kauriKitchens->primary_contact_user_id);
+        $this->assertSame((string) $depositPendingBuyer->id, (string) $depositPendingDd->primary_contact_user_id);
+        $this->assertSame(
+            1,
+            DB::table('client_team')
+                ->where('client_id', $southernLights->id)
+                ->where('user_id', $ddBuyer->id)
+                ->count(),
+            'The DD buyer should only be assigned to the DD client team.',
+        );
+        $this->assertSame(
+            0,
+            DB::table('client_team')
+                ->where('client_id', $kauriKitchens->id)
+                ->where('user_id', $ddBuyer->id)
+                ->count(),
+            'The DD buyer must not also be assigned to the post-acquisition client.',
+        );
+        $this->assertSame(
+            1,
+            DB::table('client_team')
+                ->where('client_id', $kauriKitchens->id)
+                ->where('user_id', $postAcquisitionBuyer->id)
+                ->count(),
+            'The post-acquisition buyer should be assigned to the post-acquisition client team.',
+        );
+        $this->assertSame(
+            0,
+            DB::table('service_activations')
+                ->where('client_id', $kauriKitchens->id)
+                ->where('service_type', ServiceActivation::SERVICE_DUE_DILIGENCE)
+                ->count(),
+            'The post-acquisition client must not carry a due-diligence activation fixture.',
+        );
+        $this->assertDatabaseHas('service_activations', [
+            'client_id' => $depositPendingDd->id,
+            'requested_by_user_id' => $depositPendingBuyer->id,
+            'service_type' => ServiceActivation::SERVICE_DUE_DILIGENCE,
+            'payment_status' => ServiceActivation::PAYMENT_DEPOSIT_PENDING,
+        ]);
+        $this->assertSame(
+            0,
+            DB::table('service_activations')
+                ->join('clients', 'clients.id', '=', 'service_activations.client_id')
+                ->where('service_activations.service_type', ServiceActivation::SERVICE_DUE_DILIGENCE)
+                ->whereNotIn('clients.engagement_type', [
+                    EngagementType::DUE_DILIGENCE->value,
+                    EngagementType::ENTREPRENEUR_MODULE->value,
+                ])
+                ->count(),
+            'Seeded due-diligence activations may attach to DD clients or entrepreneur DD add-ons, but not unrelated client journeys.',
+        );
+
+        $wizardState = json_decode((string) $kauriKitchens->onboarding_wizard_state, true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame(4, (int) ($wizardState['journey_version'] ?? 0));
+        $this->assertSame(3, (int) ($wizardState['current_step'] ?? 0));
+        $this->assertSame([
+            OnboardingWizard::STEP_WELCOME,
+            OnboardingWizard::STEP_QUESTIONNAIRE,
+        ], $wizardState['completed_steps'] ?? []);
+        $this->assertNotContains(OnboardingWizard::STEP_GOALS, $wizardState['completed_steps'] ?? []);
+        $this->assertNotContains(OnboardingWizard::STEP_WEBSITE, $wizardState['completed_steps'] ?? []);
+        $this->assertNotContains(OnboardingWizard::STEP_IDENTITY, $wizardState['completed_steps'] ?? []);
+        $this->assertNotContains(OnboardingWizard::STEP_BUSINESS_SNAPSHOT, $wizardState['completed_steps'] ?? []);
     }
 
     private function assertSouthernLightsPlanBudgetSubmitFixture(): void

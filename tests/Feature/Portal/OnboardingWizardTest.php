@@ -297,22 +297,31 @@ final class OnboardingWizardTest extends TestCase
             OnboardingWizard::STEP_DOCUMENTS,
             OnboardingWizard::STEP_REVIEW,
         ];
+        $dueDiligenceSteps = [
+            OnboardingWizard::STEP_WELCOME,
+            OnboardingWizard::STEP_DD_SUPPORT,
+            OnboardingWizard::STEP_QUESTIONNAIRE,
+            OnboardingWizard::STEP_DOCUMENTS,
+            OnboardingWizard::STEP_REVIEW,
+        ];
+        $postAcquisitionSteps = [
+            OnboardingWizard::STEP_WELCOME,
+            OnboardingWizard::STEP_QUESTIONNAIRE,
+            OnboardingWizard::STEP_DOCUMENTS,
+            OnboardingWizard::STEP_REVIEW,
+        ];
 
         foreach (EngagementType::cases() as $engagementType) {
             [, $client] = $this->clientUserWithClient($engagementType);
             $steps = array_column($wizard->navigation($client), 'slug');
-            $expectedSteps = $engagementType === EngagementType::DUE_DILIGENCE
-                ? [
-                    OnboardingWizard::STEP_WELCOME,
-                    OnboardingWizard::STEP_DD_SUPPORT,
-                    OnboardingWizard::STEP_QUESTIONNAIRE,
-                    OnboardingWizard::STEP_DOCUMENTS,
-                    OnboardingWizard::STEP_REVIEW,
-                ]
-                : $standardSteps;
+            $expectedSteps = match ($engagementType) {
+                EngagementType::DUE_DILIGENCE => $dueDiligenceSteps,
+                EngagementType::POST_ACQUISITION_ADVISORY => $postAcquisitionSteps,
+                default => $standardSteps,
+            };
 
             $this->assertSame($expectedSteps, $steps);
-            if ($engagementType === EngagementType::DUE_DILIGENCE) {
+            if (in_array($engagementType, [EngagementType::DUE_DILIGENCE, EngagementType::POST_ACQUISITION_ADVISORY], true)) {
                 $this->assertNotContains(OnboardingWizard::STEP_GOALS, $steps);
                 $this->assertNotContains(OnboardingWizard::STEP_WEBSITE, $steps);
             }
@@ -322,6 +331,46 @@ final class OnboardingWizardTest extends TestCase
                 $steps,
             );
         }
+    }
+
+    public function test_post_acquisition_legacy_goals_and_website_steps_are_filtered_out(): void
+    {
+        $this->seed(RoleSeeder::class);
+        [$user, $client] = $this->clientUserWithClient(EngagementType::POST_ACQUISITION_ADVISORY);
+        $client->forceFill([
+            'onboarding_wizard_state' => [
+                'journey_version' => 3,
+                'current_step' => 6,
+                'completed_steps' => [
+                    OnboardingWizard::STEP_WELCOME,
+                    OnboardingWizard::STEP_GOALS,
+                    OnboardingWizard::STEP_WEBSITE,
+                    OnboardingWizard::STEP_QUESTIONNAIRE,
+                ],
+            ],
+        ])->save();
+
+        $wizard = app(OnboardingWizard::class);
+        $state = $wizard->state($client->refresh());
+        $steps = array_column($wizard->navigation($client), 'slug');
+
+        $this->assertSame([
+            OnboardingWizard::STEP_WELCOME,
+            OnboardingWizard::STEP_QUESTIONNAIRE,
+            OnboardingWizard::STEP_DOCUMENTS,
+            OnboardingWizard::STEP_REVIEW,
+        ], $steps);
+        $this->assertSame(3, $state['current_step']);
+        $this->assertSame([
+            OnboardingWizard::STEP_WELCOME,
+            OnboardingWizard::STEP_QUESTIONNAIRE,
+        ], $state['completed_steps']);
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.onboarding.step', ['step' => OnboardingWizard::STEP_GOALS]))
+            ->assertRedirect(route('portal.onboarding.step', [
+                'step' => OnboardingWizard::STEP_DOCUMENTS,
+            ], absolute: false));
     }
 
     public function test_questionnaire_draft_persists_without_completing_the_onboarding_step(): void
@@ -480,7 +529,13 @@ final class OnboardingWizardTest extends TestCase
         $this->seed(PostAcquisitionGapQuestionnaireSeeder::class);
         [$user] = $this->clientUserWithClient(EngagementType::POST_ACQUISITION_ADVISORY);
 
-        $this->advanceToQuestionnaire($user);
+        $this->actingAsMfa($user)
+            ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_WELCOME]), [
+                'acknowledged' => true,
+            ])
+            ->assertRedirect(route('portal.onboarding.step', [
+                'step' => OnboardingWizard::STEP_QUESTIONNAIRE,
+            ], absolute: false));
 
         $this->actingAsMfa($user)
             ->get(route('portal.onboarding.step', ['step' => OnboardingWizard::STEP_QUESTIONNAIRE]))
