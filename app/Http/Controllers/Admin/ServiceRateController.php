@@ -150,8 +150,8 @@ final class ServiceRateController extends Controller
             ...$this->packageAttributes($validated),
             'currency' => $this->rates->currency(),
             'effective_from' => now(),
-            'created_by_user_id' => $user->getKey(),
         ]);
+        $package->forceFill(['created_by_user_id' => $user->getKey()])->save();
 
         $this->audit->record('service_rate_package.created', subject: $package, actor: $user, after: $package->snapshot());
 

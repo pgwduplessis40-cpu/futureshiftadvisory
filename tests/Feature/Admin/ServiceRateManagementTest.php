@@ -245,6 +245,7 @@ final class ServiceRateManagementTest extends TestCase
         $this->assertNull($package->purchase_price_min);
         $this->assertNull($package->purchase_price_max);
         $this->assertTrue($package->is_active);
+        $this->assertSame($admin->getKey(), $package->created_by_user_id);
         $this->assertDatabaseHas('audit_events', [
             'action' => 'service_rate_package.created',
             'subject_id' => $package->id,

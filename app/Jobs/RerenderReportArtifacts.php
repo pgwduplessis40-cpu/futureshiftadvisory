@@ -20,7 +20,10 @@ final class RerenderReportArtifacts implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    public int $tries = 1;
+    public int $tries = 3;
+
+    /** @var list<int> */
+    public array $backoff = [30, 120];
 
     public int $timeout = 420;
 
@@ -37,7 +40,7 @@ final class RerenderReportArtifacts implements ShouldQueue
             return;
         }
 
-        $reports->rerenderQueuedArtifacts($report, $this->requestToken);
+        $reports->rerenderQueuedArtifacts($report, $this->requestToken, $this->attempts() > 1);
     }
 
     public function failed(Throwable $exception): void

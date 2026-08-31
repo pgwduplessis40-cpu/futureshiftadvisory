@@ -1012,6 +1012,42 @@ HTML,
         Queue::assertPushed(RerenderReportArtifacts::class, 1);
     }
 
+    public function test_report_artifact_refresh_retry_resumes_its_matching_failed_request(): void
+    {
+        [, $client] = $this->clientWithTeam('report-rerender-retry@example.test');
+        $report = $this->storedReport($client);
+        $requestToken = 'rerender-request-token';
+        $report->forceFill([
+            'render_status' => Report::RENDER_STATUS_FAILED,
+            'render_failed_at' => now(),
+            'render_error' => 'Renderer exited unexpectedly.',
+            'metadata' => [
+                'artifact_rerender_request' => ['token' => $requestToken],
+            ],
+        ])->save();
+
+        $renderer = \Mockery::mock(ReportArtifactRenderer::class);
+        $renderer->shouldReceive('rerender')
+            ->once()
+            ->withArgs(fn (Report $candidate): bool => $candidate->is($report))
+            ->andReturnUsing(function (Report $candidate): void {
+                $candidate->forceFill([
+                    'render_status' => Report::RENDER_STATUS_RENDERED,
+                    'render_failed_at' => null,
+                    'render_error' => null,
+                ])->save();
+            });
+        $this->app->instance(ReportArtifactRenderer::class, $renderer);
+
+        app(ReportComposer::class)->rerenderQueuedArtifacts($report, $requestToken, retrying: true);
+
+        $report->refresh();
+        $this->assertSame(Report::RENDER_STATUS_RENDERED, $report->render_status);
+        $this->assertNull($report->render_failed_at);
+        $this->assertNull($report->render_error);
+        $this->assertArrayNotHasKey('artifact_rerender_request', $report->metadata);
+    }
+
     public function test_advisor_report_download_queues_when_template_is_historic(): void
     {
         [$advisor, $client] = $this->clientWithTeam('report-historic-template@example.test');

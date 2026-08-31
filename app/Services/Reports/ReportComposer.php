@@ -206,15 +206,22 @@ final class ReportComposer implements ProvidesMethodology
         return $queued;
     }
 
-    public function rerenderQueuedArtifacts(Report $report, string $requestToken): void
+    public function rerenderQueuedArtifacts(Report $report, string $requestToken, bool $retrying = false): void
     {
         $report->refresh();
         $metadata = is_array($report->metadata) ? $report->metadata : [];
 
-        if (
-            $report->render_status !== Report::RENDER_STATUS_COMPOSING
-            || data_get($metadata, 'artifact_rerender_request.token') !== $requestToken
-        ) {
+        if (data_get($metadata, 'artifact_rerender_request.token') !== $requestToken) {
+            return;
+        }
+
+        if ($report->render_status === Report::RENDER_STATUS_FAILED && $retrying) {
+            $report->forceFill([
+                'render_status' => Report::RENDER_STATUS_COMPOSING,
+                'render_failed_at' => null,
+                'render_error' => null,
+            ])->save();
+        } elseif ($report->render_status !== Report::RENDER_STATUS_COMPOSING) {
             return;
         }
 
