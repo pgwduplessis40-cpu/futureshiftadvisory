@@ -490,11 +490,7 @@ final class OnboardingController extends Controller
             return true;
         }
 
-        $engagementType = $client->engagement_type instanceof EngagementType
-            ? $client->engagement_type
-            : EngagementType::tryFrom((string) $client->engagement_type);
-
-        return $engagementType === EngagementType::POST_ACQUISITION_ADVISORY
+        return $client->engagement_type === EngagementType::POST_ACQUISITION_ADVISORY
             && in_array($step, [
                 OnboardingWizard::STEP_GOALS,
                 OnboardingWizard::STEP_WEBSITE,
