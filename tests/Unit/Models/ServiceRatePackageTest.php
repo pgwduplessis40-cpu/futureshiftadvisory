@@ -51,7 +51,7 @@ final class ServiceRatePackageTest extends TestCase
             ServiceRatePackage::SCOPE_DD_UNDER_300K => 'Purchase price below $300k',
             ServiceRatePackage::SCOPE_DD_300K_1M => 'Purchase price $300k-$1m',
             ServiceRatePackage::SCOPE_DD_1M_3M => 'Purchase price $1m-$3m',
-            ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON => 'Business Plan + Budget add-on',
+            ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON => 'Business Plan & Budget add-on',
             'unrecognised' => 'Standard workspace',
         ] as $scope => $label) {
             $this->assertSame($label, ServiceRatePackage::packageScopeLabel($scope));

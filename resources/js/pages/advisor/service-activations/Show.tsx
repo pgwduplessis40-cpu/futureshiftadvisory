@@ -12,7 +12,10 @@ type Activation = {
     client_name: string | null;
     client_label: string;
     service_type:
-        'due_diligence' | 'dd_plan_budget' | 'entrepreneur' | (string & {});
+        | 'due_diligence'
+        | 'dd_plan_budget'
+        | 'entrepreneur'
+        | (string & {});
     status: string;
     status_label: string;
     intake: Record<string, string | number | null>;
