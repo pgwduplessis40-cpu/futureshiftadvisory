@@ -68,11 +68,19 @@ final class OperationalHealthController extends Controller
 
     public function run(): RedirectResponse
     {
+        $previousExecutionLimit = filter_var(ini_get('max_execution_time'), FILTER_VALIDATE_INT);
+
         @set_time_limit(180);
 
-        Artisan::call('fsa:operational-health-check', [
-            '--without-alerts' => true,
-        ]);
+        try {
+            Artisan::call('fsa:operational-health-check', [
+                '--without-alerts' => true,
+            ]);
+        } finally {
+            if (is_int($previousExecutionLimit)) {
+                @set_time_limit($previousExecutionLimit);
+            }
+        }
 
         return to_route('admin.app-health.index')
             ->with('status', 'operational-health-check-run');

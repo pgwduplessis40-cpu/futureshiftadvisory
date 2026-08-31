@@ -560,6 +560,8 @@ final class OperationalHealthCheckTest extends TestCase
         Notification::fake();
         Storage::fake('secure_local');
 
+        $previousExecutionLimit = ini_get('max_execution_time');
+
         config()->set('operational_health.ensure_fixtures', false);
         config()->set('operational_health.require_verified_deployment', true);
         config()->set('operational_health.alerts.consecutive_failures', 1);
@@ -576,6 +578,8 @@ final class OperationalHealthCheckTest extends TestCase
             'check_key' => 'deployment.identity',
             'status' => OperationalHealthCheckResult::STATUS_FAILED,
         ]);
+
+        $this->assertSame($previousExecutionLimit, ini_get('max_execution_time'));
 
         Notification::assertNothingSent();
     }
