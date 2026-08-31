@@ -38,7 +38,6 @@ import {
     FindingFeedbackCard,
     KnowledgeAssessmentPanel,
 } from './client-detail-knowledge';
-import { AdvisorServiceTabList } from './service-workspaces';
 import {
     ActionTile,
     AnalysisFindingFilterButton,
@@ -72,6 +71,7 @@ import type {
     StandardAdvisoryGeneratePayload,
 } from './client-detail-types';
 import { AdvisorServiceWorkspace } from './client-detail-workspace';
+import { AdvisorServiceTabList } from './service-workspaces';
 import type {
     AdvisorServiceTab,
     AdvisorServiceTabKey,
