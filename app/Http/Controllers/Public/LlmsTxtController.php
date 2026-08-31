@@ -56,6 +56,7 @@ class LlmsTxtController extends Controller
         $lines[] = '';
         $lines[] = "- [Home]({$base}/): Overview of the practice and how we work.";
         $lines[] = "- [Services]({$base}/services): All engagement types, who each is for, and what you receive.";
+        $lines[] = "- [Entrepreneur Module]({$base}/services/entrepreneur): Idea validation, business plans, and funding readiness for founders.";
         $lines[] = "- [About]({$base}/about): The practice's principles and the Principal Advisor's background.";
         $lines[] = "- [FAQ]({$base}/faq): Answers on engagements, fees, security, not-for-profits, and use of AI.";
         $lines[] = "- [Contact]({$base}/contact): Enquiry form to book a discovery call.";

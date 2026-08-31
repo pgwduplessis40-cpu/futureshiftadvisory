@@ -55,6 +55,36 @@ final class FaqCatalog
                 'answer' => 'A Standard Advisory review usually takes weeks, not months. Due diligence follows your deal timeline. Work with founders runs in stages over a few months - because the work is real, not because we are stretching it out.',
             ],
             [
+                'group' => 'Starting a new business',
+                'question' => 'How do I know if my business idea will work?',
+                'answer' => 'You cannot know for certain - but you can find out a great deal before you spend serious money. That is what idea validation is for: testing the concept against real demand, the numbers, who else is already doing it, and what it would genuinely take to deliver. Sometimes the honest answer is that the idea does not hold up in its current form. Hearing that early costs you a conversation; hearing it two years in costs a great deal more.',
+            ],
+            [
+                'group' => 'Starting a new business',
+                'question' => 'What does it cost to validate my business idea?',
+                'answer' => 'There is a cost, and we quote it as a fixed fee up front so you know exactly what you are committing to before you decide. It is worth weighing that against what is actually at risk. The expensive part of a business idea is rarely the checking - it is the borrowed money, the savings, and the year or two spent building something the evidence never supported. Validation is a small, known cost paid early to avoid a much larger, unknown one later. And if the idea does stack up, you are not just left with a yes: you come out with the plan and the numbers to take to a bank or an investor.',
+            ],
+            [
+                'group' => 'Starting a new business',
+                'question' => 'Do I need a business plan in New Zealand?',
+                'answer' => 'Legally, no - you can register a company without one. Practically, yes: if you are approaching a bank, an investor, or a funder, they will ask for one. And even when nobody asks, writing it is usually where founders discover the gaps in their own thinking. We help you build a plan with real numbers behind it - a working document, not a template you fill in once and file away.',
+            ],
+            [
+                'group' => 'Starting a new business',
+                'question' => 'Should I set up as a sole trader or a company?',
+                'answer' => 'It depends on the risk you are carrying, whether you intend to bring others in, and what you expect to earn. Sole trader is simpler and cheaper to run. A company limits your personal liability and is usually expected if you want outside investment. We will talk it through against your actual situation, and say plainly when the simpler option is the right one. This is general guidance rather than legal or tax advice - where you need a lawyer or an accountant, we will tell you.',
+            ],
+            [
+                'group' => 'Starting a new business',
+                'question' => 'Can you help me get investor or funding ready?',
+                'answer' => 'Yes. Banks, investors, and grant funders all want the same three things: believable numbers, a clear plan, and evidence you have thought about what could go wrong. We help you get those in order before you go asking - and if we think you are not ready yet, we will say so rather than let you burn a first impression.',
+            ],
+            [
+                'group' => 'Starting a new business',
+                'question' => 'I have an idea but have not started yet - is it too early to talk to you?',
+                'answer' => 'Not at all - that is often the best time. The earliest conversations are the cheapest ones to have, because nothing has been built yet and every option is still open. Bring the idea in whatever shape it is in.',
+            ],
+            [
                 'group' => 'Working with not-for-profits',
                 'question' => 'Do you work with charities and not-for-profits?',
                 'answer' => 'We do. We have a dedicated lane for charities, incorporated societies, community organisations, and social enterprises. We look at the health of the whole organisation and frame everything around your mission and the difference you make - not commercial profit.',
