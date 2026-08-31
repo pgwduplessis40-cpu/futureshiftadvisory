@@ -80,6 +80,25 @@ export function breadcrumbLd(
     };
 }
 
+/** A single Service entity, for a dedicated service landing page. */
+export function serviceLd(
+    base: string,
+    service: { name: string; description: string; path: string },
+): Json {
+    const origin = clean(base);
+
+    return {
+        '@context': 'https://schema.org',
+        '@type': 'Service',
+        name: service.name,
+        description: service.description,
+        serviceType: service.name,
+        url: `${origin}${service.path}`,
+        areaServed: { '@type': 'Country', name: 'New Zealand' },
+        provider: { '@id': `${origin}/${ORG_ID}` },
+    };
+}
+
 /** ItemList of the services offered, each tied back to the organization. */
 export function servicesLd(
     base: string,

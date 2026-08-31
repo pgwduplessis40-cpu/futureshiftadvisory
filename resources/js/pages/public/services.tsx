@@ -23,6 +23,7 @@ type EngagementType = {
     accent: string;
     paths?: { name: string; blurb: string }[];
     note?: string;
+    detail_path?: string;
 };
 
 const accentBar: Record<string, string> = {
@@ -141,13 +142,25 @@ export default function Services({
                                                 </li>
                                             ))}
                                         </ul>
-                                        <Link
-                                            href={`/contact?interest=${e.slug}`}
-                                            className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[var(--fs-admiralty)] hover:text-[var(--fs-pacific)]"
-                                        >
-                                            Enquire about this{' '}
-                                            <ArrowRight className="h-4 w-4" />
-                                        </Link>
+                                        <div className="mt-6 flex flex-col gap-2">
+                                            {e.detail_path && (
+                                                <Link
+                                                    href={e.detail_path}
+                                                    className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--fs-admiralty)] hover:text-[var(--fs-pacific)]"
+                                                >
+                                                    Read more about{' '}
+                                                    {e.title.toLowerCase()}{' '}
+                                                    <ArrowRight className="h-4 w-4" />
+                                                </Link>
+                                            )}
+                                            <Link
+                                                href={`/contact?interest=${e.slug}`}
+                                                className="inline-flex items-center gap-2 text-sm font-medium text-[var(--fs-admiralty)] hover:text-[var(--fs-pacific)]"
+                                            >
+                                                Enquire about this{' '}
+                                                <ArrowRight className="h-4 w-4" />
+                                            </Link>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
