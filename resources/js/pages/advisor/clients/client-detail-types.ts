@@ -168,12 +168,26 @@ export type StatusOption = {
     label: string;
 };
 
+export type KnowledgeAssessmentCalibration = {
+    source: string;
+    language_depth: string;
+    financial_detail: string;
+    strategic_framing: string;
+    leadership_context: string;
+    advisor_review_note: string;
+    scores: {
+        financial_literacy: number;
+        strategic_awareness: number;
+        leadership: number;
+    };
+};
+
 export type KnowledgeAssessmentSummary = {
     id: string;
     financial_literacy: number;
     strategic_awareness: number;
     leadership: number;
-    calibration: Record<string, unknown>;
+    calibration: KnowledgeAssessmentCalibration;
     assessed_at: string | null;
 };
 
@@ -439,6 +453,23 @@ export type NpoSocialEnterpriseAxis = {
     state?: string;
 };
 
+export type NpoTensionDataPoint = {
+    key: string;
+    label: string;
+    value: number | string;
+    source_reference: string;
+};
+
+export type NpoSocialEnterpriseTension = {
+    type: string;
+    title: string;
+    commercial_implication: string;
+    mission_implication: string;
+    strategic_options: string[];
+    advisor_recommended_path: string;
+    data_points: NpoTensionDataPoint[];
+};
+
 export type NpoSocialEnterpriseSummary = {
     scorecard: {
         id: string;
@@ -456,18 +487,12 @@ export type NpoSocialEnterpriseSummary = {
         review_status: string;
         reviewed_at: string | null;
         is_releasable: boolean;
-        tensions: Array<{
-            type: string;
-            title: string;
-            commercial_implication: string;
-            mission_implication: string;
-            strategic_options: string[];
-            advisor_recommended_path: string;
-            data_points: Array<Record<string, unknown>>;
-        }>;
+        tensions: NpoSocialEnterpriseTension[];
         generated_at: string | null;
     } | null;
 };
+
+export type FinancialSnapshotMetrics = Record<string, number>;
 
 export type FinancialSnapshotSummary = {
     id: string;
@@ -476,7 +501,7 @@ export type FinancialSnapshotSummary = {
     source: string;
     source_badge: string;
     degraded: boolean;
-    metrics: Record<string, unknown>;
+    metrics: FinancialSnapshotMetrics;
     pulled_at: string | null;
 };
 
