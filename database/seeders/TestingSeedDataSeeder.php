@@ -1098,13 +1098,13 @@ XML);
             'dd_plan_budget_add_on' => [
                 'service_type' => ServiceRatePackage::SERVICE_DD_PLAN_BUDGET,
                 'package_scope' => ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
-                'package_name' => 'DD + Business Plan & Budget',
-                'client_label' => 'DD + Business Plan & Budget',
+                'package_name' => 'Business Plan & Budget add-on',
+                'client_label' => 'Business Plan & Budget add-on',
                 'fixed_fee' => 2400,
                 'deposit_percent' => 100,
                 'purchase_price_min' => null,
                 'purchase_price_max' => null,
-                'scope_description' => 'Single Business Plan & Budget add-on rate. The client quote combines the matched DD purchase-price band with this BP&B fee before approval.',
+                'scope_description' => 'Single Business Plan & Budget add-on fee. Explore Buying a Business keeps its matched purchase-price band, and this BP&B fee is added only when BP&B is included for the client.',
             ],
             'entrepreneur_combo' => [
                 'service_type' => ServiceRatePackage::SERVICE_ENTREPRENEUR,

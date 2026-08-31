@@ -12,10 +12,7 @@ type Activation = {
     client_name: string | null;
     client_label: string;
     service_type:
-        | 'due_diligence'
-        | 'dd_plan_budget'
-        | 'entrepreneur'
-        | (string & {});
+        'due_diligence' | 'dd_plan_budget' | 'entrepreneur' | (string & {});
     status: string;
     status_label: string;
     intake: Record<string, string | number | null>;
@@ -257,12 +254,13 @@ export default function ServiceActivationShow({
                     {packages.length === 0 ? (
                         <div className="rounded-md border border-amber-200 bg-amber-50/70 p-3 text-sm text-amber-950">
                             <div className="font-medium">
-                                No active DD + Business Plan & Budget package is
+                                No active Business Plan & Budget add-on fee is
                                 loaded yet.
                             </div>
                             <p className="mt-1 text-amber-900/80">
-                                Add an active package under Admin / Service
-                                Rates before approving this buyer request.
+                                Add one active BP&B add-on package under Admin /
+                                Service Rates before approving this buyer
+                                request.
                             </p>
                             {urls.serviceRates ? (
                                 <Button
@@ -374,7 +372,7 @@ function packageFee(servicePackage: PackagePayload) {
 
 function packageScopeLabel(scope: PackagePayload['package_scope']) {
     if (scope === 'dd_plan_budget_add_on') {
-        return 'Business Plan + Budget add-on';
+        return 'Business Plan & Budget add-on';
     }
 
     if (scope === 'dd_under_300k') {

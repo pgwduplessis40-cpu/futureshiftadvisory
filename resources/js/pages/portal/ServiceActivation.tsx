@@ -816,7 +816,7 @@ function PaymentGateMessage({
 
 function packageScopeLabel(scope: string) {
     if (scope === 'dd_plan_budget_add_on') {
-        return 'Business Plan + Budget add-on';
+        return 'Business Plan & Budget add-on';
     }
 
     if (scope === 'dd_under_300k') {

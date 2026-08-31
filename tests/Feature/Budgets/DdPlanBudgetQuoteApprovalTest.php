@@ -346,15 +346,15 @@ final class DdPlanBudgetQuoteApprovalTest extends TestCase
         return ServiceRatePackage::query()->create([
             'service_type' => ServiceRatePackage::SERVICE_DD_PLAN_BUDGET,
             'package_scope' => ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
-            'package_name' => 'DD + Business Plan & Budget',
-            'client_label' => 'DD + Business Plan & Budget',
+            'package_name' => 'Business Plan & Budget add-on',
+            'client_label' => 'Business Plan & Budget add-on',
             'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
             'fixed_fee' => 2400,
             'deposit_percent' => 100,
             'purchase_price_min' => null,
             'purchase_price_max' => null,
             'currency' => 'NZD',
-            'scope_description' => 'Acquisition business plan, funding budget, and advisor assessment for lenders.',
+            'scope_description' => 'Single Business Plan & Budget add-on fee added to the matched Explore Buying a Business purchase-price band when BP&B is included.',
             'is_active' => true,
             'effective_from' => now(),
         ]);

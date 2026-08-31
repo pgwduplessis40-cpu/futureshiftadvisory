@@ -643,15 +643,15 @@ export default function ServiceRatesIndex({
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                             <div>
                                 <div className="font-medium">
-                                    DD + Business Plan & Budget rates are not
+                                    Business Plan & Budget add-on rate is not
                                     loaded yet.
                                 </div>
                                 <p className="mt-1 max-w-3xl text-amber-900/80">
-                                    Advisors cannot approve buyer requests for
-                                    DD Business Plan & Budget access until at
-                                    least one active package exists for this
-                                    service. Use a template below, enter the
-                                    FSA-approved fee, then save the package.
+                                    Advisors cannot add Business Plan & Budget
+                                    to an Explore Buying a Business engagement
+                                    until one active BP&B add-on fee exists. Use
+                                    the template below, enter the FSA-approved
+                                    fee, then save the package.
                                 </p>
                             </div>
                             <Button
@@ -660,7 +660,7 @@ export default function ServiceRatesIndex({
                                 variant="outline"
                                 onClick={prepareDdPlanBudgetPackage}
                             >
-                                Add Business Plan & Budget rate
+                                Add BP&B add-on fee
                             </Button>
                         </div>
                     </section>
@@ -749,7 +749,7 @@ export default function ServiceRatesIndex({
                                                 Explore buying a business
                                             </option>
                                             <option value="dd_plan_budget">
-                                                DD + Business Plan & Budget
+                                                Business Plan & Budget add-on
                                             </option>
                                             <option value="entrepreneur">
                                                 Test new Business Idea
@@ -854,13 +854,15 @@ export default function ServiceRatesIndex({
                                     <div className="rounded-md border bg-muted/30 p-3 text-sm">
                                         <div className="font-medium">
                                             Single Business Plan & Budget add-on
-                                            rate
+                                            fee
                                         </div>
                                         <p className="mt-1 text-muted-foreground">
                                             This package is not banded by
-                                            purchase price. The client quote
-                                            combines the matched DD purchase
-                                            band with this single BP&B fee.
+                                            purchase price. Explore Buying a
+                                            Business keeps its own purchase
+                                            band, and this one BP&B fee is added
+                                            only when Business Plan & Budget is
+                                            included for the client.
                                         </p>
                                     </div>
                                 ) : null}
@@ -2304,8 +2306,8 @@ function ddPlanBudgetPackageTemplate() {
     return {
         service_type: 'dd_plan_budget',
         package_scope: 'dd_plan_budget_add_on',
-        package_name: 'DD + Business Plan & Budget',
-        client_label: 'DD + Business Plan & Budget',
+        package_name: 'Business Plan & Budget add-on',
+        client_label: 'Business Plan & Budget add-on',
         billing_model: 'fixed_fee',
         fixed_fee: '',
         deposit_percent: '100',
@@ -2314,7 +2316,7 @@ function ddPlanBudgetPackageTemplate() {
         purchase_price_min: '',
         purchase_price_max: '',
         scope_description:
-            'Single Business Plan & Budget add-on rate. The client quote combines the matched DD purchase-price band with this BP&B fee before approval.',
+            'Single Business Plan & Budget add-on fee. Explore Buying a Business keeps its matched purchase-price band, and this BP&B fee is added only when BP&B is included for the client.',
         is_active: true,
     };
 }
@@ -2323,7 +2325,7 @@ function serviceLabel(serviceType: ServiceRatePackage['service_type']) {
     return serviceType === 'due_diligence'
         ? 'Explore buying a business'
         : serviceType === 'dd_plan_budget'
-          ? 'DD + Business Plan & Budget'
+          ? 'Business Plan & Budget add-on'
           : serviceType === 'entrepreneur'
             ? 'Test new Business Idea'
             : 'Systems integration scoping';
@@ -2335,7 +2337,7 @@ function isDueDiligencePackageService(serviceType: string) {
 
 function packageScopeLabel(scope: PackageScope | null) {
     if (scope === 'dd_plan_budget_add_on') {
-        return 'Business Plan + Budget add-on';
+        return 'Business Plan & Budget add-on';
     }
 
     if (scope === 'dd_under_300k') {

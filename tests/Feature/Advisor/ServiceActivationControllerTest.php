@@ -246,7 +246,7 @@ final class ServiceActivationControllerTest extends TestCase
         };
         $label = match ($serviceType) {
             ServiceRatePackage::SERVICE_DUE_DILIGENCE => ServiceRatePackage::packageScopeLabel($packageScope),
-            ServiceRatePackage::SERVICE_DD_PLAN_BUDGET => 'DD + Business Plan & Budget',
+            ServiceRatePackage::SERVICE_DD_PLAN_BUDGET => 'Business Plan & Budget add-on',
             default => 'Entrepreneur plan and budget',
         };
 
