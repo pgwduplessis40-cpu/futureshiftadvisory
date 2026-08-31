@@ -20,7 +20,7 @@ namespace App\Support\Public;
 final class EngagementTypeCatalog
 {
     /**
-     * @return array<int, array{slug:string, title:string, tagline:string, summary:string, audience:string, deliverables:array<int,string>, accent:string, paths?:array<int,array{name:string, blurb:string}>, note?:string}>
+     * @return array<int, array{slug:string, title:string, tagline:string, summary:string, audience:string, deliverables:array<int,string>, accent:string, paths?:array<int,array{name:string, blurb:string}>, note?:string, detail_path?:string}>
      */
     public static function all(): array
     {
@@ -71,14 +71,16 @@ final class EngagementTypeCatalog
                 'slug' => 'entrepreneur_module',
                 'title' => 'Entrepreneur Module',
                 'tagline' => 'From first idea to ready-to-go.',
-                'summary' => 'Building something new? We walk alongside you from the first idea through to launch - pressure-testing the concept, shaping the plan, and giving you an honest read on whether it is ready. You will hear the encouraging parts and the hard parts, because both matter when it is your time and money on the line.',
-                'audience' => 'Founders and early-stage operators getting something off the ground in New Zealand.',
+                'summary' => 'Building something new? We walk alongside you from the first idea through to launch - idea validation to pressure-test the concept, an honest read on whether it is genuinely viable, and a business plan with real numbers behind it rather than one that sits in a drawer. You will hear the encouraging parts and the hard parts, because both matter when it is your time and money on the line.',
+                'audience' => 'First-time founders, startup teams, and early-stage operators getting something off the ground in New Zealand.',
                 'deliverables' => [
-                    'A readiness and idea-validation review',
+                    'Idea validation - a feasibility read on whether the concept holds up',
+                    'A business plan and budget with real numbers - the kind a bank, investor, or funder will actually read',
                     'A staged build plan with regular mentoring',
-                    'An honest assessment of where the idea stands',
+                    'An honest assessment of whether you are ready to launch',
                     'A natural path into Standard Advisory once you are trading',
                 ],
+                'detail_path' => '/services/entrepreneur',
                 'accent' => 'cognac',
             ],
             [

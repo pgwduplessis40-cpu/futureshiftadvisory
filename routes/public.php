@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Public\AboutController;
 use App\Http\Controllers\Public\ContactController;
+use App\Http\Controllers\Public\EntrepreneurServiceController;
 use App\Http\Controllers\Public\FaqController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\LlmsTxtController;
@@ -27,6 +28,8 @@ Route::get('/', HomeController::class)->name('home');
 
 Route::name('public.')->group(function (): void {
     Route::get('/services', ServicesController::class)->name('services');
+    Route::get('/services/entrepreneur', EntrepreneurServiceController::class)
+        ->name('services.entrepreneur');
     Route::get('/about', AboutController::class)->name('about');
     Route::get('/faq', FaqController::class)->name('faq');
 
