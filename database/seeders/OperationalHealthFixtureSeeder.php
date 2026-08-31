@@ -288,18 +288,18 @@ final class OperationalHealthFixtureSeeder extends Seeder
         $package = ServiceRatePackage::query()->updateOrCreate(
             [
                 'service_type' => ServiceRatePackage::SERVICE_DD_PLAN_BUDGET,
-                'package_name' => 'Operational Health DD + Business Plan & Budget',
+                'package_name' => 'Operational Health Business Plan & Budget add-on',
             ],
             [
                 'package_scope' => ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
-                'client_label' => 'DD + Business Plan & Budget',
+                'client_label' => 'Business Plan & Budget add-on',
                 'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
                 'fixed_fee' => 2400,
                 'deposit_percent' => 100,
                 'purchase_price_min' => null,
                 'purchase_price_max' => null,
                 'currency' => 'NZD',
-                'scope_description' => 'Operational health fixture for active DD Business Plan & Budget access.',
+                'scope_description' => 'Operational health fixture for the active Business Plan & Budget add-on fee.',
                 'is_active' => true,
                 'effective_from' => now(),
                 'effective_to' => null,
