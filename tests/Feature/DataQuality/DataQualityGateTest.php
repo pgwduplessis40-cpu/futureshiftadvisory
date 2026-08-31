@@ -123,6 +123,30 @@ final class DataQualityGateTest extends TestCase
         $this->assertSame(Client::DATA_QUALITY_HIGH, $client->refresh()->data_quality);
     }
 
+    public function test_recompute_job_safely_ignores_a_client_deleted_before_it_runs(): void
+    {
+        (new RecomputeDataQualityScore('00000000-0000-0000-0000-000000000004'))->handle(
+            app(DataQualityScorer::class),
+            app(RequestContext::class),
+        );
+
+        $this->assertDatabaseCount('clients', 0);
+    }
+
+    public function test_recompute_job_does_not_write_when_the_quality_level_is_already_current(): void
+    {
+        [, $client] = $this->clientUserWithClient();
+        $updatedAt = $client->updated_at?->toISOString();
+
+        $this->runRecompute($client);
+
+        $freshClient = $client->fresh();
+
+        $this->assertInstanceOf(Client::class, $freshClient);
+        $this->assertSame(Client::DATA_QUALITY_INSUFFICIENT, $freshClient->data_quality);
+        $this->assertSame($updatedAt, $freshClient->updated_at?->toISOString());
+    }
+
     public function test_gate_blocks_insufficient_quality_and_profile_payload_explains_the_fix(): void
     {
         $advisor = $this->advisor();
