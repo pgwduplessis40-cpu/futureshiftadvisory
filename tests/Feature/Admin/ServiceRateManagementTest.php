@@ -221,8 +221,8 @@ final class ServiceRateManagementTest extends TestCase
             ->post(route('admin.service-rates.packages.store'), [
                 'service_type' => ServiceRatePackage::SERVICE_DD_PLAN_BUDGET,
                 'package_scope' => ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
-                'package_name' => 'DD + Business Plan & Budget',
-                'client_label' => 'DD + Business Plan & Budget',
+                'package_name' => 'Business Plan & Budget add-on',
+                'client_label' => 'Business Plan & Budget add-on',
                 'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
                 'fixed_fee' => 2400,
                 'deposit_percent' => 100,
@@ -230,7 +230,7 @@ final class ServiceRateManagementTest extends TestCase
                 'retainer_amount' => null,
                 'purchase_price_min' => null,
                 'purchase_price_max' => null,
-                'scope_description' => 'Acquisition business plan, funding budget, lender-readiness pack, and advisor assessment built from DD evidence.',
+                'scope_description' => 'Single Business Plan & Budget add-on fee added to the matched Explore Buying a Business purchase-price band when BP&B is included.',
                 'is_active' => true,
             ])
             ->assertRedirect(route('admin.service-rates.index', absolute: false));
@@ -240,7 +240,7 @@ final class ServiceRateManagementTest extends TestCase
             ->where('package_scope', ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON)
             ->firstOrFail();
 
-        $this->assertSame('DD + Business Plan & Budget', $package->client_label);
+        $this->assertSame('Business Plan & Budget add-on', $package->client_label);
         $this->assertSame(2400.0, $package->fixed_fee);
         $this->assertNull($package->purchase_price_min);
         $this->assertNull($package->purchase_price_max);
