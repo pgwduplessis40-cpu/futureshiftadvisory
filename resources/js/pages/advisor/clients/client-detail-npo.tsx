@@ -482,6 +482,7 @@ export function NpoConfigurationPanel({
                                     >
                                         <Checkbox
                                             id={`tiriti_${question.key}`}
+                                            name={`tiriti_decision_guide[${question.key}]`}
                                             checked={
                                                 form.data.tiriti_decision_guide[
                                                     question.key
@@ -543,6 +544,7 @@ export function NpoConfigurationPanel({
                         >
                             <Checkbox
                                 id="npo_social_enterprise"
+                                name="social_enterprise"
                                 checked={form.data.social_enterprise}
                                 onCheckedChange={(checked) =>
                                     form.setData(

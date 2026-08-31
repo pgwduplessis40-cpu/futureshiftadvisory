@@ -1309,6 +1309,8 @@ export function BudgetEvidenceInputs({
             <label className="flex items-end gap-2 pb-2 text-xs text-muted-foreground">
                 <input
                     type="checkbox"
+                    name="source_confirmed"
+                    aria-label={`Confirm ${revenue ? 'revenue' : 'cost'} evidence source`}
                     checked={Boolean(row.source_confirmed)}
                     onChange={(event) =>
                         onChange({ source_confirmed: event.target.checked })
@@ -1387,6 +1389,8 @@ export function BudgetAssumptionsEditor({
                 <span className="flex items-center gap-2 text-[11px] leading-snug text-muted-foreground">
                     <input
                         type="checkbox"
+                        name="forecast_start_confirmed"
+                        aria-label="Confirm forecast start month"
                         checked={Boolean(assumptions.forecast_start_confirmed)}
                         onChange={(event) =>
                             onFormChange((current) => ({
@@ -1434,6 +1438,8 @@ export function BudgetAssumptionsEditor({
                 <label className="flex items-center gap-2">
                     <input
                         type="checkbox"
+                        name="opening_cash_verified"
+                        aria-label="Confirm opening cash against current bank records"
                         checked={Boolean(assumptions.opening_cash_verified)}
                         onChange={(event) =>
                             onFormChange((current) => ({
@@ -1450,6 +1456,8 @@ export function BudgetAssumptionsEditor({
                 <label className="flex items-center gap-2">
                     <input
                         type="checkbox"
+                        name="working_capital_verified"
+                        aria-label="Confirm debtor and creditor days against actual terms"
                         checked={Boolean(assumptions.working_capital_verified)}
                         onChange={(event) =>
                             onFormChange((current) => ({
@@ -1532,6 +1540,8 @@ export function BudgetAssumptionsEditor({
                     <span className="flex items-center gap-2 leading-snug text-muted-foreground">
                         <input
                             type="checkbox"
+                            name="funding_position_confirmed"
+                            aria-label="Confirm the funding position matches the written plan"
                             checked={Boolean(
                                 assumptions.funding_position_confirmed,
                             )}
