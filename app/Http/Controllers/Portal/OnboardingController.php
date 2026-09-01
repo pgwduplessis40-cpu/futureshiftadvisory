@@ -66,7 +66,7 @@ final class OnboardingController extends Controller
     {
         $client = $this->clients->resolveFor($request);
 
-        if ($this->isRetiredStep($step)) {
+        if ($this->isRetiredStep($client, $step)) {
             return to_route('portal.onboarding.step', [
                 'step' => $this->wizard->currentStepSlug($client),
             ]);
@@ -481,12 +481,20 @@ final class OnboardingController extends Controller
             ->first();
     }
 
-    private function isRetiredStep(string $step): bool
+    private function isRetiredStep(Client $client, string $step): bool
     {
-        return in_array($step, [
+        if (in_array($step, [
             OnboardingWizard::STEP_IDENTITY,
             OnboardingWizard::STEP_BUSINESS_SNAPSHOT,
-        ], true);
+        ], true)) {
+            return true;
+        }
+
+        return $client->engagement_type === EngagementType::POST_ACQUISITION_ADVISORY
+            && in_array($step, [
+                OnboardingWizard::STEP_GOALS,
+                OnboardingWizard::STEP_WEBSITE,
+            ], true);
     }
 
     /**

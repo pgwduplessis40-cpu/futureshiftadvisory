@@ -297,7 +297,10 @@ export default function OnboardingStep({
                         description={
                             client.engagement_type === 'due_diligence'
                                 ? 'The steps collect your DD support needs, questionnaire answers, and acquisition evidence for advisor review.'
-                                : 'The steps collect your goals, website, questionnaire answers, and evidence for advisor review.'
+                                : client.engagement_type ===
+                                    'post_acquisition_advisory'
+                                  ? 'The steps confirm DD handoff gaps, post-close questionnaire answers, and evidence for advisor review.'
+                                  : 'The steps collect your goals, website, questionnaire answers, and evidence for advisor review.'
                         }
                         explanation={{
                             title: 'Onboarding progress',

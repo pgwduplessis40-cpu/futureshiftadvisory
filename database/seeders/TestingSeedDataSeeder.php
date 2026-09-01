@@ -118,6 +118,7 @@ final class TestingSeedDataSeeder extends Seeder
             $this->seedProposalTemplate();
             $this->seedProspectIntake();
             $this->seedClients();
+            $this->cleanupSeedBoundaryDrift();
             $this->seedPilotFeeWaiverProgram();
             $this->seedClientAllocationTestData();
             $this->seedServicePackagesAndActivationFlow();
@@ -149,6 +150,8 @@ final class TestingSeedDataSeeder extends Seeder
             'team' => ['Seed Finance Lead', 'seed.client.team@futureshiftadvisory.test', User::TYPE_CLIENT_TEAM, 20],
             'buyer' => ['Seed Buyer Principal', 'seed.buyer.primary@futureshiftadvisory.test', User::TYPE_CLIENT_PRIMARY, 20],
             'analyst' => ['Seed Buyer Analyst', 'seed.buyer.analyst@futureshiftadvisory.test', User::TYPE_CLIENT_TEAM, 20],
+            'ddDepositPending' => ['Seed DD Deposit Buyer', 'seed.dd.deposit@futureshiftadvisory.test', User::TYPE_CLIENT_PRIMARY, 20],
+            'postAcquisitionPrimary' => ['Seed Post-acquisition Principal', 'seed.postacquisition.primary@futureshiftadvisory.test', User::TYPE_CLIENT_PRIMARY, 20],
             'entrepreneur' => ['Seed Founder', 'seed.entrepreneur@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
             'ddGuided' => ['Seed DD Guided Buyer', 'seed.dd.guided@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
             'ddExperience' => ['Seed DD Experienced Buyer', 'seed.dd.experience@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
@@ -530,6 +533,39 @@ XML);
             ],
         );
 
+        $this->clients['ddDepositPending'] = Client::query()->updateOrCreate(
+            ['nzbn' => '9429000000164'],
+            [
+                'engagement_type' => EngagementType::DUE_DILIGENCE->value,
+                'status' => ClientStatus::ACTIVE->value,
+                'legal_name' => 'Canterbury Precision Buyers Limited',
+                'trading_name' => 'Canterbury Precision Buyers',
+                'entity_type' => 'NZ Limited Company',
+                'address' => [
+                    'line1' => '18 Montreal Street',
+                    'city' => 'Christchurch',
+                    'region' => 'Canterbury',
+                    'country' => 'NZ',
+                ],
+                'gst_registered' => true,
+                'directors' => [
+                    ['name' => 'Seed DD Deposit Buyer', 'role' => 'Director'],
+                ],
+                'filing_status' => 'up_to_date',
+                'data_quality' => Client::DATA_QUALITY_MEDIUM,
+                'registry_sources' => ['nzbn' => 'seeded', 'fixture' => 'dd_deposit_pending'],
+                'created_by_user_id' => $this->users['advisor']->getKey(),
+                'primary_contact_user_id' => $this->users['ddDepositPending']->getKey(),
+                'engagement_type_locked_at' => $this->now->copy()->subDays(4),
+                'onboarding_wizard_state' => [
+                    'journey_version' => 4,
+                    'completed_steps' => ['welcome', 'dd-support-level'],
+                    'current_step' => 3,
+                    'fixture' => 'dd_deposit_pending',
+                ],
+            ],
+        );
+
         $this->clients['postAcquisition'] = Client::query()->updateOrCreate(
             ['nzbn' => '9429000000034'],
             [
@@ -545,16 +581,17 @@ XML);
                     'country' => 'NZ',
                 ],
                 'gst_registered' => true,
-                'directors' => [['name' => 'Seed Buyer Principal', 'role' => 'Director']],
+                'directors' => [['name' => 'Seed Post-acquisition Principal', 'role' => 'Director']],
                 'filing_status' => 'up_to_date',
                 'data_quality' => Client::DATA_QUALITY_MEDIUM,
                 'registry_sources' => ['nzbn' => 'seeded'],
                 'created_by_user_id' => $this->users['advisor']->getKey(),
-                'primary_contact_user_id' => $this->users['buyer']->getKey(),
+                'primary_contact_user_id' => $this->users['postAcquisitionPrimary']->getKey(),
                 'engagement_type_locked_at' => $this->now->copy()->subDays(3),
                 'onboarding_wizard_state' => [
-                    'completed_steps' => ['welcome', 'identity', 'business-snapshot', 'goals', 'questionnaire'],
-                    'current_step' => 6,
+                    'journey_version' => 4,
+                    'completed_steps' => ['welcome', 'questionnaire'],
+                    'current_step' => 3,
                 ],
             ],
         );
@@ -829,6 +866,32 @@ XML);
         $this->seedConflictDeclarations();
     }
 
+    private function cleanupSeedBoundaryDrift(): void
+    {
+        if (! isset($this->clients['postAcquisition'], $this->users['buyer'])) {
+            return;
+        }
+
+        DB::table('client_team')
+            ->where('client_id', $this->clients['postAcquisition']->getKey())
+            ->where('user_id', $this->users['buyer']->getKey())
+            ->delete();
+
+        if (! Schema::hasTable('service_activations')) {
+            return;
+        }
+
+        DB::table('service_activations')
+            ->where('client_id', $this->clients['postAcquisition']->getKey())
+            ->where('service_type', ServiceActivation::SERVICE_DUE_DILIGENCE)
+            ->where(function (Builder $query): void {
+                $query
+                    ->where('client_label', 'Explore buying a business')
+                    ->orWhere('metadata->fixture_key', 'service_activation_dd_deposit_due');
+            })
+            ->delete();
+    }
+
     private function seedPilotFeeWaiverProgram(): void
     {
         PilotFeeWaiverProgram::query()->updateOrCreate(
@@ -917,12 +980,14 @@ XML);
             ['ddGuided', 'ddGuided', 'primary_contact', ['portal', 'documents', 'entrepreneur_module', 'dd']],
             ['ddExperience', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'entrepreneur_module', 'dd', 'reports']],
             ['ddExperience', 'ddExperience', 'primary_contact', ['portal', 'documents', 'entrepreneur_module', 'dd']],
+            ['ddDepositPending', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'dd', 'reports']],
+            ['ddDepositPending', 'ddDepositPending', 'primary_contact', ['portal', 'documents', 'dd']],
             ['dd', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'dd', 'reports']],
             ['dd', 'junior', 'advisor', ['documents', 'dd']],
             ['dd', 'buyer', 'primary_contact', ['portal', 'documents', 'dd']],
             ['dd', 'analyst', 'client_team', ['documents', 'dd']],
             ['postAcquisition', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'post_acquisition']],
-            ['postAcquisition', 'buyer', 'primary_contact', ['portal', 'documents', 'post_acquisition']],
+            ['postAcquisition', 'postAcquisitionPrimary', 'primary_contact', ['portal', 'documents', 'post_acquisition']],
             ['paused', 'advisor', 'lead_advisor', ['dashboard', 'documents']],
             ['paused', 'suspendedClient', 'primary_contact', ['portal', 'documents']],
             ['offboarded', 'advisor', 'lead_advisor', ['dashboard', 'reports']],
@@ -954,14 +1019,14 @@ XML);
 
     private function seedConflictDeclarations(): void
     {
-        foreach (['advisory', 'ddGuided', 'ddExperience', 'dd', 'postAcquisition', 'npo', 'socialEnterprise', ...array_keys($this->pvWaterfallClientDefinitions())] as $clientKey) {
+        foreach (['advisory', 'ddGuided', 'ddExperience', 'ddDepositPending', 'dd', 'postAcquisition', 'npo', 'socialEnterprise', ...array_keys($this->pvWaterfallClientDefinitions())] as $clientKey) {
             $this->ids["conflict_{$clientKey}"] = $this->upsert('conflict_declarations', [
                 'client_id' => $this->clients[$clientKey]->getKey(),
                 'advisor_id' => $this->users['advisor']->getKey(),
             ], [
                 'declaration' => $this->json([
-                    'has_conflict' => in_array($clientKey, ['ddGuided', 'ddExperience', 'dd'], true),
-                    'summary' => in_array($clientKey, ['ddGuided', 'ddExperience', 'dd'], true)
+                    'has_conflict' => in_array($clientKey, ['ddGuided', 'ddExperience', 'ddDepositPending', 'dd'], true),
+                    'summary' => in_array($clientKey, ['ddGuided', 'ddExperience', 'ddDepositPending', 'dd'], true)
                         ? 'Advisor has prior sector familiarity but no financial interest in the target.'
                         : 'No known conflicts for this seeded engagement.',
                     'mitigation' => 'Reviewed by the seed super admin fixture.',
@@ -1005,8 +1070,8 @@ XML);
 
         $this->seedServiceActivationScenario(
             key: 'service_activation_dd_deposit_due',
-            clientKey: 'postAcquisition',
-            userKey: 'buyer',
+            clientKey: 'ddDepositPending',
+            userKey: 'ddDepositPending',
             packageId: $packageIds['dd_1m_3m'] ?? null,
             serviceType: ServiceActivation::SERVICE_DUE_DILIGENCE,
             paymentStatus: ServiceActivation::PAYMENT_DEPOSIT_PENDING,
@@ -1303,7 +1368,7 @@ XML);
         $gap = $this->seedQuestionnaireResponse(
             client: $this->clients['postAcquisition'],
             set: QuestionnaireSet::POST_ACQUISITION_GAP,
-            submittedBy: $this->users['buyer'],
+            submittedBy: $this->users['postAcquisitionPrimary'],
             attachedDocumentId: (string) $this->ids['doc_contract'],
         );
         $this->ids['post_acquisition_response'] = $gap['response_id'];
@@ -5497,7 +5562,7 @@ XML);
             client: $this->clients['postAcquisition'],
             category: Document::CATEGORY_FINANCIAL_STATEMENT,
             filename: 'kauri-kitchens-management-accounts-may-2026.xlsx',
-            uploader: $this->users['buyer'],
+            uploader: $this->users['postAcquisitionPrimary'],
             scannerResult: Document::SCANNER_CLEAN,
             expiresAt: null,
             size: 345_000,
@@ -6394,7 +6459,9 @@ XML);
     private function portalActorForClient(string $clientKey): User
     {
         return match ($clientKey) {
-            'dd', 'postAcquisition' => $this->users['buyer'],
+            'dd' => $this->users['buyer'],
+            'ddDepositPending' => $this->users['ddDepositPending'],
+            'postAcquisition' => $this->users['postAcquisitionPrimary'],
             'npo' => $this->users['npoPrimary'],
             'socialEnterprise' => $this->users['socialEnterprise'],
             default => $this->users['primary'],
