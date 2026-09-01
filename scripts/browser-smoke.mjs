@@ -524,7 +524,9 @@ async function assertApprovedScreenshot(page, flow, viewport) {
         artifactRoot,
         `${safeName(flow.name)}-${viewport}.actual.png`,
     );
-    const actual = await page.screenshot({ fullPage: true });
+    // Puppeteer returns a Uint8Array here. pngjs requires a Node Buffer; using
+    // it directly makes the visual gate fail before comparing any screenshot.
+    const actual = Buffer.from(await page.screenshot({ fullPage: true }));
     writeFileSync(actualPath, actual);
 
     if (!existsSync(expectedPath)) {

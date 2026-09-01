@@ -55,7 +55,7 @@ final class BrowserE2eFixtureTest extends TestCase
         self::assertTrue($clientUser->hasEnabledTwoFactorAuthentication());
         self::assertTrue($npoUser->hasEnabledTwoFactorAuthentication());
         self::assertSame(
-            'JBSWY3DPEHPK3PXP',
+            'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP',
             Fortify::currentEncrypter()->decrypt($advisor->two_factor_secret),
         );
         self::assertSame(
@@ -100,13 +100,13 @@ final class BrowserE2eFixtureTest extends TestCase
         foreach ([
             'E2E_ADVISOR_EMAIL' => 'browser-e2e-advisor@example.test',
             'E2E_ADVISOR_PASSWORD' => 'Browser-E2E-password-1',
-            'E2E_ADVISOR_MFA_SECRET' => 'JBSWY3DPEHPK3PXP',
+            'E2E_ADVISOR_MFA_SECRET' => 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP',
             'E2E_CLIENT_EMAIL' => 'browser-e2e-client@example.test',
             'E2E_CLIENT_PASSWORD' => 'Browser-E2E-password-2',
-            'E2E_CLIENT_MFA_SECRET' => 'KRSXG5DSNFXGOIDB',
+            'E2E_CLIENT_MFA_SECRET' => 'KRSXG5DSNFXGOIDBKRSXG5DSNFXGOIDB',
             'E2E_NPO_EMAIL' => 'browser-e2e-npo@example.test',
             'E2E_NPO_PASSWORD' => 'Browser-E2E-password-3',
-            'E2E_NPO_MFA_SECRET' => 'MFRGGZDFMZTWQ2LK',
+            'E2E_NPO_MFA_SECRET' => 'MFRGGZDFMZTWQ2LKMFRGGZDFMZTWQ2LK',
         ] as $name => $value) {
             $this->originalEnvironment[$name] = getenv($name);
             putenv("{$name}={$value}");

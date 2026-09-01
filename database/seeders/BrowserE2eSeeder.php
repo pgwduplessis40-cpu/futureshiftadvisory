@@ -108,7 +108,7 @@ final class BrowserE2eSeeder extends Seeder
     {
         $email = $this->required("E2E_{$prefix}_EMAIL");
         $password = $this->required("E2E_{$prefix}_PASSWORD");
-        $totpSecret = $this->required("E2E_{$prefix}_MFA_SECRET");
+        $totpSecret = $this->requiredTotpSecret("E2E_{$prefix}_MFA_SECRET");
         $encrypter = Fortify::currentEncrypter();
 
         $user = User::query()->firstOrNew(['email' => $email]);
@@ -143,6 +143,18 @@ final class BrowserE2eSeeder extends Seeder
 
         if (! is_string($value) || trim($value) === '') {
             throw new LogicException("{$name} must be provided by CI secrets.");
+        }
+
+        return $value;
+    }
+
+    private function requiredTotpSecret(string $name): string
+    {
+        $value = strtoupper(str_replace(' ', '', $this->required($name)));
+        $unpadded = rtrim($value, '=');
+
+        if (preg_match('/^[A-Z2-7]+$/', $unpadded) !== 1 || (strlen($unpadded) * 5) < 128) {
+            throw new LogicException("{$name} must be a base32 TOTP secret with at least 128 bits of entropy.");
         }
 
         return $value;
