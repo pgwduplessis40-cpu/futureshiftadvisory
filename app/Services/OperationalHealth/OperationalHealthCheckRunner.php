@@ -6,10 +6,12 @@ namespace App\Services\OperationalHealth;
 
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
+use App\Enums\ReportType;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\OperationalHealthCheckResult;
 use App\Models\OperationalHealthCheckRun;
+use App\Models\Report;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\Pdf\SimpleTextPdf;
@@ -25,6 +27,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -80,6 +83,7 @@ final class OperationalHealthCheckRunner
         $entrepreneurUser = $this->entrepreneurUser();
         $advisorClient = $this->advisorClientCandidate();
         $advisorDueDiligenceClient = $this->advisorClientCandidate(EngagementType::DUE_DILIGENCE);
+        $advisorDueDiligenceReport = $this->advisorDueDiligenceReportCandidate($advisorDueDiligenceClient);
         $document = $this->clientDocumentCandidate();
         $documentUser = $document instanceof Document && is_string($document->client_id)
             ? $this->clientPortalUserForClient($document->client_id)
@@ -140,6 +144,7 @@ final class OperationalHealthCheckRunner
                 'missing_fixture' => null,
                 'sentinel' => true,
             ],
+            ...$this->externalEdgeDefinitions(),
             [
                 'key' => 'pwa.service_worker',
                 'name' => 'Service worker freshness',
@@ -261,6 +266,31 @@ final class OperationalHealthCheckRunner
                     'type' => 'client',
                     'id' => (string) $advisorDueDiligenceClient->getKey(),
                     'label' => $advisorDueDiligenceClient->legal_name,
+                ] : null,
+            ],
+            [
+                'key' => 'advisor.dd_client.feedback',
+                'name' => 'Advisor DD feedback save',
+                'area' => 'Advisor workflow',
+                'method' => 'PATCH',
+                'url' => $advisorDueDiligenceReport instanceof Report
+                    ? route('advisor.reports.dd-feedback', $advisorDueDiligenceReport, absolute: false)
+                    : null,
+                'route_name' => 'advisor.reports.dd-feedback',
+                'user' => $superAdmin,
+                'payload' => [
+                    'advisor_feedback' => 'Operational health monitor: validate the DD feedback save route without client delivery.',
+                    'proposed_reply' => 'Operational health monitor: this synthetic feedback check must not send a client message.',
+                    'send_to_client' => false,
+                ],
+                'rollback_database' => true,
+                'expected_statuses' => [303],
+                'expected_behavior' => 'An authorised advisor should be able to save synthetic DD feedback without a stale report route or client message delivery.',
+                'missing_fixture' => 'No reviewed due-diligence report monitor fixture is available.',
+                'subject' => $advisorDueDiligenceReport instanceof Report ? [
+                    'type' => 'report',
+                    'id' => (string) $advisorDueDiligenceReport->getKey(),
+                    'label' => $advisorDueDiligenceReport->title,
                 ] : null,
             ],
             [
@@ -454,11 +484,19 @@ final class OperationalHealthCheckRunner
             return;
         }
 
-        $probe = $this->dispatchInternalRequest(
-            method: (string) ($definition['method'] ?? 'GET'),
-            url: $url,
-            user: $user instanceof User ? $user : null,
-        );
+        $externalRequest = ($definition['kind'] ?? null) === 'external_http';
+        $probe = $externalRequest
+            ? $this->dispatchExternalRequest(
+                method: (string) ($definition['method'] ?? 'GET'),
+                url: $url,
+            )
+            : $this->dispatchInternalRequest(
+                method: (string) ($definition['method'] ?? 'GET'),
+                url: $url,
+                user: $user instanceof User ? $user : null,
+                payload: is_array($definition['payload'] ?? null) ? $definition['payload'] : [],
+                rollbackDatabase: (bool) ($definition['rollback_database'] ?? false),
+            );
 
         $expectedStatuses = array_map('intval', (array) ($definition['expected_statuses'] ?? [200]));
         $actualStatus = is_int($probe['status'] ?? null) ? $probe['status'] : null;
@@ -512,9 +550,54 @@ final class OperationalHealthCheckRunner
                 'fallback_pdf_detected' => $fallbackPdfDetected,
                 'fallback_pdf_marker' => $fallbackPdfDetected ? SimpleTextPdf::FALLBACK_MARKER : null,
                 'response_headers' => $probe['headers'] ?? [],
-                'internal_request' => true,
+                'internal_request' => ! $externalRequest,
             ],
         ]);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function externalEdgeDefinitions(): array
+    {
+        if (! (bool) config('operational_health.external_edge_enabled', false)) {
+            return [];
+        }
+
+        $baseUrl = trim((string) config('operational_health.external_edge_url', ''));
+        $baseUrl = rtrim($baseUrl, '/');
+
+        if (filter_var($baseUrl, FILTER_VALIDATE_URL) === false) {
+            return [[
+                'key' => 'public.edge.login',
+                'name' => 'Public login route via nginx',
+                'area' => 'Public edge',
+                'method' => 'GET',
+                'url' => null,
+                'route_name' => 'login',
+                'user' => null,
+                'expected_statuses' => [200],
+                'expected_behavior' => 'The public login route should be reachable through the configured nginx edge.',
+                'missing_fixture' => null,
+                'sentinel' => true,
+                'kind' => 'external_http',
+            ]];
+        }
+
+        return [[
+            'key' => 'public.edge.login',
+            'name' => 'Public login route via nginx',
+            'area' => 'Public edge',
+            'method' => 'GET',
+            'url' => $baseUrl.'/login',
+            'route_name' => 'login',
+            'user' => null,
+            'expected_statuses' => [200],
+            'expected_behavior' => 'The public login route should be reachable through the configured nginx edge, rather than only through Laravel’s in-process kernel.',
+            'missing_fixture' => null,
+            'sentinel' => true,
+            'kind' => 'external_http',
+        ]];
     }
 
     /**
@@ -700,7 +783,13 @@ final class OperationalHealthCheckRunner
     /**
      * @return array<string, mixed>
      */
-    private function dispatchInternalRequest(string $method, string $url, ?User $user): array
+    private function dispatchInternalRequest(
+        string $method,
+        string $url,
+        ?User $user,
+        array $payload = [],
+        bool $rollbackDatabase = false,
+    ): array
     {
         $started = hrtime(true);
         $session = app('session')->driver();
@@ -709,12 +798,15 @@ final class OperationalHealthCheckRunner
         /** @var Request $originalRequest */
         $originalRequest = app('request');
         $originalUser = Auth::guard('web')->user();
+        $startingTransactionLevel = DB::transactionLevel();
 
         $session->setId(Str::random(40));
         $session->replace([]);
         $session->start();
 
-        $request = Request::create($url, strtoupper($method), [], [], [], [
+        $payload['_token'] = $session->token();
+
+        $request = Request::create($url, strtoupper($method), $payload, [], [], [
             'HTTP_ACCEPT' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'HTTP_X_INERTIA' => 'true',
             'HTTP_X_INERTIA_VERSION' => $this->inertiaVersion(),
@@ -742,6 +834,10 @@ final class OperationalHealthCheckRunner
         $kernel = app(HttpKernel::class);
 
         try {
+            if ($rollbackDatabase) {
+                DB::beginTransaction();
+            }
+
             $response = $kernel->handle($request);
             $kernel->terminate($request, $response);
 
@@ -761,6 +857,10 @@ final class OperationalHealthCheckRunner
                 'headers' => [],
             ];
         } finally {
+            while (DB::transactionLevel() > $startingTransactionLevel) {
+                DB::rollBack();
+            }
+
             app()->instance('request', $originalRequest);
             $session->setId($originalSessionId);
             $session->replace($originalSessionData);
@@ -769,6 +869,54 @@ final class OperationalHealthCheckRunner
             if ($originalUser instanceof User) {
                 Auth::guard('web')->setUser($originalUser);
             }
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function dispatchExternalRequest(string $method, string $url): array
+    {
+        $started = hrtime(true);
+
+        try {
+            $response = Http::accept('text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8')
+                ->withUserAgent('FutureShiftAdvisory OperationalHealthEdgeCheck/1.0')
+                ->timeout(20)
+                ->send(strtoupper($method), $url);
+            $headers = [];
+
+            foreach ($response->headers() as $name => $values) {
+                $headers[strtolower((string) $name)] = implode(', ', array_map('strval', (array) $values));
+            }
+
+            $body = $response->body();
+
+            return [
+                'status' => $response->status(),
+                'duration_ms' => $this->elapsedMs($started),
+                'content_type' => $response->header('Content-Type'),
+                'redirect_url' => $response->header('Location'),
+                'body_excerpt' => $this->bodyExcerpt($body),
+                'fallback_pdf_detected' => false,
+                'exception_class' => null,
+                'exception_message' => null,
+                'headers' => $headers,
+            ];
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return [
+                'status' => null,
+                'duration_ms' => $this->elapsedMs($started),
+                'content_type' => null,
+                'redirect_url' => null,
+                'body_excerpt' => null,
+                'fallback_pdf_detected' => false,
+                'exception_class' => $exception::class,
+                'exception_message' => Str::limit($exception->getMessage(), 500, ''),
+                'headers' => [],
+            ];
         }
     }
 
@@ -1175,6 +1323,23 @@ final class OperationalHealthCheckRunner
         }
 
         return $query->oldest('created_at')->first();
+    }
+
+    private function advisorDueDiligenceReportCandidate(?Client $client): ?Report
+    {
+        if (! $client instanceof Client || ! Schema::hasTable('reports')) {
+            return null;
+        }
+
+        return Report::query()
+            ->where('client_id', $client->getKey())
+            ->whereIn('type', [
+                ReportType::DueDiligence->value,
+                ReportType::AcquisitionGoNoGo->value,
+            ])
+            ->where('review_status', 'reviewed')
+            ->latest('generated_at')
+            ->first();
     }
 
     private function clientDocumentCandidate(): ?Document

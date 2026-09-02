@@ -90,6 +90,18 @@ const flows = [
         path: process.env.E2E_CLIENT_SCREEN_PATH,
         expected: process.env.E2E_CLIENT_SCREEN_EXPECT ?? 'Screen',
     },
+    {
+        name: 'DD Client Information',
+        account: accounts.advisor,
+        path:
+            process.env.E2E_DD_CLIENT_SCREEN_PATH ??
+            '/advisor/clients/00000000-0000-4000-8000-000000000003',
+        expected:
+            process.env.E2E_DD_CLIENT_SCREEN_EXPECT ??
+            'Browser E2E Due Diligence Client',
+        informationTab: true,
+        screenshot: false,
+    },
 ];
 
 const browser = await puppeteer.launch({
@@ -342,11 +354,19 @@ async function runFlowViewport(browserInstance, flow, viewport) {
         await assertAccessibility(page, flow, viewport.name);
         await assertKeyboardFocus(page, flow, viewport.name);
 
-        await settleVisualCapture(
-            page,
-            viewport.isMobile && usesPwaInstallFallback(flow),
-        );
-        await assertApprovedScreenshot(page, flow, viewport.name);
+        if (flow.informationTab) {
+            await assertClientInformationTab(page, flow, viewport.name);
+            await assertAccessibility(page, flow, viewport.name);
+            await assertKeyboardFocus(page, flow, viewport.name);
+        }
+
+        if (flow.screenshot !== false) {
+            await settleVisualCapture(
+                page,
+                viewport.isMobile && usesPwaInstallFallback(flow),
+            );
+            await assertApprovedScreenshot(page, flow, viewport.name);
+        }
     } catch (error) {
         try {
             await page.screenshot({
@@ -578,6 +598,41 @@ async function assertExpectedContent(page, flow, viewport) {
 
         throw new Error(
             `${flow.name} did not render expected marker "${flow.expected}" on ${viewport} at ${pageIdentity.pathname} (${pageIdentity.component ?? pageIdentity.title}).`,
+        );
+    }
+}
+
+async function assertClientInformationTab(page, flow, viewport) {
+    const tabList = page.locator('[role="tablist"][aria-label="Client detail sections"]');
+    const informationTab = tabList.getByRole('tab', {
+        name: 'Information',
+        exact: true,
+    });
+
+    await informationTab.click();
+    await page.waitForFunction(
+        () =>
+            document.body.innerText.includes('Client information') ||
+            document.body.innerText.includes('We could not load this page'),
+        { timeout: 10_000 },
+    );
+
+    const result = await page.evaluate(() => ({
+        hasErrorBoundary: document.body.innerText.includes(
+            'We could not load this page',
+        ),
+        engagementVisible: Boolean(document.querySelector('#section-engagement')),
+    }));
+
+    if (result.hasErrorBoundary) {
+        throw new Error(
+            `${flow.name} rendered the application error boundary after selecting Information on ${viewport}.`,
+        );
+    }
+
+    if (!result.engagementVisible) {
+        throw new Error(
+            `${flow.name} did not render its engagement section after selecting Information on ${viewport}.`,
         );
     }
 }
