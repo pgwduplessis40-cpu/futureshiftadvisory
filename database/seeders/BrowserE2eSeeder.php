@@ -9,8 +9,6 @@ use App\Enums\NpoEngagementSubType;
 use App\Enums\NpoLegalStructure;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
-use App\Models\ConflictDeclaration;
-use App\Models\DdEngagement;
 use App\Models\NpoBoardMember;
 use App\Models\NpoEngagement;
 use App\Models\User;
@@ -31,7 +29,7 @@ final class BrowserE2eSeeder extends Seeder
      * fixture timestamp fixed prevents date labels from making visual
      * approval fail on a later CI day.
      */
-    private const FIXTURE_TIMESTAMP = '2026-08-26 22:15:00';
+    public const FIXTURE_TIMESTAMP = '2026-08-26 22:15:00';
 
     public function run(): void
     {
@@ -40,8 +38,6 @@ final class BrowserE2eSeeder extends Seeder
         }
 
         $this->call(RoleSeeder::class);
-        $this->call(DdSpecificQuestionnaireV2Seeder::class);
-
         $advisor = $this->upsertUser('ADVISOR', User::TYPE_ADVISOR);
         $clientUser = $this->upsertUser('CLIENT', User::TYPE_CLIENT_PRIMARY);
         $npoUser = $this->upsertUser('NPO', User::TYPE_NPO_BOARD_MEMBER);
@@ -89,23 +85,6 @@ final class BrowserE2eSeeder extends Seeder
             ],
         );
 
-        $ddClient = $this->upsertClient(
-            id: '00000000-0000-4000-8000-000000000003',
-            legalName: 'Browser E2E Due Diligence Client',
-            engagementType: EngagementType::DUE_DILIGENCE,
-            advisor: $advisor,
-            contact: $clientUser,
-        );
-        foreach ([
-            [$advisor, 'lead_advisor'],
-            [$clientUser, 'primary_contact'],
-        ] as [$user, $role]) {
-            ClientTeamMember::query()->updateOrCreate(
-                ['client_id' => $ddClient->getKey(), 'user_id' => $user->getKey()],
-                ['role' => $role, 'granted_modules' => [EngagementType::DUE_DILIGENCE->value]],
-            );
-        }
-        $this->upsertDdEngagement($ddClient, $advisor);
     }
 
     private function upsertClient(string $id, string $legalName, EngagementType $engagementType, User $advisor, User $contact): Client
@@ -127,41 +106,6 @@ final class BrowserE2eSeeder extends Seeder
         ])->save();
 
         return $client;
-    }
-
-    private function upsertDdEngagement(Client $client, User $advisor): void
-    {
-        $conflict = ConflictDeclaration::query()->updateOrCreate(
-            [
-                'client_id' => $client->getKey(),
-                'advisor_id' => $advisor->getKey(),
-            ],
-            [
-                'declaration' => [
-                    'known_conflicts' => false,
-                    'source' => 'browser_e2e_fixture',
-                ],
-                'declared_at' => $this->fixtureTimestamp(),
-            ],
-        );
-
-        DdEngagement::query()->updateOrCreate(
-            [
-                'client_id' => $client->getKey(),
-                'target_name' => 'Browser E2E DD Target Ltd',
-            ],
-            [
-                'target_details' => [
-                    'sector' => 'Testing',
-                    'purpose' => 'Isolated browser test fixture.',
-                ],
-                'status' => DdEngagement::STATUS_IN_PROGRESS,
-                'recommendation' => null,
-                'conflict_declaration_id' => $conflict->getKey(),
-                'created_by_user_id' => $advisor->getKey(),
-                'disclaimer_acknowledged_at' => $this->fixtureTimestamp(),
-            ],
-        );
     }
 
     private function upsertUser(string $prefix, string $type): User
@@ -223,7 +167,7 @@ final class BrowserE2eSeeder extends Seeder
         return $unpadded;
     }
 
-    private function fixtureTimestamp(): CarbonImmutable
+    public static function fixtureTimestamp(): CarbonImmutable
     {
         return CarbonImmutable::createFromFormat(
             'Y-m-d H:i:s',

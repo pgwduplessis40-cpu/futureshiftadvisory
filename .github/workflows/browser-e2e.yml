@@ -103,7 +103,10 @@ jobs:
           exit 1
 
       - name: Run authenticated browser quality gate
-        run: npm run browser:e2e
+        run: |
+          npm run browser:e2e
+          php artisan db:seed --class=Database\\Seeders\\BrowserE2eDdSeeder --env=testing --force
+          E2E_BROWSER_FLOW=dd npm run browser:e2e
 
       - name: Upload browser evidence
         if: ${{ always() }}

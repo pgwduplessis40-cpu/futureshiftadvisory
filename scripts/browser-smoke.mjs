@@ -58,7 +58,8 @@ const accounts = {
     },
 };
 
-const flows = [
+const browserFlow = process.env.E2E_BROWSER_FLOW;
+const allFlows = [
     {
         name: 'Login and onboarding',
         account: accounts.advisor,
@@ -103,6 +104,12 @@ const flows = [
         screenshot: false,
     },
 ];
+const flows = allFlows.filter(
+    (flow) =>
+        browserFlow === 'dd'
+            ? flow.name === 'DD Client Information'
+            : flow.name !== 'DD Client Information',
+);
 
 const browser = await puppeteer.launch({
     headless: true,
@@ -128,12 +135,14 @@ try {
         await runFlow(browser, flow);
     }
 
-    try {
-        await runScreenSupportCollaboration(browser);
-    } catch (error) {
-        failures.push(
-            `Client Screen collaboration: ${error instanceof Error ? error.message : String(error)}`,
-        );
+    if (browserFlow !== 'dd') {
+        try {
+            await runScreenSupportCollaboration(browser);
+        } catch (error) {
+            failures.push(
+                `Client Screen collaboration: ${error instanceof Error ? error.message : String(error)}`,
+            );
+        }
     }
 } finally {
     await browser.close();

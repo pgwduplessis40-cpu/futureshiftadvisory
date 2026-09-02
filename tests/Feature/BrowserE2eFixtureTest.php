@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Client;
 use App\Models\User;
 use App\Support\RequestContext;
+use Database\Seeders\BrowserE2eDdSeeder;
 use Database\Seeders\BrowserE2eSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -31,6 +32,7 @@ final class BrowserE2eFixtureTest extends TestCase
         $this->setE2eEnvironment();
         config(['co-browse.enabled' => true]);
         $this->seed(BrowserE2eSeeder::class);
+        $this->seed(BrowserE2eDdSeeder::class);
     }
 
     protected function tearDown(): void
