@@ -7,6 +7,7 @@ namespace Tests\Feature\Budgets;
 use App\Enums\EngagementType;
 use App\Enums\QuestionnaireQuestionType;
 use App\Enums\QuestionnaireSet;
+use App\Exceptions\StrategicBudgetRevisionConflict;
 use App\Models\AccountingConnection;
 use App\Models\Client;
 use App\Models\Document;
@@ -101,10 +102,46 @@ final class StrategicBudgetServiceTest extends TestCase
             'funding_sources' => [
                 ['label' => 'Founder cash', 'amount' => 5_000, 'confidence' => 'known'],
             ],
-        ], $actor);
+        ], $actor, $budget->revision);
 
         $this->assertContains('financial_snapshot_discrepancy', collect($budget->flags)->pluck('key')->all());
         $this->assertStringContainsString('latest accounting snapshot', collect($budget->flags)->firstWhere('key', 'financial_snapshot_discrepancy')['message']);
+    }
+
+    public function test_update_rejects_a_stale_budget_revision_without_overwriting_the_newer_draft(): void
+    {
+        $client = $this->client();
+        $actor = User::factory()->create();
+        $document = $this->financialDocument($client, 'Management Accounts.pdf');
+        DocumentVerification::query()->create([
+            'document_id' => $document->getKey(),
+            'client_id' => $client->getKey(),
+            'context_hash' => hash('sha256', 'stale-budget-revision'),
+            'claim_text' => 'Management accounts verified for budget reliance.',
+            'outcome' => DocumentVerification::OUTCOME_VERIFIED,
+            'confidence' => 0.97,
+            'verified_at' => now(),
+        ]);
+
+        $staleTab = app(StrategicBudgetService::class)->ensureForClient($client);
+        $saved = app(StrategicBudgetService::class)->update($staleTab, [
+            'horizon_months' => 12,
+            'monthly_fixed_costs' => [['label' => 'Rent', 'amount' => 1250.10, 'confidence' => 'known']],
+        ], $actor, $staleTab->revision);
+
+        $this->assertSame(2, $saved->revision);
+
+        try {
+            app(StrategicBudgetService::class)->update($staleTab, [
+                'horizon_months' => 12,
+                'monthly_fixed_costs' => [['label' => 'Stale rent', 'amount' => 10, 'confidence' => 'guess']],
+            ], $actor, $staleTab->revision);
+            $this->fail('A stale tab must not overwrite the newer budget revision.');
+        } catch (StrategicBudgetRevisionConflict) {
+            // Expected: the database row was locked and its revision changed.
+        }
+
+        $this->assertSame('Rent', StrategicBudget::query()->findOrFail($saved->getKey())->monthly_fixed_costs[0]['label']);
     }
 
     public function test_post_acquisition_source_drafts_gather_onboarding_questionnaire_and_evidence_for_plan_sections(): void

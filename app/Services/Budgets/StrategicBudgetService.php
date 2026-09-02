@@ -6,6 +6,7 @@ namespace App\Services\Budgets;
 
 use App\Enums\EngagementType;
 use App\Enums\QuestionnaireSet;
+use App\Exceptions\StrategicBudgetRevisionConflict;
 use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\Document;
@@ -136,9 +137,10 @@ final class StrategicBudgetService
     /**
      * @param  array<string, mixed>  $input
      */
-    public function update(StrategicBudget $budget, array $input, User $actor): StrategicBudget
+    public function update(StrategicBudget $budget, array $input, User $actor, int $expectedRevision): StrategicBudget
     {
-        return DB::transaction(function () use ($budget, $input, $actor): StrategicBudget {
+        return DB::transaction(function () use ($budget, $input, $actor, $expectedRevision): StrategicBudget {
+            $budget = $this->lockForMutation($budget, $expectedRevision);
             $status = in_array($budget->status, [
                 StrategicBudget::STATUS_ADVISOR_APPROVED,
                 StrategicBudget::STATUS_USED_IN_PROPOSAL,
@@ -153,6 +155,7 @@ final class StrategicBudgetService
 
             $updates = [
                 'status' => $status,
+                'revision' => $budget->revision + 1,
                 'business_plan_sections' => $this->normaliseBusinessPlanSections(
                     (array) ($input['business_plan_sections'] ?? $budget->business_plan_sections ?? []),
                     (string) $budget->pathway,
@@ -199,40 +202,59 @@ final class StrategicBudgetService
         });
     }
 
-    public function submit(StrategicBudget $budget, User $actor): StrategicBudget
+    private function lockForMutation(StrategicBudget $budget, int $expectedRevision): StrategicBudget
     {
-        abort_unless($budget->isUnlocked(), 422);
+        /** @var StrategicBudget $locked */
+        $locked = StrategicBudget::query()
+            ->whereKey($budget->getKey())
+            ->lockForUpdate()
+            ->firstOrFail();
 
-        if ($this->reviewSubmittedOrLater($budget)) {
-            return $budget->refresh();
+        if ($locked->revision !== $expectedRevision) {
+            throw new StrategicBudgetRevisionConflict($locked->revision);
         }
 
-        abort_unless($this->businessPlanReady($budget), 422);
+        return $locked;
+    }
 
-        $budget = $this->recompute($budget);
-        $submittedAt = now();
-        $budget->forceFill([
-            'status' => StrategicBudget::STATUS_SUBMITTED_FOR_REVIEW,
-            'submitted_at' => $submittedAt,
-            'business_plan_submitted_at' => $submittedAt,
-            'approved_at' => null,
-            'approved_by_user_id' => null,
-            'business_plan_approved_at' => null,
-            'business_plan_approved_by_user_id' => null,
-        ])->save();
+    public function submit(StrategicBudget $budget, User $actor, int $expectedRevision): StrategicBudget
+    {
+        return DB::transaction(function () use ($budget, $actor, $expectedRevision): StrategicBudget {
+            $budget = $this->lockForMutation($budget, $expectedRevision);
+            abort_unless($budget->isUnlocked(), 422);
 
-        $assessment = $this->createAssessmentVersion($budget->refresh(), $actor, StrategicBudgetAssessment::STATUS_SUBMITTED);
+            if ($this->reviewSubmittedOrLater($budget)) {
+                return $budget->refresh();
+            }
 
-        $this->audit->record('strategic_budget.submitted', subject: $budget, actor: $actor, after: [
-            'client_id' => $budget->client_id,
-            'pathway' => $budget->pathway,
-            'confidence_score' => data_get($budget->confidence, 'score'),
-            'business_plan_readiness' => $this->businessPlanReadiness($budget),
-            'assessment_id' => $assessment->getKey(),
-            'version' => $assessment->round,
-        ]);
+            abort_unless($this->businessPlanReady($budget), 422);
 
-        return $budget->refresh();
+            $budget = $this->recompute($budget);
+            $submittedAt = now();
+            $budget->forceFill([
+                'status' => StrategicBudget::STATUS_SUBMITTED_FOR_REVIEW,
+                'revision' => $budget->revision + 1,
+                'submitted_at' => $submittedAt,
+                'business_plan_submitted_at' => $submittedAt,
+                'approved_at' => null,
+                'approved_by_user_id' => null,
+                'business_plan_approved_at' => null,
+                'business_plan_approved_by_user_id' => null,
+            ])->save();
+
+            $assessment = $this->createAssessmentVersion($budget->refresh(), $actor, StrategicBudgetAssessment::STATUS_SUBMITTED);
+
+            $this->audit->record('strategic_budget.submitted', subject: $budget, actor: $actor, after: [
+                'client_id' => $budget->client_id,
+                'pathway' => $budget->pathway,
+                'confidence_score' => data_get($budget->confidence, 'score'),
+                'business_plan_readiness' => $this->businessPlanReadiness($budget),
+                'assessment_id' => $assessment->getKey(),
+                'version' => $assessment->round,
+            ]);
+
+            return $budget->refresh();
+        });
     }
 
     public function approve(StrategicBudget $budget, User $actor): StrategicBudget
@@ -479,6 +501,7 @@ final class StrategicBudgetService
     {
         return [
             'id' => $budget->id,
+            'revision' => $budget->revision,
             'status' => $budget->status,
             'status_label' => $this->statusLabel($budget->status),
             'approved' => $budget->isApprovedForProposal(),

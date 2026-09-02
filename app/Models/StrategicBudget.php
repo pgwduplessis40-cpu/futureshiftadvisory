@@ -75,6 +75,7 @@ final class StrategicBudget extends Model
 
     protected $casts = [
         'horizon_months' => 'integer',
+        'revision' => 'integer',
         'expected_runway_months' => 'integer',
         'source_financials' => 'array',
         'client_goals' => 'array',

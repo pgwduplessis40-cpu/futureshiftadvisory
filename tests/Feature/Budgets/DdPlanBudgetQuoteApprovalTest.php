@@ -219,7 +219,7 @@ final class DdPlanBudgetQuoteApprovalTest extends TestCase
                 ->where('budget.review_action_label', 'Submitted for review'));
 
         $this->actingAsMfa($clientUser)
-            ->post(route('portal.business-plan-budget.submit'))
+            ->post(route('portal.business-plan-budget.submit'), ['revision' => $budget->revision])
             ->assertRedirect(route('portal.business-plan-budget.show'));
 
         $budget->refresh();
