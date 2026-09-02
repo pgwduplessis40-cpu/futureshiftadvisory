@@ -399,6 +399,16 @@ final class CoBrowseSessionTest extends TestCase
             ->assertOk()
             ->assertJsonPath('status', CoBrowseSession::STATUS_ENDED)
             ->assertJsonPath('end_reason', 'completed_advisor_ended');
+
+        $this->actingAs($this->clientUser)
+            ->withSession($this->mfaSession($this->clientUser))
+            ->postJson(route('co-browse.sessions.pending-actions', $session), [
+                'connection_id' => $clientConnectionId,
+                'connection_secret' => $clientSecret,
+                'after_id' => 1,
+            ])
+            ->assertOk()
+            ->assertExactJson(['actions' => []]);
     }
 
     public function test_entrepreneur_guided_assistance_endpoints_bind_the_assigned_advisor_and_portal_participant(): void
