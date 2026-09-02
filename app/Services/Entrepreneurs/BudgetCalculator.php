@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Entrepreneurs;
 
 use App\Support\Methodology\ProvidesMethodology;
-
+/** @phpstan-type ForecastAssumptions array{revenue_growth_percent: float, cost_inflation_percent: float, year_two_revenue_basis?: string, opening_cash_balance?: float, debtor_days?: float, creditor_days?: float, company_tax_rate_percent?: float} */
 final class BudgetCalculator implements ProvidesMethodology
 {
     public static function methodologyIds(): array
@@ -14,7 +14,6 @@ final class BudgetCalculator implements ProvidesMethodology
     }
 
     private const MONTHS_PER_YEAR = 12;
-
     private const DEFAULT_FORECAST_YEARS = 3;
 
     private const SUPPORTED_FORECAST_YEARS = [1, 2, 3, 5];
@@ -565,7 +564,7 @@ final class BudgetCalculator implements ProvidesMethodology
 
     /**
      * @param  array<int, array<string, mixed>>  $rows
-     * @param  array<string, mixed>  $assumptions
+     * @param  ForecastAssumptions  $assumptions
      */
     private function revenueForMonth(array $rows, int $month, array $assumptions): float
     {
@@ -610,7 +609,7 @@ final class BudgetCalculator implements ProvidesMethodology
 
     /**
      * @param  array<int, array<string, mixed>>  $rows
-     * @param  array<string, mixed>  $assumptions
+     * @param  ForecastAssumptions  $assumptions
      */
     private function variableCostsForMonth(array $rows, int $month, array $assumptions): float
     {
@@ -658,7 +657,7 @@ final class BudgetCalculator implements ProvidesMethodology
 
     /**
      * @param  array<int, array<string, mixed>>  $rows
-     * @param  array<string, mixed>  $assumptions
+     * @param  ForecastAssumptions  $assumptions
      */
     private function cashCollectedForMonth(array $rows, int $month, array $assumptions, int $debtorLagMonths): float
     {
@@ -673,7 +672,7 @@ final class BudgetCalculator implements ProvidesMethodology
 
     /**
      * @param  array<int, array<string, mixed>>  $rows
-     * @param  array<string, mixed>  $assumptions
+     * @param  ForecastAssumptions  $assumptions
      */
     private function variableCostsPaidForMonth(array $rows, int $month, array $assumptions, int $creditorLagMonths): float
     {
@@ -688,7 +687,7 @@ final class BudgetCalculator implements ProvidesMethodology
 
     /**
      * @param  array<int, array<string, mixed>>  $rows
-     * @param  array<string, mixed>  $assumptions
+     * @param  ForecastAssumptions  $assumptions
      */
     private function fixedCostsForMonth(array $rows, int $month, array $assumptions): float
     {

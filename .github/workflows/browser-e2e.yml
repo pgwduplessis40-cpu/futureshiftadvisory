@@ -49,6 +49,11 @@ jobs:
       E2E_CLIENT_PORTAL_PATH: /portal
       E2E_NPO_EXPECT: Browser E2E NPO Client
       CO_BROWSE_ENABLED: 'true'
+      # The test's two browser contexts negotiate on the same runner; this
+      # non-routable relay setting exercises credential issuance without
+      # relying on production TURN infrastructure or a real relay secret.
+      SCREEN_SHARE_TURN_URLS: turn:127.0.0.1:3478?transport=udp
+      SCREEN_SHARE_TURN_SHARED_SECRET: browser-e2e-test-only-turn-secret
       WAYFINDER_GENERATE: 'false'
 
     steps:
