@@ -204,12 +204,16 @@ async function runScreenSupportCollaboration(browserInstance) {
             { waitUntil: 'networkidle2' },
         );
         await clientPage.waitForFunction(
-            () =>
-                performance
-                    .getEntriesByType('resource')
-                    .some((entry) =>
-                        entry.name.includes('/screen-share/connections'),
-                    ),
+            () => {
+                const resources = performance.getEntriesByType('resource');
+
+                return [
+                    '/screen-share/connections',
+                    '/co-browse/connections',
+                ].every((path) =>
+                    resources.some((entry) => entry.name.includes(path)),
+                );
+            },
             { timeout: 10_000 },
         );
         await advisorPage.goto(
