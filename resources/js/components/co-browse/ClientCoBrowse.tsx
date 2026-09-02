@@ -172,7 +172,13 @@ export function ClientCoBrowse({ config }: Props) {
                 );
 
                 try {
-                    const channel = coBrowseEcho(next).private(next.channel);
+                    const realtime = coBrowseEcho(next);
+
+                    if (realtime === null) {
+                        return;
+                    }
+
+                    const channel = realtime.private(next.channel);
                     channel.listen('.co-browse.prompt', (event: Prompt) =>
                         setPrompt(event),
                     );

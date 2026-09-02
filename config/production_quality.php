@@ -56,7 +56,26 @@ return [
                 'tests/Feature/Dd/DdReportTest.php',
             ],
         ],
+        'app/Services/Budgets/StrategicBudgetService.php' => [
+            'ceiling' => 2758,
+            'production_limit' => 3000,
+            'contract_tests' => ['tests/Feature/Budgets', 'tests/Unit/Entrepreneurs/BudgetCalculatorTest.php'],
+        ],
+        'resources/js/pages/portal/StrategicPlanBudget.tsx' => [
+            'ceiling' => 2616,
+            'production_limit' => 3000,
+            'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Budgets'],
+        ],
+        'app/Services/Entrepreneurs/BudgetCalculator.php' => [
+            'ceiling' => 1360,
+            'production_limit' => 1500,
+            'contract_tests' => ['tests/Unit/Entrepreneurs/BudgetCalculatorTest.php', 'tests/Feature/Entrepreneurs/BudgetRunwayTest.php'],
+        ],
     ],
+
+    // Any newly created source file over this size is rejected. Existing
+    // legacy files outside the explicit registry may not grow in a PR.
+    'unregistered_source_line_limit' => 1000,
 
     /*
      * A model in this registry must use an explicit $fillable allow-list.
@@ -105,10 +124,14 @@ return [
         'App\\Models\\CoBrowseSession' => 'app/Models/CoBrowseSession.php',
         'App\\Models\\CoBrowseAction' => 'app/Models/CoBrowseAction.php',
         'App\\Models\\DdGuestLink' => 'app/Models/DdGuestLink.php',
+        'App\\Models\\BillingAdjustment' => 'app/Models/BillingAdjustment.php',
+        'App\\Models\\ServiceActivation' => 'app/Models/ServiceActivation.php',
+        'App\\Models\\FinancialAlert' => 'app/Models/FinancialAlert.php',
+        'App\\Models\\DdEngagement' => 'app/Models/DdEngagement.php',
     ],
 
     // This count starts after the first financial-model migration. Every
     // touched broad model must move to an explicit allow-list and lower this
     // ceiling; it must never increase.
-    'legacy_broad_guarded_model_ceiling' => 150,
+    'legacy_broad_guarded_model_ceiling' => 146,
 ];

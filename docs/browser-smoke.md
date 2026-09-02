@@ -1,10 +1,13 @@
 # Authenticated browser quality gate
 
 `npm run browser:e2e` verifies login/onboarding, dashboard, NPO, budget/runway,
-and client-screen routes at 1440px and 390px. It fails on same-origin HTTP and
+and client-screen routes at 1440px and 390px. It also runs an isolated
+advisor/client collaboration session through the real UI: screen-support
+request, client consent, WebRTC offer/answer signalling, co-browse consent,
+and both advisor/client termination paths. It fails on same-origin HTTP and
 request failures, console errors, unhandled page errors, axe violations, missing
-image alt text, horizontal overflow, no keyboard focus target, fake WebRTC
-media/signalling failure, and screenshot changes without an approved baseline.
+image alt text, horizontal overflow, no keyboard focus target, collaboration
+failure, and screenshot changes without an approved baseline.
 
 Use isolated test accounts only. The runner requires these environment variables:
 

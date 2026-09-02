@@ -155,7 +155,13 @@ export function ClientSupport({ config }: Props) {
                 );
 
                 try {
-                    const channel = screenShareEcho(next).private(next.channel);
+                    const realtime = screenShareEcho(next);
+
+                    if (realtime === null) {
+                        return;
+                    }
+
+                    const channel = realtime.private(next.channel);
                     channel.listen('.screen-share.prompt', (event: Prompt) =>
                         setPrompt(event),
                     );

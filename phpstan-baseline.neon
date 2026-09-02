@@ -727,12 +727,6 @@ parameters:
 			path: app/Http/Controllers/Portal/ReportController.php
 
 		-
-			message: '#^Instanceof between App\\Enums\\EngagementType and App\\Enums\\EngagementType will always evaluate to true\.$#'
-			identifier: instanceof.alwaysTrue
-			count: 2
-			path: app/Http/Controllers/Portal/StrategicBudgetController.php
-
-		-
 			message: '#^Using nullsafe property access on non\-nullable type App\\Enums\\SurveyAssignmentStatus\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 2
@@ -8711,42 +8705,6 @@ parameters:
 			identifier: missingType.return
 			count: 1
 			path: app/Services/Entrepreneurs/AssessmentScoring.php
-
-		-
-			message: '#^Method App\\Services\\Entrepreneurs\\BudgetCalculator\:\:cashCollectedForMonth\(\) has parameter \$assumptions with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/Entrepreneurs/BudgetCalculator.php
-
-		-
-			message: '#^Method App\\Services\\Entrepreneurs\\BudgetCalculator\:\:fixedCostsForMonth\(\) has parameter \$assumptions with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/Entrepreneurs/BudgetCalculator.php
-
-		-
-			message: '#^Method App\\Services\\Entrepreneurs\\BudgetCalculator\:\:loanPaymentForMonth\(\) has parameter \$loan with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/Entrepreneurs/BudgetCalculator.php
-
-		-
-			message: '#^Method App\\Services\\Entrepreneurs\\BudgetCalculator\:\:revenueForMonth\(\) has parameter \$assumptions with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/Entrepreneurs/BudgetCalculator.php
-
-		-
-			message: '#^Method App\\Services\\Entrepreneurs\\BudgetCalculator\:\:variableCostsForMonth\(\) has parameter \$assumptions with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/Entrepreneurs/BudgetCalculator.php
-
-		-
-			message: '#^Method App\\Services\\Entrepreneurs\\BudgetCalculator\:\:variableCostsPaidForMonth\(\) has parameter \$assumptions with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: app/Services/Entrepreneurs/BudgetCalculator.php
 
 		-
 			message: '#^Method App\\Services\\Entrepreneurs\\BusinessPlanPreviewRenderer\:\:fallbackPdf\(\) has parameter \$documentMeta with no value type specified in iterable type array\.$#'

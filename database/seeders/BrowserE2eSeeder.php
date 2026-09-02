@@ -157,7 +157,10 @@ final class BrowserE2eSeeder extends Seeder
             throw new LogicException("{$name} must be a base32 TOTP secret with at least 128 bits of entropy.");
         }
 
-        return $value;
+        // Google2FA expects the canonical, unpadded base32 representation.
+        // CI secret managers may preserve RFC 4648 padding, so validate the
+        // original value then retain the interoperable form for Fortify.
+        return $unpadded;
     }
 
     private function fixtureTimestamp(): CarbonImmutable

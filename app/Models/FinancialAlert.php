@@ -22,7 +22,25 @@ final class FinancialAlert extends Model
 
     public const SEVERITY_CRITICAL = 'critical';
 
-    protected $guarded = [];
+    protected $fillable = [
+        'client_id',
+        'accounting_connection_id',
+        'previous_snapshot_id',
+        'current_snapshot_id',
+        'alert_key',
+        'category',
+        'severity',
+        'metric',
+        'headline',
+        'detail',
+        'previous_value',
+        'current_value',
+        'change_amount',
+        'change_percent',
+        'citation',
+        'surfaced_at',
+        'notified_at',
+    ];
 
     protected $casts = [
         'previous_value' => 'float',

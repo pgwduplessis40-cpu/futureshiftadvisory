@@ -6,12 +6,16 @@ namespace Tests\Unit\Architecture;
 
 use App\Models\AccountingInvoice;
 use App\Models\AdvisoryReadinessSignal;
+use App\Models\BillingAdjustment;
 use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\ClientFunderRecord;
+use App\Models\DdEngagement;
 use App\Models\Document;
 use App\Models\FeeCalculation;
+use App\Models\FinancialAlert;
 use App\Models\PlanAssessment;
+use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\File;
@@ -67,6 +71,10 @@ final class ModelMassAssignmentTest extends TestCase
             FeeCalculation::class,
             ClientFunderRecord::class,
             ServiceRatePackage::class,
+            BillingAdjustment::class,
+            ServiceActivation::class,
+            FinancialAlert::class,
+            DdEngagement::class,
         ] as $model) {
             $instance = new $model;
             $instance->fill(['untrusted_financial_field' => 'must-not-persist']);
