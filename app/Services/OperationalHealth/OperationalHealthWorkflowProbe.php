@@ -21,6 +21,34 @@ use Throwable;
  *
  * Keeping these probes separate lets the runner focus on result recording and
  * protects its structural boundary as new workflow checks are introduced.
+ *
+ * @phpstan-type CheckDefinition array{
+ *     key: string,
+ *     name: string,
+ *     area: string,
+ *     method: string,
+ *     url: ?string,
+ *     route_name: string,
+ *     user: ?User,
+ *     expected_statuses: list<int>,
+ *     expected_headers?: array<string, string>,
+ *     expected_behavior: string,
+ *     missing_fixture: ?string,
+ *     sentinel?: bool,
+ *     kind: 'external_http'|'route_contract',
+ *     subject?: ?array{type: 'report', id: string, label: ?string}
+ * }
+ * @phpstan-type WorkflowProbe array{
+ *     status: ?int,
+ *     duration_ms: int,
+ *     content_type: ?string,
+ *     redirect_url: ?string,
+ *     body_excerpt: ?string,
+ *     fallback_pdf_detected: bool,
+ *     exception_class: ?class-string<Throwable>,
+ *     exception_message: ?string,
+ *     headers: array<string, string>
+ * }
  */
 final class OperationalHealthWorkflowProbe
 {
@@ -40,7 +68,7 @@ final class OperationalHealthWorkflowProbe
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * @return list<CheckDefinition>
      */
     public function externalEdgeDefinitions(): array
     {
@@ -104,7 +132,7 @@ final class OperationalHealthWorkflowProbe
     }
 
     /**
-     * @return array<string, mixed>
+     * @return CheckDefinition
      */
     public function dueDiligenceFeedbackDefinition(?Client $client, ?User $advisor): array
     {
@@ -134,7 +162,7 @@ final class OperationalHealthWorkflowProbe
     }
 
     /**
-     * @return array<string, mixed>
+     * @return WorkflowProbe
      */
     public function dispatchExternalRequest(string $method, string $url): array
     {
@@ -180,7 +208,7 @@ final class OperationalHealthWorkflowProbe
     }
 
     /**
-     * @return array<string, mixed>
+     * @return WorkflowProbe
      */
     public function routeContractProbe(string $routeName, string $method): array
     {
@@ -217,7 +245,7 @@ final class OperationalHealthWorkflowProbe
 
     /**
      * @param  array<string, string>  $headers
-     * @return array<string, mixed>
+     * @return WorkflowProbe
      */
     private function routeContractResult(int $status, array $headers): array
     {

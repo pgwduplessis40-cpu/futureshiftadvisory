@@ -475,7 +475,6 @@ final class OperationalHealthCheckRunner
                 method: (string) ($definition['method'] ?? 'GET'),
                 url: $url,
                 user: $user instanceof User ? $user : null,
-                payload: is_array($definition['payload'] ?? null) ? $definition['payload'] : [],
             ));
 
         $expectedStatuses = array_map('intval', (array) ($definition['expected_statuses'] ?? [200]));
@@ -696,15 +695,10 @@ final class OperationalHealthCheckRunner
     }
 
     /**
-     * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
-    private function dispatchInternalRequest(
-        string $method,
-        string $url,
-        ?User $user,
-        array $payload = [],
-    ): array {
+    private function dispatchInternalRequest(string $method, string $url, ?User $user): array
+    {
         $started = hrtime(true);
         $session = app('session')->driver();
         $originalSessionId = $session->getId();
@@ -717,9 +711,7 @@ final class OperationalHealthCheckRunner
         $session->replace([]);
         $session->start();
 
-        $payload['_token'] = $session->token();
-
-        $request = Request::create($url, strtoupper($method), $payload, [], [], [
+        $request = Request::create($url, strtoupper($method), ['_token' => $session->token()], [], [], [
             'HTTP_ACCEPT' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'HTTP_X_INERTIA' => 'true',
             'HTTP_X_INERTIA_VERSION' => $this->inertiaVersion(),
