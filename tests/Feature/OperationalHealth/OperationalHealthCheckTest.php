@@ -308,7 +308,7 @@ final class OperationalHealthCheckTest extends TestCase
             $run->results()
                 ->where('status', '!=', OperationalHealthCheckResult::STATUS_PASSED)
                 ->get(['check_key', 'status', 'actual_status', 'issue_summary', 'exception_message'])
-            ->toJson(),
+                ->toJson(),
         );
         $feedbackReportAfterRun = $feedbackReport->fresh();
         $this->assertInstanceOf(Report::class, $feedbackReportAfterRun);
