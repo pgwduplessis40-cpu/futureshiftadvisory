@@ -781,6 +781,7 @@ final class OperationalHealthCheckRunner
     }
 
     /**
+     * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
     private function dispatchInternalRequest(

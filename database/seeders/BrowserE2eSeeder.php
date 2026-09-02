@@ -40,6 +40,7 @@ final class BrowserE2eSeeder extends Seeder
         }
 
         $this->call(RoleSeeder::class);
+        $this->call(DdSpecificQuestionnaireV2Seeder::class);
 
         $advisor = $this->upsertUser('ADVISOR', User::TYPE_ADVISOR);
         $clientUser = $this->upsertUser('CLIENT', User::TYPE_CLIENT_PRIMARY);
