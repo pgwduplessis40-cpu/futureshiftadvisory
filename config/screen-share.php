@@ -17,4 +17,6 @@ return [
     'turn_urls' => env('SCREEN_SHARE_TURN_URLS', ''),
     'turn_shared_secret' => env('SCREEN_SHARE_TURN_SHARED_SECRET', ''),
     'turn_ttl_seconds' => (int) env('SCREEN_SHARE_TURN_TTL_SECONDS', 600),
+    'direct_ice_for_testing' => env('APP_ENV') === 'testing'
+        && filter_var(env('SCREEN_SHARE_DIRECT_ICE_FOR_TESTING', false), FILTER_VALIDATE_BOOL),
 ];

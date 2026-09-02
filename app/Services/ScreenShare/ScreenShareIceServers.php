@@ -41,6 +41,10 @@ final class ScreenShareIceServers
             );
         });
 
+        if (app()->environment('testing') && config('screen-share.direct_ice_for_testing', false)) {
+            return [];
+        }
+
         $turnUrls = $this->urls('turn_urls');
         $turnSecret = (string) config('screen-share.turn_shared_secret');
         abort_unless($turnUrls !== [] && $turnSecret !== '', 503, 'Screen support relay is unavailable.');

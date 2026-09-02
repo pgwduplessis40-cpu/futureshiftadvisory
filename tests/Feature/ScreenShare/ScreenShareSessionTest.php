@@ -949,6 +949,29 @@ final class ScreenShareSessionTest extends TestCase
         $this->assertStringNotContainsString('test-turn-secret', json_encode($servers, JSON_THROW_ON_ERROR));
     }
 
+    public function test_testing_direct_ice_mode_returns_no_relay_servers_after_participant_authorisation(): void
+    {
+        config(['screen-share.direct_ice_for_testing' => true]);
+
+        [$session, $tabs, $nonces] = $this->requestedSession();
+        $clientTab = $tabs[0];
+        app(ScreenShareSessions::class)->respond(
+            $this->clientUser,
+            $session,
+            (string) $clientTab->connection->getKey(),
+            $clientTab->secret,
+            $nonces[(string) $clientTab->connection->getKey()],
+            true,
+        );
+
+        $this->assertSame([], app(ScreenShareIceServers::class)->forParticipant(
+            $this->clientUser,
+            $session,
+            (string) $clientTab->connection->getKey(),
+            $clientTab->secret,
+        ));
+    }
+
     /**
      * @return array{
      *     0: ScreenShareSession,

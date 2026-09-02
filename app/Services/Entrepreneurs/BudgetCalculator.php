@@ -17,6 +17,7 @@ final class BudgetCalculator implements ProvidesMethodology
     private const MONTHS_PER_YEAR = 12;
 
     private const DEFAULT_FORECAST_YEARS = 3;
+
     private const SUPPORTED_FORECAST_YEARS = [1, 2, 3, 5];
 
     /**
@@ -50,7 +51,6 @@ final class BudgetCalculator implements ProvidesMethodology
         $futureRows = $this->normaliseFutureCosts($futureCosts);
         $scenarioRows = $this->normaliseFundingScenarios($fundingScenarios);
         $normalisedAssumptions = $this->normaliseAssumptions($assumptions, $companyTaxRatePercent, $defaultCostInflationPercent);
-
         $baseScenario = [
             'key' => 'base',
             'name' => 'Base case',
