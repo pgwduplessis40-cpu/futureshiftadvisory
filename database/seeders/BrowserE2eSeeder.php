@@ -9,6 +9,8 @@ use App\Enums\NpoEngagementSubType;
 use App\Enums\NpoLegalStructure;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\ConflictDeclaration;
+use App\Models\DdEngagement;
 use App\Models\NpoBoardMember;
 use App\Models\NpoEngagement;
 use App\Models\User;
@@ -85,6 +87,24 @@ final class BrowserE2eSeeder extends Seeder
                 'created_by_user_id' => $advisor->getKey(),
             ],
         );
+
+        $ddClient = $this->upsertClient(
+            id: '00000000-0000-4000-8000-000000000003',
+            legalName: 'Browser E2E Due Diligence Client',
+            engagementType: EngagementType::DUE_DILIGENCE,
+            advisor: $advisor,
+            contact: $clientUser,
+        );
+        foreach ([
+            [$advisor, 'lead_advisor'],
+            [$clientUser, 'primary_contact'],
+        ] as [$user, $role]) {
+            ClientTeamMember::query()->updateOrCreate(
+                ['client_id' => $ddClient->getKey(), 'user_id' => $user->getKey()],
+                ['role' => $role, 'granted_modules' => [EngagementType::DUE_DILIGENCE->value]],
+            );
+        }
+        $this->upsertDdEngagement($ddClient, $advisor);
     }
 
     private function upsertClient(string $id, string $legalName, EngagementType $engagementType, User $advisor, User $contact): Client
@@ -92,7 +112,11 @@ final class BrowserE2eSeeder extends Seeder
         $client = Client::query()->firstOrNew(['id' => $id]);
         $client->forceFill([
             'engagement_type' => $engagementType,
-            'nzbn' => $id === '00000000-0000-4000-8000-000000000001' ? '9429000000000' : '9429000000001',
+            'nzbn' => match ($id) {
+                '00000000-0000-4000-8000-000000000001' => '9429000000000',
+                '00000000-0000-4000-8000-000000000002' => '9429000000001',
+                default => '9429000000002',
+            },
             'legal_name' => $legalName,
             'data_quality' => Client::DATA_QUALITY_LOW,
             'created_by_user_id' => $advisor->getKey(),
@@ -102,6 +126,41 @@ final class BrowserE2eSeeder extends Seeder
         ])->save();
 
         return $client;
+    }
+
+    private function upsertDdEngagement(Client $client, User $advisor): void
+    {
+        $conflict = ConflictDeclaration::query()->updateOrCreate(
+            [
+                'client_id' => $client->getKey(),
+                'advisor_id' => $advisor->getKey(),
+            ],
+            [
+                'declaration' => [
+                    'known_conflicts' => false,
+                    'source' => 'browser_e2e_fixture',
+                ],
+                'declared_at' => $this->fixtureTimestamp(),
+            ],
+        );
+
+        DdEngagement::query()->updateOrCreate(
+            [
+                'client_id' => $client->getKey(),
+                'target_name' => 'Browser E2E DD Target Ltd',
+            ],
+            [
+                'target_details' => [
+                    'sector' => 'Testing',
+                    'purpose' => 'Isolated browser test fixture.',
+                ],
+                'status' => DdEngagement::STATUS_IN_PROGRESS,
+                'recommendation' => null,
+                'conflict_declaration_id' => $conflict->getKey(),
+                'created_by_user_id' => $advisor->getKey(),
+                'disclaimer_acknowledged_at' => $this->fixtureTimestamp(),
+            ],
+        );
     }
 
     private function upsertUser(string $prefix, string $type): User

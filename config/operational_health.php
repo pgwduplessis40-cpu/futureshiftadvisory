@@ -30,6 +30,19 @@ return [
 
     'sentinel_enabled' => env('OPERATIONAL_HEALTH_SENTINEL_ENABLED', true),
 
+    // Internal probes exercise Laravel directly. Keep one probe on the public
+    // edge as well, so nginx / PHP-FPM upstream failures are visible in App
+    // Health instead of being mistaken for a healthy in-process response.
+    'external_edge_enabled' => env(
+        'OPERATIONAL_HEALTH_EXTERNAL_EDGE_ENABLED',
+        ! in_array(env('APP_ENV', 'production'), ['local', 'testing'], true),
+    ),
+
+    'external_edge_url' => env(
+        'OPERATIONAL_HEALTH_EXTERNAL_EDGE_URL',
+        env('APP_URL', ''),
+    ),
+
     'require_verified_deployment' => env(
         'OPERATIONAL_HEALTH_REQUIRE_VERIFIED_DEPLOYMENT',
         ! in_array(env('APP_ENV', 'production'), ['local', 'testing'], true),

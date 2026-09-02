@@ -46,6 +46,8 @@ jobs:
       E2E_NPO_MFA_SECRET: ${{ secrets.E2E_NPO_MFA_SECRET }}
       E2E_CLIENT_SCREEN_PATH: /advisor/clients/00000000-0000-4000-8000-000000000001
       E2E_CLIENT_SCREEN_EXPECT: Browser E2E Isolated Client
+      E2E_DD_CLIENT_SCREEN_PATH: /advisor/clients/00000000-0000-4000-8000-000000000003
+      E2E_DD_CLIENT_SCREEN_EXPECT: Browser E2E Due Diligence Client
       E2E_NPO_EXPECT: Browser E2E NPO Client
       WAYFINDER_GENERATE: 'false'
 
