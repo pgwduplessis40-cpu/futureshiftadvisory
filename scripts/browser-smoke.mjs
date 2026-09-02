@@ -144,9 +144,9 @@ async function runFlow(browserInstance, flow) {
 
 /**
  * Exercise the real advisor/client collaboration controls as two isolated
- * browser users. The deterministic media implementation only replaces the
- * browser picker; registration, consent, signalling, guided assistance, and
- * termination still use the production application routes.
+ * browser users. The deterministic media implementation replaces browser
+ * device and peer-transport APIs; registration, consent, signalling, guided
+ * assistance, and termination still use the production application routes.
  */
 async function runScreenSupportCollaboration(browserInstance) {
     const advisorContext = await browserInstance.createBrowserContext();
@@ -482,6 +482,8 @@ async function installFakeMedia(page) {
 
             remoteDescription = null;
 
+            onconnectionstatechange = null;
+
             async createOffer() {
                 return { type: 'offer', sdp: 'v=0\r\n' };
             }
@@ -519,7 +521,9 @@ async function installFakeMedia(page) {
                     this.remoteDescription !== null
                 ) {
                     this.connectionState = 'connected';
-                    this.dispatchEvent(new Event('connectionstatechange'));
+                    const event = new Event('connectionstatechange');
+                    this.onconnectionstatechange?.(event);
+                    this.dispatchEvent(event);
                 }
             }
         }

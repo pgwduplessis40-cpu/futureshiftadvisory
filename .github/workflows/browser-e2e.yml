@@ -50,7 +50,8 @@ jobs:
       E2E_NPO_EXPECT: Browser E2E NPO Client
       CO_BROWSE_ENABLED: 'true'
       # CI runs both authenticated peers on one runner. This test-only direct
-      # ICE mode validates real peer negotiation without a production relay.
+      # ICE mode keeps the collaboration signalling and UI checks self-contained
+      # without a production relay.
       SCREEN_SHARE_DIRECT_ICE_FOR_TESTING: 'true'
       WAYFINDER_GENERATE: 'false'
 
