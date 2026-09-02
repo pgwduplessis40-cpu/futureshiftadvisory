@@ -16,6 +16,7 @@ use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Notifications\OperationalHealthAttentionNotification;
 use App\Services\OperationalHealth\OperationalHealthAlerter;
+use App\Services\OperationalHealth\OperationalHealthCheckRunner;
 use App\Services\OperationalHealth\OperationalHealthSchedule;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pdf\SimpleTextPdf;
@@ -26,6 +27,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -216,6 +218,59 @@ final class OperationalHealthCheckTest extends TestCase
         $this->assertSame([], data_get($serviceWorker->context, 'header_failures'));
     }
 
+    public function test_sentinel_checks_the_public_login_route_through_the_nginx_edge(): void
+    {
+        config()->set('operational_health.external_edge_enabled', true);
+        config()->set('operational_health.external_edge_url', 'https://futureshiftadvisory.nz');
+        Http::fake([
+            'https://futureshiftadvisory.nz/login' => Http::response(
+                '<!doctype html><title>Log in</title>',
+                200,
+                ['Content-Type' => 'text/html; charset=UTF-8'],
+            ),
+        ]);
+
+        $run = app(OperationalHealthCheckRunner::class)
+            ->run(OperationalHealthCheckRunner::SCOPE_SENTINEL);
+
+        /** @var OperationalHealthCheckResult $result */
+        $result = $run->results()
+            ->where('check_key', 'public.edge.login')
+            ->firstOrFail();
+
+        $this->assertSame(OperationalHealthCheckResult::STATUS_PASSED, $result->status);
+        $this->assertSame(200, $result->actual_status);
+        $this->assertFalse((bool) data_get($result->context, 'internal_request'));
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://futureshiftadvisory.nz/login'
+            && $request->method() === 'GET');
+    }
+
+    public function test_sentinel_records_an_nginx_bad_gateway_from_the_public_edge(): void
+    {
+        config()->set('operational_health.external_edge_enabled', true);
+        config()->set('operational_health.external_edge_url', 'https://futureshiftadvisory.nz');
+        Http::fake([
+            'https://futureshiftadvisory.nz/login' => Http::response(
+                '502 Bad Gateway',
+                502,
+                ['Content-Type' => 'text/html; charset=UTF-8'],
+            ),
+        ]);
+
+        $run = app(OperationalHealthCheckRunner::class)
+            ->run(OperationalHealthCheckRunner::SCOPE_SENTINEL);
+
+        /** @var OperationalHealthCheckResult $result */
+        $result = $run->results()
+            ->where('check_key', 'public.edge.login')
+            ->firstOrFail();
+
+        $this->assertSame(OperationalHealthCheckResult::STATUS_FAILED, $result->status);
+        $this->assertSame(502, $result->actual_status);
+        $this->assertFalse((bool) data_get($result->context, 'internal_request'));
+        $this->assertStringContainsString('HTTP 502', (string) $result->issue_summary);
+    }
+
     public function test_seeded_monitor_fixtures_let_recurring_workflow_checks_run(): void
     {
         Storage::fake('secure_local');
@@ -237,12 +292,27 @@ final class OperationalHealthCheckTest extends TestCase
             'render_status' => Report::RENDER_STATUS_RENDERED,
             'review_status' => 'reviewed',
         ]);
+        $feedbackReport = Report::query()
+            ->where('title', 'Operational Health DD Decision Report')
+            ->firstOrFail();
+        $feedbackMetadata = $feedbackReport->metadata;
 
-        $this->artisan(RunOperationalHealthChecks::class)
-            ->assertSuccessful();
+        $exitCode = $this->artisan(RunOperationalHealthChecks::class)->run();
 
         /** @var OperationalHealthCheckRun $run */
         $run = OperationalHealthCheckRun::query()->latest()->firstOrFail();
+
+        $this->assertSame(
+            0,
+            $exitCode,
+            $run->results()
+                ->where('status', '!=', OperationalHealthCheckResult::STATUS_PASSED)
+                ->get(['check_key', 'status', 'actual_status', 'issue_summary', 'exception_message'])
+                ->toJson(),
+        );
+        $feedbackReportAfterRun = $feedbackReport->fresh();
+        $this->assertInstanceOf(Report::class, $feedbackReportAfterRun);
+        $this->assertSame($feedbackMetadata, $feedbackReportAfterRun->metadata);
 
         $this->assertSame(
             OperationalHealthCheckRun::STATUS_PASSED,
@@ -255,11 +325,22 @@ final class OperationalHealthCheckTest extends TestCase
         $this->assertSame(0, $run->failed_checks);
         $this->assertSame(0, $run->skipped_checks);
 
+        /** @var OperationalHealthCheckResult $feedbackCheck */
+        $feedbackCheck = $run->results()
+            ->where('check_key', 'advisor.dd_client.feedback')
+            ->firstOrFail();
+
+        $this->assertSame(200, $feedbackCheck->actual_status);
+        $this->assertSame('PATCH', $feedbackCheck->method);
+        $this->assertSame('PATCH', data_get($feedbackCheck->context, 'response_headers.allow'));
+        $this->assertFalse((bool) data_get($feedbackCheck->context, 'internal_request'));
+
         foreach ([
             'system.pending_migrations',
             'portal.dashboard',
             'advisor.clients.show',
             'advisor.dd_client.show',
+            'advisor.dd_client.feedback',
             'portal.dd_business_plan_budget.workspace',
             'portal.business_plan_budget.document',
             'portal.business_plan_budget.pdf',

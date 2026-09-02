@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Client;
 use App\Models\User;
 use App\Support\RequestContext;
+use Database\Seeders\BrowserE2eDdSeeder;
 use Database\Seeders\BrowserE2eSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -31,6 +32,7 @@ final class BrowserE2eFixtureTest extends TestCase
         $this->setE2eEnvironment();
         config(['co-browse.enabled' => true]);
         $this->seed(BrowserE2eSeeder::class);
+        $this->seed(BrowserE2eDdSeeder::class);
     }
 
     protected function tearDown(): void
@@ -48,6 +50,7 @@ final class BrowserE2eFixtureTest extends TestCase
         $clientUser = User::query()->where('email', 'browser-e2e-client@example.test')->firstOrFail();
         $npoUser = User::query()->where('email', 'browser-e2e-npo@example.test')->firstOrFail();
         $client = Client::query()->findOrFail('00000000-0000-4000-8000-000000000001');
+        $ddClient = Client::query()->findOrFail('00000000-0000-4000-8000-000000000003');
 
         self::assertSame('2026-08-26 22:15:00', $client->updated_at?->utc()->toDateTimeString());
         self::assertSame('2026-08-26 22:15:00', $advisor->updated_at?->utc()->toDateTimeString());
@@ -103,6 +106,13 @@ final class BrowserE2eFixtureTest extends TestCase
                 ->where('screenShare.participants.0.id', (string) $clientUser->getKey())
                 ->has('coBrowse.participants', 1)
                 ->where('coBrowse.participants.0.id', (string) $clientUser->getKey()));
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.show', $ddClient))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/clients/Show')
+                ->where('client.legal_name', 'Browser E2E Due Diligence Client'));
     }
 
     public function test_browser_fixture_normalizes_rfc4648_totp_padding(): void

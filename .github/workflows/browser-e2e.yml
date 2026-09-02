@@ -49,6 +49,8 @@ jobs:
       # Co-browse is deliberately opt-in for a selected client portal. The
       # test must therefore open the seeded client's scoped dashboard.
       E2E_CLIENT_PORTAL_PATH: /portal?client=00000000-0000-4000-8000-000000000001
+      E2E_DD_CLIENT_SCREEN_PATH: /advisor/clients/00000000-0000-4000-8000-000000000003
+      E2E_DD_CLIENT_SCREEN_EXPECT: Browser E2E Due Diligence Client
       E2E_NPO_EXPECT: Browser E2E NPO Client
       CO_BROWSE_ENABLED: 'true'
       # CI runs both authenticated peers on one runner. This test-only direct
@@ -101,7 +103,10 @@ jobs:
           exit 1
 
       - name: Run authenticated browser quality gate
-        run: npm run browser:e2e
+        run: |
+          npm run browser:e2e
+          php artisan db:seed --class=Database\\Seeders\\BrowserE2eDdSeeder --env=testing --force
+          E2E_BROWSER_FLOW=dd npm run browser:e2e
 
       - name: Upload browser evidence
         if: ${{ always() }}

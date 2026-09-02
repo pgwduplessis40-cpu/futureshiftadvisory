@@ -29,7 +29,7 @@ final class BrowserE2eSeeder extends Seeder
      * fixture timestamp fixed prevents date labels from making visual
      * approval fail on a later CI day.
      */
-    private const FIXTURE_TIMESTAMP = '2026-08-26 22:15:00';
+    public const FIXTURE_TIMESTAMP = '2026-08-26 22:15:00';
 
     public function run(): void
     {
@@ -38,7 +38,6 @@ final class BrowserE2eSeeder extends Seeder
         }
 
         $this->call(RoleSeeder::class);
-
         $advisor = $this->upsertUser('ADVISOR', User::TYPE_ADVISOR);
         $clientUser = $this->upsertUser('CLIENT', User::TYPE_CLIENT_PRIMARY);
         $npoUser = $this->upsertUser('NPO', User::TYPE_NPO_BOARD_MEMBER);
@@ -85,6 +84,7 @@ final class BrowserE2eSeeder extends Seeder
                 'created_by_user_id' => $advisor->getKey(),
             ],
         );
+
     }
 
     private function upsertClient(string $id, string $legalName, EngagementType $engagementType, User $advisor, User $contact): Client
@@ -92,7 +92,11 @@ final class BrowserE2eSeeder extends Seeder
         $client = Client::query()->firstOrNew(['id' => $id]);
         $client->forceFill([
             'engagement_type' => $engagementType,
-            'nzbn' => $id === '00000000-0000-4000-8000-000000000001' ? '9429000000000' : '9429000000001',
+            'nzbn' => match ($id) {
+                '00000000-0000-4000-8000-000000000001' => '9429000000000',
+                '00000000-0000-4000-8000-000000000002' => '9429000000001',
+                default => '9429000000002',
+            },
             'legal_name' => $legalName,
             'data_quality' => Client::DATA_QUALITY_LOW,
             'created_by_user_id' => $advisor->getKey(),
@@ -163,7 +167,7 @@ final class BrowserE2eSeeder extends Seeder
         return $unpadded;
     }
 
-    private function fixtureTimestamp(): CarbonImmutable
+    public static function fixtureTimestamp(): CarbonImmutable
     {
         return CarbonImmutable::createFromFormat(
             'Y-m-d H:i:s',

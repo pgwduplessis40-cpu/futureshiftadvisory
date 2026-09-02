@@ -20,7 +20,6 @@ use App\Support\ReleaseVersion;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Migrations\Migrator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -38,7 +37,10 @@ final class OperationalHealthCheckRunner
 
     public const SCOPE_SENTINEL = 'sentinel';
 
-    public function __construct(private readonly ReleaseVersion $releaseVersion) {}
+    public function __construct(
+        private readonly ReleaseVersion $releaseVersion,
+        private readonly OperationalHealthWorkflowProbe $workflowProbe,
+    ) {}
 
     public function run(string $scope = self::SCOPE_FULL): OperationalHealthCheckRun
     {
@@ -140,6 +142,7 @@ final class OperationalHealthCheckRunner
                 'missing_fixture' => null,
                 'sentinel' => true,
             ],
+            ...$this->workflowProbe->externalEdgeDefinitions(),
             [
                 'key' => 'pwa.service_worker',
                 'name' => 'Service worker freshness',
@@ -166,9 +169,9 @@ final class OperationalHealthCheckRunner
                 'url' => route('deployment.show', absolute: false),
                 'route_name' => 'deployment.show',
                 'user' => null,
-                'expected_statuses' => $this->deploymentExpectedStatuses(),
+                'expected_statuses' => $this->workflowProbe->deploymentExpectedStatuses(),
                 'expected_content_type' => 'application/json',
-                'expected_headers' => $this->requiresVerifiedDeployment()
+                'expected_headers' => $this->workflowProbe->requiresVerifiedDeployment()
                     ? ['x-fsa-deployment-status' => 'verified']
                     : [],
                 'expected_behavior' => 'The deployment endpoint should report the release identity expected by installed clients.',
@@ -263,6 +266,10 @@ final class OperationalHealthCheckRunner
                     'label' => $advisorDueDiligenceClient->legal_name,
                 ] : null,
             ],
+            $this->workflowProbe->dueDiligenceFeedbackDefinition(
+                $advisorDueDiligenceClient,
+                $superAdmin,
+            ),
             [
                 'key' => 'portal.dd_business_plan_budget.workspace',
                 'name' => 'DD Business Plan & Budget workspace',
@@ -454,11 +461,21 @@ final class OperationalHealthCheckRunner
             return;
         }
 
-        $probe = $this->dispatchInternalRequest(
-            method: (string) ($definition['method'] ?? 'GET'),
-            url: $url,
-            user: $user instanceof User ? $user : null,
-        );
+        $kind = $definition['kind'] ?? null;
+        $externalRequest = $kind === 'external_http';
+        $probe = $kind === 'route_contract'
+            ? $this->workflowProbe->routeContractProbe(
+                routeName: (string) ($definition['route_name'] ?? ''),
+                method: (string) ($definition['method'] ?? 'GET'),
+            )
+            : ($externalRequest ? $this->workflowProbe->dispatchExternalRequest(
+                method: (string) ($definition['method'] ?? 'GET'),
+                url: $url,
+            ) : $this->dispatchInternalRequest(
+                method: (string) ($definition['method'] ?? 'GET'),
+                url: $url,
+                user: $user instanceof User ? $user : null,
+            ));
 
         $expectedStatuses = array_map('intval', (array) ($definition['expected_statuses'] ?? [200]));
         $actualStatus = is_int($probe['status'] ?? null) ? $probe['status'] : null;
@@ -512,7 +529,7 @@ final class OperationalHealthCheckRunner
                 'fallback_pdf_detected' => $fallbackPdfDetected,
                 'fallback_pdf_marker' => $fallbackPdfDetected ? SimpleTextPdf::FALLBACK_MARKER : null,
                 'response_headers' => $probe['headers'] ?? [],
-                'internal_request' => true,
+                'internal_request' => ! $externalRequest && $kind !== 'route_contract',
             ],
         ]);
     }
@@ -522,7 +539,7 @@ final class OperationalHealthCheckRunner
      */
     private function recordPendingMigrationDefinition(OperationalHealthCheckRun $run, array $definition): void
     {
-        $pending = $this->pendingMigrations();
+        $pending = $this->workflowProbe->pendingMigrations();
         $status = $pending === []
             ? OperationalHealthCheckResult::STATUS_PASSED
             : OperationalHealthCheckResult::STATUS_FAILED;
@@ -547,26 +564,6 @@ final class OperationalHealthCheckRunner
                 'internal_request' => false,
             ],
         ]);
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function pendingMigrations(): array
-    {
-        if (! Schema::hasTable('migrations')) {
-            return ['migrations_table_missing'];
-        }
-
-        /** @var Migrator $migrator */
-        $migrator = app(Migrator::class);
-        $files = array_keys($migrator->getMigrationFiles(database_path('migrations')));
-        $ran = DB::table('migrations')
-            ->pluck('migration')
-            ->map(fn (mixed $migration): string => (string) $migration)
-            ->all();
-
-        return array_values(array_diff($files, $ran));
     }
 
     /**
@@ -714,7 +711,7 @@ final class OperationalHealthCheckRunner
         $session->replace([]);
         $session->start();
 
-        $request = Request::create($url, strtoupper($method), [], [], [], [
+        $request = Request::create($url, strtoupper($method), ['_token' => $session->token()], [], [], [
             'HTTP_ACCEPT' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'HTTP_X_INERTIA' => 'true',
             'HTTP_X_INERTIA_VERSION' => $this->inertiaVersion(),
@@ -971,19 +968,6 @@ final class OperationalHealthCheckRunner
         }
 
         return implode(' ', $parts);
-    }
-
-    /**
-     * @return array<int, int>
-     */
-    private function deploymentExpectedStatuses(): array
-    {
-        return $this->requiresVerifiedDeployment() ? [200] : [200, 503];
-    }
-
-    private function requiresVerifiedDeployment(): bool
-    {
-        return (bool) config('operational_health.require_verified_deployment', false);
     }
 
     /**

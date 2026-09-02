@@ -354,17 +354,20 @@ final class OperationalHealthFixtureSeeder extends Seeder
         $path = 'operational-health/reports/dd-decision-report.pdf';
         $contents = $this->fixturePdf('Operational health DD decision report', $path);
         $disk = Storage::disk('secure_local');
+        $identity = [
+            'client_id' => $client->getKey(),
+            'type' => ReportType::AcquisitionGoNoGo->value,
+            'title' => 'Operational Health DD Decision Report',
+        ];
+        $existingReport = Report::query()->where($identity)->first(['metadata']);
+        $existingFeedbackSavedAt = data_get($existingReport?->metadata, 'advisor_client_reply.saved_at');
 
         if (! $disk->put($path, $contents)) {
             throw new \RuntimeException("Unable to write operational health fixture report [{$path}].");
         }
 
         return Report::query()->updateOrCreate(
-            [
-                'client_id' => $client->getKey(),
-                'type' => ReportType::AcquisitionGoNoGo->value,
-                'title' => 'Operational Health DD Decision Report',
-            ],
+            $identity,
             [
                 'pdf_path' => $path,
                 'pdf_byte_size' => strlen($contents),
@@ -429,7 +432,9 @@ final class OperationalHealthFixtureSeeder extends Seeder
                         'status' => 'feedback_saved',
                         'advisor_feedback' => 'Operational health DD feedback fixture.',
                         'proposed_reply' => 'Operational health DD client reply fixture.',
-                        'saved_at' => now()->toIso8601String(),
+                        'saved_at' => is_string($existingFeedbackSavedAt) && $existingFeedbackSavedAt !== ''
+                            ? $existingFeedbackSavedAt
+                            : now()->toIso8601String(),
                         'saved_by_user_id' => $admin->getKey(),
                         'sent_at' => null,
                         'sent_by_user_id' => null,
