@@ -781,6 +781,7 @@ final class OperationalHealthCheckRunner
     }
 
     /**
+     * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
     private function dispatchInternalRequest(
@@ -789,8 +790,7 @@ final class OperationalHealthCheckRunner
         ?User $user,
         array $payload = [],
         bool $rollbackDatabase = false,
-    ): array
-    {
+    ): array {
         $started = hrtime(true);
         $session = app('session')->driver();
         $originalSessionId = $session->getId();
