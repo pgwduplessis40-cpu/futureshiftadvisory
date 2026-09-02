@@ -325,6 +325,16 @@ final class OperationalHealthCheckTest extends TestCase
         $this->assertSame(0, $run->failed_checks);
         $this->assertSame(0, $run->skipped_checks);
 
+        /** @var OperationalHealthCheckResult $feedbackCheck */
+        $feedbackCheck = $run->results()
+            ->where('check_key', 'advisor.dd_client.feedback')
+            ->firstOrFail();
+
+        $this->assertSame(200, $feedbackCheck->actual_status);
+        $this->assertSame('PATCH', $feedbackCheck->method);
+        $this->assertSame('PATCH', data_get($feedbackCheck->context, 'response_headers.allow'));
+        $this->assertFalse((bool) data_get($feedbackCheck->context, 'internal_request'));
+
         foreach ([
             'system.pending_migrations',
             'portal.dashboard',

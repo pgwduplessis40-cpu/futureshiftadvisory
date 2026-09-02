@@ -603,11 +603,25 @@ async function assertExpectedContent(page, flow, viewport) {
 }
 
 async function assertClientInformationTab(page, flow, viewport) {
-    const tabList = page.locator('[role="tablist"][aria-label="Client detail sections"]');
-    const informationTab = tabList.getByRole('tab', {
-        name: 'Information',
-        exact: true,
-    });
+    const tabList = await page.waitForSelector(
+        '[role="tablist"][aria-label="Client detail sections"]',
+        { timeout: 10_000 },
+    );
+    const tabs = await tabList.$$('[role="tab"]');
+    const informationTab = (
+        await Promise.all(
+            tabs.map(async (tab) =>
+                (await tab.evaluate((element) => element.textContent?.trim())) ===
+                'Information'
+                    ? tab
+                    : null,
+            ),
+        )
+    ).find((tab) => tab !== null);
+
+    if (informationTab === undefined) {
+        throw new Error('Client detail navigation did not render an Information tab.');
+    }
 
     await informationTab.click();
     await page.waitForFunction(
