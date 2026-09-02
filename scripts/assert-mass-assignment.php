@@ -5,6 +5,17 @@ declare(strict_types=1);
 $comparisonRef = $argv[1] ?? null;
 $config = require __DIR__.'/../config/production_quality.php';
 $failures = [];
+$broadGuardedModels = broadGuardedModels();
+$ceiling = (int) ($config['legacy_broad_guarded_model_ceiling'] ?? 0);
+
+if (count($broadGuardedModels) > $ceiling) {
+    $failures[] = sprintf(
+        'Unrestricted model count is %d, above the ratcheted ceiling of %d: %s.',
+        count($broadGuardedModels),
+        $ceiling,
+        implode(', ', $broadGuardedModels),
+    );
+}
 
 foreach ($config['sensitive_models'] as $model => $path) {
     $contents = @file_get_contents($path);
@@ -35,7 +46,38 @@ if ($failures !== []) {
     exit(1);
 }
 
-echo 'Sensitive-model allow-list registry and unrestricted-model ratchet passed.'.PHP_EOL;
+printf(
+    'Sensitive-model allow-list registry and unrestricted-model ratchet passed (%d legacy unrestricted models, ceiling %d).%s',
+    count($broadGuardedModels),
+    $ceiling,
+    PHP_EOL,
+);
+
+/** @return list<string> */
+function broadGuardedModels(): array
+{
+    $models = [];
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator(__DIR__.'/../app/Models', FilesystemIterator::SKIP_DOTS),
+    );
+
+    foreach ($iterator as $file) {
+        if (! $file instanceof SplFileInfo || $file->getExtension() !== 'php') {
+            continue;
+        }
+
+        $contents = file_get_contents($file->getPathname());
+        if ($contents === false || preg_match('/(?:public|protected)\s+\$guarded\s*=\s*\[\s*\]\s*;/', $contents) !== 1) {
+            continue;
+        }
+
+        $models[] = str_replace('\\', '/', substr($file->getPathname(), strlen(__DIR__.'/..') + 1));
+    }
+
+    sort($models);
+
+    return $models;
+}
 
 /** @param list<string> $failures */
 function enforceNoNewUnrestrictedModels(string $comparisonRef, array &$failures): void

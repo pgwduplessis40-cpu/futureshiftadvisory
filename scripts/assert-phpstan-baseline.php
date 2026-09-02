@@ -9,7 +9,7 @@ declare(strict_types=1);
  */
 $baselinePath = $argv[1] ?? 'phpstan-baseline.neon';
 $comparisonRef = $argv[2] ?? null;
-$maximum = (int) (getenv('PHPSTAN_BASELINE_MAX') ?: 1839);
+$maximum = (int) (getenv('PHPSTAN_BASELINE_MAX') ?: 1713);
 
 $current = baselineStats(readFileOrFail($baselinePath));
 $comparisonContents = $comparisonRef === null ? null : readRevisionOrFail($comparisonRef, $baselinePath);

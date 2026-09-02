@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
@@ -114,6 +115,14 @@ try {
     for (const flow of flows) {
         await runFlow(browser, flow);
     }
+
+    try {
+        await runScreenSupportCollaboration(browser);
+    } catch (error) {
+        failures.push(
+            `Client Screen collaboration: ${error instanceof Error ? error.message : String(error)}`,
+        );
+    }
 } finally {
     await browser.close();
 }
@@ -130,6 +139,153 @@ async function runFlow(browserInstance, flow) {
         { name: 'mobile', width: 390, height: 844, isMobile: true },
     ]) {
         await runFlowViewport(browserInstance, flow, viewport);
+    }
+}
+
+/**
+ * Exercise the real advisor/client collaboration controls as two isolated
+ * browser users. The deterministic media implementation replaces browser
+ * device and peer-transport APIs; registration, consent, signalling, guided
+ * assistance, and termination still use the production application routes.
+ */
+async function runScreenSupportCollaboration(browserInstance) {
+    const advisorContext = await browserInstance.createBrowserContext();
+    const clientContext = await browserInstance.createBrowserContext();
+    const advisorPage = await advisorContext.newPage();
+    const clientPage = await clientContext.newPage();
+    const collaborationFailures = [];
+
+    for (const [role, page] of [
+        ['advisor', advisorPage],
+        ['client', clientPage],
+    ]) {
+        page.on('console', (message) => {
+            if (message.type() === 'error') {
+                collaborationFailures.push(
+                    `${role} console error: ${message.text()}`,
+                );
+            }
+        });
+        page.on('pageerror', (error) =>
+            collaborationFailures.push(`${role} page error: ${error.message}`),
+        );
+        page.on('requestfailed', (request) => {
+            if (!request.failure()?.errorText?.includes('ERR_ABORTED')) {
+                collaborationFailures.push(
+                    `${role} request failed: ${request.method()} ${request.url()}`,
+                );
+            }
+        });
+        page.on('response', (response) => {
+            if (
+                new URL(response.url()).origin === baseUrl.origin &&
+                response.status() >= 400
+            ) {
+                collaborationFailures.push(
+                    `${role} HTTP ${response.status()}: ${response.request().method()} ${response.url()}`,
+                );
+            }
+        });
+    }
+
+    try {
+        await Promise.all([
+            advisorPage.setViewport({ width: 1440, height: 1000 }),
+            clientPage.setViewport({ width: 1440, height: 1000 }),
+            installFakeMedia(advisorPage),
+            installFakeMedia(clientPage),
+        ]);
+        await Promise.all([
+            login(advisorPage, accounts.advisor, 'desktop collaboration'),
+            login(clientPage, accounts.client, 'desktop collaboration'),
+        ]);
+        await clientPage.goto(
+            absoluteUrl(process.env.E2E_CLIENT_PORTAL_PATH ?? '/portal'),
+            { waitUntil: 'networkidle2' },
+        );
+        await clientPage.waitForFunction(
+            () => {
+                const resources = performance.getEntriesByType('resource');
+
+                return [
+                    '/screen-share/connections',
+                    '/co-browse/connections',
+                ].every((path) =>
+                    resources.some((entry) => entry.name.includes(path)),
+                );
+            },
+            { timeout: 10_000 },
+        );
+        await advisorPage.goto(
+            absoluteUrl(process.env.E2E_CLIENT_SCREEN_PATH),
+            {
+                waitUntil: 'networkidle2',
+            },
+        );
+
+        await clickButton(advisorPage, 'Screen support');
+        await clickButton(advisorPage, 'Request view');
+
+        await waitForBodyText(clientPage, 'Screen support request');
+        await clickButton(clientPage, 'Continue');
+
+        await advisorPage.waitForFunction(
+            () => document.body.innerText.includes('View only. Live for'),
+            { timeout: 15_000 },
+        );
+        await clientPage.waitForFunction(
+            () => document.body.innerText.includes('Screen sharing with'),
+            { timeout: 15_000 },
+        );
+
+        await clickButton(advisorPage, 'Request guidance approval');
+        await waitForBodyText(clientPage, 'Allow guided assistance?');
+        await clickButton(clientPage, 'Allow assistance');
+        await advisorPage.waitForFunction(
+            () =>
+                document.body.innerText.includes('Guided assistance is active'),
+            { timeout: 10_000 },
+        );
+
+        await clickButton(advisorPage, 'End guidance');
+        await clientPage.waitForFunction(
+            () => !document.body.innerText.includes('Stop assistance'),
+            { timeout: 10_000 },
+        );
+        await clickButton(advisorPage, 'End');
+        await clientPage.waitForFunction(
+            () => !document.body.innerText.includes('Screen sharing with'),
+            { timeout: 10_000 },
+        );
+    } catch (error) {
+        for (const [role, page] of [
+            ['advisor', advisorPage],
+            ['client', clientPage],
+        ]) {
+            try {
+                await page.screenshot({
+                    path: join(
+                        artifactRoot,
+                        `client-screen-collaboration-${role}.failure.png`,
+                    ),
+                    fullPage: true,
+                });
+            } catch {
+                // Preserve the collaboration failure if Chrome cannot capture it.
+            }
+        }
+
+        collaborationFailures.push(
+            error instanceof Error ? error.message : String(error),
+        );
+    } finally {
+        await Promise.all([advisorContext.close(), clientContext.close()]);
+    }
+
+    if (collaborationFailures.length > 0) {
+        throw new Error(
+            `Client Screen collaboration failed: ${collaborationFailures.join('; ')}`,
+        );
     }
 }
 
@@ -186,10 +342,6 @@ async function runFlowViewport(browserInstance, flow, viewport) {
         await assertAccessibility(page, flow, viewport.name);
         await assertKeyboardFocus(page, flow, viewport.name);
 
-        if (flow.name === 'Client Screen') {
-            await assertFakeWebRtcContract(page, viewport.name);
-        }
-
         await settleVisualCapture(
             page,
             viewport.isMobile && usesPwaInstallFallback(flow),
@@ -236,10 +388,22 @@ async function login(page, account, viewport) {
     await page.locator('input[name="email"]').fill(account.email);
     await page.locator('input[name="password"]').fill(account.password);
     await page.locator('button[type="submit"]').click();
-    await page.waitForFunction(
-        () => !window.location.pathname.includes('/login'),
-        { timeout: 15_000 },
-    );
+
+    try {
+        await page.waitForFunction(
+            () => !window.location.pathname.includes('/login'),
+            { timeout: 15_000 },
+        );
+    } catch (error) {
+        const visibleText = await page.evaluate(() =>
+            document.body.innerText.replace(/\s+/g, ' ').trim().slice(0, 500),
+        );
+
+        throw new Error(
+            `Login did not advance from ${new URL(page.url()).pathname}: ${visibleText}`,
+            { cause: error },
+        );
+    }
 
     if (isMfaChallengePath(new URL(page.url()).pathname)) {
         await assertAccessibility(page, { name: 'MFA challenge' }, viewport);
@@ -263,6 +427,45 @@ async function login(page, account, viewport) {
     }
 }
 
+async function waitForBodyText(page, text, timeout = 10_000) {
+    await page.waitForFunction(
+        (expected) => document.body.innerText.includes(expected),
+        { timeout },
+        text,
+    );
+}
+
+async function clickButton(page, label, timeout = 10_000) {
+    await page.waitForFunction(
+        (expected) =>
+            Array.from(document.querySelectorAll('button')).some(
+                (button) =>
+                    button.textContent?.trim() === expected && !button.disabled,
+            ),
+        { timeout },
+        label,
+    );
+    const clicked = await page.evaluate((expected) => {
+        const button = Array.from(document.querySelectorAll('button')).find(
+            (candidate) =>
+                candidate.textContent?.trim() === expected &&
+                !candidate.disabled,
+        );
+
+        if (!(button instanceof HTMLButtonElement)) {
+            return false;
+        }
+
+        button.click();
+
+        return true;
+    }, label);
+
+    if (!clicked) {
+        throw new Error(`Could not click the ${label} button.`);
+    }
+}
+
 function isMfaChallengePath(pathname) {
     return ['/mfa/challenge', '/two-factor-challenge'].some((challengePath) =>
         pathname.includes(challengePath),
@@ -275,13 +478,15 @@ async function installFakeMedia(page) {
         const mediaDevices = navigator.mediaDevices ?? {};
 
         class FakePeerConnection extends EventTarget {
-            connectionState = 'connected';
+            connectionState = 'new';
 
             iceConnectionState = 'connected';
 
             localDescription = null;
 
             remoteDescription = null;
+
+            onconnectionstatechange = null;
 
             async createOffer() {
                 return { type: 'offer', sdp: 'v=0\r\n' };
@@ -293,10 +498,12 @@ async function installFakeMedia(page) {
 
             async setLocalDescription(description) {
                 this.localDescription = description;
+                this.markConnected();
             }
 
             async setRemoteDescription(description) {
                 this.remoteDescription = description;
+                this.markConnected();
             }
 
             async addIceCandidate() {}
@@ -309,6 +516,19 @@ async function installFakeMedia(page) {
 
             close() {
                 this.connectionState = 'closed';
+            }
+
+            markConnected() {
+                if (
+                    this.connectionState === 'new' &&
+                    this.localDescription !== null &&
+                    this.remoteDescription !== null
+                ) {
+                    this.connectionState = 'connected';
+                    const event = new Event('connectionstatechange');
+                    this.onconnectionstatechange?.(event);
+                    this.dispatchEvent(event);
+                }
             }
         }
 
@@ -483,40 +703,6 @@ async function assertKeyboardFocus(page, flow, viewport) {
     }
 }
 
-async function assertFakeWebRtcContract(page, viewport) {
-    const result = await page.evaluate(async () => {
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-            video: true,
-        });
-        const peer = new RTCPeerConnection();
-        const offer = await peer.createOffer();
-        await peer.setLocalDescription(offer);
-        const answer = await peer.createAnswer();
-        await peer.setRemoteDescription(answer);
-        peer.close();
-
-        return {
-            hasStream: stream instanceof MediaStream,
-            offerType: offer.type,
-            answerType: answer.type,
-            localType: peer.localDescription?.type ?? null,
-            remoteType: peer.remoteDescription?.type ?? null,
-        };
-    });
-
-    if (
-        !result.hasStream ||
-        result.offerType !== 'offer' ||
-        result.answerType !== 'answer' ||
-        result.localType !== 'offer' ||
-        result.remoteType !== 'answer'
-    ) {
-        throw new Error(
-            `Fake WebRTC media/signalling contract failed on ${viewport}.`,
-        );
-    }
-}
-
 async function assertApprovedScreenshot(page, flow, viewport) {
     const snapshotName = `${safeName(flow.name)}-${viewport}.png`;
     const expectedPath = join(screenshotRoot, snapshotName);
@@ -524,7 +710,9 @@ async function assertApprovedScreenshot(page, flow, viewport) {
         artifactRoot,
         `${safeName(flow.name)}-${viewport}.actual.png`,
     );
-    const actual = await page.screenshot({ fullPage: true });
+    // Puppeteer returns a Uint8Array here. pngjs requires a Node Buffer; using
+    // it directly makes the visual gate fail before comparing any screenshot.
+    const actual = Buffer.from(await page.screenshot({ fullPage: true }));
     writeFileSync(actualPath, actual);
 
     if (!existsSync(expectedPath)) {

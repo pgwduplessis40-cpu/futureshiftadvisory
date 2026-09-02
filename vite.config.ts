@@ -7,11 +7,12 @@ import { bunny } from 'laravel-vite-plugin/fonts';
 import { defineConfig } from 'vite';
 
 // Wayfinder regenerates every route/action type on boot, which measured at ~78s
-// of dev-server startup on this codebase. Builds always regenerate so shipped
-// types are never stale; dev skips it and reuses the committed output. After
-// changing routes or controller signatures, refresh them explicitly with:
+// of dev-server startup on this codebase. Both dev and asset builds reuse the
+// committed output, so builds are reproducible. After changing routes or
+// controller signatures, refresh them explicitly with:
 //   php artisan wayfinder:generate --with-form
-// or force it for one run with WAYFINDER_GENERATE=true.
+// or `npm run wayfinder:generate`. Set WAYFINDER_GENERATE=true only when
+// intentionally checking generator output locally.
 const wayfinderOverride = process.env.WAYFINDER_GENERATE;
 const clientReleaseSha =
     process.env.GITHUB_SHA ?? process.env.VITE_RELEASE_SHA ?? 'local';

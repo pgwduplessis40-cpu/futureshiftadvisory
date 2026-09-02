@@ -55,6 +55,10 @@ foreach ($config['monoliths'] as $path => $target) {
     }
 }
 
+if ($comparisonRef !== null) {
+    enforceUnregisteredSourceSize($comparisonRef, $config, $summary, $failures);
+}
+
 writeSummary('### Structural-boundary size gate', $summary);
 
 if ($failures !== []) {
@@ -66,6 +70,92 @@ if ($failures !== []) {
 echo $production
     ? "All target files meet their production size limits.\n"
     : "All target files meet their no-growth ceilings.\n";
+
+/**
+ * Protect the rest of the codebase, not just the historical monolith list.
+ * A legacy oversized source may be reduced in place, but a PR cannot enlarge
+ * it; any new oversized source is rejected outright.
+ *
+ * @param  array<string,mixed>  $config
+ * @param  array<string,mixed>  $summary
+ * @param  list<string>  $failures
+ */
+function enforceUnregisteredSourceSize(string $comparisonRef, array $config, array &$summary, array &$failures): void
+{
+    $limit = (int) ($config['unregistered_source_line_limit'] ?? 1000);
+    $registered = array_fill_keys(array_keys((array) ($config['monoliths'] ?? [])), true);
+
+    foreach (changedSourcePaths($comparisonRef) as $path) {
+        if (isset($registered[$path])) {
+            continue;
+        }
+
+        $contents = @file($path, FILE_IGNORE_NEW_LINES);
+        if ($contents === false || count($contents) <= $limit) {
+            continue;
+        }
+
+        $previous = sourceAtRevision($comparisonRef, $path);
+        $previousLines = $previous === null ? null : count(preg_split('/\R/', $previous) ?: []);
+        $lines = count($contents);
+        $summary[$path] = [
+            'lines' => $lines,
+            'limit' => $limit,
+            'previous_lines' => $previousLines,
+            'registered' => false,
+        ];
+
+        if ($previousLines === null) {
+            $failures[] = "New source file {$path} has {$lines} lines, above the unregistered limit of {$limit}.";
+        } elseif ($lines > $previousLines) {
+            $failures[] = "Unregistered oversized source {$path} grew from {$previousLines} to {$lines} lines; extract it or add a ratcheted registry target.";
+        }
+    }
+}
+
+/** @return list<string> */
+function changedSourcePaths(string $comparisonRef): array
+{
+    $process = proc_open(
+        ['git', 'diff', '--name-only', '--diff-filter=ACMR', $comparisonRef, '--', 'app', 'resources/js'],
+        [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+        $pipes,
+    );
+
+    if (! is_resource($process)) {
+        return [];
+    }
+
+    $output = stream_get_contents($pipes[1]);
+    stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+
+    if (proc_close($process) !== 0 || ! is_string($output)) {
+        return [];
+    }
+
+    return array_values(array_filter(
+        preg_split('/\R/', trim($output)) ?: [],
+        static fn (string $path): bool => preg_match('/\.(php|tsx?|jsx?)$/', $path) === 1,
+    ));
+}
+
+function sourceAtRevision(string $revision, string $path): ?string
+{
+    $process = proc_open(['git', 'show', "{$revision}:{$path}"], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+
+    if (! is_resource($process)) {
+        return null;
+    }
+
+    $contents = stream_get_contents($pipes[1]);
+    stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+
+    return proc_close($process) === 0 && is_string($contents) ? $contents : null;
+}
 
 /** @param array<string,mixed> $current @param array<string,mixed> $comparison @param list<string> $failures */
 function enforceNoLimitIncreases(array $current, array $comparison, array &$failures): void

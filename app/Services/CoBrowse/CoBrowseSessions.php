@@ -233,6 +233,14 @@ final class CoBrowseSessions
         return $this->context->withSystemContext(function () use ($clientUser, $session, $connection, $afterId): array {
             $locked = CoBrowseSession::query()->findOrFail($session->getKey());
             $this->assertClientConnectionForSession($locked, $clientUser, $connection);
+
+            // Ending a session can race the client's in-flight action poll.
+            // An authorised participant has no further actions to receive, so
+            // return an empty page instead of causing a browser-visible 409.
+            if ($locked->status === CoBrowseSession::STATUS_ENDED) {
+                return [];
+            }
+
             abort_unless($locked->status === CoBrowseSession::STATUS_ACTIVE, 409);
 
             return CoBrowseAction::query()

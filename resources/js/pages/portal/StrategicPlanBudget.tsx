@@ -1,4 +1,3 @@
-import type { RequestPayload } from '@inertiajs/core';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     AlertTriangle,
@@ -87,6 +86,7 @@ type BusinessPlanSourceDraft = {
 
 type BudgetPayload = {
     id: string;
+    revision: number;
     label: string;
     pathway: string;
     status: string;
@@ -287,6 +287,16 @@ type WorkspaceTab = 'business_plan' | 'budget' | 'insights';
 
 type AutosaveState = 'saved' | 'pending' | 'saving' | 'error';
 
+type DraftSaveOptions = {
+    onSuccess?: () => void;
+    onError?: () => void;
+};
+
+type PendingDraftSave = DraftSaveOptions & {
+    signature: string;
+    sequence: number;
+};
+
 type BudgetGroupKey =
     | 'implementation_costs'
     | 'monthly_fixed_costs'
@@ -373,6 +383,12 @@ export default function StrategicPlanBudget({
     const latestSignature = useRef(serializedForm);
     const autosaveTimer = useRef<number | null>(null);
     const saveSequence = useRef(0);
+    const budgetRevision = useRef(budget.revision);
+    const saveInFlight = useRef(false);
+    const queuedSave = useRef<PendingDraftSave | null>(null);
+    const sendDraftRef = useRef<(pending: PendingDraftSave) => void>(
+        () => undefined,
+    );
 
     const clearAutosaveTimer = useCallback(() => {
         if (autosaveTimer.current === null) {
@@ -383,58 +399,91 @@ export default function StrategicPlanBudget({
         autosaveTimer.current = null;
     }, []);
 
-    const postDraft = useCallback(
-        (
-            signature: string,
-            options: {
-                onSuccess?: () => void;
-                onError?: () => void;
-            } = {},
-        ) => {
-            const payload = JSON.parse(signature) as BudgetForm;
-            const sequence = saveSequence.current + 1;
+    useEffect(() => {
+        budgetRevision.current = budget.revision;
+    }, [budget.revision]);
 
-            saveSequence.current = sequence;
-            clearAutosaveTimer();
+    const sendDraft = useCallback(
+        (pending: PendingDraftSave) => {
+            const payload = {
+                ...(JSON.parse(pending.signature) as BudgetForm),
+                revision: budgetRevision.current,
+            };
+
+            saveInFlight.current = true;
             setAutosaveState('saving');
             setAutosaveError(null);
 
-            router.post(
-                budget.update_url,
-                payload as unknown as RequestPayload,
-                {
-                    preserveScroll: true,
-                    preserveState: true,
-                    onSuccess: () => {
-                        if (sequence === saveSequence.current) {
-                            lastSavedSignature.current = signature;
-                            setAutosaveState(
-                                latestSignature.current === signature
-                                    ? 'saved'
-                                    : 'pending',
-                            );
-                        }
+            router.post(budget.update_url, payload, {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    if (pending.sequence !== saveSequence.current) {
+                        return;
+                    }
 
-                        options.onSuccess?.();
-                    },
-                    onError: (errors) => {
-                        if (sequence === saveSequence.current) {
-                            const firstError = Object.values(errors)[0];
-
-                            setAutosaveState('error');
-                            setAutosaveError(
-                                typeof firstError === 'string'
-                                    ? firstError
-                                    : 'Autosave failed. Please try again.',
-                            );
-                        }
-
-                        options.onError?.();
-                    },
+                    lastSavedSignature.current = pending.signature;
+                    setAutosaveState(
+                        latestSignature.current === pending.signature
+                            ? 'saved'
+                            : 'pending',
+                    );
+                    pending.onSuccess?.();
                 },
-            );
+                onError: (errors) => {
+                    if (pending.sequence !== saveSequence.current) {
+                        return;
+                    }
+
+                    const firstError = Object.values(errors)[0];
+
+                    setAutosaveState('error');
+                    setAutosaveError(
+                        typeof firstError === 'string'
+                            ? firstError
+                            : 'Autosave failed. Refresh and try again.',
+                    );
+                    pending.onError?.();
+                },
+                onFinish: () => {
+                    saveInFlight.current = false;
+                    const next = queuedSave.current;
+                    queuedSave.current = null;
+
+                    if (next !== null) {
+                        sendDraftRef.current(next);
+                    }
+                },
+            });
         },
-        [budget.update_url, clearAutosaveTimer],
+        [budget.update_url],
+    );
+
+    useEffect(() => {
+        sendDraftRef.current = sendDraft;
+    }, [sendDraft]);
+
+    const postDraft = useCallback(
+        (signature: string, options: DraftSaveOptions = {}) => {
+            const pending: PendingDraftSave = {
+                signature,
+                sequence: saveSequence.current + 1,
+                ...options,
+            };
+
+            saveSequence.current = pending.sequence;
+            clearAutosaveTimer();
+
+            if (saveInFlight.current) {
+                queuedSave.current = pending;
+                setAutosaveState('pending');
+
+                return;
+            }
+
+            sendDraft(pending);
+        },
+        [clearAutosaveTimer, sendDraft],
     );
 
     useEffect(() => {
@@ -475,29 +524,35 @@ export default function StrategicPlanBudget({
         );
         data.append('question_prompt', `${budget.label} financial upload`);
 
-        const response = await fetch(documentUploadUrl, {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'X-CSRF-TOKEN': csrfToken(),
-            },
-            body: data,
-        });
+        try {
+            const response = await fetch(documentUploadUrl, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrfToken(),
+                },
+                body: data,
+            });
 
-        setUploading(false);
+            if (!response.ok) {
+                const payload = (await response.json().catch(() => null)) as {
+                    message?: string;
+                } | null;
+                setUploadError(payload?.message ?? 'Upload failed.');
 
-        if (!response.ok) {
-            const payload = (await response.json().catch(() => null)) as {
-                message?: string;
-            } | null;
-            setUploadError(payload?.message ?? 'Upload failed.');
+                return;
+            }
 
-            return;
+            setFile(null);
+            setUploadKey((key) => key + 1);
+            router.reload();
+        } catch {
+            setUploadError(
+                'Upload could not reach the server. Please try again.',
+            );
+        } finally {
+            setUploading(false);
         }
-
-        setFile(null);
-        setUploadKey((key) => key + 1);
-        router.reload();
     };
 
     const reviewSubmittedOrLater = budget.review_submitted_or_later;
@@ -510,7 +565,11 @@ export default function StrategicPlanBudget({
         }
 
         const submitDraft = () => {
-            router.post(budget.submit_url, {}, { preserveScroll: true });
+            router.post(
+                budget.submit_url,
+                { revision: budgetRevision.current },
+                { preserveScroll: true },
+            );
         };
 
         if (serializedForm === lastSavedSignature.current) {
@@ -653,7 +712,10 @@ export default function StrategicPlanBudget({
                         </Button>
                         <Button
                             type="button"
-                            disabled={!canSubmitForReview}
+                            disabled={
+                                !canSubmitForReview ||
+                                autosaveState === 'saving'
+                            }
                             onClick={submit}
                         >
                             {reviewSubmittedOrLater ? (
@@ -1020,7 +1082,10 @@ export default function StrategicPlanBudget({
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    disabled={!canSubmitForReview}
+                                    disabled={
+                                        !canSubmitForReview ||
+                                        autosaveState === 'saving'
+                                    }
                                     onClick={submit}
                                 >
                                     {reviewSubmittedOrLater ? (

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Portal;
 
-use App\Enums\EngagementType;
+use App\Exceptions\StrategicBudgetRevisionConflict;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessPlan;
 use App\Models\Client;
@@ -141,7 +141,7 @@ final class StrategicBudgetController extends Controller
         ]);
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request): SymfonyResponse
     {
         $client = $this->clients->resolveFor($request);
         $this->assertPlanBudgetAccess($client);
@@ -150,12 +150,18 @@ final class StrategicBudgetController extends Controller
 
         $budget = $this->budgets->ensureForClient($client, $this->latestDueDiligencePlan($client));
 
-        $this->budgets->update($budget, $this->validatedBudget($request), $user);
+        $validated = $this->validatedBudget($request);
+
+        try {
+            $this->budgets->update($budget, $validated, $user, (int) $validated['revision']);
+        } catch (StrategicBudgetRevisionConflict $exception) {
+            return $this->staleRevisionResponse($request, $exception);
+        }
 
         return to_route('portal.business-plan-budget.show')->with('status', 'business-plan-budget-saved');
     }
 
-    public function submit(Request $request): RedirectResponse
+    public function submit(Request $request): SymfonyResponse
     {
         $client = $this->clients->resolveFor($request);
         $this->assertPlanBudgetAccess($client);
@@ -174,7 +180,15 @@ final class StrategicBudgetController extends Controller
                 ->with('business_plan_budget_error', 'Complete every plan section before submitting for advisor approval.');
         }
 
-        $this->budgets->submit($budget, $user);
+        $validated = $request->validate([
+            'revision' => ['required', 'integer', 'min:1'],
+        ]);
+
+        try {
+            $this->budgets->submit($budget, $user, (int) $validated['revision']);
+        } catch (StrategicBudgetRevisionConflict $exception) {
+            return $this->staleRevisionResponse($request, $exception);
+        }
 
         return to_route('portal.business-plan-budget.show')->with('status', 'business-plan-budget-submitted');
     }
@@ -238,13 +252,14 @@ final class StrategicBudgetController extends Controller
     private function validatedBudget(Request $request): array
     {
         return $request->validate([
+            'revision' => ['required', 'integer', 'min:1'],
             'business_plan_sections' => ['array', 'max:12'],
             'business_plan_sections.*.key' => ['required_with:business_plan_sections', 'string', 'max:80'],
             'business_plan_sections.*.answer' => ['nullable', 'string', 'max:6000'],
             'horizon_months' => ['required', 'integer', Rule::in([12, 24, 36])],
             'expected_runway_months' => ['nullable', 'integer', 'min:0', 'max:60'],
             'assumptions' => ['array'],
-            'assumptions.opening_cash_balance' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'assumptions.opening_cash_balance' => ['nullable', 'decimal:0,2', 'min:0', 'max:999999999'],
             'assumptions.revenue_growth_percent' => ['nullable', 'numeric', 'min:0', 'max:500'],
             'assumptions.cost_inflation_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'assumptions.target_gross_profit_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
@@ -252,32 +267,32 @@ final class StrategicBudgetController extends Controller
             'assumptions.target_net_profit_after_tax_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'implementation_costs' => ['array', 'max:50'],
             'implementation_costs.*.label' => ['nullable', 'string', 'max:180'],
-            'implementation_costs.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'implementation_costs.*.amount' => ['nullable', 'decimal:0,2', 'min:0', 'max:999999999'],
             'implementation_costs.*.quantity' => ['nullable', 'numeric', 'min:0', 'max:999999'],
             'implementation_costs.*.confidence' => ['nullable', 'string', Rule::in(['known', 'estimate', 'guess'])],
             'monthly_fixed_costs' => ['array', 'max:50'],
             'monthly_fixed_costs.*.label' => ['nullable', 'string', 'max:180'],
-            'monthly_fixed_costs.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'monthly_fixed_costs.*.amount' => ['nullable', 'decimal:0,2', 'min:0', 'max:999999999'],
             'monthly_fixed_costs.*.quantity' => ['nullable', 'numeric', 'min:0', 'max:999999'],
             'monthly_fixed_costs.*.confidence' => ['nullable', 'string', Rule::in(['known', 'estimate', 'guess'])],
             'revenue_forecast' => ['array', 'max:50'],
             'revenue_forecast.*.label' => ['nullable', 'string', 'max:180'],
-            'revenue_forecast.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'revenue_forecast.*.amount' => ['nullable', 'decimal:0,2', 'min:0', 'max:999999999'],
             'revenue_forecast.*.quantity' => ['nullable', 'numeric', 'min:0', 'max:999999'],
             'revenue_forecast.*.month' => ['nullable', 'integer', 'min:1', 'max:12'],
             'revenue_forecast.*.monthly_growth_percent' => ['nullable', 'numeric', 'min:0', 'max:500'],
             'revenue_forecast.*.variable_cost_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'revenue_forecast.*.unit_cost' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'revenue_forecast.*.unit_cost' => ['nullable', 'decimal:0,2', 'min:0', 'max:999999999'],
             'revenue_forecast.*.gross_profit_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'revenue_forecast.*.confidence' => ['nullable', 'string', Rule::in(['known', 'estimate', 'guess'])],
             'funding_sources' => ['array', 'max:50'],
             'funding_sources.*.label' => ['nullable', 'string', 'max:180'],
-            'funding_sources.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'funding_sources.*.amount' => ['nullable', 'decimal:0,2', 'min:0', 'max:999999999'],
             'funding_sources.*.quantity' => ['nullable', 'numeric', 'min:0', 'max:999999'],
             'funding_sources.*.confidence' => ['nullable', 'string', Rule::in(['known', 'estimate', 'guess'])],
             'future_costs' => ['array', 'max:50'],
             'future_costs.*.label' => ['nullable', 'string', 'max:180'],
-            'future_costs.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'future_costs.*.amount' => ['nullable', 'decimal:0,2', 'min:0', 'max:999999999'],
             'future_costs.*.quantity' => ['nullable', 'numeric', 'min:0', 'max:999999'],
             'future_costs.*.year' => ['nullable', 'integer', 'min:2', 'max:5'],
             'future_costs.*.recurring' => ['nullable', 'boolean'],
@@ -285,7 +300,7 @@ final class StrategicBudgetController extends Controller
             'funding_scenarios' => ['array', 'max:10'],
             'funding_scenarios.*.name' => ['nullable', 'string', 'max:180'],
             'funding_scenarios.*.type' => ['nullable', 'string', Rule::in(['bank_loan', 'investor', 'mixed'])],
-            'funding_scenarios.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'funding_scenarios.*.amount' => ['nullable', 'decimal:0,2', 'min:0', 'max:999999999'],
             'funding_scenarios.*.year' => ['nullable', 'integer', 'min:1', 'max:5'],
             'funding_scenarios.*.interest_rate_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'funding_scenarios.*.term_years' => ['nullable', 'integer', 'min:0', 'max:30'],
@@ -293,6 +308,23 @@ final class StrategicBudgetController extends Controller
             'funding_scenarios.*.investor_equity_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'funding_scenarios.*.confidence' => ['nullable', 'string', Rule::in(['known', 'estimate', 'guess'])],
         ]);
+    }
+
+    private function staleRevisionResponse(Request $request, StrategicBudgetRevisionConflict $exception): SymfonyResponse
+    {
+        if ($request->header('X-Inertia') === 'true') {
+            $request->session()->flash('business_plan_budget_error', $exception->getMessage());
+
+            return Inertia::location(route('portal.business-plan-budget.show', absolute: false));
+        }
+
+        return response()->json([
+            'message' => $exception->getMessage(),
+            'errors' => [
+                'revision' => $exception->getMessage(),
+            ],
+            'revision' => $exception->currentRevision,
+        ], 409);
     }
 
     private function latestDueDiligencePlan(Client $client): ?BusinessPlan
@@ -323,16 +355,14 @@ final class StrategicBudgetController extends Controller
      */
     private function clientPayload(Client $client): array
     {
+        $engagementType = $client->engagement_type;
+
         return [
             'id' => $client->id,
             'legal_name' => $client->legal_name,
             'trading_name' => $client->trading_name,
-            'engagement_type' => $client->engagement_type instanceof EngagementType
-                ? $client->engagement_type->value
-                : (string) $client->engagement_type,
-            'engagement_type_label' => $client->engagement_type instanceof EngagementType
-                ? $client->engagement_type->label()
-                : str((string) $client->engagement_type)->replace('_', ' ')->title()->toString(),
+            'engagement_type' => $engagementType->value,
+            'engagement_type_label' => $engagementType->label(),
         ];
     }
 

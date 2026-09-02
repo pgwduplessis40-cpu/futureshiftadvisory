@@ -105,7 +105,13 @@ export function AdvisorSupport({
                 }
 
                 setCredentials(next);
-                const channel = screenShareEcho(next).private(next.channel);
+                const realtime = screenShareEcho(next);
+
+                if (realtime === null) {
+                    return;
+                }
+
+                const channel = realtime.private(next.channel);
                 channel.listen('.screen-share.signal', (event: Signal) => {
                     void handleIncomingSignalRef.current(event, next);
                 });

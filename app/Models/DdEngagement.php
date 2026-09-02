@@ -25,7 +25,16 @@ final class DdEngagement extends Model
 
     public const RECOMMENDATION_ABANDON = 'abandon';
 
-    protected $guarded = [];
+    protected $fillable = [
+        'client_id',
+        'target_name',
+        'target_details',
+        'status',
+        'recommendation',
+        'conflict_declaration_id',
+        'created_by_user_id',
+        'disclaimer_acknowledged_at',
+    ];
 
     protected $casts = [
         'target_details' => 'array',

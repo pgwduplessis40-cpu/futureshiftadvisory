@@ -21,7 +21,18 @@ final class BillingAdjustment extends Model
 
     public const STATUS_VOID = 'void';
 
-    protected $guarded = [];
+    protected $fillable = [
+        'client_id',
+        'type',
+        'source_service_activation_id',
+        'source_payment_reference',
+        'amount',
+        'currency',
+        'status',
+        'applied_to_proposal_id',
+        'applied_at',
+        'created_by_user_id',
+    ];
 
     protected $casts = [
         'amount' => 'float',

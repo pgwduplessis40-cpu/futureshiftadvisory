@@ -524,6 +524,29 @@ final class BudgetCalculatorTest extends TestCase
         $this->assertTrue($computed['input_quality']['funding_position_unconfirmed']);
     }
 
+    public function test_monetary_inputs_and_forecast_periods_are_rounded_half_up_to_cents(): void
+    {
+        $calculator = $this->calculator();
+        $rows = $calculator->normaliseRows([
+            ['label' => 'Cent boundary', 'amount' => '0.005'],
+        ]);
+
+        $this->assertSame(0.01, $rows[0]['amount']);
+
+        $computed = $calculator->compute(
+            launchCosts: [],
+            monthlyFixedCosts: [['label' => 'Small fixed cost', 'amount' => '0.10', 'quantity' => 3]],
+            revenueForecast: [],
+            fundingSources: [],
+            expectedRunwayMonths: null,
+            forecastYears: 1,
+        );
+
+        $this->assertSame(0.3, $computed['monthly_detail'][0]['fixed_costs']);
+        $this->assertSame(-0.3, $computed['monthly_detail'][0]['net_cash_flow']);
+        $this->assertSame(-3.6, $computed['annual_totals'][0]['net_cash_flow']);
+    }
+
     private function calculator(): BudgetCalculator
     {
         return new BudgetCalculator;

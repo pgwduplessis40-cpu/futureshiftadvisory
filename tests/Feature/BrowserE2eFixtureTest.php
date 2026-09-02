@@ -29,6 +29,7 @@ final class BrowserE2eFixtureTest extends TestCase
         app(RequestContext::class)->apply('system', []);
 
         $this->setE2eEnvironment();
+        config(['co-browse.enabled' => true]);
         $this->seed(BrowserE2eSeeder::class);
     }
 
@@ -55,7 +56,7 @@ final class BrowserE2eFixtureTest extends TestCase
         self::assertTrue($clientUser->hasEnabledTwoFactorAuthentication());
         self::assertTrue($npoUser->hasEnabledTwoFactorAuthentication());
         self::assertSame(
-            'JBSWY3DPEHPK3PXP',
+            'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP',
             Fortify::currentEncrypter()->decrypt($advisor->two_factor_secret),
         );
         self::assertSame(
@@ -85,14 +86,39 @@ final class BrowserE2eFixtureTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('portal/StrategicPlanBudget')
-                ->where('client.legal_name', 'Browser E2E Isolated Client'));
+                ->where('client.legal_name', 'Browser E2E Isolated Client')
+                ->has('portalScreenShare.portal_context_token')
+                ->where(
+                    'portalScreenShare.connection_url',
+                    route('portal.screen-share.connections.store', absolute: false),
+                ));
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.clients.show', $client))
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('advisor/clients/Show')
-                ->where('client.legal_name', 'Browser E2E Isolated Client'));
+                ->where('client.legal_name', 'Browser E2E Isolated Client')
+                ->has('screenShare.participants', 1)
+                ->where('screenShare.participants.0.id', (string) $clientUser->getKey())
+                ->has('coBrowse.participants', 1)
+                ->where('coBrowse.participants.0.id', (string) $clientUser->getKey()));
+    }
+
+    public function test_browser_fixture_normalizes_rfc4648_totp_padding(): void
+    {
+        putenv('E2E_ADVISOR_MFA_SECRET=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP====');
+
+        $this->seed(BrowserE2eSeeder::class);
+
+        $advisor = User::query()
+            ->where('email', 'browser-e2e-advisor@example.test')
+            ->firstOrFail();
+
+        self::assertSame(
+            'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP',
+            Fortify::currentEncrypter()->decrypt($advisor->two_factor_secret),
+        );
     }
 
     private function setE2eEnvironment(): void
@@ -100,13 +126,13 @@ final class BrowserE2eFixtureTest extends TestCase
         foreach ([
             'E2E_ADVISOR_EMAIL' => 'browser-e2e-advisor@example.test',
             'E2E_ADVISOR_PASSWORD' => 'Browser-E2E-password-1',
-            'E2E_ADVISOR_MFA_SECRET' => 'JBSWY3DPEHPK3PXP',
+            'E2E_ADVISOR_MFA_SECRET' => 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP',
             'E2E_CLIENT_EMAIL' => 'browser-e2e-client@example.test',
             'E2E_CLIENT_PASSWORD' => 'Browser-E2E-password-2',
-            'E2E_CLIENT_MFA_SECRET' => 'KRSXG5DSNFXGOIDB',
+            'E2E_CLIENT_MFA_SECRET' => 'KRSXG5DSNFXGOIDBKRSXG5DSNFXGOIDB',
             'E2E_NPO_EMAIL' => 'browser-e2e-npo@example.test',
             'E2E_NPO_PASSWORD' => 'Browser-E2E-password-3',
-            'E2E_NPO_MFA_SECRET' => 'MFRGGZDFMZTWQ2LK',
+            'E2E_NPO_MFA_SECRET' => 'MFRGGZDFMZTWQ2LKMFRGGZDFMZTWQ2LK',
         ] as $name => $value) {
             $this->originalEnvironment[$name] = getenv($name);
             putenv("{$name}={$value}");

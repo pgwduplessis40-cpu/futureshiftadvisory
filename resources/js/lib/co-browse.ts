@@ -75,13 +75,25 @@ export async function registerCoBrowseConnection(
     return coBrowsePost<CoBrowseCredentials>(url, body);
 }
 
-export function coBrowseEcho(credentials: CoBrowseCredentials): Echo<'reverb'> {
+export function coBrowseEcho(
+    credentials: CoBrowseCredentials,
+): Echo<'reverb'> | null {
+    const key = import.meta.env.VITE_REVERB_APP_KEY;
+    const host = import.meta.env.VITE_REVERB_HOST;
+
+    // Co-browsing retains authenticated HTTP polling as its fallback. A
+    // missing realtime deployment must not make Pusher open a WebSocket to the
+    // application host and emit a browser-visible 404.
+    if (!key || !host) {
+        return null;
+    }
+
     echo?.disconnect();
     window.Pusher = Pusher;
     echo = new Echo({
         broadcaster: 'reverb',
-        key: import.meta.env.VITE_REVERB_APP_KEY,
-        wsHost: import.meta.env.VITE_REVERB_HOST,
+        key,
+        wsHost: host,
         wsPort: Number(import.meta.env.VITE_REVERB_PORT ?? 80),
         wssPort: Number(import.meta.env.VITE_REVERB_PORT ?? 443),
         forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'https') === 'https',

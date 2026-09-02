@@ -97,7 +97,13 @@ export function AdvisorCoBrowseControls({
                 }, config.heartbeat_seconds * 1000);
 
                 try {
-                    const channel = coBrowseEcho(next).private(next.channel);
+                    const realtime = coBrowseEcho(next);
+
+                    if (realtime === null) {
+                        return;
+                    }
+
+                    const channel = realtime.private(next.channel);
                     channel.listen(
                         '.co-browse.session-updated',
                         (event: {

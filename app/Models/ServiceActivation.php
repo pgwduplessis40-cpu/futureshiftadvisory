@@ -45,7 +45,39 @@ final class ServiceActivation extends Model
 
     public const PAYMENT_PAID = 'paid';
 
-    protected $guarded = [];
+    protected $fillable = [
+        'client_id',
+        'proposal_id',
+        'requested_by_user_id',
+        'advisor_id',
+        'approved_by_user_id',
+        'service_rate_package_id',
+        'service_type',
+        'client_label',
+        'status',
+        'intake',
+        'selected_package_snapshot',
+        'payment_status',
+        'payment_completed_at',
+        'payment_completed_by_user_id',
+        'payment_reference',
+        'deposit_paid_at',
+        'deposit_paid_by_user_id',
+        'deposit_reference',
+        'balance_received_at',
+        'balance_received_by_user_id',
+        'balance_reference',
+        'accepted_by_user_id',
+        'accepted_at',
+        'acceptance_text',
+        'terms_reference',
+        'related_dd_engagement_id',
+        'related_entrepreneur_profile_id',
+        'client_message_thread_id',
+        'closed_at',
+        'cancelled_at',
+        'metadata',
+    ];
 
     protected $casts = [
         'intake' => 'array',

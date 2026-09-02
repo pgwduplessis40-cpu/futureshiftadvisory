@@ -6022,7 +6022,12 @@ XML);
         $advisor = $this->users['advisor'];
 
         $budget = $budgetService->ensureForClient($client, $businessPlan);
-        $budget = $budgetService->update($budget, $this->strategicBudgetPayload($scenario), $clientActor);
+        $budget = $budgetService->update(
+            $budget,
+            $this->strategicBudgetPayload($scenario),
+            $clientActor,
+            $budget->revision,
+        );
         $budget = $budgetService->updateAdvisorGoals($budget, $this->advisorGoalsForBudgetScenario($scenario), $advisor);
 
         $canSubmit = $budget->isUnlocked()
@@ -6036,7 +6041,7 @@ XML);
             StrategicBudget::STATUS_USED_IN_PROPOSAL,
             StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT,
         ], true)) {
-            $budget = $budgetService->submit($budget, $clientActor);
+            $budget = $budgetService->submit($budget, $clientActor, $budget->revision);
             $submitted = true;
         }
 

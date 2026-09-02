@@ -99,7 +99,19 @@ async function requestScreenShareConnection(
     return (await response.json()) as CredentialsResponse;
 }
 
-export function screenShareEcho(credentials: Credentials): Echo<'reverb'> {
+export function screenShareEcho(
+    credentials: Credentials,
+): Echo<'reverb'> | null {
+    const key = import.meta.env.VITE_REVERB_APP_KEY;
+    const host = import.meta.env.VITE_REVERB_HOST;
+
+    // HTTP polling remains the reliable signalling path when a deployment has
+    // not provisioned Reverb. Do not let Pusher infer the current app host,
+    // which would turn a missing realtime configuration into noisy 404s.
+    if (!key || !host) {
+        return null;
+    }
+
     if (echo !== null) {
         echo.disconnect();
     }
@@ -107,8 +119,8 @@ export function screenShareEcho(credentials: Credentials): Echo<'reverb'> {
     window.Pusher = Pusher;
     echo = new Echo({
         broadcaster: 'reverb',
-        key: import.meta.env.VITE_REVERB_APP_KEY,
-        wsHost: import.meta.env.VITE_REVERB_HOST,
+        key,
+        wsHost: host,
         wsPort: Number(import.meta.env.VITE_REVERB_PORT ?? 80),
         wssPort: Number(import.meta.env.VITE_REVERB_PORT ?? 443),
         forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'https') === 'https',
