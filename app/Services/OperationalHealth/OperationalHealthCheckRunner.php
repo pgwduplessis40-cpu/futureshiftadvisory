@@ -12,7 +12,6 @@ use App\Models\OperationalHealthCheckResult;
 use App\Models\OperationalHealthCheckRun;
 use App\Models\Template;
 use App\Models\User;
-use App\Services\Pdf\SimpleTextPdf;
 use App\Services\Security\MfaChallenger;
 use App\Services\Security\StepUpEvaluator;
 use App\Support\OperationalHealthFixtures;
@@ -40,6 +39,7 @@ final class OperationalHealthCheckRunner
     public function __construct(
         private readonly ReleaseVersion $releaseVersion,
         private readonly OperationalHealthWorkflowProbe $workflowProbe,
+        private readonly PdfFallbackPolicy $pdfFallbacks,
     ) {}
 
     public function run(string $scope = self::SCOPE_FULL): OperationalHealthCheckRun
@@ -489,18 +489,12 @@ final class OperationalHealthCheckRunner
         $contentTypePassed = $expectedContentType === null
             || ($actualContentType !== null && str_starts_with($actualContentType, $expectedContentType));
         $headerFailures = $this->expectedHeaderFailures($definition, $probe);
-        $fallbackPdfDetected = $this->fallbackPdfDetected($expectedContentType, $probe);
-        $fallbackPdfIsFailure = $fallbackPdfDetected
-            && (bool) config('operational_health.fail_on_pdf_fallback', false);
+        $pdfFallback = $this->pdfFallbacks->forProbe($expectedContentType, $probe);
         $exceptionClass = is_string($probe['exception_class'] ?? null) ? $probe['exception_class'] : null;
         $exceptionMessage = is_string($probe['exception_message'] ?? null) ? $probe['exception_message'] : null;
         $status = OperationalHealthCheckResult::STATUS_FAILED;
         if ($statusPassed && $contentTypePassed && $headerFailures === [] && $exceptionClass === null) {
-            $status = $fallbackPdfDetected
-                ? ($fallbackPdfIsFailure
-                    ? OperationalHealthCheckResult::STATUS_FAILED
-                    : OperationalHealthCheckResult::STATUS_WARNING)
-                : OperationalHealthCheckResult::STATUS_PASSED;
+            $status = $pdfFallback['status'];
         }
 
         $issueSummary = $status === OperationalHealthCheckResult::STATUS_PASSED
@@ -530,9 +524,9 @@ final class OperationalHealthCheckRunner
                 'expected_content_type' => $expectedContentType,
                 'expected_headers' => $definition['expected_headers'] ?? [],
                 'header_failures' => $headerFailures,
-                'fallback_pdf_detected' => $fallbackPdfDetected,
-                'fallback_pdf_is_failure' => $fallbackPdfIsFailure,
-                'fallback_pdf_marker' => $fallbackPdfDetected ? SimpleTextPdf::FALLBACK_MARKER : null,
+                'fallback_pdf_detected' => $pdfFallback['detected'],
+                'fallback_pdf_is_failure' => $pdfFallback['is_failure'],
+                'fallback_pdf_marker' => $pdfFallback['marker'],
                 'response_headers' => $probe['headers'] ?? [],
                 'internal_request' => ! $externalRequest && $kind !== 'route_contract',
             ],
@@ -851,18 +845,6 @@ final class OperationalHealthCheckRunner
         $text = trim((string) preg_replace('/\s+/', ' ', strip_tags($content)));
 
         return $text === '' ? null : Str::limit($text, 500, '');
-    }
-
-    /**
-     * @param  array<string, mixed>  $probe
-     */
-    private function fallbackPdfDetected(?string $expectedContentType, array $probe): bool
-    {
-        if ($expectedContentType === null || ! str_starts_with($expectedContentType, 'application/pdf')) {
-            return false;
-        }
-
-        return (bool) ($probe['fallback_pdf_detected'] ?? false);
     }
 
     private function documentStorageDiagnostic(Document $document): ?string

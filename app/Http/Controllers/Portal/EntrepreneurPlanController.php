@@ -13,7 +13,6 @@ use App\Models\IdeaValidation;
 use App\Models\PlanSection;
 use App\Models\ServiceRatePackage;
 use App\Services\Audit\AuditWriter;
-use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Entrepreneurs\Guidance;
 use App\Services\Entrepreneurs\IdeaValidationService;
@@ -211,11 +210,7 @@ final class EntrepreneurPlanController extends Controller
 
         $phaseKey = (string) $validated['phase_key'];
         $requirementKey = (string) $validated['requirement_key'];
-        if ($requirementKey === BusinessPlanExecutiveSummary::REQUIREMENT_KEY) {
-            throw ValidationException::withMessages([
-                'requirement_key' => 'The executive summary is generated automatically after a qualifying assessment. It cannot be written or edited manually.',
-            ]);
-        }
+        $this->workspace->assertRequirementCanBeManuallyWritten($requirementKey);
         $requirement = $this->requirements->requirement($phaseKey, $requirementKey);
         $sectionKey = 'founder-'.$phaseKey.'-'.$requirementKey;
         $body = $this->requirements->integrateDatedUpdate((string) ($validated['body'] ?? ''));
@@ -313,9 +308,7 @@ final class EntrepreneurPlanController extends Controller
 
     public function generateExecutiveSummary(Request $request): RedirectResponse|JsonResponse
     {
-        throw ValidationException::withMessages([
-            'executive_summary' => 'The executive summary is generated automatically after the current Business Plan & Budget assessment is finalised and passes.',
-        ]);
+        throw ValidationException::withMessages(['executive_summary' => 'The executive summary is generated automatically after the current Business Plan & Budget assessment is finalised and passes.']);
     }
 
     public function guidance(Request $request, PlanSection $planSection): RedirectResponse
@@ -408,17 +401,4 @@ final class EntrepreneurPlanController extends Controller
         );
     }
 
-    private function assertPlanAcceptsFounderChanges(BusinessPlan $plan): void
-    {
-        if (in_array($plan->status, [
-            BusinessPlan::STATUS_SUBMITTED,
-            BusinessPlan::STATUS_ASSESSING,
-            BusinessPlan::STATUS_FINALISED,
-            BusinessPlan::STATUS_LAUNCHED,
-        ], true)) {
-            throw ValidationException::withMessages([
-                'plan' => 'Your plan is currently with your advisor. Wait for their feedback before making further changes.',
-            ]);
-        }
-    }
 }

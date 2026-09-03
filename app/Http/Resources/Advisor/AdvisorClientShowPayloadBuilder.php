@@ -91,6 +91,11 @@ final class AdvisorClientShowPayloadBuilder
         return $this->entrepreneurWorkspaces->forClient($client);
     }
 
+    public function shouldRedirectToEntrepreneurWorkspace(Client $client): bool
+    {
+        return ! $this->serviceWorkspaces->hasActiveSecondaryWorkspace($client);
+    }
+
     /** @return array{client:array<array-key,mixed>,serviceWorkspaces:array{active_key:string,items:list<array{key:string,label:string,href:string,active:bool}>},screenShare:array<array-key,mixed>,coBrowse:?array<array-key,mixed>,conflictDeclaration:?array<array-key,mixed>} */
     public function build(Client $client, ?User $user, ?string $highlight): array
     {

@@ -13,9 +13,11 @@ use App\Models\InviteToken;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\User;
+use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 /**
  * @phpstan-type PackageAccess array{includes_idea_validation:bool, includes_plan_budget:bool, package_label:string, source_activation_id:string|null}
@@ -122,6 +124,24 @@ final class EntrepreneurPlanWorkspace
             ->latest('updated_at')
             ->latest()
             ->first();
+    }
+
+    public function assertPlanAcceptsFounderChanges(BusinessPlan $plan): void
+    {
+        if (in_array($plan->status, [BusinessPlan::STATUS_SUBMITTED, BusinessPlan::STATUS_ASSESSING, BusinessPlan::STATUS_FINALISED, BusinessPlan::STATUS_LAUNCHED], true)) {
+            throw ValidationException::withMessages([
+                'plan' => 'Your plan is currently with your advisor. Wait for their feedback before making further changes.',
+            ]);
+        }
+    }
+
+    public function assertRequirementCanBeManuallyWritten(string $requirementKey): void
+    {
+        if ($requirementKey === BusinessPlanExecutiveSummary::REQUIREMENT_KEY) {
+            throw ValidationException::withMessages([
+                'requirement_key' => 'The executive summary is generated automatically after a qualifying assessment. It cannot be written or edited manually.',
+            ]);
+        }
     }
 
     private function activeActivationForUser(User $user): ?ServiceActivation

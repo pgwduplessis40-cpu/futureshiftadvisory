@@ -14,7 +14,6 @@ use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\SurveyAssignment;
 use App\Models\User;
-use App\Services\Advisor\AdvisorClientServiceWorkspaces;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\ScreenShare\ScreenShareAuthorizer;
 use App\Services\Surveys\SurveyActivationService;
@@ -43,7 +42,6 @@ final class AdvisorEntrepreneurWorkspacePayload
         private readonly AdvisorEntrepreneurPlanPayload $planPayload,
         private readonly AdvisorEntrepreneurIdeaPayload $ideaPayload,
         private readonly AdvisorEntrepreneurSupportPayload $supportPayload,
-        private readonly AdvisorClientServiceWorkspaces $serviceWorkspaces,
         private readonly ScreenShareAuthorizer $screenShareAuthorizer,
         private readonly SurveyActivationService $surveyActivations,
     ) {}
@@ -60,7 +58,7 @@ final class AdvisorEntrepreneurWorkspacePayload
             ->all();
     }
 
-    /** @return array{entrepreneur:array{id:string, name:string, email:string, stage:string, stage_label:string, assigned_advisor_name:string|null, concept_summary:string|null, user_id:int|null, invite_accepted_at:string|null, invite_expires_at:string|null, invite_delivery_label:string, invite_update_url:string|null, invite_resend_url:string|null, invite_cancel_url:string|null, intended_package_scope:string, intended_package_scope_label:string, created_at:string|null, latest_plan:PlanProgressSummary|null, readiness:ReadinessSummary, feedback_survey:array{action_url:string}, service_feedback_survey:mixed, idea_validation:IdeaValidationSummary|null, advisory_readiness:AdvisoryReadinessSummary|null, reports:list<ReportSummary>, conversion:ConversionSummary, documents:list<DocumentSummary>, messages:MessageSummary, client_actions:mixed, gamification:mixed}, serviceWorkspaces:array{active_key:string,items:list<array{key:string,label:string,href:string,active:bool}>}|null, serviceOptions:array<int, ServiceOption>, screenShare:ScreenSharePayload|null, coBrowse:CoBrowsePayload|null} */
+    /** @return array{entrepreneur:array{id:string, name:string, email:string, stage:string, stage_label:string, assigned_advisor_name:string|null, concept_summary:string|null, user_id:int|null, invite_accepted_at:string|null, invite_expires_at:string|null, invite_delivery_label:string, invite_update_url:string|null, invite_resend_url:string|null, invite_cancel_url:string|null, intended_package_scope:string, intended_package_scope_label:string, created_at:string|null, latest_plan:PlanProgressSummary|null, readiness:ReadinessSummary, feedback_survey:array{action_url:string}, service_feedback_survey:mixed, idea_validation:IdeaValidationSummary|null, advisory_readiness:AdvisoryReadinessSummary|null, reports:list<ReportSummary>, conversion:ConversionSummary, documents:list<DocumentSummary>, messages:MessageSummary, client_actions:mixed, gamification:mixed}, serviceOptions:array<int, ServiceOption>, screenShare:ScreenSharePayload|null, coBrowse:CoBrowsePayload|null} */
     public function show(User $viewer, EntrepreneurProfile $profile): array
     {
         $profile->loadMissing([
@@ -78,9 +76,6 @@ final class AdvisorEntrepreneurWorkspacePayload
             ? (string) $intendedPackageOption['label']
             : ServiceRatePackage::packageScopeLabel($intendedPackageScope);
         $activeInvite = $profile->inviteToken instanceof InviteToken && $profile->inviteToken->isUsable();
-
-        $client = $this->serviceWorkspaces->clientForProfile($profile);
-
         return [
             'entrepreneur' => [
                 ...$this->profileSummary($profile),
@@ -115,9 +110,6 @@ final class AdvisorEntrepreneurWorkspacePayload
                     'toggle_url' => route('advisor.entrepreneurs.gamification.update', $profile, absolute: false),
                 ],
             ],
-            'serviceWorkspaces' => $client !== null
-                ? $this->serviceWorkspaces->payload($client, AdvisorClientServiceWorkspaces::KEY_ENTREPRENEUR)
-                : null,
             'serviceOptions' => $serviceOptions,
             'screenShare' => $this->screenSharePayload($viewer, $profile),
             'coBrowse' => $this->coBrowsePayload($viewer, $profile),

@@ -5,10 +5,7 @@ import {
     ChevronUp,
     CheckCircle2,
     Eye,
-    FileText,
     Pencil,
-    RefreshCw,
-    Send,
     Trophy,
     Upload,
 } from 'lucide-react';
@@ -25,10 +22,8 @@ import {
 } from './plan-budget';
 import {
     ActionPanel,
-    IdeaValidationHistory,
     IdeaValidationSnapshot,
     PlainLanguageGuide,
-    SubmittedPlanHistory,
     formatDate,
     formatLabel,
     ideaFields,
@@ -37,6 +32,11 @@ import {
     IDEA_VALIDATION_FIELD_MAX_LENGTH,
     PLAN_SECTION_BODY_MAX_LENGTH,
 } from './plan-types';
+import {
+    PlanCompletionAction,
+    PlanWorkspaceHistory,
+    planChangesAreLocked,
+} from './plan-workspace-submission';
 import type { PlanWorkspace } from './use-plan-workspace';
 
 export function PlanWorkspaceActions({
@@ -101,13 +101,7 @@ export function PlanWorkspaceActions({
         acknowledgeBudgetFlag,
         dismissBudgetAdvisorNudge,
     } = workspace;
-    const planAwaitingAdvisor = plan?.status === 'submitted';
-    const planAssessmentInProgress = plan?.status === 'assessing';
-    const planChangesLocked =
-        planAwaitingAdvisor ||
-        planAssessmentInProgress ||
-        plan?.status === 'finalised' ||
-        plan?.status === 'launched';
+    const planChangesLocked = planChangesAreLocked(plan);
 
     return (
         <div className="space-y-6">
@@ -159,76 +153,13 @@ export function PlanWorkspaceActions({
                         )}
                     </ActionPanel>
 
-                    <ActionPanel
-                        icon={FileText}
-                        title="Plan completion"
-                        value={
-                            !includesPlanBudget
-                                ? 'Not included'
-                                : plan
-                                  ? planAwaitingAdvisor
-                                      ? 'With advisor'
-                                      : planAssessmentInProgress
-                                        ? 'Assessment in progress'
-                                        : planChangesLocked
-                                          ? 'With advisor'
-                                          : plan.requirements_complete
-                                            ? 'Complete'
-                                            : `${plan.missing_requirements.length} gaps`
-                                  : planBuilderUnlocked
-                                    ? 'Not started'
-                                    : 'Locked'
-                        }
-                        explanation={
-                            planAwaitingAdvisor
-                                ? 'Your current plan has been sent to your advisor for review.'
-                                : planAssessmentInProgress
-                                  ? 'Your advisor has started the assessment. The current version is locked for review.'
-                                  : planChangesLocked
-                                    ? 'The current version is locked while your advisor completes the next step.'
-                                    : 'Plan completion is based on all required business plan sections, not merely one section per phase.'
-                        }
-                    >
-                        {!includesPlanBudget ? (
-                            <Badge variant="outline">Not in package</Badge>
-                        ) : planAwaitingAdvisor ? (
-                            <Badge variant="secondary">
-                                Submitted for advisor review
-                            </Badge>
-                        ) : planAssessmentInProgress ? (
-                            <Badge variant="outline">
-                                Assessment in progress
-                            </Badge>
-                        ) : planChangesLocked ? (
-                            <Badge variant="secondary">With advisor</Badge>
-                        ) : plan ? (
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={submitPlan}
-                                disabled={!plan.requirements_complete}
-                            >
-                                <Send className="size-4" aria-hidden="true" />
-                                {plan.status === 'revising'
-                                    ? 'Resubmit for advisor review'
-                                    : 'Submit for advisor review'}
-                            </Button>
-                        ) : (
-                            <Button
-                                type="button"
-                                size="sm"
-                                onClick={startPlan}
-                                disabled={!planBuilderUnlocked}
-                            >
-                                <RefreshCw
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
-                                Start plan
-                            </Button>
-                        )}
-                    </ActionPanel>
+                    <PlanCompletionAction
+                        includesPlanBudget={includesPlanBudget}
+                        plan={plan}
+                        planBuilderUnlocked={planBuilderUnlocked}
+                        startPlan={startPlan}
+                        submitPlan={submitPlan}
+                    />
 
                     <ActionPanel
                         icon={Eye}
@@ -1062,14 +993,12 @@ export function PlanWorkspaceActions({
                 )}
             </section>
 
-            {ideaValidationVersions.length > 1 ? (
-                <IdeaValidationHistory
-                    versions={ideaValidationVersions}
-                    restoringVersionId={restoringIdeaVersionId}
-                    onRestore={restoreIdeaVersion}
-                />
-            ) : null}
-            {plan ? <SubmittedPlanHistory versions={plan.history} /> : null}
+            <PlanWorkspaceHistory
+                plan={plan}
+                ideaValidationVersions={ideaValidationVersions}
+                restoringIdeaVersionId={restoringIdeaVersionId}
+                restoreIdeaVersion={restoreIdeaVersion}
+            />
         </div>
     );
 }

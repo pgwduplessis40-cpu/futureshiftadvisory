@@ -22,8 +22,6 @@ import {
 } from 'lucide-react';
 import type { FormEvent, MouseEvent, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
-import { AdvisorServiceWorkspaceSwitcher } from '@/components/advisor/AdvisorServiceWorkspaceSwitcher';
-import type { AdvisorServiceWorkspacePayload } from '@/components/advisor/AdvisorServiceWorkspaceSwitcher';
 import type { AdvisorCoBrowseConfig } from '@/components/co-browse/AdvisorCoBrowseAction';
 import { FormattedMarkdown } from '@/components/formatted-textarea';
 import InputError from '@/components/input-error';
@@ -57,7 +55,6 @@ import type {
 
 type Props = {
     entrepreneur: EntrepreneurDetail;
-    serviceWorkspaces: AdvisorServiceWorkspacePayload | null;
     serviceOptions: ServiceOption[];
     screenShare: AdvisorScreenShareConfig | null;
     coBrowse: AdvisorCoBrowseConfig | null;
@@ -103,7 +100,6 @@ function shouldOpenIdeaValidation(
 
 export default function EntrepreneursShow({
     entrepreneur,
-    serviceWorkspaces,
     serviceOptions,
     screenShare,
     coBrowse,
@@ -681,11 +677,6 @@ export default function EntrepreneursShow({
                         </Button>
                     </div>
                 </div>
-
-                <AdvisorServiceWorkspaceSwitcher
-                    workspaces={serviceWorkspaces}
-                    activeKey="entrepreneur"
-                />
 
                 <EntrepreneurDetailTabList
                     activeTab={activeTab}
