@@ -45,6 +45,8 @@ use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Entrepreneurs\EntrepreneurPoints;
 use App\Services\Entrepreneurs\EntrepreneurPromptRegistry;
 use App\Services\Entrepreneurs\EntrepreneurStreak;
+use App\Services\Entrepreneurs\ExecutiveSummaryContext;
+use App\Services\Entrepreneurs\ExecutiveSummaryEligibility;
 use App\Services\Entrepreneurs\ExternalIssueReview;
 use App\Services\Entrepreneurs\FounderChangeRequestMessage;
 use App\Services\Entrepreneurs\FoundingAdvisoryService;
@@ -159,6 +161,8 @@ final class MethodologyDriftGuardTest extends TestCase
         EntrepreneurPoints::class => 'Gamification reward allocation is operational engagement logic, not an advisor methodology disclosure.',
         EntrepreneurPromptRegistry::class => 'Prompt id registry, not a calculation method.',
         EntrepreneurStreak::class => 'Gamification streak persistence workflow.',
+        ExecutiveSummaryContext::class => 'Builds an immutable plan-and-budget fingerprint for summary provenance; it does not calculate advisory guidance.',
+        ExecutiveSummaryEligibility::class => 'Enforces the published summary eligibility policy; it does not calculate or disclose an advisory methodology.',
         ExternalIssueReview::class => 'External-issue document-quality gate; plan and budget methodologies are owned elsewhere.',
         FoundingAdvisoryService::class => 'Founding engagement and rolling-roadmap orchestration; it applies the finalised plan baseline and does not own a separate calculation methodology.',
         FounderChangeRequestMessage::class => 'Founder change-request message workflow.',

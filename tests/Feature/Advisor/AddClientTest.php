@@ -12,6 +12,8 @@ use App\Enums\ReportType;
 use App\Mail\InvitationMail;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\ConflictDeclaration;
+use App\Models\DdEngagement;
 use App\Models\EntrepreneurProfile;
 use App\Models\IndustryBriefing;
 use App\Models\InviteToken;
@@ -920,6 +922,71 @@ final class AddClientTest extends TestCase
         $this->actingAsMfa($advisor)
             ->get(route('advisor.clients.show', $client))
             ->assertRedirect(route('advisor.entrepreneurs.show', $profile, absolute: false));
+    }
+
+    public function test_advisor_can_switch_between_entrepreneur_and_active_dd_workspaces_for_one_client(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+        $client = $this->clientForAdvisor($advisor, 'Rodney and Janya Limited', EngagementType::STANDARD_ADVISORY);
+        $profile = EntrepreneurProfile::query()->create([
+            'client_id' => $client->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => 'Rodney and Janya',
+            'email' => 'rodney-janya@example.test',
+        ]);
+        $conflict = ConflictDeclaration::query()->create([
+            'client_id' => $client->getKey(),
+            'advisor_id' => $advisor->getKey(),
+            'declaration' => ['referral_type' => 'due_diligence'],
+            'declared_at' => now(),
+        ]);
+        Questionnaire::query()->create([
+            'set' => QuestionnaireSet::DUE_DILIGENCE,
+            'version' => 'advisor-workspace-test',
+            'title' => 'Due Diligence Questionnaire',
+            'published_at' => now(),
+        ]);
+        $engagement = DdEngagement::query()->create([
+            'client_id' => $client->getKey(),
+            'target_name' => 'Coastal Bulk Spreaders Limited',
+            'target_details' => ['industry' => 'Distribution'],
+            'status' => DdEngagement::STATUS_IN_PROGRESS,
+            'conflict_declaration_id' => $conflict->getKey(),
+            'created_by_user_id' => $advisor->getKey(),
+            'disclaimer_acknowledged_at' => now(),
+        ]);
+        ServiceActivation::query()->create([
+            'client_id' => $client->getKey(),
+            'advisor_id' => $advisor->getKey(),
+            'service_type' => ServiceActivation::SERVICE_DUE_DILIGENCE,
+            'client_label' => 'Due diligence support',
+            'status' => ServiceActivation::STATUS_ACTIVE,
+            'related_dd_engagement_id' => $engagement->getKey(),
+        ]);
+        ServiceActivation::query()->create([
+            'client_id' => $client->getKey(),
+            'advisor_id' => $advisor->getKey(),
+            'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+            'client_label' => 'Business Plan & Budget',
+            'status' => ServiceActivation::STATUS_ACTIVE,
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.show', $client))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/clients/Show')
+                ->where('serviceWorkspaces.active_key', 'entrepreneur')
+                ->where('serviceWorkspaces.items.0.key', 'entrepreneur')
+                ->where('serviceWorkspaces.items.0.href', route('advisor.clients.show', $client, absolute: false))
+                ->where('serviceWorkspaces.items.1.key', 'due_diligence')
+                ->where('serviceWorkspaces.items.2.key', 'dd_plan_budget')
+                ->where('serviceWorkspaces.items.1.href', route('advisor.clients.show', $client, absolute: false).'#section-due-diligence'));
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertRedirect(route('advisor.clients.show', $client, absolute: false));
     }
 
     public function test_junior_advisor_cannot_create_clients(): void

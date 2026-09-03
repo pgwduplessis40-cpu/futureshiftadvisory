@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 final class EntrepreneurPlanBudgetController extends Controller
 {
@@ -31,6 +32,17 @@ final class EntrepreneurPlanBudgetController extends Controller
 
         $plan = $this->workspace->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan, 404);
+
+        if (in_array($plan->status, [
+            BusinessPlan::STATUS_SUBMITTED,
+            BusinessPlan::STATUS_ASSESSING,
+            BusinessPlan::STATUS_FINALISED,
+            BusinessPlan::STATUS_LAUNCHED,
+        ], true)) {
+            throw ValidationException::withMessages([
+                'plan' => 'Your plan is currently with your advisor. Wait for their feedback before making further changes.',
+            ]);
+        }
 
         if (! $this->requirements->budgetUnlocked($plan)) {
             return to_route('portal.entrepreneur.plan.show')

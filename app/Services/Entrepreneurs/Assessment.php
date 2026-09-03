@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Entrepreneurs;
 
+use App\Jobs\GenerateEligibleExecutiveSummary;
 use App\Models\BusinessPlan;
 use App\Models\LearningUpdate;
 use App\Models\PlanAssessment;
+use App\Models\PlanRevision;
 use App\Models\PlanSection;
 use App\Models\RatingCriterion;
 use App\Models\RatingFramework;
@@ -39,6 +41,7 @@ final class Assessment implements ProvidesMethodology
         private readonly EntrepreneurMilestones $milestones,
         private readonly PlanAiContext $contexts,
         private readonly BusinessPlanSnapshot $snapshots,
+        private readonly ExecutiveSummaryEligibility $executiveSummaryEligibility,
     ) {}
 
     public function firstPass(BusinessPlan $plan, User $actor): PlanAssessment
@@ -116,14 +119,24 @@ final class Assessment implements ProvidesMethodology
                 ->whereKey($plan->getKey())
                 ->lockForUpdate()
                 ->firstOrFail();
-            $round = ((int) PlanAssessment::query()
+            $latestAssessmentRound = (int) PlanAssessment::query()
                 ->where('business_plan_id', $lockedPlan->getKey())
                 ->orderByDesc('round')
                 ->lockForUpdate()
-                ->value('round')) + 1;
+                ->value('round');
+            $pendingRevision = PlanRevision::query()
+                ->where('business_plan_id', $lockedPlan->getKey())
+                ->where('round', '>', $latestAssessmentRound)
+                ->orderBy('round')
+                ->lockForUpdate()
+                ->get()
+                ->first(fn (PlanRevision $revision): bool => data_get($revision->progress_comparison, 'assessment_status') === 'awaiting_advisor_action');
+            $round = $pendingRevision instanceof PlanRevision
+                ? $pendingRevision->round
+                : $latestAssessmentRound + 1;
             $assessment = PlanAssessment::query()->create([
                 'business_plan_id' => $lockedPlan->getKey(),
-                'round' => max(1, $round),
+                'round' => max(1, (int) $round),
                 'rating_framework_id' => $framework->getKey(),
                 'ai_scores' => $aiScores,
                 'advisor_scores' => [],
@@ -273,7 +286,7 @@ final class Assessment implements ProvidesMethodology
             'adjusted_by_user_id' => $advisor->getKey(),
             'adjusted_at' => now()->toIso8601String(),
         ];
-        $assessment->loadMissing('ratingFramework.criteria');
+        $assessment->loadMissing('ratingFramework.criteria', 'businessPlan.entrepreneurProfile');
         $weighted = $assessment->ratingFramework instanceof RatingFramework
             ? AssessmentScoring::weightedScoreForFramework($assessment->ratingFramework, $assessment->ai_scores ?? [], $advisorScores)
             : 0.0;
@@ -430,7 +443,17 @@ final class Assessment implements ProvidesMethodology
             'status' => BusinessPlan::STATUS_FINALISED,
             'completed_at' => now(),
         ])->save();
-        $this->milestones->awardAssessmentFinalised($assessment->refresh()->load('businessPlan.entrepreneurProfile', 'ratingFramework.criteria'));
+        $assessment = $assessment->refresh()->load('businessPlan.entrepreneurProfile', 'ratingFramework.criteria');
+        $this->milestones->awardAssessmentFinalised($assessment);
+
+        $plan = $assessment->businessPlan;
+        $profile = $plan?->entrepreneurProfile;
+        if ($plan instanceof BusinessPlan && $profile !== null) {
+            $assessment = $this->executiveSummaryEligibility->recordAssessmentRevision($assessment, $plan, $profile);
+            if ($this->executiveSummaryEligibility->evaluate($plan->refresh(), $profile)['eligible']) {
+                GenerateEligibleExecutiveSummary::dispatch((string) $assessment->getKey())->afterCommit();
+            }
+        }
 
         return $assessment->refresh();
     }

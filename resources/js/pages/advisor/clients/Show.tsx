@@ -33,6 +33,7 @@ import type {
 
 export default function ClientsShow({
     client,
+    serviceWorkspaces,
     conflictDeclaration,
     screenShare,
     coBrowse,
@@ -366,6 +367,7 @@ export default function ClientsShow({
     return (
         <ClientDetailLayout
             client={client}
+            serviceWorkspaces={serviceWorkspaces}
             conflictDeclaration={conflictDeclaration}
             screenShare={screenShare}
             coBrowse={coBrowse}
@@ -373,6 +375,13 @@ export default function ClientsShow({
             setActiveTab={setActiveTab}
             advisorServiceTabs={advisorServiceTabs}
             selectedServiceTab={selectedServiceTab}
+            activeWorkspaceKey={
+                selectedServiceTab === 'due_diligence'
+                    ? 'due_diligence'
+                    : selectedServiceTab === 'business_plan_budget'
+                      ? 'dd_plan_budget'
+                      : serviceWorkspaces.active_key
+            }
             selectAdvisorServiceTab={selectAdvisorServiceTab}
             generatingPack={generatingPack}
             analysisFindingFilter={analysisFindingFilter}

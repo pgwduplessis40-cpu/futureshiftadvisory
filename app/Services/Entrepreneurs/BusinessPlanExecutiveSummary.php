@@ -40,15 +40,18 @@ final class BusinessPlanExecutiveSummary
         private readonly BusinessPlanIdentity $identity,
         private readonly BudgetFundingReadiness $budgetReadiness,
         private readonly ExternalIssueReview $externalIssueReview,
+        private readonly ExecutiveSummaryContext $contexts,
+        private readonly ExecutiveSummaryEligibility $eligibility,
     ) {}
 
     /**
      * @return array<string, mixed>
      */
-    public function generate(BusinessPlan $plan, EntrepreneurProfile $profile, User $actor): array
+    public function generate(BusinessPlan $plan, EntrepreneurProfile $profile, ?User $actor): array
     {
         $plan = $plan->refresh()->load('phases.sections', 'sections', 'budgetRunway');
         $profile = $profile->refresh();
+        $this->eligibility->require($plan, $profile);
         $context = $this->promptContext($plan, $profile);
         $prompt = $this->prompt($plan, $profile, $context);
         $response = $this->summaryResponse($prompt);
@@ -63,11 +66,12 @@ final class BusinessPlanExecutiveSummary
             'source' => 'executive_summary_synthesis',
             'requirement_key' => self::REQUIREMENT_KEY,
             'requirement_title' => 'Executive summary',
-            'completed_by_user_id' => $actor->getKey(),
+            'completed_by_user_id' => $actor?->getKey(),
             self::METADATA_KEY => [
                 'generated' => true,
                 'generated_at' => now()->toIso8601String(),
-                'generated_by_user_id' => $actor->getKey(),
+                'generated_by_user_id' => $actor?->getKey(),
+                'generated_by' => $actor instanceof User ? 'user' : 'system',
                 'context_hash' => $contextHash,
                 'source' => $source,
                 'prompt_id' => EntrepreneurPromptRegistry::PLAN_EXECUTIVE_SUMMARY,
@@ -167,70 +171,46 @@ final class BusinessPlanExecutiveSummary
             ? (array) data_get($section?->metadata, self::METADATA_KEY)
             : [];
         $generated = (bool) ($metadata['generated'] ?? false);
+        $source = is_string($metadata['source'] ?? null)
+            ? $metadata['source']
+            : ($hasBody ? 'authored' : null);
+        $generatedByAi = $generated && $source === 'ai_synthesis';
         $currentHash = $profile instanceof EntrepreneurProfile
             ? $this->contextHash($plan, $profile)
             : null;
         $storedHash = is_string($metadata['context_hash'] ?? null) ? $metadata['context_hash'] : null;
         $stale = $generated && $currentHash !== null && $storedHash !== $currentHash;
-        $canGenerate = $profile instanceof EntrepreneurProfile && $this->sourceSections($plan)->isNotEmpty();
+        $legacyDraft = $hasBody && ! $generated;
 
         return [
             'present' => $hasBody,
             'generated' => $generated,
+            'generated_by_ai' => $generatedByAi,
             'stale' => $stale,
-            'can_generate' => $canGenerate,
+            'usable' => $generatedByAi && ! $stale,
+            'legacy_draft' => $legacyDraft,
+            // Generation is system-owned after a qualifying assessment. Keep
+            // this false so clients and advisors never receive a manual action.
+            'can_generate' => false,
             'section_id' => $section?->id,
             'generated_at' => is_string($metadata['generated_at'] ?? null) ? $metadata['generated_at'] : null,
-            'source' => is_string($metadata['source'] ?? null)
-                ? $metadata['source']
-                : ($hasBody ? 'authored' : null),
+            'source' => $source,
             'model' => is_string($metadata['model'] ?? null) ? $metadata['model'] : null,
             'prompt_hash' => is_string($metadata['prompt_hash'] ?? null) ? $metadata['prompt_hash'] : null,
             'context_hash' => $currentHash,
             'stored_context_hash' => $storedHash,
-            'status_label' => $this->statusLabel($hasBody, $generated, $stale),
+            'status_label' => $this->statusLabel($hasBody, $generatedByAi, $stale),
             'readiness_reason' => $stale
                 ? 'Refresh the executive summary because the plan or budget changed after it was generated.'
-                : null,
+                : ($generated && ! $generatedByAi
+                    ? 'The AI summary could not be generated. Retry the qualifying assessment before external issue.'
+                    : null),
         ];
     }
 
     public function contextHash(BusinessPlan $plan, EntrepreneurProfile $profile): string
     {
-        $plan->loadMissing('sections', 'budgetRunway');
-
-        return hash('sha256', json_encode($this->normaliseForHash([
-            'profile' => [
-                'name' => $profile->name,
-                'company_name' => $profile->company_name,
-                'concept_summary' => $profile->concept_summary,
-            ],
-            'sections' => $this->sourceSections($plan)
-                ->map(fn (PlanSection $section): array => [
-                    'key' => $section->key,
-                    'title' => $section->title,
-                    'body' => $section->body,
-                    'attached_document_ids' => $section->attached_document_ids ?? [],
-                    'completeness_status' => $section->completeness_status,
-                    'requirement_key' => data_get($section->metadata, 'requirement_key'),
-                ])
-                ->values()
-                ->all(),
-            'budget' => $plan->budgetRunway instanceof EntrepreneurBudget ? [
-                'status' => $plan->budgetRunway->status,
-                'expected_runway_months' => $plan->budgetRunway->expected_runway_months,
-                'forecast_years' => $plan->budgetRunway->forecast_years,
-                'assumptions' => $plan->budgetRunway->assumptions ?? [],
-                'launch_costs' => $plan->budgetRunway->launch_costs ?? [],
-                'monthly_fixed_costs' => $plan->budgetRunway->monthly_fixed_costs ?? [],
-                'future_costs' => $plan->budgetRunway->future_costs ?? [],
-                'revenue_forecast' => $plan->budgetRunway->revenue_forecast ?? [],
-                'funding_sources' => $plan->budgetRunway->funding_sources ?? [],
-                'funding_scenarios' => $plan->budgetRunway->funding_scenarios ?? [],
-                'computed' => $plan->budgetRunway->computed ?? [],
-                'flags' => $plan->budgetRunway->flags ?? [],
-            ] : null,
-        ]), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+        return $this->contexts->hash($plan, $profile);
     }
 
     /**
@@ -579,25 +559,6 @@ final class BusinessPlanExecutiveSummary
         return trim(substr($body, 0, self::GENERATED_BODY_MAX_LENGTH));
     }
 
-    /**
-     * @param  array<string, mixed>  $value
-     * @return array<string, mixed>
-     */
-    private function normaliseForHash(array $value): array
-    {
-        foreach ($value as $key => $item) {
-            if (is_array($item)) {
-                $value[$key] = array_is_list($item)
-                    ? array_map(fn (mixed $child): mixed => is_array($child) ? $this->normaliseForHash($child) : $child, $item)
-                    : $this->normaliseForHash($item);
-            }
-        }
-
-        ksort($value);
-
-        return $value;
-    }
-
     private function statusLabel(bool $hasBody, bool $generated, bool $stale): string
     {
         if (! $hasBody) {
@@ -608,7 +569,7 @@ final class BusinessPlanExecutiveSummary
             return 'Executive summary stale';
         }
 
-        return $generated ? 'Executive summary current' : 'Executive summary authored';
+        return $generated ? 'Executive summary current' : 'Legacy executive-summary draft held from external issue';
     }
 
     private function money(float $amount): string

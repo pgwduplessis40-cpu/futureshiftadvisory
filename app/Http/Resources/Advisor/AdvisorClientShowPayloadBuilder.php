@@ -22,6 +22,7 @@ use App\Models\Proposal;
 use App\Models\Report;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
+use App\Services\Advisor\AdvisorClientServiceWorkspaces;
 use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Clients\AdvisorClientCollaborationPayloadBuilder;
 use App\Services\Clients\AdvisorClientPayloadBuilder;
@@ -61,6 +62,7 @@ final class AdvisorClientShowPayloadBuilder
         private readonly AdvisorClientCollaborationPayloadBuilder $collaborationPayloads,
         private readonly AdvisorClientPayloadBuilder $clientPayloads,
         private readonly AdvisorClientWorkspacePayloadBuilder $workspacePayloads,
+        private readonly AdvisorClientServiceWorkspaces $serviceWorkspaces,
         private readonly CanonicalEntrepreneurWorkspace $entrepreneurWorkspaces,
         private readonly DataQualityScorer $dataQuality,
         private readonly GoalTracker $goals,
@@ -89,7 +91,12 @@ final class AdvisorClientShowPayloadBuilder
         return $this->entrepreneurWorkspaces->forClient($client);
     }
 
-    /** @return array{client:array<array-key,mixed>,screenShare:array<array-key,mixed>,coBrowse:?array<array-key,mixed>,conflictDeclaration:?array<array-key,mixed>} */
+    public function shouldRedirectToEntrepreneurWorkspace(Client $client): bool
+    {
+        return ! $this->serviceWorkspaces->hasActiveSecondaryWorkspace($client);
+    }
+
+    /** @return array{client:array<array-key,mixed>,serviceWorkspaces:array{active_key:string,items:list<array{key:string,label:string,href:string,active:bool}>},screenShare:array<array-key,mixed>,coBrowse:?array<array-key,mixed>,conflictDeclaration:?array<array-key,mixed>} */
     public function build(Client $client, ?User $user, ?string $highlight): array
     {
         $dataQuality = $this->dataQuality->score($client);
@@ -150,6 +157,12 @@ final class AdvisorClientShowPayloadBuilder
                 'created_at' => $client->created_at?->toIso8601String(),
                 'invitation' => $this->clientPayloads->invitationSummary($client, $invite),
             ],
+            'serviceWorkspaces' => $this->serviceWorkspaces->payload(
+                $client,
+                $this->entrepreneurWorkspaces->forClient($client) instanceof EntrepreneurProfile
+                    ? AdvisorClientServiceWorkspaces::KEY_ENTREPRENEUR
+                    : AdvisorClientServiceWorkspaces::KEY_DUE_DILIGENCE,
+            ),
             'screenShare' => $this->collaborationPayloads->screenShare($client),
             'coBrowse' => $this->collaborationPayloads->coBrowse($client),
             'conflictDeclaration' => $client->conflictDeclarations()

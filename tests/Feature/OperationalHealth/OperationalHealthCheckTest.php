@@ -404,6 +404,41 @@ final class OperationalHealthCheckTest extends TestCase
         $this->assertSame(SimpleTextPdf::FALLBACK_MARKER, data_get($result->context, 'fallback_pdf_marker'));
     }
 
+    public function test_pdf_health_checks_fail_when_a_live_environment_requires_the_browser_renderer(): void
+    {
+        Storage::fake('secure_local');
+        config()->set('operational_health.fail_on_pdf_fallback', true);
+
+        $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
+        {
+            public function render(string $html): string
+            {
+                throw new \RuntimeException('Browser renderer unavailable');
+            }
+        });
+
+        $this->artisan('fsa:seed-operational-health-fixtures')
+            ->assertSuccessful();
+
+        $exitCode = $this->artisan(RunOperationalHealthChecks::class)->run();
+
+        /** @var OperationalHealthCheckRun $run */
+        $run = OperationalHealthCheckRun::query()->latest()->firstOrFail();
+
+        $this->assertSame(1, $exitCode);
+        $this->assertSame(OperationalHealthCheckRun::STATUS_FAILED, $run->status);
+
+        /** @var OperationalHealthCheckResult $result */
+        $result = OperationalHealthCheckResult::query()
+            ->where('run_id', $run->id)
+            ->where('check_key', 'portal.entrepreneur.plan.preview')
+            ->firstOrFail();
+
+        $this->assertSame(OperationalHealthCheckResult::STATUS_FAILED, $result->status);
+        $this->assertTrue((bool) data_get($result->context, 'fallback_pdf_detected'));
+        $this->assertTrue((bool) data_get($result->context, 'fallback_pdf_is_failure'));
+    }
+
     public function test_client_monitor_selection_ignores_suspended_configured_client_assignments(): void
     {
         config()->set('operational_health.ensure_fixtures', false);

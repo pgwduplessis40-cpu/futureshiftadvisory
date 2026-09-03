@@ -56,14 +56,13 @@ final class FunderReadyBusinessPlanBuilder
         $summary = $this->executiveSummaries->status($plan, $profile);
         $reasons = (array) ($issueReadiness['reasons'] ?? []);
 
-        if (! (bool) ($summary['present'] ?? false)) {
-            $reasons[] = 'Generate the executive summary after completing the source plan and budget before lender review.';
+        if (! (bool) ($summary['usable'] ?? false)) {
+            $reasons[] = 'A current executive summary generated after a passing assessment is required before lender review.';
         }
 
         $reasons = array_values(array_unique(array_filter($reasons)));
         $ready = (bool) ($issueReadiness['external_issue_ready'] ?? false)
-            && (bool) ($summary['present'] ?? false)
-            && ! (bool) ($summary['stale'] ?? false);
+            && (bool) ($summary['usable'] ?? false);
 
         return [
             'ready' => $ready,
@@ -104,6 +103,11 @@ final class FunderReadyBusinessPlanBuilder
     {
         $plan->loadMissing('sections', 'budgetRunway');
         $entries = $this->entries($plan);
+        $summary = $this->executiveSummaries->status($plan, $profile);
+        if (! (bool) ($summary['usable'] ?? false) && isset($entries[BusinessPlanExecutiveSummary::REQUIREMENT_KEY])) {
+            $entries[BusinessPlanExecutiveSummary::REQUIREMENT_KEY]['body'] = '';
+            $entries[BusinessPlanExecutiveSummary::REQUIREMENT_KEY]['complete'] = false;
+        }
         $sourceBodies = collect($entries)
             ->pluck('body')
             ->filter(fn (mixed $body): bool => is_string($body) && trim($body) !== '')

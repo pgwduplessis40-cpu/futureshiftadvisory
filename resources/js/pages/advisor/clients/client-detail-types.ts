@@ -1,3 +1,4 @@
+import type { AdvisorServiceWorkspacePayload } from '@/components/advisor/AdvisorServiceWorkspaceSwitcher';
 import type { AdvisorCoBrowseConfig } from '@/components/co-browse/AdvisorCoBrowseAction';
 import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
 import type { NpoHealthPayload } from '@/components/npo/NpoHealthPanel';
@@ -76,6 +77,7 @@ export type ConflictDeclaration = {
 
 export type Props = {
     client: ClientDetail;
+    serviceWorkspaces: AdvisorServiceWorkspacePayload;
     conflictDeclaration: ConflictDeclaration;
     screenShare: {
         connection_url: string;
@@ -88,6 +90,7 @@ export type Props = {
         heartbeat_url: string;
         end_url: string;
         heartbeat_seconds: number;
+        reconnect_grace_seconds: number;
         participants: Array<{ id: string; name: string }>;
     };
     coBrowse: AdvisorCoBrowseConfig | null;

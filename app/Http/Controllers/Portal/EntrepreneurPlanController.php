@@ -13,7 +13,6 @@ use App\Models\IdeaValidation;
 use App\Models\PlanSection;
 use App\Models\ServiceRatePackage;
 use App\Services\Audit\AuditWriter;
-use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Entrepreneurs\Guidance;
 use App\Services\Entrepreneurs\IdeaValidationService;
@@ -29,7 +28,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
+use Throwable;
 
 final class EntrepreneurPlanController extends Controller
 {
@@ -42,7 +43,6 @@ final class EntrepreneurPlanController extends Controller
         private readonly SharedPlanBuilder $sharedPlans,
         private readonly Guidance $guidance,
         private readonly PlanDocuments $documents,
-        private readonly BusinessPlanExecutiveSummary $executiveSummaries,
         private readonly AuditWriter $audit,
         private readonly EntrepreneurMilestones $milestones,
     ) {}
@@ -195,6 +195,7 @@ final class EntrepreneurPlanController extends Controller
 
         $plan = $this->workspace->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan, 404);
+        $this->workspace->assertPlanAcceptsFounderChanges($plan);
 
         $autosave = $request->boolean('_autosave');
         $validated = $request->validate([
@@ -209,6 +210,7 @@ final class EntrepreneurPlanController extends Controller
 
         $phaseKey = (string) $validated['phase_key'];
         $requirementKey = (string) $validated['requirement_key'];
+        $this->workspace->assertRequirementCanBeManuallyWritten($requirementKey);
         $requirement = $this->requirements->requirement($phaseKey, $requirementKey);
         $sectionKey = 'founder-'.$phaseKey.'-'.$requirementKey;
         $body = $this->requirements->integrateDatedUpdate((string) ($validated['body'] ?? ''));
@@ -280,6 +282,7 @@ final class EntrepreneurPlanController extends Controller
         abort_unless($this->workspace->includesPlanBudget($profile), 403);
         $plan = $this->workspace->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan, 404);
+        $this->workspace->assertPlanAcceptsFounderChanges($plan);
 
         $validated = $request->validate([
             'phase_key' => ['required', 'string', Rule::in(array_keys(PlanRequirements::definitions()))],
@@ -305,23 +308,7 @@ final class EntrepreneurPlanController extends Controller
 
     public function generateExecutiveSummary(Request $request): RedirectResponse|JsonResponse
     {
-        $user = $this->workspace->user($request);
-        $profile = $this->workspace->profileFor($user);
-        abort_unless($this->workspace->includesPlanBudget($profile), 403);
-        $plan = $this->workspace->latestPlan($profile);
-        abort_unless($plan instanceof BusinessPlan, 404);
-
-        $payload = $this->executiveSummaries->generate($plan, $profile, $user);
-
-        if ($request->expectsJson()) {
-            return response()->json([
-                'status' => 'entrepreneur-plan-executive-summary-generated',
-                ...$payload,
-            ]);
-        }
-
-        return to_route('portal.entrepreneur.plan.show')
-            ->with('status', 'entrepreneur-plan-executive-summary-generated');
+        throw ValidationException::withMessages(['executive_summary' => 'The executive summary is generated automatically after the current Business Plan & Budget assessment is finalised and passes.']);
     }
 
     public function guidance(Request $request, PlanSection $planSection): RedirectResponse
@@ -329,6 +316,9 @@ final class EntrepreneurPlanController extends Controller
         $user = $this->workspace->user($request);
         $profile = $this->workspace->profileFor($user);
         abort_unless($this->workspace->includesPlanBudget($profile), 403);
+        $plan = $this->workspace->latestPlan($profile);
+        abort_unless($plan instanceof BusinessPlan, 404);
+        $this->workspace->assertPlanAcceptsFounderChanges($plan);
         $this->assertSectionBelongsToProfile($planSection, $profile);
 
         $this->guidance->guide($planSection, $user);
@@ -358,10 +348,19 @@ final class EntrepreneurPlanController extends Controller
             $plan->forceFill([
                 'founding_advisory_payload' => $this->sharedPlans->foundingPayload($plan),
             ])->save();
-            $revisions->submit($plan->refresh()->load('sections'), $user);
-            $profile->forceFill(['stage' => EntrepreneurStage::ASSESSMENT])->save();
 
-            return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-plan-submitted');
+            try {
+                $revisions->submit($plan->refresh()->load('sections'), $user);
+            } catch (Throwable $exception) {
+                report($exception);
+
+                return to_route('portal.entrepreneur.plan.show')->withErrors([
+                    'plan' => 'Your updated plan could not be sent to your advisor yet. Your saved changes are still safe; please try again shortly.',
+                ]);
+            }
+            $profile->forceFill(['stage' => EntrepreneurStage::SUBMITTED])->save();
+
+            return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-plan-resubmitted-for-advisor-review');
         }
 
         $plan->forceFill([

@@ -10,6 +10,7 @@ use App\Models\BusinessPlan;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
 use App\Models\MessageThread;
+use App\Models\PlanAssessment;
 use App\Models\PlanPhase;
 use App\Models\PlanSection;
 use App\Models\ReadinessAssessment;
@@ -17,7 +18,6 @@ use App\Models\Report;
 use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
-use App\Services\Entrepreneurs\PlanIssueReadiness;
 use App\Services\Entrepreneurs\PlanRequirements;
 
 /**
@@ -44,7 +44,6 @@ final class EntrepreneurPlanWorkspacePayload
     public function __construct(
         private readonly EntrepreneurPlanWorkspace $workspace,
         private readonly EntrepreneurPlanRequirements $requirements,
-        private readonly PlanIssueReadiness $planIssueReadiness,
         private readonly BusinessPlanExecutiveSummary $executiveSummaries,
         private readonly EntrepreneurGamification $gamification,
         private readonly AdvisoryReadiness $advisoryReadiness,
@@ -209,7 +208,6 @@ final class EntrepreneurPlanWorkspacePayload
             'updated_at' => $plan->updated_at?->toIso8601String(),
             'requirements_complete' => $completion['complete'],
             'missing_requirements' => $completion['missing'],
-            'external_issue_readiness' => $this->planIssueReadiness->evaluate($plan),
             'executive_summary' => $this->executiveSummaries->status($plan),
             'budget' => $this->requirements->budgetPayload($plan, $plan->budgetRunway),
             'latest_assessment' => $latestAssessment ? [
@@ -220,6 +218,7 @@ final class EntrepreneurPlanWorkspacePayload
                 'finalised_at' => $latestAssessment->finalised_at?->toIso8601String(),
                 'url' => route('portal.entrepreneur.assessments.show', $latestAssessment, absolute: false),
             ] : null,
+            'history' => $this->submittedPlanHistory($plan),
             'phases' => collect(PlanRequirements::definitions())
                 ->map(function (array $definition, string $phaseKey) use ($phasesByKey, $requirements): array {
                     $phase = $phasesByKey->get($phaseKey);
@@ -252,6 +251,34 @@ final class EntrepreneurPlanWorkspacePayload
                 ->values()
                 ->all(),
         ];
+    }
+
+    /** @return list<array<string, PayloadValue>> */
+    private function submittedPlanHistory(BusinessPlan $plan): array
+    {
+        return $plan->assessments
+            ->sortByDesc('round')
+            ->map(function (PlanAssessment $assessment): array {
+                $snapshot = $assessment->plan_snapshot;
+                $snapshotAvailable = is_array($snapshot) && is_array($snapshot['phases'] ?? null);
+
+                return [
+                    'id' => $assessment->id,
+                    'round' => $assessment->round,
+                    'submitted_at' => is_array($snapshot)
+                        ? data_get($snapshot, 'captured_at')
+                        : $assessment->created_at?->toIso8601String(),
+                    'status' => $assessment->finalised_at !== null
+                        ? 'Feedback ready'
+                        : 'Assessment in progress',
+                    'assessment_url' => route('portal.entrepreneur.assessments.show', $assessment, absolute: false),
+                    'plan_snapshot_url' => $snapshotAvailable
+                        ? route('portal.entrepreneur.assessments.plan-preview', $assessment, absolute: false)
+                        : null,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /** @return list<array<string, PayloadValue>> */

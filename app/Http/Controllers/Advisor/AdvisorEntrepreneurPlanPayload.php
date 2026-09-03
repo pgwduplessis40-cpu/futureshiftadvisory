@@ -85,7 +85,6 @@ final class AdvisorEntrepreneurPlanPayload
             ] : null,
             'executive_summary' => [
                 ...$this->executiveSummaries->status($plan, $profile),
-                'generate_url' => route('advisor.entrepreneurs.plans.executive-summary.store', [$profile, $plan], absolute: false),
             ],
             'budget' => $this->budgetSummary($plan->budgetRunway),
             'preview_pdf_url' => route('advisor.entrepreneurs.plans.latest.preview', $profile, absolute: false),

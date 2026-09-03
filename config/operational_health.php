@@ -48,6 +48,14 @@ return [
         ! in_array(env('APP_ENV', 'production'), ['local', 'testing'], true),
     ),
 
+    // A simple-text PDF is useful only as a local/test fallback. In a live
+    // environment it means the browser renderer is unavailable and lender-
+    // facing output must be treated as an incident, not a soft warning.
+    'fail_on_pdf_fallback' => env(
+        'OPERATIONAL_HEALTH_FAIL_ON_PDF_FALLBACK',
+        ! in_array(env('APP_ENV', 'production'), ['local', 'testing'], true),
+    ),
+
     'alerts' => [
         'enabled' => env('OPERATIONAL_HEALTH_ALERTS_ENABLED', true),
         'consecutive_failures' => (int) env('OPERATIONAL_HEALTH_ALERT_CONSECUTIVE_FAILURES', 2),

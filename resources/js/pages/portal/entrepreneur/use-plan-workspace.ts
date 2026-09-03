@@ -233,8 +233,6 @@ export function usePlanWorkspace({
     const [sectionError, setSectionError] = useState<string | null>(null);
     const [savingSection, setSavingSection] = useState(false);
     const [assistingSection, setAssistingSection] = useState(false);
-    const [generatingExecutiveSummary, setGeneratingExecutiveSummary] =
-        useState(false);
     const [assistantNotice, setAssistantNotice] = useState<string | null>(null);
     const [budgetForm, setBudgetForm] = useState<BudgetFormState>(
         () => initialWorkspaceDraft?.budgetForm ?? budgetToForm(plan?.budget),
@@ -674,25 +672,6 @@ export function usePlanWorkspace({
         }
     };
 
-    const generateExecutiveSummary = () => {
-        if (!plan || generatingExecutiveSummary) {
-            return;
-        }
-
-        setGeneratingExecutiveSummary(true);
-        setSectionError(null);
-        setAssistantNotice(null);
-
-        router.post(
-            urls.executiveSummary,
-            {},
-            {
-                preserveScroll: true,
-                onFinish: () => setGeneratingExecutiveSummary(false),
-            },
-        );
-    };
-
     const saveSection = async () => {
         if (!selectedRequirement) {
             return;
@@ -831,7 +810,6 @@ export function usePlanWorkspace({
         sectionError,
         savingSection,
         assistingSection,
-        generatingExecutiveSummary,
         assistantNotice,
         budgetForm,
         setBudgetForm,
@@ -847,7 +825,6 @@ export function usePlanWorkspace({
         requestAdvisory,
         requestGamificationDisablement,
         assistRequirement,
-        generateExecutiveSummary,
         saveSection,
         saveBudget,
         acknowledgeBudgetFlag,

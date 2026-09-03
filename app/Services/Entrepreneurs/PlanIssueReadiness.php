@@ -45,8 +45,10 @@ final class PlanIssueReadiness
             $reasons[] = 'Budget funding readiness: '.(string) ($budget['readiness_label'] ?? 'Not ready for external issue').'.';
         }
 
-        if ((bool) ($executiveSummary['stale'] ?? false)) {
-            $reasons[] = (string) ($executiveSummary['readiness_reason'] ?? 'Refresh the executive summary before external issue.');
+        if (! (bool) ($executiveSummary['usable'] ?? false)) {
+            $reasons[] = (bool) ($executiveSummary['legacy_draft'] ?? false)
+                ? 'A manually authored executive-summary draft is held from external issue. Finalise a passing assessment to generate the approved AI summary.'
+                : (string) ($executiveSummary['readiness_reason'] ?? 'A current executive summary is required before external issue.');
         }
 
         $reasons = [...$reasons, ...(array) ($contentReview['blocking_reasons'] ?? []), ...(array) ($contentReview['warnings'] ?? [])];
@@ -54,7 +56,7 @@ final class PlanIssueReadiness
         $ready = $completion['complete']
             && $evidencedSections->isNotEmpty()
             && (bool) ($budget['external_issue_ready'] ?? false)
-            && ! (bool) ($executiveSummary['stale'] ?? false)
+            && (bool) ($executiveSummary['usable'] ?? false)
             && ((array) ($contentReview['blocking_reasons'] ?? [])) === [];
 
         return [

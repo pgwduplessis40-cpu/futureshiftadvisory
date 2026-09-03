@@ -12,6 +12,7 @@ use App\Models\InviteToken;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\User;
+use App\Services\Advisor\AdvisorClientServiceWorkspaces;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
 use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
@@ -31,6 +32,7 @@ final class EntrepreneurController extends Controller
         private readonly AdvisorEntrepreneurCapacity $capacity,
         private readonly AuditWriter $auditWriter,
         private readonly InviteIssuer $inviteIssuer,
+        private readonly AdvisorClientServiceWorkspaces $serviceWorkspaces,
         private readonly CanonicalEntrepreneurWorkspace $entrepreneurWorkspaces,
         private readonly AdvisorEntrepreneurWorkspacePayload $workspacePayloads,
     ) {}
@@ -38,7 +40,6 @@ final class EntrepreneurController extends Controller
     public function index(Request $request): Response
     {
         Gate::authorize('viewAny', EntrepreneurProfile::class);
-
         $user = $this->actor($request);
 
         return Inertia::render('advisor/entrepreneurs/Index', [
@@ -72,7 +73,6 @@ final class EntrepreneurController extends Controller
     public function store(Request $request): RedirectResponse
     {
         Gate::authorize('create', EntrepreneurProfile::class);
-
         $advisor = $this->actor($request);
         $this->capacity->ensureCanAdd($advisor);
 
@@ -140,7 +140,6 @@ final class EntrepreneurController extends Controller
     public function storeManual(Request $request): RedirectResponse
     {
         Gate::authorize('create', EntrepreneurProfile::class);
-
         $advisor = $this->actor($request);
         $this->capacity->ensureCanAdd($advisor);
 
@@ -332,9 +331,9 @@ final class EntrepreneurController extends Controller
             return to_route('advisor.entrepreneurs.show', $canonicalProfile);
         }
 
-        $viewer = $this->actor($request);
-
-        return Inertia::render('advisor/entrepreneurs/Show', $this->workspacePayloads->show($viewer, $entrepreneurProfile));
+        return ($clientDetailUrl = $this->serviceWorkspaces->clientDetailUrlForMultiServiceProfile($canonicalProfile)) !== null
+            ? redirect()->to($clientDetailUrl)
+            : Inertia::render('advisor/entrepreneurs/Show', $this->workspacePayloads->show($this->actor($request), $entrepreneurProfile));
     }
 
     private function actor(Request $request): User

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Entrepreneurs;
 
 use App\Enums\EntrepreneurStage;
+use App\Jobs\RunEntrepreneurPlanAssessment;
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurMilestoneAward;
 use App\Models\EntrepreneurPointEvent;
@@ -29,6 +30,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\MakesIdeaReviewEligible;
 use Tests\Fakes\ScoringAiClient;
@@ -89,7 +91,7 @@ final class GamificationTest extends TestCase
             ->count());
     }
 
-    public function test_resubmitting_a_revising_plan_creates_a_revision_and_new_assessment_round(): void
+    public function test_resubmitting_a_revising_plan_creates_an_advisor_dashboard_action_without_assessing(): void
     {
         $this->seed(RatingFrameworkSeeder::class);
         [$advisor, $entrepreneur, $profile] = $this->profile('resubmit-revision-gamification@example.test', gamificationOn: true);
@@ -104,6 +106,7 @@ final class GamificationTest extends TestCase
         $firstSubmittedAt = $plan->refresh()->submitted_at?->copy();
         app(Assessment::class)->firstPass($plan->refresh()->load('sections'), $advisor);
         app(Revision::class)->open($plan->refresh(), $advisor);
+        Queue::fake();
 
         $this->actingAsMfa($entrepreneur)
             ->post(route('portal.entrepreneur.plan.submit'))
@@ -113,11 +116,43 @@ final class GamificationTest extends TestCase
             ->where('business_plan_id', $plan->getKey())
             ->firstOrFail();
 
-        $this->assertSame(BusinessPlan::STATUS_ASSESSING, $plan->refresh()->status);
-        $this->assertSame(EntrepreneurStage::ASSESSMENT, $profile->refresh()->stage);
+        $this->assertSame(BusinessPlan::STATUS_SUBMITTED, $plan->refresh()->status);
+        $this->assertSame(EntrepreneurStage::SUBMITTED, $profile->refresh()->stage);
         $this->assertTrue($firstSubmittedAt?->equalTo($plan->submitted_at));
-        $this->assertSame(2, PlanAssessment::query()->where('business_plan_id', $plan->getKey())->count());
+        $this->assertSame(1, PlanAssessment::query()->where('business_plan_id', $plan->getKey())->count());
         $this->assertSame(2, $revision->round);
+        $this->assertSame('awaiting_advisor_action', data_get($revision->progress_comparison, 'assessment_status'));
+        Queue::assertNotPushed(RunEntrepreneurPlanAssessment::class);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.plan_revision_submitted',
+            'subject_id' => $revision->id,
+        ]);
+
+        $this->actingAsMfa($entrepreneur)
+            ->postJson(route('portal.entrepreneur.plan.sections.store'), [
+                'phase_key' => 'market',
+                'requirement_key' => 'industry-context',
+                'title' => 'Changed after submission',
+                'body' => 'This submitted version must remain unchanged until the advisor returns it for revision.',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('plan');
+        $this->actingAsMfa($entrepreneur)
+            ->postJson(route('portal.entrepreneur.plan.budget.update'), [
+                'forecast_years' => 3,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('plan');
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('entrepreneurReviews.summary.business_plans', 1)
+                ->where('entrepreneurReviews.items.0.type', 'business_plan')
+                ->where('entrepreneurReviews.items.0.id', $plan->id)
+                ->where('entrepreneurReviews.items.0.status', 'Submitted for assessment')
+                ->where('entrepreneurReviews.items.0.action_label', 'Run reassessment'));
     }
 
     public function test_enable_reconciles_prior_plan_submitted_with_estimated_timestamp(): void

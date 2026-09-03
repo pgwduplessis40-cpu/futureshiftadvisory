@@ -111,6 +111,7 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneur/gamification/disable-request', [EntrepreneurGamificationController::class, 'requestDisable'])->name('entrepreneur.gamification.disable-request');
         Route::post('entrepreneur/gamification/seen', [EntrepreneurGamificationController::class, 'seen'])->name('entrepreneur.gamification.seen');
         Route::get('entrepreneur/assessments/{planAssessment}', [EntrepreneurAssessmentController::class, 'show'])->name('entrepreneur.assessments.show');
+        Route::get('entrepreneur/assessments/{planAssessment}/plan-preview', [EntrepreneurAssessmentController::class, 'planPreview'])->name('entrepreneur.assessments.plan-preview');
         Route::get('entrepreneur/surveys', [EntrepreneurSurveyController::class, 'index'])->name('entrepreneur.surveys.index');
         Route::get('entrepreneur/surveys/{surveyAssignment}', [EntrepreneurSurveyController::class, 'show'])->name('entrepreneur.surveys.show');
         Route::post('entrepreneur/surveys/{surveyAssignment}/draft', [EntrepreneurSurveyController::class, 'draft'])->name('entrepreneur.surveys.draft');

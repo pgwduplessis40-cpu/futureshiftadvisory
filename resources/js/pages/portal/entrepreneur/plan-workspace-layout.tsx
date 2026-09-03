@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { AlertTriangle, Eye, MessageSquare, Trophy } from 'lucide-react';
+import { Eye, MessageSquare, Trophy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -15,7 +15,6 @@ import type { PlanWorkspace } from './use-plan-workspace';
 export function PlanWorkspaceLayout(workspace: PlanWorkspace) {
     const {
         profile,
-        plan,
         gamification,
         urls,
         activeTab,
@@ -103,42 +102,6 @@ export function PlanWorkspaceLayout(workspace: PlanWorkspace) {
                         </Button>
                     </div>
                 </div>
-
-                {plan && !plan.external_issue_readiness.external_issue_ready ? (
-                    <section className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-950">
-                        <div className="flex items-start gap-3">
-                            <AlertTriangle
-                                className="mt-0.5 size-4 shrink-0"
-                                aria-hidden="true"
-                            />
-                            <div>
-                                <div className="font-medium">
-                                    {plan.external_issue_readiness.label}
-                                </div>
-                                <p className="mt-1 text-red-900">
-                                    Evidence coverage:{' '}
-                                    {
-                                        plan.external_issue_readiness
-                                            .evidence_supported_responses
-                                    }
-                                    /
-                                    {
-                                        plan.external_issue_readiness
-                                            .completed_responses
-                                    }{' '}
-                                    completed responses.
-                                </p>
-                                <ul className="mt-2 list-disc space-y-1 pl-5 text-red-900">
-                                    {plan.external_issue_readiness.reasons.map(
-                                        (reason) => (
-                                            <li key={reason}>{reason}</li>
-                                        ),
-                                    )}
-                                </ul>
-                            </div>
-                        </div>
-                    </section>
-                ) : null}
 
                 <TabList activeTab={activeTab} onChange={setActiveTab} />
 

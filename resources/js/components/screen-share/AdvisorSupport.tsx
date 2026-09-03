@@ -375,7 +375,14 @@ export function AdvisorSupport({
                     }
 
                     if (viewer.connectionState === 'failed') {
-                        void end();
+                        // The client keeps its capture and attempts an ICE
+                        // restart during the server's recovery window. Ending
+                        // here would turn a transient network change into a
+                        // permanent session loss.
+                        setConnected(false);
+                        setError(
+                            'Screen support is reconnecting. Keep this workspace open while the client reconnects.',
+                        );
                     }
                 };
             }

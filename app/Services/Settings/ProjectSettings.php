@@ -422,8 +422,8 @@ final class ProjectSettings
             'label' => 'Reconnect grace (seconds)',
             'type' => self::TYPE_INTEGER,
             'config_path' => 'screen-share.reconnect_grace_seconds',
-            'default' => 15,
-            'min' => 5,
+            'default' => 60,
+            'min' => 15,
             'max' => 120,
         ],
         [

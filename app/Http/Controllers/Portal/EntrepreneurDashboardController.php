@@ -207,6 +207,7 @@ final class EntrepreneurDashboardController extends Controller
             'heartbeat_url' => route('screen-share.sessions.heartbeat', ['session' => '__session__'], absolute: false),
             'end_url' => route('screen-share.sessions.end', ['session' => '__session__'], absolute: false),
             'heartbeat_seconds' => max(5, (int) config('screen-share.heartbeat_interval_seconds', 10)),
+            'reconnect_grace_seconds' => max(15, (int) config('screen-share.reconnect_grace_seconds', 60)),
             'warning_at_minutes' => max(1, (int) config('screen-share.warning_at_minutes', 25)),
         ];
     }

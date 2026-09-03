@@ -8,6 +8,7 @@ use App\Enums\EntrepreneurStage;
 use App\Models\BusinessPlan;
 use App\Models\User;
 use App\Services\Entrepreneurs\Assessment;
+use App\Services\Entrepreneurs\Revision;
 use App\Support\RequestContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -36,6 +37,7 @@ final class RunEntrepreneurPlanAssessment implements ShouldQueue
     {
         $context->apply('system', []);
         $assessments = app(Assessment::class);
+        $revisions = app(Revision::class);
         $plan = BusinessPlan::query()->find($this->businessPlanId);
         $advisor = User::query()->find($this->advisorId);
 
@@ -49,7 +51,8 @@ final class RunEntrepreneurPlanAssessment implements ShouldQueue
         }
 
         try {
-            $assessments->firstPass($runningPlan, $advisor);
+            $assessment = $assessments->firstPass($runningPlan, $advisor);
+            $revisions->recordAssessment($assessment, $advisor);
             $profile = $runningPlan->refresh()->entrepreneurProfile;
             $profile?->forceFill(['stage' => EntrepreneurStage::ASSESSMENT])->save();
         } catch (Throwable $exception) {

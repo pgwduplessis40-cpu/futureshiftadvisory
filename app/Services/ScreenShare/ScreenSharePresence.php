@@ -135,7 +135,7 @@ final class ScreenSharePresence
     private function presenceGraceSeconds(): int
     {
         $heartbeat = max(5, (int) config('screen-share.heartbeat_interval_seconds', 10));
-        $reconnect = max(5, (int) config('screen-share.reconnect_grace_seconds', 15));
+        $reconnect = max(15, (int) config('screen-share.reconnect_grace_seconds', 60));
 
         return min(180, max(30, $heartbeat * 2, $reconnect));
     }

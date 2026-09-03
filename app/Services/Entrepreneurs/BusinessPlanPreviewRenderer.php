@@ -20,69 +20,6 @@ final class BusinessPlanPreviewRenderer
 
     private const BUDGET_ASSUMPTIONS_REQUIREMENT_KEY = 'financial-assumptions';
 
-    private const SUMMARY_AREA_REQUIREMENTS = [
-        [
-            'title' => 'Type of business',
-            'keys' => ['business-type-location'],
-            'terms' => ['business', 'company', 'service', 'product', 'advisory', 'consulting'],
-        ],
-        [
-            'title' => 'Location',
-            'keys' => ['business-type-location'],
-            'terms' => ['location', 'located', 'based', 'premises', 'home', 'regional', 'online', 'new zealand'],
-        ],
-        [
-            'title' => 'Means of doing business',
-            'keys' => ['business-type-location'],
-            'terms' => ['operate', 'operating', 'delivery', 'deliver', 'online', 'in-person', 'model', 'customer'],
-        ],
-        [
-            'title' => 'Discuss the industry',
-            'keys' => ['industry-context', 'differentiation'],
-            'terms' => ['industry', 'market', 'customer', 'demand', 'timing', 'trend'],
-        ],
-        [
-            'title' => 'What sets the business apart',
-            'keys' => ['differentiation', 'competitor-comparison'],
-            'terms' => ['different', 'competitor', 'alternative', 'advantage', 'choose', 'sets'],
-        ],
-        [
-            'title' => 'Describe unique success factors',
-            'keys' => ['success-factors', 'organisation-management'],
-            'terms' => ['success', 'capability', 'relationship', 'asset', 'experience', 'responsibility'],
-        ],
-        [
-            'title' => 'Mission and vision statement',
-            'keys' => ['mission-vision'],
-            'terms' => ['mission', 'vision', 'problem', 'purpose', 'exists'],
-        ],
-        [
-            'title' => 'Intellectual property',
-            'keys' => ['intellectual-property'],
-            'terms' => ['intellectual', 'property', 'brand', 'data', 'method', 'contract', 'protect'],
-        ],
-        [
-            'title' => 'Goals and objectives',
-            'keys' => ['goals-objectives'],
-            'terms' => ['goal', 'objective', 'milestone', 'measure', 'decision', 'launch'],
-        ],
-        [
-            'title' => 'Culture',
-            'keys' => ['culture'],
-            'terms' => ['culture', 'values', 'behaviour', 'promise', 'team'],
-        ],
-        [
-            'title' => 'Legal environment',
-            'keys' => ['legal-environment', 'systems-software-processes'],
-            'terms' => ['legal', 'privacy', 'compliance', 'supplier', 'employment', 'system', 'process'],
-        ],
-        [
-            'title' => 'Budget',
-            'keys' => ['financial-assumptions', 'revenue-model', 'launch-funding'],
-            'terms' => ['budget', 'revenue', 'funding', 'runway', 'cost', 'cash', 'margin', 'price'],
-        ],
-    ];
-
     public function __construct(
         private readonly PdfRenderer $pdf,
         private readonly SimpleTextPdf $fallbackPdf,
@@ -90,7 +27,6 @@ final class BusinessPlanPreviewRenderer
         private readonly BusinessPlanIdentity $identity,
         private readonly EntrepreneurDocumentTemplate $templates,
         private readonly PlanIssueReadiness $issueReadiness,
-        private readonly BudgetFundingReadiness $budgetReadiness,
     ) {}
 
     public function pdf(EntrepreneurProfile $profile, ?BusinessPlan $plan): string
@@ -174,6 +110,8 @@ final class BusinessPlanPreviewRenderer
                             'body' => $section->body,
                             'attached_document_ids' => $section->attached_document_ids ?? [],
                             'requirement_key' => data_get($section->metadata, 'requirement_key'),
+                            'executive_summary_generated' => (bool) data_get($section->metadata, 'executive_summary.generated'),
+                            'executive_summary_source' => data_get($section->metadata, 'executive_summary.source'),
                         ])
                         ->values()
                         ->all() ?? [],
@@ -460,6 +398,11 @@ HTML,
                 continue;
             }
 
+            if (! (bool) ($section['executive_summary_generated'] ?? false)
+                || (string) ($section['executive_summary_source'] ?? '') !== 'ai_synthesis') {
+                continue;
+            }
+
             $body = $this->cleanResponseBody((string) ($section['body'] ?? ''));
             if ($body === '') {
                 continue;
@@ -479,238 +422,14 @@ HTML,
     /**
      * @param  array<int, array<string, mixed>>  $phases
      * @param  array<int, array{title:string,entries:array<int, array{key:string,title:string,body:string,evidence_count:int}>}>  $sections
-     * @return array{key:string,title:string,body:string,evidence_count:int}
+     * @return array{key:string,title:string,body:string,evidence_count:int}|null
      */
-    private function executiveSummary(EntrepreneurProfile $profile, ?BusinessPlan $plan, array $phases, array $sections): array
+    private function executiveSummary(EntrepreneurProfile $profile, ?BusinessPlan $plan, array $phases, array $sections): ?array
     {
-        $authored = $this->executiveSummaryEntry($phases);
-        if ($authored !== null) {
-            return $authored;
-        }
-
-        $sourceBodies = $this->sectionBodies($phases);
-        if ($sourceBodies === []) {
-            $sourceBodies = collect($sections)
-                ->flatMap(fn (array $section): array => $section['entries'])
-                ->map(fn (array $entry): string => (string) ($entry['body'] ?? ''))
-                ->all();
-        }
-        $businessName = $this->identity->businessName($profile, $plan, $sourceBodies);
-        $entriesByKey = $this->entriesByKey($sections);
-        $summary = [];
-        $summary[] = $businessName === null
-            ? 'This business plan is prepared by '.$profile->name.' for lender, investor, and advisor review.'
-            : $businessName.' is led by '.$profile->name.' and this plan sets out the business case, market evidence, operating model, funding position, and decision required.';
-
-        $concept = $this->completeSentence((string) $profile->concept_summary);
-        if ($concept !== '') {
-            $summary[] = $concept;
-        }
-
-        $market = $this->summarySentenceForKeys($entriesByKey, ['industry-context', 'differentiation', 'competitor-comparison']);
-        if ($market !== '') {
-            $summary[] = $market;
-        }
-
-        $model = $this->summarySentenceForKeys($entriesByKey, ['business-type-location', 'organisation-management', 'systems-software-processes']);
-        $revenue = $this->summarySentenceForKeys($entriesByKey, ['revenue-model', 'financial-assumptions']);
-        $operatingModel = trim($model.' '.$revenue);
-        if ($operatingModel !== '') {
-            $summary[] = $operatingModel;
-        }
-
-        $funding = $this->fundingSummarySentence($plan);
-        if ($funding !== '') {
-            $summary[] = $funding;
-        }
-
-        $runway = $this->runwayCaveatSentence($plan);
-        if ($runway !== '') {
-            $summary[] = $runway;
-        }
-
-        return [
-            'key' => 'executive-summary',
-            'title' => 'Executive summary',
-            'body' => implode("\n\n", $summary),
-            'evidence_count' => 0,
-        ];
-    }
-
-    /**
-     * @param  array<int, array{title:string,entries:array<int, array{key:string,title:string,body:string,evidence_count:int}>}>  $sections
-     * @return array<int, string>
-     */
-    private function summaryAreaBullets(array $sections, ?BusinessPlan $plan): array
-    {
-        $entriesByKey = collect($sections)
-            ->flatMap(fn (array $section): array => $section['entries'])
-            ->keyBy('key')
-            ->all();
-        $computed = (array) ($plan?->budgetRunway?->computed ?? []);
-
-        return collect(self::SUMMARY_AREA_REQUIREMENTS)
-            ->map(fn (array $area): string => $area['title'].': '.$this->summaryAreaText($area, $entriesByKey, $computed))
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @param  array<int, array{title:string,entries:array<int, array{key:string,title:string,body:string,evidence_count:int}>}>  $sections
-     * @return array<string, array{key:string,title:string,body:string,evidence_count:int}>
-     */
-    private function entriesByKey(array $sections): array
-    {
-        return collect($sections)
-            ->flatMap(fn (array $section): array => $section['entries'])
-            ->keyBy('key')
-            ->all();
-    }
-
-    /**
-     * @param  array<string, array{key:string,title:string,body:string,evidence_count:int}>  $entriesByKey
-     * @param  array<int, string>  $keys
-     */
-    private function summarySentenceForKeys(array $entriesByKey, array $keys): string
-    {
-        $body = collect($keys)
-            ->map(fn (string $key): string => isset($entriesByKey[$key]) ? (string) $entriesByKey[$key]['body'] : '')
-            ->filter(fn (string $body): bool => trim($body) !== '')
-            ->implode("\n");
-
-        return $this->completeSentence($body);
-    }
-
-    private function completeSentence(string $body): string
-    {
-        $sentences = $this->summarySentences($body);
-
-        return $sentences[0] ?? '';
-    }
-
-    private function fundingSummarySentence(?BusinessPlan $plan): string
-    {
-        if (! ($plan?->budgetRunway instanceof EntrepreneurBudget)) {
-            return 'The funding decision is not lender-ready until the budget pack is complete and reconciled to the written plan.';
-        }
-
-        $decision = $this->budgetReadiness->evaluate($plan->budgetRunway);
-        $requiredFunding = (float) ($decision['required_additional_funding'] ?? 0);
-        $availableFunding = (float) ($decision['available_funding'] ?? 0);
-
-        if ($requiredFunding > 0) {
-            return 'The funding ask is '.$this->money($requiredFunding).', or equivalent assumption changes, to cover the larger of the forecast cash trough and the lender-style operating buffer.';
-        }
-
-        if ($availableFunding > 0) {
-            return 'The plan asks the reader to assess whether available funding of '.$this->money($availableFunding).' is sufficient against the budget pack, operating buffer, and cash curve.';
-        }
-
-        return 'The plan currently presents no external funding ask, so that position needs to remain consistent with the budget cash curve and support requested.';
-    }
-
-    private function runwayCaveatSentence(?BusinessPlan $plan): string
-    {
-        $computed = (array) ($plan?->budgetRunway?->computed ?? []);
-        if ($computed === []) {
-            return '';
-        }
-
-        $runwayMonths = data_get($computed, 'runway_months');
-        $breakEven = data_get($computed, 'break_even_year');
-        $cashPositive = data_get($computed, 'cash_flow_positive_year');
-        $signals = 'The forecast shows runway of '.(is_numeric($runwayMonths) ? ((int) $runwayMonths).' month'.((int) $runwayMonths === 1 ? '' : 's') : 'not calculated').', break-even in '.($breakEven === null ? 'the forecast horizon not yet confirmed' : 'Year '.$breakEven).', and cash-positive timing in '.($cashPositive === null ? 'the forecast horizon not yet confirmed' : 'Year '.$cashPositive).'.';
-
-        if ((int) ($runwayMonths ?? -1) === 0) {
-            return $signals.' A 0 months runway result should be read with the funding build-up: it reflects the model reserving cash for launch costs and operating cover, not by itself a conclusion that the business has no trading cash.';
-        }
-
-        return $signals;
-    }
-
-    /**
-     * @param  array{title:string,keys:array<int, string>,terms:array<int, string>}  $area
-     * @param  array<string, array{key:string,title:string,body:string,evidence_count:int}>  $entriesByKey
-     * @param  array<string, mixed>  $computed
-     */
-    private function summaryAreaText(array $area, array $entriesByKey, array $computed): string
-    {
-        $bodies = collect($area['keys'])
-            ->map(fn (string $key): ?string => isset($entriesByKey[$key]) ? (string) $entriesByKey[$key]['body'] : null)
-            ->filter(fn (?string $body): bool => is_string($body) && trim($body) !== '')
-            ->values()
-            ->all();
-        $sentences = $this->summarySentences(implode("\n", $bodies));
-        $terms = collect($area['terms'])
-            ->map(fn (string $term): string => Str::lower($term))
-            ->filter()
-            ->values()
-            ->all();
-        $sentence = collect($sentences)
-            ->first(function (string $candidate) use ($terms): bool {
-                $candidate = Str::lower($candidate);
-
-                return collect($terms)->contains(fn (string $term): bool => str_contains($candidate, $term));
-            }) ?? ($sentences[0] ?? '');
-
-        if ((string) $area['title'] === 'Budget') {
-            $budgetSentence = $this->budgetSummarySentence($computed);
-            $sentence = trim($sentence.' '.$budgetSentence);
-        }
-
-        if ($sentence === '') {
-            return 'No completed response is captured yet.';
-        }
-
-        return $this->wholeSentenceWithin($sentence, 210)
-            ?? 'No completed response is captured yet.';
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function summarySentences(string $body): array
-    {
-        $plain = preg_replace('/\s+/', ' ', $this->markdownPlainText($body)) ?? '';
-        preg_match_all('/[^.!?]+[.!?](?=\s|$)/', trim($plain), $matches);
-        $sentences = $matches[0] ?? [];
-
-        return collect($sentences)
-            ->map(fn (string $sentence): string => trim($sentence))
-            ->filter(fn (string $sentence): bool => strlen($sentence) >= 24)
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @param  array<string, mixed>  $computed
-     */
-    private function budgetSummarySentence(array $computed): string
-    {
-        if ($computed === []) {
-            return '';
-        }
-
-        $signals = [];
-        $runwayMonths = data_get($computed, 'runway_months');
-        $breakEvenYear = data_get($computed, 'break_even_year');
-        $cashPositiveYear = data_get($computed, 'cash_flow_positive_year');
-
-        if (is_numeric($runwayMonths)) {
-            $signals[] = 'runway of '.(int) round((float) $runwayMonths).' month'.((int) round((float) $runwayMonths) === 1 ? '' : 's');
-        }
-
-        if (is_numeric($breakEvenYear)) {
-            $signals[] = 'break-even in Year '.(int) $breakEvenYear;
-        }
-
-        if (is_numeric($cashPositiveYear)) {
-            $signals[] = 'cash-positive timing in Year '.(int) $cashPositiveYear;
-        }
-
-        return $signals === []
-            ? ''
-            : 'Forecast signals include '.implode(', ', $signals).'.';
+        // A client-authored or synthetic fallback summary must never appear in
+        // a client-facing plan. Only the assessment-gated generated section is
+        // eligible for this document.
+        return $this->executiveSummaryEntry($phases);
     }
 
     /**
@@ -788,20 +507,24 @@ HTML,
                 'title' => 'Founder responsibility note',
                 'text' => $this->clientAuthorshipNoticeText($profile, $businessName),
             ],
-            ['type' => 'section', 'text' => 'Executive summary'],
-            [
+        ];
+
+        if ($executiveSummary !== null) {
+            $blocks[] = ['type' => 'section', 'text' => 'Executive summary'];
+            $blocks[] = [
                 'type' => 'paragraph',
                 'text' => $this->markdownPlainText($executiveSummary['body']),
-            ],
-            ['type' => 'page_break'],
-            [
-                'type' => 'toc',
-                'heading' => 'Index',
-                'items' => collect($this->indexEntries($sections, $executiveSummary))
-                    ->map(fn (array $entry): array => ['title' => $entry['title']])
-                    ->values()
-                    ->all(),
-            ],
+            ];
+        }
+
+        $blocks[] = ['type' => 'page_break'];
+        $blocks[] = [
+            'type' => 'toc',
+            'heading' => 'Index',
+            'items' => collect($this->indexEntries($sections, $executiveSummary))
+                ->map(fn (array $entry): array => ['title' => $entry['title']])
+                ->values()
+                ->all(),
         ];
 
         $nextSectionPosition = $executiveSummary === null ? 1 : 2;
@@ -942,12 +665,7 @@ HTML,
             return '';
         }
 
-        $reasons = collect((array) ($issueReadiness['reasons'] ?? []))
-            ->take(4)
-            ->map(fn (string $reason): string => '<li>'.$this->escape($reason).'</li>')
-            ->implode('');
-
-        return '<div class="internal-draft-watermark">INTERNAL DRAFT</div><article class="report-section external-issue-warning"><h2>Internal draft - not for external issue</h2><p>Resolve the listed readiness items before sharing this document with a lender, investor, or other external audience.</p>'.($reasons === '' ? '' : '<ul>'.$reasons.'</ul>').'</article>';
+        return '<div class="internal-draft-watermark">INTERNAL DRAFT</div><article class="report-section external-issue-warning"><h2>Internal draft - not for external issue</h2><p>This working copy is for you and your advisor. Your advisor will share any next steps before it is prepared for an external audience.</p></article>';
     }
 
     private function clientAuthorshipNoticeHtml(EntrepreneurProfile $profile, ?string $businessName): string
@@ -1113,14 +831,6 @@ CSS;
             ->filter()
             ->values()
             ->all();
-    }
-
-    private function money(mixed $value): string
-    {
-        $amount = (float) $value;
-        $sign = $amount < 0 ? '-' : '';
-
-        return $sign.'$'.number_format(abs($amount), 0);
     }
 
     private function escape(mixed $value): string

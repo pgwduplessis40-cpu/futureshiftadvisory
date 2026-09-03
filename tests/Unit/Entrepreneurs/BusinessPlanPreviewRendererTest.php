@@ -62,6 +62,8 @@ final class BusinessPlanPreviewRendererTest extends TestCase
                     'requirement_key' => 'executive-summary',
                     'body' => 'A concise lender-ready overview of the business, funding need, and decision.',
                     'attached_document_ids' => ['document-1'],
+                    'executive_summary_generated' => true,
+                    'executive_summary_source' => 'ai_synthesis',
                 ]],
             ],
         ]);
@@ -77,13 +79,15 @@ final class BusinessPlanPreviewRendererTest extends TestCase
                 'requirement_key' => 'executive-summary',
                 'body' => 'A concise lender-ready overview of the business, funding need, and decision.',
                 'attached_document_ids' => ['document-1'],
+                'executive_summary_generated' => true,
+                'executive_summary_source' => 'ai_synthesis',
             ]],
         ]]);
 
         $this->assertSame('Executive summary', $summary['title']);
     }
 
-    public function test_executive_summary_is_recovered_from_a_legacy_snapshot_key(): void
+    public function test_legacy_executive_summary_is_excluded_from_client_facing_documents(): void
     {
         $renderer = app(BusinessPlanPreviewRenderer::class);
         $method = new ReflectionMethod($renderer, 'executiveSummaryEntry');
@@ -98,8 +102,7 @@ final class BusinessPlanPreviewRendererTest extends TestCase
             ]],
         ]]);
 
-        $this->assertSame('Executive summary', $summary['title']);
-        $this->assertSame('A concise summary retained from the submitted plan snapshot.', $summary['body']);
+        $this->assertNull($summary);
     }
 
     public function test_generated_executive_summary_is_a_lender_style_synthesis(): void
@@ -115,7 +118,15 @@ final class BusinessPlanPreviewRendererTest extends TestCase
                 'concept_summary' => 'A practical founder-support studio for small businesses that need clearer planning, delivery, and decision support.',
             ]),
             null,
-            [],
+            [[
+                'sections' => [[
+                    'requirement_key' => 'executive-summary',
+                    'body' => 'Drawer Full of Giants Ltd is led by Tania Hassounia and is building a practical founder-support studio for small businesses. The industry demand is supported by early workshop feedback, founder interviews, and pilot programme interest from small-business owners. The funding decision is not lender-ready until the budget pack is complete and the lender confirms the next delivery stage.',
+                    'attached_document_ids' => [],
+                    'executive_summary_generated' => true,
+                    'executive_summary_source' => 'ai_synthesis',
+                ]],
+            ]],
             [[
                 'title' => 'Foundation',
                 'entries' => [[
@@ -408,6 +419,8 @@ final class BusinessPlanPreviewRendererTest extends TestCase
                     'title' => 'Executive summary',
                     'body' => 'A lender-ready summary of the business, its funding need, and the decision requested.',
                     'attached_document_ids' => [],
+                    'executive_summary_generated' => true,
+                    'executive_summary_source' => 'ai_synthesis',
                 ]],
             ]],
             [
