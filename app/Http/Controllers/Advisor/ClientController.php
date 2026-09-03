@@ -13,6 +13,7 @@ use App\Http\Resources\Advisor\AdvisorClientIndexPayloadBuilder;
 use App\Http\Resources\Advisor\AdvisorClientShowPayloadBuilder;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\EntrepreneurProfile;
 use App\Models\InviteToken;
 use App\Models\ServiceActivation;
 use App\Models\User;
@@ -299,11 +300,10 @@ final class ClientController extends Controller
     public function show(Request $request, Client $client): Response|RedirectResponse
     {
         Gate::authorize('view', $client);
-
         $entrepreneurProfile = $client->engagement_type === EngagementType::FOUNDING_ADVISORY
             ? null
             : $this->showPayloads->entrepreneurWorkspace($client);
-        if ($entrepreneurProfile instanceof \App\Models\EntrepreneurProfile && $this->showPayloads->shouldRedirectToEntrepreneurWorkspace($client)) {
+        if ($entrepreneurProfile instanceof EntrepreneurProfile && $this->showPayloads->shouldRedirectToEntrepreneurWorkspace($client)) {
             return to_route('advisor.entrepreneurs.show', $entrepreneurProfile);
         }
 
