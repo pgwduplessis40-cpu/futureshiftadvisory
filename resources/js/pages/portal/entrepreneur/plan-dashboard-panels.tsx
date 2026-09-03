@@ -1,4 +1,4 @@
-import { RotateCcw } from 'lucide-react';
+import { ExternalLink, RotateCcw } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
 
 import { FormattedMarkdown } from '@/components/formatted-textarea';
@@ -25,6 +25,15 @@ export type IdeaValidationVersion = {
     recalled_at: string | null;
     is_current: boolean;
     restore_url: string;
+};
+
+export type SubmittedPlanVersion = {
+    id: string;
+    round: number;
+    submitted_at: string | null;
+    status: string;
+    assessment_url: string;
+    plan_snapshot_url: string | null;
 };
 
 export const ideaFields = [
@@ -269,69 +278,187 @@ export function IdeaValidationHistory({
     restoringVersionId: string | null;
     onRestore: (version: IdeaValidationVersion) => void;
 }) {
+    const historicVersions = versions.filter((version) => !version.is_current);
+
+    if (historicVersions.length === 0) {
+        return null;
+    }
+
     return (
-        <div className="space-y-3 border-t pt-4">
-            <h3 className="text-sm font-medium">Revision history</h3>
-            <div className="grid gap-3 lg:grid-cols-2">
-                {versions.map((version) => (
-                    <div
-                        key={version.id}
-                        className="space-y-3 rounded-md border bg-muted/20 p-3"
-                    >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-sm font-medium">
+        <section className="space-y-3 rounded-md border bg-background p-4">
+            <div>
+                <h2 className="text-sm font-medium">Version history</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Earlier idea-validation versions are retained for your
+                    records. Open a version only when you need to review or
+                    restore it.
+                </p>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="w-full min-w-[38rem] text-left text-sm">
+                    <thead className="border-b text-xs text-muted-foreground">
+                        <tr>
+                            <th className="px-3 py-2 font-medium">Version</th>
+                            <th className="px-3 py-2 font-medium">Submitted</th>
+                            <th className="px-3 py-2 font-medium">Status</th>
+                            <th className="px-3 py-2 font-medium">Details</th>
+                            <th className="px-3 py-2 font-medium">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {historicVersions.map((version) => (
+                            <tr
+                                key={version.id}
+                                className="border-b last:border-0"
+                            >
+                                <td className="px-3 py-3 font-medium">
                                     Version {version.revision_number}
-                                </span>
-                                {version.is_current ? (
-                                    <Badge variant="secondary">Current</Badge>
-                                ) : (
+                                </td>
+                                <td className="px-3 py-3 text-muted-foreground">
+                                    {version.evaluated_at
+                                        ? formatDate(version.evaluated_at)
+                                        : '-'}
+                                </td>
+                                <td className="px-3 py-3">
                                     <Badge variant="outline">
                                         {ideaVersionStatusLabel(version)}
                                     </Badge>
-                                )}
-                            </div>
-                            {version.evaluated_at ? (
-                                <span className="text-xs text-muted-foreground">
-                                    {formatDate(version.evaluated_at)}
-                                </span>
-                            ) : null}
-                        </div>
-                        <dl className="grid gap-2 text-sm">
-                            <VersionDetail
-                                label="Problem"
-                                value={version.problem}
-                            />
-                            <VersionDetail
-                                label="Target customer"
-                                value={version.target_customer}
-                            />
-                            <VersionDetail
-                                label="Demand signal"
-                                value={version.demand_signal}
-                            />
-                        </dl>
-                        {!version.is_current ? (
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                disabled={restoringVersionId !== null}
-                                onClick={() => onRestore(version)}
-                            >
-                                <RotateCcw
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
-                                {restoringVersionId === version.id
-                                    ? 'Restoring...'
-                                    : 'Restore as new revision'}
-                            </Button>
-                        ) : null}
-                    </div>
-                ))}
+                                </td>
+                                <td className="px-3 py-3 align-top">
+                                    <details>
+                                        <summary className="cursor-pointer text-primary underline-offset-4 hover:underline">
+                                            View
+                                        </summary>
+                                        <dl className="mt-3 grid gap-3 rounded-md border bg-muted/20 p-3">
+                                            <VersionDetail
+                                                label="Problem"
+                                                value={version.problem}
+                                            />
+                                            <VersionDetail
+                                                label="Target customer"
+                                                value={version.target_customer}
+                                            />
+                                            <VersionDetail
+                                                label="Demand signal"
+                                                value={version.demand_signal}
+                                            />
+                                        </dl>
+                                    </details>
+                                </td>
+                                <td className="px-3 py-3">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={restoringVersionId !== null}
+                                        onClick={() => onRestore(version)}
+                                    >
+                                        <RotateCcw
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        {restoringVersionId === version.id
+                                            ? 'Restoring...'
+                                            : 'Restore'}
+                                    </Button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
-        </div>
+        </section>
+    );
+}
+
+export function SubmittedPlanHistory({
+    versions,
+}: {
+    versions: SubmittedPlanVersion[];
+}) {
+    if (versions.length === 0) {
+        return null;
+    }
+
+    return (
+        <section className="space-y-3 rounded-md border bg-background p-4">
+            <div>
+                <h2 className="text-sm font-medium">Submitted plan history</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Earlier submitted versions are kept here so your current
+                    workspace stays focused. You can open an assessment or the
+                    exact plan snapshot whenever you need it.
+                </p>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="w-full min-w-[38rem] text-left text-sm">
+                    <thead className="border-b text-xs text-muted-foreground">
+                        <tr>
+                            <th className="px-3 py-2 font-medium">Version</th>
+                            <th className="px-3 py-2 font-medium">Submitted</th>
+                            <th className="px-3 py-2 font-medium">Status</th>
+                            <th className="px-3 py-2 font-medium">View</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {versions.map((version) => (
+                            <tr
+                                key={version.id}
+                                className="border-b last:border-0"
+                            >
+                                <td className="px-3 py-3 font-medium">
+                                    Version {version.round}
+                                </td>
+                                <td className="px-3 py-3 text-muted-foreground">
+                                    {version.submitted_at
+                                        ? formatDate(version.submitted_at)
+                                        : '-'}
+                                </td>
+                                <td className="px-3 py-3">
+                                    <Badge variant="outline">
+                                        {version.status}
+                                    </Badge>
+                                </td>
+                                <td className="px-3 py-3">
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button
+                                            asChild
+                                            size="sm"
+                                            variant="outline"
+                                        >
+                                            <a href={version.assessment_url}>
+                                                Assessment
+                                            </a>
+                                        </Button>
+                                        {version.plan_snapshot_url ? (
+                                            <Button
+                                                asChild
+                                                size="sm"
+                                                variant="outline"
+                                            >
+                                                <a
+                                                    href={
+                                                        version.plan_snapshot_url
+                                                    }
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                >
+                                                    Plan PDF
+                                                    <ExternalLink
+                                                        className="size-3.5"
+                                                        aria-hidden="true"
+                                                    />
+                                                </a>
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </section>
     );
 }
 

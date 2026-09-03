@@ -668,7 +668,7 @@ final class ScreenShareSessions
 
     private function reconnectGraceSeconds(): int
     {
-        return max(5, (int) config('screen-share.reconnect_grace_seconds', 15));
+        return max(15, (int) config('screen-share.reconnect_grace_seconds', 60));
     }
 
     private function scheduleDisconnectCheck(ScreenShareSession $session, ScreenShareConnection $connection): void

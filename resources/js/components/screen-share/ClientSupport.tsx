@@ -31,6 +31,7 @@ export type ClientScreenShareConfig = {
     heartbeat_url: string;
     end_url: string;
     heartbeat_seconds: number;
+    reconnect_grace_seconds: number;
     warning_at_minutes: number;
 } | null;
 
@@ -78,6 +79,7 @@ export function ClientSupport({ config }: Props) {
     const [credentials, setCredentials] = useState<Credentials | null>(null);
     const [prompt, setPrompt] = useState<Prompt | null>(null);
     const [sharing, setSharing] = useState(false);
+    const [reconnecting, setReconnecting] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [overSharing, setOverSharing] = useState(false);
     const [advisorName, setAdvisorName] = useState<string | null>(null);
@@ -92,6 +94,8 @@ export function ClientSupport({ config }: Props) {
     const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
     const outboundCandidates = useRef<RTCIceCandidateInit[]>([]);
     const offerSignaled = useRef(false);
+    const reconnectTimer = useRef<number | null>(null);
+    const reconnectAttempted = useRef(false);
     const lastPolledSignalId = useRef(0);
     const receivedSignalIds = useRef(new Set<number>());
     const handleIncomingSignalRef = useRef<(event: Signal) => Promise<void>>(
@@ -461,6 +465,9 @@ export function ClientSupport({ config }: Props) {
             };
             connection.onconnectionstatechange = () => {
                 if (connection.connectionState === 'connected') {
+                    clearReconnectTimer();
+                    reconnectAttempted.current = false;
+                    setReconnecting(false);
                     void screenSharePost(
                         replaceSession(config.active_url, nextSessionId),
                         participant(credentials),
@@ -469,7 +476,7 @@ export function ClientSupport({ config }: Props) {
                 }
 
                 if (connection.connectionState === 'failed') {
-                    void end(nextSessionId, 'connection_lost');
+                    void recoverConnection(nextSessionId, connection);
                 }
             };
             track?.addEventListener(
@@ -571,6 +578,66 @@ export function ClientSupport({ config }: Props) {
         );
     }
 
+    function clearReconnectTimer(): void {
+        if (reconnectTimer.current !== null) {
+            window.clearTimeout(reconnectTimer.current);
+            reconnectTimer.current = null;
+        }
+    }
+
+    async function recoverConnection(
+        nextSessionId: string,
+        connection: RTCPeerConnection,
+    ): Promise<void> {
+        if (
+            !config ||
+            !credentials ||
+            peer.current !== connection ||
+            connection.connectionState === 'closed'
+        ) {
+            return;
+        }
+
+        setReconnecting(true);
+
+        if (!reconnectAttempted.current) {
+            reconnectAttempted.current = true;
+
+            try {
+                const offer = await connection.createOffer({
+                    iceRestart: true,
+                });
+                await connection.setLocalDescription(offer);
+                const localDescription = connection.localDescription;
+
+                if (!localDescription) {
+                    throw new Error(
+                        'The browser did not prepare a reconnect offer.',
+                    );
+                }
+
+                await signal(
+                    nextSessionId,
+                    'offer',
+                    normalizeScreenShareDescription(localDescription),
+                );
+            } catch {
+                // Keep the existing share alive while the bounded recovery
+                // window allows signalling and network routes to return.
+            }
+        }
+
+        if (reconnectTimer.current === null) {
+            reconnectTimer.current = window.setTimeout(() => {
+                reconnectTimer.current = null;
+
+                if (peer.current?.connectionState === 'failed') {
+                    void end(nextSessionId, 'connection_lost');
+                }
+            }, config.reconnect_grace_seconds * 1000);
+        }
+    }
+
     async function handleIncomingSignal(event: Signal): Promise<void> {
         if (event.session_id !== sessionIdRef.current || !peer.current) {
             return;
@@ -634,6 +701,8 @@ export function ClientSupport({ config }: Props) {
     }
 
     function stop(): void {
+        clearReconnectTimer();
+        reconnectAttempted.current = false;
         peer.current?.close();
         peer.current = null;
         stream.current?.getTracks().forEach((track) => track.stop());
@@ -644,6 +713,7 @@ export function ClientSupport({ config }: Props) {
         setPrompt(null);
         setSession(null);
         setSharing(false);
+        setReconnecting(false);
         setOverSharing(false);
         setAdvisorName(null);
     }
@@ -710,13 +780,15 @@ export function ClientSupport({ config }: Props) {
             {sharing && sessionId ? (
                 <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-between gap-3 bg-amber-500 px-4 py-2 text-sm font-medium text-black shadow">
                     <span>
-                        {overSharing
-                            ? 'You are sharing a window or your entire screen. Switch to this tab where possible.'
-                            : 'Screen sharing with ' +
-                              (advisorName ?? 'your advisor') +
-                              ' is active (' +
-                              formatDuration(elapsedSeconds) +
-                              '). Your advisor can view only.'}
+                        {reconnecting
+                            ? 'Reconnecting screen support. Keep this tab open; your advisor will reconnect automatically.'
+                            : overSharing
+                              ? 'You are sharing a window or your entire screen. Switch to this tab where possible.'
+                              : 'Screen sharing with ' +
+                                (advisorName ?? 'your advisor') +
+                                ' is active (' +
+                                formatDuration(elapsedSeconds) +
+                                '). Your advisor can view only.'}
                         {!overSharing &&
                         elapsedSeconds >= (config?.warning_at_minutes ?? 0) * 60
                             ? ' Your session is approaching its time limit.'

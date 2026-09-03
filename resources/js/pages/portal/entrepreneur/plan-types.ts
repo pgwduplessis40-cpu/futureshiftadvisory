@@ -1,4 +1,7 @@
-import type { IdeaValidationVersion } from './plan-dashboard-panels';
+import type {
+    IdeaValidationVersion,
+    SubmittedPlanVersion,
+} from './plan-dashboard-panels';
 export type ProfilePayload = {
     id: string;
     name: string;
@@ -59,13 +62,6 @@ export type BusinessPlanPayload = {
     updated_at: string | null;
     requirements_complete: boolean;
     missing_requirements: string[];
-    external_issue_readiness: {
-        external_issue_ready: boolean;
-        label: string;
-        reasons: string[];
-        evidence_supported_responses: number;
-        completed_responses: number;
-    };
     executive_summary: ExecutiveSummaryPayload;
     budget: BudgetPayload;
     latest_assessment: {
@@ -76,6 +72,7 @@ export type BusinessPlanPayload = {
         finalised_at: string | null;
         url: string;
     } | null;
+    history: SubmittedPlanVersion[];
     phases: PlanPhasePayload[];
 } | null;
 

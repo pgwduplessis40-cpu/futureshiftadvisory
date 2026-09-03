@@ -665,12 +665,7 @@ HTML,
             return '';
         }
 
-        $reasons = collect((array) ($issueReadiness['reasons'] ?? []))
-            ->take(4)
-            ->map(fn (string $reason): string => '<li>'.$this->escape($reason).'</li>')
-            ->implode('');
-
-        return '<div class="internal-draft-watermark">INTERNAL DRAFT</div><article class="report-section external-issue-warning"><h2>Internal draft - not for external issue</h2><p>Resolve the listed readiness items before sharing this document with a lender, investor, or other external audience.</p>'.($reasons === '' ? '' : '<ul>'.$reasons.'</ul>').'</article>';
+        return '<div class="internal-draft-watermark">INTERNAL DRAFT</div><article class="report-section external-issue-warning"><h2>Internal draft - not for external issue</h2><p>This working copy is for you and your advisor. Your advisor will share any next steps before it is prepared for an external audience.</p></article>';
     }
 
     private function clientAuthorshipNoticeHtml(EntrepreneurProfile $profile, ?string $businessName): string

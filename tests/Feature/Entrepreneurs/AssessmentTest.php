@@ -26,6 +26,7 @@ use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\ExecutiveSummaryEligibility;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBuilder;
+use App\Services\Pdf\PdfRenderer;
 use App\Support\RequestContext;
 use Database\Seeders\FoundingRatingFrameworkValuesSeeder;
 use Database\Seeders\RatingFrameworkSeeder;
@@ -489,6 +490,45 @@ final class AssessmentTest extends TestCase
                 $exception->errors()['assessment'][0],
             );
         }
+    }
+
+    public function test_entrepreneur_plan_workspace_keeps_submitted_plan_versions_at_the_bottom_with_owner_only_snapshots(): void
+    {
+        [$advisor, $plan] = $this->plan('plan-history-founder@example.test');
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $entrepreneur = $plan->entrepreneurProfile()->firstOrFail()->user()->firstOrFail();
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.plan.show'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('plan.history.0.id', $assessment->id)
+                ->where('plan.history.0.round', 1)
+                ->where('plan.history.0.assessment_url', route('portal.entrepreneur.assessments.show', $assessment, absolute: false))
+                ->where('plan.history.0.plan_snapshot_url', route('portal.entrepreneur.assessments.plan-preview', $assessment, absolute: false)));
+
+        $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
+        {
+            public function render(string $html): string
+            {
+                return "%PDF-1.4\n".strip_tags($html);
+            }
+        });
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.assessments.plan-preview', $assessment))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $otherEntrepreneur = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $otherEntrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+
+        $this->actingAsMfa($otherEntrepreneur)
+            ->get(route('portal.entrepreneur.assessments.plan-preview', $assessment))
+            ->assertForbidden();
     }
 
     public function test_carried_forward_historical_scores_are_flagged_for_a_fresh_assessment(): void

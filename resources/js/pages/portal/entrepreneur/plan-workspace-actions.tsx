@@ -28,6 +28,7 @@ import {
     IdeaValidationHistory,
     IdeaValidationSnapshot,
     PlainLanguageGuide,
+    SubmittedPlanHistory,
     formatDate,
     formatLabel,
     ideaFields,
@@ -100,6 +101,13 @@ export function PlanWorkspaceActions({
         acknowledgeBudgetFlag,
         dismissBudgetAdvisorNudge,
     } = workspace;
+    const planAwaitingAdvisor = plan?.status === 'submitted';
+    const planAssessmentInProgress = plan?.status === 'assessing';
+    const planChangesLocked =
+        planAwaitingAdvisor ||
+        planAssessmentInProgress ||
+        plan?.status === 'finalised' ||
+        plan?.status === 'launched';
 
     return (
         <div className="space-y-6">
@@ -158,17 +166,41 @@ export function PlanWorkspaceActions({
                             !includesPlanBudget
                                 ? 'Not included'
                                 : plan
-                                  ? plan.requirements_complete
-                                      ? 'Complete'
-                                      : `${plan.missing_requirements.length} gaps`
+                                  ? planAwaitingAdvisor
+                                      ? 'With advisor'
+                                      : planAssessmentInProgress
+                                        ? 'Assessment in progress'
+                                        : planChangesLocked
+                                          ? 'With advisor'
+                                          : plan.requirements_complete
+                                            ? 'Complete'
+                                            : `${plan.missing_requirements.length} gaps`
                                   : planBuilderUnlocked
                                     ? 'Not started'
                                     : 'Locked'
                         }
-                        explanation="Plan completion is based on all required business plan sections, not merely one section per phase."
+                        explanation={
+                            planAwaitingAdvisor
+                                ? 'Your current plan has been sent to your advisor for review.'
+                                : planAssessmentInProgress
+                                  ? 'Your advisor has started the assessment. The current version is locked for review.'
+                                  : planChangesLocked
+                                    ? 'The current version is locked while your advisor completes the next step.'
+                                    : 'Plan completion is based on all required business plan sections, not merely one section per phase.'
+                        }
                     >
                         {!includesPlanBudget ? (
                             <Badge variant="outline">Not in package</Badge>
+                        ) : planAwaitingAdvisor ? (
+                            <Badge variant="secondary">
+                                Submitted for advisor review
+                            </Badge>
+                        ) : planAssessmentInProgress ? (
+                            <Badge variant="outline">
+                                Assessment in progress
+                            </Badge>
+                        ) : planChangesLocked ? (
+                            <Badge variant="secondary">With advisor</Badge>
                         ) : plan ? (
                             <Button
                                 type="button"
@@ -178,7 +210,9 @@ export function PlanWorkspaceActions({
                                 disabled={!plan.requirements_complete}
                             >
                                 <Send className="size-4" aria-hidden="true" />
-                                Submit for assessment
+                                {plan.status === 'revising'
+                                    ? 'Resubmit for advisor review'
+                                    : 'Submit for advisor review'}
                             </Button>
                         ) : (
                             <Button
@@ -600,14 +634,6 @@ export function PlanWorkspaceActions({
                             </div>
                         </div>
                     ) : null}
-
-                    {ideaValidationVersions.length > 1 ? (
-                        <IdeaValidationHistory
-                            versions={ideaValidationVersions}
-                            restoringVersionId={restoringIdeaVersionId}
-                            onRestore={restoreIdeaVersion}
-                        />
-                    ) : null}
                 </section>
             ) : null}
 
@@ -712,23 +738,37 @@ export function PlanWorkspaceActions({
                             {selectedRequirement ? (
                                 selectedRequirement.type === 'budget' &&
                                 plan ? (
-                                    <BudgetEditor
-                                        budget={plan.budget}
-                                        form={budgetForm}
-                                        plan={plan}
-                                        ideaValidation={ideaValidation}
-                                        gamification={gamification}
-                                        saving={savingBudget}
-                                        autosaveState={budgetAutosaveState}
-                                        onFormChange={setBudgetForm}
-                                        onSave={saveBudget}
-                                        onAcknowledgeFlag={
-                                            acknowledgeBudgetFlag
-                                        }
-                                        onDismissAdvisorNudge={
-                                            dismissBudgetAdvisorNudge
-                                        }
-                                    />
+                                    planChangesLocked ? (
+                                        <div className="rounded-md border bg-muted/30 p-4 text-sm">
+                                            <p className="font-medium">
+                                                Budget is with your advisor
+                                            </p>
+                                            <p className="mt-1 text-muted-foreground">
+                                                This version is locked while it
+                                                is reviewed. Your advisor will
+                                                let you know if changes are
+                                                needed.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <BudgetEditor
+                                            budget={plan.budget}
+                                            form={budgetForm}
+                                            plan={plan}
+                                            ideaValidation={ideaValidation}
+                                            gamification={gamification}
+                                            saving={savingBudget}
+                                            autosaveState={budgetAutosaveState}
+                                            onFormChange={setBudgetForm}
+                                            onSave={saveBudget}
+                                            onAcknowledgeFlag={
+                                                acknowledgeBudgetFlag
+                                            }
+                                            onDismissAdvisorNudge={
+                                                dismissBudgetAdvisorNudge
+                                            }
+                                        />
+                                    )
                                 ) : (
                                     <>
                                         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -760,7 +800,8 @@ export function PlanWorkspaceActions({
                                                         }
                                                         disabled={
                                                             !plan ||
-                                                            assistingSection
+                                                            assistingSection ||
+                                                            planChangesLocked
                                                         }
                                                     >
                                                         <Bot
@@ -787,6 +828,9 @@ export function PlanWorkspaceActions({
                                                                     preserveScroll: true,
                                                                 },
                                                             )
+                                                        }
+                                                        disabled={
+                                                            planChangesLocked
                                                         }
                                                     >
                                                         <Bot
@@ -853,7 +897,8 @@ export function PlanWorkspaceActions({
                                                 }
                                                 disabled={
                                                     selectedRequirement.key ===
-                                                    'executive-summary'
+                                                        'executive-summary' ||
+                                                    planChangesLocked
                                                 }
                                                 className="h-9 rounded-md border bg-background px-3 text-sm"
                                             />
@@ -889,7 +934,8 @@ export function PlanWorkspaceActions({
                                                 placeholder="Add the context, evidence, assumptions, decisions, and risks your advisor should rely on."
                                                 disabled={
                                                     selectedRequirement.key ===
-                                                    'executive-summary'
+                                                        'executive-summary' ||
+                                                    planChangesLocked
                                                 }
                                             />
                                         </div>
@@ -904,6 +950,7 @@ export function PlanWorkspaceActions({
                                                         : []
                                                 }
                                                 label="Attach supporting document"
+                                                disabled={planChangesLocked}
                                                 onFilesChange={(files) =>
                                                     setSupportingFile(
                                                         files[0] ?? null,
@@ -945,7 +992,8 @@ export function PlanWorkspaceActions({
                                                 !plan ||
                                                 savingSection ||
                                                 selectedRequirement.key ===
-                                                    'executive-summary'
+                                                    'executive-summary' ||
+                                                planChangesLocked
                                             }
                                         >
                                             <Upload
@@ -1013,6 +1061,15 @@ export function PlanWorkspaceActions({
                     </div>
                 )}
             </section>
+
+            {ideaValidationVersions.length > 1 ? (
+                <IdeaValidationHistory
+                    versions={ideaValidationVersions}
+                    restoringVersionId={restoringIdeaVersionId}
+                    onRestore={restoreIdeaVersion}
+                />
+            ) : null}
+            {plan ? <SubmittedPlanHistory versions={plan.history} /> : null}
         </div>
     );
 }

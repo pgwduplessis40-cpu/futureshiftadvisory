@@ -22,7 +22,6 @@ final class Revision implements ProvidesMethodology
     }
 
     public function __construct(
-        private readonly Assessment $assessments,
         private readonly AuditWriter $audit,
     ) {}
 
@@ -41,28 +40,111 @@ final class Revision implements ProvidesMethodology
 
     public function submit(BusinessPlan $plan, User $actor): PlanRevision
     {
-        $previous = PlanAssessment::query()
-            ->with('ratingFramework.criteria')
-            ->where('business_plan_id', $plan->getKey())
-            ->latest('round')
-            ->first();
+        return DB::transaction(function () use ($plan, $actor): PlanRevision {
+            $lockedPlan = BusinessPlan::query()
+                ->whereKey($plan->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        return DB::transaction(function () use ($plan, $actor, $previous): PlanRevision {
-            $assessment = $this->assessments->firstPass($plan->refresh()->load('sections'), $actor);
-            $comparison = $previous instanceof PlanAssessment
-                ? $this->compare($previous, $assessment)
-                : $this->baselineComparison($assessment);
+            // A browser retry after the first successful hand-off must not
+            // create a second revision or assessment request.
+            if ($lockedPlan->status !== BusinessPlan::STATUS_REVISING) {
+                return PlanRevision::query()
+                    ->where('business_plan_id', $lockedPlan->getKey())
+                    ->latest('round')
+                    ->firstOrFail();
+            }
+
+            $latestAssessmentRound = (int) PlanAssessment::query()
+                ->where('business_plan_id', $lockedPlan->getKey())
+                ->orderByDesc('round')
+                ->lockForUpdate()
+                ->value('round');
+            $latestRevisionRound = (int) PlanRevision::query()
+                ->where('business_plan_id', $lockedPlan->getKey())
+                ->orderByDesc('round')
+                ->lockForUpdate()
+                ->value('round');
+            $round = max($latestAssessmentRound, $latestRevisionRound) + 1;
+            $previous = PlanAssessment::query()
+                ->with('ratingFramework.criteria')
+                ->where('business_plan_id', $lockedPlan->getKey())
+                ->latest('round')
+                ->first();
+
+            $lockedPlan->forceFill([
+                'status' => BusinessPlan::STATUS_SUBMITTED,
+                'assessment_run_status' => null,
+                'assessment_run_requested_at' => null,
+                'assessment_run_started_at' => null,
+                'assessment_run_total_criteria' => null,
+                'assessment_run_completed_criteria' => null,
+                'assessment_run_current_criterion' => null,
+                'assessment_run_completed_at' => null,
+                'assessment_run_failed_at' => null,
+                'assessment_run_failure' => null,
+                'assessment_run_requested_by_user_id' => null,
+            ])->save();
 
             $revision = PlanRevision::query()->create([
-                'business_plan_id' => $plan->getKey(),
-                'round' => $assessment->round,
+                'business_plan_id' => $lockedPlan->getKey(),
+                'round' => $round,
                 'submitted_at' => now(),
-                'progress_comparison' => $comparison,
+                'progress_comparison' => $this->awaitingAssessmentComparison($round, $previous),
                 'submitted_by_user_id' => $actor->getKey(),
             ]);
 
             $this->audit->record('entrepreneur.plan_revision_submitted', subject: $revision, actor: $actor, after: [
-                'business_plan_id' => $plan->getKey(),
+                'business_plan_id' => $lockedPlan->getKey(),
+                'round' => $round,
+                'assessment_status' => 'awaiting_advisor_action',
+            ]);
+
+            return $revision->refresh();
+        });
+    }
+
+    /**
+     * Records the comparison only after an advisor explicitly starts the
+     * assessment and the worker has produced a fresh assessment round.
+     */
+    public function recordAssessment(PlanAssessment $assessment, User $actor): ?PlanRevision
+    {
+        return DB::transaction(function () use ($assessment, $actor): ?PlanRevision {
+            $revision = PlanRevision::query()
+                ->where('business_plan_id', $assessment->business_plan_id)
+                ->where('round', $assessment->round)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $revision instanceof PlanRevision) {
+                return null;
+            }
+
+            if (data_get($revision->progress_comparison, 'assessment_status') === 'completed') {
+                return $revision;
+            }
+
+            $previous = PlanAssessment::query()
+                ->with('ratingFramework.criteria')
+                ->where('business_plan_id', $assessment->business_plan_id)
+                ->where('round', '<', $assessment->round)
+                ->latest('round')
+                ->first();
+            $comparison = $previous instanceof PlanAssessment
+                ? $this->compare($previous, $assessment)
+                : $this->baselineComparison($assessment);
+
+            $revision->forceFill([
+                'progress_comparison' => [
+                    ...$comparison,
+                    'assessment_status' => 'completed',
+                    'assessed_at' => now()->toIso8601String(),
+                ],
+            ])->save();
+
+            $this->audit->record('entrepreneur.plan_revision_assessed', subject: $revision, actor: $actor, after: [
+                'business_plan_id' => $assessment->business_plan_id,
                 'round' => $assessment->round,
                 'trajectory_percent' => $comparison['trajectory_percent'],
                 'overall_delta' => $comparison['overall_delta'],
@@ -181,6 +263,28 @@ final class Revision implements ProvidesMethodology
                 ->filter(fn (array $row): bool => $row['score'] < 60)
                 ->values()
                 ->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function awaitingAssessmentComparison(int $round, ?PlanAssessment $previous): array
+    {
+        return [
+            'assessment_status' => 'awaiting_advisor_action',
+            'previous_round' => $previous?->round,
+            'current_round' => $round,
+            'previous_overall_score' => null,
+            'current_overall_score' => null,
+            'overall_delta' => null,
+            'previous_grade' => null,
+            'current_grade' => null,
+            'trajectory_percent' => null,
+            'trajectory_label' => 'awaiting_assessment',
+            'criterion_deltas' => [],
+            'biggest_improvements' => [],
+            'remaining_gaps' => [],
         ];
     }
 

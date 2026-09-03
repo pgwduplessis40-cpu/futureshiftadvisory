@@ -490,12 +490,16 @@ final class OperationalHealthCheckRunner
             || ($actualContentType !== null && str_starts_with($actualContentType, $expectedContentType));
         $headerFailures = $this->expectedHeaderFailures($definition, $probe);
         $fallbackPdfDetected = $this->fallbackPdfDetected($expectedContentType, $probe);
+        $fallbackPdfIsFailure = $fallbackPdfDetected
+            && (bool) config('operational_health.fail_on_pdf_fallback', false);
         $exceptionClass = is_string($probe['exception_class'] ?? null) ? $probe['exception_class'] : null;
         $exceptionMessage = is_string($probe['exception_message'] ?? null) ? $probe['exception_message'] : null;
         $status = OperationalHealthCheckResult::STATUS_FAILED;
         if ($statusPassed && $contentTypePassed && $headerFailures === [] && $exceptionClass === null) {
             $status = $fallbackPdfDetected
-                ? OperationalHealthCheckResult::STATUS_WARNING
+                ? ($fallbackPdfIsFailure
+                    ? OperationalHealthCheckResult::STATUS_FAILED
+                    : OperationalHealthCheckResult::STATUS_WARNING)
                 : OperationalHealthCheckResult::STATUS_PASSED;
         }
 
@@ -527,6 +531,7 @@ final class OperationalHealthCheckRunner
                 'expected_headers' => $definition['expected_headers'] ?? [],
                 'header_failures' => $headerFailures,
                 'fallback_pdf_detected' => $fallbackPdfDetected,
+                'fallback_pdf_is_failure' => $fallbackPdfIsFailure,
                 'fallback_pdf_marker' => $fallbackPdfDetected ? SimpleTextPdf::FALLBACK_MARKER : null,
                 'response_headers' => $probe['headers'] ?? [],
                 'internal_request' => ! $externalRequest && $kind !== 'route_contract',

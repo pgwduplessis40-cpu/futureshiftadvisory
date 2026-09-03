@@ -25,7 +25,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
  * @phpstan-type ProfileSummary array{id:string, name:string, email:string, stage:string, stage_label:string, assigned_advisor_name:string|null}
  * @phpstan-type ServiceOption array{value:string, label:string, description:string}
  * @phpstan-type CollaborationParticipant array{id:string, name:string}
- * @phpstan-type ScreenSharePayload array{connection_url:string, connection_heartbeat_url:string, request_url:string, ice_servers_url:string, active_url:string, signal_url:string, pending_signals_url:string, heartbeat_url:string, end_url:string, heartbeat_seconds:int, participants:list<CollaborationParticipant>}
+ * @phpstan-type ScreenSharePayload array{connection_url:string, connection_heartbeat_url:string, request_url:string, ice_servers_url:string, active_url:string, signal_url:string, pending_signals_url:string, heartbeat_url:string, end_url:string, heartbeat_seconds:int, reconnect_grace_seconds:int, participants:list<CollaborationParticipant>}
  * @phpstan-type CoBrowsePayload array{connection_url:string, connection_heartbeat_url:string, request_url:string, status_url:string, heartbeat_url:string, end_url:string, action_url:string, heartbeat_seconds:int, participants:list<CollaborationParticipant>}
  * @phpstan-type PlanProgressSummary array{id:string, title:string, status:string, assessment_count:int, latest_round:int|null, latest_grade:string|null, can_assess:bool, assessment_action_label:string, assessment_run:array{status:string|null, requested_at:string|null, started_at:string|null, total_criteria:int|null, completed_criteria:int|null, current_criterion:string|null, completed_at:string|null, failed_at:string|null, failure:string|null}, latest_assessment:mixed, executive_summary:mixed, budget:mixed, preview_pdf_url:string, budget_pdf_url:string|null, funder_ready:mixed, assess_url:string, assessment_history:list<mixed>, latest_revision:mixed}
  * @phpstan-type ReadinessSummary array{completed:bool, score:float|int|null, outcome:string|null, assessed_at:string|null}
@@ -142,6 +142,7 @@ final class AdvisorEntrepreneurWorkspacePayload
             'heartbeat_url' => route('screen-share.sessions.heartbeat', ['session' => '__session__'], absolute: false),
             'end_url' => route('screen-share.sessions.end', ['session' => '__session__'], absolute: false),
             'heartbeat_seconds' => max(5, (int) config('screen-share.heartbeat_interval_seconds', 10)),
+            'reconnect_grace_seconds' => max(15, (int) config('screen-share.reconnect_grace_seconds', 60)),
             'participants' => [['id' => (string) $profile->user->getKey(), 'name' => $profile->user->name]],
         ];
     }

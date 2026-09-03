@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Entrepreneurs;
 
 use App\Enums\EntrepreneurStage;
+use App\Jobs\RunEntrepreneurPlanAssessment;
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurProfile;
 use App\Models\PlanAssessment;
@@ -67,7 +68,7 @@ final class RevisionTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_resubmission_creates_revision_and_new_assessment_round(): void
+    public function test_resubmission_waits_for_an_advisor_before_creating_a_new_assessment_round(): void
     {
         [$advisor, $plan] = $this->plan();
         $first = app(Assessment::class)->firstPass($plan, $advisor);
@@ -87,11 +88,25 @@ final class RevisionTest extends TestCase
 
         $this->assertInstanceOf(PlanRevision::class, $revision);
         $this->assertSame(2, $revision->round);
+        $this->assertSame('awaiting_advisor_action', $revision->progress_comparison['assessment_status']);
+        $this->assertSame(1, PlanAssessment::query()->where('business_plan_id', $plan->id)->count());
+        $this->assertSame(2, $revision->progress_comparison['current_round']);
+        $this->assertSame(BusinessPlan::STATUS_SUBMITTED, $plan->refresh()->status);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.plan_revision_submitted',
+            'subject_id' => $revision->id,
+        ]);
+
+        $this->assertTrue(app(Assessment::class)->queueFirstPass($plan->refresh(), $advisor));
+        (new RunEntrepreneurPlanAssessment((string) $plan->getKey(), (int) $advisor->getKey()))
+            ->handle(app(RequestContext::class));
+
         $this->assertSame(2, PlanAssessment::query()->where('business_plan_id', $plan->id)->count());
+        $this->assertSame('completed', $revision->refresh()->progress_comparison['assessment_status']);
         $this->assertSame(2, $revision->progress_comparison['current_round']);
         $this->assertSame(BusinessPlan::STATUS_ASSESSING, $plan->refresh()->status);
         $this->assertDatabaseHas('audit_events', [
-            'action' => 'entrepreneur.plan_revision_submitted',
+            'action' => 'entrepreneur.plan_revision_assessed',
             'subject_id' => $revision->id,
         ]);
     }
@@ -155,7 +170,12 @@ final class RevisionTest extends TestCase
         $first = app(Assessment::class)->firstPass($plan, $advisor);
         $first->forceFill(['ai_scores' => $this->scoresAt($first, 45)])->save();
 
-        return app(Revision::class)->submit($plan->refresh(), $advisor);
+        $revision = app(Revision::class)->submit($plan->refresh(), $advisor);
+        $this->assertTrue(app(Assessment::class)->queueFirstPass($plan->refresh(), $advisor));
+        (new RunEntrepreneurPlanAssessment((string) $plan->getKey(), (int) $advisor->getKey()))
+            ->handle(app(RequestContext::class));
+
+        return $revision->refresh();
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Jobs\GenerateEligibleExecutiveSummary;
 use App\Models\BusinessPlan;
 use App\Models\LearningUpdate;
 use App\Models\PlanAssessment;
+use App\Models\PlanRevision;
 use App\Models\PlanSection;
 use App\Models\RatingCriterion;
 use App\Models\RatingFramework;
@@ -118,14 +119,24 @@ final class Assessment implements ProvidesMethodology
                 ->whereKey($plan->getKey())
                 ->lockForUpdate()
                 ->firstOrFail();
-            $round = ((int) PlanAssessment::query()
+            $latestAssessmentRound = (int) PlanAssessment::query()
                 ->where('business_plan_id', $lockedPlan->getKey())
                 ->orderByDesc('round')
                 ->lockForUpdate()
-                ->value('round')) + 1;
+                ->value('round');
+            $pendingRevision = PlanRevision::query()
+                ->where('business_plan_id', $lockedPlan->getKey())
+                ->where('round', '>', $latestAssessmentRound)
+                ->orderBy('round')
+                ->lockForUpdate()
+                ->get()
+                ->first(fn (PlanRevision $revision): bool => data_get($revision->progress_comparison, 'assessment_status') === 'awaiting_advisor_action');
+            $round = $pendingRevision instanceof PlanRevision
+                ? $pendingRevision->round
+                : $latestAssessmentRound + 1;
             $assessment = PlanAssessment::query()->create([
                 'business_plan_id' => $lockedPlan->getKey(),
-                'round' => max(1, $round),
+                'round' => max(1, (int) $round),
                 'rating_framework_id' => $framework->getKey(),
                 'ai_scores' => $aiScores,
                 'advisor_scores' => [],

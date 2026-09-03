@@ -31,6 +31,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
+use Throwable;
 
 final class EntrepreneurPlanController extends Controller
 {
@@ -195,6 +196,7 @@ final class EntrepreneurPlanController extends Controller
 
         $plan = $this->workspace->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan, 404);
+        $this->assertPlanAcceptsFounderChanges($plan);
 
         $autosave = $request->boolean('_autosave');
         $validated = $request->validate([
@@ -285,6 +287,7 @@ final class EntrepreneurPlanController extends Controller
         abort_unless($this->workspace->includesPlanBudget($profile), 403);
         $plan = $this->workspace->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan, 404);
+        $this->assertPlanAcceptsFounderChanges($plan);
 
         $validated = $request->validate([
             'phase_key' => ['required', 'string', Rule::in(array_keys(PlanRequirements::definitions()))],
@@ -320,6 +323,9 @@ final class EntrepreneurPlanController extends Controller
         $user = $this->workspace->user($request);
         $profile = $this->workspace->profileFor($user);
         abort_unless($this->workspace->includesPlanBudget($profile), 403);
+        $plan = $this->workspace->latestPlan($profile);
+        abort_unless($plan instanceof BusinessPlan, 404);
+        $this->assertPlanAcceptsFounderChanges($plan);
         $this->assertSectionBelongsToProfile($planSection, $profile);
 
         $this->guidance->guide($planSection, $user);
@@ -349,10 +355,19 @@ final class EntrepreneurPlanController extends Controller
             $plan->forceFill([
                 'founding_advisory_payload' => $this->sharedPlans->foundingPayload($plan),
             ])->save();
-            $revisions->submit($plan->refresh()->load('sections'), $user);
-            $profile->forceFill(['stage' => EntrepreneurStage::ASSESSMENT])->save();
 
-            return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-plan-submitted');
+            try {
+                $revisions->submit($plan->refresh()->load('sections'), $user);
+            } catch (Throwable $exception) {
+                report($exception);
+
+                return to_route('portal.entrepreneur.plan.show')->withErrors([
+                    'plan' => 'Your updated plan could not be sent to your advisor yet. Your saved changes are still safe; please try again shortly.',
+                ]);
+            }
+            $profile->forceFill(['stage' => EntrepreneurStage::SUBMITTED])->save();
+
+            return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-plan-resubmitted-for-advisor-review');
         }
 
         $plan->forceFill([
@@ -391,5 +406,19 @@ final class EntrepreneurPlanController extends Controller
             && (string) $plan->entrepreneur_profile_id === (string) $profile->getKey(),
             404,
         );
+    }
+
+    private function assertPlanAcceptsFounderChanges(BusinessPlan $plan): void
+    {
+        if (in_array($plan->status, [
+            BusinessPlan::STATUS_SUBMITTED,
+            BusinessPlan::STATUS_ASSESSING,
+            BusinessPlan::STATUS_FINALISED,
+            BusinessPlan::STATUS_LAUNCHED,
+        ], true)) {
+            throw ValidationException::withMessages([
+                'plan' => 'Your plan is currently with your advisor. Wait for their feedback before making further changes.',
+            ]);
+        }
     }
 }

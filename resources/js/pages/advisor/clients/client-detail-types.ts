@@ -90,6 +90,7 @@ export type Props = {
         heartbeat_url: string;
         end_url: string;
         heartbeat_seconds: number;
+        reconnect_grace_seconds: number;
         participants: Array<{ id: string; name: string }>;
     };
     coBrowse: AdvisorCoBrowseConfig | null;
@@ -902,10 +903,7 @@ export type StandardAdvisorySummary = {
             label: string;
             description: string;
             status:
-                | 'complete'
-                | 'in_progress'
-                | 'waiting_advisor'
-                | 'not_required';
+                'complete' | 'in_progress' | 'waiting_advisor' | 'not_required';
             owner: 'client' | 'advisor';
         }>;
     };
