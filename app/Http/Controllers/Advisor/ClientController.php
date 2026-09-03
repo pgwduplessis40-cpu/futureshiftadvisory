@@ -303,7 +303,7 @@ final class ClientController extends Controller
         $entrepreneurProfile = $client->engagement_type === EngagementType::FOUNDING_ADVISORY
             ? null
             : $this->showPayloads->entrepreneurWorkspace($client);
-        if ($entrepreneurProfile instanceof EntrepreneurProfile && $this->showPayloads->shouldRedirectToEntrepreneurWorkspace($client)) {
+        if ($entrepreneurProfile instanceof \App\Models\EntrepreneurProfile && $this->showPayloads->shouldRedirectToEntrepreneurWorkspace($client)) {
             return to_route('advisor.entrepreneurs.show', $entrepreneurProfile);
         }
 

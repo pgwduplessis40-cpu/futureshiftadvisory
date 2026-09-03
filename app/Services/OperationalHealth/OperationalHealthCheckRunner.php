@@ -785,7 +785,7 @@ final class OperationalHealthCheckRunner
             'redirect_url' => $response->headers->get('Location'),
             'body_excerpt' => is_string($content) ? $this->bodyExcerpt($content) : null,
             'fallback_pdf_detected' => is_string($content)
-                && str_contains($content, SimpleTextPdf::FALLBACK_MARKER),
+                && str_contains($content, \App\Services\Pdf\SimpleTextPdf::FALLBACK_MARKER),
             'exception_class' => null,
             'exception_message' => null,
             'headers' => $this->responseHeaders($response),
@@ -941,7 +941,7 @@ final class OperationalHealthCheckRunner
         }
 
         if ((bool) ($probe['fallback_pdf_detected'] ?? false)) {
-            $parts[] = 'Detected fallback marker: '.SimpleTextPdf::FALLBACK_MARKER.'. Check the Browsershot Node/npm/Chrome configuration and renderer logs before trusting this PDF preview.';
+            $parts[] = 'Detected fallback marker: '.\App\Services\Pdf\SimpleTextPdf::FALLBACK_MARKER.'. Check the Browsershot Node/npm/Chrome configuration and renderer logs before trusting this PDF preview.';
         }
 
         foreach ([
