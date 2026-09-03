@@ -23,7 +23,6 @@ use App\Services\Entrepreneurs\AdvisoryConversion;
 use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\Assessment;
 use App\Services\Entrepreneurs\AssessmentFeedback;
-use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Entrepreneurs\EntrepreneurStreak;
 use App\Services\Entrepreneurs\IdeaValidationService;
@@ -117,16 +116,14 @@ final class EntrepreneurActionController extends Controller
         Request $request,
         EntrepreneurProfile $entrepreneurProfile,
         BusinessPlan $businessPlan,
-        BusinessPlanExecutiveSummary $executiveSummaries,
     ): RedirectResponse {
         Gate::authorize('assess', $entrepreneurProfile);
         $this->assertPlanBelongsToProfile($businessPlan, $entrepreneurProfile);
-        $advisor = $this->advisor($request);
-
-        $executiveSummaries->generate($businessPlan, $entrepreneurProfile, $advisor);
 
         return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)
-            ->with('status', 'entrepreneur-plan-executive-summary-generated');
+            ->withErrors([
+                'executive_summary' => 'The executive summary is generated automatically after the current Business Plan & Budget assessment is finalised and passes.',
+            ]);
     }
 
     public function finalise(

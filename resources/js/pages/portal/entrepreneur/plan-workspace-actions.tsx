@@ -81,7 +81,6 @@ export function PlanWorkspaceActions({
         sectionError,
         savingSection,
         assistingSection,
-        generatingExecutiveSummary,
         assistantNotice,
         budgetForm,
         setBudgetForm,
@@ -96,7 +95,6 @@ export function PlanWorkspaceActions({
         submitPlan,
         requestAdvisory,
         assistRequirement,
-        generateExecutiveSummary,
         saveSection,
         saveBudget,
         acknowledgeBudgetFlag,
@@ -747,37 +745,11 @@ export function PlanWorkspaceActions({
                                             <div className="flex flex-wrap gap-2">
                                                 {selectedRequirement.key ===
                                                 'executive-summary' ? (
-                                                    <Button
-                                                        type="button"
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={
-                                                            generateExecutiveSummary
-                                                        }
-                                                        disabled={
-                                                            !plan ||
-                                                            generatingExecutiveSummary ||
-                                                            !plan
-                                                                ?.executive_summary
-                                                                .can_generate
-                                                        }
-                                                    >
-                                                        <RefreshCw
-                                                            className={cn(
-                                                                'size-4',
-                                                                generatingExecutiveSummary &&
-                                                                    'animate-spin',
-                                                            )}
-                                                            aria-hidden="true"
-                                                        />
-                                                        {generatingExecutiveSummary
-                                                            ? 'Generating'
-                                                            : plan
-                                                                    ?.executive_summary
-                                                                    .present
-                                                              ? 'Refresh summary'
-                                                              : 'Generate summary'}
-                                                    </Button>
+                                                    <span className="max-w-xs text-sm text-muted-foreground">
+                                                        Generated automatically
+                                                        after a passing
+                                                        assessment
+                                                    </span>
                                                 ) : (
                                                     <Button
                                                         type="button"
@@ -800,7 +772,9 @@ export function PlanWorkspaceActions({
                                                             : 'AI assist'}
                                                     </Button>
                                                 )}
-                                                {selectedSection ? (
+                                                {selectedSection &&
+                                                selectedRequirement.key !==
+                                                    'executive-summary' ? (
                                                     <Button
                                                         type="button"
                                                         size="sm"
@@ -877,6 +851,10 @@ export function PlanWorkspaceActions({
                                                         event.target.value,
                                                     )
                                                 }
+                                                disabled={
+                                                    selectedRequirement.key ===
+                                                    'executive-summary'
+                                                }
                                                 className="h-9 rounded-md border bg-background px-3 text-sm"
                                             />
                                         </label>
@@ -909,23 +887,30 @@ export function PlanWorkspaceActions({
                                                     PLAN_SECTION_BODY_MAX_LENGTH
                                                 }
                                                 placeholder="Add the context, evidence, assumptions, decisions, and risks your advisor should rely on."
+                                                disabled={
+                                                    selectedRequirement.key ===
+                                                    'executive-summary'
+                                                }
                                             />
                                         </div>
-                                        <FileDropzone
-                                            key={supportingKey}
-                                            id="entrepreneur-plan-support"
-                                            files={
-                                                supportingFile
-                                                    ? [supportingFile]
-                                                    : []
-                                            }
-                                            label="Attach supporting document"
-                                            onFilesChange={(files) =>
-                                                setSupportingFile(
-                                                    files[0] ?? null,
-                                                )
-                                            }
-                                        />
+                                        {selectedRequirement.key !==
+                                        'executive-summary' ? (
+                                            <FileDropzone
+                                                key={supportingKey}
+                                                id="entrepreneur-plan-support"
+                                                files={
+                                                    supportingFile
+                                                        ? [supportingFile]
+                                                        : []
+                                                }
+                                                label="Attach supporting document"
+                                                onFilesChange={(files) =>
+                                                    setSupportingFile(
+                                                        files[0] ?? null,
+                                                    )
+                                                }
+                                            />
+                                        ) : null}
                                         <InputError
                                             message={sectionError ?? undefined}
                                         />
@@ -956,7 +941,12 @@ export function PlanWorkspaceActions({
                                             type="button"
                                             size="sm"
                                             onClick={() => void saveSection()}
-                                            disabled={!plan || savingSection}
+                                            disabled={
+                                                !plan ||
+                                                savingSection ||
+                                                selectedRequirement.key ===
+                                                    'executive-summary'
+                                            }
                                         >
                                             <Upload
                                                 className="size-4"

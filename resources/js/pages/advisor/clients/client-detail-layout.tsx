@@ -22,6 +22,8 @@ import {
     XCircle,
 } from 'lucide-react';
 import type { Dispatch, MouseEvent, SetStateAction } from 'react';
+import { AdvisorServiceWorkspaceSwitcher } from '@/components/advisor/AdvisorServiceWorkspaceSwitcher';
+import type { AdvisorServiceWorkspacePayload } from '@/components/advisor/AdvisorServiceWorkspaceSwitcher';
 import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
 import InputError from '@/components/input-error';
 import { NpoHealthPanel } from '@/components/npo/NpoHealthPanel';
@@ -78,6 +80,7 @@ import type {
 } from './service-workspaces';
 type ClientDetailLayoutProps = {
     client: ClientDetail;
+    serviceWorkspaces: AdvisorServiceWorkspacePayload;
     conflictDeclaration: ConflictDeclaration;
     screenShare: Props['screenShare'];
     coBrowse: Props['coBrowse'];
@@ -85,6 +88,7 @@ type ClientDetailLayoutProps = {
     setActiveTab: Dispatch<SetStateAction<ClientDetailTab>>;
     advisorServiceTabs: AdvisorServiceTab[];
     selectedServiceTab: AdvisorServiceTabKey;
+    activeWorkspaceKey: string;
     selectAdvisorServiceTab: (tab: AdvisorServiceTabKey) => void;
     generatingPack: boolean;
     analysisFindingFilter: AnalysisFindingFilter;
@@ -118,6 +122,7 @@ type ClientDetailLayoutProps = {
 
 export function ClientDetailLayout({
     client,
+    serviceWorkspaces,
     conflictDeclaration,
     screenShare,
     coBrowse,
@@ -125,6 +130,7 @@ export function ClientDetailLayout({
     setActiveTab,
     advisorServiceTabs,
     selectedServiceTab,
+    activeWorkspaceKey,
     selectAdvisorServiceTab,
     generatingPack,
     analysisFindingFilter,
@@ -262,6 +268,11 @@ export function ClientDetailLayout({
                         </Button>
                     </div>
                 </div>
+
+                <AdvisorServiceWorkspaceSwitcher
+                    workspaces={serviceWorkspaces}
+                    activeKey={activeWorkspaceKey}
+                />
 
                 <AdvisorServiceTabList
                     tabs={advisorServiceTabs}

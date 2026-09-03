@@ -16,6 +16,7 @@ use App\Models\ClientTeamMember;
 use App\Models\InviteToken;
 use App\Models\ServiceActivation;
 use App\Models\User;
+use App\Services\Advisor\AdvisorClientServiceWorkspaces;
 use App\Services\Audit\AuditWriter;
 use App\Services\Clients\AdvisorClientCapacity;
 use App\Services\Clients\AdvisorClientPayloadBuilder;
@@ -41,6 +42,7 @@ final class ClientController extends Controller
         private readonly AdvisorClientIndexPayloadBuilder $indexPayloads,
         private readonly AdvisorClientPayloadBuilder $clientPayloads,
         private readonly AdvisorClientShowPayloadBuilder $showPayloads,
+        private readonly AdvisorClientServiceWorkspaces $serviceWorkspaces,
         private readonly ConflictDeclarer $conflicts,
         private readonly NpoEngagementSetup $npoEngagements,
     ) {}
@@ -303,7 +305,7 @@ final class ClientController extends Controller
         $entrepreneurProfile = $client->engagement_type === EngagementType::FOUNDING_ADVISORY
             ? null
             : $this->showPayloads->entrepreneurWorkspace($client);
-        if ($entrepreneurProfile !== null) {
+        if ($entrepreneurProfile !== null && ! $this->serviceWorkspaces->hasActiveSecondaryWorkspace($client)) {
             return to_route('advisor.entrepreneurs.show', $entrepreneurProfile);
         }
 

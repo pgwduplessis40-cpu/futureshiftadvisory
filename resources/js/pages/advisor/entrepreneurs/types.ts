@@ -88,6 +88,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         executive_summary: {
             present: boolean;
             generated: boolean;
+            generated_by_ai: boolean;
             stale: boolean;
             can_generate: boolean;
             section_id: string | null;
@@ -99,7 +100,6 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             stored_context_hash: string | null;
             status_label: string;
             readiness_reason: string | null;
-            generate_url: string;
         };
         budget: {
             status: string;

@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature\Entrepreneurs;
 
 use App\Enums\EntrepreneurStage;
+use App\Jobs\GenerateEligibleExecutiveSummary;
 use App\Jobs\RunEntrepreneurPlanAssessment;
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
 use App\Models\LearningUpdate;
 use App\Models\PlanAssessment;
+use App\Models\PlanSection;
 use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\AiResponse;
@@ -20,13 +22,17 @@ use App\Services\Ai\Fake\FakeAiClient;
 use App\Services\Entrepreneurs\Assessment;
 use App\Services\Entrepreneurs\AssessmentFeedback;
 use App\Services\Entrepreneurs\AssessmentScoring;
+use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
+use App\Services\Entrepreneurs\ExecutiveSummaryEligibility;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBuilder;
 use App\Support\RequestContext;
 use Database\Seeders\FoundingRatingFrameworkValuesSeeder;
 use Database\Seeders\RatingFrameworkSeeder;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -812,6 +818,66 @@ final class AssessmentTest extends TestCase
         $this->assertSame(BusinessPlan::STATUS_FINALISED, $plan->refresh()->status);
     }
 
+    public function test_passing_finalised_assessment_queues_one_system_generated_summary_for_the_assessed_revision(): void
+    {
+        $this->app->instance(AiClient::class, new StructuredScoreAiClient(80));
+        [$advisor, $plan] = $this->plan('summary-eligibility-founder@example.test');
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        Queue::fake();
+
+        $finalised = app(Assessment::class)->finalise($assessment, $advisor);
+
+        Queue::assertPushed(
+            GenerateEligibleExecutiveSummary::class,
+            fn (GenerateEligibleExecutiveSummary $job): bool => $job->assessmentId === (string) $finalised->getKey(),
+        );
+
+        $job = new GenerateEligibleExecutiveSummary((string) $finalised->getKey());
+        $this->assertInstanceOf(ShouldBeUnique::class, $job);
+        $job->handle(
+            app(RequestContext::class),
+            app(ExecutiveSummaryEligibility::class),
+            app(BusinessPlanExecutiveSummary::class),
+        );
+        $job->handle(
+            app(RequestContext::class),
+            app(ExecutiveSummaryEligibility::class),
+            app(BusinessPlanExecutiveSummary::class),
+        );
+
+        $summary = app(BusinessPlanExecutiveSummary::class)->status(
+            $plan->refresh(),
+            $plan->entrepreneurProfile()->firstOrFail(),
+        );
+        $this->assertTrue($summary['generated']);
+        $this->assertTrue($summary['generated_by_ai']);
+        $this->assertTrue($summary['usable']);
+        $this->assertFalse($summary['stale']);
+        $this->assertSame(1, PlanSection::query()
+            ->where('business_plan_id', $plan->getKey())
+            ->where('key', BusinessPlanExecutiveSummary::SECTION_KEY)
+            ->count());
+        $this->assertSame(1, DB::table('audit_events')
+            ->where('action', 'entrepreneur.plan_executive_summary_generated')
+            ->count());
+
+        app(PlanBuilder::class)->upsertSection(
+            plan: $plan->refresh(),
+            phaseKey: 'market',
+            key: 'market-demand',
+            title: 'Market demand',
+            body: 'Changed evidence now includes eight paid pilots, current buyer interviews, and confirmed market demand that requires a fresh assessment.',
+            actor: $advisor,
+        );
+
+        $eligibility = app(ExecutiveSummaryEligibility::class)->evaluate(
+            $plan->refresh(),
+            $plan->entrepreneurProfile()->firstOrFail(),
+        );
+        $this->assertFalse($eligibility['eligible']);
+        $this->assertStringContainsString('changed after assessment', (string) $eligibility['reason']);
+    }
+
     /**
      * @param  array<int, int>  $overrides
      * @return array<int, array<string, mixed>>
@@ -903,7 +969,22 @@ final class StructuredScoreAiClient implements AiClient
 
     public function summarise(PromptEnvelope $prompt): AiResponse
     {
-        return $this->response($prompt);
+        return new AiResponse(
+            text: 'The founder is building a practical regional service business with evidence from customer interviews, paid pilots, and a staged delivery model. The plan explains the customer problem, the revenue model, and the operating assumptions that support a measured launch. The requested funding and runway assumptions are presented for lender and advisor review, with a clear decision requested before the next delivery stage.',
+            attributions: [
+                [
+                    'claim' => 'AI summary derived from the finalised business-plan assessment context.',
+                    'source_reference' => 'test:structured-score-ai-client',
+                ],
+            ],
+            uncertainty: Uncertainty::Low,
+            biasSignals: [],
+            model: 'structured-score-ai-client',
+            promptVersion: $prompt->version,
+            promptHash: $prompt->hash(),
+            tokensIn: 1,
+            tokensOut: 1,
+        );
     }
 
     public function redFlag(PromptEnvelope $prompt): AiResponse

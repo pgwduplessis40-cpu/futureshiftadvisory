@@ -82,7 +82,10 @@ export type BusinessPlanPayload = {
 export type ExecutiveSummaryPayload = {
     present: boolean;
     generated: boolean;
+    generated_by_ai: boolean;
     stale: boolean;
+    usable: boolean;
+    legacy_draft: boolean;
     can_generate: boolean;
     section_id: string | null;
     generated_at: string | null;

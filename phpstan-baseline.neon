@@ -6865,25 +6865,7 @@ parameters:
 			path: app/Services/Entrepreneurs/BusinessPlanIdentity.php
 
 		-
-			message: '#^Method App\\Services\\Entrepreneurs\\BusinessPlanPreviewRenderer\:\:summaryAreaBullets\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: app/Services/Entrepreneurs/BusinessPlanPreviewRenderer.php
-
-		-
-			message: '#^Offset ''body'' on array\{key\: string, title\: string, body\: string, evidence_count\: int\} on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Services/Entrepreneurs/BusinessPlanPreviewRenderer.php
-
-		-
 			message: '#^Offset 0 on array\{list\<array\{string, int\<\-1, max\>\}\>\} on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Services/Entrepreneurs/BusinessPlanPreviewRenderer.php
-
-		-
-			message: '#^Offset 0 on array\{list\<string\>\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
 			path: app/Services/Entrepreneurs/BusinessPlanPreviewRenderer.php
@@ -6895,15 +6877,9 @@ parameters:
 			path: app/Services/Entrepreneurs/BusinessPlanPreviewRenderer.php
 
 		-
-			message: '#^Strict comparison using \=\=\= between array\{key\: string, title\: string, body\: string, evidence_count\: int\} and null will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 2
-			path: app/Services/Entrepreneurs/BusinessPlanPreviewRenderer.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>computed" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
-			count: 3
+			count: 1
 			path: app/Services/Entrepreneurs/BusinessPlanPreviewRenderer.php
 
 		-

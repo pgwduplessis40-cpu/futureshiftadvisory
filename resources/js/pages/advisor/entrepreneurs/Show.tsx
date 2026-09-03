@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import type { FormEvent, MouseEvent, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
+import { AdvisorServiceWorkspaceSwitcher } from '@/components/advisor/AdvisorServiceWorkspaceSwitcher';
+import type { AdvisorServiceWorkspacePayload } from '@/components/advisor/AdvisorServiceWorkspaceSwitcher';
 import type { AdvisorCoBrowseConfig } from '@/components/co-browse/AdvisorCoBrowseAction';
 import { FormattedMarkdown } from '@/components/formatted-textarea';
 import InputError from '@/components/input-error';
@@ -55,6 +57,7 @@ import type {
 
 type Props = {
     entrepreneur: EntrepreneurDetail;
+    serviceWorkspaces: AdvisorServiceWorkspacePayload | null;
     serviceOptions: ServiceOption[];
     screenShare: AdvisorScreenShareConfig | null;
     coBrowse: AdvisorCoBrowseConfig | null;
@@ -100,6 +103,7 @@ function shouldOpenIdeaValidation(
 
 export default function EntrepreneursShow({
     entrepreneur,
+    serviceWorkspaces,
     serviceOptions,
     screenShare,
     coBrowse,
@@ -130,8 +134,6 @@ export default function EntrepreneursShow({
     const [serviceFeedbackSurveyPending, setServiceFeedbackSurveyPending] =
         useState(false);
     const [assessmentPending, setAssessmentPending] = useState(false);
-    const [executiveSummaryPending, setExecutiveSummaryPending] =
-        useState(false);
     const [assessmentError, setAssessmentError] = useState<string | null>(null);
     const assessmentBusy = assessmentPending || assessmentRunInFlight;
     const assessmentTotalCriteria = assessmentRun?.total_criteria ?? null;
@@ -224,24 +226,6 @@ export default function EntrepreneursShow({
                     );
                 },
                 onFinish: () => setAssessmentPending(false),
-            },
-        );
-    };
-
-    const refreshExecutiveSummary = () => {
-        const generateUrl = executiveSummary?.generate_url;
-
-        if (!generateUrl || executiveSummaryPending) {
-            return;
-        }
-
-        router.post(
-            generateUrl,
-            {},
-            {
-                preserveScroll: true,
-                onStart: () => setExecutiveSummaryPending(true),
-                onFinish: () => setExecutiveSummaryPending(false),
             },
         );
     };
@@ -698,6 +682,11 @@ export default function EntrepreneursShow({
                     </div>
                 </div>
 
+                <AdvisorServiceWorkspaceSwitcher
+                    workspaces={serviceWorkspaces}
+                    activeKey="entrepreneur"
+                />
+
                 <EntrepreneurDetailTabList
                     activeTab={activeTab}
                     onChange={setActiveTab}
@@ -1023,28 +1012,11 @@ export default function EntrepreneursShow({
                                         </a>
                                     </Button>
                                 ) : null}
-                                {executiveSummary?.can_generate ? (
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        disabled={executiveSummaryPending}
-                                        onClick={refreshExecutiveSummary}
-                                    >
-                                        <RefreshCw
-                                            className={cn(
-                                                'size-4',
-                                                executiveSummaryPending &&
-                                                    'animate-spin',
-                                            )}
-                                            aria-hidden="true"
-                                        />
-                                        {executiveSummaryPending
-                                            ? 'Generating'
-                                            : executiveSummary.present
-                                              ? 'Refresh summary'
-                                              : 'Generate summary'}
-                                    </Button>
+                                {executiveSummary ? (
+                                    <span className="self-center text-sm text-muted-foreground">
+                                        Executive summary generation is
+                                        automatic after a passing assessment.
+                                    </span>
                                 ) : null}
                                 {funderReady ? (
                                     <Button
