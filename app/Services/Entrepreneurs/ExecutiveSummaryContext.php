@@ -77,8 +77,8 @@ final class ExecutiveSummaryContext
     }
 
     /**
-     * @param  array<string, mixed>  $value
-     * @return array<string, mixed>
+     * @param  array<array-key, mixed>  $value
+     * @return array<array-key, mixed>
      */
     private function normaliseForHash(array $value): array
     {

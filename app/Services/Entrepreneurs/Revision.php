@@ -267,7 +267,7 @@ final class Revision implements ProvidesMethodology
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{assessment_status:'awaiting_advisor_action',previous_round:int|null,current_round:int,previous_overall_score:null,current_overall_score:null,overall_delta:null,previous_grade:null,current_grade:null,trajectory_percent:null,trajectory_label:'awaiting_assessment',criterion_deltas:array<never, never>,biggest_improvements:array<never, never>,remaining_gaps:array<never, never>}
      */
     private function awaitingAssessmentComparison(int $round, ?PlanAssessment $previous): array
     {

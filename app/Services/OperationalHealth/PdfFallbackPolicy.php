@@ -10,7 +10,7 @@ use App\Services\Pdf\SimpleTextPdf;
 final class PdfFallbackPolicy
 {
     /**
-     * @param  array<string, mixed>  $probe
+     * @param  array{fallback_pdf_detected?:mixed}  $probe
      * @return array{detected:bool,is_failure:bool,status:string,marker:string|null}
      */
     public function forProbe(?string $expectedContentType, array $probe): array
