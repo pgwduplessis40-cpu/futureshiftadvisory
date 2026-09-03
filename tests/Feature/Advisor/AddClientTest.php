@@ -979,18 +979,14 @@ final class AddClientTest extends TestCase
                 ->component('advisor/clients/Show')
                 ->where('serviceWorkspaces.active_key', 'entrepreneur')
                 ->where('serviceWorkspaces.items.0.key', 'entrepreneur')
+                ->where('serviceWorkspaces.items.0.href', route('advisor.clients.show', $client, absolute: false))
                 ->where('serviceWorkspaces.items.1.key', 'due_diligence')
                 ->where('serviceWorkspaces.items.2.key', 'dd_plan_budget')
                 ->where('serviceWorkspaces.items.1.href', route('advisor.clients.show', $client, absolute: false).'#section-due-diligence'));
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.entrepreneurs.show', $profile))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page): Assert => $page
-                ->component('advisor/entrepreneurs/Show')
-                ->where('serviceWorkspaces.active_key', 'entrepreneur')
-                ->where('serviceWorkspaces.items.1.key', 'due_diligence')
-                ->where('serviceWorkspaces.items.2.key', 'dd_plan_budget'));
+            ->assertRedirect(route('advisor.clients.show', $client, absolute: false));
     }
 
     public function test_junior_advisor_cannot_create_clients(): void

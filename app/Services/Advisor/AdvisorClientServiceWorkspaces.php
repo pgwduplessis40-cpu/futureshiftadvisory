@@ -32,17 +32,6 @@ final class AdvisorClientServiceWorkspaces
      */
     public function payload(Client $client, string $activeKey): array
     {
-        $items = [];
-        $profile = $this->entrepreneurs->forClient($client);
-        if ($profile !== null) {
-            $items[] = $this->item(
-                self::KEY_ENTREPRENEUR,
-                'Entrepreneur',
-                route('advisor.entrepreneurs.show', $profile, absolute: false),
-                $activeKey,
-            );
-        }
-
         $activeServiceTypes = ServiceActivation::query()
             ->where('client_id', $client->getKey())
             ->where('status', ServiceActivation::STATUS_ACTIVE)
@@ -51,8 +40,25 @@ final class AdvisorClientServiceWorkspaces
         $hasDdEngagement = DdEngagement::query()
             ->where('client_id', $client->getKey())
             ->exists();
+        $hasDueDiligenceWorkspace = $hasDdEngagement
+            || in_array(ServiceActivation::SERVICE_DUE_DILIGENCE, $activeServiceTypes, true);
+        $hasPlanBudgetWorkspace = in_array(ServiceActivation::SERVICE_DD_PLAN_BUDGET, $activeServiceTypes, true);
+        $hasSecondaryWorkspace = $hasDueDiligenceWorkspace || $hasPlanBudgetWorkspace;
 
-        if ($hasDdEngagement || in_array(ServiceActivation::SERVICE_DUE_DILIGENCE, $activeServiceTypes, true)) {
+        $items = [];
+        $profile = $this->entrepreneurs->forClient($client);
+        if ($profile !== null) {
+            $items[] = $this->item(
+                self::KEY_ENTREPRENEUR,
+                'Entrepreneur',
+                $hasSecondaryWorkspace
+                    ? route('advisor.clients.show', $client, absolute: false)
+                    : route('advisor.entrepreneurs.show', $profile, absolute: false),
+                $activeKey,
+            );
+        }
+
+        if ($hasDueDiligenceWorkspace) {
             $items[] = $this->item(
                 self::KEY_DUE_DILIGENCE,
                 'Due Diligence',
@@ -61,7 +67,7 @@ final class AdvisorClientServiceWorkspaces
             );
         }
 
-        if (in_array(ServiceActivation::SERVICE_DD_PLAN_BUDGET, $activeServiceTypes, true)) {
+        if ($hasPlanBudgetWorkspace) {
             $items[] = $this->item(
                 self::KEY_DD_PLAN_BUDGET,
                 'Business Plan & Budget',

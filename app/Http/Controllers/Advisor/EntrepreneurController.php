@@ -7,12 +7,14 @@ namespace App\Http\Controllers\Advisor;
 use App\Enums\EntrepreneurStage;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Advisor\Entrepreneurs\UpdateInviteRequest;
+use App\Models\Client;
 use App\Models\EntrepreneurProfile;
 use App\Models\InviteToken;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Advisor\AdvisorClientServiceWorkspaces;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
 use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
 use App\Services\Security\InviteIssuer;
@@ -31,6 +33,7 @@ final class EntrepreneurController extends Controller
         private readonly AdvisorEntrepreneurCapacity $capacity,
         private readonly AuditWriter $auditWriter,
         private readonly InviteIssuer $inviteIssuer,
+        private readonly AdvisorClientServiceWorkspaces $serviceWorkspaces,
         private readonly CanonicalEntrepreneurWorkspace $entrepreneurWorkspaces,
         private readonly AdvisorEntrepreneurWorkspacePayload $workspacePayloads,
     ) {}
@@ -330,6 +333,13 @@ final class EntrepreneurController extends Controller
             Gate::authorize('view', $canonicalProfile);
 
             return to_route('advisor.entrepreneurs.show', $canonicalProfile);
+        }
+
+        $client = $this->serviceWorkspaces->clientForProfile($canonicalProfile);
+        if ($client instanceof Client && $this->serviceWorkspaces->hasActiveSecondaryWorkspace($client)) {
+            Gate::authorize('view', $client);
+
+            return to_route('advisor.clients.show', $client);
         }
 
         $viewer = $this->actor($request);

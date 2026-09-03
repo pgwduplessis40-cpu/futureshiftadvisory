@@ -170,6 +170,7 @@ final class RevisionTest extends TestCase
         $first = app(Assessment::class)->firstPass($plan, $advisor);
         $first->forceFill(['ai_scores' => $this->scoresAt($first, 45)])->save();
 
+        app(Revision::class)->open($plan->refresh(), $advisor);
         $revision = app(Revision::class)->submit($plan->refresh(), $advisor);
         $this->assertTrue(app(Assessment::class)->queueFirstPass($plan->refresh(), $advisor));
         (new RunEntrepreneurPlanAssessment((string) $plan->getKey(), (int) $advisor->getKey()))
