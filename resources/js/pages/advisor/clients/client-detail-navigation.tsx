@@ -77,7 +77,7 @@ export function ClientDetailTabList({
 }) {
     return (
         <div
-            className="inline-flex w-full max-w-md rounded-md border bg-muted/30 p-1"
+            className="inline-flex w-full max-w-md rounded-md border bg-[#f0ead8] p-1 dark:bg-[#263a58]"
             role="tablist"
             aria-label="Client detail sections"
         >
@@ -112,8 +112,9 @@ export function ClientDetailTabButton({
             role="tab"
             aria-selected={active}
             className={cn(
-                'flex-1 rounded-sm px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
-                active && 'bg-background text-foreground shadow-xs',
+                'flex-1 rounded-sm px-3 py-1.5 text-sm font-medium text-[#1c2b45] transition-colors hover:bg-[#e8d5a0] hover:text-[#1c2b45] focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none dark:text-[#f9f6f0] dark:hover:bg-[#2a4960] dark:hover:text-[#f9f6f0]',
+                active &&
+                    'bg-[#1c2b45] text-[#f9f6f0] shadow-xs hover:bg-[#2a3b5c] hover:text-[#f9f6f0] dark:bg-[#e8d5a0] dark:text-[#1c2b45] dark:hover:bg-[#d4a020] dark:hover:text-[#1c2b45]',
             )}
             onClick={onClick}
         >

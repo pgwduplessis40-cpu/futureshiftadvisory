@@ -195,7 +195,7 @@ final class EntrepreneurPlanController extends Controller
 
         $plan = $this->workspace->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan, 404);
-        $this->assertPlanAcceptsFounderChanges($plan);
+        $this->workspace->assertPlanAcceptsFounderChanges($plan);
 
         $autosave = $request->boolean('_autosave');
         $validated = $request->validate([
@@ -282,7 +282,7 @@ final class EntrepreneurPlanController extends Controller
         abort_unless($this->workspace->includesPlanBudget($profile), 403);
         $plan = $this->workspace->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan, 404);
-        $this->assertPlanAcceptsFounderChanges($plan);
+        $this->workspace->assertPlanAcceptsFounderChanges($plan);
 
         $validated = $request->validate([
             'phase_key' => ['required', 'string', Rule::in(array_keys(PlanRequirements::definitions()))],
@@ -318,7 +318,7 @@ final class EntrepreneurPlanController extends Controller
         abort_unless($this->workspace->includesPlanBudget($profile), 403);
         $plan = $this->workspace->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan, 404);
-        $this->assertPlanAcceptsFounderChanges($plan);
+        $this->workspace->assertPlanAcceptsFounderChanges($plan);
         $this->assertSectionBelongsToProfile($planSection, $profile);
 
         $this->guidance->guide($planSection, $user);

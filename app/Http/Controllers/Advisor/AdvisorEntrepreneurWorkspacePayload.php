@@ -119,7 +119,7 @@ final class AdvisorEntrepreneurWorkspacePayload
     /** @return ScreenSharePayload|null */
     private function screenSharePayload(User $viewer, EntrepreneurProfile $profile): ?array
     {
-        if (! $profile->user instanceof User || ! $this->screenShareAuthorizer->canRequestForEntrepreneur($viewer, $profile, $profile->user)) {
+        if (! ($profile->user instanceof User) || ! $this->screenShareAuthorizer->canRequestForEntrepreneur($viewer, $profile, $profile->user)) {
             return null;
         }
 
@@ -142,7 +142,7 @@ final class AdvisorEntrepreneurWorkspacePayload
     /** @return CoBrowsePayload|null */
     private function coBrowsePayload(User $viewer, EntrepreneurProfile $profile): ?array
     {
-        if (! (bool) config('co-browse.enabled') || ! $profile->user instanceof User || ! $this->screenShareAuthorizer->canRequestForEntrepreneur($viewer, $profile, $profile->user)) {
+        if (! (bool) config('co-browse.enabled') || ! ($profile->user instanceof User) || ! $this->screenShareAuthorizer->canRequestForEntrepreneur($viewer, $profile, $profile->user)) {
             return null;
         }
 
