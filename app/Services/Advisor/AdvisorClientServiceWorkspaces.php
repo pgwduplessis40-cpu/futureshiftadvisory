@@ -88,6 +88,15 @@ final class AdvisorClientServiceWorkspaces
             ->contains(fn (array $item): bool => $item['key'] !== self::KEY_ENTREPRENEUR);
     }
 
+    public function clientDetailUrlForMultiServiceProfile(EntrepreneurProfile $profile): ?string
+    {
+        $client = $this->clientForProfile($profile);
+
+        return $client !== null && $this->hasActiveSecondaryWorkspace($client)
+            ? route('advisor.clients.show', $client, absolute: false)
+            : null;
+    }
+
     public function clientForProfile(EntrepreneurProfile $profile): ?Client
     {
         if (is_string($profile->client_id) && $profile->client_id !== '') {
