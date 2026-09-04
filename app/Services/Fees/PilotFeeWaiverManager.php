@@ -88,6 +88,41 @@ final class PilotFeeWaiverManager
     }
 
     /**
+     * @param  array{fixed_fee?:int|float|null, ...}  $snapshot
+     * @param  array{eligible:bool, program_status:string, starts_at:?string, expires_at:?string}  $pilot
+     * @return array{
+     *     fixed_fee:0.0,
+     *     deposit_percent:100.0,
+     *     payment_split:array{deposit_percent:100.0, card_deposit_amount:0.0, bank_transfer_amount:0.0, requires_bank_transfer:false},
+     *     pilot_fee_waiver:array{active:true, reason:string, nominal_fixed_fee:int|float|null, program_status:string, starts_at:?string, expires_at:?string, stripe_required:false},
+     *     ...
+     * }
+     */
+    public function waivedPackageSnapshot(array $snapshot, array $pilot): array
+    {
+        return [
+            ...$snapshot,
+            'fixed_fee' => 0.0,
+            'deposit_percent' => 100.0,
+            'payment_split' => [
+                'deposit_percent' => 100.0,
+                'card_deposit_amount' => 0.0,
+                'bank_transfer_amount' => 0.0,
+                'requires_bank_transfer' => false,
+            ],
+            'pilot_fee_waiver' => [
+                'active' => true,
+                'reason' => 'Pilot fee waiver active; package payment is not required for this client.',
+                'nominal_fixed_fee' => $snapshot['fixed_fee'] ?? null,
+                'program_status' => $pilot['program_status'],
+                'starts_at' => $pilot['starts_at'],
+                'expires_at' => $pilot['expires_at'],
+                'stripe_required' => false,
+            ],
+        ];
+    }
+
+    /**
      * @param  array{enabled:bool, starts_at:?string, expires_at:?string, reason:?string}  $attributes
      */
     private function updateSubject(

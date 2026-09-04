@@ -21,6 +21,7 @@ use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 final class ServiceActivationPackageFlowTest extends TestCase
@@ -61,6 +62,19 @@ final class ServiceActivationPackageFlowTest extends TestCase
         $this->assertSame(ServiceActivation::STATUS_ACTIVE, $activation->status);
         $this->assertSame(ServiceActivation::PAYMENT_PAID, $activation->payment_status);
         $this->assertNotNull($activation->related_entrepreneur_profile_id);
+    }
+
+    public function test_portal_shows_package_selection_as_the_blocker_before_payment(): void
+    {
+        [$activation, , $clientUser] = $this->activationFixture();
+
+        $this->actingAsMfa($clientUser)
+            ->get(route('portal.service-activations.show', $activation))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('portal/ServiceActivation')
+                ->where('activation.acknowledgement_blocker', 'advisor_package_selection_required')
+                ->where('activation.payment_required', false));
     }
 
     public function test_deposit_package_stays_locked_until_bank_transfer_balance_confirmed(): void

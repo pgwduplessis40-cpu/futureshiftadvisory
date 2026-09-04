@@ -166,7 +166,6 @@ final class DashboardTest extends TestCase
                 ->component('advisor/Dashboard')
                 ->where('serviceActivationRequests.summary.total', 1)
                 ->where('serviceActivationRequests.summary.requested', 1)
-                ->where('serviceActivationRequests.summary.package_selected', 0)
                 ->where('serviceActivationRequests.summary.dd_plan_budget', 1)
                 ->where('serviceActivationRequests.items.0.id', $activation->id)
                 ->where('serviceActivationRequests.items.0.client_name', 'Southern Lights')
@@ -179,6 +178,35 @@ final class DashboardTest extends TestCase
                     route('advisor.service-activations.show', $activation, absolute: false),
                 )
                 ->has('serviceActivationRequests.items', 1));
+    }
+
+    public function test_advisor_dashboard_excludes_package_selected_activations_from_quote_requests(): void
+    {
+        $advisor = $this->advisor('package-selected-queue@example.test');
+        $client = $this->clientFor($advisor, 'Package Selected Limited');
+        $clientUser = $this->clientContactFor($client, 'Package Selected Client', 'package-selected-client@example.test');
+
+        ServiceActivation::query()->create([
+            'client_id' => $client->getKey(),
+            'requested_by_user_id' => $clientUser->getKey(),
+            'advisor_id' => $advisor->getKey(),
+            'service_type' => ServiceActivation::SERVICE_DUE_DILIGENCE,
+            'client_label' => 'Explore buying a business',
+            'status' => ServiceActivation::STATUS_PACKAGE_SELECTED,
+            'payment_status' => ServiceActivation::PAYMENT_PENDING,
+            'selected_package_snapshot' => [
+                'billing_model' => 'fixed_fee',
+                'fixed_fee' => 1650.0,
+            ],
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('serviceActivationRequests.summary.total', 0)
+                ->where('serviceActivationRequests.summary.requested', 0)
+                ->has('serviceActivationRequests.items', 0));
     }
 
     public function test_super_admin_dashboard_surfaces_inactive_rates_free_access_mode(): void

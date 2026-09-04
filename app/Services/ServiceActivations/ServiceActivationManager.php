@@ -47,6 +47,7 @@ final class ServiceActivationManager
         private readonly RequestContext $context,
         private readonly ServiceRateManager $serviceRates,
         private readonly PilotFeeWaiverManager $pilotWaivers,
+        private readonly PilotFeeWaiverActivationReconciler $pilotActivationWaivers,
         private readonly GoalTracker $goals,
         private readonly ClientCapability $ddClientCapability,
     ) {}
@@ -375,47 +376,7 @@ final class ServiceActivationManager
 
     public function applyPilotFeeWaiverIfEligible(ServiceActivation $activation, ?User $actor = null): ServiceActivation
     {
-        $activation->loadMissing('client');
-        $client = $activation->client;
-
-        if (! $client instanceof Client || ! is_array($activation->selected_package_snapshot)) {
-            return $activation->refresh();
-        }
-
-        if ($activation->paymentComplete()) {
-            return $activation->refresh();
-        }
-
-        $pilot = $this->pilotWaivers->eligibility($client);
-        if (! $pilot['eligible']) {
-            return $activation->refresh();
-        }
-
-        $before = [
-            'payment_status' => $activation->payment_status,
-            'fixed_fee' => data_get($activation->selected_package_snapshot, 'fixed_fee'),
-            'deposit_percent' => data_get($activation->selected_package_snapshot, 'deposit_percent'),
-        ];
-        $snapshot = $this->pilotWaivedPackageSnapshot((array) $activation->selected_package_snapshot, $pilot);
-
-        $activation->forceFill([
-            'selected_package_snapshot' => $snapshot,
-            'payment_status' => ServiceActivation::PAYMENT_NOT_REQUIRED,
-            'metadata' => [
-                ...(array) ($activation->metadata ?? []),
-                'pilot_fee_waiver' => true,
-                'payment_required_before_workspace_access' => false,
-                'pilot_fee_waiver_applied_at' => now()->toIso8601String(),
-            ],
-        ])->save();
-
-        $this->audit->record('service_activation.pilot_fee_waiver_applied', subject: $activation, actor: $actor, before: $before, after: [
-            'payment_status' => ServiceActivation::PAYMENT_NOT_REQUIRED,
-            'nominal_fixed_fee' => data_get($snapshot, 'pilot_fee_waiver.nominal_fixed_fee'),
-            'pilot_waiver_expires_at' => data_get($snapshot, 'pilot_fee_waiver.expires_at'),
-        ]);
-
-        return $activation->refresh();
+        return $this->pilotActivationWaivers->applyIfEligible($activation, $actor);
     }
 
     public function activateIntegrationFromProposalPayment(Proposal $proposal, ?Payment $payment = null): ServiceActivation
@@ -1112,7 +1073,7 @@ final class ServiceActivationManager
         $pilot = $client instanceof Client ? $this->pilotWaivers->eligibility($client) : null;
 
         if (is_array($pilot) && $pilot['eligible']) {
-            return $this->pilotWaivedPackageSnapshot($snapshot, $pilot);
+            return $this->pilotWaivers->waivedPackageSnapshot($snapshot, $pilot);
         }
 
         if (! $this->serviceRates->freeAccessModeActive()) {
@@ -1133,35 +1094,6 @@ final class ServiceActivationManager
                 'active' => true,
                 'reason' => 'Admin service rates are inactive; package payment is not required until rates are activated.',
                 'nominal_fixed_fee' => $snapshot['fixed_fee'] ?? null,
-                'stripe_required' => false,
-            ],
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $snapshot
-     * @param  array{eligible:bool, program_status:string, starts_at:?string, expires_at:?string}  $pilot
-     * @return array<string, mixed>
-     */
-    private function pilotWaivedPackageSnapshot(array $snapshot, array $pilot): array
-    {
-        return [
-            ...$snapshot,
-            'fixed_fee' => 0.0,
-            'deposit_percent' => 100.0,
-            'payment_split' => [
-                'deposit_percent' => 100.0,
-                'card_deposit_amount' => 0.0,
-                'bank_transfer_amount' => 0.0,
-                'requires_bank_transfer' => false,
-            ],
-            'pilot_fee_waiver' => [
-                'active' => true,
-                'reason' => 'Pilot fee waiver active; package payment is not required for this client.',
-                'nominal_fixed_fee' => $snapshot['fixed_fee'] ?? null,
-                'program_status' => $pilot['program_status'],
-                'starts_at' => $pilot['starts_at'],
-                'expires_at' => $pilot['expires_at'],
                 'stripe_required' => false,
             ],
         ];

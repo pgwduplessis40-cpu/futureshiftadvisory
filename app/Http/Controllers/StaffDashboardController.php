@@ -839,10 +839,7 @@ final class StaffDashboardController extends Controller
         }
 
         $baseQuery = ServiceActivation::query()
-            ->whereIn('status', [
-                ServiceActivation::STATUS_REQUESTED,
-                ServiceActivation::STATUS_PACKAGE_SELECTED,
-            ]);
+            ->where('status', ServiceActivation::STATUS_REQUESTED);
 
         if (is_array($clientIds)) {
             $baseQuery->whereIn('client_id', $clientIds);
@@ -859,9 +856,6 @@ final class StaffDashboardController extends Controller
                 'total' => (clone $baseQuery)->count(),
                 'requested' => (clone $baseQuery)
                     ->where('status', ServiceActivation::STATUS_REQUESTED)
-                    ->count(),
-                'package_selected' => (clone $baseQuery)
-                    ->where('status', ServiceActivation::STATUS_PACKAGE_SELECTED)
                     ->count(),
                 'dd_plan_budget' => (clone $baseQuery)
                     ->where('service_type', ServiceActivation::SERVICE_DD_PLAN_BUDGET)
@@ -884,7 +878,6 @@ final class StaffDashboardController extends Controller
             'summary' => [
                 'total' => 0,
                 'requested' => 0,
-                'package_selected' => 0,
                 'dd_plan_budget' => 0,
             ],
             'items' => [],

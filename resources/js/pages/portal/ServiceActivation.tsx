@@ -15,6 +15,8 @@ import type { Explanation } from '@/components/explainer';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { acknowledgementCopy } from './service-activation-acknowledgement';
+import type { AcknowledgementBlocker } from './service-activation-acknowledgement';
 
 type PaymentSplit = {
     deposit_percent: number;
@@ -116,6 +118,7 @@ type Activation = {
     balance_received_at: string | null;
     balance_reference: string | null;
     full_payment_received: boolean;
+    acknowledgement_blocker: AcknowledgementBlocker;
     accepted_at: string | null;
     acceptance_text: string | null;
     workspace_ready: boolean;
@@ -146,10 +149,11 @@ export default function ServiceActivation({ activation, urls }: Props) {
     const paymentSplit = selectedPackage
         ? packagePaymentSplit(selectedPackage)
         : null;
-    const canAccept =
-        activation.status === 'package_selected' &&
-        selectedPackage !== null &&
-        fullPaymentReceived;
+    const canAccept = activation.acknowledgement_blocker === 'ready';
+    const acknowledgement = acknowledgementCopy(
+        activation.acknowledgement_blocker,
+        activation.payment_required,
+    );
 
     function submit(event: FormEvent) {
         event.preventDefault();
@@ -461,16 +465,11 @@ export default function ServiceActivation({ activation, urls }: Props) {
                         <p className="mt-2 text-sm text-muted-foreground">
                             The standard Terms and Conditions already accepted
                             for portal access continue to apply.{' '}
-                            {activation.payment_required
-                                ? 'Full payment must be received and confirmed first; this checkbox confirms the workspace-specific scope and GST-exclusive fee.'
-                                : 'No payment is required before this workspace opens; this checkbox confirms the workspace-specific scope and fee waiver position.'}
+                            {acknowledgement.description}
                         </p>
                         {!canAccept ? (
                             <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-950">
-                                This acknowledgement is locked because payment
-                                is still pending. Complete the required payment
-                                step above before the service, workspace,
-                                reports, previews, downloads, or exports open.
+                                {acknowledgement.blockerMessage}
                             </p>
                         ) : null}
                         <label className="mt-4 flex gap-3 text-sm">
