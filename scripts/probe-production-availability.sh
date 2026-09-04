@@ -9,6 +9,7 @@ set -euo pipefail
 production_url="${PRODUCTION_URL:-}"
 expected_commit="${EXPECTED_COMMIT:-}"
 expected_version="${EXPECTED_VERSION:-}"
+node_binary="${NODE_BINARY:-node}"
 
 if [ -z "$production_url" ]; then
     echo "ERROR: PRODUCTION_URL is required." >&2
@@ -38,30 +39,32 @@ request '/up' >/dev/null
 echo "Checking verified deployment identity."
 deployment="$(request '/api/deployment')"
 
-jq_filter='
-    .status == "verified"
-    and (.commit | type == "string" and length == 40)
-    and (.version | type == "string" and length > 0)
-    and (.client_manifest_sha256 | type == "string" and length == 64)
-    and (.ssr_manifest_sha256 | type == "string" and length == 64)
-'
+printf '%s' "$deployment" | "$node_binary" -e '
+    const payload = JSON.parse(require("fs").readFileSync(0, "utf8"));
+    const [expectedCommit, expectedVersion] = process.argv.slice(1);
+    const valid = payload.status === "verified"
+        && typeof payload.commit === "string"
+        && payload.commit.length === 40
+        && typeof payload.version === "string"
+        && payload.version.length > 0
+        && typeof payload.client_manifest_sha256 === "string"
+        && payload.client_manifest_sha256.length === 64
+        && typeof payload.ssr_manifest_sha256 === "string"
+        && payload.ssr_manifest_sha256.length === 64
+        && (!expectedCommit || payload.commit === expectedCommit)
+        && (!expectedVersion || payload.version === expectedVersion);
 
-if [ -n "$expected_commit" ]; then
-    jq_filter+=" and .commit == \$expected_commit"
-fi
-
-if [ -n "$expected_version" ]; then
-    jq_filter+=" and .version == \$expected_version"
-fi
-
-jq -e \
-    --arg expected_commit "$expected_commit" \
-    --arg expected_version "$expected_version" \
-    "$jq_filter" <<<"$deployment" >/dev/null
+    if (!valid) {
+        process.exit(1);
+    }
+' "$expected_commit" "$expected_version"
 
 echo "Checking the public server-rendered home page."
 homepage="$(request '/')"
-if ! grep --fixed-strings --quiet 'data-server-rendered' <<<"$homepage"; then
+if ! printf '%s' "$homepage" | "$node_binary" -e '
+    const html = require("fs").readFileSync(0, "utf8");
+    process.exit(html.includes("data-server-rendered") ? 0 : 1);
+'; then
     echo "ERROR: the public home page was reachable but was not server-rendered." >&2
     exit 1
 fi
