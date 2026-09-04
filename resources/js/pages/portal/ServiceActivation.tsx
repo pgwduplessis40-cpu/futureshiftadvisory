@@ -15,10 +15,8 @@ import type { Explanation } from '@/components/explainer';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    acknowledgementCopy,
-    type AcknowledgementBlocker,
-} from './service-activation-acknowledgement';
+import { acknowledgementCopy } from './service-activation-acknowledgement';
+import type { AcknowledgementBlocker } from './service-activation-acknowledgement';
 
 type PaymentSplit = {
     deposit_percent: number;
