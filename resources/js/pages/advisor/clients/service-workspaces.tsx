@@ -2184,7 +2184,7 @@ function AdvisorServiceTabList({
 }) {
     return (
         <div
-            className="overflow-x-auto rounded-md border bg-muted/30 p-1"
+            className="inline-flex max-w-full overflow-x-auto rounded-md border bg-muted/30 p-1"
             role="tablist"
             aria-label="Client service workspaces"
         >
@@ -2221,14 +2221,14 @@ function AdvisorServiceTabButton({
                     role="tab"
                     aria-selected={active}
                     className={cn(
-                        'flex min-w-44 items-center justify-between gap-3 rounded-sm px-3 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                        'flex shrink-0 items-center gap-2 rounded-sm px-3 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
                         active && 'bg-background text-foreground shadow-xs',
                     )}
                     onClick={onClick}
                 >
-                    <span className="flex min-w-0 items-center gap-2">
+                    <span className="flex shrink-0 items-center gap-2 whitespace-nowrap">
                         <Icon className="size-4 shrink-0" aria-hidden={true} />
-                        <span className="truncate">{tab.label}</span>
+                        <span>{tab.label}</span>
                     </span>
                     {tab.status && (
                         <Badge

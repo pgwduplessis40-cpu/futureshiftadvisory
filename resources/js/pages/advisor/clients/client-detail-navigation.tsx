@@ -77,7 +77,7 @@ export function ClientDetailTabList({
 }) {
     return (
         <div
-            className="inline-flex w-full max-w-md rounded-md border bg-[#f0ead8]/100 p-1 dark:bg-[#263a58]/100"
+            className="inline-flex max-w-full rounded-md border bg-[#f0ead8]/100 p-1 dark:bg-[#263a58]/100"
             role="tablist"
             aria-label="Client detail sections"
         >
@@ -112,7 +112,7 @@ export function ClientDetailTabButton({
             role="tab"
             aria-selected={active}
             className={cn(
-                'flex-1 rounded-sm px-3 py-1.5 text-sm font-medium text-[#1c2b45]/100 transition-colors hover:bg-[#e8d5a0]/100 hover:text-[#1c2b45]/100 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none dark:text-[#f9f6f0]/100 dark:hover:bg-[#2a4960]/100 dark:hover:text-[#f9f6f0]/100',
+                'shrink-0 rounded-sm px-3 py-1.5 text-sm font-medium text-[#1c2b45]/100 transition-colors hover:bg-[#e8d5a0]/100 hover:text-[#1c2b45]/100 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none dark:text-[#f9f6f0]/100 dark:hover:bg-[#2a4960]/100 dark:hover:text-[#f9f6f0]/100',
                 active &&
                     'bg-[#1c2b45]/100 text-[#f9f6f0]/100 shadow-xs hover:bg-[#2a3b5c]/100 hover:text-[#f9f6f0]/100 dark:bg-[#e8d5a0]/100 dark:text-[#1c2b45]/100 dark:hover:bg-[#d4a020]/100 dark:hover:text-[#1c2b45]/100',
             )}
