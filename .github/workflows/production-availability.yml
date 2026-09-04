@@ -1,0 +1,55 @@
+name: production availability monitor
+
+on:
+  schedule:
+    # GitHub schedule is an independent public-edge backstop. A dedicated
+    # uptime provider remains the required sub-five-minute alerting path.
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-availability-monitor
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    if: ${{ vars.PRODUCTION_AVAILABILITY_MONITOR_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Probe production from the public edge
+        env:
+          PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
+        run: bash scripts/probe-production-availability.sh
+
+  notify-failure:
+    needs: probe
+    if: ${{ always() && needs.probe.result == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Publish availability incident
+        env:
+          ALERT_WEBHOOK: ${{ secrets.PRODUCTION_AVAILABILITY_ALERT_WEBHOOK }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          message="Production availability probe failed. Clients may be unable to use FutureShift Advisory. Investigate: ${RUN_URL}"
+          echo "::error title=Production availability incident::${message}"
+
+          if [ -z "$ALERT_WEBHOOK" ]; then
+            echo "No PRODUCTION_AVAILABILITY_ALERT_WEBHOOK is configured; the failed Actions run is the incident signal."
+            exit 0
+          fi
+
+          payload="$(jq -n --arg text "$message" '{text: $text}')"
+          curl --fail --silent --show-error --max-time 20 \
+            -H 'Content-Type: application/json' \
+            --data "$payload" \
+            "$ALERT_WEBHOOK"

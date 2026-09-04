@@ -303,3 +303,10 @@ jobs:
             --arg commit "$DEPLOY_COMMIT" \
             --arg version "$DEPLOY_VERSION" \
             '.status == "verified" and .commit == $commit and .version == $version and (.client_manifest_sha256 | length == 64) and (.ssr_manifest_sha256 | length == 64)'
+
+      - name: Verify public availability after release
+        env:
+          EXPECTED_COMMIT: ${{ needs.tag-release.outputs.commit }}
+          EXPECTED_VERSION: ${{ needs.tag-release.outputs.version }}
+          PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
+        run: bash scripts/probe-production-availability.sh
