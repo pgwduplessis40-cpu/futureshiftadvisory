@@ -241,6 +241,7 @@ final class ServiceActivationController extends Controller
             'balance_received_at' => $activation->balance_received_at?->toIso8601String(),
             'balance_reference' => $activation->balance_reference,
             'full_payment_received' => $activation->paymentComplete(),
+            'acknowledgement_blocker' => $activation->acknowledgementBlocker(),
             'accepted_at' => $activation->accepted_at?->toIso8601String(),
             'acceptance_text' => $activation->acceptance_text,
             'workspace_ready' => $activation->status === ServiceActivation::STATUS_ACTIVE,

@@ -11,6 +11,7 @@ use App\Models\PilotFeeWaiverProgram;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Fees\PilotFeeWaiverManager;
+use App\Services\ServiceActivations\PilotFeeWaiverActivationReconciler;
 use App\Support\RequestContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,6 +24,7 @@ final class PilotFeeWaiverController extends Controller
 {
     public function __construct(
         private readonly PilotFeeWaiverManager $waivers,
+        private readonly PilotFeeWaiverActivationReconciler $activationWaivers,
         private readonly AuditWriter $audit,
         private readonly RequestContext $context,
     ) {}
@@ -101,6 +103,7 @@ final class PilotFeeWaiverController extends Controller
 
         $before = $this->clientAuditPayload($client);
         $updated = $this->waivers->updateClient($client, $attributes, $actor);
+        $this->activationWaivers->reconcileForClient($updated, $actor);
 
         $this->audit->record('client.pilot_fee_waiver.updated', subject: $updated, actor: $actor, before: $before, after: $this->clientAuditPayload($updated));
 

@@ -8,6 +8,7 @@ use App\Enums\EngagementType;
 use App\Models\Client;
 use App\Models\EntrepreneurProfile;
 use App\Models\PilotFeeWaiverProgram;
+use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -105,6 +106,73 @@ final class PilotFeeWaiverManagementTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->has('clients', 2)
                 ->where('clients.1.legal_name', 'New Waiver Client Limited'));
+    }
+
+    public function test_assigning_a_client_waiver_reconciles_selected_unpaid_activations_without_rewriting_paid_records(): void
+    {
+        $admin = User::factory()->superAdmin()->withTwoFactor()->create();
+        $admin->assignRole(User::TYPE_SUPER_ADMIN);
+        $client = Client::query()->create([
+            'engagement_type' => EngagementType::DUE_DILIGENCE,
+            'legal_name' => 'Pilot Waiver Reconciliation Limited',
+            'data_quality' => Client::DATA_QUALITY_LOW,
+        ]);
+        $snapshot = [
+            'billing_model' => 'fixed_fee',
+            'fixed_fee' => 1650.0,
+            'deposit_percent' => 25.0,
+            'payment_split' => [
+                'deposit_percent' => 25.0,
+                'card_deposit_amount' => 412.5,
+                'bank_transfer_amount' => 1237.5,
+                'requires_bank_transfer' => true,
+            ],
+        ];
+        $unpaid = ServiceActivation::query()->create([
+            'client_id' => $client->getKey(),
+            'advisor_id' => $admin->getKey(),
+            'service_type' => ServiceActivation::SERVICE_DUE_DILIGENCE,
+            'client_label' => 'Explore buying a business',
+            'status' => ServiceActivation::STATUS_PACKAGE_SELECTED,
+            'payment_status' => ServiceActivation::PAYMENT_DEPOSIT_PENDING,
+            'selected_package_snapshot' => $snapshot,
+        ]);
+        $paid = ServiceActivation::query()->create([
+            'client_id' => $client->getKey(),
+            'advisor_id' => $admin->getKey(),
+            'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+            'client_label' => 'Completed plan and budget',
+            'status' => ServiceActivation::STATUS_ACTIVE,
+            'payment_status' => ServiceActivation::PAYMENT_PAID,
+            'selected_package_snapshot' => $snapshot,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->patch(route('admin.pilot-fee-waivers.program.update'), [
+                'status' => PilotFeeWaiverProgram::STATUS_OPEN,
+            ]);
+
+        $this->actingAsMfa($admin)
+            ->patch(route('admin.pilot-fee-waivers.clients.update', $client), [
+                'enabled' => true,
+                'starts_at' => now()->toDateString(),
+                'expires_at' => now()->addMonth()->toDateString(),
+                'reason' => 'Included in the pilot after package selection.',
+            ])
+            ->assertRedirect(route('admin.pilot-fee-waivers.index', absolute: false));
+
+        $unpaid->refresh();
+        $paid->refresh();
+
+        $this->assertSame(ServiceActivation::PAYMENT_NOT_REQUIRED, $unpaid->payment_status);
+        $this->assertSame(0.0, (float) $unpaid->selected_package_snapshot['fixed_fee']);
+        $this->assertTrue((bool) data_get($unpaid->metadata, 'pilot_fee_waiver'));
+        $this->assertSame(ServiceActivation::PAYMENT_PAID, $paid->payment_status);
+        $this->assertSame(1650.0, (float) $paid->selected_package_snapshot['fixed_fee']);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'service_activation.pilot_fee_waiver_applied',
+            'subject_id' => $unpaid->getKey(),
+        ]);
     }
 
     public function test_index_includes_every_client_not_just_the_first_250(): void

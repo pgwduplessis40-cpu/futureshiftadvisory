@@ -138,7 +138,6 @@ export type ServiceActivationRequestsPayload = {
     summary: {
         total: number;
         requested: number;
-        package_selected: number;
         dd_plan_budget: number;
     };
     items: Array<{

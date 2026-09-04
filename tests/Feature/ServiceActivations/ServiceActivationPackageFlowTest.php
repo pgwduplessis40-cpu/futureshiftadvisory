@@ -63,6 +63,19 @@ final class ServiceActivationPackageFlowTest extends TestCase
         $this->assertNotNull($activation->related_entrepreneur_profile_id);
     }
 
+    public function test_portal_shows_package_selection_as_the_blocker_before_payment(): void
+    {
+        [$activation, , $clientUser] = $this->activationFixture();
+
+        $this->actingAsMfa($clientUser)
+            ->get(route('portal.service-activations.show', $activation))
+            ->assertOk()
+            ->assertInertia(fn (\Inertia\Testing\AssertableInertia $page): \Inertia\Testing\AssertableInertia => $page
+                ->component('portal/ServiceActivation')
+                ->where('activation.acknowledgement_blocker', 'advisor_package_selection_required')
+                ->where('activation.payment_required', false));
+    }
+
     public function test_deposit_package_stays_locked_until_bank_transfer_balance_confirmed(): void
     {
         [$activation, $advisor, $clientUser] = $this->activationFixture('split-payment@example.test');

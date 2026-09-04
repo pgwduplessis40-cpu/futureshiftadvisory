@@ -223,6 +223,15 @@ final class ServiceActivation extends Model
         ], true);
     }
 
+    public function acknowledgementBlocker(): string
+    {
+        if ($this->status !== self::STATUS_PACKAGE_SELECTED || ! is_array($this->selected_package_snapshot)) {
+            return 'advisor_package_selection_required';
+        }
+
+        return $this->paymentComplete() ? 'ready' : 'payment_required';
+    }
+
     public function depositPaid(): bool
     {
         return $this->deposit_paid_at !== null || $this->paymentComplete();
