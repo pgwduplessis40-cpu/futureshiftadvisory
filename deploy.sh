@@ -717,6 +717,11 @@ log "Restarting PHP-FPM"
 # web request runs the released application code.
 if systemctl cat "$PHP_FPM_SERVICE" >/dev/null 2>&1; then
     $SUDO systemctl restart "$PHP_FPM_SERVICE"
+    if ! systemctl is-active --quiet "$PHP_FPM_SERVICE"; then
+        echo "ERROR: PHP-FPM service '${PHP_FPM_SERVICE}' is not active after restart." >&2
+        $SUDO systemctl status "$PHP_FPM_SERVICE" --no-pager --full || true
+        exit 1
+    fi
     echo "Restarted ${PHP_FPM_SERVICE}."
 else
     echo "ERROR: PHP-FPM systemd unit '${PHP_FPM_SERVICE}' was not found." >&2
@@ -730,6 +735,11 @@ log "Restarting SSR process"
 # misreported as missing - which would then stop SSR instead of restarting it.
 if systemctl cat "$SSR_SERVICE" >/dev/null 2>&1; then
     $SUDO systemctl restart "$SSR_SERVICE"
+    if ! systemctl is-active --quiet "$SSR_SERVICE"; then
+        echo "ERROR: SSR service '${SSR_SERVICE}' is not active after restart." >&2
+        $SUDO systemctl status "$SSR_SERVICE" --no-pager --full || true
+        exit 1
+    fi
     echo "Restarted ${SSR_SERVICE}."
 else
     echo "systemd unit '${SSR_SERVICE}' not found - see docs/deployment-ssr.md."
