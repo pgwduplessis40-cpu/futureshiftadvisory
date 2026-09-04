@@ -21,6 +21,7 @@ use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 final class ServiceActivationPackageFlowTest extends TestCase
@@ -70,7 +71,7 @@ final class ServiceActivationPackageFlowTest extends TestCase
         $this->actingAsMfa($clientUser)
             ->get(route('portal.service-activations.show', $activation))
             ->assertOk()
-            ->assertInertia(fn (\Inertia\Testing\AssertableInertia $page): \Inertia\Testing\AssertableInertia => $page
+            ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('portal/ServiceActivation')
                 ->where('activation.acknowledgement_blocker', 'advisor_package_selection_required')
                 ->where('activation.payment_required', false));

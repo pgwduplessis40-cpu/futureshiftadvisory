@@ -88,9 +88,15 @@ final class PilotFeeWaiverManager
     }
 
     /**
-     * @param  array<string, mixed>  $snapshot
+     * @param  array{fixed_fee?:int|float|null, ...}  $snapshot
      * @param  array{eligible:bool, program_status:string, starts_at:?string, expires_at:?string}  $pilot
-     * @return array<string, mixed>
+     * @return array{
+     *     fixed_fee:0.0,
+     *     deposit_percent:100.0,
+     *     payment_split:array{deposit_percent:100.0, card_deposit_amount:0.0, bank_transfer_amount:0.0, requires_bank_transfer:false},
+     *     pilot_fee_waiver:array{active:true, reason:string, nominal_fixed_fee:int|float|null, program_status:string, starts_at:?string, expires_at:?string, stripe_required:false},
+     *     ...
+     * }
      */
     public function waivedPackageSnapshot(array $snapshot, array $pilot): array
     {
