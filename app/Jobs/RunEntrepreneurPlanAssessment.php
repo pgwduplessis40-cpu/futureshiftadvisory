@@ -26,7 +26,9 @@ final class RunEntrepreneurPlanAssessment implements ShouldQueue
 
     public int $tries = 1;
 
-    public int $timeout = 300;
+    // A complete assessment scores every published criterion serially. The
+    // Anthropic client allows each criterion request up to 60 seconds.
+    public int $timeout = 900;
 
     public function __construct(
         public readonly string $businessPlanId,

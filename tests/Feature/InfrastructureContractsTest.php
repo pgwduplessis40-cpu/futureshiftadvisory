@@ -106,6 +106,17 @@ final class InfrastructureContractsTest extends TestCase
         $this->assertDatabaseCount('business_plans', 0);
     }
 
+    public function test_entrepreneur_assessment_job_can_complete_all_criterion_requests_before_its_reservation_expires(): void
+    {
+        $assessmentJob = new RunEntrepreneurPlanAssessment(
+            businessPlanId: '00000000-0000-0000-0000-000000000003',
+            advisorId: 999997,
+        );
+
+        $this->assertGreaterThan(12 * 60, $assessmentJob->timeout);
+        $this->assertGreaterThan($assessmentJob->timeout, config('queue.connections.database.retry_after'));
+    }
+
     public function test_realtime_events_publish_only_the_participant_scoped_payloads(): void
     {
         $signal = new ScreenShareSignal(

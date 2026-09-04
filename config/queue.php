@@ -40,7 +40,9 @@ return [
             'connection' => env('DB_QUEUE_CONNECTION'),
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
-            'retry_after' => max(360, (int) env('DB_QUEUE_RETRY_AFTER', 360)),
+            // Must remain longer than the longest job timeout so an active
+            // assessment is never released for a concurrent second worker.
+            'retry_after' => max(960, (int) env('DB_QUEUE_RETRY_AFTER', 960)),
             'after_commit' => false,
         ],
 
