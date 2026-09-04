@@ -2226,9 +2226,9 @@ function AdvisorServiceTabButton({
                     )}
                     onClick={onClick}
                 >
-                    <span className="flex min-w-0 items-center gap-2">
+                    <span className="flex shrink-0 items-center gap-2 whitespace-nowrap">
                         <Icon className="size-4 shrink-0" aria-hidden={true} />
-                        <span className="truncate">{tab.label}</span>
+                        <span>{tab.label}</span>
                     </span>
                     {tab.status && (
                         <Badge
