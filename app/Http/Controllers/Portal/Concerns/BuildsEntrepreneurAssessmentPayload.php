@@ -12,6 +12,7 @@ use App\Services\Entrepreneurs\AssessmentScoring;
 /**
  * @phpstan-type ScoringScope array{version?:string,rescored_criterion_numbers?:list<int|numeric-string>,reused_criterion_numbers?:list<int|numeric-string>,scope_correction_criterion_numbers?:list<int|numeric-string>,advisor_review?:array{required?:bool,confirmed_at?:string|null,confirmed_by_user_id?:int|null},cross_plan_review?:array{required?:bool,trigger?:string|null,message?:string|null}}
  * @phpstan-type ScoringScopePayload array{rescored_criterion_numbers:list<int>,reused_criterion_numbers:list<int>,scope_correction_criterion_numbers:list<int>,is_full_reassessment:bool,has_scope_correction:bool,is_scope_correction_only:bool,advisor_review_required:bool,advisor_review_confirmed_at:string|null,cross_plan_review_required:bool,cross_plan_review_message:string|null}
+ * @phpstan-type AssessmentCriterionPayload array{criterion_number:int,name:string,score:float|int}
  */
 trait BuildsEntrepreneurAssessmentPayload
 {
@@ -322,6 +323,7 @@ trait BuildsEntrepreneurAssessmentPayload
 
     /**
      * @param  ScoringScope|null  $scope
+     * @param  list<AssessmentCriterionPayload>  $criteria
      * @return ScoringScopePayload|null
      */
     private function scoringScopePayload(?array $scope, array $criteria): ?array
@@ -336,7 +338,7 @@ trait BuildsEntrepreneurAssessmentPayload
         $reusedCriterionNumbers = array_values(array_unique(array_map('intval', (array) ($scope['reused_criterion_numbers'] ?? []))));
         $scopeCorrectionCriterionNumbers = array_values(array_unique(array_map('intval', (array) ($scope['scope_correction_criterion_numbers'] ?? []))));
         $criterionNumbers = array_values(array_unique(array_map(
-            fn (array $criterion): int => (int) ($criterion['criterion_number'] ?? 0),
+            fn (array $criterion): int => $criterion['criterion_number'],
             $criteria,
         )));
         sort($rescoredCriterionNumbers);

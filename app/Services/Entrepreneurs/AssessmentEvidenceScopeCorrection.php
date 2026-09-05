@@ -10,7 +10,8 @@ use App\Models\PlanAssessment;
  * @phpstan-import-type CriterionPlanContext from Assessment
  * @phpstan-import-type CriterionScore from Assessment
  *
- * @phpstan-type SnapshotSection array{id:string,title:string,requirement_key:string|null,attached_document_ids:list<int|string>,body:string}
+ * @phpstan-type CriterionEvidenceSection array{section_id:string,title:string,requirement_key:string|null,updated_at?:string|null,body?:string,body_excerpt?:string,attached_document_ids?:list<int|string>}
+ * @phpstan-type ComparableSection array{section_id:string,title:string,requirement_key:string|null,attached_document_ids:list<int|string>,body:string}
  */
 final class AssessmentEvidenceScopeCorrection
 {
@@ -33,9 +34,9 @@ final class AssessmentEvidenceScopeCorrection
             return false;
         }
 
-        $currentSections = collect((array) ($planContext['criterion_focus_sections'] ?? []))
-            ->filter(fn (mixed $section): bool => is_array($section)
-                && trim((string) ($section['section_id'] ?? '')) !== '')
+        $currentSections = collect($planContext['criterion_focus_sections'] ?? [])
+            ->map(fn (array $section): array => $this->currentSection($section))
+            ->filter(fn (array $section): bool => $section['section_id'] !== '')
             ->values();
         if ($currentSections->isEmpty()) {
             return false;
@@ -60,15 +61,16 @@ final class AssessmentEvidenceScopeCorrection
 
                 return collect((array) ($phase['sections'] ?? []))
                     ->filter(fn (mixed $section): bool => is_array($section))
+                    ->map(fn (array $section): array => $this->snapshotSection($section))
                     ->all();
             })
-            ->filter(fn (array $section): bool => trim((string) ($section['id'] ?? '')) !== '')
-            ->keyBy(fn (array $section): string => (string) $section['id']);
+            ->filter(fn (array $section): bool => $section['section_id'] !== '')
+            ->keyBy(fn (array $section): string => $section['section_id']);
 
         return $currentSections->every(function (array $section) use ($previousSnapshotSections): bool {
             $previousSection = $previousSnapshotSections->get((string) $section['section_id']);
 
-            return is_array($previousSection)
+            return $previousSection !== null
                 && hash_equals(
                     $this->canonicalJson($this->sectionContent($previousSection)),
                     $this->canonicalJson($this->sectionContent($section)),
@@ -77,12 +79,28 @@ final class AssessmentEvidenceScopeCorrection
     }
 
     /**
-     * @param  SnapshotSection  $section
-     * @return array{title:string,requirement_key:string|null,attached_document_ids:list<int|string>,body:string}
+     * @param  CriterionEvidenceSection  $section
+     * @return ComparableSection
      */
-    private function sectionContent(array $section): array
+    private function currentSection(array $section): array
     {
         return [
+            'section_id' => $section['section_id'],
+            'title' => $section['title'],
+            'requirement_key' => $section['requirement_key'],
+            'attached_document_ids' => $section['attached_document_ids'] ?? [],
+            'body' => $section['body'] ?? $section['body_excerpt'] ?? '',
+        ];
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $section
+     * @return ComparableSection
+     */
+    private function snapshotSection(array $section): array
+    {
+        return [
+            'section_id' => (string) ($section['id'] ?? ''),
             'title' => (string) ($section['title'] ?? ''),
             'requirement_key' => isset($section['requirement_key']) ? (string) $section['requirement_key'] : null,
             'attached_document_ids' => array_values(array_filter(
@@ -90,6 +108,20 @@ final class AssessmentEvidenceScopeCorrection
                 fn (mixed $id): bool => is_int($id) || is_string($id),
             )),
             'body' => (string) ($section['body'] ?? ''),
+        ];
+    }
+
+    /**
+     * @param  ComparableSection  $section
+     * @return array{title:string,requirement_key:string|null,attached_document_ids:list<int|string>,body:string}
+     */
+    private function sectionContent(array $section): array
+    {
+        return [
+            'title' => $section['title'],
+            'requirement_key' => $section['requirement_key'],
+            'attached_document_ids' => $section['attached_document_ids'],
+            'body' => $section['body'],
         ];
     }
 

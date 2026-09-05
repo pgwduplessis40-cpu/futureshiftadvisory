@@ -286,13 +286,11 @@ final class AdvisorEntrepreneurPlanPayload
      */
     private function currentGaps(?array $assessmentPayload): array
     {
-        return collect((array) ($assessmentPayload['criteria'] ?? []))
-            ->filter(fn (mixed $criterion): bool => is_array($criterion)
-                && is_numeric($criterion['score'] ?? null)
-                && (float) $criterion['score'] < 60)
+        return collect($assessmentPayload['criteria'] ?? [])
+            ->filter(fn (array $criterion): bool => (float) $criterion['score'] < 60)
             ->map(fn (array $criterion): array => [
-                'criterion_number' => (int) ($criterion['criterion_number'] ?? 0),
-                'criterion_name' => (string) ($criterion['name'] ?? 'Plan criterion'),
+                'criterion_number' => $criterion['criterion_number'],
+                'criterion_name' => $criterion['name'],
                 'previous_score' => null,
                 'current_score' => (int) round((float) $criterion['score']),
                 'delta' => 0,
