@@ -1,6 +1,7 @@
 import { ClipboardCheck, FileText, Scale } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { formatNzDate } from '@/lib/formatters';
 
 type AssessmentScoreSummaryData = {
     automated_score_available: boolean;
@@ -229,9 +230,7 @@ function formatDate(value: string | null): string {
         return '-';
     }
 
-    return new Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-    }).format(new Date(value));
+    return formatNzDate(value);
 }
 
 function formatDateTime(value: string | null): string {
@@ -239,10 +238,10 @@ function formatDateTime(value: string | null): string {
         return '-';
     }
 
-    return new Intl.DateTimeFormat(undefined, {
+    return formatNzDate(value, {
         dateStyle: 'medium',
         timeStyle: 'short',
-    }).format(new Date(value));
+    });
 }
 
 function formatLabel(value: string): string {
