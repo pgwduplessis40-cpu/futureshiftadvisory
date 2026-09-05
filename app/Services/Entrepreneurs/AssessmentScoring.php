@@ -48,7 +48,8 @@ final class AssessmentScoring
                 $scoreSource = is_array($ai)
                     ? (string) ($ai['score_source'] ?? data_get($ai, 'metadata.score_source'))
                     : '';
-                $reused = $scoreSource === 'reused_identical_context';
+                $legacyReused = $scoreSource === 'reused_identical_context';
+                $reusedUnchangedEvidence = $scoreSource === 'reused_unchanged_evidence';
                 $fallback = $scoreSource === 'deterministic_fallback';
                 $source = 'automated_assessment';
                 $sourceLabel = sprintf('Round %d automated score', max(1, (int) $assessment->round));
@@ -62,10 +63,17 @@ final class AssessmentScoring
                 } elseif ($fallback) {
                     $source = 'invalid_fallback';
                     $sourceLabel = 'No valid AI score was returned; this historical fallback is unavailable for advice or progression';
-                } elseif ($reused) {
+                } elseif ($legacyReused) {
                     $source = 'reused_assessment';
                     $sourceLabel = sprintf(
                         'Round %d carried forward from round %d; no fresh AI score was generated',
+                        max(1, (int) $assessment->round),
+                        max(1, (int) data_get($ai, 'metadata.reused_from_round', $assessment->round)),
+                    );
+                } elseif ($reusedUnchangedEvidence) {
+                    $source = 'reused_assessment';
+                    $sourceLabel = sprintf(
+                        'Round %d retained from unchanged criterion evidence in round %d',
                         max(1, (int) $assessment->round),
                         max(1, (int) data_get($ai, 'metadata.reused_from_round', $assessment->round)),
                     );

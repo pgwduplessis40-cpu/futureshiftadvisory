@@ -158,9 +158,9 @@ final class PlanAiContext
     }
 
     /**
-     * Builds the immutable evidence pack used for a scored assessment round.
-     * Every criterion receives the complete submitted plan and its budget data;
-     * the criterion focus only tells the model where to apply the rubric.
+     * Builds the immutable, criterion-scoped evidence pack used for a scored
+     * assessment round. The full submitted snapshot remains on the assessment
+     * for audit, but it is deliberately not supplied to unrelated criteria.
      *
      * @param  array<string, mixed>  $snapshot
      * @return array<string, mixed>
@@ -186,6 +186,10 @@ final class PlanAiContext
                         'updated_at' => isset($section['updated_at'])
                             ? (string) $section['updated_at']
                             : null,
+                        'attached_document_ids' => array_values(array_filter(
+                            (array) ($section['attached_document_ids'] ?? []),
+                            fn (mixed $id): bool => is_string($id) || is_int($id),
+                        )),
                         'body' => (string) ($section['body'] ?? ''),
                     ])
                     ->all();
@@ -195,23 +199,34 @@ final class PlanAiContext
         $preferredRequirementKeys = self::CRITERION_REQUIREMENT_KEYS[strtolower(trim((string) $criterion->name))] ?? [];
         $criterionFocusSections = collect($sections)
             ->filter(fn (array $section): bool => in_array($section['requirement_key'] ?? null, $preferredRequirementKeys, true));
+        $scopeFallback = false;
 
         if ($criterionFocusSections->isEmpty()) {
             $criterionFocusSections = collect($sections);
+            $scopeFallback = true;
         }
 
-        $budgetEvidence = data_get($snapshot, 'budget.assessment_evidence');
+        $budgetEvidence = (int) $criterion->number === 12
+            ? data_get($snapshot, 'budget.assessment_evidence')
+            : null;
+        $scopedSections = $criterionFocusSections->values()->all();
 
         return [
-            'evidence_mode' => 'complete_submitted_plan_snapshot',
-            'snapshot_captured_at' => (string) ($snapshot['captured_at'] ?? ''),
+            'evidence_mode' => 'criterion_scoped_submitted_snapshot',
             'criterion_focus' => [
+                'number' => (int) $criterion->number,
                 'name' => (string) $criterion->name,
                 'preferred_requirement_keys' => $preferredRequirementKeys,
             ],
-            'full_plan_sections' => $sections,
-            'criterion_focus_sections' => $criterionFocusSections->take(3)->values()->all(),
+            'scope_fallback' => $scopeFallback,
+            'criterion_focus_sections' => $scopedSections,
             'budget_evidence' => is_array($budgetEvidence) ? $budgetEvidence : null,
+            'evidence_hash' => $this->criterionEvidenceHash(
+                criterion: $criterion,
+                sections: $scopedSections,
+                budgetEvidence: is_array($budgetEvidence) ? $budgetEvidence : null,
+                scopeFallback: $scopeFallback,
+            ),
         ];
     }
 
@@ -220,9 +235,10 @@ final class PlanAiContext
      */
     public function assessmentText(array $context): string
     {
-        if (($context['evidence_mode'] ?? null) === 'complete_submitted_plan_snapshot') {
+        if (($context['evidence_mode'] ?? null) === 'criterion_scoped_submitted_snapshot') {
             return json_encode([
-                'full_plan_sections' => $context['full_plan_sections'] ?? [],
+                'criterion_focus' => $context['criterion_focus'] ?? [],
+                'criterion_focus_sections' => $context['criterion_focus_sections'] ?? [],
                 'budget_evidence' => $context['budget_evidence'] ?? [],
             ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
         }
@@ -234,6 +250,38 @@ final class PlanAiContext
         ])
             ->filter(fn (string $value): bool => trim($value) !== '')
             ->implode("\n");
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $sections
+     * @param  array<string, mixed>|null  $budgetEvidence
+     */
+    private function criterionEvidenceHash(
+        RatingCriterion $criterion,
+        array $sections,
+        ?array $budgetEvidence,
+        bool $scopeFallback,
+    ): string {
+        $stableSections = collect($sections)
+            ->map(fn (array $section): array => [
+                'section_id' => (string) ($section['section_id'] ?? ''),
+                'requirement_key' => $section['requirement_key'] ?? null,
+                'title' => (string) ($section['title'] ?? ''),
+                'body' => (string) ($section['body'] ?? ''),
+                'attached_document_ids' => array_values((array) ($section['attached_document_ids'] ?? [])),
+            ])
+            ->sortBy(fn (array $section): string => $section['section_id'].'|'.$section['requirement_key'])
+            ->values()
+            ->all();
+
+        return hash('sha256', json_encode([
+            'contract' => 'criterion_evidence_v1',
+            'criterion_number' => (int) $criterion->number,
+            'criterion_name' => (string) $criterion->name,
+            'scope_fallback' => $scopeFallback,
+            'sections' => $stableSections,
+            'budget_evidence' => $budgetEvidence,
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
     }
 
     /**

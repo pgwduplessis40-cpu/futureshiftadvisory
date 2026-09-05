@@ -18,6 +18,7 @@ use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
 use App\Support\Methodology\ProvidesMethodology;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -27,6 +28,8 @@ use Throwable;
 final class Assessment implements ProvidesMethodology
 {
     public const LEARNING_LAYER_ID = 19;
+
+    private const SCORING_CONTRACT_VERSION = 'criterion_evidence_v1';
 
     public static function methodologyIds(): array
     {
@@ -64,6 +67,17 @@ final class Assessment implements ProvidesMethodology
         }
 
         $planSnapshot = $this->snapshots->capture($plan);
+        $previousAssessment = PlanAssessment::query()
+            ->where('business_plan_id', $plan->getKey())
+            ->where('rating_framework_id', $framework->getKey())
+            ->orderByDesc('round')
+            ->first();
+        $previousAiScores = $previousAssessment instanceof PlanAssessment
+            ? $this->scoresByCriterion($previousAssessment->ai_scores ?? [])
+            : collect();
+        $previousAdvisorScores = $previousAssessment instanceof PlanAssessment
+            ? $this->scoresByCriterion($previousAssessment->advisor_scores ?? [])
+            : collect();
         $criterionContexts = $criteria
             ->mapWithKeys(fn (RatingCriterion $criterion): array => [
                 (string) $criterion->number => $this->contexts->criterionAssessmentFromSnapshot(
@@ -71,8 +85,8 @@ final class Assessment implements ProvidesMethodology
                     criterion: $criterion,
                 ),
             ]);
-        $aiScores = $criteria
-            ->map(function (RatingCriterion $criterion, int $index) use ($criteria, $criterionContexts, $framework, $plan, $totalCriteria): array {
+        $scoredCriteria = $criteria
+            ->map(function (RatingCriterion $criterion, int $index) use ($criteria, $criterionContexts, $framework, $plan, $totalCriteria, $previousAssessment, $previousAiScores, $previousAdvisorScores): array {
                 $this->updateQueuedFirstPassProgress(
                     plan: $plan,
                     totalCriteria: $totalCriteria,
@@ -85,12 +99,19 @@ final class Assessment implements ProvidesMethodology
                     ),
                 );
 
-                $score = $this->scoreCriterion(
-                    criterion: $criterion,
-                    plan: $plan,
-                    framework: $framework,
-                    planContext: $criterionContexts->get((string) $criterion->number, []),
-                );
+                $planContext = $criterionContexts->get((string) $criterion->number, []);
+                $previousScore = $previousAiScores->get((int) $criterion->number);
+                $canReuse = $previousAssessment instanceof PlanAssessment
+                    && is_array($previousScore)
+                    && $this->canReuseCriterionScore($previousScore, $planContext);
+                $score = $canReuse
+                    ? $this->reusedCriterionScore($previousScore, $previousAssessment, $planContext)
+                    : $this->scoreCriterion(
+                        criterion: $criterion,
+                        plan: $plan,
+                        framework: $framework,
+                        planContext: $planContext,
+                    );
                 $nextCriterion = $criteria->get($index + 1);
 
                 $this->updateQueuedFirstPassProgress(
@@ -107,14 +128,62 @@ final class Assessment implements ProvidesMethodology
                         : 'Saving assessment',
                 );
 
-                return $score;
+                return [
+                    'ai_score' => $score,
+                    'advisor_score' => $canReuse
+                        ? $this->reusedAdvisorScore(
+                            $previousAdvisorScores->get((int) $criterion->number),
+                            $previousAssessment,
+                            (int) $criterion->number,
+                        )
+                        : null,
+                    'reused' => $canReuse,
+                ];
             })
             ->values()
             ->all();
+        $aiScores = collect($scoredCriteria)->pluck('ai_score')->values()->all();
+        $advisorScores = collect($scoredCriteria)
+            ->pluck('advisor_score')
+            ->filter(fn (mixed $score): bool => is_array($score))
+            ->mapWithKeys(fn (array $score): array => [(string) $score['criterion_number'] => $score])
+            ->all();
+        $reusedCriterionNumbers = collect($scoredCriteria)
+            ->filter(fn (array $result): bool => $result['reused'])
+            ->keys()
+            ->map(fn (int $index): int => (int) $criteria->get($index)?->number)
+            ->values()
+            ->all();
+        $rescoredCriterionNumbers = $criteria
+            ->pluck('number')
+            ->map(fn (mixed $number): int => (int) $number)
+            ->reject(fn (int $number): bool => in_array($number, $reusedCriterionNumbers, true))
+            ->values()
+            ->all();
         $documentSupport = $this->documentSupport($plan);
-        $weighted = AssessmentScoring::weightedScoreForFramework($framework, $aiScores);
+        $weighted = AssessmentScoring::weightedScoreForFramework($framework, $aiScores, $advisorScores);
+        $budgetChanged = $previousAssessment instanceof PlanAssessment
+            && $this->budgetEvidenceChanged($previousAssessment->plan_snapshot ?? [], $planSnapshot);
+        $scoringScope = [
+            'version' => self::SCORING_CONTRACT_VERSION,
+            'rescored_criterion_numbers' => $rescoredCriterionNumbers,
+            'reused_criterion_numbers' => $reusedCriterionNumbers,
+            'carried_advisor_criterion_numbers' => array_map('intval', array_keys($advisorScores)),
+            'advisor_review' => [
+                'required' => $previousAssessment instanceof PlanAssessment && $rescoredCriterionNumbers !== [],
+                'confirmed_at' => null,
+                'confirmed_by_user_id' => null,
+            ],
+            'cross_plan_review' => [
+                'required' => $budgetChanged,
+                'trigger' => $budgetChanged ? 'budget_evidence_changed' : null,
+                'message' => $budgetChanged
+                    ? 'Budget evidence changed. It did not automatically change non-budget criterion scores; review cross-plan consistency before finalising.'
+                    : null,
+            ],
+        ];
 
-        return DB::transaction(function () use ($plan, $actor, $framework, $aiScores, $documentSupport, $planSnapshot, $totalCriteria, $weighted): PlanAssessment {
+        return DB::transaction(function () use ($plan, $actor, $framework, $aiScores, $advisorScores, $documentSupport, $planSnapshot, $scoringScope, $totalCriteria, $weighted): PlanAssessment {
             $lockedPlan = BusinessPlan::query()
                 ->whereKey($plan->getKey())
                 ->lockForUpdate()
@@ -139,10 +208,11 @@ final class Assessment implements ProvidesMethodology
                 'round' => max(1, (int) $round),
                 'rating_framework_id' => $framework->getKey(),
                 'ai_scores' => $aiScores,
-                'advisor_scores' => [],
+                'advisor_scores' => $advisorScores,
                 'mentor_notes' => [],
                 'document_support' => $documentSupport,
                 'plan_snapshot' => $planSnapshot,
+                'scoring_scope' => $scoringScope,
                 'overall_grade' => $framework->gradeFor($weighted),
             ]);
             $lockedPlan->forceFill([
@@ -162,7 +232,9 @@ final class Assessment implements ProvidesMethodology
                 'criterion_count' => count($aiScores),
                 'weighted_score' => $weighted,
                 'overall_grade' => $assessment->overall_grade,
-                'new_ai_score_generated' => true,
+                'rescored_criterion_numbers' => $scoringScope['rescored_criterion_numbers'],
+                'reused_criterion_numbers' => $scoringScope['reused_criterion_numbers'],
+                'cross_plan_review_required' => data_get($scoringScope, 'cross_plan_review.required', false),
             ]);
 
             return $assessment->refresh()->load('ratingFramework.criteria');
@@ -412,6 +484,35 @@ final class Assessment implements ProvidesMethodology
             ->exists();
     }
 
+    public function confirmScoringScope(PlanAssessment $assessment, User $advisor): PlanAssessment
+    {
+        $scope = $assessment->scoring_scope;
+        if (! is_array($scope) || ($scope['version'] ?? null) !== self::SCORING_CONTRACT_VERSION) {
+            return $assessment->refresh();
+        }
+
+        $review = is_array($scope['advisor_review'] ?? null) ? $scope['advisor_review'] : [];
+        if (! (bool) ($review['required'] ?? false) || ! empty($review['confirmed_at'])) {
+            return $assessment->refresh();
+        }
+
+        $scope['advisor_review'] = [
+            ...$review,
+            'confirmed_at' => now()->toIso8601String(),
+            'confirmed_by_user_id' => $advisor->getKey(),
+        ];
+        $assessment->forceFill(['scoring_scope' => $scope])->save();
+        $this->audit->record('entrepreneur.plan_assessment_scoring_scope_confirmed', subject: $assessment, actor: $advisor, after: [
+            'business_plan_id' => $assessment->business_plan_id,
+            'round' => $assessment->round,
+            'rescored_criterion_numbers' => data_get($scope, 'rescored_criterion_numbers', []),
+            'reused_criterion_numbers' => data_get($scope, 'reused_criterion_numbers', []),
+            'cross_plan_review_required' => (bool) data_get($scope, 'cross_plan_review.required', false),
+        ]);
+
+        return $assessment->refresh();
+    }
+
     public function finalise(PlanAssessment $assessment, User $advisor): PlanAssessment
     {
         $assessment->loadMissing('ratingFramework.criteria');
@@ -428,6 +529,12 @@ final class Assessment implements ProvidesMethodology
 
             throw ValidationException::withMessages([
                 'assessment' => $message,
+            ]);
+        }
+
+        if ($this->requiresScoringScopeConfirmation($assessment)) {
+            throw ValidationException::withMessages([
+                'assessment' => 'An advisor must confirm the rescored criteria and any cross-plan review warning before this assessment can be finalised.',
             ]);
         }
 
@@ -459,6 +566,141 @@ final class Assessment implements ProvidesMethodology
     }
 
     /**
+     * @param  array<string, mixed>  $previousScore
+     * @param  array<string, mixed>  $planContext
+     */
+    private function canReuseCriterionScore(array $previousScore, array $planContext): bool
+    {
+        $metadata = is_array($previousScore['metadata'] ?? null) ? $previousScore['metadata'] : [];
+        $scoreSource = (string) ($previousScore['score_source'] ?? $metadata['score_source'] ?? '');
+
+        return in_array($scoreSource, ['ai_assessment', 'reused_unchanged_evidence'], true)
+            && is_numeric($previousScore['score'] ?? null)
+            && ($metadata['scoring_contract_version'] ?? null) === self::SCORING_CONTRACT_VERSION
+            && is_string($metadata['evidence_hash'] ?? null)
+            && hash_equals((string) $metadata['evidence_hash'], (string) ($planContext['evidence_hash'] ?? ''));
+    }
+
+    /**
+     * @param  array<string, mixed>  $previousScore
+     * @param  array<string, mixed>  $planContext
+     * @return array<string, mixed>
+     */
+    private function reusedCriterionScore(array $previousScore, PlanAssessment $previousAssessment, array $planContext): array
+    {
+        $metadata = is_array($previousScore['metadata'] ?? null) ? $previousScore['metadata'] : [];
+
+        return [
+            ...$previousScore,
+            'score_source' => 'reused_unchanged_evidence',
+            'metadata' => [
+                ...$metadata,
+                'score_source' => 'reused_unchanged_evidence',
+                'scoring_contract_version' => self::SCORING_CONTRACT_VERSION,
+                'evidence_hash' => (string) ($planContext['evidence_hash'] ?? ''),
+                'evidence_mode' => (string) ($planContext['evidence_mode'] ?? 'criterion_scoped_submitted_snapshot'),
+                'evidence_section_count' => count($planContext['criterion_focus_sections'] ?? []),
+                'budget_evidence_included' => is_array($planContext['budget_evidence'] ?? null),
+                'source_sections' => $this->sourceSectionsFromContext($planContext),
+                'reuse_basis' => 'criterion_evidence_hash',
+                'reused_from_assessment_id' => (string) $previousAssessment->getKey(),
+                'reused_from_round' => (int) $previousAssessment->round,
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function reusedAdvisorScore(
+        mixed $previousAdvisorScore,
+        PlanAssessment $previousAssessment,
+        int $criterionNumber,
+    ): ?array {
+        if (! is_array($previousAdvisorScore) || ! is_numeric($previousAdvisorScore['score'] ?? null)) {
+            return null;
+        }
+
+        return [
+            ...$previousAdvisorScore,
+            'criterion_number' => $criterionNumber,
+            'carried_from_assessment_id' => (string) $previousAssessment->getKey(),
+            'carried_from_round' => (int) $previousAssessment->round,
+            'carried_basis' => 'criterion_evidence_hash',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $previousSnapshot
+     * @param  array<string, mixed>  $nextSnapshot
+     */
+    private function budgetEvidenceChanged(array $previousSnapshot, array $nextSnapshot): bool
+    {
+        $previousBudget = data_get($previousSnapshot, 'budget.assessment_evidence');
+        $nextBudget = data_get($nextSnapshot, 'budget.assessment_evidence');
+
+        if (! is_array($previousBudget) || ! is_array($nextBudget)) {
+            return false;
+        }
+
+        return ! hash_equals(
+            $this->canonicalJson($previousBudget),
+            $this->canonicalJson($nextBudget),
+        );
+    }
+
+    private function requiresScoringScopeConfirmation(PlanAssessment $assessment): bool
+    {
+        $scope = $assessment->scoring_scope;
+        if (! is_array($scope) || ($scope['version'] ?? null) !== self::SCORING_CONTRACT_VERSION) {
+            return false;
+        }
+
+        return (bool) data_get($scope, 'advisor_review.required', false)
+            && empty(data_get($scope, 'advisor_review.confirmed_at'));
+    }
+
+    /**
+     * @param  array<mixed>  $scores
+     * @return Collection<int, array<array-key, mixed>>
+     */
+    private function scoresByCriterion(array $scores): Collection
+    {
+        $isList = array_is_list($scores);
+
+        $criterionScores = collect($scores)
+            ->filter(fn (mixed $score): bool => is_array($score) && is_numeric($score['score'] ?? null))
+            ->mapWithKeys(function (array $score, int|string $key) use ($isList): array {
+                $number = (int) ($score['criterion_number'] ?? ($isList && is_int($key) ? $key + 1 : $key));
+
+                return $number > 0 ? [$number => $score] : [];
+            });
+
+        /** @var Collection<int, array<array-key, mixed>> $criterionScores */
+        return $criterionScores;
+    }
+
+    /** @param  array<mixed>  $value */
+    private function canonicalJson(array $value): string
+    {
+        return json_encode($this->sortForHash($value), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+    }
+
+    private function sortForHash(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        $sorted = array_map(fn (mixed $item): mixed => $this->sortForHash($item), $value);
+        if (! array_is_list($sorted)) {
+            ksort($sorted);
+        }
+
+        return $sorted;
+    }
+
+    /**
      * @param  array<string, mixed>  $planContext
      */
     private function scoreCriterion(
@@ -469,9 +711,9 @@ final class Assessment implements ProvidesMethodology
     ): array {
         $prompt = new PromptEnvelope(
             id: EntrepreneurPromptRegistry::PLAN_SCORE_CRITERION,
-            version: '2026-08-17',
-            task: 'Select one rubric band for an entrepreneur business-plan criterion using the complete submitted plan snapshot.',
-            body: 'Return JSON only. Set metadata.band to exactly one of exceptional, strong, developing, or needs_work. Do not return a numeric score. Use the criterion descriptors, assess the complete submitted-plan snapshot (including budget evidence), and set text to a concise evidence-based rationale. Do not flatter weak evidence.',
+            version: '2026-09-05',
+            task: 'Select one rubric band for an entrepreneur business-plan criterion using only its scoped submitted-plan evidence.',
+            body: 'Return JSON only. Set metadata.band to exactly one of exceptional, strong, developing, or needs_work. Do not return a numeric score. Use the criterion descriptors and only the supplied criterion-scoped evidence. Budget evidence is supplied only for the Budget criterion. Do not infer a weakness in an unrelated plan area from evidence that is not supplied. Set text to a concise evidence-based rationale. Do not flatter weak evidence.',
             input: [
                 'business_plan_id' => $plan->getKey(),
                 'criterion' => [
@@ -482,7 +724,7 @@ final class Assessment implements ProvidesMethodology
                 'plan_context' => $planContext,
             ],
             dataQualitySummary: [
-                'level' => 'submitted_plan_snapshot',
+                'level' => 'criterion_scoped_submitted_snapshot',
             ],
             sourceReferences: ['business_plan:'.$plan->getKey(), 'rating_criterion:'.$criterion->getKey()],
         );
@@ -515,7 +757,7 @@ final class Assessment implements ProvidesMethodology
             'attributions' => [
                 ...$response->attributions,
                 [
-                    'claim' => 'Criterion band derived from the complete submitted business-plan snapshot.',
+                    'claim' => 'Criterion band derived from its scoped submitted business-plan evidence.',
                     'source_reference' => 'business_plan:'.$plan->getKey(),
                 ],
             ],
@@ -527,11 +769,13 @@ final class Assessment implements ProvidesMethodology
                 'score_scale' => $scoreScale,
                 'score_source' => 'ai_assessment',
                 'scoring_method' => 'calibrated_band_v1',
+                'scoring_contract_version' => self::SCORING_CONTRACT_VERSION,
                 'uncertainty' => $response->uncertainty->value,
                 'context_characters' => Str::length($assessmentText),
                 'context_hash' => hash('sha256', $assessmentText),
+                'evidence_hash' => (string) ($planContext['evidence_hash'] ?? hash('sha256', $assessmentText)),
                 'evidence_mode' => (string) ($planContext['evidence_mode'] ?? 'selected_plan_excerpts'),
-                'evidence_section_count' => count($planContext['full_plan_sections'] ?? []),
+                'evidence_section_count' => count($planContext['criterion_focus_sections'] ?? []),
                 'budget_evidence_included' => is_array($planContext['budget_evidence'] ?? null),
                 'source_sections' => $this->sourceSectionsFromContext($planContext),
             ],
@@ -546,12 +790,10 @@ final class Assessment implements ProvidesMethodology
     {
         $sections = is_array($planContext['criterion_focus_sections'] ?? null)
             ? $planContext['criterion_focus_sections']
-            : (is_array($planContext['full_plan_sections'] ?? null)
-                ? $planContext['full_plan_sections']
             : [
                 ...($planContext['relevant_sections'] ?? []),
                 ...($planContext['supporting_section_summaries'] ?? []),
-            ]);
+            ];
 
         return collect($sections)
             ->map(fn (array $section): array => [

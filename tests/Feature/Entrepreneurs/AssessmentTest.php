@@ -89,7 +89,7 @@ final class AssessmentTest extends TestCase
         $this->assertSame('exceptional', $assessment->overall_grade);
     }
 
-    public function test_first_pass_scores_the_complete_submitted_snapshot_including_budget_evidence(): void
+    public function test_first_pass_scores_mapped_criterion_evidence_and_limits_budget_evidence_to_budget(): void
     {
         $ai = new CapturingScoreAiClient(70);
         $this->app->instance(AiClient::class, $ai);
@@ -112,18 +112,18 @@ final class AssessmentTest extends TestCase
         ]);
 
         $assessment = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
-        $promptInput = json_encode(
-            array_map(fn (PromptEnvelope $prompt): array => $prompt->input, $ai->scorePrompts),
-            JSON_THROW_ON_ERROR,
-        );
+        $firstCriterionPrompt = json_encode($ai->scorePrompts[0]->input, JSON_THROW_ON_ERROR);
+        $budgetCriterionPrompt = json_encode($ai->scorePrompts[11]->input, JSON_THROW_ON_ERROR);
 
         $this->assertSame(55, data_get($assessment->ai_scores, '0.score'));
         $this->assertSame('developing', data_get($assessment->ai_scores, '0.metadata.score_band'));
         $this->assertSame('calibrated_band_v1', data_get($assessment->ai_scores, '0.metadata.scoring_method'));
-        $this->assertSame('complete_submitted_plan_snapshot', data_get($assessment->ai_scores, '0.metadata.evidence_mode'));
-        $this->assertTrue((bool) data_get($assessment->ai_scores, '0.metadata.budget_evidence_included'));
-        $this->assertStringContainsString('This evidence must be present for every criterion', $promptInput);
-        $this->assertStringContainsString('Snapshot budget pricing evidence', $promptInput);
+        $this->assertSame('criterion_scoped_submitted_snapshot', data_get($assessment->ai_scores, '0.metadata.evidence_mode'));
+        $this->assertSame('criterion_evidence_v1', data_get($assessment->ai_scores, '0.metadata.scoring_contract_version'));
+        $this->assertFalse((bool) data_get($assessment->ai_scores, '0.metadata.budget_evidence_included'));
+        $this->assertTrue((bool) data_get($assessment->ai_scores, '11.metadata.budget_evidence_included'));
+        $this->assertStringNotContainsString('Snapshot budget pricing evidence', $firstCriterionPrompt);
+        $this->assertStringContainsString('Snapshot budget pricing evidence', $budgetCriterionPrompt);
         $this->assertSame('Snapshot budget pricing evidence', data_get($assessment->plan_snapshot, 'budget.assessment_evidence.assumptions.pricing_basis'));
 
         $profile = $plan->entrepreneurProfile()->firstOrFail();
@@ -132,7 +132,7 @@ final class AssessmentTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('assessment.scoring.is_calibrated', true)
-                ->where('assessment.scoring.uses_complete_snapshot_evidence', true)
+                ->where('assessment.scoring.uses_scoped_criterion_evidence', true)
                 ->where('assessment.criteria.0.score_band', 'developing')
                 ->where('assessment.criteria.0.contribution', 4.4)
                 ->where('assessment.evidence_audit.includes_budget_evidence', true)
@@ -279,7 +279,7 @@ final class AssessmentTest extends TestCase
                 ->where('entrepreneur.latest_plan.latest_assessment.id', $latest->id)
                 ->where('entrepreneur.latest_plan.assessment_history.0.round', 2)
                 ->where('entrepreneur.latest_plan.assessment_history.0.score_delta', 0)
-                ->where('entrepreneur.latest_plan.assessment_history.0.score_source_summary', 'Calibrated rubric-band assessment against the complete submitted plan snapshot, including budget evidence.')
+                ->where('entrepreneur.latest_plan.assessment_history.0.score_source_summary', 'Calibrated rubric-band assessment against mapped criterion evidence; full submitted plan snapshot retained for audit.')
                 ->where('entrepreneur.latest_plan.assessment_history.0.snapshot_available', true)
                 ->where('entrepreneur.latest_plan.assessment_history.0.snapshot_note', 'Submitted-plan snapshot captured for this assessment round.')
                 ->where('entrepreneur.latest_plan.assessment_history.0.plan_snapshot_url', route('advisor.entrepreneurs.assessments.plan-preview', [$profile, $latest], absolute: false))
@@ -295,7 +295,7 @@ final class AssessmentTest extends TestCase
                 ->where('assessment.basis.plan_snapshot_url', route('advisor.entrepreneurs.assessments.plan-preview', [$profile, $latest], absolute: false))
                 ->where('assessment.criteria.0.source_label', 'Round 2 automated score')
                 ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'assessment round 2')
-                    && str_contains($value, 'server-converted rubric band')
+                    && str_contains($value, 'changed mapped evidence')
                     && ! str_contains(strtolower($value), 'first-pass'))
             );
     }
@@ -368,7 +368,7 @@ final class AssessmentTest extends TestCase
         $this->assertDatabaseCount('plan_assessments', 0);
     }
 
-    public function test_reassessment_generates_fresh_scores_when_the_submitted_plan_has_not_changed(): void
+    public function test_reassessment_retains_calibrated_scores_when_the_mapped_evidence_has_not_changed(): void
     {
         $firstAi = new CapturingScoreAiClient(82);
         $this->app->instance(AiClient::class, $firstAi);
@@ -382,21 +382,114 @@ final class AssessmentTest extends TestCase
 
         $this->assertSame(2, $second->round);
         $this->assertSame(80, data_get($first->ai_scores, '0.score'));
-        $this->assertSame(100, data_get($second->ai_scores, '0.score'));
-        $this->assertCount(12, $freshAi->scorePrompts);
+        $this->assertSame(80, data_get($second->ai_scores, '0.score'));
+        $this->assertCount(0, $freshAi->scorePrompts);
         $this->assertTrue(collect($second->ai_scores)->every(
-            fn (array $score): bool => $score['score_source'] === 'ai_assessment'
-                && ! data_get($score, 'metadata.reuse_basis'),
+            fn (array $score): bool => $score['score_source'] === 'reused_unchanged_evidence'
+                && data_get($score, 'metadata.reuse_basis') === 'criterion_evidence_hash',
         ));
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.entrepreneurs.assessments.show', [$plan->entrepreneurProfile()->firstOrFail(), $second]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('assessment.criteria.0.source_label', 'Round 2 automated score')
+                ->where('assessment.criteria.0.source_label', 'Round 2 retained from unchanged criterion evidence in round 1')
                 ->where('assessment.requires_full_reassessment', false)
-                ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'server-converted rubric band'))
+                ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'unchanged criterion evidence'))
             );
+    }
+
+    public function test_reassessment_only_rescores_criteria_mapped_to_changed_evidence_and_requires_advisor_confirmation(): void
+    {
+        $firstAi = new CapturingScoreAiClient(82);
+        $this->app->instance(AiClient::class, $firstAi);
+        [$advisor, $plan] = $this->plan('scoped-reassessment-founder@example.test');
+        $this->seedMappedAssessmentSections($plan, $advisor);
+
+        $first = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+        $secondAi = new CapturingScoreAiClient(95);
+        $this->app->instance(AiClient::class, $secondAi);
+        app(PlanBuilder::class)->upsertSection(
+            plan: $plan->refresh(),
+            phaseKey: 'market',
+            key: 'assessment-differentiation',
+            title: 'Differentiation',
+            body: 'Updated differentiation evidence: named alternatives, a measurable advantage, and six paid pilot results.',
+            actor: $advisor,
+            metadata: ['requirement_key' => 'differentiation'],
+        );
+
+        $second = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+
+        $this->assertSame([4, 5], collect($secondAi->scorePrompts)
+            ->map(fn (PromptEnvelope $prompt): int => (int) data_get($prompt->input, 'criterion.number'))
+            ->all());
+        $this->assertSame(80, data_get($second->ai_scores, '0.score'));
+        $this->assertSame(100, data_get($second->ai_scores, '3.score'));
+        $this->assertSame('reused_unchanged_evidence', data_get($second->ai_scores, '0.score_source'));
+        $this->assertSame('ai_assessment', data_get($second->ai_scores, '3.score_source'));
+        $this->assertSame([4, 5], data_get($second->scoring_scope, 'rescored_criterion_numbers'));
+        $this->assertContains(1, data_get($second->scoring_scope, 'reused_criterion_numbers'));
+
+        try {
+            app(Assessment::class)->finalise($second, $advisor);
+            $this->fail('Expected an unconfirmed reassessment to be blocked from finalisation.');
+        } catch (ValidationException $exception) {
+            $this->assertSame(
+                'An advisor must confirm the rescored criteria and any cross-plan review warning before this assessment can be finalised.',
+                $exception->errors()['assessment'][0],
+            );
+        }
+
+        $profile = $plan->entrepreneurProfile()->firstOrFail();
+        $confirmUrl = route('advisor.entrepreneurs.assessments.scoring-scope.confirm', [$profile, $second], absolute: false);
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.assessments.show', [$profile, $second]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('assessment.scoring_scope.rescored_criterion_numbers', [4, 5])
+                ->where('assessment.scoring_scope.advisor_review_required', true)
+                ->where('advisorScoringReview.action_url', $confirmUrl));
+
+        $this->actingAsMfa($advisor)
+            ->patch($confirmUrl)
+            ->assertRedirect(route('advisor.entrepreneurs.assessments.show', [$profile, $second], absolute: false));
+
+        $confirmed = $second->refresh();
+        $this->assertNotNull(data_get($confirmed->scoring_scope, 'advisor_review.confirmed_at'));
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.plan_assessment_scoring_scope_confirmed',
+            'subject_id' => $second->id,
+        ]);
+    }
+
+    public function test_budget_change_rescores_only_budget_and_creates_cross_plan_review_warning(): void
+    {
+        $firstAi = new CapturingScoreAiClient(82);
+        $this->app->instance(AiClient::class, $firstAi);
+        [$advisor, $plan] = $this->plan('budget-scoped-reassessment-founder@example.test');
+        $this->seedMappedAssessmentSections($plan, $advisor);
+        $budget = EntrepreneurBudget::query()->create([
+            'business_plan_id' => $plan->getKey(),
+            'status' => EntrepreneurBudget::STATUS_COMPLETE,
+            'forecast_years' => 3,
+            'assumptions' => ['pricing_basis' => 'Initial budget assumption'],
+            'computed' => ['runway_months' => 12],
+        ]);
+        app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+
+        $secondAi = new CapturingScoreAiClient(95);
+        $this->app->instance(AiClient::class, $secondAi);
+        $budget->forceFill(['assumptions' => ['pricing_basis' => 'Updated budget assumption']])->save();
+
+        $second = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+
+        $this->assertSame([12], collect($secondAi->scorePrompts)
+            ->map(fn (PromptEnvelope $prompt): int => (int) data_get($prompt->input, 'criterion.number'))
+            ->all());
+        $this->assertSame([12], data_get($second->scoring_scope, 'rescored_criterion_numbers'));
+        $this->assertTrue((bool) data_get($second->scoring_scope, 'cross_plan_review.required'));
+        $this->assertSame('budget_evidence_changed', data_get($second->scoring_scope, 'cross_plan_review.trigger'));
     }
 
     public function test_historical_fallback_scores_are_unavailable_and_do_not_affect_score_movement(): void
@@ -761,8 +854,8 @@ final class AssessmentTest extends TestCase
         $feedback = app(AssessmentFeedback::class)->draft($second->refresh());
 
         $this->assertStringContainsString('Assessment finding: AI rationale tied to the supplied resubmitted plan evidence.', $feedback);
-        $this->assertStringContainsString('Round movement: previous round 1 was 32.0/100; current round is 45.0/100 (+13.0).', $feedback);
-        $this->assertStringContainsString('Scored from the complete submitted-plan snapshot:', $feedback);
+        $this->assertStringContainsString('Round movement: previous round 1 was 32/100; current round is 45/100 (+13).', $feedback);
+        $this->assertStringContainsString('Scored from mapped criterion evidence:', $feedback);
         $this->assertStringContainsString('Updated second-round IP register', $feedback);
         $this->assertStringNotContainsString('What is missing:', $feedback);
         $this->assertStringNotContainsString('target cust...', $feedback);
@@ -985,6 +1078,35 @@ final class AssessmentTest extends TestCase
         }
 
         return [$advisor, $plan->refresh()->load('sections')];
+    }
+
+    private function seedMappedAssessmentSections(BusinessPlan $plan, User $advisor): void
+    {
+        foreach ([
+            ['market', 'assessment-business-type-location', 'Business type and location', 'business-type-location'],
+            ['market', 'assessment-industry-context', 'Industry context', 'industry-context'],
+            ['market', 'assessment-differentiation', 'Differentiation', 'differentiation'],
+            ['strategy', 'assessment-success-factors', 'Success factors', 'success-factors'],
+            ['strategy', 'assessment-mission-vision', 'Mission and vision', 'mission-vision'],
+            ['legal_operations', 'assessment-intellectual-property', 'Intellectual property', 'intellectual-property'],
+            ['strategy', 'assessment-goals-objectives', 'Goals and objectives', 'goals-objectives'],
+            ['strategy', 'assessment-culture', 'Culture', 'culture'],
+            ['legal_operations', 'assessment-legal-environment', 'Legal environment', 'legal-environment'],
+            ['legal_operations', 'assessment-systems-software-processes', 'Systems and processes', 'systems-software-processes'],
+            ['financial', 'assessment-financial-assumptions', 'Financial assumptions', 'financial-assumptions'],
+            ['financial', 'assessment-revenue-model', 'Revenue model', 'revenue-model'],
+            ['financial', 'assessment-launch-funding', 'Launch funding', 'launch-funding'],
+        ] as [$phase, $key, $title, $requirementKey]) {
+            app(PlanBuilder::class)->upsertSection(
+                plan: $plan->refresh(),
+                phaseKey: $phase,
+                key: $key,
+                title: $title,
+                body: 'Mapped assessment evidence for '.$title.'.',
+                actor: $advisor,
+                metadata: ['requirement_key' => $requirementKey],
+            );
+        }
     }
 }
 

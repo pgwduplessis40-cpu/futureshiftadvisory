@@ -73,9 +73,18 @@ type Assessment = {
     scoring: {
         is_calibrated: boolean;
         uses_complete_snapshot_evidence: boolean;
+        uses_scoped_criterion_evidence: boolean;
         label: string;
         detail: string;
     };
+    scoring_scope: {
+        rescored_criterion_numbers: number[];
+        reused_criterion_numbers: number[];
+        advisor_review_required: boolean;
+        advisor_review_confirmed_at: string | null;
+        cross_plan_review_required: boolean;
+        cross_plan_review_message: string | null;
+    } | null;
     finalised_at: string | null;
     created_at: string | null;
     basis: {
@@ -145,6 +154,9 @@ type Props = {
         sent_at: string | null;
         action_url: string;
     } | null;
+    advisorScoringReview?: {
+        action_url: string;
+    } | null;
 };
 
 export default function EntrepreneurAssessment({
@@ -154,6 +166,7 @@ export default function EntrepreneurAssessment({
     backLabel = 'Dashboard',
     reassessUrl = null,
     advisorFeedback = null,
+    advisorScoringReview = null,
 }: Props) {
     const framework = assessment.rating_framework;
     const usesOldRubric = framework.is_current === false;
@@ -392,11 +405,11 @@ export default function EntrepreneurAssessment({
                     </div>
                     <dl className="grid gap-3 text-sm md:grid-cols-2">
                         <Detail
-                            label="Weighted score"
+                            label="Banded readiness indicator"
                             value={
                                 assessment.automated_score_available &&
                                 assessment.weighted_score !== null
-                                    ? `${assessment.weighted_score.toFixed(1)}/100`
+                                    ? `${Math.round(assessment.weighted_score)}/100`
                                     : 'Unavailable'
                             }
                         />
@@ -451,6 +464,79 @@ export default function EntrepreneurAssessment({
                         {assessment.basis.summary}
                     </p>
                 </section>
+
+                {assessment.scoring_scope ? (
+                    <section className="space-y-3 rounded-md border bg-background p-4">
+                        <div className="flex items-start gap-3">
+                            <ClipboardCheck
+                                className="mt-0.5 size-5 shrink-0"
+                                aria-hidden="true"
+                            />
+                            <div className="space-y-1 text-sm">
+                                <h2 className="font-medium">
+                                    Reassessment evidence scope
+                                </h2>
+                                <p className="text-muted-foreground">
+                                    Rescored criteria:{' '}
+                                    {assessment.scoring_scope
+                                        .rescored_criterion_numbers.length > 0
+                                        ? assessment.scoring_scope.rescored_criterion_numbers.join(
+                                              ', ',
+                                          )
+                                        : 'None'}
+                                    . Unchanged evidence retained criteria:{' '}
+                                    {assessment.scoring_scope
+                                        .reused_criterion_numbers.length > 0
+                                        ? assessment.scoring_scope.reused_criterion_numbers.join(
+                                              ', ',
+                                          )
+                                        : 'None'}
+                                    .
+                                </p>
+                                {assessment.scoring_scope
+                                    .cross_plan_review_required ? (
+                                    <p className="text-amber-800">
+                                        {
+                                            assessment.scoring_scope
+                                                .cross_plan_review_message
+                                        }
+                                    </p>
+                                ) : null}
+                            </div>
+                        </div>
+                        {advisorScoringReview ? (
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+                                <p className="text-sm text-muted-foreground">
+                                    Advisor confirmation is required before this
+                                    round can be finalised.
+                                </p>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() =>
+                                        router.patch(
+                                            advisorScoringReview.action_url,
+                                            {},
+                                            { preserveScroll: true },
+                                        )
+                                    }
+                                >
+                                    Confirm scoring scope
+                                </Button>
+                            </div>
+                        ) : assessment.scoring_scope
+                              .advisor_review_confirmed_at ? (
+                            <p className="border-t pt-3 text-sm text-muted-foreground">
+                                Advisor review confirmed{' '}
+                                {formatDateTime(
+                                    assessment.scoring_scope
+                                        .advisor_review_confirmed_at,
+                                )}
+                                .
+                            </p>
+                        ) : null}
+                    </section>
+                ) : null}
 
                 {assessment.requires_full_reassessment ? (
                     <section className="flex flex-wrap items-center justify-between gap-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-950">

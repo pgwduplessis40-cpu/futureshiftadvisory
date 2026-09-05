@@ -173,12 +173,17 @@ final class AdvisorEntrepreneurPlanPayload
             return 'No criterion score metadata recorded.';
         }
 
-        $reused = $scores->filter(fn (array $score): bool => (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'reused_identical_context')->count();
+        $legacyReused = $scores->filter(fn (array $score): bool => (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'reused_identical_context')->count();
+        $reusedUnchangedEvidence = $scores->filter(fn (array $score): bool => (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'reused_unchanged_evidence')->count();
         $ai = $scores->filter(fn (array $score): bool => (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'ai_assessment')->count();
         $fallback = $scores->filter(fn (array $score): bool => (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'deterministic_fallback')->count();
 
-        if ($reused === $total) {
+        if ($legacyReused === $total) {
             return 'Carried forward from an earlier assessment; no fresh AI score was generated.';
+        }
+
+        if ($reusedUnchangedEvidence === $total) {
+            return 'Calibrated criterion evidence unchanged; all scores retained from the prior assessment.';
         }
 
         if ($fallback === $total) {
@@ -189,14 +194,19 @@ final class AdvisorEntrepreneurPlanPayload
             return 'Invalid automated result: '.$fallback.' criterion scores were fallback values. Retained for audit only and excluded from progression.';
         }
 
-        if ($reused > 0) {
-            return $ai.' AI-scored criteria and '.$reused.' carried forward from an earlier assessment.';
+        if ($legacyReused > 0) {
+            return $ai.' AI-scored criteria and '.$legacyReused.' carried forward from an earlier assessment.';
+        }
+
+        if ($reusedUnchangedEvidence > 0) {
+            return $ai.' criteria rescored and '.$reusedUnchangedEvidence.' retained from unchanged criterion evidence.';
         }
 
         $calibrated = $scores->every(fn (array $score): bool => data_get($score, 'metadata.scoring_method') === 'calibrated_band_v1'
-            && data_get($score, 'metadata.evidence_mode') === 'complete_submitted_plan_snapshot');
+            && data_get($score, 'metadata.evidence_mode') === 'criterion_scoped_submitted_snapshot'
+            && data_get($score, 'metadata.scoring_contract_version') === 'criterion_evidence_v1');
         if ($calibrated) {
-            return 'Calibrated rubric-band assessment against the complete submitted plan snapshot, including budget evidence.';
+            return 'Calibrated rubric-band assessment against mapped criterion evidence; full submitted plan snapshot retained for audit.';
         }
 
         return 'AI-scored against the captured plan context.';

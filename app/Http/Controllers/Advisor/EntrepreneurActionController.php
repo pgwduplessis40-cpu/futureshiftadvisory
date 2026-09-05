@@ -153,6 +153,22 @@ final class EntrepreneurActionController extends Controller
             ->with('entrepreneur_assessment_report_id', $report->getKey());
     }
 
+    public function confirmAssessmentScoringScope(
+        Request $request,
+        EntrepreneurProfile $entrepreneurProfile,
+        PlanAssessment $planAssessment,
+        Assessment $assessments,
+    ): RedirectResponse {
+        Gate::authorize('finaliseAssessment', $entrepreneurProfile);
+        $this->assertAssessmentBelongsToProfile($planAssessment, $entrepreneurProfile);
+        $advisor = $this->advisor($request);
+
+        $assessment = $assessments->confirmScoringScope($planAssessment, $advisor);
+
+        return to_route('advisor.entrepreneurs.assessments.show', [$entrepreneurProfile, $assessment])
+            ->with('status', 'entrepreneur-assessment-scoring-scope-confirmed');
+    }
+
     public function updateAssessmentFeedback(
         AssessmentFeedbackRequest $request,
         EntrepreneurProfile $entrepreneurProfile,
