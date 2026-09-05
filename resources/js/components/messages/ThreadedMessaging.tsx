@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { usePersistedWorkspaceDraft } from '@/hooks/use-persisted-workspace-draft';
 import { cn } from '@/lib/utils';
 
 export type MessagingClient = {
@@ -99,6 +100,8 @@ type Props = {
     threads: ThreadSummary[];
     selectedThread: SelectedThread | null;
     createUrl: string;
+    createDraftUrl?: string | null;
+    replyDraftUrl?: string | null;
     indexUrl: string;
     backHref?: string;
     backLabel?: string;
@@ -109,6 +112,8 @@ export function ThreadedMessaging({
     threads,
     selectedThread,
     createUrl,
+    createDraftUrl = null,
+    replyDraftUrl = null,
     indexUrl,
     backHref,
     backLabel = 'Back',
@@ -127,6 +132,26 @@ export function ThreadedMessaging({
         subject: '',
         body: '',
         attachments: [],
+    });
+    const createDraftState = usePersistedWorkspaceDraft({
+        url: createDraftUrl,
+        data: { subject: createForm.data.subject, body: createForm.data.body },
+        hydrate: (payload) =>
+            createForm.setData({
+                ...createForm.data,
+                subject: payload.subject ?? createForm.data.subject,
+                body: payload.body ?? createForm.data.body,
+            }),
+    });
+    const replyDraftState = usePersistedWorkspaceDraft({
+        url: selectedThread ? replyDraftUrl : null,
+        data: { subject: '', body: replyForm.data.body },
+        hydrate: (payload) =>
+            replyForm.setData({
+                ...replyForm.data,
+                body: payload.body ?? replyForm.data.body,
+            }),
+        enabled: selectedThread !== null,
     });
 
     const submitCreate = (event: FormEvent<HTMLFormElement>) => {
@@ -289,13 +314,19 @@ export function ThreadedMessaging({
                                 }
                             />
 
-                            <Button
-                                type="submit"
-                                disabled={createForm.processing}
-                            >
-                                <Send className="size-4" aria-hidden="true" />
-                                Send
-                            </Button>
+                            <div className="flex flex-wrap items-center justify-end gap-3">
+                                <DraftStatus state={createDraftState} />
+                                <Button
+                                    type="submit"
+                                    disabled={createForm.processing}
+                                >
+                                    <Send
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Send
+                                </Button>
+                            </div>
                         </form>
                     </section>
                 </aside>
@@ -401,7 +432,8 @@ export function ThreadedMessaging({
                                     }
                                 />
 
-                                <div className="flex justify-end">
+                                <div className="flex flex-wrap items-center justify-end gap-3">
+                                    <DraftStatus state={replyDraftState} />
                                     <Button
                                         type="submit"
                                         disabled={replyForm.processing}
@@ -431,6 +463,26 @@ export function ThreadedMessaging({
                 </section>
             </div>
         </div>
+    );
+}
+
+function DraftStatus({
+    state,
+}: {
+    state: ReturnType<typeof usePersistedWorkspaceDraft>;
+}) {
+    if (state === 'idle') {
+        return null;
+    }
+
+    return (
+        <span className="text-xs text-muted-foreground" role="status">
+            {state === 'saving'
+                ? 'Saving draft…'
+                : state === 'saved'
+                  ? 'Draft saved'
+                  : 'Draft could not be saved'}
+        </span>
     );
 }
 

@@ -15,6 +15,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { usePersistedWorkspaceDraft } from '@/hooks/use-persisted-workspace-draft';
 import { cn } from '@/lib/utils';
 
 type Option = {
@@ -69,6 +70,7 @@ type FormData = {
 type Props = {
     followUp: FollowUp;
     storeUrl: string;
+    draftUrl: string | null;
     dashboardUrl: string;
 };
 
@@ -90,6 +92,7 @@ const focusAreaStatuses: Option[] = [
 export default function OutcomeFollowUpShow({
     followUp,
     storeUrl,
+    draftUrl,
     dashboardUrl,
 }: Props) {
     const focusAreaOutcomes = focusAreaOutcomeValues(
@@ -117,6 +120,12 @@ export default function OutcomeFollowUpShow({
                 : ''),
         focus_area_outcomes: focusAreaOutcomes,
         comments: textValue(followUp.response.comments),
+    });
+    const draftState = usePersistedWorkspaceDraft({
+        url: draftUrl,
+        data: form.data,
+        hydrate: (payload) => form.setData({ ...form.data, ...payload }),
+        enabled: followUp.is_open,
     });
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -505,7 +514,8 @@ export default function OutcomeFollowUpShow({
                         </Field>
                     </section>
 
-                    <div className="flex justify-end">
+                    <div className="flex flex-wrap items-center justify-end gap-3">
+                        <DraftStatus state={draftState} />
                         <Button
                             type="submit"
                             disabled={!followUp.is_open || form.processing}
@@ -520,6 +530,26 @@ export default function OutcomeFollowUpShow({
                 </form>
             </main>
         </>
+    );
+}
+
+function DraftStatus({
+    state,
+}: {
+    state: ReturnType<typeof usePersistedWorkspaceDraft>;
+}) {
+    if (state === 'idle') {
+        return null;
+    }
+
+    return (
+        <span className="text-xs text-muted-foreground" role="status">
+            {state === 'saving'
+                ? 'Saving draft…'
+                : state === 'saved'
+                  ? 'Draft saved'
+                  : 'Draft could not be saved'}
+        </span>
     );
 }
 

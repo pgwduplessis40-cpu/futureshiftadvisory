@@ -31,6 +31,7 @@ use App\Services\Pdf\ResilientPdfPreviewRenderer;
 use App\Services\Plans\PlanBuilder as SharedPlanBuilder;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
+use App\Services\Portal\PortalWorkspaceDrafts;
 use App\Services\Portal\ServiceWorkspaces;
 use App\Services\Questionnaires\QuestionnairePayload;
 use App\Services\Questionnaires\QuestionnaireResponseRecorder;
@@ -94,6 +95,7 @@ final class DdBusinessPlanController extends Controller
             'capability' => $this->capabilityPayload($engagement),
             'workspaces' => $this->workspaces->payload($client, ServiceWorkspaces::KEY_DUE_DILIGENCE),
             'questionnaire' => $this->questionnairePayload($client),
+            'questionnaireDraftUrl' => route('portal.drafts.show', ['draftKey' => 'dd-questionnaire:'.$engagement->getKey()], absolute: false),
             'businessPlanBudgetUrl' => route('portal.business-plan-budget.show', ['client' => $client->id], absolute: false),
             'ddReportPdfUrl' => $this->clientVisibleDdReportUrl($engagement),
             'ddReportTitle' => $this->clientVisibleDdReport($engagement)?->title,
@@ -202,7 +204,7 @@ final class DdBusinessPlanController extends Controller
         return to_route('portal.dd-plan.show')->with('status', 'dd-acquisition-plan-generated');
     }
 
-    public function questionnaire(Request $request): RedirectResponse
+    public function questionnaire(Request $request, PortalWorkspaceDrafts $drafts): RedirectResponse
     {
         $client = $this->clients->resolveForServiceWorkspace($request);
         $questionnaire = $this->activeDdQuestionnaire();
@@ -210,6 +212,7 @@ final class DdBusinessPlanController extends Controller
         abort_unless($questionnaire instanceof Questionnaire && $user instanceof User, 404);
 
         $this->questionnaireResponses->record($client, $user, $questionnaire, $request->all());
+        $drafts->forget($user, 'dd-questionnaire:'.$this->engagementFor($client)->getKey());
 
         return back()->with('status', 'dd-questionnaire-submitted');
     }

@@ -9,6 +9,7 @@ use App\Models\Client;
 use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Services\Portal\ClientPortalResolver;
+use App\Services\Portal\PortalWorkspaceDrafts;
 use App\Services\ServiceActivations\ServiceActivationManager;
 use App\Services\ServiceActivations\ServiceActivationNavigation;
 use Illuminate\Http\RedirectResponse;
@@ -55,11 +56,12 @@ final class ServiceActivationController extends Controller
             'service' => $option,
             'pricingPreview' => $this->activations->pricingPreviewForRequest($serviceType, includePackages: true, client: $client),
             'requestUrl' => route('portal.service-activations.store', absolute: false),
+            'draftUrl' => route('portal.drafts.show', ['draftKey' => 'service-request:'.$serviceType], absolute: false),
             'dashboardUrl' => $this->dashboardUrl($request),
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, PortalWorkspaceDrafts $drafts): RedirectResponse
     {
         $client = $this->clients->resolveForServiceWorkspace($request);
         $user = $request->user();
@@ -133,6 +135,7 @@ final class ServiceActivationController extends Controller
             intake: $validated,
             pricingPreview: $pricingPreview,
         );
+        $drafts->forget($user, 'service-request:'.(string) $validated['service_type']);
 
         return to_route('portal.service-activations.show', $activation)
             ->with('status', 'service-activation-requested');

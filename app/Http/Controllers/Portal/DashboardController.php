@@ -130,6 +130,9 @@ final class DashboardController extends Controller
         $currentStep = $this->wizard->currentStepSlug($client);
         $onboardingUrl = route('portal.onboarding.step', ['step' => $currentStep]);
         $npoPortal = $npoEngagement instanceof NpoEngagement ? $this->npoPortalPayload($client, $npoEngagement, $goals) : null;
+        if (is_array($npoPortal)) {
+            $npoPortal['metric_draft_url'] = route('portal.drafts.show', ['draftKey' => 'npo-metric:new'], absolute: false);
+        }
         $ddPlanPayload = $ddEngagement instanceof DdEngagement ? $this->ddPlanPayload($ddEngagement) : null;
         $postAcquisitionPayload = $postAcquisition instanceof PostAcquisitionMigration ? $this->postAcquisitionPayload($postAcquisition) : null;
         $serviceActivations = $this->serviceActivationNavigation->payload($client);
@@ -138,6 +141,14 @@ final class DashboardController extends Controller
         $reports = $this->reportPayload($client, $npoEngagement);
         $surveys = $this->surveyPayload($client);
         $outcomeFollowUps = $this->outcomeFollowUpPayload($client);
+        $strategicPlan = $this->strategicPlans->portalPayload($client);
+        if (is_array($strategicPlan)) {
+            $strategicPlan['milestones'] = array_map(function (array $milestone): array {
+                $milestone['draft_url'] = route('portal.drafts.show', ['draftKey' => 'strategic-milestone:'.$milestone['id']], absolute: false);
+
+                return $milestone;
+            }, $strategicPlan['milestones']);
+        }
 
         $serviceJourney = $this->serviceJourneyPayload(
             client: $client,
@@ -224,7 +235,7 @@ final class DashboardController extends Controller
             'secondaryJourneyRecognition' => $secondaryJourneyRecognition,
             'planBudgetAccess' => $this->ddPlanBudgetAccess->payload($client),
             'strategicBudget' => $this->strategicBudgets->portalPayload($strategicBudget),
-            'strategicPlan' => $this->strategicPlans->portalPayload($client),
+            'strategicPlan' => $strategicPlan,
             'standardAdvisory' => $standardAdvisory,
             'goals' => $goals,
             'documents' => $documents,

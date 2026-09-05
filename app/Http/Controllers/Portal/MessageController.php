@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Messaging\MessageThreadService;
 use App\Services\Portal\ClientPortalResolver;
+use App\Services\Portal\PortalWorkspaceDrafts;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -84,7 +85,7 @@ final class MessageController extends Controller
         ));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, PortalWorkspaceDrafts $drafts): RedirectResponse
     {
         $viewer = $this->viewer($request);
         $profile = $this->entrepreneurProfileFor($viewer);
@@ -98,6 +99,7 @@ final class MessageController extends Controller
                 body: (string) $validated['body'],
                 attachments: $this->uploadedAttachments($request),
             );
+            $drafts->forget($viewer, 'message:new');
 
             return to_route('portal.messages.show', $message->thread)
                 ->with('status', 'message-sent');
@@ -113,12 +115,13 @@ final class MessageController extends Controller
             body: (string) $validated['body'],
             attachments: $this->uploadedAttachments($request),
         );
+        $drafts->forget($viewer, 'message:new');
 
         return to_route('portal.messages.show', $message->thread)
             ->with('status', 'message-sent');
     }
 
-    public function reply(Request $request, MessageThread $messageThread): RedirectResponse
+    public function reply(Request $request, MessageThread $messageThread, PortalWorkspaceDrafts $drafts): RedirectResponse
     {
         $viewer = $this->viewer($request);
         $profile = $this->entrepreneurProfileFor($viewer);
@@ -132,6 +135,7 @@ final class MessageController extends Controller
                 body: (string) $validated['body'],
                 attachments: $this->uploadedAttachments($request),
             );
+            $drafts->forget($viewer, 'message:'.$messageThread->getKey());
 
             return to_route('portal.messages.show', $message->thread)
                 ->with('status', 'message-sent');
@@ -147,6 +151,7 @@ final class MessageController extends Controller
             body: (string) $validated['body'],
             attachments: $this->uploadedAttachments($request),
         );
+        $drafts->forget($viewer, 'message:'.$messageThread->getKey());
 
         return to_route('portal.messages.show', $message->thread)
             ->with('status', 'message-sent');
@@ -180,6 +185,10 @@ final class MessageController extends Controller
                 )
                 : null,
             'createUrl' => route('portal.messages.store', absolute: false),
+            'createDraftUrl' => route('portal.drafts.show', ['draftKey' => 'message:new'], absolute: false),
+            'replyDraftUrl' => $selectedThread instanceof MessageThread
+                ? route('portal.drafts.show', ['draftKey' => 'message:'.$selectedThread->getKey()], absolute: false)
+                : null,
             'indexUrl' => route('portal.messages.index', absolute: false),
             'backHref' => route('portal.dashboard', absolute: false),
             'backLabel' => 'Dashboard',
@@ -215,6 +224,10 @@ final class MessageController extends Controller
                 )
                 : null,
             'createUrl' => route('portal.messages.store', absolute: false),
+            'createDraftUrl' => route('portal.drafts.show', ['draftKey' => 'message:new'], absolute: false),
+            'replyDraftUrl' => $selectedThread instanceof MessageThread
+                ? route('portal.drafts.show', ['draftKey' => 'message:'.$selectedThread->getKey()], absolute: false)
+                : null,
             'indexUrl' => route('portal.messages.index', absolute: false),
             'backHref' => route('portal.entrepreneur.dashboard', absolute: false),
             'backLabel' => 'Dashboard',

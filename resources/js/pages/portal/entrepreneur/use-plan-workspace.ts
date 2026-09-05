@@ -229,6 +229,11 @@ export function usePlanWorkspace({
     const [sectionTitle, setSectionTitle] = useState('');
     const [sectionBody, setSectionBody] = useState('');
     const [supportingFile, setSupportingFile] = useState<File | null>(null);
+    const [supportingDocumentIds, setSupportingDocumentIds] = useState<
+        string[]
+    >([]);
+    const [uploadingSupportingDocument, setUploadingSupportingDocument] =
+        useState(false);
     const [supportingKey, setSupportingKey] = useState(0);
     const [sectionError, setSectionError] = useState<string | null>(null);
     const [savingSection, setSavingSection] = useState(false);
@@ -284,6 +289,8 @@ export function usePlanWorkspace({
         );
         setSectionBody(useLocalDraft ? draft.body : (section?.body ?? ''));
         setSupportingFile(null);
+        setSupportingDocumentIds(section?.attached_document_ids ?? []);
+        setUploadingSupportingDocument(false);
         setSupportingKey((key) => key + 1);
         setSectionError(null);
         setAssistantNotice(null);
@@ -407,6 +414,7 @@ export function usePlanWorkspace({
                 requirement_key: selectedRequirement.key,
                 title: sectionTitle,
                 body: sectionBody,
+                attached_document_ids: supportingDocumentIds,
             })
                 .then((saved) => {
                     if (cancelled) {
@@ -430,6 +438,7 @@ export function usePlanWorkspace({
         plan,
         sectionBody,
         sectionTitle,
+        supportingDocumentIds,
         selectedRequirement,
         selectedSection,
         urls.sectionStore,
@@ -672,6 +681,83 @@ export function usePlanWorkspace({
         }
     };
 
+    const uploadSupportingDocument = async (
+        selectedFile: File | null = supportingFile,
+    ) => {
+        if (!selectedRequirement || !selectedFile) {
+            return;
+        }
+
+        setUploadingSupportingDocument(true);
+        setSectionError(null);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('category', 'plan_attachment');
+            formData.append('claim_value', sectionBody);
+            formData.append('question_prompt', selectedRequirement.title);
+
+            const response = await fetch(urls.documentUpload, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrfToken(),
+                },
+                body: formData,
+            });
+
+            if (!response.ok) {
+                setSectionError('Supporting document upload failed.');
+
+                return;
+            }
+
+            const payload = (await response.json()) as {
+                document?: { id?: string };
+            };
+            const documentId = payload.document?.id;
+
+            if (!documentId) {
+                setSectionError(
+                    'The uploaded supporting document could not be linked.',
+                );
+
+                return;
+            }
+
+            const attachedDocumentIds = [
+                ...new Set([...supportingDocumentIds, documentId]),
+            ];
+            setSupportingDocumentIds(attachedDocumentIds);
+            setSupportingFile(null);
+            setSupportingKey((key) => key + 1);
+            setSectionAutosaveState('saving');
+
+            const attached = await postSectionAutosave(urls.sectionStore, {
+                phase_key: selectedRequirement.phase_key,
+                requirement_key: selectedRequirement.key,
+                title: sectionTitle,
+                body: sectionBody,
+                attached_document_ids: attachedDocumentIds,
+            });
+
+            setSectionAutosaveState(attached ? 'saved' : 'error');
+
+            if (!attached) {
+                setSectionError(
+                    'Document uploaded, but could not yet be linked to this plan section. Retry the upload.',
+                );
+            }
+        } catch {
+            setSectionError(
+                'Supporting document upload could not reach the server.',
+            );
+        } finally {
+            setUploadingSupportingDocument(false);
+        }
+    };
+
     const saveSection = async () => {
         if (!selectedRequirement) {
             return;
@@ -679,7 +765,7 @@ export function usePlanWorkspace({
 
         setSavingSection(true);
         setSectionError(null);
-        const attachedIds: string[] = [];
+        const attachedIds = [...supportingDocumentIds];
 
         if (supportingFile) {
             const formData = new FormData();
@@ -806,6 +892,8 @@ export function usePlanWorkspace({
         setSectionBody,
         supportingFile,
         setSupportingFile,
+        uploadingSupportingDocument,
+        uploadSupportingDocument,
         supportingKey,
         sectionError,
         savingSection,

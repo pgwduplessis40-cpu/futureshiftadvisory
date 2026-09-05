@@ -12,6 +12,8 @@ type Props = {
     threads: ThreadSummary[];
     selectedThread: SelectedThread | null;
     createUrl: string;
+    createDraftUrl: string;
+    replyDraftUrl: string | null;
     indexUrl: string;
     backHref?: string;
     backLabel?: string;
@@ -22,6 +24,8 @@ export default function PortalMessages({
     threads,
     selectedThread,
     createUrl,
+    createDraftUrl,
+    replyDraftUrl,
     indexUrl,
     backHref = '/portal',
     backLabel = 'Dashboard',
@@ -35,6 +39,8 @@ export default function PortalMessages({
                     threads={threads}
                     selectedThread={selectedThread}
                     createUrl={createUrl}
+                    createDraftUrl={createDraftUrl}
+                    replyDraftUrl={replyDraftUrl}
                     indexUrl={indexUrl}
                     backHref={backHref}
                     backLabel={backLabel}

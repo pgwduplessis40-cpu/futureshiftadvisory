@@ -59,6 +59,7 @@ import { VerificationBadge } from '@/components/verification/Badge';
 import type { VerificationOutcome } from '@/components/verification/Badge';
 import { FlagBanner } from '@/components/verification/FlagBanner';
 import { useDrillFocus } from '@/hooks/use-drill-focus';
+import { usePersistedWorkspaceDraft } from '@/hooks/use-persisted-workspace-draft';
 import {
     formatCurrency as formatCurrencyValue,
     formatNumber as formatNumberValue,
@@ -180,6 +181,7 @@ type NpoPortalPayload = {
     };
     accountability_reports_due: NpoFundingRecord[];
     impact_metrics: NpoImpactMetricPayload[];
+    metric_draft_url: string;
     questionnaire_completion: {
         completed: boolean;
         submitted_at: string | null;
@@ -388,6 +390,7 @@ type StrategicPlanMilestonePayload = {
     owner_label: string;
     due_date: string | null;
     status: 'pending' | 'in_progress' | 'completed' | 'blocked';
+    draft_url: string;
     status_label: string;
     progress_percent: number;
     evidence_notes: string | null;
@@ -927,8 +930,8 @@ export default function PortalDashboard({
         initialPortalDashboardTab(),
     );
 
-    const uploadDocument = async () => {
-        if (!file) {
+    const uploadDocument = async (selectedFile: File | null = file) => {
+        if (!selectedFile) {
             return;
         }
 
@@ -936,7 +939,7 @@ export default function PortalDashboard({
         setUploadError(null);
 
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', selectedFile);
         formData.append('category', documentCategory);
 
         if (ddPlan) {
@@ -1722,28 +1725,45 @@ export default function PortalDashboard({
                                             id="client_dashboard_document"
                                             files={file ? [file] : []}
                                             label="Upload document"
-                                            onFilesChange={(files) =>
-                                                setFile(files[0] ?? null)
-                                            }
+                                            disabled={uploading}
+                                            onFilesChange={(files) => {
+                                                const selectedFile =
+                                                    files[0] ?? null;
+                                                setFile(selectedFile);
+
+                                                if (selectedFile) {
+                                                    void uploadDocument(
+                                                        selectedFile,
+                                                    );
+                                                }
+                                            }}
                                         />
                                         <InputError
                                             message={uploadError ?? undefined}
                                         />
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            disabled={!file || uploading}
-                                            onClick={() =>
-                                                void uploadDocument()
-                                            }
-                                        >
-                                            <Upload
-                                                className="size-4"
-                                                aria-hidden="true"
-                                            />
-                                            {uploading ? 'Uploading' : 'Upload'}
-                                        </Button>
+                                        {uploading ? (
+                                            <span
+                                                className="text-xs text-muted-foreground"
+                                                role="status"
+                                            >
+                                                Uploading…
+                                            </span>
+                                        ) : uploadError && file ? (
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() =>
+                                                    void uploadDocument()
+                                                }
+                                            >
+                                                <Upload
+                                                    className="size-4"
+                                                    aria-hidden="true"
+                                                />
+                                                Retry upload
+                                            </Button>
+                                        ) : null}
                                     </div>
                                 </div>
 
@@ -1948,6 +1968,12 @@ function NpoPortalPanel({
     });
     const [savingMetric, setSavingMetric] = useState(false);
     const [metricError, setMetricError] = useState<string | null>(null);
+    const metricDraftState = usePersistedWorkspaceDraft({
+        url: payload.metric_draft_url,
+        data: metricForm,
+        hydrate: (draft) =>
+            setMetricForm((current) => ({ ...current, ...draft })),
+    });
 
     const saveMetric = async () => {
         if (!metricStoreUrl) {
@@ -2349,6 +2375,18 @@ function NpoPortalPanel({
                             <Save className="size-4" aria-hidden="true" />
                             {savingMetric ? 'Saving' : 'Save metric'}
                         </Button>
+                        {metricDraftState === 'saving' ? (
+                            <span
+                                className="text-xs text-muted-foreground"
+                                role="status"
+                            >
+                                Saving draft…
+                            </span>
+                        ) : metricDraftState === 'saved' ? (
+                            <span className="text-xs text-muted-foreground">
+                                Draft saved automatically
+                            </span>
+                        ) : null}
                     </div>
                 </article>
             </div>
@@ -3130,6 +3168,11 @@ function StrategicPlanMilestoneCard({
         progress_percent: String(milestone.progress_percent),
         evidence_notes: milestone.evidence_notes ?? '',
     });
+    const draftState = usePersistedWorkspaceDraft({
+        url: milestone.draft_url,
+        data: form.data,
+        hydrate: (draft) => form.setData({ ...form.data, ...draft }),
+    });
 
     const save = () => {
         form.patch(milestone.update_url, { preserveScroll: true });
@@ -3214,6 +3257,15 @@ function StrategicPlanMilestoneCard({
             <InputError message={form.errors.status} />
             <InputError message={form.errors.progress_percent} />
             <InputError message={form.errors.evidence_notes} />
+            {draftState === 'saving' ? (
+                <span className="text-xs text-muted-foreground" role="status">
+                    Saving draft…
+                </span>
+            ) : draftState === 'saved' ? (
+                <span className="text-xs text-muted-foreground">
+                    Draft saved automatically
+                </span>
+            ) : null}
         </article>
     );
 }

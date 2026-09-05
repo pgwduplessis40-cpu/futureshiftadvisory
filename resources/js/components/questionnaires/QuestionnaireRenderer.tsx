@@ -568,8 +568,8 @@ function DocumentAttachmentControl({
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const upload = async () => {
-        if (!file) {
+    const upload = async (selectedFile: File | null = file) => {
+        if (!selectedFile) {
             return;
         }
 
@@ -594,7 +594,7 @@ function DocumentAttachmentControl({
             try {
                 const document = await queueDocumentUpload({
                     url: uploadUrl,
-                    file,
+                    file: selectedFile,
                     fields,
                     clientId,
                 });
@@ -618,7 +618,7 @@ function DocumentAttachmentControl({
         }
 
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', selectedFile);
         Object.entries(fields).forEach(([key, value]) => {
             formData.append(key, value);
         });
@@ -673,19 +673,35 @@ function DocumentAttachmentControl({
                         files={file ? [file] : []}
                         label="Attach document"
                         description="Drag a document here or browse"
-                        onFilesChange={(files) => setFile(files[0] ?? null)}
+                        disabled={uploading}
+                        onFilesChange={(files) => {
+                            const selectedFile = files[0] ?? null;
+                            setFile(selectedFile);
+
+                            if (selectedFile) {
+                                void upload(selectedFile);
+                            }
+                        }}
                     />
                 </div>
-                <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={!file || uploading}
-                    onClick={() => void upload()}
-                >
-                    <Upload className="size-4" aria-hidden="true" />
-                    {uploading ? 'Uploading' : 'Upload'}
-                </Button>
+                {uploading ? (
+                    <span
+                        className="text-xs text-muted-foreground"
+                        role="status"
+                    >
+                        Uploading…
+                    </span>
+                ) : error && file ? (
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void upload()}
+                    >
+                        <Upload className="size-4" aria-hidden="true" />
+                        Retry upload
+                    </Button>
+                ) : null}
             </div>
 
             {answer.attached_document_ids.length > 0 && (

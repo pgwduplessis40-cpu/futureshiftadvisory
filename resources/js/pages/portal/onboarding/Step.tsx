@@ -30,6 +30,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { usePersistedWorkspaceDraft } from '@/hooks/use-persisted-workspace-draft';
 import { queueQuestionnaireSubmission } from '@/lib/portal-offline';
 import { cn } from '@/lib/utils';
 import type { QuestionnaireAnswers } from '@/types/questionnaire';
@@ -62,6 +63,7 @@ type Props = {
     documentCount: number;
     submitUrl: string;
     questionnaireDraftUrl: string;
+    workspaceDraftUrl: string;
     dashboardUrl: string;
 };
 
@@ -122,6 +124,7 @@ export default function OnboardingStep({
     documentCount,
     submitUrl,
     questionnaireDraftUrl,
+    workspaceDraftUrl,
     dashboardUrl,
 }: Props) {
     const form = useForm<OnboardingForm>({
@@ -202,6 +205,12 @@ export default function OnboardingStep({
         [questionnaireDraftUrl],
     );
     const questionnaireAnswerSignature = JSON.stringify(form.data.answers);
+    const workspaceDraftState = usePersistedWorkspaceDraft({
+        url: workspaceDraftUrl,
+        data: form.data,
+        hydrate: (payload) => form.setData({ ...form.data, ...payload }),
+        enabled: step.slug !== 'questionnaire',
+    });
 
     useEffect(() => {
         if (
@@ -367,14 +376,19 @@ export default function OnboardingStep({
                     </section>
 
                     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            disabled={questionnaireDraftStatus === 'saving'}
-                            onClick={() => void returnToDashboard()}
-                        >
-                            Back to dashboard
-                        </Button>
+                        <div className="flex items-center gap-3">
+                            {step.slug !== 'questionnaire' && (
+                                <DraftStatus state={workspaceDraftState} />
+                            )}
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={questionnaireDraftStatus === 'saving'}
+                                onClick={() => void returnToDashboard()}
+                            >
+                                Back to dashboard
+                            </Button>
+                        </div>
                         <Button
                             type="submit"
                             disabled={
@@ -392,6 +406,26 @@ export default function OnboardingStep({
                 </form>
             </main>
         </>
+    );
+}
+
+function DraftStatus({
+    state,
+}: {
+    state: ReturnType<typeof usePersistedWorkspaceDraft>;
+}) {
+    if (state === 'idle') {
+        return null;
+    }
+
+    return (
+        <span className="text-xs text-muted-foreground" role="status">
+            {state === 'saving'
+                ? 'Saving draft…'
+                : state === 'saved'
+                  ? 'Draft saved'
+                  : 'Draft could not be saved'}
+        </span>
     );
 }
 
@@ -428,8 +462,8 @@ function StepContent({
         string | null
     >(null);
 
-    const uploadDocument = async () => {
-        if (!documentFile) {
+    const uploadDocument = async (selectedFile: File | null = documentFile) => {
+        if (!selectedFile) {
             return;
         }
 
@@ -437,7 +471,7 @@ function StepContent({
         setDocumentUploadError(null);
 
         const upload = new FormData();
-        upload.append('file', documentFile);
+        upload.append('file', selectedFile);
         upload.append('category', 'other');
         upload.append(
             'claim_value',
@@ -772,9 +806,15 @@ function StepContent({
                             id="onboarding_supporting_document"
                             files={documentFile ? [documentFile] : []}
                             label="Upload supporting document"
-                            onFilesChange={(files) =>
-                                setDocumentFile(files[0] ?? null)
-                            }
+                            disabled={uploadingDocument}
+                            onFilesChange={(files) => {
+                                const selectedFile = files[0] ?? null;
+                                setDocumentFile(selectedFile);
+
+                                if (selectedFile) {
+                                    void uploadDocument(selectedFile);
+                                }
+                            }}
                         />
                         <InputError
                             message={
@@ -783,15 +823,26 @@ function StepContent({
                             }
                         />
                         <div className="flex justify-end">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                disabled={!documentFile || uploadingDocument}
-                                onClick={() => void uploadDocument()}
-                            >
-                                <Upload className="size-4" aria-hidden="true" />
-                                {uploadingDocument ? 'Uploading' : 'Upload'}
-                            </Button>
+                            {uploadingDocument ? (
+                                <span
+                                    className="text-xs text-muted-foreground"
+                                    role="status"
+                                >
+                                    Uploading…
+                                </span>
+                            ) : documentUploadError && documentFile ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => void uploadDocument()}
+                                >
+                                    <Upload
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Retry upload
+                                </Button>
+                            ) : null}
                         </div>
                     </div>
                     <CheckboxField
