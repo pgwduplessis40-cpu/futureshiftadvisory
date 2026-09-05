@@ -23,6 +23,10 @@ type AssessmentScoreSummaryData = {
     scoring_scope: {
         rescored_criterion_numbers: number[];
         reused_criterion_numbers: number[];
+        scope_correction_criterion_numbers: number[];
+        is_full_reassessment: boolean;
+        has_scope_correction: boolean;
+        is_scope_correction_only: boolean;
         advisor_review_confirmed_at: string | null;
         cross_plan_review_required: boolean;
         cross_plan_review_message: string | null;
@@ -169,6 +173,26 @@ export function AssessmentScoreSummary({
                                     : 'None'}
                                 .
                             </p>
+                            {assessment.scoring_scope.is_full_reassessment ? (
+                                <p className="text-amber-800">
+                                    Every criterion was rescored in this round.
+                                    Treat it as a calibrated evidence baseline,
+                                    not proof of movement from an earlier
+                                    scoring method.
+                                </p>
+                            ) : null}
+                            {assessment.scoring_scope.has_scope_correction ? (
+                                <p className="text-amber-800">
+                                    Criteria{' '}
+                                    {assessment.scoring_scope.scope_correction_criterion_numbers.join(
+                                        ', ',
+                                    )}{' '}
+                                    were rescored because their evidence scope
+                                    was corrected to include plan material that
+                                    was already submitted. This is not new plan
+                                    movement.
+                                </p>
+                            ) : null}
                             {assessment.scoring_scope
                                 .cross_plan_review_required ? (
                                 <p className="text-amber-800">
