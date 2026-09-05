@@ -169,13 +169,25 @@ final class BrowsershotRenderer implements PdfRenderer
         $script = <<<'JS'
 const path = require('path');
 const root = process.argv[1];
+const cacheDirectory = process.argv[2];
+if (cacheDirectory) {
+    process.env.PUPPETEER_CACHE_DIR = cacheDirectory;
+}
 const puppeteer = require(path.join(root, 'node_modules', 'puppeteer'));
 process.stdout.write(puppeteer.executablePath());
 JS;
         $output = [];
         $exitCode = 1;
+        $cacheDirectory = $this->puppeteerCacheDirectory();
 
-        @exec(escapeshellarg($nodeBinary).' -e '.escapeshellarg($script).' '.escapeshellarg(base_path()), $output, $exitCode);
+        @exec(
+            escapeshellarg($nodeBinary)
+            .' -e '.escapeshellarg($script)
+            .' '.escapeshellarg(base_path())
+            .' '.escapeshellarg($cacheDirectory),
+            $output,
+            $exitCode,
+        );
 
         if ($exitCode !== 0 || $output === []) {
             return null;
@@ -184,6 +196,15 @@ JS;
         $path = trim(implode("\n", $output));
 
         return $path !== '' && is_file($path) ? $path : null;
+    }
+
+    private function puppeteerCacheDirectory(): string
+    {
+        $configured = config('services.browsershot.puppeteer_cache_dir');
+
+        return is_string($configured) && $configured !== ''
+            ? $configured
+            : storage_path('app/browsershot');
     }
 
     private function withExecutionTimeLimit(int $seconds, Closure $callback): string

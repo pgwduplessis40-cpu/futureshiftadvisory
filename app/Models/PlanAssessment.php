@@ -24,6 +24,7 @@ final class PlanAssessment extends Model
         'mentor_notes',
         'document_support',
         'plan_snapshot',
+        'scoring_scope',
         'overall_grade',
         'concept_pv_calculation_id',
         'finalised_at',
@@ -37,6 +38,7 @@ final class PlanAssessment extends Model
         'mentor_notes' => 'array',
         'document_support' => 'array',
         'plan_snapshot' => 'array',
+        'scoring_scope' => 'array',
         'finalised_at' => 'datetime',
     ];
 

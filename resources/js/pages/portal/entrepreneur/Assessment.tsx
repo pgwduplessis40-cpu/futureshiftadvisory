@@ -6,7 +6,6 @@ import {
     FileText,
     RefreshCw,
     Save,
-    Scale,
     Send,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -15,6 +14,7 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { AssessmentScoreSummary } from './assessment-score-summary';
 
 type Criterion = {
     number: number;
@@ -73,9 +73,18 @@ type Assessment = {
     scoring: {
         is_calibrated: boolean;
         uses_complete_snapshot_evidence: boolean;
+        uses_scoped_criterion_evidence: boolean;
         label: string;
         detail: string;
     };
+    scoring_scope: {
+        rescored_criterion_numbers: number[];
+        reused_criterion_numbers: number[];
+        advisor_review_required: boolean;
+        advisor_review_confirmed_at: string | null;
+        cross_plan_review_required: boolean;
+        cross_plan_review_message: string | null;
+    } | null;
     finalised_at: string | null;
     created_at: string | null;
     basis: {
@@ -145,6 +154,9 @@ type Props = {
         sent_at: string | null;
         action_url: string;
     } | null;
+    advisorScoringReview?: {
+        action_url: string;
+    } | null;
 };
 
 export default function EntrepreneurAssessment({
@@ -154,6 +166,7 @@ export default function EntrepreneurAssessment({
     backLabel = 'Dashboard',
     reassessUrl = null,
     advisorFeedback = null,
+    advisorScoringReview = null,
 }: Props) {
     const framework = assessment.rating_framework;
     const usesOldRubric = framework.is_current === false;
@@ -355,102 +368,20 @@ export default function EntrepreneurAssessment({
                     </section>
                 ) : null}
 
-                <section className="space-y-4 rounded-md border bg-background p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                            <Scale className="size-4" aria-hidden="true" />
-                            <h2 className="text-sm font-medium">
-                                Score summary
-                            </h2>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="outline">
-                                {assessment.basis.label}
-                            </Badge>
-                            {assessment.basis.plan_snapshot_url ? (
-                                <Button asChild size="sm" variant="outline">
-                                    <a
-                                        href={
-                                            assessment.basis.plan_snapshot_url
-                                        }
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        <FileText
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        Submitted plan
-                                    </a>
-                                </Button>
-                            ) : (
-                                <Badge variant="secondary">
-                                    Snapshot unavailable
-                                </Badge>
-                            )}
-                        </div>
-                    </div>
-                    <dl className="grid gap-3 text-sm md:grid-cols-2">
-                        <Detail
-                            label="Weighted score"
-                            value={
-                                assessment.automated_score_available &&
-                                assessment.weighted_score !== null
-                                    ? `${assessment.weighted_score.toFixed(1)}/100`
-                                    : 'Unavailable'
-                            }
-                        />
-                        <Detail
-                            label="Grade"
-                            value={
-                                assessment.automated_score_available &&
-                                assessment.overall_grade !== null
-                                    ? formatLabel(assessment.overall_grade)
-                                    : 'Unavailable'
-                            }
-                        />
-                        <Detail
-                            label="Threshold"
-                            value={`${assessment.threshold.toFixed(0)}/100`}
-                        />
-                        <Detail
-                            label="Completed"
-                            value={formatDate(assessment.finalised_at)}
-                        />
-                        <Detail
-                            label="Plan submitted"
-                            value={formatDate(
-                                assessment.basis.business_plan_submitted_at,
-                            )}
-                        />
-                        <Detail
-                            label="Plan updated"
-                            value={formatDateTime(
-                                assessment.basis.business_plan_updated_at,
-                            )}
-                        />
-                        <Detail
-                            label="Snapshot captured"
-                            value={formatDateTime(
-                                assessment.basis.plan_snapshot_captured_at,
-                            )}
-                        />
-                        <Detail
-                            label="Scoring method"
-                            value={assessment.scoring.label}
-                        />
-                        <Detail
-                            label="Evidence used"
-                            value={assessment.evidence_audit.label}
-                        />
-                    </dl>
-                    <p className="max-w-4xl text-sm text-muted-foreground">
-                        {assessment.explanation}
-                    </p>
-                    <p className="max-w-4xl text-sm text-muted-foreground">
-                        {assessment.basis.summary}
-                    </p>
-                </section>
+                <AssessmentScoreSummary
+                    assessment={assessment}
+                    advisorScoringReview={advisorScoringReview}
+                    onConfirmScoringScope={
+                        advisorScoringReview
+                            ? () =>
+                                  router.patch(
+                                      advisorScoringReview.action_url,
+                                      {},
+                                      { preserveScroll: true },
+                                  )
+                            : undefined
+                    }
+                />
 
                 {assessment.requires_full_reassessment ? (
                     <section className="flex flex-wrap items-center justify-between gap-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-950">

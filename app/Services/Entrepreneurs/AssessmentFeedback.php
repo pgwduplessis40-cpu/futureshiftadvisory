@@ -181,8 +181,8 @@ final class AssessmentFeedback
 
         $readiness = $score >= $threshold ? 'meets' : 'is below';
         $intro = sprintf(
-            'Assessment completed: the current weighted score is %.1f/100, which %s the %.0f/100 advisory-readiness threshold.',
-            $score,
+            'Assessment completed: the current banded readiness indicator is approximately %d/100, which %s the %.0f/100 advisory-readiness threshold.',
+            round($score),
             $readiness,
             $threshold,
         );
@@ -284,14 +284,14 @@ final class AssessmentFeedback
 
         $delta = (float) ($priority['score_delta'] ?? 0);
         $deltaText = $delta > 0
-            ? '+'.number_format($delta, 1)
-            : number_format($delta, 1);
+            ? '+'.number_format($delta, 0)
+            : number_format($delta, 0);
 
         return sprintf(
-            'Round movement: previous round %d was %.1f/100; current round is %.1f/100 (%s).',
+            'Round movement: previous round %d was %d/100; current round is %d/100 (%s).',
             (int) $priority['previous_round'],
-            (float) $priority['previous_score'],
-            (float) $priority['score'],
+            round((float) $priority['previous_score']),
+            round((float) $priority['score']),
             $deltaText,
         );
     }
@@ -327,9 +327,11 @@ final class AssessmentFeedback
             return null;
         }
 
-        $prefix = ($priority['evidence_mode'] ?? null) === 'complete_submitted_plan_snapshot'
-            ? 'Scored from the complete submitted-plan snapshot: '
-            : 'Scored from current source excerpts: ';
+        $prefix = match ($priority['evidence_mode'] ?? null) {
+            'criterion_scoped_submitted_snapshot' => 'Scored from mapped criterion evidence: ',
+            'complete_submitted_plan_snapshot' => 'Scored from the complete submitted-plan snapshot: ',
+            default => 'Scored from current source excerpts: ',
+        };
 
         return $prefix.implode(' | ', $sections);
     }
