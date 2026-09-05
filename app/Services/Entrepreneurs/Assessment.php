@@ -25,6 +25,13 @@ use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Throwable;
 
+/**
+ * @phpstan-type BudgetEvidence array{forecast_years:int|float|null,expected_runway_months:int|float|null,assumptions:array<array-key,mixed>,launch_costs:array<array-key,mixed>,monthly_fixed_costs:array<array-key,mixed>,future_costs:array<array-key,mixed>,revenue_forecast:array<array-key,mixed>,funding_sources:array<array-key,mixed>,funding_scenarios:array<array-key,mixed>,computed:array<array-key,mixed>,flags:array<array-key,mixed>}
+ * @phpstan-type CriterionEvidenceSection array{section_id:string,title:string,requirement_key:string|null,updated_at?:string|null,body?:string,body_excerpt?:string,attached_document_ids?:list<int|string>}
+ * @phpstan-type CriterionPlanContext array{evidence_hash?:string,evidence_mode?:string,criterion_focus_sections?:list<CriterionEvidenceSection>,relevant_sections?:list<CriterionEvidenceSection>,supporting_section_summaries?:list<CriterionEvidenceSection>,budget_evidence?:BudgetEvidence|null}
+ * @phpstan-type CriterionScore array{score?:int|float|numeric-string,score_source?:string,metadata?:array<array-key,mixed>,criterion_id?:int|string,criterion_number?:int,criterion_name?:string,rationale?:string,attributions?:list<array{claim?:string,source_reference?:string}>,model?:string|null,carried_from_assessment_id?:string,carried_from_round?:int,carried_basis?:string}
+ * @phpstan-type PlanSnapshot array<array-key,mixed>
+ */
 final class Assessment implements ProvidesMethodology
 {
     public const LEARNING_LAYER_ID = 19;
@@ -566,8 +573,8 @@ final class Assessment implements ProvidesMethodology
     }
 
     /**
-     * @param  array<string, mixed>  $previousScore
-     * @param  array<string, mixed>  $planContext
+     * @param  CriterionScore  $previousScore
+     * @param  CriterionPlanContext  $planContext
      */
     private function canReuseCriterionScore(array $previousScore, array $planContext): bool
     {
@@ -582,9 +589,9 @@ final class Assessment implements ProvidesMethodology
     }
 
     /**
-     * @param  array<string, mixed>  $previousScore
-     * @param  array<string, mixed>  $planContext
-     * @return array<string, mixed>
+     * @param  CriterionScore  $previousScore
+     * @param  CriterionPlanContext  $planContext
+     * @return CriterionScore
      */
     private function reusedCriterionScore(array $previousScore, PlanAssessment $previousAssessment, array $planContext): array
     {
@@ -610,7 +617,7 @@ final class Assessment implements ProvidesMethodology
     }
 
     /**
-     * @return array<string, mixed>|null
+     * @return CriterionScore|null
      */
     private function reusedAdvisorScore(
         mixed $previousAdvisorScore,
@@ -631,8 +638,8 @@ final class Assessment implements ProvidesMethodology
     }
 
     /**
-     * @param  array<string, mixed>  $previousSnapshot
-     * @param  array<string, mixed>  $nextSnapshot
+     * @param  PlanSnapshot  $previousSnapshot
+     * @param  PlanSnapshot  $nextSnapshot
      */
     private function budgetEvidenceChanged(array $previousSnapshot, array $nextSnapshot): bool
     {

@@ -11,6 +11,11 @@ use App\Models\RatingCriterion;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
+/**
+ * @phpstan-type BudgetEvidence array{forecast_years:int|float|null,expected_runway_months:int|float|null,assumptions:array<array-key,mixed>,launch_costs:array<array-key,mixed>,monthly_fixed_costs:array<array-key,mixed>,future_costs:array<array-key,mixed>,revenue_forecast:array<array-key,mixed>,funding_sources:array<array-key,mixed>,funding_scenarios:array<array-key,mixed>,computed:array<array-key,mixed>,flags:array<array-key,mixed>}
+ * @phpstan-type CriterionEvidenceSection array{section_id:string,phase_key:string,phase_title:string,title:string,requirement_key:string|null,updated_at:string|null,attached_document_ids:list<int|string>,body:string}
+ * @phpstan-type CriterionPlanContext array{evidence_mode:'criterion_scoped_submitted_snapshot',criterion_focus:array{number:int,name:string,preferred_requirement_keys:list<string>},scope_fallback:bool,criterion_focus_sections:list<CriterionEvidenceSection>,budget_evidence:BudgetEvidence|null,evidence_hash:string}
+ */
 final class PlanAiContext
 {
     public const PLAN_SECTION_BODY_MAX_LENGTH = 25000;
@@ -162,8 +167,8 @@ final class PlanAiContext
      * assessment round. The full submitted snapshot remains on the assessment
      * for audit, but it is deliberately not supplied to unrelated criteria.
      *
-     * @param  array<string, mixed>  $snapshot
-     * @return array<string, mixed>
+     * @param  array<array-key, mixed>  $snapshot
+     * @return CriterionPlanContext
      */
     public function criterionAssessmentFromSnapshot(array $snapshot, RatingCriterion $criterion): array
     {
@@ -253,8 +258,8 @@ final class PlanAiContext
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $sections
-     * @param  array<string, mixed>|null  $budgetEvidence
+     * @param  list<CriterionEvidenceSection>  $sections
+     * @param  BudgetEvidence|null  $budgetEvidence
      */
     private function criterionEvidenceHash(
         RatingCriterion $criterion,
@@ -264,11 +269,11 @@ final class PlanAiContext
     ): string {
         $stableSections = collect($sections)
             ->map(fn (array $section): array => [
-                'section_id' => (string) ($section['section_id'] ?? ''),
-                'requirement_key' => $section['requirement_key'] ?? null,
-                'title' => (string) ($section['title'] ?? ''),
-                'body' => (string) ($section['body'] ?? ''),
-                'attached_document_ids' => array_values((array) ($section['attached_document_ids'] ?? [])),
+                'section_id' => $section['section_id'],
+                'requirement_key' => $section['requirement_key'],
+                'title' => $section['title'],
+                'body' => $section['body'],
+                'attached_document_ids' => $section['attached_document_ids'],
             ])
             ->sortBy(fn (array $section): string => $section['section_id'].'|'.$section['requirement_key'])
             ->values()

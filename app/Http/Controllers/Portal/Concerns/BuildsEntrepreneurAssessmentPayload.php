@@ -9,6 +9,10 @@ use App\Models\RatingFramework;
 use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\AssessmentScoring;
 
+/**
+ * @phpstan-type ScoringScope array{version?:string,rescored_criterion_numbers?:list<int|numeric-string>,reused_criterion_numbers?:list<int|numeric-string>,advisor_review?:array{required?:bool,confirmed_at?:string|null,confirmed_by_user_id?:int|null},cross_plan_review?:array{required?:bool,trigger?:string|null,message?:string|null}}
+ * @phpstan-type ScoringScopePayload array{rescored_criterion_numbers:list<int>,reused_criterion_numbers:list<int>,advisor_review_required:bool,advisor_review_confirmed_at:string|null,cross_plan_review_required:bool,cross_plan_review_message:string|null}
+ */
 trait BuildsEntrepreneurAssessmentPayload
 {
     /**
@@ -294,8 +298,8 @@ trait BuildsEntrepreneurAssessmentPayload
     }
 
     /**
-     * @param  array<string, mixed>|null  $scope
-     * @return array<string, mixed>|null
+     * @param  ScoringScope|null  $scope
+     * @return ScoringScopePayload|null
      */
     private function scoringScopePayload(?array $scope): ?array
     {
@@ -303,13 +307,16 @@ trait BuildsEntrepreneurAssessmentPayload
             return null;
         }
 
+        $confirmedAt = data_get($scope, 'advisor_review.confirmed_at');
+        $crossPlanReviewMessage = data_get($scope, 'cross_plan_review.message');
+
         return [
-            'rescored_criterion_numbers' => array_values(array_map('intval', (array) ($scope['rescored_criterion_numbers'] ?? []))),
-            'reused_criterion_numbers' => array_values(array_map('intval', (array) ($scope['reused_criterion_numbers'] ?? []))),
+            'rescored_criterion_numbers' => array_map('intval', (array) ($scope['rescored_criterion_numbers'] ?? [])),
+            'reused_criterion_numbers' => array_map('intval', (array) ($scope['reused_criterion_numbers'] ?? [])),
             'advisor_review_required' => (bool) data_get($scope, 'advisor_review.required', false),
-            'advisor_review_confirmed_at' => data_get($scope, 'advisor_review.confirmed_at'),
+            'advisor_review_confirmed_at' => is_string($confirmedAt) ? $confirmedAt : null,
             'cross_plan_review_required' => (bool) data_get($scope, 'cross_plan_review.required', false),
-            'cross_plan_review_message' => data_get($scope, 'cross_plan_review.message'),
+            'cross_plan_review_message' => is_string($crossPlanReviewMessage) ? $crossPlanReviewMessage : null,
         ];
     }
 }
