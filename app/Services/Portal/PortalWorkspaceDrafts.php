@@ -9,18 +9,32 @@ use App\Models\PortalWorkspaceDraft;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 
+/**
+ * @phpstan-type WorkspaceDraftScalar null|bool|float|int|string
+ * @phpstan-type WorkspaceDraftLeaf WorkspaceDraftScalar|list<WorkspaceDraftScalar>
+ * @phpstan-type WorkspaceDraftEntry WorkspaceDraftLeaf|array<string, WorkspaceDraftLeaf>
+ * @phpstan-type WorkspaceDraftValue WorkspaceDraftEntry|array<string, WorkspaceDraftEntry>
+ * @phpstan-type WorkspaceDraftPayload array<string, WorkspaceDraftValue>
+ */
 final class PortalWorkspaceDrafts
 {
     public function __construct(private readonly AuditWriter $auditWriter) {}
 
     /**
-     * @return array<string, mixed>
+     * @return WorkspaceDraftPayload
      */
     public function payload(User $user, string $draftKey): array
     {
         $draft = $this->find($user, $draftKey);
 
-        return $draft instanceof PortalWorkspaceDraft ? $draft->payload : [];
+        if (! $draft instanceof PortalWorkspaceDraft) {
+            return [];
+        }
+
+        /** @var WorkspaceDraftPayload $payload */
+        $payload = $draft->payload;
+
+        return $payload;
     }
 
     public function savedAt(User $user, string $draftKey): ?string
@@ -29,7 +43,7 @@ final class PortalWorkspaceDrafts
     }
 
     /**
-     * @param  array<string, mixed>  $payload
+     * @param  WorkspaceDraftPayload  $payload
      */
     public function save(User $user, ?Client $client, string $draftKey, array $payload): PortalWorkspaceDraft
     {

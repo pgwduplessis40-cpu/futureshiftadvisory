@@ -107,7 +107,11 @@ type Props = {
 
 type Tab = 'actions' | 'information';
 type WorkflowKey =
-    'questions' | 'evidence' | 'financials' | 'review' | 'plan_budget';
+    | 'questions'
+    | 'evidence'
+    | 'financials'
+    | 'review'
+    | 'plan_budget';
 type WorkflowStatus = 'complete' | 'current' | 'locked';
 
 type WorkflowStep = {

@@ -24,7 +24,10 @@ type Option = {
 };
 
 type FocusAreaStatus =
-    'implemented' | 'partially_implemented' | 'not_started' | 'not_applicable';
+    | 'implemented'
+    | 'partially_implemented'
+    | 'not_started'
+    | 'not_applicable';
 
 type FocusAreaOutcome = {
     proposal_id: string | null;

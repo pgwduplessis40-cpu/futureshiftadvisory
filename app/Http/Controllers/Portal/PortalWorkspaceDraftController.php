@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
+/** @phpstan-import-type WorkspaceDraftPayload from PortalWorkspaceDrafts */
 final class PortalWorkspaceDraftController extends Controller
 {
     public function __construct(
@@ -46,6 +47,7 @@ final class PortalWorkspaceDraftController extends Controller
         $payload = $request->validate([
             'payload' => ['required', 'array', 'max:100'],
         ])['payload'];
+        /** @var WorkspaceDraftPayload $payload */
         $encoded = json_encode($payload);
         if (! is_string($encoded) || strlen($encoded) > 64_000) {
             throw ValidationException::withMessages([

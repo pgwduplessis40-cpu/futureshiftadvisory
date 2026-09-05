@@ -90,6 +90,7 @@ final class StrategicBudgetPresentationTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('portal/StrategicPlanBudget')
+                ->where('documentUploadUrl', route('portal.documents.store', absolute: false))
                 ->where('businessPlanPdfUrl', route('portal.business-plan-budget.business-plan.pdf', absolute: false))
                 ->where('budgetPdfUrl', route('portal.business-plan-budget.budget-pack.pdf', absolute: false)));
 

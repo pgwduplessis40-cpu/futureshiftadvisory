@@ -2307,7 +2307,9 @@ function BudgetRowsEditor({
                                 onChange={(event) =>
                                     update(index, {
                                         confidence: event.target.value as
-                                            'known' | 'estimate' | 'guess',
+                                            | 'known'
+                                            | 'estimate'
+                                            | 'guess',
                                     })
                                 }
                                 className="h-9 rounded-md border bg-background px-2 text-sm"
