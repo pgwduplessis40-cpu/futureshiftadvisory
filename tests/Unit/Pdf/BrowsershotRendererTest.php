@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Pdf;
 
 use App\Services\Pdf\BrowsershotRenderer;
-use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
+use Tests\TestCase;
 
 final class BrowsershotRendererTest extends TestCase
 {
@@ -30,5 +30,25 @@ final class BrowsershotRendererTest extends TestCase
         } finally {
             ini_set('max_execution_time', $previousLimit);
         }
+    }
+
+    public function test_puppeteer_lookup_uses_the_application_owned_browser_cache(): void
+    {
+        config()->set('services.browsershot.puppeteer_cache_dir', storage_path('app/test-browsershot-cache'));
+
+        $renderer = new BrowsershotRenderer;
+        $method = new ReflectionMethod($renderer, 'puppeteerCacheDirectory');
+
+        self::assertSame(storage_path('app/test-browsershot-cache'), $method->invoke($renderer));
+    }
+
+    public function test_deployment_provisions_a_browser_for_the_pdf_renderer(): void
+    {
+        $script = file_get_contents(base_path('deploy.sh'));
+
+        self::assertIsString($script);
+        self::assertStringContainsString('PUPPETEER_CACHE_DIR', $script);
+        self::assertStringContainsString('puppeteer browsers install chrome', $script);
+        self::assertStringContainsString('puppeteer.launch', $script);
     }
 }

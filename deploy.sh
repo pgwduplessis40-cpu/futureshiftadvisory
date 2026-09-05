@@ -671,6 +671,26 @@ composer install --no-dev --optimize-autoloader --no-interaction
 log "Installing Node dependencies"
 npm ci
 
+log "Provisioning browser-formatted PDF renderer"
+# Puppeteer otherwise stores Chrome in the deploying user's home directory.
+# PHP-FPM runs as a different user, which makes every PDF request fall back to
+# the plain-text renderer even though Node dependencies installed successfully.
+BROWSERSHOT_PUPPETEER_CACHE_DIR="$APP_DIR/storage/app/browsershot"
+export BROWSERSHOT_PUPPETEER_CACHE_DIR
+mkdir -p "$BROWSERSHOT_PUPPETEER_CACHE_DIR"
+PUPPETEER_CACHE_DIR="$BROWSERSHOT_PUPPETEER_CACHE_DIR" npx --no-install puppeteer browsers install chrome
+chmod -R a+rX "$BROWSERSHOT_PUPPETEER_CACHE_DIR"
+PUPPETEER_CACHE_DIR="$BROWSERSHOT_PUPPETEER_CACHE_DIR" node -e '
+const puppeteer = require("puppeteer");
+(async () => {
+    const browser = await puppeteer.launch({args: ["--no-sandbox"]});
+    await browser.close();
+})().catch((error) => {
+    console.error(error);
+    process.exit(1);
+});
+'
+
 log "Building client + SSR bundles"
 # Must be build:ssr - plain `npm run build` omits bootstrap/ssr/app.js,
 # which leaves the SSR process with nothing to render.
