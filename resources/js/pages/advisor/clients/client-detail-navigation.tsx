@@ -112,7 +112,7 @@ export function ClientDetailTabButton({
             role="tab"
             aria-selected={active}
             className={cn(
-                'shrink-0 rounded-sm px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                'shrink-0 rounded-sm px-3 py-1.5 text-sm font-medium text-foreground transition-shadow hover:bg-muted hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
                 active && 'bg-background text-foreground shadow-xs',
             )}
             onClick={onClick}
