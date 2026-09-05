@@ -20,9 +20,7 @@ final class PortalWorkspaceDrafts
     {
         $draft = $this->find($user, $draftKey);
 
-        return $draft instanceof PortalWorkspaceDraft && is_array($draft->payload)
-            ? $draft->payload
-            : [];
+        return $draft instanceof PortalWorkspaceDraft ? $draft->payload : [];
     }
 
     public function savedAt(User $user, string $draftKey): ?string

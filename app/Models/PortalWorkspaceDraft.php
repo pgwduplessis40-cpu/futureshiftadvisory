@@ -20,7 +20,7 @@ final class PortalWorkspaceDraft extends Model
     ];
 
     /**
-     * @return BelongsTo<User, PortalWorkspaceDraft>
+     * @return BelongsTo<User, $this>
      */
     public function user(): BelongsTo
     {
@@ -28,7 +28,7 @@ final class PortalWorkspaceDraft extends Model
     }
 
     /**
-     * @return BelongsTo<Client, PortalWorkspaceDraft>
+     * @return BelongsTo<Client, $this>
      */
     public function client(): BelongsTo
     {
