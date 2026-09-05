@@ -25,6 +25,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { usePersistedWorkspaceDraft } from '@/hooks/use-persisted-workspace-draft';
 import { formatNzDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type {
@@ -95,6 +96,7 @@ type Props = {
     capability: CapabilityPayload;
     workspaces: WorkspaceSwitcherPayload;
     questionnaire: DdQuestionnairePayload | null;
+    questionnaireDraftUrl: string;
     businessPlanBudgetUrl: string;
     ddReportPdfUrl: string | null;
     ddReportTitle: string | null;
@@ -105,11 +107,7 @@ type Props = {
 
 type Tab = 'actions' | 'information';
 type WorkflowKey =
-    | 'questions'
-    | 'evidence'
-    | 'financials'
-    | 'review'
-    | 'plan_budget';
+    'questions' | 'evidence' | 'financials' | 'review' | 'plan_budget';
 type WorkflowStatus = 'complete' | 'current' | 'locked';
 
 type WorkflowStep = {
@@ -182,6 +180,7 @@ export default function DdBusinessPlan({
     capability,
     workspaces,
     questionnaire,
+    questionnaireDraftUrl,
     businessPlanBudgetUrl,
     ddReportPdfUrl,
     ddReportTitle,
@@ -209,6 +208,16 @@ export default function DdBusinessPlan({
     const [selectedStepKey, setSelectedStepKey] = useState<WorkflowKey | null>(
         null,
     );
+    const questionnaireDraftState = usePersistedWorkspaceDraft({
+        url: questionnaireDraftUrl,
+        data: { answers: questionnaireAnswers },
+        hydrate: (payload) => {
+            if (payload.answers) {
+                setQuestionnaireAnswers(payload.answers);
+            }
+        },
+        enabled: questionnaire !== null && !questionnaire.submitted,
+    });
 
     const uploadedCount =
         readiness.data_room_item_count + uploadedDocuments.length;
@@ -225,8 +234,8 @@ export default function DdBusinessPlan({
     ).length;
     const progressPercent = Math.round((completedSteps / steps.length) * 100);
 
-    const uploadEvidence = async () => {
-        if (files.length === 0) {
+    const uploadEvidence = async (selectedFiles: File[] = files) => {
+        if (selectedFiles.length === 0) {
             return;
         }
 
@@ -235,7 +244,7 @@ export default function DdBusinessPlan({
 
         const successfulUploads: UploadedDocument[] = [];
 
-        for (const selectedFile of files) {
+        for (const selectedFile of selectedFiles) {
             const uploaded = await uploadDocument(
                 documentUploadUrl,
                 selectedFile,
@@ -386,6 +395,9 @@ export default function DdBusinessPlan({
                                 questionnaireAnswers={questionnaireAnswers}
                                 questionnaireErrors={questionnaireErrors}
                                 savingQuestionnaire={savingQuestionnaire}
+                                questionnaireDraftState={
+                                    questionnaireDraftState
+                                }
                                 documentUploadUrl={documentUploadUrl}
                                 clientId={client.id}
                                 files={files}
@@ -400,7 +412,13 @@ export default function DdBusinessPlan({
                                 messagesUrl={messagesUrl}
                                 onQuestionnaireChange={setQuestionnaireAnswers}
                                 onSubmitQuestionnaire={submitQuestionnaire}
-                                onFilesChange={setFiles}
+                                onFilesChange={(selectedFiles) => {
+                                    setFiles(selectedFiles);
+
+                                    if (selectedFiles.length > 0) {
+                                        void uploadEvidence(selectedFiles);
+                                    }
+                                }}
                                 onWorkstreamChange={setWorkstream}
                                 onUploadEvidence={() => void uploadEvidence()}
                             />
@@ -466,6 +484,7 @@ function NextStepPanel({
     questionnaireAnswers,
     questionnaireErrors,
     savingQuestionnaire,
+    questionnaireDraftState,
     documentUploadUrl,
     clientId,
     files,
@@ -491,6 +510,7 @@ function NextStepPanel({
     questionnaireAnswers: QuestionnaireAnswers;
     questionnaireErrors: Record<string, string | undefined>;
     savingQuestionnaire: boolean;
+    questionnaireDraftState: ReturnType<typeof usePersistedWorkspaceDraft>;
     documentUploadUrl: string;
     clientId: string;
     files: File[];
@@ -553,6 +573,7 @@ function NextStepPanel({
                 questionnaireAnswers={questionnaireAnswers}
                 questionnaireErrors={questionnaireErrors}
                 savingQuestionnaire={savingQuestionnaire}
+                questionnaireDraftState={questionnaireDraftState}
                 documentUploadUrl={documentUploadUrl}
                 clientId={clientId}
                 files={files}
@@ -581,6 +602,7 @@ function StepActionContent({
     questionnaireAnswers,
     questionnaireErrors,
     savingQuestionnaire,
+    questionnaireDraftState,
     documentUploadUrl,
     clientId,
     files,
@@ -604,6 +626,7 @@ function StepActionContent({
     questionnaireAnswers: QuestionnaireAnswers;
     questionnaireErrors: Record<string, string | undefined>;
     savingQuestionnaire: boolean;
+    questionnaireDraftState: ReturnType<typeof usePersistedWorkspaceDraft>;
     documentUploadUrl: string;
     clientId: string;
     files: File[];
@@ -629,6 +652,7 @@ function StepActionContent({
                 answers={questionnaireAnswers}
                 errors={questionnaireErrors}
                 saving={savingQuestionnaire}
+                draftState={questionnaireDraftState}
                 documentUploadUrl={documentUploadUrl}
                 clientId={clientId}
                 onChange={onQuestionnaireChange}
@@ -703,6 +727,7 @@ function QuestionnairePanel({
     answers,
     errors,
     saving,
+    draftState,
     documentUploadUrl,
     clientId,
     onChange,
@@ -712,6 +737,7 @@ function QuestionnairePanel({
     answers: QuestionnaireAnswers;
     errors: Record<string, string | undefined>;
     saving: boolean;
+    draftState: ReturnType<typeof usePersistedWorkspaceDraft>;
     documentUploadUrl: string;
     clientId: string;
     onChange: (answers: QuestionnaireAnswers) => void;
@@ -753,13 +779,34 @@ function QuestionnairePanel({
                 helpTextLabel="Why this is needed"
                 showCharacterCounts
             />
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+                <DraftStatus state={draftState} />
                 <Button type="button" disabled={saving} onClick={onSubmit}>
                     <CheckCircle2 className="size-4" aria-hidden="true" />
                     {saving ? 'Saving answers' : 'Submit DD answers'}
                 </Button>
             </div>
         </div>
+    );
+}
+
+function DraftStatus({
+    state,
+}: {
+    state: ReturnType<typeof usePersistedWorkspaceDraft>;
+}) {
+    if (state === 'idle') {
+        return null;
+    }
+
+    return (
+        <span className="text-xs text-muted-foreground" role="status">
+            {state === 'saving'
+                ? 'Saving answers…'
+                : state === 'saved'
+                  ? 'Answers saved'
+                  : 'Answers could not be saved'}
+        </span>
     );
 }
 
@@ -830,6 +877,7 @@ function EvidencePanel({
                         label="Select evidence files"
                         description="Drag files here or browse"
                         multiple
+                        disabled={uploading}
                         onFilesChange={onFilesChange}
                     />
                     <InputError message={uploadError ?? undefined} />
@@ -839,16 +887,20 @@ function EvidencePanel({
                 <div className="text-sm text-muted-foreground">
                     {uploadedCount} uploaded in this DD workspace
                 </div>
-                <Button
-                    type="button"
-                    disabled={files.length === 0 || uploading}
-                    onClick={onUpload}
-                >
-                    <Upload className="size-4" aria-hidden="true" />
-                    {uploading
-                        ? `Uploading ${files.length} file${files.length === 1 ? '' : 's'}`
-                        : 'Upload selected files'}
-                </Button>
+                {uploading ? (
+                    <span
+                        className="text-xs text-muted-foreground"
+                        role="status"
+                    >
+                        Uploading {files.length} file
+                        {files.length === 1 ? '' : 's'}…
+                    </span>
+                ) : uploadError && files.length > 0 ? (
+                    <Button type="button" onClick={onUpload}>
+                        <Upload className="size-4" aria-hidden="true" />
+                        Retry upload
+                    </Button>
+                ) : null}
             </div>
             {uploadedDocuments.length > 0 ? (
                 <div className="rounded-md border bg-muted/20 p-3">

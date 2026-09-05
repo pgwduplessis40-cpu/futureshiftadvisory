@@ -78,6 +78,8 @@ export function PlanWorkspaceActions({
         setSectionBody,
         supportingFile,
         setSupportingFile,
+        uploadingSupportingDocument,
+        uploadSupportingDocument,
         supportingKey,
         sectionError,
         savingSection,
@@ -881,13 +883,47 @@ export function PlanWorkspaceActions({
                                                         : []
                                                 }
                                                 label="Attach supporting document"
-                                                disabled={planChangesLocked}
-                                                onFilesChange={(files) =>
-                                                    setSupportingFile(
-                                                        files[0] ?? null,
-                                                    )
+                                                disabled={
+                                                    planChangesLocked ||
+                                                    uploadingSupportingDocument
                                                 }
+                                                onFilesChange={(files) => {
+                                                    const selectedFile =
+                                                        files[0] ?? null;
+                                                    setSupportingFile(
+                                                        selectedFile,
+                                                    );
+
+                                                    if (selectedFile) {
+                                                        void uploadSupportingDocument(
+                                                            selectedFile,
+                                                        );
+                                                    }
+                                                }}
                                             />
+                                        ) : null}
+                                        {uploadingSupportingDocument ? (
+                                            <span
+                                                className="text-xs text-muted-foreground"
+                                                role="status"
+                                            >
+                                                Uploading supporting document…
+                                            </span>
+                                        ) : sectionError && supportingFile ? (
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() =>
+                                                    void uploadSupportingDocument()
+                                                }
+                                            >
+                                                <Upload
+                                                    className="size-4"
+                                                    aria-hidden="true"
+                                                />
+                                                Retry upload
+                                            </Button>
                                         ) : null}
                                         <InputError
                                             message={sectionError ?? undefined}

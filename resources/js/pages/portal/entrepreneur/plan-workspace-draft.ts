@@ -25,6 +25,7 @@ export type SectionAutosavePayload = {
     requirement_key: string;
     title: string;
     body: string;
+    attached_document_ids?: string[];
 };
 
 export function csrfToken(): string {
@@ -143,7 +144,7 @@ export async function postSectionAutosave(
         body: JSON.stringify({
             ...payload,
             _autosave: true,
-            attached_document_ids: [],
+            attached_document_ids: payload.attached_document_ids ?? [],
         }),
     });
 

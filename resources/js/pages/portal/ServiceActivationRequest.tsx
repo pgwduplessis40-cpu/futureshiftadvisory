@@ -16,6 +16,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { usePersistedWorkspaceDraft } from '@/hooks/use-persisted-workspace-draft';
 import { cn } from '@/lib/utils';
 
 type ServiceType = 'due_diligence' | 'entrepreneur';
@@ -80,6 +81,7 @@ type Props = {
     service: ServiceOption;
     pricingPreview: PricingPreview;
     requestUrl: string;
+    draftUrl: string;
     dashboardUrl: string;
 };
 
@@ -87,6 +89,7 @@ export default function ServiceActivationRequest({
     service,
     pricingPreview,
     requestUrl,
+    draftUrl,
     dashboardUrl,
 }: Props) {
     const isDueDiligence = service.service_type === 'due_diligence';
@@ -108,6 +111,11 @@ export default function ServiceActivationRequest({
         notes: '',
         pricing_acknowledged: false,
         pricing_package_id: '',
+    });
+    const draftState = usePersistedWorkspaceDraft({
+        url: draftUrl,
+        data: { ...form.data, pricing_acknowledged: false },
+        hydrate: (payload) => form.setData({ ...form.data, ...payload }),
     });
     const Icon = isDueDiligence ? BriefcaseBusiness : Lightbulb;
     const matchedPackage = isDueDiligence
@@ -248,7 +256,8 @@ export default function ServiceActivationRequest({
                         onAcknowledgedChange={updatePricingAcknowledgement}
                     />
 
-                    <div className="mt-5 flex justify-end">
+                    <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
+                        <DraftStatus state={draftState} />
                         <Button
                             type="submit"
                             disabled={
@@ -263,6 +272,26 @@ export default function ServiceActivationRequest({
                 </form>
             </main>
         </>
+    );
+}
+
+function DraftStatus({
+    state,
+}: {
+    state: ReturnType<typeof usePersistedWorkspaceDraft>;
+}) {
+    if (state === 'idle') {
+        return null;
+    }
+
+    return (
+        <span className="text-xs text-muted-foreground" role="status">
+            {state === 'saving'
+                ? 'Saving request draft…'
+                : state === 'saved'
+                  ? 'Request draft saved'
+                  : 'Draft could not be saved'}
+        </span>
     );
 }
 

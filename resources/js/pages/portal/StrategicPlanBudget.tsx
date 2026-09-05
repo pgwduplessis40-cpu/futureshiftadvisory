@@ -507,8 +507,8 @@ export default function StrategicPlanBudget({
         return clearAutosaveTimer;
     }, [clearAutosaveTimer, postDraft, serializedForm]);
 
-    const uploadFinancials = async () => {
-        if (!file) {
+    const uploadFinancials = async (selectedFile: File | null = file) => {
+        if (!selectedFile) {
             return;
         }
 
@@ -516,7 +516,7 @@ export default function StrategicPlanBudget({
         setUploadError(null);
 
         const data = new FormData();
-        data.append('file', file);
+        data.append('file', selectedFile);
         data.append('category', 'financial_statement');
         data.append(
             'claim_value',
@@ -850,7 +850,13 @@ export default function StrategicPlanBudget({
                                 uploading={uploading}
                                 uploadError={uploadError}
                                 onboardingUrl={onboardingUrl}
-                                onFileChange={setFile}
+                                onFileChange={(selectedFile) => {
+                                    setFile(selectedFile);
+
+                                    if (selectedFile) {
+                                        void uploadFinancials(selectedFile);
+                                    }
+                                }}
                                 onUpload={() => void uploadFinancials()}
                             />
                         )}
@@ -1194,17 +1200,23 @@ function LockedFinancialsPanel({
                     id="strategic_budget_financial_upload"
                     files={file ? [file] : []}
                     label="Upload P&L or management accounts"
+                    disabled={uploading}
                     onFilesChange={(files) => onFileChange(files[0] ?? null)}
                 />
                 <InputError message={uploadError ?? undefined} />
-                <Button
-                    type="button"
-                    disabled={!file || uploading}
-                    onClick={onUpload}
-                >
-                    <Upload className="size-4" aria-hidden="true" />
-                    {uploading ? 'Uploading' : 'Upload financials'}
-                </Button>
+                {uploading ? (
+                    <span
+                        className="text-xs text-muted-foreground"
+                        role="status"
+                    >
+                        Uploading financials…
+                    </span>
+                ) : uploadError && file ? (
+                    <Button type="button" onClick={onUpload}>
+                        <Upload className="size-4" aria-hidden="true" />
+                        Retry upload
+                    </Button>
+                ) : null}
             </div>
         </section>
     );
@@ -2295,9 +2307,7 @@ function BudgetRowsEditor({
                                 onChange={(event) =>
                                     update(index, {
                                         confidence: event.target.value as
-                                            | 'known'
-                                            | 'estimate'
-                                            | 'guess',
+                                            'known' | 'estimate' | 'guess',
                                     })
                                 }
                                 className="h-9 rounded-md border bg-background px-2 text-sm"

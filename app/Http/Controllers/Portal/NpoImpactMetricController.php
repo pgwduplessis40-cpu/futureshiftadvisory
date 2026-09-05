@@ -11,6 +11,7 @@ use App\Models\NpoEngagement;
 use App\Models\User;
 use App\Services\Npo\NpoImpactMetricRecorder;
 use App\Services\Portal\ClientPortalResolver;
+use App\Services\Portal\PortalWorkspaceDrafts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -21,6 +22,7 @@ final class NpoImpactMetricController extends Controller
     public function __construct(
         private readonly ClientPortalResolver $clients,
         private readonly NpoImpactMetricRecorder $metrics,
+        private readonly PortalWorkspaceDrafts $drafts,
     ) {}
 
     public function __invoke(Request $request): JsonResponse
@@ -50,6 +52,11 @@ final class NpoImpactMetricController extends Controller
             throw ValidationException::withMessages([
                 'value' => $exception->getMessage(),
             ]);
+        }
+
+        $user = $request->user();
+        if ($user instanceof User) {
+            $this->drafts->forget($user, 'npo-metric:new');
         }
 
         return response()->json([

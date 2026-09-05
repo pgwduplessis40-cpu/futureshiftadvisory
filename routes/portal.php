@@ -25,6 +25,7 @@ use App\Http\Controllers\Portal\NpoImpactMetricController;
 use App\Http\Controllers\Portal\OnboardingController;
 use App\Http\Controllers\Portal\OutcomeFollowUpController;
 use App\Http\Controllers\Portal\ProposalSignoffController;
+use App\Http\Controllers\Portal\PortalWorkspaceDraftController;
 use App\Http\Controllers\Portal\ReportController;
 use App\Http\Controllers\Portal\ServiceActivationController;
 use App\Http\Controllers\Portal\ServiceJourneyController;
@@ -57,6 +58,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
             ->whereUuid('session')
             ->name('screen-share.sessions.browser-permission');
         Route::get('/', ClientPortalDashboardController::class)->name('dashboard');
+        Route::get('drafts/{draftKey}', [PortalWorkspaceDraftController::class, 'show'])
+            ->where('draftKey', '[A-Za-z0-9._:-]+')
+            ->name('drafts.show');
+        Route::post('drafts/{draftKey}', [PortalWorkspaceDraftController::class, 'store'])
+            ->where('draftKey', '[A-Za-z0-9._:-]+')
+            ->name('drafts.store');
         Route::post('service-journey/preference', [ServiceJourneyController::class, 'preference'])->name('service-journey.preference');
         Route::post('service-journey/seen', [ServiceJourneyController::class, 'seen'])->name('service-journey.seen');
         Route::redirect('strategic-plan-budget', 'business-plan-budget');

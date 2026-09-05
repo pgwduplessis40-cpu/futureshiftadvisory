@@ -10,6 +10,7 @@ use App\Models\OutcomeFollowUp;
 use App\Models\Proposal;
 use App\Models\User;
 use App\Services\Outcomes\OutcomeFollowUpService;
+use App\Services\Portal\PortalWorkspaceDrafts;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -32,16 +33,18 @@ final class OutcomeFollowUpController extends Controller
         return Inertia::render('portal/outcomes/Show', [
             'followUp' => $this->followUpPayload($outcomeFollowUp),
             'storeUrl' => route('portal.outcome-follow-ups.submit', $outcomeFollowUp, absolute: false),
+            'draftUrl' => route('portal.drafts.show', ['draftKey' => 'outcome:'.$outcomeFollowUp->getKey()], absolute: false),
             'dashboardUrl' => $this->dashboardUrl($outcomeFollowUp, $user),
         ]);
     }
 
-    public function submit(Request $request, OutcomeFollowUp $outcomeFollowUp, OutcomeFollowUpService $outcomes): RedirectResponse
+    public function submit(Request $request, OutcomeFollowUp $outcomeFollowUp, OutcomeFollowUpService $outcomes, PortalWorkspaceDrafts $drafts): RedirectResponse
     {
         $user = $this->assertCanAccess($request, $outcomeFollowUp);
         $validated = $request->validate($this->rules($outcomeFollowUp));
 
         $outcomes->submit($outcomeFollowUp, $user, $validated);
+        $drafts->forget($user, $this->draftKey($outcomeFollowUp));
 
         return redirect($this->dashboardUrl($outcomeFollowUp, $user))
             ->with('status', 'outcome-follow-up-submitted');
@@ -156,6 +159,11 @@ final class OutcomeFollowUpController extends Controller
         }
 
         return route('portal.dashboard', absolute: false);
+    }
+
+    private function draftKey(OutcomeFollowUp $followUp): string
+    {
+        return 'outcome:'.$followUp->getKey();
     }
 
     /**

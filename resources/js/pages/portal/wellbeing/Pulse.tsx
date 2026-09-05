@@ -7,6 +7,7 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { usePersistedWorkspaceDraft } from '@/hooks/use-persisted-workspace-draft';
 import { cn } from '@/lib/utils';
 
 type ClientPayload = {
@@ -36,6 +37,7 @@ type Props = {
     periodStart: string;
     currentCheckin: CheckinPayload | null;
     storeUrl: string;
+    draftUrl: string;
     dashboardUrl: string;
 };
 
@@ -52,12 +54,19 @@ export default function WellbeingPulse({
     periodStart,
     currentCheckin,
     storeUrl,
+    draftUrl,
     dashboardUrl,
 }: Props) {
     const form = useForm<WellbeingForm>({
         business_confidence: currentCheckin?.business_confidence ?? 3,
         personal_coping: currentCheckin?.personal_coping ?? 3,
         notes: currentCheckin?.notes ?? '',
+    });
+    const draftState = usePersistedWorkspaceDraft({
+        url: draftUrl,
+        data: form.data,
+        hydrate: (payload) => form.setData({ ...form.data, ...payload }),
+        enabled: currentCheckin === null,
     });
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -169,7 +178,10 @@ export default function WellbeingPulse({
                         <Button asChild variant="outline">
                             <Link href={dashboardUrl}>Skip for now</Link>
                         </Button>
-                        <div className="flex flex-col gap-3 sm:flex-row">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                            {currentCheckin === null && (
+                                <DraftStatus state={draftState} />
+                            )}
                             {currentCheckin?.can_delete && (
                                 <Button
                                     type="button"
@@ -191,6 +203,26 @@ export default function WellbeingPulse({
                 </form>
             </main>
         </>
+    );
+}
+
+function DraftStatus({
+    state,
+}: {
+    state: ReturnType<typeof usePersistedWorkspaceDraft>;
+}) {
+    if (state === 'idle') {
+        return null;
+    }
+
+    return (
+        <span className="text-xs text-muted-foreground" role="status">
+            {state === 'saving'
+                ? 'Saving draft…'
+                : state === 'saved'
+                  ? 'Draft saved'
+                  : 'Draft could not be saved'}
+        </span>
     );
 }
 

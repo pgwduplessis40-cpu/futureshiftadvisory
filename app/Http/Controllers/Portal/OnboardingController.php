@@ -23,6 +23,7 @@ use App\Services\Audit\AuditWriter;
 use App\Services\Npo\NpoQuestionnaireScoring;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
+use App\Services\Portal\PortalWorkspaceDrafts;
 use App\Services\Portal\PortalOfflineSync;
 use App\Services\Portal\Welcome\WelcomeMessageRenderer;
 use App\Services\Questionnaires\QuestionnairePayload;
@@ -42,6 +43,7 @@ final class OnboardingController extends Controller
     public function __construct(
         private readonly ClientPortalResolver $clients,
         private readonly OnboardingWizard $wizard,
+        private readonly PortalWorkspaceDrafts $workspaceDrafts,
         private readonly AuditWriter $auditWriter,
         private readonly QuestionnairePayload $questionnairePayload,
         private readonly QuestionnaireResponseRecorder $responses,
@@ -184,6 +186,7 @@ final class OnboardingController extends Controller
 
         /** @var User $user */
         $user = $request->user();
+        $this->workspaceDrafts->forget($user, 'onboarding:'.$step);
         $this->funnels->complete(FunnelEvent::FLOW_ONBOARDING, $step, $client, $user);
         $this->auditWriter->record('portal.onboarding_step_saved', subject: $client, actor: $user, after: [
             'step' => $step,
@@ -252,6 +255,7 @@ final class OnboardingController extends Controller
                 ->count(),
             'submitUrl' => route('portal.onboarding.store', ['step' => $step['slug']]),
             'questionnaireDraftUrl' => route('portal.onboarding.questionnaire.draft'),
+            'workspaceDraftUrl' => route('portal.drafts.show', ['draftKey' => 'onboarding:'.$step['slug']], absolute: false),
             'dashboardUrl' => route('portal.dashboard'),
         ];
     }

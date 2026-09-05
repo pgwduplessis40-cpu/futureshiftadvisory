@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\StrategicPlanMilestone;
 use App\Models\User;
 use App\Services\Portal\ClientPortalResolver;
+use App\Services\Portal\PortalWorkspaceDrafts;
 use App\Services\StrategicPlans\StrategicPlanService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ final class StrategicPlanMilestoneController extends Controller
     public function __construct(
         private readonly ClientPortalResolver $clients,
         private readonly StrategicPlanService $plans,
+        private readonly PortalWorkspaceDrafts $drafts,
     ) {}
 
     public function update(Request $request, StrategicPlanMilestone $milestone): RedirectResponse
@@ -41,6 +43,8 @@ final class StrategicPlanMilestoneController extends Controller
             return to_route('portal.dashboard')
                 ->withErrors(['strategic_plan' => $exception->getMessage()]);
         }
+
+        $this->drafts->forget($user, 'strategic-milestone:'.$milestone->getKey());
 
         return to_route('portal.dashboard')->with('status', 'strategic-plan-milestone-updated');
     }

@@ -81,6 +81,7 @@ final class WellbeingController extends Controller
             'periodStart' => now()->startOfMonth()->toDateString(),
             'currentCheckin' => $current instanceof WellbeingCheckin ? $this->checkinPayload($current, $user) : null,
             'storeUrl' => route('portal.wellbeing.store'),
+            'draftUrl' => route('portal.drafts.show', ['draftKey' => 'wellbeing:'.now()->format('Y-m')], absolute: false),
             'dashboardUrl' => route('portal.dashboard'),
         ];
     }
