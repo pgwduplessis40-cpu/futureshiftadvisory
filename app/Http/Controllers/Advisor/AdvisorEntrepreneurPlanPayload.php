@@ -18,6 +18,11 @@ use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
 /**
  * @phpstan-type AssessmentHistoryEntry array{id:string, round:int, status:string, overall_grade:string|null, weighted_score:float|null, automated_score_available:bool, score_delta:float|null, score_source_summary:string, created_at:string|null, submitted_at:string|null, snapshot_available:bool, snapshot_captured_at:mixed, snapshot_note:string, assessment_url:string, plan_snapshot_url:string|null}
  * @phpstan-type BudgetSummary array{status:string, expected_runway_months:float|int|null, calculated_runway_months:mixed, runway_open_ended:bool, break_even_month:mixed, available_after_launch:mixed, active_flags:list<mixed>}
+ * @phpstan-type AssessmentScopePayload array{is_full_reassessment:bool,has_scope_correction:bool,scope_correction_criterion_numbers:list<int>}
+ * @phpstan-type AssessmentCriterionPayload array{criterion_number:int,name:string,score:float|int}
+ * @phpstan-type LatestAssessmentPayload array{round:int,scoring_scope:AssessmentScopePayload|null,criteria:list<AssessmentCriterionPayload>}
+ * @phpstan-type CriterionDeltaPayload array{criterion_number:int,criterion_name:string,previous_score:float|int|null,current_score:int,delta:float|int,direction:string}
+ * @phpstan-type LatestRevisionPayload array{id:string,round:int,submitted_at:string|null,trajectory_percent:float|int|null,overall_delta:float|int|null,biggest_improvements:list<mixed>,remaining_gaps:list<CriterionDeltaPayload>,comparison_mode:'evidence_progress'|'full_evidence_reassessment'|'scope_correction',comparison_notice:string|null}
  * @phpstan-type PlanProgressSummary array{id:string, title:string, status:string, assessment_count:int, latest_round:int|null, latest_grade:string|null, can_assess:bool, assessment_action_label:string, assessment_run:array{status:string|null, requested_at:string|null, started_at:string|null, total_criteria:int|null, completed_criteria:int|null, current_criterion:string|null, completed_at:string|null, failed_at:string|null, failure:string|null}, latest_assessment:mixed, executive_summary:mixed, budget:BudgetSummary, preview_pdf_url:string, budget_pdf_url:string|null, funder_ready:mixed, assess_url:string, assessment_history:list<AssessmentHistoryEntry>, latest_revision:mixed}
  */
 final class AdvisorEntrepreneurPlanPayload
@@ -97,15 +102,9 @@ final class AdvisorEntrepreneurPlanPayload
             ],
             'assess_url' => route('advisor.entrepreneurs.plans.assessments.store', [$profile, $plan], absolute: false),
             'assessment_history' => $this->assessmentHistory($plan, $profile),
-            'latest_revision' => $latestRevision instanceof PlanRevision ? [
-                'id' => $latestRevision->id,
-                'round' => $latestRevision->round,
-                'submitted_at' => $latestRevision->submitted_at?->toIso8601String(),
-                'trajectory_percent' => data_get($latestRevision->progress_comparison, 'trajectory_percent'),
-                'overall_delta' => data_get($latestRevision->progress_comparison, 'overall_delta'),
-                'biggest_improvements' => data_get($latestRevision->progress_comparison, 'biggest_improvements', []),
-                'remaining_gaps' => data_get($latestRevision->progress_comparison, 'remaining_gaps', []),
-            ] : null,
+            'latest_revision' => $latestRevision instanceof PlanRevision
+                ? $this->latestRevisionPayload($latestRevision, $latestAssessmentPayload)
+                : null,
         ];
     }
 
@@ -123,7 +122,9 @@ final class AdvisorEntrepreneurPlanPayload
                 $snapshotAvailable = is_array($snapshot) && is_array($snapshot['phases'] ?? null);
                 $automatedScoreAvailable = (bool) ($payload['automated_score_available'] ?? true);
                 $weightedScore = $automatedScoreAvailable ? (float) $payload['weighted_score'] : null;
-                $scoreDelta = $weightedScore === null || $previousWeightedScore === null
+                $isFullEvidenceReassessment = (bool) data_get($payload, 'scoring_scope.is_full_reassessment', false);
+                $hasScopeCorrection = (bool) data_get($payload, 'scoring_scope.has_scope_correction', false);
+                $scoreDelta = $isFullEvidenceReassessment || $hasScopeCorrection || $weightedScore === null || $previousWeightedScore === null
                     ? null
                     : round($weightedScore - $previousWeightedScore, 1);
                 if ($weightedScore !== null) {
@@ -138,7 +139,7 @@ final class AdvisorEntrepreneurPlanPayload
                     'weighted_score' => $weightedScore,
                     'automated_score_available' => $automatedScoreAvailable,
                     'score_delta' => $scoreDelta,
-                    'score_source_summary' => $this->scoreSourceSummary($assessment),
+                    'score_source_summary' => $this->scoreSourceSummary($assessment, $isFullEvidenceReassessment, $hasScopeCorrection),
                     'created_at' => $assessment->created_at?->toIso8601String(),
                     'submitted_at' => $this->submittedAt($plan, $assessment),
                     'snapshot_available' => $snapshotAvailable,
@@ -157,8 +158,67 @@ final class AdvisorEntrepreneurPlanPayload
             ->all();
     }
 
-    private function scoreSourceSummary(PlanAssessment $assessment): string
+    /**
+     * @param  LatestAssessmentPayload|null  $latestAssessmentPayload
+     * @return LatestRevisionPayload
+     */
+    private function latestRevisionPayload(PlanRevision $revision, ?array $latestAssessmentPayload): array
     {
+        $comparison = is_array($revision->progress_comparison) ? $revision->progress_comparison : [];
+        $isFullEvidenceReassessment = (int) ($latestAssessmentPayload['round'] ?? 0) === (int) $revision->round
+            && (bool) data_get($latestAssessmentPayload, 'scoring_scope.is_full_reassessment', false);
+        $hasScopeCorrection = (int) ($latestAssessmentPayload['round'] ?? 0) === (int) $revision->round
+            && (bool) data_get($latestAssessmentPayload, 'scoring_scope.has_scope_correction', false);
+
+        if ($isFullEvidenceReassessment || $hasScopeCorrection) {
+            $scopeCorrectionNumbers = collect((array) data_get(
+                $latestAssessmentPayload,
+                'scoring_scope.scope_correction_criterion_numbers',
+                [],
+            ))
+                ->filter(fn (mixed $number): bool => is_numeric($number))
+                ->map(fn (mixed $number): int => (int) $number)
+                ->values()
+                ->all();
+
+            return [
+                'id' => $revision->id,
+                'round' => $revision->round,
+                'submitted_at' => $revision->submitted_at?->toIso8601String(),
+                'trajectory_percent' => null,
+                'overall_delta' => null,
+                'biggest_improvements' => [],
+                'remaining_gaps' => $this->currentGaps($latestAssessmentPayload),
+                'comparison_mode' => $isFullEvidenceReassessment
+                    ? 'full_evidence_reassessment'
+                    : 'scope_correction',
+                'comparison_notice' => $isFullEvidenceReassessment
+                    ? 'All criteria were newly scored from mapped evidence in this round. Review current gaps, but do not treat the score difference as plan movement from the prior assessment.'
+                    : sprintf(
+                        'Criteria %s were rescored after their evidence scope was corrected to include plan material that was already submitted. Review current gaps, but do not treat the score difference as plan movement from the prior assessment.',
+                        implode(', ', $scopeCorrectionNumbers),
+                    ),
+            ];
+        }
+
+        return [
+            'id' => $revision->id,
+            'round' => $revision->round,
+            'submitted_at' => $revision->submitted_at?->toIso8601String(),
+            'trajectory_percent' => data_get($comparison, 'trajectory_percent'),
+            'overall_delta' => data_get($comparison, 'overall_delta'),
+            'biggest_improvements' => data_get($comparison, 'biggest_improvements', []),
+            'remaining_gaps' => data_get($comparison, 'remaining_gaps', []),
+            'comparison_mode' => 'evidence_progress',
+            'comparison_notice' => null,
+        ];
+    }
+
+    private function scoreSourceSummary(
+        PlanAssessment $assessment,
+        bool $isFullEvidenceReassessment = false,
+        bool $hasScopeCorrection = false,
+    ): string {
         $incompleteCriterionNumbers = AssessmentScoring::incompleteCriterionNumbers($assessment);
 
         if ($incompleteCriterionNumbers !== []) {
@@ -171,6 +231,14 @@ final class AdvisorEntrepreneurPlanPayload
 
         if ($total === 0) {
             return 'No criterion score metadata recorded.';
+        }
+
+        if ($isFullEvidenceReassessment) {
+            return 'Every criterion was newly scored from mapped submitted-plan evidence. This is a calibrated evidence baseline, not score movement from an earlier assessment.';
+        }
+
+        if ($hasScopeCorrection) {
+            return 'One or more criteria were rescored after their evidence scope was corrected to include already-submitted plan material. This is a calibration correction, not score movement from an earlier assessment.';
         }
 
         $legacyReused = $scores->filter(fn (array $score): bool => (string) ($score['score_source'] ?? data_get($score, 'metadata.score_source')) === 'reused_identical_context')->count();
@@ -210,6 +278,29 @@ final class AdvisorEntrepreneurPlanPayload
         }
 
         return 'AI-scored against the captured plan context.';
+    }
+
+    /**
+     * @param  LatestAssessmentPayload|null  $assessmentPayload
+     * @return list<CriterionDeltaPayload>
+     */
+    private function currentGaps(?array $assessmentPayload): array
+    {
+        return collect((array) ($assessmentPayload['criteria'] ?? []))
+            ->filter(fn (mixed $criterion): bool => is_array($criterion)
+                && is_numeric($criterion['score'] ?? null)
+                && (float) $criterion['score'] < 60)
+            ->map(fn (array $criterion): array => [
+                'criterion_number' => (int) ($criterion['criterion_number'] ?? 0),
+                'criterion_name' => (string) ($criterion['name'] ?? 'Plan criterion'),
+                'previous_score' => null,
+                'current_score' => (int) round((float) $criterion['score']),
+                'delta' => 0,
+                'direction' => 'baseline',
+            ])
+            ->sortBy('current_score')
+            ->values()
+            ->all();
     }
 
     private function submittedAt(BusinessPlan $plan, PlanAssessment $assessment): ?string

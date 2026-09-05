@@ -89,7 +89,8 @@ final class AssessmentFeedback
             return [];
         }
 
-        $previous = $this->previousAssessment($assessment);
+        $canCompareWithPreviousRound = ! $this->hasNonComparableScoringScope($assessment);
+        $previous = $canCompareWithPreviousRound ? $this->previousAssessment($assessment) : null;
         $previousCriteria = $previous instanceof PlanAssessment
             ? collect(AssessmentScoring::criteriaPayload($previous))->keyBy('criterion_number')
             : collect();
@@ -407,6 +408,41 @@ final class AssessmentFeedback
             ->where('round', '<', (int) $assessment->round)
             ->orderByDesc('round')
             ->first();
+    }
+
+    private function hasNonComparableScoringScope(PlanAssessment $assessment): bool
+    {
+        $scope = is_array($assessment->scoring_scope) ? $assessment->scoring_scope : [];
+        if (($scope['version'] ?? null) !== 'criterion_evidence_v1') {
+            return false;
+        }
+
+        $rescored = collect((array) ($scope['rescored_criterion_numbers'] ?? []))
+            ->filter(fn (mixed $number): bool => is_numeric($number))
+            ->map(fn (mixed $number): int => (int) $number)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+        $reused = collect((array) ($scope['reused_criterion_numbers'] ?? []))
+            ->filter(fn (mixed $number): bool => is_numeric($number))
+            ->map(fn (mixed $number): int => (int) $number)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+        $criteria = collect(AssessmentScoring::criteriaPayload($assessment))
+            ->pluck('criterion_number')
+            ->filter(fn (mixed $number): bool => is_numeric($number))
+            ->map(fn (mixed $number): int => (int) $number)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        return ($criteria !== [] && $rescored === $criteria && $reused === [])
+            || collect((array) ($scope['scope_correction_criterion_numbers'] ?? []))
+                ->contains(fn (mixed $number): bool => is_numeric($number));
     }
 
     /**

@@ -46,12 +46,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         assessment_action_label: string;
         assessment_run: {
             status:
-                | 'queued'
-                | 'running'
-                | 'completed'
-                | 'failed'
-                | string
-                | null;
+                'queued' | 'running' | 'completed' | 'failed' | string | null;
             requested_at: string | null;
             started_at: string | null;
             total_criteria: number | null;
@@ -154,6 +149,11 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             overall_delta: number | null;
             biggest_improvements: CriterionDelta[];
             remaining_gaps: CriterionDelta[];
+            comparison_mode:
+                | 'evidence_progress'
+                | 'full_evidence_reassessment'
+                | 'scope_correction';
+            comparison_notice: string | null;
         } | null;
     } | null;
     readiness: {

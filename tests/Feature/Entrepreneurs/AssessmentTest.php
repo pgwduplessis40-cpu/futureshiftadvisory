@@ -12,6 +12,7 @@ use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
 use App\Models\LearningUpdate;
 use App\Models\PlanAssessment;
+use App\Models\PlanRevision;
 use App\Models\PlanSection;
 use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
@@ -133,11 +134,66 @@ final class AssessmentTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->where('assessment.scoring.is_calibrated', true)
                 ->where('assessment.scoring.uses_scoped_criterion_evidence', true)
+                ->where('assessment.scoring_scope.is_full_reassessment', true)
                 ->where('assessment.criteria.0.score_band', 'developing')
                 ->where('assessment.criteria.0.contribution', 4.4)
                 ->where('assessment.evidence_audit.includes_budget_evidence', true)
                 ->where('assessment.evidence_audit.section_count', 6)
             );
+    }
+
+    public function test_full_evidence_reassessment_is_not_presented_as_score_movement(): void
+    {
+        [$advisor, $plan] = $this->plan('full-evidence-baseline-founder@example.test');
+        app(Assessment::class)->firstPass($plan, $advisor);
+        $second = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+        $second->forceFill([
+            'scoring_scope' => [
+                'version' => 'criterion_evidence_v1',
+                'rescored_criterion_numbers' => range(1, 12),
+                'reused_criterion_numbers' => [],
+                'advisor_review' => ['required' => true],
+            ],
+        ])->save();
+        PlanRevision::query()->create([
+            'business_plan_id' => $plan->getKey(),
+            'round' => $second->round,
+            'submitted_at' => now(),
+            'progress_comparison' => [
+                'trajectory_percent' => 12,
+                'overall_delta' => 8,
+                'biggest_improvements' => [['criterion_name' => 'Incorrect legacy movement']],
+                'remaining_gaps' => [],
+            ],
+            'submitted_by_user_id' => $advisor->getKey(),
+        ]);
+
+        $profile = $plan->entrepreneurProfile()->firstOrFail();
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('entrepreneur.latest_plan.assessment_history.0.round', $second->round)
+                ->where('entrepreneur.latest_plan.assessment_history.0.score_delta', null)
+                ->where('entrepreneur.latest_plan.assessment_history.0.score_source_summary', 'Every criterion was newly scored from mapped submitted-plan evidence. This is a calibrated evidence baseline, not score movement from an earlier assessment.')
+                ->where('entrepreneur.latest_plan.latest_revision.comparison_mode', 'full_evidence_reassessment')
+                ->where('entrepreneur.latest_plan.latest_revision.trajectory_percent', null)
+                ->where('entrepreneur.latest_plan.latest_revision.biggest_improvements', [])
+                ->where('entrepreneur.latest_plan.latest_revision.remaining_gaps.0.previous_score', null)
+            );
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.assessments.show', [$profile, $second]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('assessment.scoring_scope.is_full_reassessment', true)
+                ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'calibrated baseline'))
+            );
+
+        $this->assertStringNotContainsString(
+            'Round movement:',
+            app(AssessmentFeedback::class)->draft($second->refresh()),
+        );
     }
 
     public function test_super_admin_assessment_from_the_workspace_queues_a_durable_background_run(): void
@@ -429,6 +485,7 @@ final class AssessmentTest extends TestCase
         $this->assertSame('reused_unchanged_evidence', data_get($second->ai_scores, '0.score_source'));
         $this->assertSame('ai_assessment', data_get($second->ai_scores, '3.score_source'));
         $this->assertSame([4, 5], data_get($second->scoring_scope, 'rescored_criterion_numbers'));
+        $this->assertSame([], data_get($second->scoring_scope, 'scope_correction_criterion_numbers'));
         $this->assertContains(1, data_get($second->scoring_scope, 'reused_criterion_numbers'));
 
         try {
@@ -461,6 +518,106 @@ final class AssessmentTest extends TestCase
             'action' => 'entrepreneur.plan_assessment_scoring_scope_confirmed',
             'subject_id' => $second->id,
         ]);
+    }
+
+    public function test_competitor_comparison_change_rescores_industry_and_differentiation(): void
+    {
+        $this->app->instance(AiClient::class, new CapturingScoreAiClient(82));
+        [$advisor, $plan] = $this->plan('competitor-comparison-founder@example.test');
+        $this->seedMappedAssessmentSections($plan, $advisor);
+        app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+
+        $secondAi = new CapturingScoreAiClient(95);
+        $this->app->instance(AiClient::class, $secondAi);
+        app(PlanBuilder::class)->upsertSection(
+            plan: $plan->refresh(),
+            phaseKey: 'market',
+            key: 'assessment-competitor-comparison',
+            title: 'Competitor comparison',
+            body: 'Named alternatives, their published prices, and a tested gap for this offer.',
+            actor: $advisor,
+            metadata: ['requirement_key' => 'competitor-comparison'],
+        );
+
+        $second = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+
+        $this->assertSame([4, 5], collect($secondAi->scorePrompts)
+            ->map(fn (PromptEnvelope $prompt): int => (int) data_get($prompt->input, 'criterion.number'))
+            ->all());
+        $this->assertSame([4, 5], data_get($second->scoring_scope, 'rescored_criterion_numbers'));
+        $this->assertSame(
+            ['industry-context', 'differentiation', 'competitor-comparison'],
+            array_column((array) data_get($secondAi->scorePrompts[0]->input, 'plan_context.criterion_focus_sections'), 'requirement_key'),
+        );
+        $this->assertSame(
+            ['differentiation', 'competitor-comparison'],
+            array_column((array) data_get($secondAi->scorePrompts[1]->input, 'plan_context.criterion_focus_sections'), 'requirement_key'),
+        );
+    }
+
+    public function test_existing_competitor_evidence_is_marked_as_a_scope_correction_when_a_mapping_is_repaired(): void
+    {
+        $this->app->instance(AiClient::class, new CapturingScoreAiClient(82));
+        [$advisor, $plan] = $this->plan('competitor-scope-correction-founder@example.test');
+        $this->seedMappedAssessmentSections($plan, $advisor);
+        app(PlanBuilder::class)->upsertSection(
+            plan: $plan->refresh(),
+            phaseKey: 'market',
+            key: 'assessment-competitor-comparison',
+            title: 'Competitor comparison',
+            body: 'Named alternatives, their published prices, and the customer gap.',
+            actor: $advisor,
+            metadata: ['requirement_key' => 'competitor-comparison'],
+        );
+        $first = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+        $first->forceFill([
+            'ai_scores' => collect($first->ai_scores)
+                ->map(function (array $score): array {
+                    if (! in_array((int) $score['criterion_number'], [4, 5], true)) {
+                        return $score;
+                    }
+
+                    $metadata = is_array($score['metadata'] ?? null) ? $score['metadata'] : [];
+
+                    return [
+                        ...$score,
+                        'metadata' => [
+                            ...$metadata,
+                            'evidence_hash' => 'pre-mapping-correction',
+                            'source_sections' => collect((array) ($metadata['source_sections'] ?? []))
+                                ->reject(fn (array $section): bool => ($section['requirement_key'] ?? null) === 'competitor-comparison')
+                                ->values()
+                                ->all(),
+                        ],
+                    ];
+                })
+                ->all(),
+        ])->save();
+
+        $secondAi = new CapturingScoreAiClient(95);
+        $this->app->instance(AiClient::class, $secondAi);
+        $second = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+
+        $this->assertSame([4, 5], collect($secondAi->scorePrompts)
+            ->map(fn (PromptEnvelope $prompt): int => (int) data_get($prompt->input, 'criterion.number'))
+            ->all());
+        $this->assertSame([4, 5], data_get($second->scoring_scope, 'scope_correction_criterion_numbers'));
+        $this->assertSame([4, 5], data_get($second->scoring_scope, 'rescored_criterion_numbers'));
+
+        $profile = $plan->entrepreneurProfile()->firstOrFail();
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.assessments.show', [$profile, $second]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('assessment.scoring_scope.has_scope_correction', true)
+                ->where('assessment.scoring_scope.is_scope_correction_only', true)
+                ->where('assessment.scoring_scope.scope_correction_criterion_numbers', [4, 5])
+                ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'evidence scope was corrected'))
+            );
+        $this->assertStringNotContainsString(
+            'Round movement:',
+            app(AssessmentFeedback::class)->draft($second->refresh()),
+        );
     }
 
     public function test_budget_change_rescores_only_budget_and_creates_cross_plan_review_warning(): void
