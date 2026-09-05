@@ -231,54 +231,6 @@
         color: var(--sidebar-primary-foreground);
     }
 
-    /* The compact client-detail tabs sit directly on the workspace surface.
-       Keep both states opaque and explicit so the labels remain readable in
-       light and dark appearances. */
-    .fsa-app-surface [role='tablist'][aria-label='Client detail sections'] {
-        background: var(--fs-linen) !important;
-    }
-
-    .fsa-app-surface
-        [role='tablist'][aria-label='Client detail sections']
-        button[role='tab'] {
-        color: var(--fs-admiralty) !important;
-        opacity: 1 !important;
-    }
-
-    .fsa-app-surface
-        [role='tablist'][aria-label='Client detail sections']
-        button[role='tab'][aria-selected='false'] {
-        background: transparent !important;
-    }
-
-    .fsa-app-surface
-        [role='tablist'][aria-label='Client detail sections']
-        button[role='tab'][aria-selected='true'] {
-        background: var(--fs-admiralty) !important;
-        color: var(--fs-parchment) !important;
-    }
-
-    .dark
-        .fsa-app-surface
-        [role='tablist'][aria-label='Client detail sections'] {
-        background: #263a58 !important;
-    }
-
-    .dark
-        .fsa-app-surface
-        [role='tablist'][aria-label='Client detail sections']
-        button[role='tab'] {
-        color: var(--fs-parchment) !important;
-    }
-
-    .dark
-        .fsa-app-surface
-        [role='tablist'][aria-label='Client detail sections']
-        button[role='tab'][aria-selected='true'] {
-        background: var(--fs-champagne) !important;
-        color: var(--fs-admiralty) !important;
-    }
-
     .fsa-app-surface
         :where(
             input:not([type='checkbox']):not([type='radio']):not(
