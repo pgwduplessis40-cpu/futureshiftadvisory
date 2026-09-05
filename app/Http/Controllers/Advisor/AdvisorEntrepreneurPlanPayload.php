@@ -164,7 +164,7 @@ final class AdvisorEntrepreneurPlanPayload
      */
     private function latestRevisionPayload(PlanRevision $revision, ?array $latestAssessmentPayload): array
     {
-        $comparison = is_array($revision->progress_comparison) ? $revision->progress_comparison : [];
+        $comparison = $revision->progress_comparison;
         $isFullEvidenceReassessment = (int) ($latestAssessmentPayload['round'] ?? 0) === (int) $revision->round
             && (bool) data_get($latestAssessmentPayload, 'scoring_scope.is_full_reassessment', false);
         $hasScopeCorrection = (int) ($latestAssessmentPayload['round'] ?? 0) === (int) $revision->round
