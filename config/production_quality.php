@@ -153,6 +153,7 @@ return [
         'App\\Models\\ServiceActivation' => 'app/Models/ServiceActivation.php',
         'App\\Models\\FinancialAlert' => 'app/Models/FinancialAlert.php',
         'App\\Models\\DdEngagement' => 'app/Models/DdEngagement.php',
+        'App\\Models\\PortalWorkspaceDraft' => 'app/Models/PortalWorkspaceDraft.php',
     ],
 
     // This count starts after the first financial-model migration. Every

@@ -12,7 +12,13 @@ final class PortalWorkspaceDraft extends Model
 {
     use HasUuids;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'user_id',
+        'client_id',
+        'draft_key',
+        'payload',
+        'saved_at',
+    ];
 
     protected $casts = [
         'payload' => 'array',
