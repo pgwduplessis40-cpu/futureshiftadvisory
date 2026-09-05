@@ -334,8 +334,8 @@ final class AssessmentTest extends TestCase
                 ->where('entrepreneur.latest_plan.latest_round', 2)
                 ->where('entrepreneur.latest_plan.latest_assessment.id', $latest->id)
                 ->where('entrepreneur.latest_plan.assessment_history.0.round', 2)
-                ->where('entrepreneur.latest_plan.assessment_history.0.score_delta', 0)
-                ->where('entrepreneur.latest_plan.assessment_history.0.score_source_summary', 'Calibrated rubric-band assessment against mapped criterion evidence; full submitted plan snapshot retained for audit.')
+                ->where('entrepreneur.latest_plan.assessment_history.0.score_delta', null)
+                ->where('entrepreneur.latest_plan.assessment_history.0.score_source_summary', 'Every criterion was newly scored from mapped submitted-plan evidence. This is a calibrated evidence baseline, not score movement from an earlier assessment.')
                 ->where('entrepreneur.latest_plan.assessment_history.0.snapshot_available', true)
                 ->where('entrepreneur.latest_plan.assessment_history.0.snapshot_note', 'Submitted-plan snapshot captured for this assessment round.')
                 ->where('entrepreneur.latest_plan.assessment_history.0.plan_snapshot_url', route('advisor.entrepreneurs.assessments.plan-preview', [$profile, $latest], absolute: false))
@@ -683,7 +683,7 @@ final class AssessmentTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('entrepreneur.latest_plan.assessment_history.0.round', $third->round)
                 ->where('entrepreneur.latest_plan.assessment_history.0.weighted_score', 30)
-                ->where('entrepreneur.latest_plan.assessment_history.0.score_delta', 0)
+                ->where('entrepreneur.latest_plan.assessment_history.0.score_delta', null)
                 ->where('entrepreneur.latest_plan.assessment_history.1.round', $fallback->round)
                 ->where('entrepreneur.latest_plan.assessment_history.1.automated_score_available', false)
                 ->where('entrepreneur.latest_plan.assessment_history.1.weighted_score', null)
@@ -958,7 +958,7 @@ final class AssessmentTest extends TestCase
         $this->assertTrue($feedbacks->isLegacyReply("The assessment note stops here\u{2026}"));
     }
 
-    public function test_assessment_feedback_draft_shows_round_movement_and_current_source_evidence(): void
+    public function test_assessment_feedback_draft_shows_current_source_evidence_without_non_comparable_round_movement(): void
     {
         $this->app->instance(AiClient::class, new CapturingScoreAiClient(82));
         [$advisor, $plan] = $this->plan('assessment-feedback-evidence@example.test');
@@ -1011,7 +1011,7 @@ final class AssessmentTest extends TestCase
         $feedback = app(AssessmentFeedback::class)->draft($second->refresh());
 
         $this->assertStringContainsString('Assessment finding: AI rationale tied to the supplied resubmitted plan evidence.', $feedback);
-        $this->assertStringContainsString('Round movement: previous round 1 was 32/100; current round is 45/100 (+13).', $feedback);
+        $this->assertStringNotContainsString('Round movement:', $feedback);
         $this->assertStringContainsString('Scored from mapped criterion evidence:', $feedback);
         $this->assertStringContainsString('Updated second-round IP register', $feedback);
         $this->assertStringNotContainsString('What is missing:', $feedback);
