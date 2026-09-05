@@ -29,6 +29,11 @@ return [
             'production_limit' => 500,
             'contract_tests' => ['tests/Feature/Entrepreneurs'],
         ],
+        'app/Http/Controllers/Portal/DashboardController.php' => [
+            'ceiling' => 1237,
+            'production_limit' => 500,
+            'contract_tests' => ['tests/Feature/Portal/PortalWorkspaceDraftTest.php'],
+        ],
         'resources/js/pages/advisor/clients/Show.tsx' => [
             'ceiling' => 7780,
             'production_limit' => 1000,
@@ -65,6 +70,26 @@ return [
             'ceiling' => 2616,
             'production_limit' => 3000,
             'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Budgets'],
+        ],
+        'resources/js/pages/portal/Dashboard.tsx' => [
+            'ceiling' => 3732,
+            'production_limit' => 1000,
+            'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Portal/PortalWorkspaceDraftTest.php'],
+        ],
+        'resources/js/pages/portal/dd/BusinessPlan.tsx' => [
+            'ceiling' => 1386,
+            'production_limit' => 1000,
+            'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Portal/PortalWorkspaceDraftTest.php'],
+        ],
+        'resources/js/pages/portal/entrepreneur/plan-workspace-actions.tsx' => [
+            'ceiling' => 1040,
+            'production_limit' => 1000,
+            'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Portal/PortalWorkspaceDraftTest.php'],
+        ],
+        'resources/js/pages/portal/onboarding/Step.tsx' => [
+            'ceiling' => 1130,
+            'production_limit' => 1000,
+            'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Portal/PortalWorkspaceDraftTest.php'],
         ],
         'app/Services/Entrepreneurs/BudgetCalculator.php' => [
             'ceiling' => 1360,
