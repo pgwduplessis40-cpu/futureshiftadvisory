@@ -84,6 +84,7 @@ test('the recommendation form retains all governed fields and the no-automatic-c
             defaults: recommendation,
         }),
     );
+
     for (const label of [
         'Failure / shortfall',
         'Impact',
@@ -96,6 +97,7 @@ test('the recommendation form retains all governed fields and the no-automatic-c
     ]) {
         assert.ok(html.includes(label), label);
     }
+
     assert.match(html, /It cannot change the live product automatically/);
 });
 

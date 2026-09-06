@@ -50,6 +50,8 @@ test('selected DD and BP&B prices and their combined total remain visible', () =
     assert.match(html, /3,200\.00/);
     assert.match(html, /1,200\.00/);
     assert.match(html, /service_offers_acknowledged/);
+    assert.match(html, /name="service_offers_acknowledged"/);
+    assert.match(html, /for="service_offers_acknowledged"/);
     assert.match(html, /other services remain by request/);
 });
 
