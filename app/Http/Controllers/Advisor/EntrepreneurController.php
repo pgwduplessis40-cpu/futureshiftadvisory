@@ -16,6 +16,7 @@ use App\Services\Advisor\AdvisorClientServiceWorkspaces;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
 use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
+use App\Services\Entrepreneurs\EntrepreneurInviteOffer;
 use App\Services\Security\InviteIssuer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,6 +36,7 @@ final class EntrepreneurController extends Controller
         private readonly AdvisorClientServiceWorkspaces $serviceWorkspaces,
         private readonly CanonicalEntrepreneurWorkspace $entrepreneurWorkspaces,
         private readonly AdvisorEntrepreneurWorkspacePayload $workspacePayloads,
+        private readonly EntrepreneurInviteOffer $inviteOffers,
     ) {}
 
     public function index(Request $request): Response
@@ -89,6 +91,7 @@ final class EntrepreneurController extends Controller
                 Rule::unique('entrepreneur_profiles', 'email'),
             ],
             'concept_summary' => ['nullable', 'string', 'max:2000'],
+            'service_offer_version' => ['nullable', 'string', 'size:64'],
             'intended_package_scope' => [
                 'required',
                 'string',
@@ -99,8 +102,9 @@ final class EntrepreneurController extends Controller
         $packageScope = ServiceRatePackage::normaliseEntrepreneurScope(
             (string) $validated['intended_package_scope'],
         );
+        $serviceOffer = $this->inviteOffers->quote($packageScope, $validated['service_offer_version'] ?? null);
 
-        $profile = DB::transaction(function () use ($advisor, $email, $packageScope, $validated): EntrepreneurProfile {
+        $profile = DB::transaction(function () use ($advisor, $email, $packageScope, $serviceOffer, $validated): EntrepreneurProfile {
             $issued = $this->inviteIssuer->issue(
                 email: $email,
                 targetUserType: User::TYPE_ENTREPRENEUR,
@@ -109,6 +113,7 @@ final class EntrepreneurController extends Controller
                 intendedPackageScope: $packageScope,
                 issuedBy: $advisor,
                 deliver: true,
+                serviceOfferSnapshot: $serviceOffer,
             );
 
             $profile = EntrepreneurProfile::query()->create([
@@ -191,6 +196,8 @@ final class EntrepreneurController extends Controller
 
         DB::transaction(function () use ($advisor, $entrepreneurProfile): void {
             $previousInvite = $entrepreneurProfile->inviteToken;
+            $scope = $this->inviteOffers->scopeFor($entrepreneurProfile);
+            $serviceOffer = $this->inviteOffers->forResend($entrepreneurProfile, $scope);
             if ($previousInvite instanceof InviteToken && ! $previousInvite->isAccepted()) {
                 $previousInvite->forceFill(['expires_at' => now()->subMinute()])->save();
             }
@@ -200,9 +207,10 @@ final class EntrepreneurController extends Controller
                 targetUserType: User::TYPE_ENTREPRENEUR,
                 targetRole: User::TYPE_ENTREPRENEUR,
                 intendedServiceType: ServiceActivation::SERVICE_ENTREPRENEUR,
-                intendedPackageScope: $this->intendedEntrepreneurScope($entrepreneurProfile),
+                intendedPackageScope: $scope,
                 issuedBy: $advisor,
                 deliver: true,
+                serviceOfferSnapshot: $serviceOffer,
             );
 
             $entrepreneurProfile->forceFill([
@@ -239,7 +247,7 @@ final class EntrepreneurController extends Controller
         $validated = $request->validated();
 
         $previousEmail = Str::lower(trim((string) $entrepreneurProfile->email));
-        $previousScope = $this->intendedEntrepreneurScope($entrepreneurProfile);
+        $previousScope = $this->inviteOffers->scopeFor($entrepreneurProfile);
         $nextEmail = (string) $validated['email'];
         $nextScope = ServiceRatePackage::normaliseEntrepreneurScope(
             (string) $validated['intended_package_scope'],
@@ -367,27 +375,5 @@ final class EntrepreneurController extends Controller
         return $profile->user_id === null
             && $profile->user === null
             && $profile->inviteToken?->accepted_at === null;
-    }
-
-    private function intendedEntrepreneurScope(EntrepreneurProfile $profile): string
-    {
-        if (
-            $profile->intended_service_type === ServiceActivation::SERVICE_ENTREPRENEUR
-            && is_string($profile->intended_package_scope)
-            && $profile->intended_package_scope !== ''
-        ) {
-            return ServiceRatePackage::normaliseEntrepreneurScope($profile->intended_package_scope);
-        }
-
-        $invite = $profile->inviteToken;
-        if (
-            $invite instanceof InviteToken
-            && $invite->intended_service_type === ServiceActivation::SERVICE_ENTREPRENEUR
-            && is_string($invite->intended_package_scope)
-        ) {
-            return ServiceRatePackage::normaliseEntrepreneurScope($invite->intended_package_scope);
-        }
-
-        return ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO;
     }
 }

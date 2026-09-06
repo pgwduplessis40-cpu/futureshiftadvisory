@@ -383,6 +383,19 @@ final class AddClientTest extends TestCase
             'status' => ServiceActivation::STATUS_PACKAGE_SELECTED,
         ]);
         Mail::assertSent(InvitationMail::class, 1);
+
+        $ddPackage->update(['fixed_fee' => 9500]);
+        $planBudgetPackage->update(['fixed_fee' => 4200]);
+        $this->post(route('advisor.clients.invite.resend', $client))
+            ->assertRedirect(route('advisor.clients.show', $client))
+            ->assertSessionHasNoErrors();
+        $offers = ServiceActivation::query()->where('client_id', $client->getKey())->get();
+        $this->assertCount(2, $offers);
+        $this->assertEquals(8500, $offers->firstWhere('service_type', ServiceActivation::SERVICE_DUE_DILIGENCE)->selected_package_snapshot['fixed_fee']);
+        $this->assertEquals(3200, $offers->firstWhere('service_type', ServiceActivation::SERVICE_DD_PLAN_BUDGET)->selected_package_snapshot['fixed_fee']);
+        foreach ($offers as $offer) {
+            $this->assertSame($client->refresh()->registry_sources['invite_token_id'], $offer->metadata['invite_token_id']);
+        }
     }
 
     public function test_advisor_invite_rejects_an_unapproved_return_url(): void

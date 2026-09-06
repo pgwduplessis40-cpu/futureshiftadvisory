@@ -6,14 +6,15 @@ namespace App\Http\Controllers\Auth;
 
 use App\Enums\EntrepreneurStage;
 use App\Http\Controllers\Controller;
-use App\Models\EntrepreneurProfile;
 use App\Models\Client;
+use App\Models\EntrepreneurProfile;
 use App\Models\InviteToken;
 use App\Models\PanelMember;
 use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Clients\ClientInviteReconciler;
+use App\Services\Entrepreneurs\EntrepreneurInviteOffer;
 use App\Services\Security\MfaChallenger;
 use App\Support\RequestContext;
 use Illuminate\Contracts\Encryption\DecryptException;
@@ -215,6 +216,16 @@ final class InviteAcceptController extends Controller
      */
     private function serviceOffersFor(InviteToken $invite): array
     {
+        if ($invite->target_user_type === User::TYPE_ENTREPRENEUR && is_array($invite->service_offer_snapshot)) {
+            $terms = app(EntrepreneurInviteOffer::class)->terms($invite);
+
+            return [[
+                'label' => (string) $terms['client_label'],
+                'fee' => (float) $terms['fixed_fee'],
+                'currency' => (string) $terms['currency'],
+            ]];
+        }
+
         if ($invite->target_user_type !== User::TYPE_CLIENT_PRIMARY) {
             return [];
         }

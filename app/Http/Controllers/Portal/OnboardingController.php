@@ -278,11 +278,9 @@ final class OnboardingController extends Controller
         return match ($step) {
             OnboardingWizard::STEP_WELCOME => $request->validate([
                 'acknowledged' => ['accepted'],
-                'service_offers_acknowledged' => [
-                    Rule::requiredIf(fn (): bool => $this->serviceActivations->invitationOffers($client)->isNotEmpty()),
-                    'nullable',
-                    'accepted',
-                ],
+                'service_offers_acknowledged' => $this->serviceOfferPayload($client)['must_acknowledge']
+                    ? ['required', 'accepted']
+                    : ['sometimes', 'boolean'],
             ]),
             OnboardingWizard::STEP_GOALS => $request->validate([
                 'primary_goal' => ['required', 'string', 'max:1000'],

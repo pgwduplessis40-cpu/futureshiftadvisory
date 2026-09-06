@@ -17,6 +17,7 @@ use App\Http\Controllers\Portal\EntrepreneurPlanBudgetController;
 use App\Http\Controllers\Portal\EntrepreneurPlanController;
 use App\Http\Controllers\Portal\EntrepreneurPlanDocumentController;
 use App\Http\Controllers\Portal\EntrepreneurPlanWorkspaceController;
+use App\Http\Controllers\Portal\EntrepreneurServiceOfferController;
 use App\Http\Controllers\Portal\EntrepreneurSurveyController;
 use App\Http\Controllers\Portal\InspirationBoardController;
 use App\Http\Controllers\Portal\MessageController;
@@ -36,9 +37,10 @@ use App\Http\Controllers\Portal\WellbeingController;
 use App\Http\Controllers\ScreenShare\EntrepreneurScreenShareController;
 use App\Http\Controllers\ScreenShare\ScreenShareConnectionController;
 use App\Http\Controllers\ScreenShare\ScreenShareSessionController;
+use App\Http\Middleware\EnsureEntrepreneurInviteOfferAccepted;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'verified', 'mfa'])
+Route::middleware(['auth', 'verified', 'mfa', EnsureEntrepreneurInviteOfferAccepted::class])
     ->prefix('portal')
     ->name('portal.')
     ->group(function (): void {
@@ -96,6 +98,8 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('acquisition-plan/complete', [DdBusinessPlanController::class, 'complete'])->name('dd-plan.complete');
         Route::post('acquisition-plan/business-advice', [DdBusinessPlanController::class, 'requestAdvice'])->name('dd-plan.business-advice.store');
         Route::get('entrepreneur', EntrepreneurDashboardController::class)->name('entrepreneur.dashboard');
+        Route::get('entrepreneur/service-offer', [EntrepreneurServiceOfferController::class, 'show'])->name('entrepreneur.service-offer.show');
+        Route::post('entrepreneur/service-offer', [EntrepreneurServiceOfferController::class, 'store'])->name('entrepreneur.service-offer.store');
         Route::get('entrepreneur/plan', [EntrepreneurPlanWorkspaceController::class, 'show'])->name('entrepreneur.plan.show');
         Route::get('entrepreneur/plan/preview', [EntrepreneurPlanDocumentController::class, 'preview'])->name('entrepreneur.plan.preview');
         Route::post('entrepreneur/readiness', [EntrepreneurPlanController::class, 'readiness'])->name('entrepreneur.readiness.store');

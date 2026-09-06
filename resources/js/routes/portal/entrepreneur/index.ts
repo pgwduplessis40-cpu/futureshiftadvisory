@@ -1,4 +1,5 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../wayfinder'
+import serviceOffer from './service-offer'
 import plan from './plan'
 import readiness from './readiness'
 import ideaValidation from './idea-validation'
@@ -89,6 +90,7 @@ dashboard.form = dashboardForm
 
 const entrepreneur = {
     dashboard: Object.assign(dashboard, dashboard),
+    serviceOffer: Object.assign(serviceOffer, serviceOffer),
     plan: Object.assign(plan, plan),
     readiness: Object.assign(readiness, readiness),
     ideaValidation: Object.assign(ideaValidation, ideaValidation),

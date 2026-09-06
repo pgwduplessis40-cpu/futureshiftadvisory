@@ -86,6 +86,13 @@ final class OnboardingWizardTest extends TestCase
         $this->actingAsMfa($user)
             ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_WELCOME]), [
                 'acknowledged' => true,
+                'service_offers_acknowledged' => false,
+            ])
+            ->assertSessionHasErrors('service_offers_acknowledged');
+
+        $this->actingAsMfa($user)
+            ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_WELCOME]), [
+                'acknowledged' => true,
                 'service_offers_acknowledged' => true,
             ])
             ->assertRedirect();

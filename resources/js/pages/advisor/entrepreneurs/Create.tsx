@@ -19,6 +19,7 @@ type ServiceOption = {
     value: string;
     label: string;
     description: string;
+    offer_version?: string;
 };
 
 type Props = {
@@ -32,6 +33,7 @@ type EntrepreneurForm = {
     email: string;
     concept_summary: string;
     intended_package_scope: string;
+    service_offer_version: string;
 };
 
 export default function EntrepreneursCreate({
@@ -44,6 +46,7 @@ export default function EntrepreneursCreate({
         email: '',
         concept_summary: '',
         intended_package_scope: '',
+        service_offer_version: '',
     });
     const errors = form.errors as Record<string, string | undefined>;
     const selectedService = serviceOptions.find(
@@ -130,12 +133,18 @@ export default function EntrepreneursCreate({
                                     </Label>
                                     <Select
                                         value={form.data.intended_package_scope}
-                                        onValueChange={(value) =>
-                                            form.setData(
-                                                'intended_package_scope',
-                                                value,
-                                            )
-                                        }
+                                        onValueChange={(value) => {
+                                            form.setData((data) => ({
+                                                ...data,
+                                                intended_package_scope: value,
+                                                service_offer_version:
+                                                    serviceOptions.find(
+                                                        (option) =>
+                                                            option.value ===
+                                                            value,
+                                                    )?.offer_version ?? '',
+                                            }));
+                                        }}
                                     >
                                         <SelectTrigger
                                             id="intended_package_scope"
@@ -159,6 +168,13 @@ export default function EntrepreneursCreate({
                                             {selectedService.description}
                                         </p>
                                     ) : null}
+                                    <p className="text-sm text-muted-foreground">
+                                        The selected service and fee will be
+                                        saved with this invitation for the
+                                        entrepreneur to agree to during
+                                        onboarding. Other services are available
+                                        by request.
+                                    </p>
                                     <InputError
                                         message={
                                             form.errors.intended_package_scope

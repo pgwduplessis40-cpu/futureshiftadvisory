@@ -32,6 +32,7 @@ use App\Services\Learning\LayerCadenceRegistry;
 use App\Services\Messaging\MessageThreadService;
 use App\Services\Plans\PlanBuilder as SharedPlanBuilder;
 use App\Support\RequestContext;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;

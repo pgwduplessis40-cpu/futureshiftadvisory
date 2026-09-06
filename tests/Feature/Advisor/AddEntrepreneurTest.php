@@ -55,6 +55,18 @@ final class AddEntrepreneurTest extends TestCase
         Mail::fake();
         $this->seed(RoleSeeder::class);
         $advisor = $this->advisor();
+        ServiceRatePackage::query()->create([
+            'service_type' => ServiceRatePackage::SERVICE_ENTREPRENEUR,
+            'package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET,
+            'package_name' => 'Test plan and budget',
+            'client_label' => 'Test plan and budget',
+            'scope_description' => 'Test business plan and budget scope.',
+            'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+            'fixed_fee' => 2900,
+            'currency' => 'NZD',
+            'is_active' => true,
+            'effective_from' => now()->subMinute(),
+        ]);
 
         $this->actingAsMfa($advisor)
             ->post(route('advisor.entrepreneurs.store'), [

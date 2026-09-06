@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\Entrepreneurs\EntrepreneurInviteOffer;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/** @phpstan-type InviteOfferSnapshot array{id:string,service_type:string,package_scope:string|null,client_label:string,fixed_fee:float|null,currency:string,scope_description:string,...} */
 final class ServiceRatePackage extends Model
 {
     use HasUuids;
@@ -93,7 +95,7 @@ final class ServiceRatePackage extends Model
     }
 
     /**
-     * @return array<string, mixed>
+     * @return InviteOfferSnapshot
      */
     public function snapshot(): array
     {
@@ -183,13 +185,13 @@ final class ServiceRatePackage extends Model
     /**
      * Return the entrepreneur invite choices from the currently offered service
      * packages. This keeps the advisor's invite wording and price context in
-     * step with Service rates while the persisted invite continues to carry the
-     * stable access scope rather than a mutable package record.
+     * step with Service rates. New invitations also retain a copy of the offer;
+     * the stable scope continues to drive the existing workspace access rules.
      *
      * When no entrepreneur packages have been configured yet, retain the
      * standard access choices so existing workspaces remain inviteable.
      *
-     * @return array<int, array{value:string,label:string,description:string}>
+     * @return array<int, array{value:string,label:string,description:string,offer_version?:string}>
      */
     public static function entrepreneurInviteServiceOptions(): array
     {
@@ -203,6 +205,7 @@ final class ServiceRatePackage extends Model
                     ->orWhere('effective_to', '>', $now);
             })
             ->orderByDesc('effective_from')
+            ->orderBy('id')
             ->get()
             ->filter(fn (self $package): bool => in_array($package->packageScope(), self::entrepreneurPackageScopes(), true))
             ->unique(fn (self $package): string => (string) $package->packageScope())
@@ -223,6 +226,7 @@ final class ServiceRatePackage extends Model
                 return [
                     'value' => $scope,
                     'label' => $package->client_label,
+                    'offer_version' => EntrepreneurInviteOffer::version($package->snapshot()),
                     'description' => implode(' ', array_filter([
                         self::packageScopeLabel($scope).' access.',
                         self::inviteRateSummary($package),
