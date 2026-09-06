@@ -80,6 +80,10 @@ type Assessment = {
     scoring_scope: {
         rescored_criterion_numbers: number[];
         reused_criterion_numbers: number[];
+        scope_correction_criterion_numbers: number[];
+        is_full_reassessment: boolean;
+        has_scope_correction: boolean;
+        is_scope_correction_only: boolean;
         advisor_review_required: boolean;
         advisor_review_confirmed_at: string | null;
         cross_plan_review_required: boolean;

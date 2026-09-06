@@ -46,8 +46,8 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { AssessmentProgressList } from './assessment-progress-list';
 import type {
-    CriterionDelta,
     EntrepreneurDetail,
     EntrepreneurDocument,
     ServiceOption,
@@ -109,6 +109,14 @@ export default function EntrepreneursShow({
     const funderReady = entrepreneur.latest_plan?.funder_ready;
     const assessmentHistory =
         entrepreneur.latest_plan?.assessment_history ?? [];
+    const latestRevision = entrepreneur.latest_plan?.latest_revision ?? null;
+    const latestRevisionHasNonComparableComparison =
+        latestRevision !== null &&
+        latestRevision.comparison_mode !== 'evidence_progress';
+    const latestRevisionAssessmentBasis =
+        latestRevision?.comparison_mode === 'full_evidence_reassessment'
+            ? 'Full reassessment'
+            : 'Scope correction';
     const latestAssessmentUsesCurrentRubric =
         latestAssessment?.rating_framework.is_current ?? true;
     const canRunAssessment = entrepreneur.latest_plan?.can_assess ?? false;
@@ -2470,31 +2478,52 @@ export default function EntrepreneursShow({
                                 ]}
                             />
                             <ActionMetric
-                                label="Trajectory"
-                                value={formatDelta(
-                                    entrepreneur.latest_plan.latest_revision
-                                        ?.trajectory_percent,
-                                    '%',
-                                )}
+                                label={
+                                    latestRevisionHasNonComparableComparison
+                                        ? 'Assessment basis'
+                                        : 'Trajectory'
+                                }
+                                value={
+                                    latestRevisionHasNonComparableComparison
+                                        ? latestRevisionAssessmentBasis
+                                        : formatDelta(
+                                              latestRevision?.trajectory_percent,
+                                              '%',
+                                          )
+                                }
                                 href="#business-plan-budget"
-                                drillLabel="Review movement"
-                                hoverTitle="Trajectory"
+                                drillLabel={
+                                    latestRevisionHasNonComparableComparison
+                                        ? 'Review assessment basis'
+                                        : 'Review movement'
+                                }
+                                hoverTitle={
+                                    latestRevisionHasNonComparableComparison
+                                        ? 'Assessment basis'
+                                        : 'Trajectory'
+                                }
                                 rows={[
                                     {
-                                        label: 'Overall movement',
-                                        value: formatDelta(
-                                            entrepreneur.latest_plan
-                                                .latest_revision?.overall_delta,
-                                        ),
+                                        label: latestRevisionHasNonComparableComparison
+                                            ? 'Comparison'
+                                            : 'Overall movement',
+                                        value: latestRevisionHasNonComparableComparison
+                                            ? 'Not comparable'
+                                            : formatDelta(
+                                                  latestRevision?.overall_delta,
+                                              ),
                                     },
                                     {
                                         label: 'Revision round',
-                                        value:
-                                            entrepreneur.latest_plan
-                                                .latest_revision?.round ?? '-',
+                                        value: latestRevision?.round ?? '-',
                                     },
                                 ]}
-                                footer="Trajectory compares the latest plan revision against the prior scoring baseline."
+                                footer={
+                                    latestRevisionHasNonComparableComparison
+                                        ? (latestRevision?.comparison_notice ??
+                                          'Every criterion was newly scored from mapped evidence in this round.')
+                                        : 'Trajectory compares the latest plan revision against the prior scoring baseline.'
+                                }
                             />
                             <ActionMetric
                                 label="Budget"
@@ -2767,23 +2796,39 @@ export default function EntrepreneursShow({
                             </Collapsible>
                         ) : null}
 
-                        {entrepreneur.latest_plan.latest_revision ? (
+                        {latestRevision ? (
                             <div className="grid gap-6 lg:grid-cols-2">
-                                <ProgressList
-                                    title="Biggest improvements"
-                                    rows={
-                                        entrepreneur.latest_plan.latest_revision
-                                            .biggest_improvements
+                                {latestRevisionHasNonComparableComparison ? (
+                                    <div className="space-y-3">
+                                        <h3 className="text-xs font-medium text-muted-foreground">
+                                            Assessment comparison
+                                        </h3>
+                                        <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                                            {latestRevision.comparison_notice}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <AssessmentProgressList
+                                        title="Biggest improvements"
+                                        rows={
+                                            latestRevision.biggest_improvements
+                                        }
+                                        empty="No positive movement yet."
+                                    />
+                                )}
+                                <AssessmentProgressList
+                                    title={
+                                        latestRevisionHasNonComparableComparison
+                                            ? 'Current gaps to resolve'
+                                            : 'Remaining gaps'
                                     }
-                                    empty="No positive movement yet."
-                                />
-                                <ProgressList
-                                    title="Remaining gaps"
-                                    rows={
-                                        entrepreneur.latest_plan.latest_revision
-                                            .remaining_gaps
-                                    }
+                                    rows={latestRevision.remaining_gaps}
                                     empty="No criteria below 60."
+                                    comparisonMode={
+                                        latestRevisionHasNonComparableComparison
+                                            ? 'current'
+                                            : 'movement'
+                                    }
                                 />
                             </div>
                         ) : null}
@@ -3279,71 +3324,6 @@ function categoryLabel(value: string): string {
 
 function scannerLabel(value: string): string {
     return gradeLabel(value);
-}
-
-function ProgressList({
-    title,
-    rows,
-    empty,
-}: {
-    title: string;
-    rows: CriterionDelta[];
-    empty: string;
-}) {
-    return (
-        <div className="space-y-3">
-            <h3 className="text-xs font-medium text-muted-foreground">
-                {title}
-            </h3>
-            {rows.length > 0 ? (
-                <div className="space-y-2">
-                    {rows.map((row) => (
-                        <InsightHoverCard
-                            key={`${row.criterion_number}-${row.direction}`}
-                            title={row.criterion_name}
-                            rows={[
-                                {
-                                    label: 'Previous',
-                                    value: row.previous_score ?? '-',
-                                },
-                                { label: 'Current', value: row.current_score },
-                                {
-                                    label: 'Movement',
-                                    value: formatDelta(row.delta),
-                                    tone:
-                                        row.delta >= 0
-                                            ? 'positive'
-                                            : 'negative',
-                                },
-                            ]}
-                            footer="Movement compares this criterion against the previous round."
-                        >
-                            <div className="flex cursor-help items-center justify-between gap-3 rounded-md border p-3 text-sm">
-                                <div className="min-w-0">
-                                    <div className="truncate font-medium">
-                                        {row.criterion_name}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        {row.previous_score ?? '-'} -&gt;{' '}
-                                        {row.current_score}
-                                    </div>
-                                </div>
-                                <Badge
-                                    variant={
-                                        row.delta >= 0 ? 'secondary' : 'outline'
-                                    }
-                                >
-                                    {formatDelta(row.delta)}
-                                </Badge>
-                            </div>
-                        </InsightHoverCard>
-                    ))}
-                </div>
-            ) : (
-                <p className="text-sm text-muted-foreground">{empty}</p>
-            )}
-        </div>
-    );
 }
 
 EntrepreneursShow.layout = {

@@ -154,6 +154,11 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             overall_delta: number | null;
             biggest_improvements: CriterionDelta[];
             remaining_gaps: CriterionDelta[];
+            comparison_mode:
+                | 'evidence_progress'
+                | 'full_evidence_reassessment'
+                | 'scope_correction';
+            comparison_notice: string | null;
         } | null;
     } | null;
     readiness: {

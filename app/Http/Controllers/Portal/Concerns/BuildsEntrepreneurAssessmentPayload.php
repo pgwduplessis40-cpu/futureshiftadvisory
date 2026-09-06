@@ -10,8 +10,9 @@ use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\AssessmentScoring;
 
 /**
- * @phpstan-type ScoringScope array{version?:string,rescored_criterion_numbers?:list<int|numeric-string>,reused_criterion_numbers?:list<int|numeric-string>,advisor_review?:array{required?:bool,confirmed_at?:string|null,confirmed_by_user_id?:int|null},cross_plan_review?:array{required?:bool,trigger?:string|null,message?:string|null}}
- * @phpstan-type ScoringScopePayload array{rescored_criterion_numbers:list<int>,reused_criterion_numbers:list<int>,advisor_review_required:bool,advisor_review_confirmed_at:string|null,cross_plan_review_required:bool,cross_plan_review_message:string|null}
+ * @phpstan-type ScoringScope array{version?:string,rescored_criterion_numbers?:list<int|numeric-string>,reused_criterion_numbers?:list<int|numeric-string>,scope_correction_criterion_numbers?:list<int|numeric-string>,advisor_review?:array{required?:bool,confirmed_at?:string|null,confirmed_by_user_id?:int|null},cross_plan_review?:array{required?:bool,trigger?:string|null,message?:string|null}}
+ * @phpstan-type ScoringScopePayload array{rescored_criterion_numbers:list<int>,reused_criterion_numbers:list<int>,scope_correction_criterion_numbers:list<int>,is_full_reassessment:bool,has_scope_correction:bool,is_scope_correction_only:bool,advisor_review_required:bool,advisor_review_confirmed_at:string|null,cross_plan_review_required:bool,cross_plan_review_message:string|null}
+ * @phpstan-type AssessmentCriterionPayload array{criterion_number:int,name:string,score:float|int}
  */
 trait BuildsEntrepreneurAssessmentPayload
 {
@@ -23,6 +24,9 @@ trait BuildsEntrepreneurAssessmentPayload
         $assessment->loadMissing('businessPlan', 'ratingFramework.criteria');
 
         $criteria = AssessmentScoring::criteriaPayload($assessment);
+        $scoringScope = $this->scoringScopePayload($assessment->scoring_scope, $criteria);
+        $isFullEvidenceReassessment = (bool) data_get($scoringScope, 'is_full_reassessment', false);
+        $hasScopeCorrection = (bool) data_get($scoringScope, 'has_scope_correction', false);
         $framework = $assessment->ratingFramework;
         $currentFramework = $this->currentPublishedFrameworkFor($framework);
         $isCurrentFramework = ! $framework instanceof RatingFramework
@@ -64,6 +68,11 @@ trait BuildsEntrepreneurAssessmentPayload
             $hasFallbackScores => 'No valid AI score was returned for this historical round. Its calculated fallback values are retained only for audit and must not be used for advice or progression.',
             $legacyReusedScores->isNotEmpty() => 'This historical round carried forward automatic scores from an earlier assessment. The submitted-plan snapshot is correct for this round, but no new AI score was generated. Run a fresh assessment before relying on the automatic score.',
             $hasLegacyUncalibratedScores => 'This historical round used model-selected raw numeric scores and selected excerpts. It is retained for audit, but it is not comparable with calibrated assessments. Run a fresh assessment before relying on it.',
+            $isFullEvidenceReassessment => 'Every criterion was newly scored from its mapped submitted-plan evidence. This full reassessment establishes a calibrated evidence baseline; score differences alone do not prove plan improvement or regression.',
+            $hasScopeCorrection => sprintf(
+                'Criterion %s was rescored after its mapped evidence scope was corrected to include already-submitted plan material. Treat any score change for that criterion as a calibration correction, not new plan movement.',
+                implode(', ', $scoringScope['scope_correction_criterion_numbers']),
+            ),
             $usesScopedCriterionEvidence => 'Each criterion uses only its mapped submitted-plan evidence. Unchanged criterion evidence retains its prior calibrated result; changed evidence is scored again. Budget evidence is limited to the Budget criterion, and any cross-plan consistency review is shown separately for an advisor.',
             default => 'Each automated criterion selected a rubric band from the complete submitted-plan snapshot. The server converted that band using this framework version’s approved score scale. Advisor-reviewed scores override the automated score only where an advisor has added a review score.',
         };
@@ -90,6 +99,17 @@ trait BuildsEntrepreneurAssessmentPayload
             $requiresFullReassessment => sprintf(
                 'This score is the weighted total from assessment round %d, but it is not a calibrated current assessment. Run a fresh assessment to score the complete submitted-plan snapshot against the current framework. A score of %.0f or above marks the plan as advisory ready.',
                 max(1, (int) $assessment->round),
+                AdvisoryReadiness::THRESHOLD,
+            ),
+            $isFullEvidenceReassessment => sprintf(
+                'This is the weighted total from assessment round %d. Every criterion was newly scored against mapped evidence, so this establishes a calibrated baseline rather than a measure of plan movement from earlier scoring methods. A score of %.0f or above marks the plan as advisory ready.',
+                max(1, (int) $assessment->round),
+                AdvisoryReadiness::THRESHOLD,
+            ),
+            $hasScopeCorrection => sprintf(
+                'This is the weighted total from assessment round %d. Criterion %s was rescored after its mapped evidence scope was corrected to include plan material that was already submitted in the prior round. Do not treat the overall score difference as plan movement. A score of %.0f or above marks the plan as advisory ready.',
+                max(1, (int) $assessment->round),
+                implode(', ', $scoringScope['scope_correction_criterion_numbers']),
                 AdvisoryReadiness::THRESHOLD,
             ),
             $usesScopedCriterionEvidence => sprintf(
@@ -127,14 +147,18 @@ trait BuildsEntrepreneurAssessmentPayload
                     ? 'Incomplete assessment score record - reassessment required'
                     : ($hasLegacyUncalibratedScores
                         ? 'Historical raw AI score - reassessment required'
+                        : ($isFullEvidenceReassessment
+                            ? 'Calibrated rubric bands - full evidence reassessment'
+                        : ($hasScopeCorrection
+                            ? 'Calibrated rubric bands - evidence-scope correction'
                         : ($usesScopedCriterionEvidence
                             ? 'Calibrated rubric bands from mapped criterion evidence'
                             : ($usesCompleteSnapshotEvidence
                             ? 'Calibrated rubric bands from the complete submitted snapshot'
-                            : 'Historical assessment evidence'))),
+                            : 'Historical assessment evidence'))))),
                 'detail' => $automatedScoreDescription,
             ],
-            'scoring_scope' => $this->scoringScopePayload($assessment->scoring_scope),
+            'scoring_scope' => $scoringScope,
             'finalised_at' => $assessment->finalised_at?->toIso8601String(),
             'created_at' => $assessment->created_at?->toIso8601String(),
             'basis' => [
@@ -299,9 +323,10 @@ trait BuildsEntrepreneurAssessmentPayload
 
     /**
      * @param  ScoringScope|null  $scope
+     * @param  list<AssessmentCriterionPayload>  $criteria
      * @return ScoringScopePayload|null
      */
-    private function scoringScopePayload(?array $scope): ?array
+    private function scoringScopePayload(?array $scope, array $criteria): ?array
     {
         if (! is_array($scope) || ($scope['version'] ?? null) !== 'criterion_evidence_v1') {
             return null;
@@ -309,10 +334,28 @@ trait BuildsEntrepreneurAssessmentPayload
 
         $confirmedAt = data_get($scope, 'advisor_review.confirmed_at');
         $crossPlanReviewMessage = data_get($scope, 'cross_plan_review.message');
+        $rescoredCriterionNumbers = array_values(array_unique(array_map('intval', (array) ($scope['rescored_criterion_numbers'] ?? []))));
+        $reusedCriterionNumbers = array_values(array_unique(array_map('intval', (array) ($scope['reused_criterion_numbers'] ?? []))));
+        $scopeCorrectionCriterionNumbers = array_values(array_unique(array_map('intval', (array) ($scope['scope_correction_criterion_numbers'] ?? []))));
+        $criterionNumbers = array_values(array_unique(array_map(
+            fn (array $criterion): int => $criterion['criterion_number'],
+            $criteria,
+        )));
+        sort($rescoredCriterionNumbers);
+        sort($reusedCriterionNumbers);
+        sort($scopeCorrectionCriterionNumbers);
+        sort($criterionNumbers);
 
         return [
-            'rescored_criterion_numbers' => array_map('intval', (array) ($scope['rescored_criterion_numbers'] ?? [])),
-            'reused_criterion_numbers' => array_map('intval', (array) ($scope['reused_criterion_numbers'] ?? [])),
+            'rescored_criterion_numbers' => $rescoredCriterionNumbers,
+            'reused_criterion_numbers' => $reusedCriterionNumbers,
+            'scope_correction_criterion_numbers' => $scopeCorrectionCriterionNumbers,
+            'is_full_reassessment' => $criterionNumbers !== []
+                && $rescoredCriterionNumbers === $criterionNumbers
+                && $reusedCriterionNumbers === [],
+            'has_scope_correction' => $scopeCorrectionCriterionNumbers !== [],
+            'is_scope_correction_only' => $scopeCorrectionCriterionNumbers !== []
+                && $rescoredCriterionNumbers === $scopeCorrectionCriterionNumbers,
             'advisor_review_required' => (bool) data_get($scope, 'advisor_review.required', false),
             'advisor_review_confirmed_at' => is_string($confirmedAt) ? $confirmedAt : null,
             'cross_plan_review_required' => (bool) data_get($scope, 'cross_plan_review.required', false),

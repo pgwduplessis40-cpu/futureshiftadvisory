@@ -66,6 +66,57 @@ final class PlanAiContextTest extends TestCase
         );
     }
 
+    public function test_competitor_comparison_is_mapped_to_industry_and_differentiation_evidence(): void
+    {
+        $snapshot = [
+            'phases' => [[
+                'key' => 'market',
+                'title' => 'Market',
+                'sections' => [
+                    [
+                        'id' => 'industry',
+                        'title' => 'Industry and customer demand',
+                        'requirement_key' => 'industry-context',
+                        'body' => 'Industry demand evidence.',
+                    ],
+                    [
+                        'id' => 'differentiation',
+                        'title' => 'What sets the business apart',
+                        'requirement_key' => 'differentiation',
+                        'body' => 'Differentiation evidence.',
+                    ],
+                    [
+                        'id' => 'competitors',
+                        'title' => 'Competitor comparison',
+                        'requirement_key' => 'competitor-comparison',
+                        'body' => 'Named alternatives, price comparisons, and the customer gap.',
+                    ],
+                ],
+            ]],
+        ];
+        $context = new PlanAiContext;
+
+        $industry = $context->criterionAssessmentFromSnapshot($snapshot, new RatingCriterion([
+            'number' => 4,
+            'name' => 'Discuss the Industry',
+        ]));
+        $differentiation = $context->criterionAssessmentFromSnapshot($snapshot, new RatingCriterion([
+            'number' => 5,
+            'name' => 'What sets the business apart',
+        ]));
+
+        $this->assertSame(
+            ['industry-context', 'differentiation', 'competitor-comparison'],
+            array_column($industry['criterion_focus_sections'], 'requirement_key'),
+        );
+        $this->assertSame(
+            ['differentiation', 'competitor-comparison'],
+            array_column($differentiation['criterion_focus_sections'], 'requirement_key'),
+        );
+        $this->assertFalse($industry['scope_fallback']);
+        $this->assertFalse($differentiation['scope_fallback']);
+    }
+
     private function planWithSections(): BusinessPlan
     {
         $requirements = [
