@@ -351,7 +351,8 @@ final class AssessmentTest extends TestCase
                 ->where('assessment.basis.plan_snapshot_url', route('advisor.entrepreneurs.assessments.plan-preview', [$profile, $latest], absolute: false))
                 ->where('assessment.criteria.0.source_label', 'Round 2 automated score')
                 ->where('assessment.explanation', fn (string $value): bool => str_contains($value, 'assessment round 2')
-                    && str_contains($value, 'changed mapped evidence')
+                    && str_contains($value, 'newly scored against mapped evidence')
+                    && str_contains($value, 'calibrated baseline')
                     && ! str_contains(strtolower($value), 'first-pass'))
             );
     }
