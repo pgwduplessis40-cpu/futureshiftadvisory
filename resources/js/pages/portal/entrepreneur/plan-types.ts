@@ -399,7 +399,6 @@ export type Props = {
         budgetFlagAcknowledge: string;
         budgetAdvisorNudgeDismiss: string;
         assistRequirement: string;
-        executiveSummary: string;
         preview: string;
         submit: string;
         documentUpload: string;

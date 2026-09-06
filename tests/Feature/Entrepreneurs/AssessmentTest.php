@@ -1122,6 +1122,7 @@ final class AssessmentTest extends TestCase
             GenerateEligibleExecutiveSummary::class,
             fn (GenerateEligibleExecutiveSummary $job): bool => $job->assessmentId === (string) $finalised->getKey(),
         );
+        $this->assertIsString(data_get($finalised->plan_snapshot, 'executive_summary_context_hash'));
 
         $job = new GenerateEligibleExecutiveSummary((string) $finalised->getKey());
         $this->assertInstanceOf(ShouldBeUnique::class, $job);

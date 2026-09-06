@@ -391,7 +391,13 @@ final class PlanBuilderTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('entrepreneur.latest_plan.funder_ready.label', 'Draft - gaps to resolve')
                 ->where('entrepreneur.latest_plan.funder_ready.ready', false)
-                ->where('entrepreneur.latest_plan.funder_ready.document_url', route('advisor.entrepreneurs.plans.funder-ready.pdf', [$profile, $plan], absolute: false)));
+                ->where('entrepreneur.latest_plan.funder_ready.document_url', route('advisor.entrepreneurs.plans.funder-ready.pdf', [$profile, $plan], absolute: false))
+                ->where('entrepreneur.latest_plan.lender_brief.active', false)
+                ->where('entrepreneur.latest_plan.lender_brief.document_url', route('advisor.entrepreneurs.plans.funder-ready-brief.pdf', [$profile, $plan], absolute: false)));
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.plans.funder-ready-brief.pdf', [$profile, $plan]))
+            ->assertStatus(409);
 
         $response = $this->actingAsMfa($advisor)
             ->get(route('advisor.entrepreneurs.plans.funder-ready.pdf', [$profile, $plan]))
