@@ -23,7 +23,7 @@ final class LearningRecommendationWorkflow
     ) {}
 
     /**
-     * @param array<string,mixed> $input
+     * @param  array{title:string,failure_shortfall:string,impact:string,impact_area:string,recommendation:string,recommendation_impact:string,acceptance_criteria?:array<int,string>|null,regression_journeys?:array<int,string>|null}  $input
      */
     public function draft(LearningUpdate $update, User $actor, array $input): LearningRecommendation
     {
@@ -115,7 +115,7 @@ final class LearningRecommendationWorkflow
     }
 
     /**
-     * @param array<string,mixed> $input
+     * @param  array{status:string,development_reference?:?string,release_reference?:?string,verification_notes?:?string,regression_journeys?:array<int,string>|null}  $input
      */
     public function updateDelivery(LearningRecommendation $recommendation, User $actor, array $input): LearningRecommendation
     {
@@ -134,7 +134,7 @@ final class LearningRecommendationWorkflow
             if ($status === LearningRecommendation::STATUS_RELEASED && $releaseReference === null) {
                 throw ValidationException::withMessages(['release_reference' => 'Record the deployment or version evidence before marking this recommendation released.']);
             }
-            if ($status === LearningRecommendation::STATUS_RELEASED && (! is_array($regressionJourneys) || $regressionJourneys === [])) {
+            if ($status === LearningRecommendation::STATUS_RELEASED && ! $this->hasRegressionJourneys($regressionJourneys)) {
                 throw ValidationException::withMessages(['regression_journeys' => 'Record the affected client journeys that passed regression checks before marking this recommendation released.']);
             }
             if ($status === LearningRecommendation::STATUS_VERIFIED && $verificationNotes === null) {
@@ -268,7 +268,9 @@ final class LearningRecommendationWorkflow
         }
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * @return array{source:array<array-key,mixed>|null,proposed_change:array<array-key,mixed>|null,impact_scope:array<array-key,mixed>|null,evidence:array<array-key,mixed>|null,confidence:?float,clients_affected:int}
+     */
     private function evidenceFor(LearningUpdate $update): array
     {
         return [
@@ -293,5 +295,10 @@ final class LearningRecommendationWorkflow
     private function stringInput(mixed $value): ?string
     {
         return is_string($value) && trim($value) !== '' ? trim($value) : null;
+    }
+
+    private function hasRegressionJourneys(mixed $journeys): bool
+    {
+        return is_array($journeys) && $journeys !== [];
     }
 }

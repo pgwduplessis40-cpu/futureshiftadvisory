@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\LearningRecommendation;
 use App\Models\LearningUpdate;
 use App\Models\LearningUpdateImplementation;
-use App\Models\LearningRecommendation;
 use App\Models\User;
 use App\Services\Learning\ApprovalFlow;
 use App\Services\Learning\LayerCadenceRunner;
@@ -214,7 +214,9 @@ final class LearningUpdateController extends Controller
         ];
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array{id:string,learning_update_id:string,title:string,failure_shortfall:string,impact:string,impact_area:string,recommendation:string,recommendation_impact:string,acceptance_criteria:array<int,string>,regression_journeys:array<int,string>,status:string,approved_at:?string,development_reference:?string,release_reference:?string,released_at:?string,verified_at:?string,verification_notes:?string,review_due_at:?string,approve_url:string,delivery_url:string}
+     */
     private function recommendationPayload(LearningRecommendation $recommendation): array
     {
         return [

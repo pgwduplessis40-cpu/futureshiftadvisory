@@ -303,7 +303,7 @@ final class OnboardingController extends Controller
     }
 
     /**
-     * @return array{must_acknowledge:bool,items:list<array<string,mixed>>}
+     * @return array{must_acknowledge:bool,items:list<array{id:string,label:string,scope_label:string,description:string,fixed_fee:float|int|null,currency:string,included_stages:list<string>,acknowledged_at:?string,activation_url:string}>}
      */
     private function serviceOfferPayload(Client $client): array
     {

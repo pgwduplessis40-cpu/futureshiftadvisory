@@ -84,6 +84,7 @@ export default function EntrepreneurServiceOffer({
                 <div className="flex items-start gap-3">
                     <Checkbox
                         id="accept-service"
+                        name="accepted"
                         checked={form.data.accepted}
                         onCheckedChange={(checked) =>
                             form.setData('accepted', checked === true)

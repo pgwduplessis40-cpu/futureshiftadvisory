@@ -25,8 +25,6 @@ use App\Notifications\ServiceActivationRequestedNotification;
 use App\Services\Audit\AuditWriter;
 use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\Dd\ClientCapability;
-use App\Services\Fees\PilotFeeWaiverManager;
-use App\Services\Fees\ServiceRateManager;
 use App\Services\Goals\GoalTracker;
 use App\Services\Learning\LayerCadenceRegistry;
 use App\Services\Messaging\MessageThreadService;
@@ -39,6 +37,11 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
+/**
+ * @phpstan-import-type InviteOfferSnapshot from ServiceRatePackage
+ * @phpstan-import-type PaymentSnapshot from ServiceActivationPackagePricing
+ * @phpstan-import-type PaymentSplit from ServiceActivationPackagePricing
+ */
 final class ServiceActivationManager
 {
     public function __construct(
@@ -46,8 +49,8 @@ final class ServiceActivationManager
         private readonly MessageThreadService $messages,
         private readonly SharedPlanBuilder $plans,
         private readonly RequestContext $context,
-        private readonly ServiceRateManager $serviceRates,
-        private readonly PilotFeeWaiverManager $pilotWaivers,
+        private readonly ServiceActivationPackagePricing $packagePricing,
+        private readonly ClientInvitationOffers $invitationOffers,
         private readonly PilotFeeWaiverActivationReconciler $pilotActivationWaivers,
         private readonly GoalTracker $goals,
         private readonly ClientCapability $ddClientCapability,
@@ -92,162 +95,30 @@ final class ServiceActivationManager
         });
     }
 
-    /**
-     * Create the exact service offer selected by an advisor before a client
-     * accepts an invitation.  This deliberately reuses the established
-     * package/payment/acceptance lifecycle: an invitation is not a payment or
-     * an activated workspace.
-     */
     public function offerFromClientInvite(
         Client $client,
         User $advisor,
         ServiceRatePackage $package,
         string $inviteTokenId,
     ): ServiceActivation {
-        if (! in_array($package->service_type, [
-            ServiceActivation::SERVICE_DUE_DILIGENCE,
-            ServiceActivation::SERVICE_DD_PLAN_BUDGET,
-        ], true) || ! $package->is_active) {
-            throw ValidationException::withMessages([
-                'service_rate_package_id' => 'Choose an active DD or Business Plan & Budget package for this invitation.',
-            ]);
-        }
-
-        $now = now();
-        if ($package->effective_from !== null && $package->effective_from->greaterThan($now)) {
-            throw ValidationException::withMessages([
-                'service_rate_package_id' => 'The selected package is not effective yet.',
-            ]);
-        }
-        if ($package->effective_to !== null && $package->effective_to->lessThanOrEqualTo($now)) {
-            throw ValidationException::withMessages([
-                'service_rate_package_id' => 'The selected package is no longer effective.',
-            ]);
-        }
-
-        return DB::transaction(function () use ($advisor, $client, $inviteTokenId, $package): ServiceActivation {
-            $existing = ServiceActivation::query()
-                ->where('client_id', $client->getKey())
-                ->where('service_type', $package->service_type)
-                ->where('metadata->source', 'client_invite_offer')
-                ->where('metadata->invite_token_id', $inviteTokenId)
-                ->latest()
-                ->first();
-
-            if ($existing instanceof ServiceActivation) {
-                return $existing;
-            }
-
-            $snapshot = $this->packageSnapshotForActivation($package, $client);
-            /** @var ServiceActivation $activation */
-            $activation = ServiceActivation::query()->create([
-                'client_id' => $client->getKey(),
-                'requested_by_user_id' => $advisor->getKey(),
-                'advisor_id' => $advisor->getKey(),
-                'approved_by_user_id' => $advisor->getKey(),
-                'service_rate_package_id' => $package->getKey(),
-                'service_type' => $package->service_type,
-                'client_label' => $package->service_type === ServiceActivation::SERVICE_DD_PLAN_BUDGET
-                    ? 'Business Plan & Budget add-on'
-                    : 'Explore buying a business',
-                'status' => ServiceActivation::STATUS_PACKAGE_SELECTED,
-                'selected_package_snapshot' => $snapshot,
-                'payment_status' => $this->packagePaymentStatus($snapshot),
-                'metadata' => [
-                    'source' => 'client_invite_offer',
-                    'invite_token_id' => $inviteTokenId,
-                    'package_selected_at' => now()->toIso8601String(),
-                    'offered_at' => now()->toIso8601String(),
-                    'payment_required_before_workspace_access' => $this->packagePaymentStatus($snapshot) !== ServiceActivation::PAYMENT_NOT_REQUIRED,
-                    'offer_acknowledged_at' => null,
-                ],
-            ]);
-
-            $this->audit->record('service_activation.invite_offer_created', subject: $activation, actor: $advisor, after: [
-                'client_id' => $client->getKey(),
-                'invite_token_id' => $inviteTokenId,
-                'service_type' => $package->service_type,
-                'service_rate_package_id' => $package->getKey(),
-                'fixed_fee' => $snapshot['fixed_fee'] ?? null,
-                'currency' => $snapshot['currency'] ?? 'NZD',
-            ]);
-
-            return $activation->refresh();
-        });
+        return $this->invitationOffers->offerFromClientInvite($client, $advisor, $package, $inviteTokenId);
     }
 
-    /**
-     * @return Collection<int, ServiceActivation>
-     */
+    /** @return Collection<int, ServiceActivation> */
     public function invitationOffers(Client $client): Collection
     {
-        return ServiceActivation::query()
-            ->where('client_id', $client->getKey())
-            ->where('metadata->source', 'client_invite_offer')
-            ->whereIn('status', [
-                ServiceActivation::STATUS_PACKAGE_SELECTED,
-                ServiceActivation::STATUS_ACTIVE,
-            ])
-            ->orderByRaw("case service_type when 'due_diligence' then 0 when 'dd_plan_budget' then 1 else 2 end")
-            ->latest()
-            ->get();
+        return $this->invitationOffers->invitationOffers($client);
     }
 
-    /**
-     * Record the client's acknowledgement of the invitation's fixed package,
-     * scope and fee during onboarding.  Workspace access remains protected by
-     * the existing payment and activation checks.
-     *
-     * @return Collection<int, ServiceActivation>
-     */
+    /** @return Collection<int, ServiceActivation> */
     public function acknowledgeInvitationOffers(Client $client, User $actor): Collection
     {
-        $this->assertClientUser($client, $actor);
-
-        return DB::transaction(function () use ($actor, $client): Collection {
-            $offers = $this->invitationOffers($client)
-                ->filter(fn (ServiceActivation $activation): bool => $activation->status === ServiceActivation::STATUS_PACKAGE_SELECTED);
-
-            $acknowledgedAt = now();
-            foreach ($offers as $offer) {
-                $metadata = (array) ($offer->metadata ?? []);
-                $offer->forceFill([
-                    'metadata' => [
-                        ...$metadata,
-                        'offer_acknowledged_at' => $acknowledgedAt->toIso8601String(),
-                        'offer_acknowledged_by_user_id' => $actor->getKey(),
-                    ],
-                ])->save();
-
-                $this->audit->record('service_activation.invite_offer_acknowledged', subject: $offer, actor: $actor, after: [
-                    'client_id' => $client->getKey(),
-                    'service_type' => $offer->service_type,
-                    'service_rate_package_id' => $offer->service_rate_package_id,
-                    'acknowledged_at' => $acknowledgedAt->toIso8601String(),
-                ]);
-            }
-
-            return $offers->map(fn (ServiceActivation $offer): ServiceActivation => $offer->refresh());
-        });
+        return $this->invitationOffers->acknowledgeInvitationOffers($client, $actor);
     }
 
     public function rebindInvitationOffers(Client $client, string $oldInviteTokenId, string $newInviteTokenId): void
     {
-        ServiceActivation::query()
-            ->where('client_id', $client->getKey())
-            ->where('metadata->source', 'client_invite_offer')
-            ->where('metadata->invite_token_id', $oldInviteTokenId)
-            ->where('status', ServiceActivation::STATUS_PACKAGE_SELECTED)
-            ->get()
-            ->each(function (ServiceActivation $offer) use ($newInviteTokenId): void {
-                $offer->forceFill([
-                    'metadata' => [
-                        ...(array) ($offer->metadata ?? []),
-                        'invite_token_id' => $newInviteTokenId,
-                        'invite_resent_at' => now()->toIso8601String(),
-                    ],
-                ])->save();
-            });
+        $this->invitationOffers->rebindInvitationOffers($client, $oldInviteTokenId, $newInviteTokenId);
     }
 
     /**
@@ -1223,62 +1094,22 @@ final class ServiceActivationManager
         ]))) ?: 'Client requested idea validation, business plan, and budget support from the advisory portal.';
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return InviteOfferSnapshot */
     private function packageSnapshotForActivation(ServiceRatePackage $package, ?Client $client = null): array
     {
-        $snapshot = $package->snapshot();
-        $pilot = $client instanceof Client ? $this->pilotWaivers->eligibility($client) : null;
-
-        if (is_array($pilot) && $pilot['eligible']) {
-            return $this->pilotWaivers->waivedPackageSnapshot($snapshot, $pilot);
-        }
-
-        if (! $this->serviceRates->freeAccessModeActive()) {
-            return $snapshot;
-        }
-
-        return [
-            ...$snapshot,
-            'fixed_fee' => 0.0,
-            'deposit_percent' => 100.0,
-            'payment_split' => [
-                'deposit_percent' => 100.0,
-                'card_deposit_amount' => 0.0,
-                'bank_transfer_amount' => 0.0,
-                'requires_bank_transfer' => false,
-            ],
-            'free_access_mode' => [
-                'active' => true,
-                'reason' => 'Admin service rates are inactive; package payment is not required until rates are activated.',
-                'nominal_fixed_fee' => $snapshot['fixed_fee'] ?? null,
-                'stripe_required' => false,
-            ],
-        ];
+        return $this->packagePricing->packageSnapshotForActivation($package, $client);
     }
 
-    /**
-     * @param  array<string, mixed>  $snapshot
-     */
+    /** @param PaymentSnapshot $snapshot */
     private function packagePaymentStatus(array $snapshot): string
     {
-        if (! $this->packageRequiresPayment($snapshot)) {
-            return ServiceActivation::PAYMENT_NOT_REQUIRED;
-        }
-
-        return $this->paymentSplitForSnapshot($snapshot)['requires_bank_transfer'] === true
-            ? ServiceActivation::PAYMENT_DEPOSIT_PENDING
-            : ServiceActivation::PAYMENT_PENDING;
+        return $this->packagePricing->packagePaymentStatus($snapshot);
     }
 
-    /**
-     * @param  array<string, mixed>  $snapshot
-     */
+    /** @param PaymentSnapshot $snapshot */
     private function packageRequiresPayment(array $snapshot): bool
     {
-        return (string) ($snapshot['billing_model'] ?? ServiceRatePackage::BILLING_FIXED_FEE) === ServiceRatePackage::BILLING_FIXED_FEE
-            && (float) ($snapshot['fixed_fee'] ?? 0) > 0;
+        return $this->packagePricing->packageRequiresPayment($snapshot);
     }
 
     private function packageMatchesPurchasePrice(ServiceRatePackage $package, float $askingPrice): bool
@@ -1463,46 +1294,12 @@ final class ServiceActivationManager
     }
 
     /**
-     * @param  array<string, mixed>  $snapshot
-     * @return array{deposit_percent:float,card_deposit_amount:float|null,bank_transfer_amount:float|null,requires_bank_transfer:bool}
+     * @param  PaymentSnapshot  $snapshot
+     * @return PaymentSplit
      */
     private function paymentSplitForSnapshot(array $snapshot): array
     {
-        $paymentSplit = $snapshot['payment_split'] ?? null;
-
-        if (is_array($paymentSplit)) {
-            return [
-                'deposit_percent' => (float) ($paymentSplit['deposit_percent'] ?? $snapshot['deposit_percent'] ?? 100),
-                'card_deposit_amount' => isset($paymentSplit['card_deposit_amount'])
-                    ? (float) $paymentSplit['card_deposit_amount']
-                    : null,
-                'bank_transfer_amount' => isset($paymentSplit['bank_transfer_amount'])
-                    ? (float) $paymentSplit['bank_transfer_amount']
-                    : null,
-                'requires_bank_transfer' => (bool) ($paymentSplit['requires_bank_transfer'] ?? false),
-            ];
-        }
-
-        $fixedFee = isset($snapshot['fixed_fee']) ? (float) $snapshot['fixed_fee'] : null;
-        if ($fixedFee === null) {
-            return [
-                'deposit_percent' => 100.0,
-                'card_deposit_amount' => null,
-                'bank_transfer_amount' => null,
-                'requires_bank_transfer' => false,
-            ];
-        }
-
-        $depositPercent = min(max((float) ($snapshot['deposit_percent'] ?? 100), 0.0), 100.0);
-        $cardDeposit = round($fixedFee * ($depositPercent / 100), 2);
-        $bankTransfer = round(max($fixedFee - $cardDeposit, 0), 2);
-
-        return [
-            'deposit_percent' => $depositPercent,
-            'card_deposit_amount' => $cardDeposit,
-            'bank_transfer_amount' => $bankTransfer,
-            'requires_bank_transfer' => $bankTransfer > 0,
-        ];
+        return $this->packagePricing->paymentSplitForSnapshot($snapshot);
     }
 
     /**
