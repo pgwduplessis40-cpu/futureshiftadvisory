@@ -679,7 +679,25 @@ BROWSERSHOT_PUPPETEER_CACHE_DIR="$APP_DIR/storage/app/browsershot"
 export BROWSERSHOT_PUPPETEER_CACHE_DIR
 mkdir -p "$BROWSERSHOT_PUPPETEER_CACHE_DIR"
 PUPPETEER_CACHE_DIR="$BROWSERSHOT_PUPPETEER_CACHE_DIR" npx --no-install puppeteer browsers install chrome
-chmod -R a+rX "$BROWSERSHOT_PUPPETEER_CACHE_DIR"
+BROWSERSHOT_CHROME_PATH="$(PUPPETEER_CACHE_DIR="$BROWSERSHOT_PUPPETEER_CACHE_DIR" node -e '
+const puppeteer = require("puppeteer");
+process.stdout.write(puppeteer.executablePath());
+')"
+[ -f "$BROWSERSHOT_CHROME_PATH" ] || {
+    echo "ERROR: Puppeteer did not install a Chrome executable at ${BROWSERSHOT_CHROME_PATH}." >&2
+    exit 1
+}
+
+# Puppeteer's archive can preserve non-executable file modes. `a+X` does not
+# repair that because it only adds execute permission to files already marked
+# executable. Chrome and its crash handler are the only cache files that need
+# execution; all other renderer assets remain readable only.
+chmod a+rx "$BROWSERSHOT_CHROME_PATH"
+if [ -f "$(dirname "$BROWSERSHOT_CHROME_PATH")/chrome_crashpad_handler" ]; then
+    chmod a+rx "$(dirname "$BROWSERSHOT_CHROME_PATH")/chrome_crashpad_handler"
+fi
+find "$BROWSERSHOT_PUPPETEER_CACHE_DIR" -type d -exec chmod a+rx {} +
+find "$BROWSERSHOT_PUPPETEER_CACHE_DIR" -type f -exec chmod a+r {} +
 PUPPETEER_CACHE_DIR="$BROWSERSHOT_PUPPETEER_CACHE_DIR" node -e '
 const puppeteer = require("puppeteer");
 (async () => {
