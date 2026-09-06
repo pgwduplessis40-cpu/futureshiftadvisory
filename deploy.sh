@@ -681,7 +681,13 @@ mkdir -p "$BROWSERSHOT_PUPPETEER_CACHE_DIR"
 PUPPETEER_CACHE_DIR="$BROWSERSHOT_PUPPETEER_CACHE_DIR" npx --no-install puppeteer browsers install chrome
 BROWSERSHOT_CHROME_PATH="$(PUPPETEER_CACHE_DIR="$BROWSERSHOT_PUPPETEER_CACHE_DIR" node -e '
 const puppeteer = require("puppeteer");
-process.stdout.write(puppeteer.executablePath());
+(async () => {
+    process.stdout.write(await puppeteer.executablePath());
+})().catch((error) => {
+    console.error("ERROR: Puppeteer could not resolve the installed Chrome executable.");
+    console.error(error);
+    process.exit(1);
+});
 ')"
 [ -f "$BROWSERSHOT_CHROME_PATH" ] || {
     echo "ERROR: Puppeteer did not install a Chrome executable at ${BROWSERSHOT_CHROME_PATH}." >&2
