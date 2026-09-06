@@ -31,15 +31,24 @@ final class LearningUpdateController extends Controller
 
     public function index(): Response
     {
+        $activeRecommendations = $this->recommendations->activeRecommendations();
+        $activeRecommendationLearningUpdateIds = $activeRecommendations
+            ->pluck('learning_update_id')
+            ->map(fn (mixed $id): string => (string) $id)
+            ->all();
+
         return Inertia::render('admin/learning/Index', [
-            'cards' => $this->approvalFlow->cards()->values(),
+            'cards' => $this->approvalFlow->cards()
+                ->reject(fn (array $card): bool => in_array($card['id'], $activeRecommendationLearningUpdateIds, true))
+                ->values(),
             'decisions' => $this->approvalFlow->decisions(),
             'impact_reviews' => $this->approvalFlow->impactReviewCards()->values(),
-            'recommendations' => $this->recommendations->activeRecommendations()
+            'recommendations' => $activeRecommendations
                 ->map(fn (LearningRecommendation $recommendation): array => $this->recommendationPayload($recommendation))
                 ->values(),
             'recommendation_defaults' => LearningUpdate::query()
                 ->whereIn('status', [LearningUpdate::STATUS_DETECTED, LearningUpdate::STATUS_STAGED, LearningUpdate::STATUS_DEFERRED])
+                ->whereNotIn('id', $activeRecommendationLearningUpdateIds)
                 ->latest()
                 ->get()
                 ->mapWithKeys(fn (LearningUpdate $update): array => [(string) $update->getKey() => $this->recommendations->defaultsFor($update)])
@@ -47,6 +56,7 @@ final class LearningUpdateController extends Controller
             'monitor' => $this->monitor->dashboard(),
             'rerun_url' => route('admin.learning-updates.rerun', absolute: false),
             'developer_brief_url' => route('admin.learning-recommendations.developer-brief', absolute: false),
+            'recommendation_bulk_approve_url' => route('admin.learning-recommendations.approve-selected', absolute: false),
         ]);
     }
 
@@ -102,6 +112,20 @@ final class LearningUpdateController extends Controller
         $this->recommendations->approve($learningRecommendation, $actor);
 
         return to_route('admin.learning-updates.index')->with('status', 'learning-recommendation-approved');
+    }
+
+    public function approveSelectedRecommendations(Request $request): RedirectResponse
+    {
+        $actor = $request->user();
+        abort_unless($actor instanceof User, 403);
+        $validated = $request->validate([
+            'recommendation_ids' => ['required', 'array', 'min:1', 'max:100'],
+            'recommendation_ids.*' => ['required', 'uuid', 'distinct'],
+        ]);
+
+        $this->recommendations->approveMany($validated['recommendation_ids'], $actor);
+
+        return to_route('admin.learning-updates.index')->with('status', 'learning-recommendations-approved');
     }
 
     public function updateRecommendationDelivery(Request $request, LearningRecommendation $learningRecommendation): RedirectResponse

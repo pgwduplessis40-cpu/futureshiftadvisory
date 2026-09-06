@@ -290,6 +290,9 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::post('learning-recommendations/{learningRecommendation}/approve', [LearningUpdateController::class, 'approveRecommendation'])
                 ->middleware('permission:'.Permission::LEARNING_UPDATES_APPROVE->value)
                 ->name('learning-recommendations.approve');
+            Route::post('learning-recommendations/approve-selected', [LearningUpdateController::class, 'approveSelectedRecommendations'])
+                ->middleware('permission:'.Permission::LEARNING_UPDATES_APPROVE->value)
+                ->name('learning-recommendations.approve-selected');
             Route::patch('learning-recommendations/{learningRecommendation}/delivery', [LearningUpdateController::class, 'updateRecommendationDelivery'])
                 ->middleware('permission:'.Permission::LEARNING_UPDATES_APPROVE->value)
                 ->name('learning-recommendations.delivery');

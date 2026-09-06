@@ -29,6 +29,106 @@ export type LearningRecommendation = RecommendationDefaults & {
     delivery_url: string;
 };
 
+export function DraftRecommendationApprovalPanel({
+    recommendations,
+    approveSelectedUrl,
+}: {
+    recommendations: LearningRecommendation[];
+    approveSelectedUrl: string;
+}) {
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const availableIds = new Set(
+        recommendations.map((recommendation) => recommendation.id),
+    );
+    const selectedRecommendationIds = selectedIds.filter((recommendationId) =>
+        availableIds.has(recommendationId),
+    );
+    const selectedCount = selectedRecommendationIds.length;
+    const allSelected =
+        recommendations.length > 0 && selectedCount === recommendations.length;
+
+    if (recommendations.length === 0) {
+        return null;
+    }
+
+    function toggleRecommendation(recommendationId: string) {
+        setSelectedIds((current) =>
+            current.includes(recommendationId)
+                ? current.filter((id) => id !== recommendationId)
+                : [...current, recommendationId],
+        );
+    }
+
+    function toggleAll() {
+        setSelectedIds(
+            allSelected
+                ? []
+                : recommendations.map((recommendation) => recommendation.id),
+        );
+    }
+
+    function approveSelected() {
+        if (selectedRecommendationIds.length === 0) {
+            return;
+        }
+
+        router.post(approveSelectedUrl, {
+            recommendation_ids: selectedRecommendationIds,
+        });
+    }
+
+    return (
+        <section className="space-y-3 rounded-md border bg-background p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 className="text-sm font-medium">
+                        Development recommendations awaiting approval
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                        These recommendations are ready for a human decision.
+                        Approval starts development tracking; it cannot change
+                        the live product automatically.
+                    </p>
+                </div>
+                <Badge variant="secondary">
+                    {recommendations.length} awaiting approval
+                </Badge>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/30 p-3">
+                <label className="flex items-center gap-2 text-sm font-medium">
+                    <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleAll}
+                        aria-label={`Select all ${recommendations.length} draft recommendations`}
+                    />
+                    Select all
+                </label>
+                <Button
+                    type="button"
+                    size="sm"
+                    disabled={selectedCount === 0}
+                    onClick={approveSelected}
+                >
+                    Approve {selectedCount} selected for development
+                </Button>
+            </div>
+            <div className="grid gap-3">
+                {recommendations.map((recommendation) => (
+                    <DraftRecommendationApprovalItem
+                        key={recommendation.id}
+                        recommendation={recommendation}
+                        selected={selectedIds.includes(recommendation.id)}
+                        onSelectedChange={() =>
+                            toggleRecommendation(recommendation.id)
+                        }
+                    />
+                ))}
+            </div>
+        </section>
+    );
+}
+
 export function RecommendationDeliveryPanel({
     recommendations,
 }: {
@@ -43,11 +143,11 @@ export function RecommendationDeliveryPanel({
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h2 className="text-sm font-medium">
-                        Approved recommendation delivery
+                        Approved recommendations in delivery
                     </h2>
                     <p className="text-xs text-muted-foreground">
-                        A recommendation is only addressed after it has a
-                        development reference, a release reference, and
+                        An approved recommendation is only addressed after it
+                        has a development reference, a release reference, and
                         verification evidence.
                     </p>
                 </div>
@@ -62,6 +162,67 @@ export function RecommendationDeliveryPanel({
                 ))}
             </div>
         </section>
+    );
+}
+
+function DraftRecommendationApprovalItem({
+    recommendation,
+    selected,
+    onSelectedChange,
+}: {
+    recommendation: LearningRecommendation;
+    selected: boolean;
+    onSelectedChange: () => void;
+}) {
+    return (
+        <article className="rounded-md border p-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <label className="flex min-w-0 flex-1 items-start gap-3">
+                    <input
+                        className="mt-1"
+                        type="checkbox"
+                        checked={selected}
+                        onChange={onSelectedChange}
+                        aria-label={`Select ${recommendation.title}`}
+                    />
+                    <div>
+                        <h3 className="text-sm font-medium">
+                            {recommendation.title}
+                        </h3>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            {recommendation.impact_area} · draft
+                        </p>
+                    </div>
+                </label>
+                <Badge variant="outline">draft</Badge>
+            </div>
+            <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                <div>
+                    <dt className="text-muted-foreground">
+                        Failure / shortfall
+                    </dt>
+                    <dd>{recommendation.failure_shortfall}</dd>
+                </div>
+                <div>
+                    <dt className="text-muted-foreground">Expected impact</dt>
+                    <dd>{recommendation.recommendation_impact}</dd>
+                </div>
+            </dl>
+            <p className="mt-3 text-sm">{recommendation.recommendation}</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+                Regression journeys:{' '}
+                {recommendation.regression_journeys.join(', ') ||
+                    'must be recorded before release'}
+            </p>
+            <Button
+                className="mt-3"
+                type="button"
+                size="sm"
+                onClick={() => router.post(recommendation.approve_url)}
+            >
+                Approve for development
+            </Button>
+        </article>
     );
 }
 
