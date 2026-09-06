@@ -85,6 +85,7 @@ final class TemplateLibraryTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->has('cards', 1)
                 ->where('cards.0.layer_id', TemplateSuggestionLayer::LAYER_ID)
+                ->where('cards.0.requires_tracked_delivery', false)
                 ->where('cards.0.proposed_change.action', 'activate_template'));
     }
 
@@ -105,6 +106,10 @@ final class TemplateLibraryTest extends TestCase
         $this->assertNull($template->learning_update_implementation_id);
 
         Carbon::setTestNow(now()->addDays(8));
+
+        $this->assertCount(0, app(ApprovalFlow::class)->implementDue(now(), $admin));
+        $this->assertSame(Template::STATUS_DRAFT, $template->refresh()->status);
+        $this->assertDatabaseCount('learning_update_implementations', 0);
 
         $implementation = app(TemplateImplementer::class)->implement($update->refresh(), $admin);
         $template->refresh();

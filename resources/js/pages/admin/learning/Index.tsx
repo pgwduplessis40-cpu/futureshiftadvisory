@@ -44,6 +44,7 @@ type LearningUpdateCard = {
     capability_profile: CapabilityProfile;
     plain_english: PlainEnglishSummary;
     status: string;
+    requires_tracked_delivery: boolean;
     effective_date: string | null;
     pre_implementation_notice_at: string | null;
     review_due_at: string | null;
@@ -833,8 +834,7 @@ function PendingLearningRow({
         card.effective_date?.slice(0, 16) ?? '',
     );
     const [reason, setReason] = useState('');
-    const requiresTrackedDelivery =
-        card.source?.type !== 'manual_reference_data';
+    const requiresTrackedDelivery = card.requires_tracked_delivery;
 
     function submit(decision: Decision) {
         router.patch(`/admin/learning-updates/${card.id}/decision`, {

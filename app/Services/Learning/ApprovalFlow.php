@@ -131,7 +131,7 @@ final class ApprovalFlow
             throw new RuntimeException('Learning update implementation requires explicit approval.');
         }
 
-        if (! $this->isManualReferenceDataUpdate($update)) {
+        if ($this->requiresTrackedDelivery($update)) {
             throw new RuntimeException('Learning recommendations require tracked development, release, and verification; they cannot be automatically marked implemented.');
         }
 
@@ -155,7 +155,14 @@ final class ApprovalFlow
             ->where('status', LearningUpdate::STATUS_APPROVED)
             ->where('source->type', 'manual_reference_data')
             ->where('proposed_change->action', 'project_manual_reference_data')
-            ->whereHas('decisions', fn ($decision) => $decision->where('decision', LearningUpdateDecision::DECISION_APPROVE))
+            ->whereDoesntHave('recommendations')
+            ->where(function ($query) use ($at): void {
+                $query
+                    ->where(fn ($due) => $due
+                        ->whereNotNull('effective_date')
+                        ->where('effective_date', '<=', $at))
+                    ->orWhereHas('decisions', fn ($decision) => $decision->where('decision', LearningUpdateDecision::DECISION_APPROVE));
+            })
             ->whereDoesntHave('implementations', fn ($query) => $query->whereNull('rolled_back_at'))
             ->orderBy('effective_date')
             ->get()
@@ -464,6 +471,7 @@ final class ApprovalFlow
             'capability_profile' => $capabilityProfile,
             'plain_english' => $this->plainEnglishSummary->forUpdate($update, $capabilityProfile),
             'status' => $update->status,
+            'requires_tracked_delivery' => $this->requiresTrackedDelivery($update),
             'effective_date' => $update->effective_date?->toIso8601String(),
             'pre_implementation_notice_at' => $update->pre_implementation_notice_at?->toIso8601String(),
             'review_due_at' => $update->review_due_at?->toIso8601String(),
@@ -513,6 +521,15 @@ final class ApprovalFlow
     {
         return data_get($update->source, 'type') === 'manual_reference_data'
             && data_get($update->proposed_change, 'action') === 'project_manual_reference_data';
+    }
+
+    private function requiresTrackedDelivery(LearningUpdate $update): bool
+    {
+        $isTemplateActivation = data_get($update->source, 'type') === 'template_suggestion_layer'
+            && data_get($update->proposed_change, 'action') === 'activate_template';
+
+        return (! $this->isManualReferenceDataUpdate($update) && ! $isTemplateActivation)
+            || $update->recommendations()->exists();
     }
 
     private function isPlainApprovedManualReferenceDataUpdate(LearningUpdate $update): bool

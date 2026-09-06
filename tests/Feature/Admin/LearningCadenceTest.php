@@ -139,7 +139,7 @@ final class LearningCadenceTest extends TestCase
             );
     }
 
-    public function test_admin_can_rerun_due_layers_and_due_approved_updates_are_implemented(): void
+    public function test_admin_can_rerun_due_layers_without_marking_development_recommendations_implemented(): void
     {
         Carbon::setTestNow('2026-05-23 03:00:00');
         $this->seed(RoleSeeder::class);
@@ -166,11 +166,11 @@ final class LearningCadenceTest extends TestCase
             ->assertRedirect(route('admin.learning-updates.index', absolute: false));
 
         $this->assertSame(1, LearningLayerRun::query()->where('layer_id', 29)->count());
-        $this->assertSame(1, LearningUpdateImplementation::query()->count());
+        $this->assertSame(0, LearningUpdateImplementation::query()->count());
         $this->assertDatabaseHas('learning_updates', [
             'summary' => 'Approved rerun candidate',
-            'status' => LearningUpdate::STATUS_IMPLEMENTED,
+            'status' => LearningUpdate::STATUS_APPROVED,
         ]);
-        $this->assertDatabaseHas('audit_events', ['action' => 'learning_layer.approved_updates_implemented']);
+        $this->assertDatabaseMissing('audit_events', ['action' => 'learning_layer.approved_updates_implemented']);
     }
 }

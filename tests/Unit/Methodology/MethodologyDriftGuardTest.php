@@ -41,6 +41,7 @@ use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
 use App\Services\Entrepreneurs\EntrepreneurBudgetService;
 use App\Services\Entrepreneurs\EntrepreneurDocumentTemplate;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
+use App\Services\Entrepreneurs\EntrepreneurInviteOffer;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Entrepreneurs\EntrepreneurPoints;
@@ -158,6 +159,7 @@ final class MethodologyDriftGuardTest extends TestCase
         EntrepreneurBudgetService::class => 'Budget persistence workflow; forecast formula is owned by BudgetCalculator.',
         EntrepreneurDocumentTemplate::class => 'Document-template selection helper, not an advisory methodology surface.',
         EntrepreneurGamification::class => 'Gamification payload renderer; requirement and milestone rules are not advisor methodology disclosures.',
+        EntrepreneurInviteOffer::class => 'Snapshots admin-set package terms and records invitation consent; pricing and waiver policy are delegated, not an advisory calculation methodology.',
         EntrepreneurInviteReconciler::class => 'Invite reconciliation workflow.',
         EntrepreneurMilestones::class => 'Milestone-award persistence workflow.',
         EntrepreneurPoints::class => 'Gamification reward allocation is operational engagement logic, not an advisor methodology disclosure.',

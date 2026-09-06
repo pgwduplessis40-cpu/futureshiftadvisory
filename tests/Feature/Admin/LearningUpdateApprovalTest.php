@@ -37,6 +37,7 @@ final class LearningUpdateApprovalTest extends TestCase
                 ->where('cards.0.id', $candidate->id)
                 ->where('cards.0.summary', 'Adjust prompt calibration')
                 ->where('cards.0.source.type', 'analysis_feedback')
+                ->where('cards.0.requires_tracked_delivery', true)
                 ->where('cards.0.proposed_change.action', 'revise_prompt')
                 ->where('cards.0.impact_scope.modules.0', 'financial')
                 ->where('cards.0.clients_affected', 12)
