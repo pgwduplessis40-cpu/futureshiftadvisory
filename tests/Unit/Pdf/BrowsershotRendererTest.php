@@ -49,6 +49,10 @@ final class BrowsershotRendererTest extends TestCase
         self::assertIsString($script);
         self::assertStringContainsString('PUPPETEER_CACHE_DIR', $script);
         self::assertStringContainsString('puppeteer browsers install chrome', $script);
+        self::assertStringContainsString('BROWSERSHOT_CHROME_PATH', $script);
+        self::assertStringContainsString('chmod a+rx "$BROWSERSHOT_CHROME_PATH"', $script);
+        self::assertStringContainsString('chrome_crashpad_handler', $script);
+        self::assertStringNotContainsString('chmod -R a+rX "$BROWSERSHOT_PUPPETEER_CACHE_DIR"', $script);
         self::assertStringContainsString('puppeteer.launch', $script);
     }
 }

@@ -708,7 +708,7 @@ final class OperationalHealthCheckRunner
         $originalUser = Auth::guard('web')->user();
 
         $session->setId(Str::random(40));
-        $session->replace([]);
+        $session->flush();
         $session->start();
 
         $request = Request::create($url, strtoupper($method), ['_token' => $session->token()], [], [], [
@@ -726,9 +726,6 @@ final class OperationalHealthCheckRunner
             $session->put(MfaChallenger::SESSION_USER_ID, (string) $user->getAuthIdentifier());
             $session->put(MfaChallenger::SESSION_CONFIRMED_AT, now()->getTimestamp());
             Auth::guard('web')->setUser($user);
-        }
-
-        if ($user instanceof User) {
             $request->setUserResolver(static fn (?string $guard = null): User => $user);
         }
 
@@ -760,7 +757,8 @@ final class OperationalHealthCheckRunner
         } finally {
             app()->instance('request', $originalRequest);
             $session->setId($originalSessionId);
-            $session->replace($originalSessionData);
+            $session->flush();
+            $session->put($originalSessionData);
             app('auth')->forgetGuards();
 
             if ($originalUser instanceof User) {
