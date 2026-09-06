@@ -52,6 +52,7 @@ final class Assessment implements ProvidesMethodology
         private readonly PlanAiContext $contexts,
         private readonly BusinessPlanSnapshot $snapshots,
         private readonly ExecutiveSummaryEligibility $executiveSummaryEligibility,
+        private readonly AssessmentEvidenceScopeCorrection $scopeCorrections,
     ) {}
 
     public function firstPass(BusinessPlan $plan, User $actor): PlanAssessment
@@ -111,6 +112,15 @@ final class Assessment implements ProvidesMethodology
                 $canReuse = $previousAssessment instanceof PlanAssessment
                     && is_array($previousScore)
                     && $this->canReuseCriterionScore($previousScore, $planContext);
+                $scopeCorrection = ! $canReuse
+                    && $previousAssessment instanceof PlanAssessment
+                    && is_array($previousScore)
+                    && $this->scopeCorrections->applies(
+                        $previousAssessment,
+                        $previousScore,
+                        $planContext,
+                        self::SCORING_CONTRACT_VERSION,
+                    );
                 $score = $canReuse
                     ? $this->reusedCriterionScore($previousScore, $previousAssessment, $planContext)
                     : $this->scoreCriterion(
@@ -145,6 +155,7 @@ final class Assessment implements ProvidesMethodology
                         )
                         : null,
                     'reused' => $canReuse,
+                    'scope_correction' => $scopeCorrection,
                 ];
             })
             ->values()
@@ -167,6 +178,12 @@ final class Assessment implements ProvidesMethodology
             ->reject(fn (int $number): bool => in_array($number, $reusedCriterionNumbers, true))
             ->values()
             ->all();
+        $scopeCorrectionCriterionNumbers = collect($scoredCriteria)
+            ->filter(fn (array $result): bool => $result['scope_correction'])
+            ->keys()
+            ->map(fn (int $index): int => (int) $criteria->get($index)?->number)
+            ->values()
+            ->all();
         $documentSupport = $this->documentSupport($plan);
         $weighted = AssessmentScoring::weightedScoreForFramework($framework, $aiScores, $advisorScores);
         $budgetChanged = $previousAssessment instanceof PlanAssessment
@@ -175,6 +192,7 @@ final class Assessment implements ProvidesMethodology
             'version' => self::SCORING_CONTRACT_VERSION,
             'rescored_criterion_numbers' => $rescoredCriterionNumbers,
             'reused_criterion_numbers' => $reusedCriterionNumbers,
+            'scope_correction_criterion_numbers' => $scopeCorrectionCriterionNumbers,
             'carried_advisor_criterion_numbers' => array_map('intval', array_keys($advisorScores)),
             'advisor_review' => [
                 'required' => $previousAssessment instanceof PlanAssessment && $rescoredCriterionNumbers !== [],
@@ -241,6 +259,7 @@ final class Assessment implements ProvidesMethodology
                 'overall_grade' => $assessment->overall_grade,
                 'rescored_criterion_numbers' => $scoringScope['rescored_criterion_numbers'],
                 'reused_criterion_numbers' => $scoringScope['reused_criterion_numbers'],
+                'scope_correction_criterion_numbers' => $scoringScope['scope_correction_criterion_numbers'],
                 'cross_plan_review_required' => data_get($scoringScope, 'cross_plan_review.required', false),
             ]);
 
