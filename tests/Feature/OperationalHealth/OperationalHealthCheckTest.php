@@ -621,6 +621,9 @@ final class OperationalHealthCheckTest extends TestCase
         $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'run-now-app-health@example.test');
         $browserIp = '203.0.113.10';
         $browserUserAgent = 'FutureShift test browser';
+        // actingAs alone does not populate the login key that real browser
+        // sessions carry. Include it so guest probes cannot inherit the admin.
+        $loginKey = auth()->guard('web')->getName();
 
         $this->actingAsMfa($admin)
             ->withServerVariables([
@@ -628,6 +631,8 @@ final class OperationalHealthCheckTest extends TestCase
                 'HTTP_USER_AGENT' => $browserUserAgent,
             ])
             ->withSession([
+                $loginKey => $admin->getAuthIdentifier(),
+                'app_health_browser_marker' => 'preserve-me',
                 StepUpEvaluator::SESSION_IP_ADDRESS => $browserIp,
                 StepUpEvaluator::SESSION_COUNTRY => '',
                 StepUpEvaluator::SESSION_USER_AGENT => $browserUserAgent,
@@ -637,6 +642,9 @@ final class OperationalHealthCheckTest extends TestCase
             ->assertRedirect(route('admin.app-health.index'));
 
         $this->assertAuthenticatedAs($admin);
+        $this->assertSame($admin->getAuthIdentifier(), session($loginKey));
+        $this->assertSame('preserve-me', session('app_health_browser_marker'));
+        $this->assertSame($browserIp, session(StepUpEvaluator::SESSION_IP_ADDRESS));
         $this->assertDatabaseHas('operational_health_check_results', [
             'check_key' => 'admin.app_health.index',
             'status' => OperationalHealthCheckResult::STATUS_PASSED,
