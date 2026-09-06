@@ -20,7 +20,6 @@ import InputError from '@/components/input-error';
 import { QuestionnaireRenderer } from '@/components/questionnaires/QuestionnaireRenderer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -34,6 +33,8 @@ import { usePersistedWorkspaceDraft } from '@/hooks/use-persisted-workspace-draf
 import { queueQuestionnaireSubmission } from '@/lib/portal-offline';
 import { cn } from '@/lib/utils';
 import type { QuestionnaireAnswers } from '@/types/questionnaire';
+import { CheckboxField, ServiceInviteOffers } from './ServiceInviteOffers';
+import type { ServiceOffers } from './ServiceInviteOffers';
 import type {
     ClientPayload,
     Progress,
@@ -58,6 +59,7 @@ type Props = {
     progress: Progress;
     questionnaire: Questionnaire;
     ddSupport: DdSupport;
+    serviceOffers: ServiceOffers;
     website: WebsiteSubmission;
     documentUploadUrl: string;
     documentCount: number;
@@ -100,6 +102,7 @@ type OnboardingForm = {
     answers: QuestionnaireAnswers;
     documents_acknowledged: boolean;
     review_confirmed: boolean;
+    service_offers_acknowledged: boolean;
 };
 
 type QuestionnaireDraftStatus =
@@ -119,6 +122,7 @@ export default function OnboardingStep({
     progress,
     questionnaire,
     ddSupport,
+    serviceOffers,
     website,
     documentUploadUrl,
     documentCount,
@@ -158,6 +162,9 @@ export default function OnboardingStep({
         answers: questionnaire.answers ?? {},
         documents_acknowledged: booleanValue(stepData.documents_acknowledged),
         review_confirmed: booleanValue(stepData.review_confirmed),
+        service_offers_acknowledged: booleanValue(
+            stepData.service_offers_acknowledged,
+        ),
     });
     const errors = form.errors as Record<string, string | undefined>;
     const [questionnaireDraftStatus, setQuestionnaireDraftStatus] =
@@ -369,6 +376,7 @@ export default function OnboardingStep({
                             errors={errors}
                             questionnaire={questionnaire}
                             ddSupport={ddSupport}
+                            serviceOffers={serviceOffers}
                             website={website}
                             documentUploadUrl={documentUploadUrl}
                             documentCount={documentCount}
@@ -438,6 +446,7 @@ function StepContent({
     errors,
     questionnaire,
     ddSupport,
+    serviceOffers,
     website,
     documentUploadUrl,
     documentCount,
@@ -450,6 +459,7 @@ function StepContent({
     errors: Record<string, string | undefined>;
     questionnaire: Questionnaire;
     ddSupport: DdSupport;
+    serviceOffers: ServiceOffers;
     website: WebsiteSubmission;
     documentUploadUrl: string;
     documentCount: number;
@@ -461,7 +471,6 @@ function StepContent({
     const [documentUploadError, setDocumentUploadError] = useState<
         string | null
     >(null);
-
     const uploadDocument = async (selectedFile: File | null = documentFile) => {
         if (!selectedFile) {
             return;
@@ -522,6 +531,14 @@ function StepContent({
                             }}
                         />
                     ) : null}
+                    <ServiceInviteOffers
+                        serviceOffers={serviceOffers}
+                        checked={form.data.service_offers_acknowledged}
+                        error={form.errors.service_offers_acknowledged}
+                        onCheckedChange={(checked) =>
+                            form.setData('service_offers_acknowledged', checked)
+                        }
+                    />
                     <CheckboxField
                         id="acknowledged"
                         label="I am ready to begin onboarding."
@@ -1007,34 +1024,6 @@ function Field({
         <div className="grid gap-2">
             <Label htmlFor={id}>{label}</Label>
             {children}
-            <InputError message={error} />
-        </div>
-    );
-}
-
-function CheckboxField({
-    id,
-    label,
-    checked,
-    error,
-    onCheckedChange,
-}: {
-    id: string;
-    label: string;
-    checked: boolean;
-    error?: string;
-    onCheckedChange: (checked: boolean) => void;
-}) {
-    return (
-        <div className="space-y-2">
-            <div className="flex items-start gap-3">
-                <Checkbox
-                    id={id}
-                    checked={checked}
-                    onCheckedChange={(value) => onCheckedChange(value === true)}
-                />
-                <Label htmlFor={id}>{label}</Label>
-            </div>
             <InputError message={error} />
         </div>
     );

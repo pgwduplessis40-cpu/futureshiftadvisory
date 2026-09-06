@@ -25,19 +25,23 @@ use App\Notifications\ServiceActivationRequestedNotification;
 use App\Services\Audit\AuditWriter;
 use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\Dd\ClientCapability;
-use App\Services\Fees\PilotFeeWaiverManager;
-use App\Services\Fees\ServiceRateManager;
 use App\Services\Goals\GoalTracker;
 use App\Services\Learning\LayerCadenceRegistry;
 use App\Services\Messaging\MessageThreadService;
 use App\Services\Plans\PlanBuilder as SharedPlanBuilder;
 use App\Support\RequestContext;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
+/**
+ * @phpstan-import-type InviteOfferSnapshot from ServiceRatePackage
+ * @phpstan-import-type PaymentSnapshot from ServiceActivationPackagePricing
+ * @phpstan-import-type PaymentSplit from ServiceActivationPackagePricing
+ */
 final class ServiceActivationManager
 {
     public function __construct(
@@ -45,8 +49,8 @@ final class ServiceActivationManager
         private readonly MessageThreadService $messages,
         private readonly SharedPlanBuilder $plans,
         private readonly RequestContext $context,
-        private readonly ServiceRateManager $serviceRates,
-        private readonly PilotFeeWaiverManager $pilotWaivers,
+        private readonly ServiceActivationPackagePricing $packagePricing,
+        private readonly ClientInvitationOffers $invitationOffers,
         private readonly PilotFeeWaiverActivationReconciler $pilotActivationWaivers,
         private readonly GoalTracker $goals,
         private readonly ClientCapability $ddClientCapability,
@@ -89,6 +93,32 @@ final class ServiceActivationManager
 
             return $activation->refresh();
         });
+    }
+
+    public function offerFromClientInvite(
+        Client $client,
+        User $advisor,
+        ServiceRatePackage $package,
+        string $inviteTokenId,
+    ): ServiceActivation {
+        return $this->invitationOffers->offerFromClientInvite($client, $advisor, $package, $inviteTokenId);
+    }
+
+    /** @return Collection<int, ServiceActivation> */
+    public function invitationOffers(Client $client): Collection
+    {
+        return $this->invitationOffers->invitationOffers($client);
+    }
+
+    /** @return Collection<int, ServiceActivation> */
+    public function acknowledgeInvitationOffers(Client $client, User $actor): Collection
+    {
+        return $this->invitationOffers->acknowledgeInvitationOffers($client, $actor);
+    }
+
+    public function rebindInvitationOffers(Client $client, string $oldInviteTokenId, string $newInviteTokenId): void
+    {
+        $this->invitationOffers->rebindInvitationOffers($client, $oldInviteTokenId, $newInviteTokenId);
     }
 
     /**
@@ -1064,62 +1094,22 @@ final class ServiceActivationManager
         ]))) ?: 'Client requested idea validation, business plan, and budget support from the advisory portal.';
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return InviteOfferSnapshot */
     private function packageSnapshotForActivation(ServiceRatePackage $package, ?Client $client = null): array
     {
-        $snapshot = $package->snapshot();
-        $pilot = $client instanceof Client ? $this->pilotWaivers->eligibility($client) : null;
-
-        if (is_array($pilot) && $pilot['eligible']) {
-            return $this->pilotWaivers->waivedPackageSnapshot($snapshot, $pilot);
-        }
-
-        if (! $this->serviceRates->freeAccessModeActive()) {
-            return $snapshot;
-        }
-
-        return [
-            ...$snapshot,
-            'fixed_fee' => 0.0,
-            'deposit_percent' => 100.0,
-            'payment_split' => [
-                'deposit_percent' => 100.0,
-                'card_deposit_amount' => 0.0,
-                'bank_transfer_amount' => 0.0,
-                'requires_bank_transfer' => false,
-            ],
-            'free_access_mode' => [
-                'active' => true,
-                'reason' => 'Admin service rates are inactive; package payment is not required until rates are activated.',
-                'nominal_fixed_fee' => $snapshot['fixed_fee'] ?? null,
-                'stripe_required' => false,
-            ],
-        ];
+        return $this->packagePricing->packageSnapshotForActivation($package, $client);
     }
 
-    /**
-     * @param  array<string, mixed>  $snapshot
-     */
+    /** @param PaymentSnapshot $snapshot */
     private function packagePaymentStatus(array $snapshot): string
     {
-        if (! $this->packageRequiresPayment($snapshot)) {
-            return ServiceActivation::PAYMENT_NOT_REQUIRED;
-        }
-
-        return $this->paymentSplitForSnapshot($snapshot)['requires_bank_transfer'] === true
-            ? ServiceActivation::PAYMENT_DEPOSIT_PENDING
-            : ServiceActivation::PAYMENT_PENDING;
+        return $this->packagePricing->packagePaymentStatus($snapshot);
     }
 
-    /**
-     * @param  array<string, mixed>  $snapshot
-     */
+    /** @param PaymentSnapshot $snapshot */
     private function packageRequiresPayment(array $snapshot): bool
     {
-        return (string) ($snapshot['billing_model'] ?? ServiceRatePackage::BILLING_FIXED_FEE) === ServiceRatePackage::BILLING_FIXED_FEE
-            && (float) ($snapshot['fixed_fee'] ?? 0) > 0;
+        return $this->packagePricing->packageRequiresPayment($snapshot);
     }
 
     private function packageMatchesPurchasePrice(ServiceRatePackage $package, float $askingPrice): bool
@@ -1304,46 +1294,12 @@ final class ServiceActivationManager
     }
 
     /**
-     * @param  array<string, mixed>  $snapshot
-     * @return array{deposit_percent:float,card_deposit_amount:float|null,bank_transfer_amount:float|null,requires_bank_transfer:bool}
+     * @param  PaymentSnapshot  $snapshot
+     * @return PaymentSplit
      */
     private function paymentSplitForSnapshot(array $snapshot): array
     {
-        $paymentSplit = $snapshot['payment_split'] ?? null;
-
-        if (is_array($paymentSplit)) {
-            return [
-                'deposit_percent' => (float) ($paymentSplit['deposit_percent'] ?? $snapshot['deposit_percent'] ?? 100),
-                'card_deposit_amount' => isset($paymentSplit['card_deposit_amount'])
-                    ? (float) $paymentSplit['card_deposit_amount']
-                    : null,
-                'bank_transfer_amount' => isset($paymentSplit['bank_transfer_amount'])
-                    ? (float) $paymentSplit['bank_transfer_amount']
-                    : null,
-                'requires_bank_transfer' => (bool) ($paymentSplit['requires_bank_transfer'] ?? false),
-            ];
-        }
-
-        $fixedFee = isset($snapshot['fixed_fee']) ? (float) $snapshot['fixed_fee'] : null;
-        if ($fixedFee === null) {
-            return [
-                'deposit_percent' => 100.0,
-                'card_deposit_amount' => null,
-                'bank_transfer_amount' => null,
-                'requires_bank_transfer' => false,
-            ];
-        }
-
-        $depositPercent = min(max((float) ($snapshot['deposit_percent'] ?? 100), 0.0), 100.0);
-        $cardDeposit = round($fixedFee * ($depositPercent / 100), 2);
-        $bankTransfer = round(max($fixedFee - $cardDeposit, 0), 2);
-
-        return [
-            'deposit_percent' => $depositPercent,
-            'card_deposit_amount' => $cardDeposit,
-            'bank_transfer_amount' => $bankTransfer,
-            'requires_bank_transfer' => $bankTransfer > 0,
-        ];
+        return $this->packagePricing->paymentSplitForSnapshot($snapshot);
     }
 
     /**

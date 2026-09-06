@@ -13,12 +13,17 @@ import { useState } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { Metric, PlainEnglishSummaryBlock, TableStat } from './LearningDisplay';
+import type { PlainEnglishSummary } from './LearningDisplay';
+import {
+    RecommendationDeliveryPanel,
+    RecommendationDraft,
+} from './Recommendations';
+import type {
+    LearningRecommendation,
+    RecommendationDefaults,
+} from './Recommendations';
 
 type Decision = 'approve' | 'approve_modified_date' | 'defer' | 'reject';
 type LearningTab = 'actions' | 'information';
@@ -39,6 +44,7 @@ type LearningUpdateCard = {
     capability_profile: CapabilityProfile;
     plain_english: PlainEnglishSummary;
     status: string;
+    requires_tracked_delivery: boolean;
     effective_date: string | null;
     pre_implementation_notice_at: string | null;
     review_due_at: string | null;
@@ -55,19 +61,15 @@ type LearningUpdateCard = {
     } | null;
 };
 
-type PlainEnglishSummary = {
-    what_we_learnt: string;
-    why_it_matters: string;
-    review_decision: string;
-    signals: string[];
-};
-
 type Props = {
     cards: LearningUpdateCard[];
     decisions: Decision[];
     impact_reviews: ImpactReviewCard[];
+    recommendations: LearningRecommendation[];
+    recommendation_defaults: Record<string, RecommendationDefaults>;
     monitor: LearningMonitor;
     rerun_url: string;
+    developer_brief_url: string;
 };
 
 type ImpactReviewCard = {
@@ -173,8 +175,11 @@ export default function LearningUpdatesIndex({
     cards,
     decisions,
     impact_reviews,
+    recommendations,
+    recommendation_defaults,
     monitor,
     rerun_url,
+    developer_brief_url,
 }: Props) {
     const [activeTab, setActiveTab] = useState<LearningTab>('actions');
     const approvedCards = cards.filter(isApprovedLearning);
@@ -206,6 +211,11 @@ export default function LearningUpdatesIndex({
                             <Badge variant="secondary">
                                 {pendingCards.length} pending
                             </Badge>
+                            <Button asChild size="sm" variant="outline">
+                                <a href={developer_brief_url}>
+                                    Download developer brief
+                                </a>
+                            </Button>
                         </>
                     }
                 />
@@ -250,10 +260,15 @@ export default function LearningUpdatesIndex({
                             <ImpactReviewPanel reviews={impact_reviews} />
                         )}
 
+                        <RecommendationDeliveryPanel
+                            recommendations={recommendations}
+                        />
+
                         <LearningQueueTables
                             pendingCards={pendingCards}
                             approvedCards={approvedCards}
                             decisions={decisions}
+                            recommendationDefaults={recommendation_defaults}
                         />
                     </section>
                 ) : (
@@ -712,14 +727,20 @@ function LearningQueueTables({
     pendingCards,
     approvedCards,
     decisions,
+    recommendationDefaults,
 }: {
     pendingCards: LearningUpdateCard[];
     approvedCards: LearningUpdateCard[];
     decisions: Decision[];
+    recommendationDefaults: Record<string, RecommendationDefaults>;
 }) {
     return (
         <div className="space-y-6">
-            <PendingLearningTable cards={pendingCards} decisions={decisions} />
+            <PendingLearningTable
+                cards={pendingCards}
+                decisions={decisions}
+                recommendationDefaults={recommendationDefaults}
+            />
             <ApprovedLearningTable cards={approvedCards} />
         </div>
     );
@@ -728,9 +749,11 @@ function LearningQueueTables({
 function PendingLearningTable({
     cards,
     decisions,
+    recommendationDefaults,
 }: {
     cards: LearningUpdateCard[];
     decisions: Decision[];
+    recommendationDefaults: Record<string, RecommendationDefaults>;
 }) {
     const similarCounts = similarLearningCounts(cards);
 
@@ -783,6 +806,9 @@ function PendingLearningTable({
                                         similarCounts.get(card.id) ?? 1
                                     }
                                     decisions={decisions}
+                                    recommendationDefaults={
+                                        recommendationDefaults[card.id]
+                                    }
                                 />
                             ))}
                         </tbody>
@@ -797,15 +823,18 @@ function PendingLearningRow({
     card,
     similarCount,
     decisions,
+    recommendationDefaults,
 }: {
     card: LearningUpdateCard;
     similarCount: number;
     decisions: Decision[];
+    recommendationDefaults?: RecommendationDefaults;
 }) {
     const [effectiveDate, setEffectiveDate] = useState(
         card.effective_date?.slice(0, 16) ?? '',
     );
     const [reason, setReason] = useState('');
+    const requiresTrackedDelivery = card.requires_tracked_delivery;
 
     function submit(decision: Decision) {
         router.patch(`/admin/learning-updates/${card.id}/decision`, {
@@ -861,45 +890,54 @@ function PendingLearningRow({
                 </div>
             </td>
             <td className="px-3 py-3" data-label="Decision">
-                <div className="grid gap-2 text-sm">
-                    <label className="grid gap-1">
-                        <span className="text-xs text-muted-foreground">
-                            Effective date
-                        </span>
-                        <input
-                            className="h-9 rounded-md border bg-background px-3"
-                            type="datetime-local"
-                            value={effectiveDate}
-                            onChange={(event) =>
-                                setEffectiveDate(event.target.value)
-                            }
-                        />
-                    </label>
-                    <label className="grid gap-1">
-                        <span className="text-xs text-muted-foreground">
-                            Decision note
-                        </span>
-                        <textarea
-                            className="min-h-20 rounded-md border bg-background px-3 py-2"
-                            value={reason}
-                            onChange={(event) => setReason(event.target.value)}
-                        />
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                        {decisions.map((decision) => (
-                            <Button
-                                key={decision}
-                                type="button"
-                                size="sm"
-                                variant={buttonVariant(decision)}
-                                onClick={() => submit(decision)}
-                            >
-                                <DecisionIcon decision={decision} />
-                                {decisionCopy[decision]}
-                            </Button>
-                        ))}
+                {requiresTrackedDelivery && recommendationDefaults ? (
+                    <RecommendationDraft
+                        learningUpdateId={card.id}
+                        defaults={recommendationDefaults}
+                    />
+                ) : (
+                    <div className="grid gap-2 text-sm">
+                        <label className="grid gap-1">
+                            <span className="text-xs text-muted-foreground">
+                                Effective date
+                            </span>
+                            <input
+                                className="h-9 rounded-md border bg-background px-3"
+                                type="datetime-local"
+                                value={effectiveDate}
+                                onChange={(event) =>
+                                    setEffectiveDate(event.target.value)
+                                }
+                            />
+                        </label>
+                        <label className="grid gap-1">
+                            <span className="text-xs text-muted-foreground">
+                                Decision note
+                            </span>
+                            <textarea
+                                className="min-h-20 rounded-md border bg-background px-3 py-2"
+                                value={reason}
+                                onChange={(event) =>
+                                    setReason(event.target.value)
+                                }
+                            />
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                            {decisions.map((decision) => (
+                                <Button
+                                    key={decision}
+                                    type="button"
+                                    size="sm"
+                                    variant={buttonVariant(decision)}
+                                    onClick={() => submit(decision)}
+                                >
+                                    <DecisionIcon decision={decision} />
+                                    {decisionCopy[decision]}
+                                </Button>
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
             </td>
         </tr>
     );
@@ -1061,40 +1099,6 @@ function LearningIdentity({
                 <p className="text-xs leading-5 text-muted-foreground">
                     {card.capability_profile.business_value}
                 </p>
-            )}
-        </div>
-    );
-}
-
-function PlainEnglishSummaryBlock({
-    summary,
-    compact = false,
-}: {
-    summary: PlainEnglishSummary;
-    compact?: boolean;
-}) {
-    return (
-        <div className="text-sm">
-            <p className="leading-6 font-medium text-foreground">
-                {summary.what_we_learnt}
-            </p>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                {compact ? summary.review_decision : summary.why_it_matters}
-            </p>
-            {!compact && (
-                <p className="mt-2 rounded-md border bg-muted/30 px-3 py-2 text-xs leading-5 text-muted-foreground">
-                    <span className="font-medium text-foreground">
-                        Decision needed:{' '}
-                    </span>
-                    {summary.review_decision}
-                </p>
-            )}
-            {summary.signals.length > 0 && !compact && (
-                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                    {summary.signals.map((signal) => (
-                        <li key={signal}>{signal}</li>
-                    ))}
-                </ul>
             )}
         </div>
     );
@@ -1376,15 +1380,6 @@ function stringValue(value: unknown): string {
     return '';
 }
 
-function TableStat({ label, value }: { label: string; value: string }) {
-    return (
-        <div>
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className="font-medium">{value}</div>
-        </div>
-    );
-}
-
 function ImplementationSummary({ card }: { card: LearningUpdateCard }) {
     const activeImplementations = card.implementations.filter(
         (implementation) => !implementation.rolled_back_at,
@@ -1536,36 +1531,6 @@ function ReviewFocusPanel({ profile }: { profile: CapabilityProfile }) {
                 </>
             )}
         </section>
-    );
-}
-
-function Metric({
-    label,
-    value,
-    explanation,
-}: {
-    label: string;
-    value: string;
-    explanation?: string;
-}) {
-    const metric = (
-        <div className="rounded-md border px-3 py-2">
-            <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd className="mt-1 font-medium">{value}</dd>
-        </div>
-    );
-
-    if (!explanation) {
-        return metric;
-    }
-
-    return (
-        <Tooltip>
-            <TooltipTrigger asChild>{metric}</TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-xs">
-                {explanation}
-            </TooltipContent>
-        </Tooltip>
     );
 }
 

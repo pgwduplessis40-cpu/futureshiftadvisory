@@ -26,11 +26,15 @@ final class InviteToken extends Model
         'accepted_by_user_id',
         'intended_service_type',
         'intended_package_scope',
+        'service_offer_snapshot',
     ];
 
     protected $casts = [
         'expires_at' => 'datetime',
         'accepted_at' => 'datetime',
+        'service_offer_snapshot' => 'array',
+        'service_offer_accepted_snapshot' => 'array',
+        'service_offer_accepted_at' => 'datetime',
     ];
 
     public static function hashToken(string $plainToken): string

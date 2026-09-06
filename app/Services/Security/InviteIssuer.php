@@ -18,12 +18,14 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
+/** @phpstan-import-type InviteOfferSnapshot from ServiceRatePackage */
 final class InviteIssuer
 {
     private const INVITE_SUBJECT = 'Future Shift Advisory invitation';
 
     public function __construct(private readonly AuditWriter $auditWriter) {}
 
+    /** @param InviteOfferSnapshot|null $serviceOfferSnapshot */
     public function issue(
         string $email,
         string $targetUserType,
@@ -32,6 +34,7 @@ final class InviteIssuer
         ?string $intendedPackageScope = null,
         ?Authenticatable $issuedBy = null,
         bool $deliver = false,
+        ?array $serviceOfferSnapshot = null,
     ): IssuedInvite {
         $email = Str::lower(trim($email));
         [$intendedServiceType, $intendedPackageScope] = $this->normaliseServiceIntent($intendedServiceType, $intendedPackageScope);
@@ -44,6 +47,7 @@ final class InviteIssuer
             'target_user_type' => $targetUserType,
             'intended_service_type' => $intendedServiceType,
             'intended_package_scope' => $intendedPackageScope,
+            'service_offer_snapshot' => $serviceOfferSnapshot,
             'token_hash' => InviteToken::hashToken($plainToken),
             'token_envelope' => Crypt::encryptString($plainToken),
             'expires_at' => now()->addHours((int) config('security.invite_token_ttl_hours', 72)),

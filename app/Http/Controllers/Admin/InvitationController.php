@@ -9,9 +9,11 @@ use App\Http\Controllers\Controller;
 use App\Models\InviteToken;
 use App\Models\ServiceRatePackage;
 use App\Models\User;
+use App\Services\Entrepreneurs\EntrepreneurInviteOffer;
 use App\Services\Security\InviteIssuer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -49,6 +51,7 @@ final class InvitationController extends Controller
         return Inertia::render('admin/invitations/Create', [
             'userTypes' => User::userTypes(),
             'backUrl' => $this->safeReturnUrl($request->query('return_to')),
+            'entrepreneurServices' => ServiceRatePackage::entrepreneurInviteServiceOptions(),
         ]);
     }
 
@@ -61,14 +64,25 @@ final class InvitationController extends Controller
             'target_user_type' => ['required', 'string'],
             'target_role' => ['required', 'string', 'max:80'],
             'return_to' => ['nullable', 'string', 'max:255'],
+            'intended_package_scope' => ['required_if:target_user_type,entrepreneur', 'nullable', Rule::in(ServiceRatePackage::entrepreneurPackageScopes())],
+            'service_offer_version' => ['nullable', 'string', 'size:64'],
         ]);
+
+        $entrepreneur = $validated['target_user_type'] === User::TYPE_ENTREPRENEUR;
+        $scope = $entrepreneur ? $validated['intended_package_scope'] : null;
+        $offer = $entrepreneur
+            ? app(EntrepreneurInviteOffer::class)->quote($scope, $validated['service_offer_version'] ?? null)
+            : null;
 
         $issuer->issue(
             email: $validated['email'],
             targetUserType: $validated['target_user_type'],
             targetRole: $validated['target_role'],
+            intendedServiceType: $entrepreneur ? ServiceRatePackage::SERVICE_ENTREPRENEUR : null,
+            intendedPackageScope: $scope,
             issuedBy: $request->user(),
             deliver: true,
+            serviceOfferSnapshot: $offer,
         );
 
         return redirect($this->safeReturnUrl($validated['return_to'] ?? null));

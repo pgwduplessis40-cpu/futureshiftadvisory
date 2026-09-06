@@ -16,14 +16,26 @@ import {
 type Props = {
     userTypes: string[];
     backUrl: string;
+    entrepreneurServices: {
+        value: string;
+        label: string;
+        description: string;
+        offer_version?: string;
+    }[];
 };
 
-export default function InvitationsCreate({ userTypes, backUrl }: Props) {
+export default function InvitationsCreate({
+    userTypes,
+    backUrl,
+    entrepreneurServices,
+}: Props) {
     const form = useForm({
         email: '',
         target_user_type: userTypes[0] ?? '',
         target_role: userTypes[0] ?? '',
         return_to: backUrl,
+        intended_package_scope: '',
+        service_offer_version: '',
     });
 
     return (
@@ -107,6 +119,62 @@ export default function InvitationsCreate({ userTypes, backUrl }: Props) {
                     </div>
 
                     <InputError message={form.errors.return_to} />
+
+                    {form.data.target_user_type === 'entrepreneur' && (
+                        <div className="grid gap-2">
+                            <Label htmlFor="entrepreneur-service">
+                                Entrepreneur service and fee
+                            </Label>
+                            <Select
+                                value={form.data.intended_package_scope}
+                                onValueChange={(value) =>
+                                    form.setData((data) => ({
+                                        ...data,
+                                        intended_package_scope: value,
+                                        service_offer_version:
+                                            entrepreneurServices.find(
+                                                (option) =>
+                                                    option.value === value,
+                                            )?.offer_version ?? '',
+                                    }))
+                                }
+                            >
+                                <SelectTrigger id="entrepreneur-service">
+                                    <SelectValue placeholder="Select a service package" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {entrepreneurServices.map((option) => (
+                                        <SelectItem
+                                            key={option.value}
+                                            value={option.value}
+                                        >
+                                            {option.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <p className="text-sm text-muted-foreground">
+                                {
+                                    entrepreneurServices.find(
+                                        (option) =>
+                                            option.value ===
+                                            form.data.intended_package_scope,
+                                    )?.description
+                                }
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                This offer will be saved for agreement during
+                                onboarding. Other services are available by
+                                request.
+                            </p>
+                            <InputError
+                                message={
+                                    form.errors.intended_package_scope ??
+                                    form.errors.service_offer_version
+                                }
+                            />
+                        </div>
+                    )}
 
                     <Button type="submit" disabled={form.processing}>
                         <Send className="size-4" aria-hidden="true" />

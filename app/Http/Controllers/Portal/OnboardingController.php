@@ -16,6 +16,7 @@ use App\Models\NpoEngagement;
 use App\Models\PostAcquisitionMigration;
 use App\Models\Questionnaire;
 use App\Models\QuestionnaireResponse;
+use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Services\Analysis\WebsiteUrlConfirmationService;
 use App\Services\Analytics\FunnelTracker;
@@ -29,6 +30,7 @@ use App\Services\Portal\Welcome\WelcomeMessageRenderer;
 use App\Services\Questionnaires\QuestionnairePayload;
 use App\Services\Questionnaires\QuestionnaireResponseRecorder;
 use App\Services\Reports\ReportComposer;
+use App\Services\ServiceActivations\ServiceActivationManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -53,6 +55,7 @@ final class OnboardingController extends Controller
         private readonly ReportComposer $reports,
         private readonly WelcomeMessageRenderer $welcomeMessage,
         private readonly WebsiteUrlConfirmationService $websiteUrls,
+        private readonly ServiceActivationManager $serviceActivations,
     ) {}
 
     public function redirect(Request $request): RedirectResponse
@@ -184,6 +187,12 @@ final class OnboardingController extends Controller
 
         $this->wizard->saveStep($client, $step, $payload);
 
+        if ($step === OnboardingWizard::STEP_WELCOME && $this->serviceActivations->invitationOffers($client)->isNotEmpty()) {
+            /** @var User $user */
+            $user = $request->user();
+            $this->serviceActivations->acknowledgeInvitationOffers($client, $user);
+        }
+
         /** @var User $user */
         $user = $request->user();
         $this->workspaceDrafts->forget($user, 'onboarding:'.$step);
@@ -247,6 +256,7 @@ final class OnboardingController extends Controller
             'progress' => $this->wizard->progress($client),
             'questionnaire' => $this->questionnaireFor($client),
             'ddSupport' => $this->wizard->dueDiligenceSupport($client),
+            'serviceOffers' => $this->serviceOfferPayload($client),
             'website' => $this->websiteFor($client),
             'documentUploadUrl' => route('portal.documents.store'),
             'documentCount' => Document::query()
@@ -268,6 +278,9 @@ final class OnboardingController extends Controller
         return match ($step) {
             OnboardingWizard::STEP_WELCOME => $request->validate([
                 'acknowledged' => ['accepted'],
+                'service_offers_acknowledged' => $this->serviceOfferPayload($client)['must_acknowledge']
+                    ? ['required', 'accepted']
+                    : ['sometimes', 'boolean'],
             ]),
             OnboardingWizard::STEP_GOALS => $request->validate([
                 'primary_goal' => ['required', 'string', 'max:1000'],
@@ -287,6 +300,36 @@ final class OnboardingController extends Controller
             ]),
             default => abort(404),
         };
+    }
+
+    /**
+     * @return array{must_acknowledge:bool,items:list<array{id:string,label:string,scope_label:string,description:string,fixed_fee:float|int|null,currency:string,included_stages:list<string>,acknowledged_at:?string,activation_url:string}>}
+     */
+    private function serviceOfferPayload(Client $client): array
+    {
+        $offers = $this->serviceActivations->invitationOffers($client);
+
+        return [
+            'must_acknowledge' => $offers->contains(
+                fn (ServiceActivation $offer): bool => $offer->status === ServiceActivation::STATUS_PACKAGE_SELECTED
+                    && ! is_string(data_get($offer->metadata, 'offer_acknowledged_at')),
+            ),
+            'items' => $offers->map(function (ServiceActivation $offer): array {
+                $snapshot = (array) ($offer->selected_package_snapshot ?? []);
+
+                return [
+                    'id' => (string) $offer->getKey(),
+                    'label' => (string) ($snapshot['client_label'] ?? $offer->clientLabel()),
+                    'scope_label' => (string) data_get($snapshot, 'access.package_scope_label', 'Selected service'),
+                    'description' => (string) ($snapshot['scope_description'] ?? ''),
+                    'fixed_fee' => $snapshot['fixed_fee'] ?? null,
+                    'currency' => (string) ($snapshot['currency'] ?? 'NZD'),
+                    'included_stages' => array_values((array) ($snapshot['included_stages'] ?? [])),
+                    'acknowledged_at' => data_get($offer->metadata, 'offer_acknowledged_at'),
+                    'activation_url' => route('portal.service-activations.show', $offer, absolute: false),
+                ];
+            })->values()->all(),
+        ];
     }
 
     /**

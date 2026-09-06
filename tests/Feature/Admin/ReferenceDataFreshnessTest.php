@@ -86,7 +86,14 @@ final class ReferenceDataFreshnessTest extends TestCase
         $this->assertSame(LearningUpdate::STATUS_APPROVED, $update->refresh()->status);
         $this->assertDatabaseCount('economic_indicators', 0);
 
-        app(ApprovalFlow::class)->implementDue(now()->addDay(), $admin);
+        $card = app(ApprovalFlow::class)->cards()->firstWhere('id', $update->getKey());
+        $this->assertIsArray($card);
+        $this->assertFalse($card['requires_tracked_delivery']);
+        $this->assertCount(0, app(ApprovalFlow::class)->implementDue(now(), $admin));
+        $this->assertSame(LearningUpdate::STATUS_APPROVED, $update->refresh()->status);
+
+        $this->assertCount(1, app(ApprovalFlow::class)->implementDue(now()->addDay(), $admin));
+        $this->assertCount(0, app(ApprovalFlow::class)->implementDue(now()->addDays(2), $admin));
 
         $this->assertSame(LearningUpdate::STATUS_IMPLEMENTED, $update->refresh()->status);
         $this->assertDatabaseHas('economic_indicators', [

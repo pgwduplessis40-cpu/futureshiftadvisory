@@ -48,6 +48,63 @@ final class OnboardingWizardTest extends TestCase
             );
     }
 
+    public function test_invited_service_offers_are_shown_and_acknowledged_during_onboarding(): void
+    {
+        $this->seed(RoleSeeder::class);
+        [$user, $client] = $this->clientUserWithClient(EngagementType::DUE_DILIGENCE);
+        $offer = ServiceActivation::query()->create([
+            'client_id' => $client->getKey(),
+            'requested_by_user_id' => $user->getKey(),
+            'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+            'client_label' => 'Business Plan & Budget add-on',
+            'status' => ServiceActivation::STATUS_PACKAGE_SELECTED,
+            'payment_status' => ServiceActivation::PAYMENT_PENDING,
+            'selected_package_snapshot' => [
+                'client_label' => 'Business Plan & Budget add-on',
+                'fixed_fee' => 3200,
+                'currency' => 'NZD',
+                'scope_description' => 'Funding plan and budget support.',
+                'included_stages' => ['Acquisition business plan', 'Funding budget'],
+                'access' => ['package_scope_label' => 'Business Plan & Budget add-on'],
+            ],
+            'metadata' => [
+                'source' => 'client_invite_offer',
+                'invite_token_id' => 'invite-token',
+                'offer_acknowledged_at' => null,
+            ],
+        ]);
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.onboarding.step', ['step' => OnboardingWizard::STEP_WELCOME]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('portal/onboarding/Step')
+                ->where('serviceOffers.must_acknowledge', true)
+                ->where('serviceOffers.items.0.id', (string) $offer->getKey())
+                ->where('serviceOffers.items.0.fixed_fee', 3200));
+
+        $this->actingAsMfa($user)
+            ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_WELCOME]), [
+                'acknowledged' => true,
+                'service_offers_acknowledged' => false,
+            ])
+            ->assertSessionHasErrors('service_offers_acknowledged');
+
+        $this->actingAsMfa($user)
+            ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_WELCOME]), [
+                'acknowledged' => true,
+                'service_offers_acknowledged' => true,
+            ])
+            ->assertRedirect();
+
+        $this->assertNotNull(data_get($offer->refresh()->metadata, 'offer_acknowledged_at'));
+        $this->assertSame((string) $user->getKey(), (string) data_get($offer->metadata, 'offer_acknowledged_by_user_id'));
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'service_activation.invite_offer_acknowledged',
+            'subject_id' => $offer->getKey(),
+        ]);
+    }
+
     public function test_portal_dashboard_exposes_workspace_scoped_journey_and_service_catalogue_payload(): void
     {
         $this->seed(RoleSeeder::class);

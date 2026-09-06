@@ -20,15 +20,39 @@ type Defaults = {
     return_to: string;
 };
 
-type ClientInviteForm = Defaults;
+type ServiceOfferPackage = {
+    id: string;
+    label: string;
+    description: string;
+    fee: number | null;
+    currency: string;
+    scope_label: string;
+};
+
+type ClientInviteForm = Defaults & {
+    due_diligence_package_id: string;
+    dd_plan_budget_package_id: string;
+};
 
 type Props = {
     engagementTypes: EngagementTypeOption[];
+    serviceOfferPackages: {
+        due_diligence: ServiceOfferPackage[];
+        dd_plan_budget: ServiceOfferPackage[];
+    };
     defaults: Defaults;
 };
 
-export default function ClientsInvite({ engagementTypes, defaults }: Props) {
-    const form = useForm<ClientInviteForm>({ ...defaults });
+export default function ClientsInvite({
+    engagementTypes,
+    serviceOfferPackages,
+    defaults,
+}: Props) {
+    const form = useForm<ClientInviteForm>({
+        ...defaults,
+        due_diligence_package_id: '',
+        dd_plan_budget_package_id: '',
+    });
     const selectedEngagement = engagementTypes.find(
         (type) => type.value === form.data.engagement_type,
     );
@@ -87,9 +111,20 @@ export default function ClientsInvite({ engagementTypes, defaults }: Props) {
                                 </Label>
                                 <Select
                                     value={form.data.engagement_type}
-                                    onValueChange={(value) =>
-                                        form.setData('engagement_type', value)
-                                    }
+                                    onValueChange={(value) => {
+                                        form.setData('engagement_type', value);
+
+                                        if (value !== 'due_diligence') {
+                                            form.setData(
+                                                'due_diligence_package_id',
+                                                '',
+                                            );
+                                            form.setData(
+                                                'dd_plan_budget_package_id',
+                                                '',
+                                            );
+                                        }
+                                    }}
                                 >
                                     <SelectTrigger
                                         id="engagement_type"
@@ -117,6 +152,154 @@ export default function ClientsInvite({ engagementTypes, defaults }: Props) {
                                     message={form.errors.engagement_type}
                                 />
                             </div>
+
+                            {form.data.engagement_type === 'due_diligence' ? (
+                                <div className="space-y-4 rounded-md border border-[var(--fs-linen)] bg-muted/30 p-4">
+                                    <div>
+                                        <h3 className="text-sm font-medium">
+                                            Included service and agreed price
+                                        </h3>
+                                        <p className="mt-1 text-sm text-muted-foreground">
+                                            Select the exact DD package the
+                                            client will see and agree to during
+                                            onboarding. Other services remain
+                                            available only by request.
+                                        </p>
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="due_diligence_package_id">
+                                            Due Diligence package
+                                        </Label>
+                                        <Select
+                                            value={
+                                                form.data
+                                                    .due_diligence_package_id
+                                            }
+                                            onValueChange={(value) =>
+                                                form.setData(
+                                                    'due_diligence_package_id',
+                                                    value,
+                                                )
+                                            }
+                                        >
+                                            <SelectTrigger id="due_diligence_package_id">
+                                                <SelectValue placeholder="Select the agreed DD package" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {serviceOfferPackages.due_diligence.map(
+                                                    (servicePackage) => (
+                                                        <SelectItem
+                                                            key={
+                                                                servicePackage.id
+                                                            }
+                                                            value={
+                                                                servicePackage.id
+                                                            }
+                                                        >
+                                                            {
+                                                                servicePackage.label
+                                                            }{' '}
+                                                            —{' '}
+                                                            {formatMoney(
+                                                                servicePackage.fee,
+                                                                servicePackage.currency,
+                                                            )}{' '}
+                                                            ex GST
+                                                        </SelectItem>
+                                                    ),
+                                                )}
+                                            </SelectContent>
+                                        </Select>
+                                        <PackageHint
+                                            packages={
+                                                serviceOfferPackages.due_diligence
+                                            }
+                                            id={
+                                                form.data
+                                                    .due_diligence_package_id
+                                            }
+                                        />
+                                        <InputError
+                                            message={
+                                                form.errors
+                                                    .due_diligence_package_id
+                                            }
+                                        />
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="dd_plan_budget_package_id">
+                                            Business Plan &amp; Budget add-on
+                                            <span className="ml-1 font-normal text-muted-foreground">
+                                                (optional)
+                                            </span>
+                                        </Label>
+                                        <Select
+                                            value={
+                                                form.data
+                                                    .dd_plan_budget_package_id ||
+                                                'not-included'
+                                            }
+                                            onValueChange={(value) =>
+                                                form.setData(
+                                                    'dd_plan_budget_package_id',
+                                                    value === 'not-included'
+                                                        ? ''
+                                                        : value,
+                                                )
+                                            }
+                                        >
+                                            <SelectTrigger id="dd_plan_budget_package_id">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="not-included">
+                                                    Not included — client can
+                                                    request it later
+                                                </SelectItem>
+                                                {serviceOfferPackages.dd_plan_budget.map(
+                                                    (servicePackage) => (
+                                                        <SelectItem
+                                                            key={
+                                                                servicePackage.id
+                                                            }
+                                                            value={
+                                                                servicePackage.id
+                                                            }
+                                                        >
+                                                            {
+                                                                servicePackage.label
+                                                            }{' '}
+                                                            —{' '}
+                                                            {formatMoney(
+                                                                servicePackage.fee,
+                                                                servicePackage.currency,
+                                                            )}{' '}
+                                                            ex GST
+                                                        </SelectItem>
+                                                    ),
+                                                )}
+                                            </SelectContent>
+                                        </Select>
+                                        <PackageHint
+                                            packages={
+                                                serviceOfferPackages.dd_plan_budget
+                                            }
+                                            id={
+                                                form.data
+                                                    .dd_plan_budget_package_id
+                                            }
+                                        />
+                                        <InputError
+                                            message={
+                                                form.errors
+                                                    .dd_plan_budget_package_id
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                            ) : null}
                         </div>
 
                         <InputError message={form.errors.return_to} />
@@ -140,6 +323,41 @@ export default function ClientsInvite({ engagementTypes, defaults }: Props) {
             </div>
         </>
     );
+}
+
+function PackageHint({
+    packages,
+    id,
+}: {
+    packages: ServiceOfferPackage[];
+    id: string;
+}) {
+    const servicePackage = packages.find((item) => item.id === id);
+
+    if (!servicePackage) {
+        return null;
+    }
+
+    return (
+        <p className="text-xs text-muted-foreground">
+            {servicePackage.scope_label}: {servicePackage.description} The
+            client will be asked to acknowledge{' '}
+            {formatMoney(servicePackage.fee, servicePackage.currency)} ex GST
+            during onboarding.
+        </p>
+    );
+}
+
+function formatMoney(amount: number | null, currency: string): string {
+    if (amount === null) {
+        return 'Fee to be confirmed';
+    }
+
+    return new Intl.NumberFormat('en-NZ', {
+        style: 'currency',
+        currency,
+        minimumFractionDigits: 2,
+    }).format(amount);
 }
 
 ClientsInvite.layout = {

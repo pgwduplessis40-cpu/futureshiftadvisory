@@ -14,22 +14,19 @@ use App\Http\Resources\Advisor\AdvisorClientShowPayloadBuilder;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\EntrepreneurProfile;
-use App\Models\InviteToken;
-use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Clients\AdvisorClientCapacity;
-use App\Services\Clients\AdvisorClientPayloadBuilder;
 use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\Dashboards\EconomicExposureMapper;
 use App\Services\Npo\NpoEngagementSetup;
 use App\Services\Security\InviteIssuer;
+use App\Services\ServiceActivations\ServiceActivationManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -40,7 +37,6 @@ final class ClientController extends Controller
         private readonly AuditWriter $auditWriter,
         private readonly AdvisorClientCapacity $clientCapacity,
         private readonly AdvisorClientIndexPayloadBuilder $indexPayloads,
-        private readonly AdvisorClientPayloadBuilder $clientPayloads,
         private readonly AdvisorClientShowPayloadBuilder $showPayloads,
         private readonly ConflictDeclarer $conflicts,
         private readonly NpoEngagementSetup $npoEngagements,
@@ -62,153 +58,22 @@ final class ClientController extends Controller
 
     public function invite(Request $request): Response
     {
-        Gate::authorize('create', Client::class);
-
-        [$engagement, $wasFiltered] = $this->clientInviteEngagementFrom($request->query('engagement_type'));
-
-        return Inertia::render('advisor/clients/Invite', [
-            'engagementTypes' => $this->clientInviteEngagementOptions(),
-            'defaults' => [
-                'email' => '',
-                'engagement_type' => $engagement->value,
-                'return_to' => $wasFiltered
-                    ? route('advisor.clients.index', ['engagement_type' => $engagement->value], absolute: false)
-                    : route('advisor.clients.index', absolute: false),
-            ],
-        ]);
+        return app(ClientInvitationController::class)->invite($request);
     }
 
-    public function storeInvite(Request $request, InviteIssuer $issuer): RedirectResponse
+    public function storeInvite(Request $request, InviteIssuer $issuer, ServiceActivationManager $serviceActivations): RedirectResponse
     {
-        Gate::authorize('create', Client::class);
-
-        $user = $request->user();
-        abort_unless($user instanceof User, 403);
-
-        $request->merge(['email' => Str::lower(trim((string) $request->input('email')))]);
-
-        $allowedEngagements = array_map(
-            static fn (EngagementType $type): string => $type->value,
-            $this->clientInviteEngagementTypes(),
-        );
-        $validated = $request->validate([
-            'email' => ['required', 'email', 'max:255'],
-            'engagement_type' => ['required', 'string', Rule::in($allowedEngagements)],
-            'return_to' => ['nullable', 'string', 'max:255'],
-        ]);
-        $engagement = EngagementType::from((string) $validated['engagement_type']);
-        $this->clientCapacity->ensureCanAdd($user);
-
-        DB::transaction(function () use ($engagement, $issuer, $user, $validated): void {
-            $issued = $issuer->issue(
-                email: (string) $validated['email'],
-                targetUserType: User::TYPE_CLIENT_PRIMARY,
-                targetRole: User::TYPE_CLIENT_PRIMARY,
-                intendedServiceType: $engagement === EngagementType::DUE_DILIGENCE
-                    ? ServiceActivation::SERVICE_DUE_DILIGENCE
-                    : null,
-                issuedBy: $user,
-                deliver: true,
-            );
-            $client = $this->createInvitedClientWorkspace(
-                email: (string) $validated['email'],
-                engagement: $engagement,
-                inviteId: (string) $issued->invite->getKey(),
-                advisor: $user,
-            );
-            $this->auditWriter->record('client.invite_issued', subject: $issued->invite, actor: $user, after: [
-                'client_id' => $client->getKey(),
-                'email' => $validated['email'],
-                'engagement_type' => $engagement->value,
-                'invite_token_id' => $issued->invite->getKey(),
-            ]);
-        });
-
-        return redirect($this->safeClientInviteReturnUrl($validated['return_to'] ?? null, $engagement))
-            ->with('status', 'client-invited');
+        return app(ClientInvitationController::class)->storeInvite($request, $issuer, $serviceActivations);
     }
 
-    public function resendInvite(Request $request, Client $client, InviteIssuer $issuer): RedirectResponse
+    public function resendInvite(Request $request, Client $client, InviteIssuer $issuer, ServiceActivationManager $serviceActivations): RedirectResponse
     {
-        Gate::authorize('update', $client);
-
-        $actor = $request->user();
-        abort_unless($actor instanceof User, 403);
-
-        $invite = $this->clientPayloads->inviteFor($client);
-        if (! $this->clientPayloads->canResendInvite($client, $invite)) {
-            return back()->withErrors(['invite' => 'Only pending or cancelled client invitations can be resent.']);
-        }
-
-        $email = $this->clientPayloads->inviteEmail($client);
-        $engagement = $client->engagement_type;
-
-        DB::transaction(function () use ($actor, $client, $email, $engagement, $invite, $issuer): void {
-            if ($invite instanceof InviteToken && ! $invite->isAccepted()) {
-                $invite->forceFill(['expires_at' => now()->subMinute()])->save();
-            }
-
-            $issued = $issuer->issue(
-                email: $email,
-                targetUserType: User::TYPE_CLIENT_PRIMARY,
-                targetRole: User::TYPE_CLIENT_PRIMARY,
-                intendedServiceType: $engagement === EngagementType::DUE_DILIGENCE
-                    ? ServiceActivation::SERVICE_DUE_DILIGENCE
-                    : null,
-                issuedBy: $actor,
-                deliver: true,
-            );
-            $registrySources = is_array($client->registry_sources) ? $client->registry_sources : [];
-            unset($registrySources['invite_cancelled_at'], $registrySources['invite_cancelled_by_user_id']);
-            $client->forceFill([
-                'registry_sources' => [
-                    ...$registrySources,
-                    'invite_token_id' => $issued->invite->getKey(),
-                    'invite_email' => $email,
-                    'invite_resent_at' => now()->toIso8601String(),
-                ],
-            ])->save();
-            $this->auditWriter->record('client.invite_resent', subject: $client, actor: $actor, after: [
-                'client_id' => $client->getKey(),
-                'email' => $email,
-                'previous_invite_token_id' => $invite?->getKey(),
-                'invite_token_id' => $issued->invite->getKey(),
-            ]);
-        });
-
-        return to_route('advisor.clients.show', $client)->with('status', 'client-invite-resent');
+        return app(ClientInvitationController::class)->resendInvite($request, $client, $issuer, $serviceActivations);
     }
 
     public function cancelInvite(Request $request, Client $client): RedirectResponse
     {
-        Gate::authorize('update', $client);
-
-        $actor = $request->user();
-        abort_unless($actor instanceof User, 403);
-
-        $invite = $this->clientPayloads->inviteFor($client);
-        if (! $this->clientPayloads->canCancelInvite($client, $invite)) {
-            return back()->withErrors(['invite' => 'Only pending client invitations can be cancelled.']);
-        }
-
-        DB::transaction(function () use ($actor, $client, $invite): void {
-            $invite?->forceFill(['expires_at' => now()->subMinute()])->save();
-            $registrySources = is_array($client->registry_sources) ? $client->registry_sources : [];
-            $client->forceFill([
-                'registry_sources' => [
-                    ...$registrySources,
-                    'invite_cancelled_at' => now()->toIso8601String(),
-                    'invite_cancelled_by_user_id' => $actor->getKey(),
-                ],
-            ])->save();
-            $this->auditWriter->record('client.invite_cancelled', subject: $client, actor: $actor, after: [
-                'client_id' => $client->getKey(),
-                'email' => $this->clientPayloads->inviteEmail($client),
-                'invite_token_id' => $invite?->getKey(),
-            ]);
-        });
-
-        return to_route('advisor.clients.show', $client)->with('status', 'client-invite-cancelled');
+        return app(ClientInvitationController::class)->cancelInvite($request, $client);
     }
 
     public function lookupNzbn(Request $request, PopulateFromNzbn $populate): Response
@@ -344,91 +209,5 @@ final class ClientController extends Controller
                 ],
             ],
         ];
-    }
-
-    /** @return array{0:EngagementType,1:bool} */
-    private function clientInviteEngagementFrom(mixed $value): array
-    {
-        $engagement = is_string($value) ? EngagementType::tryFrom(trim($value)) : null;
-
-        if ($engagement instanceof EngagementType && in_array($engagement, $this->clientInviteEngagementTypes(), true)) {
-            return [$engagement, true];
-        }
-
-        return [EngagementType::STANDARD_ADVISORY, false];
-    }
-
-    /** @return list<EngagementType> */
-    private function clientInviteEngagementTypes(): array
-    {
-        return [
-            EngagementType::STANDARD_ADVISORY,
-            EngagementType::DUE_DILIGENCE,
-            EngagementType::POST_ACQUISITION_ADVISORY,
-            EngagementType::NPO,
-        ];
-    }
-
-    /** @return list<array{value:string,label:string,description:string}> */
-    private function clientInviteEngagementOptions(): array
-    {
-        return array_map(
-            static fn (EngagementType $type): array => [
-                'value' => $type->value,
-                'label' => $type->label(),
-                'description' => $type->description(),
-            ],
-            $this->clientInviteEngagementTypes(),
-        );
-    }
-
-    private function safeClientInviteReturnUrl(mixed $value, EngagementType $fallback): string
-    {
-        $url = is_string($value) ? trim($value) : '';
-        $allowedUrls = [route('advisor.clients.index', absolute: false)];
-        foreach ($this->clientInviteEngagementTypes() as $type) {
-            $allowedUrls[] = route('advisor.clients.index', ['engagement_type' => $type->value], absolute: false);
-        }
-
-        return in_array($url, $allowedUrls, true)
-            ? $url
-            : route('advisor.clients.index', ['engagement_type' => $fallback->value], absolute: false);
-    }
-
-    private function createInvitedClientWorkspace(
-        string $email,
-        EngagementType $engagement,
-        string $inviteId,
-        User $advisor,
-    ): Client {
-        $client = Client::query()->create([
-            'engagement_type' => $engagement->value,
-            'legal_name' => Str::limit('Invited client - '.$email, 255, ''),
-            'data_quality' => Client::DATA_QUALITY_INSUFFICIENT,
-            'registry_sources' => [
-                'source' => 'advisor_client_invite',
-                'source_label' => 'Created from an advisor invitation; client details are completed during onboarding.',
-                'invite_token_id' => $inviteId,
-                'invite_email' => $email,
-                'invite_engagement_type' => $engagement->value,
-            ],
-            'created_by_user_id' => $advisor->getKey(),
-        ]);
-        ClientTeamMember::query()->create([
-            'client_id' => $client->getKey(),
-            'user_id' => $advisor->getKey(),
-            'role' => 'lead_advisor',
-            'granted_modules' => [$engagement->value],
-        ]);
-
-        if ($engagement === EngagementType::NPO) {
-            $this->npoEngagements->create($client, $advisor, [
-                'sub_type' => NpoEngagementSubType::GovernanceReview->value,
-                'legal_structure' => NpoLegalStructure::UnincorporatedCommunityOrganisation->value,
-                'isa_2022_reregistered' => null,
-            ]);
-        }
-
-        return $client;
     }
 }
