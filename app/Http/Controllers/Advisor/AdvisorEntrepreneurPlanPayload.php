@@ -13,12 +13,13 @@ use App\Models\PlanRevision;
 use App\Services\Entrepreneurs\AssessmentScoring;
 use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
+use App\Services\Entrepreneurs\FunderReadyBriefBuilder;
 use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
 
 /**
  * @phpstan-type AssessmentHistoryEntry array{id:string, round:int, status:string, overall_grade:string|null, weighted_score:float|null, automated_score_available:bool, score_delta:float|null, score_source_summary:string, created_at:string|null, submitted_at:string|null, snapshot_available:bool, snapshot_captured_at:mixed, snapshot_note:string, assessment_url:string, plan_snapshot_url:string|null}
  * @phpstan-type BudgetSummary array{status:string, expected_runway_months:float|int|null, calculated_runway_months:mixed, runway_open_ended:bool, break_even_month:mixed, available_after_launch:mixed, active_flags:list<mixed>}
- * @phpstan-type PlanProgressSummary array{id:string, title:string, status:string, assessment_count:int, latest_round:int|null, latest_grade:string|null, can_assess:bool, assessment_action_label:string, assessment_run:array{status:string|null, requested_at:string|null, started_at:string|null, total_criteria:int|null, completed_criteria:int|null, current_criterion:string|null, completed_at:string|null, failed_at:string|null, failure:string|null}, latest_assessment:mixed, executive_summary:mixed, budget:BudgetSummary, preview_pdf_url:string, budget_pdf_url:string|null, funder_ready:mixed, assess_url:string, assessment_history:list<AssessmentHistoryEntry>, latest_revision:mixed}
+ * @phpstan-type PlanProgressSummary array{id:string, title:string, status:string, assessment_count:int, latest_round:int|null, latest_grade:string|null, can_assess:bool, assessment_action_label:string, assessment_run:array{status:string|null, requested_at:string|null, started_at:string|null, total_criteria:int|null, completed_criteria:int|null, current_criterion:string|null, completed_at:string|null, failed_at:string|null, failure:string|null}, latest_assessment:mixed, executive_summary:mixed, budget:BudgetSummary, preview_pdf_url:string, budget_pdf_url:string|null, funder_ready:mixed, lender_brief:mixed, assess_url:string, assessment_history:list<AssessmentHistoryEntry>, latest_revision:mixed}
  */
 final class AdvisorEntrepreneurPlanPayload
 {
@@ -26,6 +27,7 @@ final class AdvisorEntrepreneurPlanPayload
 
     public function __construct(
         private readonly BusinessPlanPreviewRenderer $planPreview,
+        private readonly FunderReadyBriefBuilder $funderReadyBriefs,
         private readonly FunderReadyBusinessPlanBuilder $funderReadyPlans,
         private readonly BusinessPlanExecutiveSummary $executiveSummaries,
     ) {}
@@ -95,6 +97,10 @@ final class AdvisorEntrepreneurPlanPayload
             'funder_ready' => [
                 ...$this->funderReadyPlans->status($plan, $profile),
                 'document_url' => route('advisor.entrepreneurs.plans.funder-ready.pdf', [$profile, $plan], absolute: false),
+            ],
+            'lender_brief' => [
+                ...$this->funderReadyBriefs->status($plan, $profile),
+                'document_url' => route('advisor.entrepreneurs.plans.funder-ready-brief.pdf', [$profile, $plan], absolute: false),
             ],
             'assess_url' => route('advisor.entrepreneurs.plans.assessments.store', [$profile, $plan], absolute: false),
             'assessment_history' => $this->assessmentHistory($plan, $profile),

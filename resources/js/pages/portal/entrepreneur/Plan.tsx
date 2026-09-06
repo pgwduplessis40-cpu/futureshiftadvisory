@@ -142,6 +142,9 @@ type BusinessPlanPayload = {
 type ExecutiveSummaryPayload = {
     present: boolean;
     generated: boolean;
+    generated_by_ai: boolean;
+    usable: boolean;
+    legacy_draft: boolean;
     stale: boolean;
     can_generate: boolean;
     section_id: string | null;
@@ -459,7 +462,6 @@ type Props = {
         budgetFlagAcknowledge: string;
         budgetAdvisorNudgeDismiss: string;
         assistRequirement: string;
-        executiveSummary: string;
         preview: string;
         submit: string;
         documentUpload: string;
@@ -536,6 +538,8 @@ export default function EntrepreneurPlan({
     const selectedSection = selectedRequirement
         ? findSection(plan, selectedRequirement)
         : null;
+    const executiveSummaryRequirement =
+        selectedRequirement?.key === 'executive-summary';
     const budgetAutosaveUnlocked = useMemo(() => {
         if (!plan) {
             return false;
@@ -674,8 +678,6 @@ export default function EntrepreneurPlan({
     const [sectionError, setSectionError] = useState<string | null>(null);
     const [savingSection, setSavingSection] = useState(false);
     const [assistingSection, setAssistingSection] = useState(false);
-    const [generatingExecutiveSummary, setGeneratingExecutiveSummary] =
-        useState(false);
     const [assistantNotice, setAssistantNotice] = useState<string | null>(null);
     const [budgetForm, setBudgetForm] = useState<BudgetFormState>(
         () => initialWorkspaceDraft?.budgetForm ?? budgetToForm(plan?.budget),
@@ -791,7 +793,11 @@ export default function EntrepreneurPlan({
     }, [selectedRequirement?.type]);
 
     useEffect(() => {
-        if (!selectedRequirement || selectedRequirement.type === 'budget') {
+        if (
+            !selectedRequirement ||
+            selectedRequirement.type === 'budget' ||
+            selectedRequirement.key === 'executive-summary'
+        ) {
             return;
         }
 
@@ -825,7 +831,11 @@ export default function EntrepreneurPlan({
     }, [sectionBody, sectionTitle, selectedRequirement, workspaceKey]);
 
     useEffect(() => {
-        if (!selectedRequirement || selectedRequirement.type === 'budget') {
+        if (
+            !selectedRequirement ||
+            selectedRequirement.type === 'budget' ||
+            selectedRequirement.key === 'executive-summary'
+        ) {
             return;
         }
 
@@ -1115,27 +1125,8 @@ export default function EntrepreneurPlan({
         }
     };
 
-    const generateExecutiveSummary = () => {
-        if (!plan || generatingExecutiveSummary) {
-            return;
-        }
-
-        setGeneratingExecutiveSummary(true);
-        setSectionError(null);
-        setAssistantNotice(null);
-
-        router.post(
-            urls.executiveSummary,
-            {},
-            {
-                preserveScroll: true,
-                onFinish: () => setGeneratingExecutiveSummary(false),
-            },
-        );
-    };
-
     const saveSection = async () => {
-        if (!selectedRequirement) {
+        if (!selectedRequirement || executiveSummaryRequirement) {
             return;
         }
 
@@ -2175,40 +2166,7 @@ export default function EntrepreneurPlan({
                                                             </p>
                                                         </div>
                                                         <div className="flex flex-wrap gap-2">
-                                                            {selectedRequirement.key ===
-                                                            'executive-summary' ? (
-                                                                <Button
-                                                                    type="button"
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={
-                                                                        generateExecutiveSummary
-                                                                    }
-                                                                    disabled={
-                                                                        !plan ||
-                                                                        generatingExecutiveSummary ||
-                                                                        !plan
-                                                                            ?.executive_summary
-                                                                            .can_generate
-                                                                    }
-                                                                >
-                                                                    <RefreshCw
-                                                                        className={cn(
-                                                                            'size-4',
-                                                                            generatingExecutiveSummary &&
-                                                                                'animate-spin',
-                                                                        )}
-                                                                        aria-hidden="true"
-                                                                    />
-                                                                    {generatingExecutiveSummary
-                                                                        ? 'Generating'
-                                                                        : plan
-                                                                                ?.executive_summary
-                                                                                .present
-                                                                          ? 'Refresh summary'
-                                                                          : 'Generate summary'}
-                                                                </Button>
-                                                            ) : (
+                                                            {!executiveSummaryRequirement ? (
                                                                 <Button
                                                                     type="button"
                                                                     size="sm"
@@ -2229,8 +2187,9 @@ export default function EntrepreneurPlan({
                                                                         ? 'Assisting'
                                                                         : 'AI assist'}
                                                                 </Button>
-                                                            )}
-                                                            {selectedSection ? (
+                                                            ) : null}
+                                                            {selectedSection &&
+                                                            !executiveSummaryRequirement ? (
                                                                 <Button
                                                                     type="button"
                                                                     size="sm"
@@ -2262,12 +2221,15 @@ export default function EntrepreneurPlan({
                                                                 variant={
                                                                     plan
                                                                         .executive_summary
-                                                                        .stale
-                                                                        ? 'destructive'
+                                                                        .usable
+                                                                        ? 'secondary'
                                                                         : plan
                                                                                 .executive_summary
-                                                                                .present
-                                                                          ? 'secondary'
+                                                                                .legacy_draft ||
+                                                                            plan
+                                                                                .executive_summary
+                                                                                .stale
+                                                                          ? 'destructive'
                                                                           : 'outline'
                                                                 }
                                                             >
@@ -2302,12 +2264,31 @@ export default function EntrepreneurPlan({
                                                             ) : null}
                                                         </div>
                                                     ) : null}
+                                                    {executiveSummaryRequirement ? (
+                                                        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                                                            This section is
+                                                            generated
+                                                            automatically after
+                                                            the current Business
+                                                            Plan &amp; Budget
+                                                            assessment is
+                                                            finalised with a
+                                                            passing score. It is
+                                                            locked so the lender
+                                                            brief always matches
+                                                            the assessed plan
+                                                            and budget.
+                                                        </div>
+                                                    ) : null}
                                                     <label className="grid gap-1 text-sm">
                                                         <span>
                                                             Section title
                                                         </span>
                                                         <input
                                                             value={sectionTitle}
+                                                            disabled={
+                                                                executiveSummaryRequirement
+                                                            }
                                                             onChange={(event) =>
                                                                 setSectionTitle(
                                                                     event.target
@@ -2342,6 +2323,9 @@ export default function EntrepreneurPlan({
                                                         <FormattedTextarea
                                                             id="entrepreneur-plan-section-body"
                                                             value={sectionBody}
+                                                            disabled={
+                                                                executiveSummaryRequirement
+                                                            }
                                                             onChange={
                                                                 setSectionBody
                                                             }
@@ -2363,6 +2347,9 @@ export default function EntrepreneurPlan({
                                                                 : []
                                                         }
                                                         label="Attach supporting document"
+                                                        disabled={
+                                                            executiveSummaryRequirement
+                                                        }
                                                         onFilesChange={(
                                                             files,
                                                         ) =>
@@ -2404,25 +2391,27 @@ export default function EntrepreneurPlan({
                                                             </p>
                                                         </div>
                                                     ) : null}
-                                                    <Button
-                                                        type="button"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            void saveSection()
-                                                        }
-                                                        disabled={
-                                                            !plan ||
-                                                            savingSection
-                                                        }
-                                                    >
-                                                        <Upload
-                                                            className="size-4"
-                                                            aria-hidden="true"
-                                                        />
-                                                        {savingSection
-                                                            ? 'Saving'
-                                                            : 'Save requirement'}
-                                                    </Button>
+                                                    {!executiveSummaryRequirement ? (
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                void saveSection()
+                                                            }
+                                                            disabled={
+                                                                !plan ||
+                                                                savingSection
+                                                            }
+                                                        >
+                                                            <Upload
+                                                                className="size-4"
+                                                                aria-hidden="true"
+                                                            />
+                                                            {savingSection
+                                                                ? 'Saving'
+                                                                : 'Save requirement'}
+                                                        </Button>
+                                                    ) : null}
                                                 </>
                                             )
                                         ) : (

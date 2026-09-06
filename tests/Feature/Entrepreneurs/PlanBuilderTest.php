@@ -14,9 +14,6 @@ use App\Models\EntrepreneurProfile;
 use App\Models\PlanSection;
 use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
-use App\Services\Ai\Contracts\AiResponse;
-use App\Services\Ai\Contracts\PromptEnvelope;
-use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Ai\Fake\FakeAiClient;
 use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\IdeaValidationService;
@@ -244,15 +241,11 @@ final class PlanBuilderTest extends TestCase
         $this->assertSame(PlanSection::STATUS_COMPLETE, $section->refresh()->completeness_status);
     }
 
-    public function test_entrepreneur_can_generate_a_reviewable_executive_summary_from_the_whole_plan(): void
+    public function test_manual_executive_summary_generation_is_blocked_until_a_qualifying_assessment_is_finalised(): void
     {
         [$advisor, $profile] = $this->profile('summary-plan-founder@example.test');
         $this->openIdeaGate($profile, $advisor);
         $plan = app(PlanBuilder::class)->start($profile, $advisor);
-        $client = new ExecutiveSummaryAiClient(
-            'Harbour Studio is led by Plan Founder and asks the reader to assess a practical launch case grounded in customer evidence, an online service model, and staged revenue assumptions.'
-        );
-        $this->app->instance(AiClient::class, $client);
 
         app(PlanBuilder::class)->upsertSection(
             plan: $plan,
@@ -275,118 +268,39 @@ final class PlanBuilderTest extends TestCase
 
         $this->actingAsMfa($profile->user()->firstOrFail())
             ->postJson(route('portal.entrepreneur.plan.executive-summary.store'))
-            ->assertOk()
-            ->assertJsonPath('status', 'entrepreneur-plan-executive-summary-generated')
-            ->assertJsonPath('executive_summary.generated', true)
-            ->assertJsonPath('executive_summary.stale', false);
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('executive_summary');
 
-        $summary = PlanSection::query()
-            ->where('business_plan_id', $plan->getKey())
-            ->where('key', BusinessPlanExecutiveSummary::SECTION_KEY)
-            ->firstOrFail();
-
-        $this->assertStringContainsString('Harbour Studio is led by Plan Founder', $summary->body);
-        $this->assertSame('executive-summary', data_get($summary->metadata, 'requirement_key'));
-        $this->assertSame('ai_synthesis', data_get($summary->metadata, 'executive_summary.source'));
-        $this->assertSame('entrepreneur.plan_executive_summary', data_get($summary->metadata, 'executive_summary.prompt_id'));
-        $this->assertNotNull($client->prompt);
-        $this->assertSame('entrepreneur.plan_executive_summary', $client->prompt?->id);
-        $this->assertStringContainsString('industry-context', json_encode($client->prompt?->input, JSON_THROW_ON_ERROR));
-
-        $status = app(BusinessPlanExecutiveSummary::class)->status($plan->refresh(), $profile);
-        $this->assertFalse($status['stale']);
-
-        app(PlanBuilder::class)->upsertSection(
-            plan: $plan,
-            phaseKey: 'market',
-            key: 'founder-market-industry-context',
-            title: 'Industry and customer demand',
-            body: 'Customer evidence has changed materially and now includes ten buyer interviews, three paid pilots, and a clearer competitor comparison.',
-            actor: $advisor,
-            metadata: ['requirement_key' => 'industry-context'],
-        );
-
-        $staleStatus = app(BusinessPlanExecutiveSummary::class)->status($plan->refresh(), $profile);
-        $this->assertTrue($staleStatus['stale']);
-        $readiness = app(PlanIssueReadiness::class)->evaluate($plan->refresh());
-        $this->assertContains($staleStatus['readiness_reason'], $readiness['reasons']);
+        $this->assertDatabaseMissing('plan_sections', [
+            'business_plan_id' => $plan->getKey(),
+            'key' => BusinessPlanExecutiveSummary::SECTION_KEY,
+        ]);
     }
 
-    public function test_executive_summary_falls_back_when_ai_fails_on_first_generation(): void
+    public function test_manual_executive_summary_drafts_are_held_from_external_issue(): void
     {
         [$advisor, $profile] = $this->profile('summary-fallback-founder@example.test');
         $this->openIdeaGate($profile, $advisor);
         $plan = app(PlanBuilder::class)->start($profile, $advisor);
-        $this->app->instance(AiClient::class, new class implements AiClient
-        {
-            public function analyse(PromptEnvelope $prompt): AiResponse
-            {
-                throw new RuntimeException('AI is unavailable.');
-            }
-
-            public function verifyDocument(PromptEnvelope $prompt): AiResponse
-            {
-                throw new RuntimeException('AI is unavailable.');
-            }
-
-            public function scoreCriterion(PromptEnvelope $prompt): AiResponse
-            {
-                throw new RuntimeException('AI is unavailable.');
-            }
-
-            public function summarise(PromptEnvelope $prompt): AiResponse
-            {
-                throw new RuntimeException('AI is unavailable.');
-            }
-
-            public function redFlag(PromptEnvelope $prompt): AiResponse
-            {
-                throw new RuntimeException('AI is unavailable.');
-            }
-        });
-
         app(PlanBuilder::class)->upsertSection(
             plan: $plan,
-            phaseKey: 'market',
-            key: 'founder-market-industry-context',
-            title: 'Industry and customer demand',
-            body: 'Customer evidence includes five discovery calls and two pilot letters from regional service businesses.',
+            phaseKey: 'financial',
+            key: BusinessPlanExecutiveSummary::SECTION_KEY,
+            title: 'Executive summary',
+            body: 'A manually drafted executive summary must never be released as an approved lender document.',
             actor: $advisor,
-            metadata: ['requirement_key' => 'industry-context'],
+            metadata: ['requirement_key' => BusinessPlanExecutiveSummary::REQUIREMENT_KEY],
         );
 
-        $warnings = [];
-        set_error_handler(function (int $severity, string $message) use (&$warnings): bool {
-            if ($severity === E_WARNING) {
-                $warnings[] = $message;
+        $status = app(BusinessPlanExecutiveSummary::class)->status($plan->refresh(), $profile);
 
-                return true;
-            }
-
-            return false;
-        });
-
-        try {
-            $this->actingAsMfa($profile->user()->firstOrFail())
-                ->postJson(route('portal.entrepreneur.plan.executive-summary.store'))
-                ->assertOk()
-                ->assertJsonPath('status', 'entrepreneur-plan-executive-summary-generated')
-                ->assertJsonPath('executive_summary.generated', true);
-        } finally {
-            restore_error_handler();
-        }
-
-        $this->assertSame([], $warnings, 'The deterministic fallback must not emit PHP warnings.');
-
-        $summary = PlanSection::query()
-            ->where('business_plan_id', $plan->getKey())
-            ->where('key', BusinessPlanExecutiveSummary::SECTION_KEY)
-            ->firstOrFail();
-
-        $this->assertNotSame('', trim((string) $summary->body));
-        $this->assertSame('deterministic_fallback', data_get($summary->metadata, 'executive_summary.source'));
-        $this->assertTrue((bool) data_get($summary->metadata, 'executive_summary.degraded'));
-        $this->assertSame([], $summary->attached_document_ids);
+        $this->assertTrue($status['legacy_draft']);
+        $this->assertFalse($status['usable']);
+        $this->assertSame('Legacy executive-summary draft held from external issue', $status['status_label']);
+        $this->assertContains(
+            'A manually authored executive-summary draft is held from external issue. Finalise a passing assessment to generate the approved AI summary.',
+            app(PlanIssueReadiness::class)->evaluate($plan->refresh())['reasons'],
+        );
     }
 
     public function test_business_plan_preview_renders_markdown_formatting_safely(): void
@@ -509,7 +423,13 @@ final class PlanBuilderTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('entrepreneur.latest_plan.funder_ready.label', 'Draft - gaps to resolve')
                 ->where('entrepreneur.latest_plan.funder_ready.ready', false)
-                ->where('entrepreneur.latest_plan.funder_ready.document_url', route('advisor.entrepreneurs.plans.funder-ready.pdf', [$profile, $plan], absolute: false)));
+                ->where('entrepreneur.latest_plan.funder_ready.document_url', route('advisor.entrepreneurs.plans.funder-ready.pdf', [$profile, $plan], absolute: false))
+                ->where('entrepreneur.latest_plan.lender_brief.active', false)
+                ->where('entrepreneur.latest_plan.lender_brief.document_url', route('advisor.entrepreneurs.plans.funder-ready-brief.pdf', [$profile, $plan], absolute: false)));
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.plans.funder-ready-brief.pdf', [$profile, $plan]))
+            ->assertStatus(409);
 
         $response = $this->actingAsMfa($advisor)
             ->get(route('advisor.entrepreneurs.plans.funder-ready.pdf', [$profile, $plan]))
@@ -661,58 +581,5 @@ final class PlanBuilderTest extends TestCase
         } finally {
             DB::statement('RESET ROLE');
         }
-    }
-}
-
-final class ExecutiveSummaryAiClient implements AiClient
-{
-    public ?PromptEnvelope $prompt = null;
-
-    public function __construct(private readonly string $summary) {}
-
-    public function analyse(PromptEnvelope $prompt): AiResponse
-    {
-        return $this->response($prompt, 'analyse');
-    }
-
-    public function verifyDocument(PromptEnvelope $prompt): AiResponse
-    {
-        return $this->response($prompt, 'verify_document');
-    }
-
-    public function scoreCriterion(PromptEnvelope $prompt): AiResponse
-    {
-        return $this->response($prompt, 'score_criterion');
-    }
-
-    public function summarise(PromptEnvelope $prompt): AiResponse
-    {
-        $this->prompt = $prompt;
-
-        return $this->response($prompt, 'summarise', $this->summary);
-    }
-
-    public function redFlag(PromptEnvelope $prompt): AiResponse
-    {
-        return $this->response($prompt, 'red_flag');
-    }
-
-    private function response(PromptEnvelope $prompt, string $task, ?string $text = null): AiResponse
-    {
-        return new AiResponse(
-            text: $text ?? 'Recorded AI response.',
-            attributions: [[
-                'claim' => $text ?? 'Recorded AI response.',
-                'source_reference' => 'test:executive-summary-ai-client',
-            ]],
-            uncertainty: Uncertainty::Low,
-            biasSignals: [],
-            model: 'executive-summary-test-client',
-            promptVersion: $prompt->version,
-            promptHash: $prompt->hash(),
-            tokensIn: str_word_count(json_encode($prompt->toArray(), JSON_THROW_ON_ERROR)),
-            tokensOut: str_word_count($text ?? 'Recorded AI response.'),
-            metadata: ['task' => $task],
-        );
     }
 }

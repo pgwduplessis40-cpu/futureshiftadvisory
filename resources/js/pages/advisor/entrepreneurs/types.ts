@@ -46,12 +46,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         assessment_action_label: string;
         assessment_run: {
             status:
-                | 'queued'
-                | 'running'
-                | 'completed'
-                | 'failed'
-                | string
-                | null;
+                'queued' | 'running' | 'completed' | 'failed' | string | null;
             requested_at: string | null;
             started_at: string | null;
             total_criteria: number | null;
@@ -88,6 +83,9 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         executive_summary: {
             present: boolean;
             generated: boolean;
+            generated_by_ai: boolean;
+            usable: boolean;
+            legacy_draft: boolean;
             stale: boolean;
             can_generate: boolean;
             section_id: string | null;
@@ -126,6 +124,12 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             requirements_total: number;
             requirements_missing: number;
             evidence_count: number;
+            document_url: string;
+        };
+        lender_brief: {
+            active: boolean;
+            label: string;
+            reasons: string[];
             document_url: string;
         };
         assess_url: string;
@@ -241,6 +245,9 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
     }[];
     conversion: {
         available: boolean;
+        request_active: boolean;
+        activated_at: string | null;
+        score: number | null;
         converted: boolean;
         client_id: string | null;
         convert_url: string;

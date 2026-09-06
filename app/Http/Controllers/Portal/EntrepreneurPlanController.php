@@ -29,6 +29,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 final class EntrepreneurPlanController extends Controller
@@ -42,7 +43,6 @@ final class EntrepreneurPlanController extends Controller
         private readonly SharedPlanBuilder $sharedPlans,
         private readonly Guidance $guidance,
         private readonly PlanDocuments $documents,
-        private readonly BusinessPlanExecutiveSummary $executiveSummaries,
         private readonly AuditWriter $audit,
         private readonly EntrepreneurMilestones $milestones,
     ) {}
@@ -209,6 +209,11 @@ final class EntrepreneurPlanController extends Controller
 
         $phaseKey = (string) $validated['phase_key'];
         $requirementKey = (string) $validated['requirement_key'];
+        if ($requirementKey === BusinessPlanExecutiveSummary::REQUIREMENT_KEY) {
+            throw ValidationException::withMessages([
+                'requirement_key' => 'The executive summary is generated automatically after a qualifying assessment. It cannot be written or edited manually.',
+            ]);
+        }
         $requirement = $this->requirements->requirement($phaseKey, $requirementKey);
         $sectionKey = 'founder-'.$phaseKey.'-'.$requirementKey;
         $body = $this->requirements->integrateDatedUpdate((string) ($validated['body'] ?? ''));
@@ -305,23 +310,9 @@ final class EntrepreneurPlanController extends Controller
 
     public function generateExecutiveSummary(Request $request): RedirectResponse|JsonResponse
     {
-        $user = $this->workspace->user($request);
-        $profile = $this->workspace->profileFor($user);
-        abort_unless($this->workspace->includesPlanBudget($profile), 403);
-        $plan = $this->workspace->latestPlan($profile);
-        abort_unless($plan instanceof BusinessPlan, 404);
-
-        $payload = $this->executiveSummaries->generate($plan, $profile, $user);
-
-        if ($request->expectsJson()) {
-            return response()->json([
-                'status' => 'entrepreneur-plan-executive-summary-generated',
-                ...$payload,
-            ]);
-        }
-
-        return to_route('portal.entrepreneur.plan.show')
-            ->with('status', 'entrepreneur-plan-executive-summary-generated');
+        throw ValidationException::withMessages([
+            'executive_summary' => 'The executive summary is generated automatically after the current Business Plan & Budget assessment is finalised and passes.',
+        ]);
     }
 
     public function guidance(Request $request, PlanSection $planSection): RedirectResponse

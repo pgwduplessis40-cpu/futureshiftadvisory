@@ -9,6 +9,7 @@ use App\Models\BusinessPlan;
 use App\Models\EntrepreneurProfile;
 use App\Services\Entrepreneurs\BudgetPackBuilder;
 use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
+use App\Services\Entrepreneurs\FunderReadyBriefBuilder;
 use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
 use App\Services\Pdf\PdfRenderer;
 use Illuminate\Support\Facades\Gate;
@@ -20,6 +21,7 @@ final class EntrepreneurPlanDocumentController extends Controller
 {
     public function __construct(
         private readonly BusinessPlanPreviewRenderer $planPreview,
+        private readonly FunderReadyBriefBuilder $funderReadyBriefs,
         private readonly FunderReadyBusinessPlanBuilder $funderReadyPlans,
         private readonly BudgetPackBuilder $budgetPack,
         private readonly PdfRenderer $pdf,
@@ -73,6 +75,20 @@ final class EntrepreneurPlanDocumentController extends Controller
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="'.$this->funderReadyPlans->filename($entrepreneurProfile).'"',
+        ]);
+    }
+
+    public function funderReadyBriefPdf(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): Response
+    {
+        Gate::authorize('view', $entrepreneurProfile);
+        $this->assertPlanBelongsToProfile($businessPlan, $entrepreneurProfile);
+
+        $pdf = $this->funderReadyBriefs->pdf($entrepreneurProfile, $businessPlan);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$this->funderReadyBriefs->filename($entrepreneurProfile).'"',
+            'Cache-Control' => 'no-store, max-age=0',
         ]);
     }
 
