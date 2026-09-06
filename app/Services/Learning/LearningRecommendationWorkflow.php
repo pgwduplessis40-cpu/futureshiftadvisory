@@ -75,42 +75,56 @@ final class LearningRecommendationWorkflow
         return DB::transaction(function () use ($actor, $recommendation): LearningRecommendation {
             /** @var LearningRecommendation $locked */
             $locked = LearningRecommendation::query()->with('learningUpdate')->whereKey($recommendation->getKey())->lockForUpdate()->firstOrFail();
-            if ($locked->status !== LearningRecommendation::STATUS_DRAFT) {
-                throw ValidationException::withMessages(['recommendation' => 'Only a draft recommendation can be approved for development.']);
+
+            return $this->approveLocked($locked, $actor);
+        });
+    }
+
+    /**
+     * Approve a deliberate selection together or make no change at all when
+     * one of those drafts has already moved to another state.
+     *
+     * @param  array<int, string>  $recommendationIds
+     * @return Collection<int, LearningRecommendation>
+     */
+    public function approveMany(array $recommendationIds, User $actor): Collection
+    {
+        $ids = collect($recommendationIds)
+            ->map(fn (string $id): string => trim($id))
+            ->filter(fn (string $id): bool => $id !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            throw ValidationException::withMessages([
+                'recommendation_ids' => 'Select one or more draft recommendations to approve for development.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($actor, $ids): Collection {
+            /** @var Collection<int, LearningRecommendation> $locked */
+            $locked = LearningRecommendation::query()
+                ->with('learningUpdate')
+                ->whereIn('id', $ids)
+                ->lockForUpdate()
+                ->get();
+
+            if ($locked->count() !== count($ids)) {
+                throw ValidationException::withMessages([
+                    'recommendation_ids' => 'One or more selected recommendations are unavailable. Refresh the queue and try again.',
+                ]);
             }
 
-            /** @var LearningUpdate $update */
-            $update = $locked->learningUpdate;
-            $approvedAt = now();
-            $locked->forceFill([
-                'status' => LearningRecommendation::STATUS_APPROVED,
-                'approved_by_user_id' => $actor->getKey(),
-                'approved_at' => $approvedAt,
-            ])->save();
-            $update->forceFill([
-                'status' => LearningUpdate::STATUS_APPROVED,
-                'decided_by_user_id' => $actor->getKey(),
-                'decided_at' => $approvedAt,
-                // A recommendation is a development work item, never a
-                // scheduled automatic change to a live policy or prompt.
-                'effective_date' => null,
-                'pre_implementation_notice_at' => null,
-                'review_due_at' => null,
-            ])->save();
-            $update->decisions()->create([
-                'decision' => LearningUpdateDecision::DECISION_APPROVE,
-                'reason' => 'Approved for development through recommendation '.$locked->getKey().'.',
-                'decided_by_user_id' => $actor->getKey(),
-                'decided_at' => $approvedAt,
-            ]);
+            if ($locked->contains(fn (LearningRecommendation $recommendation): bool => $recommendation->status !== LearningRecommendation::STATUS_DRAFT)) {
+                throw ValidationException::withMessages([
+                    'recommendation_ids' => 'Only draft recommendations can be approved for development. Refresh the queue and try again.',
+                ]);
+            }
 
-            $this->audit->record('learning_recommendation.approved', subject: $locked, actor: $actor, after: [
-                'learning_update_id' => $update->getKey(),
-                'approved_at' => $approvedAt->toIso8601String(),
-                'status' => $locked->status,
-            ]);
-
-            return $locked->refresh();
+            return $locked
+                ->map(fn (LearningRecommendation $recommendation): LearningRecommendation => $this->approveLocked($recommendation, $actor))
+                ->values();
         });
     }
 
@@ -266,6 +280,46 @@ final class LearningRecommendationWorkflow
                 'status' => 'This delivery status transition is not permitted. Recommendations must be approved, developed, released, and then verified with evidence.',
             ]);
         }
+    }
+
+    private function approveLocked(LearningRecommendation $recommendation, User $actor): LearningRecommendation
+    {
+        if ($recommendation->status !== LearningRecommendation::STATUS_DRAFT) {
+            throw ValidationException::withMessages(['recommendation' => 'Only a draft recommendation can be approved for development.']);
+        }
+
+        /** @var LearningUpdate $update */
+        $update = $recommendation->learningUpdate;
+        $approvedAt = now();
+        $recommendation->forceFill([
+            'status' => LearningRecommendation::STATUS_APPROVED,
+            'approved_by_user_id' => $actor->getKey(),
+            'approved_at' => $approvedAt,
+        ])->save();
+        $update->forceFill([
+            'status' => LearningUpdate::STATUS_APPROVED,
+            'decided_by_user_id' => $actor->getKey(),
+            'decided_at' => $approvedAt,
+            // A recommendation is a development work item, never a
+            // scheduled automatic change to a live policy or prompt.
+            'effective_date' => null,
+            'pre_implementation_notice_at' => null,
+            'review_due_at' => null,
+        ])->save();
+        $update->decisions()->create([
+            'decision' => LearningUpdateDecision::DECISION_APPROVE,
+            'reason' => 'Approved for development through recommendation '.$recommendation->getKey().'.',
+            'decided_by_user_id' => $actor->getKey(),
+            'decided_at' => $approvedAt,
+        ]);
+
+        $this->audit->record('learning_recommendation.approved', subject: $recommendation, actor: $actor, after: [
+            'learning_update_id' => $update->getKey(),
+            'approved_at' => $approvedAt->toIso8601String(),
+            'status' => $recommendation->status,
+        ]);
+
+        return $recommendation->refresh();
     }
 
     /**
