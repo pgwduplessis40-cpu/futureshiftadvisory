@@ -15,8 +15,28 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Validate required monitor configuration
+        env:
+          MONITOR_ENABLED: ${{ vars.PRODUCTION_AVAILABILITY_MONITOR_ENABLED }}
+          PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
+        run: |
+          if [ "$MONITOR_ENABLED" != "true" ]; then
+            echo "::error title=Production availability monitor disabled::Set the repository Actions variable PRODUCTION_AVAILABILITY_MONITOR_ENABLED to exactly true. Scheduled probes must not silently skip."
+            exit 1
+          fi
+
+          if [ -z "$PRODUCTION_URL" ]; then
+            echo "::error title=Production availability monitor missing URL::Set the repository Actions secret PRODUCTION_URL before enabling the monitor."
+            exit 1
+          fi
+
   probe:
-    if: ${{ vars.PRODUCTION_AVAILABILITY_MONITOR_ENABLED == 'true' }}
+    needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -29,8 +49,8 @@ jobs:
         run: bash scripts/probe-production-availability.sh
 
   notify-failure:
-    needs: probe
-    if: ${{ always() && needs.probe.result == 'failure' }}
+    needs: [preflight, probe]
+    if: ${{ always() && (needs.preflight.result == 'failure' || needs.probe.result == 'failure') }}
     runs-on: ubuntu-latest
     timeout-minutes: 2
 

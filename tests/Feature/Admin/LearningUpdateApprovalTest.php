@@ -194,7 +194,7 @@ final class LearningUpdateApprovalTest extends TestCase
         $this->assertSame(2, AuditEvent::query()->where('action', 'learning_update.decided')->count());
     }
 
-    public function test_implementation_guard_blocks_unapproved_and_future_effective_updates(): void
+    public function test_implementation_guard_requires_tracked_delivery_for_non_reference_data_learning(): void
     {
         Carbon::setTestNow('2026-05-23 10:00:00');
         $candidate = $this->candidate();
@@ -214,18 +214,18 @@ final class LearningUpdateApprovalTest extends TestCase
 
         try {
             $flow->assertImplementationAllowed($candidate->refresh());
-            $this->fail('Future effective learning update should not be implementable.');
+            $this->fail('A non-reference-data learning update should not be automatically implementable.');
         } catch (RuntimeException $exception) {
-            $this->assertStringContainsString('blocked until the approved effective date', $exception->getMessage());
+            $this->assertStringContainsString('tracked development, release, and verification', $exception->getMessage());
         }
 
         $candidate->forceFill(['effective_date' => now()->subMinute()])->save();
 
+        $this->expectException(RuntimeException::class);
         $flow->assertImplementationAllowed($candidate->refresh());
-        $this->assertTrue(true);
     }
 
-    public function test_due_approved_updates_are_implemented_and_receive_impact_review(): void
+    public function test_due_approved_non_reference_updates_are_not_automatically_marked_implemented(): void
     {
         Carbon::setTestNow('2026-05-23 10:00:00');
         $this->seed(RoleSeeder::class);
@@ -243,56 +243,16 @@ final class LearningUpdateApprovalTest extends TestCase
 
         $implemented = app(ApprovalFlow::class)->implementDue(now(), $admin);
 
-        $this->assertCount(1, $implemented);
-        $implementation = $implemented->first();
-        $this->assertSame(LearningUpdate::STATUS_IMPLEMENTED, $candidate->refresh()->status);
-        $this->assertTrue($implementation->review_due->equalTo(now()->subMinute()));
-        $this->assertSame('prompt', $implementation->target_type);
-        $this->assertSame('analysis.financial', $implementation->target_id);
-        $this->assertDatabaseHas('audit_events', ['action' => 'learning_update.implemented']);
+        $this->assertCount(0, $implemented);
+        $this->assertSame(LearningUpdate::STATUS_APPROVED, $candidate->refresh()->status);
+        $this->assertDatabaseCount('learning_update_implementations', 0);
 
         $this->actingAsMfa($admin)
             ->get(route('admin.learning-updates.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->has('impact_reviews', 1)
-                ->where('impact_reviews.0.id', $implementation->id)
-                ->where('impact_reviews.0.summary', 'Adjust prompt calibration')
-                ->where('impact_reviews.0.source.type', 'analysis_feedback')
-                ->where('impact_reviews.0.proposed_change.action', 'revise_prompt')
-                ->where('impact_reviews.0.plain_english.what_we_learnt', 'The analysis feedback signal found a possible prompt update for financial analysis.')
-                ->where('impact_reviews.0.target_type', 'prompt')
-                ->where('impact_reviews.0.target_id', 'analysis.financial')
-                ->where('impact_reviews.0.before_state.status', LearningUpdate::STATUS_APPROVED)
-                ->where('impact_reviews.0.after_state.status', LearningUpdate::STATUS_IMPLEMENTED)
-                ->where('impact_reviews.0.suggested_metrics.impact_outcome', 'neutral')
-                ->where('impact_reviews.0.suggested_metrics.affected_surface', 'financial')
-                ->where('impact_reviews.0.suggested_metrics.rollback_required', false));
-
-        $this->actingAsMfa($admin)
-            ->patch(route('admin.learning-update-implementations.review', $implementation), [
-                'review_outcome' => 'No client impact exceptions after 30-day review.',
-                'impact_outcome' => 'improved',
-                'affected_surface' => 'prompt_calibration',
-                'metric_name' => 'advisor_acceptance_rate',
-                'before_metric' => 0.62,
-                'after_metric' => 0.74,
-                'sample_size' => 18,
-                'rollback_required' => false,
-            ])
-            ->assertRedirect(route('admin.learning-updates.index', absolute: false));
-
-        $implementation->refresh();
-
-        $this->assertSame('No client impact exceptions after 30-day review.', $implementation->review_outcome);
-        $this->assertSame('improved', data_get($implementation->review_metrics, 'impact_outcome'));
-        $this->assertSame('prompt_calibration', data_get($implementation->review_metrics, 'affected_surface'));
-        $this->assertSame('advisor_acceptance_rate', data_get($implementation->review_metrics, 'metric_name'));
-        $this->assertEquals(0.62, data_get($implementation->review_metrics, 'before_metric'));
-        $this->assertEquals(0.74, data_get($implementation->review_metrics, 'after_metric'));
-        $this->assertSame(18, data_get($implementation->review_metrics, 'sample_size'));
-        $this->assertFalse(data_get($implementation->review_metrics, 'rollback_required'));
-        $this->assertDatabaseHas('audit_events', ['action' => 'learning_update.impact_reviewed']);
+                ->has('impact_reviews', 0)
+                ->has('recommendations', 0));
     }
 
     private function superAdmin(): User

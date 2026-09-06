@@ -14,6 +14,11 @@ type Props = {
         label: string;
         package_scope_label: string;
     } | null;
+    serviceOffers: {
+        label: string;
+        fee: number | null;
+        currency: string;
+    }[];
     expiresAt: string | null;
     passwordRules: string;
 };
@@ -24,6 +29,7 @@ export default function InviteAccept({
     targetRole,
     targetUserType,
     serviceIntent,
+    serviceOffers,
     expiresAt,
     passwordRules,
 }: Props) {
@@ -55,6 +61,27 @@ export default function InviteAccept({
                             {serviceIntent.label} /{' '}
                             {serviceIntent.package_scope_label}
                         </span>
+                    ) : null}
+                    {serviceOffers.length > 0 ? (
+                        <div className="mt-3 rounded-md border bg-muted/30 p-3 text-sm text-foreground">
+                            <div className="font-medium">
+                                Selected by your advisor
+                            </div>
+                            <ul className="mt-2 space-y-1 text-muted-foreground">
+                                {serviceOffers.map((offer) => (
+                                    <li key={offer.label}>
+                                        {offer.label} —{' '}
+                                        {formatMoney(offer.fee, offer.currency)}{' '}
+                                        ex GST
+                                    </li>
+                                ))}
+                            </ul>
+                            <p className="mt-2 text-xs text-muted-foreground">
+                                You will confirm the selected scope and fee in
+                                onboarding. Other services remain available by
+                                request.
+                            </p>
+                        </div>
                     ) : null}
                     {expiresAt ? (
                         <span>Invite expires {formatDateTime(expiresAt)}</span>
@@ -146,4 +173,16 @@ function formatDateTime(value: string): string {
         dateStyle: 'medium',
         timeStyle: 'short',
     }).format(new Date(value));
+}
+
+function formatMoney(amount: number | null, currency: string): string {
+    if (amount === null) {
+        return 'Fee to be confirmed';
+    }
+
+    return new Intl.NumberFormat('en-NZ', {
+        style: 'currency',
+        currency,
+        minimumFractionDigits: 2,
+    }).format(amount);
 }

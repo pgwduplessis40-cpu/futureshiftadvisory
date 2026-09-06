@@ -58,6 +58,7 @@ type Props = {
     progress: Progress;
     questionnaire: Questionnaire;
     ddSupport: DdSupport;
+    serviceOffers: ServiceOffers;
     website: WebsiteSubmission;
     documentUploadUrl: string;
     documentCount: number;
@@ -85,6 +86,23 @@ type DdSupport = {
     preferred_guidance: string | null;
 };
 
+type ServiceOffer = {
+    id: string;
+    label: string;
+    scope_label: string;
+    description: string;
+    fixed_fee: number | null;
+    currency: string;
+    included_stages: string[];
+    acknowledged_at: string | null;
+    activation_url: string;
+};
+
+type ServiceOffers = {
+    must_acknowledge: boolean;
+    items: ServiceOffer[];
+};
+
 type OnboardingForm = {
     acknowledged: boolean;
     primary_goal: string;
@@ -100,6 +118,7 @@ type OnboardingForm = {
     answers: QuestionnaireAnswers;
     documents_acknowledged: boolean;
     review_confirmed: boolean;
+    service_offers_acknowledged: boolean;
 };
 
 type QuestionnaireDraftStatus =
@@ -119,6 +138,7 @@ export default function OnboardingStep({
     progress,
     questionnaire,
     ddSupport,
+    serviceOffers,
     website,
     documentUploadUrl,
     documentCount,
@@ -158,6 +178,9 @@ export default function OnboardingStep({
         answers: questionnaire.answers ?? {},
         documents_acknowledged: booleanValue(stepData.documents_acknowledged),
         review_confirmed: booleanValue(stepData.review_confirmed),
+        service_offers_acknowledged: booleanValue(
+            stepData.service_offers_acknowledged,
+        ),
     });
     const errors = form.errors as Record<string, string | undefined>;
     const [questionnaireDraftStatus, setQuestionnaireDraftStatus] =
@@ -369,6 +392,7 @@ export default function OnboardingStep({
                             errors={errors}
                             questionnaire={questionnaire}
                             ddSupport={ddSupport}
+                            serviceOffers={serviceOffers}
                             website={website}
                             documentUploadUrl={documentUploadUrl}
                             documentCount={documentCount}
@@ -438,6 +462,7 @@ function StepContent({
     errors,
     questionnaire,
     ddSupport,
+    serviceOffers,
     website,
     documentUploadUrl,
     documentCount,
@@ -450,6 +475,7 @@ function StepContent({
     errors: Record<string, string | undefined>;
     questionnaire: Questionnaire;
     ddSupport: DdSupport;
+    serviceOffers: ServiceOffers;
     website: WebsiteSubmission;
     documentUploadUrl: string;
     documentCount: number;
@@ -461,6 +487,15 @@ function StepContent({
     const [documentUploadError, setDocumentUploadError] = useState<
         string | null
     >(null);
+    const selectedOfferTotal = serviceOffers.items.every(
+        (offer) => offer.fixed_fee !== null,
+    )
+        ? serviceOffers.items.reduce(
+              (total, offer) => total + (offer.fixed_fee ?? 0),
+              0,
+          )
+        : null;
+    const selectedOfferCurrency = serviceOffers.items[0]?.currency ?? 'NZD';
 
     const uploadDocument = async (selectedFile: File | null = documentFile) => {
         if (!selectedFile) {
@@ -521,6 +556,93 @@ function StepContent({
                                 __html: welcomeMessage.html,
                             }}
                         />
+                    ) : null}
+                    {serviceOffers.items.length > 0 ? (
+                        <div className="space-y-3 rounded-md border border-[var(--fs-linen)] bg-muted/30 p-4">
+                            <div>
+                                <h3 className="text-sm font-medium">
+                                    Your selected service and price
+                                </h3>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Your advisor selected these services for
+                                    this invitation. No other service has been
+                                    added; other services remain by request.
+                                </p>
+                            </div>
+                            {selectedOfferTotal !== null ? (
+                                <div className="rounded-md border bg-background px-3 py-2 text-sm">
+                                    Combined selected fee:{' '}
+                                    <span className="font-medium">
+                                        {formatMoney(
+                                            selectedOfferTotal,
+                                            selectedOfferCurrency,
+                                        )}{' '}
+                                        ex GST
+                                    </span>
+                                </div>
+                            ) : null}
+                            {serviceOffers.items.map((offer) => (
+                                <div
+                                    key={offer.id}
+                                    className="rounded-md border bg-background p-3"
+                                >
+                                    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                                        <div>
+                                            <div className="font-medium">
+                                                {offer.label}
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {offer.scope_label}
+                                            </div>
+                                        </div>
+                                        <span className="text-sm font-medium">
+                                            {formatMoney(
+                                                offer.fixed_fee,
+                                                offer.currency,
+                                            )}{' '}
+                                            ex GST
+                                        </span>
+                                    </div>
+                                    {offer.description ? (
+                                        <p className="mt-2 text-sm text-muted-foreground">
+                                            {offer.description}
+                                        </p>
+                                    ) : null}
+                                    {offer.included_stages.length > 0 ? (
+                                        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                                            {offer.included_stages.map(
+                                                (stage) => (
+                                                    <li key={stage}>{stage}</li>
+                                                ),
+                                            )}
+                                        </ul>
+                                    ) : null}
+                                </div>
+                            ))}
+                            {serviceOffers.must_acknowledge ? (
+                                <CheckboxField
+                                    id="service_offers_acknowledged"
+                                    label="I agree to the selected service scope and fee shown above. I understand that payment and workspace access follow the payment steps for each service."
+                                    checked={
+                                        form.data.service_offers_acknowledged
+                                    }
+                                    onCheckedChange={(checked) =>
+                                        form.setData(
+                                            'service_offers_acknowledged',
+                                            checked,
+                                        )
+                                    }
+                                    error={
+                                        form.errors.service_offers_acknowledged
+                                    }
+                                />
+                            ) : (
+                                <p className="text-xs text-muted-foreground">
+                                    You have already acknowledged the selected
+                                    service scope and fee.
+                                </p>
+                            )}
+                        </div>
                     ) : null}
                     <CheckboxField
                         id="acknowledged"
@@ -1109,6 +1231,18 @@ function booleanValue(value: unknown): boolean {
 
 function stringValue(value: unknown, fallback = ''): string {
     return typeof value === 'string' ? value : fallback;
+}
+
+function formatMoney(amount: number | null, currency: string): string {
+    if (amount === null) {
+        return 'Fee to be confirmed';
+    }
+
+    return new Intl.NumberFormat('en-NZ', {
+        style: 'currency',
+        currency,
+        minimumFractionDigits: 2,
+    }).format(amount);
 }
 
 function summaryValue(

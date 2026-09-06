@@ -64,4 +64,12 @@ final class LearningUpdate extends Model
     {
         return $this->hasMany(LearningUpdateImplementation::class);
     }
+
+    /**
+     * @return HasMany<LearningRecommendation, $this>
+     */
+    public function recommendations(): HasMany
+    {
+        return $this->hasMany(LearningRecommendation::class);
+    }
 }

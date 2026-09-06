@@ -131,6 +131,10 @@ final class ApprovalFlow
             throw new RuntimeException('Learning update implementation requires explicit approval.');
         }
 
+        if (! $this->isManualReferenceDataUpdate($update)) {
+            throw new RuntimeException('Learning recommendations require tracked development, release, and verification; they cannot be automatically marked implemented.');
+        }
+
         if (! $update->effective_date instanceof CarbonInterface || $update->effective_date->greaterThan($at)) {
             if ($this->isPlainApprovedManualReferenceDataUpdate($update)) {
                 return;
@@ -149,16 +153,9 @@ final class ApprovalFlow
 
         return LearningUpdate::query()
             ->where('status', LearningUpdate::STATUS_APPROVED)
-            ->where(function ($query) use ($at): void {
-                $query
-                    ->where(fn ($due) => $due
-                        ->whereNotNull('effective_date')
-                        ->where('effective_date', '<=', $at))
-                    ->orWhere(fn ($manual) => $manual
-                        ->where('source->type', 'manual_reference_data')
-                        ->where('proposed_change->action', 'project_manual_reference_data')
-                        ->whereHas('decisions', fn ($decision) => $decision->where('decision', LearningUpdateDecision::DECISION_APPROVE)));
-            })
+            ->where('source->type', 'manual_reference_data')
+            ->where('proposed_change->action', 'project_manual_reference_data')
+            ->whereHas('decisions', fn ($decision) => $decision->where('decision', LearningUpdateDecision::DECISION_APPROVE))
             ->whereDoesntHave('implementations', fn ($query) => $query->whereNull('rolled_back_at'))
             ->orderBy('effective_date')
             ->get()

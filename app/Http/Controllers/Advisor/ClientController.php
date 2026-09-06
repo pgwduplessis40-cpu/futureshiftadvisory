@@ -16,6 +16,7 @@ use App\Models\ClientTeamMember;
 use App\Models\EntrepreneurProfile;
 use App\Models\InviteToken;
 use App\Models\ServiceActivation;
+use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Clients\AdvisorClientCapacity;
@@ -24,6 +25,7 @@ use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\Dashboards\EconomicExposureMapper;
 use App\Services\Npo\NpoEngagementSetup;
 use App\Services\Security\InviteIssuer;
+use App\Services\ServiceActivations\ServiceActivationManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -68,6 +70,10 @@ final class ClientController extends Controller
 
         return Inertia::render('advisor/clients/Invite', [
             'engagementTypes' => $this->clientInviteEngagementOptions(),
+            'serviceOfferPackages' => [
+                'due_diligence' => $this->clientInvitePackageOptions(ServiceActivation::SERVICE_DUE_DILIGENCE),
+                'dd_plan_budget' => $this->clientInvitePackageOptions(ServiceActivation::SERVICE_DD_PLAN_BUDGET),
+            ],
             'defaults' => [
                 'email' => '',
                 'engagement_type' => $engagement->value,
@@ -78,7 +84,11 @@ final class ClientController extends Controller
         ]);
     }
 
-    public function storeInvite(Request $request, InviteIssuer $issuer): RedirectResponse
+    public function storeInvite(
+        Request $request,
+        InviteIssuer $issuer,
+        ServiceActivationManager $serviceActivations,
+    ): RedirectResponse
     {
         Gate::authorize('create', Client::class);
 
@@ -94,12 +104,39 @@ final class ClientController extends Controller
         $validated = $request->validate([
             'email' => ['required', 'email', 'max:255'],
             'engagement_type' => ['required', 'string', Rule::in($allowedEngagements)],
+            'due_diligence_package_id' => [
+                Rule::requiredIf(fn (): bool => $request->input('engagement_type') === EngagementType::DUE_DILIGENCE->value),
+                'nullable',
+                'uuid',
+            ],
+            'dd_plan_budget_package_id' => ['nullable', 'uuid'],
             'return_to' => ['nullable', 'string', 'max:255'],
         ]);
         $engagement = EngagementType::from((string) $validated['engagement_type']);
+        $dueDiligencePackage = $engagement === EngagementType::DUE_DILIGENCE
+            ? $this->activeInvitePackage((string) ($validated['due_diligence_package_id'] ?? ''), ServiceActivation::SERVICE_DUE_DILIGENCE)
+            : null;
+        $planBudgetPackage = $this->optionalActiveInvitePackage(
+            $validated['dd_plan_budget_package_id'] ?? null,
+            ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+        );
+        if (
+            is_string($validated['dd_plan_budget_package_id'] ?? null)
+            && trim((string) $validated['dd_plan_budget_package_id']) !== ''
+            && ! $planBudgetPackage instanceof ServiceRatePackage
+        ) {
+            return back()->withErrors([
+                'dd_plan_budget_package_id' => 'Choose a currently active Business Plan & Budget package.',
+            ])->withInput();
+        }
+        if ($planBudgetPackage instanceof ServiceRatePackage && $engagement !== EngagementType::DUE_DILIGENCE) {
+            return back()->withErrors([
+                'dd_plan_budget_package_id' => 'Business Plan & Budget can only be included with a Due Diligence invitation.',
+            ])->withInput();
+        }
         $this->clientCapacity->ensureCanAdd($user);
 
-        DB::transaction(function () use ($engagement, $issuer, $user, $validated): void {
+        DB::transaction(function () use ($dueDiligencePackage, $engagement, $issuer, $planBudgetPackage, $serviceActivations, $user, $validated): void {
             $issued = $issuer->issue(
                 email: (string) $validated['email'],
                 targetUserType: User::TYPE_CLIENT_PRIMARY,
@@ -107,6 +144,7 @@ final class ClientController extends Controller
                 intendedServiceType: $engagement === EngagementType::DUE_DILIGENCE
                     ? ServiceActivation::SERVICE_DUE_DILIGENCE
                     : null,
+                intendedPackageScope: $dueDiligencePackage?->packageScope(),
                 issuedBy: $user,
                 deliver: true,
             );
@@ -116,11 +154,31 @@ final class ClientController extends Controller
                 inviteId: (string) $issued->invite->getKey(),
                 advisor: $user,
             );
+            if ($dueDiligencePackage instanceof ServiceRatePackage) {
+                $serviceActivations->offerFromClientInvite(
+                    client: $client,
+                    advisor: $user,
+                    package: $dueDiligencePackage,
+                    inviteTokenId: (string) $issued->invite->getKey(),
+                );
+            }
+            if ($planBudgetPackage instanceof ServiceRatePackage) {
+                $serviceActivations->offerFromClientInvite(
+                    client: $client,
+                    advisor: $user,
+                    package: $planBudgetPackage,
+                    inviteTokenId: (string) $issued->invite->getKey(),
+                );
+            }
             $this->auditWriter->record('client.invite_issued', subject: $issued->invite, actor: $user, after: [
                 'client_id' => $client->getKey(),
                 'email' => $validated['email'],
                 'engagement_type' => $engagement->value,
                 'invite_token_id' => $issued->invite->getKey(),
+                'service_rate_package_ids' => array_values(array_filter([
+                    $dueDiligencePackage?->getKey(),
+                    $planBudgetPackage?->getKey(),
+                ])),
             ]);
         });
 
@@ -128,7 +186,12 @@ final class ClientController extends Controller
             ->with('status', 'client-invited');
     }
 
-    public function resendInvite(Request $request, Client $client, InviteIssuer $issuer): RedirectResponse
+    public function resendInvite(
+        Request $request,
+        Client $client,
+        InviteIssuer $issuer,
+        ServiceActivationManager $serviceActivations,
+    ): RedirectResponse
     {
         Gate::authorize('update', $client);
 
@@ -143,7 +206,13 @@ final class ClientController extends Controller
         $email = $this->clientPayloads->inviteEmail($client);
         $engagement = $client->engagement_type;
 
-        DB::transaction(function () use ($actor, $client, $email, $engagement, $invite, $issuer): void {
+        $dueDiligenceOffer = $serviceActivations->invitationOffers($client)
+            ->first(fn (ServiceActivation $offer): bool => $offer->service_type === ServiceActivation::SERVICE_DUE_DILIGENCE);
+        $dueDiligenceScope = is_string(data_get($dueDiligenceOffer?->selected_package_snapshot, 'package_scope'))
+            ? data_get($dueDiligenceOffer?->selected_package_snapshot, 'package_scope')
+            : null;
+
+        DB::transaction(function () use ($actor, $client, $dueDiligenceScope, $email, $engagement, $invite, $issuer, $serviceActivations): void {
             if ($invite instanceof InviteToken && ! $invite->isAccepted()) {
                 $invite->forceFill(['expires_at' => now()->subMinute()])->save();
             }
@@ -155,9 +224,17 @@ final class ClientController extends Controller
                 intendedServiceType: $engagement === EngagementType::DUE_DILIGENCE
                     ? ServiceActivation::SERVICE_DUE_DILIGENCE
                     : null,
+                intendedPackageScope: $dueDiligenceScope,
                 issuedBy: $actor,
                 deliver: true,
             );
+            if ($invite instanceof InviteToken) {
+                $serviceActivations->rebindInvitationOffers(
+                    client: $client,
+                    oldInviteTokenId: (string) $invite->getKey(),
+                    newInviteTokenId: (string) $issued->invite->getKey(),
+                );
+            }
             $registrySources = is_array($client->registry_sources) ? $client->registry_sources : [];
             unset($registrySources['invite_cancelled_at'], $registrySources['invite_cancelled_by_user_id']);
             $client->forceFill([
@@ -393,6 +470,66 @@ final class ClientController extends Controller
         return in_array($url, $allowedUrls, true)
             ? $url
             : route('advisor.clients.index', ['engagement_type' => $fallback->value], absolute: false);
+    }
+
+    /**
+     * @return list<array{id:string,label:string,description:string,fee:float|null,currency:string,scope_label:string}>
+     */
+    private function clientInvitePackageOptions(string $serviceType): array
+    {
+        $now = now();
+
+        return ServiceRatePackage::query()
+            ->where('service_type', $serviceType)
+            ->where('is_active', true)
+            ->where('effective_from', '<=', $now)
+            ->where(function ($query) use ($now): void {
+                $query->whereNull('effective_to')->orWhere('effective_to', '>', $now);
+            })
+            ->orderBy('fixed_fee')
+            ->orderBy('client_label')
+            ->get()
+            ->map(fn (ServiceRatePackage $package): array => [
+                'id' => (string) $package->getKey(),
+                'label' => (string) $package->client_label,
+                'description' => (string) $package->scope_description,
+                'fee' => $package->fixed_fee,
+                'currency' => (string) ($package->currency ?: 'NZD'),
+                'scope_label' => ServiceRatePackage::packageScopeLabel($package->packageScope()),
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function activeInvitePackage(string $id, string $serviceType): ServiceRatePackage
+    {
+        $package = $this->optionalActiveInvitePackage($id, $serviceType);
+        if (! $package instanceof ServiceRatePackage) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'due_diligence_package_id' => 'Choose an active Due Diligence package and its displayed fee before sending this invite.',
+            ]);
+        }
+
+        return $package;
+    }
+
+    private function optionalActiveInvitePackage(mixed $id, string $serviceType): ?ServiceRatePackage
+    {
+        if (! is_string($id) || trim($id) === '') {
+            return null;
+        }
+
+        $now = now();
+
+        return ServiceRatePackage::query()
+            ->whereKey($id)
+            ->where('service_type', $serviceType)
+            ->where('is_active', true)
+            ->where('effective_from', '<=', $now)
+            ->where(function ($query) use ($now): void {
+                $query->whereNull('effective_to')->orWhere('effective_to', '>', $now);
+            })
+            ->first();
     }
 
     private function createInvitedClientWorkspace(

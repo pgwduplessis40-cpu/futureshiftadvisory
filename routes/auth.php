@@ -284,6 +284,17 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::patch('learning-updates/{learningUpdate}/decision', [LearningUpdateController::class, 'decide'])
                 ->middleware('permission:'.Permission::LEARNING_UPDATES_APPROVE->value)
                 ->name('learning-updates.decide');
+            Route::post('learning-updates/{learningUpdate}/recommendations', [LearningUpdateController::class, 'draftRecommendation'])
+                ->middleware('permission:'.Permission::LEARNING_UPDATES_APPROVE->value)
+                ->name('learning-recommendations.store');
+            Route::post('learning-recommendations/{learningRecommendation}/approve', [LearningUpdateController::class, 'approveRecommendation'])
+                ->middleware('permission:'.Permission::LEARNING_UPDATES_APPROVE->value)
+                ->name('learning-recommendations.approve');
+            Route::patch('learning-recommendations/{learningRecommendation}/delivery', [LearningUpdateController::class, 'updateRecommendationDelivery'])
+                ->middleware('permission:'.Permission::LEARNING_UPDATES_APPROVE->value)
+                ->name('learning-recommendations.delivery');
+            Route::get('learning-recommendations/developer-brief', [LearningUpdateController::class, 'developerBrief'])
+                ->name('learning-recommendations.developer-brief');
             Route::patch('learning-update-implementations/{learningUpdateImplementation}/review', [LearningUpdateController::class, 'reviewImpact'])
                 ->middleware('permission:'.Permission::LEARNING_UPDATES_APPROVE->value)
                 ->name('learning-update-implementations.review');

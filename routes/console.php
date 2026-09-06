@@ -9,6 +9,11 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('learning:cadence')->hourly()->withoutOverlapping();
+Schedule::command('learning:developer-brief')
+    ->weeklyOn(1, '08:00')
+    ->timezone('Pacific/Auckland')
+    ->when(fn (): bool => now('Pacific/Auckland')->isoWeek() % 2 === 0)
+    ->withoutOverlapping();
 Schedule::command('communications:bulk-send')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('documents:expiry-reminders')->dailyAt('08:00')->withoutOverlapping();
 Schedule::command('goals:remeasure-due-pv')->dailyAt('07:30')->withoutOverlapping();

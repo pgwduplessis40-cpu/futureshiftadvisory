@@ -24,6 +24,7 @@ use App\Models\PreMeetingBrief;
 use App\Models\Questionnaire;
 use App\Models\Report;
 use App\Models\ServiceActivation;
+use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -336,12 +337,16 @@ final class AddClientTest extends TestCase
         Mail::fake();
         $this->seed(RoleSeeder::class);
         $advisor = $this->advisor();
+        $ddPackage = $this->invitePackage(ServiceActivation::SERVICE_DUE_DILIGENCE, 8500);
+        $planBudgetPackage = $this->invitePackage(ServiceActivation::SERVICE_DD_PLAN_BUDGET, 3200);
         $returnTo = route('advisor.clients.index', ['engagement_type' => EngagementType::DUE_DILIGENCE->value], absolute: false);
 
         $this->actingAsMfa($advisor)
             ->post(route('advisor.clients.invite.store'), [
                 'email' => ' Buyer.Client@Example.com ',
                 'engagement_type' => EngagementType::DUE_DILIGENCE->value,
+                'due_diligence_package_id' => $ddPackage->getKey(),
+                'dd_plan_budget_package_id' => $planBudgetPackage->getKey(),
                 'return_to' => $returnTo,
             ])
             ->assertRedirect($returnTo)
@@ -353,6 +358,7 @@ final class AddClientTest extends TestCase
         $this->assertSame(User::TYPE_CLIENT_PRIMARY, $invite->target_user_type);
         $this->assertSame(User::TYPE_CLIENT_PRIMARY, $invite->target_role);
         $this->assertSame(ServiceActivation::SERVICE_DUE_DILIGENCE, $invite->intended_service_type);
+        $this->assertSame($ddPackage->packageScope(), $invite->intended_package_scope);
         $this->assertNotEmpty($invite->token_envelope);
         $client = Client::query()->firstOrFail();
         $this->assertSame(EngagementType::DUE_DILIGENCE, $client->engagement_type);
@@ -364,6 +370,18 @@ final class AddClientTest extends TestCase
             'role' => 'lead_advisor',
         ]);
         $this->assertDatabaseHas('audit_events', ['action' => 'client.invite_issued']);
+        $this->assertDatabaseHas('service_activations', [
+            'client_id' => $client->getKey(),
+            'service_type' => ServiceActivation::SERVICE_DUE_DILIGENCE,
+            'service_rate_package_id' => $ddPackage->getKey(),
+            'status' => ServiceActivation::STATUS_PACKAGE_SELECTED,
+        ]);
+        $this->assertDatabaseHas('service_activations', [
+            'client_id' => $client->getKey(),
+            'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+            'service_rate_package_id' => $planBudgetPackage->getKey(),
+            'status' => ServiceActivation::STATUS_PACKAGE_SELECTED,
+        ]);
         Mail::assertSent(InvitationMail::class, 1);
     }
 
@@ -372,12 +390,14 @@ final class AddClientTest extends TestCase
         Mail::fake();
         $this->seed(RoleSeeder::class);
         $advisor = $this->advisor();
+        $ddPackage = $this->invitePackage(ServiceActivation::SERVICE_DUE_DILIGENCE, 8500);
         $expected = route('advisor.clients.index', ['engagement_type' => EngagementType::DUE_DILIGENCE->value], absolute: false);
 
         $this->actingAsMfa($advisor)
             ->post(route('advisor.clients.invite.store'), [
                 'email' => 'safe-return@example.com',
                 'engagement_type' => EngagementType::DUE_DILIGENCE->value,
+                'due_diligence_package_id' => $ddPackage->getKey(),
                 'return_to' => 'https://untrusted.example/redirect',
             ])
             ->assertRedirect($expected)
@@ -543,11 +563,13 @@ final class AddClientTest extends TestCase
         Mail::fake();
         $this->seed(RoleSeeder::class);
         $advisor = $this->advisor();
+        $ddPackage = $this->invitePackage(ServiceActivation::SERVICE_DUE_DILIGENCE, 8500);
 
         $this->actingAsMfa($advisor)
             ->post(route('advisor.clients.invite.store'), [
                 'email' => 'cancelled-due-diligence@example.com',
                 'engagement_type' => EngagementType::DUE_DILIGENCE->value,
+                'due_diligence_package_id' => $ddPackage->getKey(),
                 'return_to' => route('advisor.clients.index', absolute: false),
             ])
             ->assertRedirect(route('advisor.clients.index', absolute: false));
@@ -1047,6 +1069,29 @@ final class AddClientTest extends TestCase
         $advisor->assignRole(User::TYPE_ADVISOR);
 
         return $advisor;
+    }
+
+    private function invitePackage(string $serviceType, float $fee): ServiceRatePackage
+    {
+        $scope = $serviceType === ServiceActivation::SERVICE_DD_PLAN_BUDGET
+            ? ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON
+            : ServiceRatePackage::SCOPE_DD_300K_1M;
+
+        return ServiceRatePackage::query()->create([
+            'service_type' => $serviceType,
+            'package_scope' => $scope,
+            'package_name' => ServiceRatePackage::packageScopeLabel($scope),
+            'client_label' => $serviceType === ServiceActivation::SERVICE_DD_PLAN_BUDGET
+                ? 'Business Plan & Budget add-on'
+                : 'Due Diligence $300k-$1m',
+            'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+            'fixed_fee' => $fee,
+            'deposit_percent' => 100,
+            'currency' => 'NZD',
+            'scope_description' => 'Selected invitation package.',
+            'is_active' => true,
+            'effective_from' => now()->subMinute(),
+        ]);
     }
 
     private function clientForAdvisor(User $advisor, string $name, EngagementType $type): Client

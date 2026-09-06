@@ -7,8 +7,10 @@ namespace App\Http\Controllers\Auth;
 use App\Enums\EntrepreneurStage;
 use App\Http\Controllers\Controller;
 use App\Models\EntrepreneurProfile;
+use App\Models\Client;
 use App\Models\InviteToken;
 use App\Models\PanelMember;
+use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Clients\ClientInviteReconciler;
@@ -88,6 +90,7 @@ final class InviteAcceptController extends Controller
             'targetRole' => $invite->target_role,
             'targetUserType' => $invite->target_user_type,
             'serviceIntent' => $invite->serviceIntentPayload(),
+            'serviceOffers' => $this->serviceOffersFor($invite),
             'expiresAt' => $invite->expires_at?->toIso8601String(),
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
         ]);
@@ -205,6 +208,40 @@ final class InviteAcceptController extends Controller
         return InviteToken::query()
             ->where('token_hash', InviteToken::hashToken($token))
             ->firstOrFail();
+    }
+
+    /**
+     * @return list<array{label:string,fee:float|null,currency:string}>
+     */
+    private function serviceOffersFor(InviteToken $invite): array
+    {
+        if ($invite->target_user_type !== User::TYPE_CLIENT_PRIMARY) {
+            return [];
+        }
+
+        $client = Client::query()
+            ->where('registry_sources->source', 'advisor_client_invite')
+            ->where('registry_sources->invite_token_id', $invite->getKey())
+            ->latest()
+            ->first();
+        if (! $client instanceof Client) {
+            return [];
+        }
+
+        return ServiceActivation::query()
+            ->where('client_id', $client->getKey())
+            ->where('metadata->source', 'client_invite_offer')
+            ->where('metadata->invite_token_id', $invite->getKey())
+            ->where('status', ServiceActivation::STATUS_PACKAGE_SELECTED)
+            ->orderByRaw("case service_type when 'due_diligence' then 0 when 'dd_plan_budget' then 1 else 2 end")
+            ->get()
+            ->map(fn (ServiceActivation $offer): array => [
+                'label' => (string) data_get($offer->selected_package_snapshot, 'client_label', $offer->clientLabel()),
+                'fee' => data_get($offer->selected_package_snapshot, 'fixed_fee'),
+                'currency' => (string) data_get($offer->selected_package_snapshot, 'currency', 'NZD'),
+            ])
+            ->values()
+            ->all();
     }
 
     private function replacementInviteFor(InviteToken $invite): ?InviteToken
