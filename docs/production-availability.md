@@ -12,32 +12,52 @@ fail before a request reaches Laravel.
     - `GET /up` returns HTTP 200;
     - `GET /api/deployment` returns a verified identity with both manifest
       hashes; and
-    - `GET /` contains the server-rendered marker.
-2. **Immediate alerting** — configure a dedicated uptime monitor at one-minute
-   intervals against `https://futureshiftadvisory.nz/up`. It must notify the
-   on-call owner directly. GitHub schedule runs can be delayed, so they are a
-   backstop rather than the paging system.
-3. **Host supervision** — nginx and the configured PHP-FPM service must be
+    - `GET /` contains the server-rendered marker; and
+    - `GET /sw.js` returns HTTP 200, JavaScript content, and `Cache-Control:
+      no-store`.
+2. **One-minute recovery watchdog** — every release installs the root-owned
+   `futureshiftadvisory-edge-watchdog.timer`. It requests `/login` through
+   nginx every minute, sends an incident webhook on the first failure, captures
+   the HTTP response plus nginx/PHP-FPM status and logs, and restarts PHP-FPM
+   only after two consecutive failures. Evidence is retained under
+   `/var/lib/futureshiftadvisory-edge-watchdog/incidents`.
+3. **Browser recovery** — the release-managed nginx snippet routes `/sw.js`
+   through Laravel, prevents worker caching, and maps upstream 502/503/504
+   responses to the non-cacheable `_fsa-reconnecting.html` page. It retries
+   with a safe GET navigation and never sends `Clear-Site-Data`, so users are
+   not signed out.
+4. **Host supervision** — nginx and the configured PHP-FPM service must be
    enabled at boot. The `inertia-ssr` service must use `Restart=always`; see
    [deployment-ssr.md](deployment-ssr.md).
-4. **Release verification** — every production release runs the same external
-   probe after deployment and fails if the public edge is unavailable.
+5. **Release verification** — every production release runs the same external
+   probe after deployment and fails if the public edge or service worker is
+   unavailable.
 
 ## GitHub configuration
 
 Set repository variable `PRODUCTION_AVAILABILITY_MONITOR_ENABLED` to `true`.
-The existing `PRODUCTION_URL` secret is required. Add the optional
-`PRODUCTION_AVAILABILITY_ALERT_WEBHOOK` secret to send a JSON payload of the
-form `{ "text": "..." }` to the incident channel. Use an endpoint owned by
-the operations team; never put a webhook URL in the repository.
+The existing `PRODUCTION_URL` secret is required. Set
+`PRODUCTION_AVAILABILITY_ALERT_WEBHOOK` to an HTTPS endpoint owned by the
+operations team. It receives a JSON payload of the form `{ "text": "..." }`
+from both GitHub's public-edge backstop and the one-minute host watchdog; never
+put the webhook URL in the repository.
+
+The deploy script finds the nginx server block whose `server_name` contains the
+host from `SITE_URL`, then adds its managed include. If the host has an unusual
+nginx layout, set `NGINX_SITE_CONFIG` to the active `/etc/nginx/...` server
+configuration path before deployment. The script backs up a changed file,
+runs `nginx -t`, and refuses to reload nginx if validation fails.
 
 Enable GitHub notification for failed workflows for each production owner even
 when the webhook is configured.
 
 ## Incident response
 
-Treat two failed public probes or any client-visible 5xx as a production
-incident. Preserve the relevant logs before restarting services:
+Treat any watchdog alert, two failed public probes, or a client-visible 5xx as
+a production incident. The watchdog automatically preserves the first
+30 minutes of nginx/PHP-FPM journal output, current service status, nginx
+configuration validation, the public response, and available nginx logs before
+its threshold-based PHP-FPM restart. For manual investigation:
 
 ```bash
 sudo systemctl status nginx php-fpm inertia-ssr --no-pager --full

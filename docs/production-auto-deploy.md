@@ -30,10 +30,11 @@ Add the following **Actions secrets** to the repository:
 | `PRODUCTION_SSH_KNOWN_HOSTS` | Exact `known_hosts` line for the VPS, obtained from a trusted connection |
 | `PRODUCTION_APP_PATH`        | `/var/www/futureshiftadvisory`                                           |
 | `PRODUCTION_URL`             | `https://futureshiftadvisory.nz`                                         |
+| `PRODUCTION_AVAILABILITY_ALERT_WEBHOOK` | HTTPS incident webhook used by the one-minute host watchdog     |
 
 Create the repository variable `PRODUCTION_DEPLOY_ENABLED` with value `true` only after every secret is present. Until then, the production deploy job is skipped rather than pretending to have deployed anything. The release cannot proceed unless the existing `quality`, `ci (8.4)`, and `ci (8.5)` check-runs all pass for the source commit.
 
-The deploy user needs write access to the application checkout and permission to install the scheduler unit files in `/etc/systemd/system`, run `systemctl daemon-reload`, enable/restart/start the scheduler timer/service, and restart the PHP-FPM and SSR services through passwordless sudo. Do not use the VPS root password or place it in GitHub.
+The deploy user needs write access to the application checkout and permission to install the scheduler and public-edge-watchdog unit files in `/etc/systemd/system`, write the root-only watchdog environment file under `/etc/futureshiftadvisory`, manage the Future Shift nginx snippet under `/etc/nginx`, run `nginx -t`/reload, run `systemctl daemon-reload`, enable/restart/start the timers, and restart the PHP-FPM and SSR services through passwordless sudo. Do not use the VPS root password or place it in GitHub.
 
 ## Confirming a release
 
