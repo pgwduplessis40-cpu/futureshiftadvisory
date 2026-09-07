@@ -21,6 +21,8 @@ final class ProductionEdgeResilienceTest extends TestCase
         $this->assertStringContainsString('OnCalendar=*-*-* *:*:00', $deploy);
         $this->assertStringContainsString('EDGE_WATCHDOG_FAILURE_THRESHOLD', $deploy);
         $this->assertStringContainsString('verify_live_service_worker_contract', $deploy);
+        $this->assertStringContainsString('-v resilience_snippet="$NGINX_RESILIENCE_SNIPPET"', $deploy);
+        $this->assertStringNotContainsString('-v include="$NGINX_RESILIENCE_SNIPPET"', $deploy);
         $this->assertStringNotContainsString('Clear-Site-Data', $deploy);
     }
 

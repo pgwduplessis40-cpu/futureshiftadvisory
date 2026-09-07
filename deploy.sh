@@ -586,7 +586,7 @@ EOF
 
     if ! $SUDO grep -Fq "include ${NGINX_RESILIENCE_SNIPPET};" "$nginx_site_config"; then
         updated_config="$(mktemp)"
-        if ! awk -v host="$host" -v include="$NGINX_RESILIENCE_SNIPPET" '
+        if ! awk -v host="$host" -v resilience_snippet="$NGINX_RESILIENCE_SNIPPET" '
             function count_char(value, character,    index_value, count) {
                 count = 0
                 index_value = index(value, character)
@@ -611,7 +611,7 @@ EOF
 
                 next_depth = depth + opens - closes
                 if (target_server && ! inserted && next_depth < server_depth) {
-                    print "    include " include ";"
+                    print "    include " resilience_snippet ";"
                     inserted = 1
                     target_server = 0
                     server_depth = 0
