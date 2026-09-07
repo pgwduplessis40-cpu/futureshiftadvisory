@@ -82,7 +82,10 @@ final class FunderReadyBriefBuilder
         }
     }
 
-    /** @param array<string, mixed> $status @return array<string, mixed> */
+    /**
+     * @param  array<string, mixed>  $status
+     * @return array<string, mixed>
+     */
     private function document(EntrepreneurProfile $profile, BusinessPlan $plan, array $status): array
     {
         $plan->loadMissing('sections', 'budgetRunway');
@@ -96,7 +99,7 @@ final class FunderReadyBriefBuilder
             'plan' => $plan,
             'status' => $status,
             'business_name' => $this->identity->businessName($profile, $plan, $sourceBodies),
-            'summary' => (string) ($section?->body ?? ''),
+            'summary' => (string) ($section->body ?? ''),
             'summary_status' => $summary,
             'budget' => $budget,
             'highlights' => $this->highlights($plan),

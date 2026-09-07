@@ -721,9 +721,9 @@ export function PlanWorkspaceActions({
                                                     <span className="max-w-xs text-sm text-muted-foreground">
                                                         Generated automatically
                                                         after the current plan
-                                                        and budget assessment
-                                                        is finalised with a
-                                                        passing score
+                                                        and budget assessment is
+                                                        finalised with a passing
+                                                        score
                                                     </span>
                                                 ) : (
                                                     <Button
