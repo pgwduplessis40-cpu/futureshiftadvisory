@@ -6083,8 +6083,42 @@ XML);
      */
     private function strategicBudgetPayload(string $scenario): array
     {
+        $rowsByCategory = [
+            'implementation_costs' => $this->budgetRows($scenario, 'implementation'),
+            'monthly_fixed_costs' => $this->budgetRows($scenario, 'monthly'),
+            'revenue_forecast' => $this->budgetRows($scenario, 'revenue'),
+            'funding_sources' => $this->budgetRows($scenario, 'funding'),
+        ];
+        $driversBySection = [];
+
+        foreach ($rowsByCategory as $category => $rows) {
+            $sectionKey = match ($category) {
+                'implementation_costs', 'monthly_fixed_costs' => 'operations',
+                'revenue_forecast' => 'market_customers',
+                default => 'goals',
+            };
+
+            foreach ($rows as $index => $row) {
+                $driverKey = 'seed_'.$category.'_'.($index + 1);
+                $rowsByCategory[$category][$index]['plan_financial_driver_key'] = $driverKey;
+                $driversBySection[$sectionKey][] = [
+                    'key' => $driverKey,
+                    'category' => $category,
+                    'label' => (string) $row['label'],
+                    'amount' => (float) $row['amount'],
+                    'quantity' => (float) ($row['quantity'] ?? 1),
+                    'month' => (int) ($row['month'] ?? 1),
+                ];
+            }
+        }
+
         return [
-            'business_plan_sections' => $this->businessPlanSectionAnswers($scenario),
+            'business_plan_sections' => collect($this->businessPlanSectionAnswers($scenario))
+                ->map(fn (array $section): array => [
+                    ...$section,
+                    'financial_drivers' => $driversBySection[$section['key']] ?? [],
+                ])
+                ->all(),
             'horizon_months' => match ($scenario) {
                 'due_diligence', 'post_acquisition' => 24,
                 default => 12,
@@ -6118,11 +6152,11 @@ XML);
                     default => 10,
                 },
             ],
-            'implementation_costs' => $this->budgetRows($scenario, 'implementation'),
-            'monthly_fixed_costs' => $this->budgetRows($scenario, 'monthly'),
+            'implementation_costs' => $rowsByCategory['implementation_costs'],
+            'monthly_fixed_costs' => $rowsByCategory['monthly_fixed_costs'],
             'future_costs' => $this->futureBudgetRows($scenario),
-            'revenue_forecast' => $this->budgetRows($scenario, 'revenue'),
-            'funding_sources' => $this->budgetRows($scenario, 'funding'),
+            'revenue_forecast' => $rowsByCategory['revenue_forecast'],
+            'funding_sources' => $rowsByCategory['funding_sources'],
             'funding_scenarios' => $this->fundingScenarioRows($scenario),
         ];
     }

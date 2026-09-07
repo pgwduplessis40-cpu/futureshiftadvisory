@@ -62,6 +62,7 @@ final class StrategicBudgetService
         private readonly BudgetCalculator $calculator,
         private readonly AuditWriter $audit,
         private readonly MessageThreadService $messages,
+        private readonly StrategicBudgetPlanBudgetCoherence $planBudgetCoherence,
     ) {}
 
     public function ensureForClient(Client $client, ?BusinessPlan $plan = null): StrategicBudget
@@ -175,11 +176,11 @@ final class StrategicBudgetService
                     'horizon_months' => $this->horizonMonths($input['horizon_months'] ?? $budget->horizon_months),
                     'expected_runway_months' => $this->expectedRunway($input['expected_runway_months'] ?? null),
                     'assumptions' => (array) ($input['assumptions'] ?? []),
-                    'implementation_costs' => $this->calculator->normaliseRows((array) ($input['implementation_costs'] ?? [])),
-                    'monthly_fixed_costs' => $this->calculator->normaliseRows((array) ($input['monthly_fixed_costs'] ?? [])),
+                    'implementation_costs' => $this->planBudgetCoherence->normaliseRows((array) ($input['implementation_costs'] ?? []), $this->calculator),
+                    'monthly_fixed_costs' => $this->planBudgetCoherence->normaliseRows((array) ($input['monthly_fixed_costs'] ?? []), $this->calculator),
                     'future_costs' => $this->calculator->normaliseFutureCosts((array) ($input['future_costs'] ?? [])),
-                    'revenue_forecast' => $this->calculator->normaliseRows((array) ($input['revenue_forecast'] ?? [])),
-                    'funding_sources' => $this->calculator->normaliseRows((array) ($input['funding_sources'] ?? [])),
+                    'revenue_forecast' => $this->planBudgetCoherence->normaliseRows((array) ($input['revenue_forecast'] ?? []), $this->calculator),
+                    'funding_sources' => $this->planBudgetCoherence->normaliseRows((array) ($input['funding_sources'] ?? []), $this->calculator),
                     'funding_scenarios' => $this->calculator->normaliseFundingScenarios((array) ($input['funding_scenarios'] ?? [])),
                 ];
             }
@@ -265,6 +266,7 @@ final class StrategicBudgetService
         abort_unless($this->latestAssessmentForCurrentSubmission($budget)?->assessed_at !== null, 422);
 
         $budget = $this->recompute($budget);
+        abort_unless((bool) data_get($this->planBudgetCoherence->evaluate($budget), 'approval_available'), 422);
         $budget->forceFill([
             'status' => StrategicBudget::STATUS_ADVISOR_APPROVED,
             'approved_at' => now(),
@@ -468,6 +470,8 @@ final class StrategicBudgetService
      */
     public function advisorPayload(StrategicBudget $budget): array
     {
+        $coherence = $this->planBudgetCoherence->evaluate($budget);
+
         return [
             ...$this->basePayload($budget),
             'approve_url' => route('advisor.clients.strategic-budget.approve', $budget->client_id, absolute: false),
@@ -476,6 +480,7 @@ final class StrategicBudgetService
                 && $this->businessPlanReady($budget)
                 && $this->reviewSubmittedOrLater($budget),
             'assessment_ready_for_approval' => $this->latestAssessmentForCurrentSubmission($budget)?->assessed_at !== null,
+            'plan_budget_coherence_ready_for_approval' => (bool) $coherence['approval_available'],
             'assessment_action_label' => $this->reviewApprovedOrLater($budget)
                 ? 'Run reassessment'
                 : 'Run assessment',
@@ -670,6 +675,7 @@ final class StrategicBudgetService
     {
         $computed = $this->computedForRead($budget);
         $confidence = (array) ($budget->confidence ?? []);
+        $coherence = $this->planBudgetCoherence->evaluate($budget);
         $reviewApprovedOrLater = $this->reviewApprovedOrLater($budget);
         $reviewSubmittedOrLater = $this->reviewSubmittedOrLater($budget);
 
@@ -703,7 +709,8 @@ final class StrategicBudgetService
             'flags' => $budget->flags ?? [],
             'confidence' => $confidence,
             'analytics' => $this->analyticsPayload($budget),
-            'assessment_criteria' => $this->assessmentCriteria($budget, $computed, $confidence),
+            'plan_budget_coherence' => $coherence,
+            'assessment_criteria' => $this->assessmentCriteria($budget, $computed, $confidence, $coherence),
             'readiness_score' => (int) data_get($confidence, 'score', 0),
             'progress_score' => (int) data_get($confidence, 'progress_score', 0),
             'submitted_at' => $budget->submitted_at?->toIso8601String(),
@@ -1155,10 +1162,12 @@ final class StrategicBudgetService
     /**
      * @param  array<array-key, mixed>  $computed
      * @param  array<array-key, mixed>  $confidence
+     * @param  array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<array{severity:string,message:string,next_action:string}>,approval_available:bool,approval_message:string,linked_driver_count:int,material_row_count:int,unresolved_count:int}|null  $coherence
      * @return array<int, array{key:string,title:string,status:string,status_label:string,score:int,summary:string,evidence:array<int, string>}>
      */
-    private function assessmentCriteria(StrategicBudget $budget, array $computed, array $confidence): array
+    private function assessmentCriteria(StrategicBudget $budget, array $computed, array $confidence, ?array $coherence = null): array
     {
+        $coherence ??= $this->planBudgetCoherence->evaluate($budget);
         $sections = collect((array) ($budget->business_plan_sections ?? []))
             ->filter(fn (mixed $section): bool => is_array($section))
             ->keyBy(fn (array $section): string => (string) ($section['key'] ?? ''));
@@ -1375,6 +1384,7 @@ final class StrategicBudgetService
                     $hasFinancials ? 'Financial evidence is available.' : 'Financial evidence is not yet available.',
                 ],
             ),
+            $this->planBudgetCoherence->criterion($coherence),
         ];
     }
 
@@ -1621,6 +1631,7 @@ final class StrategicBudgetService
             'funding_runway_affordability' => 'show the funding source, available cash after setup, runway position, and affordability buffer.',
             'risk_action_readiness' => 'turn the DD risks and SWOT into first 100-day actions with clear priorities.',
             'advisor_funder_readiness' => 'make the plan reliable enough for advisor approval and funding conversations.',
+            'plan_budget_coherence' => 'link each material plan financial driver to its budget row, then resolve any amount or timing differences.',
             default => 'add the missing evidence and plain-English explanation for this assessment item.',
         };
     }
@@ -2020,28 +2031,15 @@ final class StrategicBudgetService
 
     /**
      * @param  array<int, array<string, mixed>>  $sections
-     * @return array<int, array{key:string,title:string,prompt:string,answer:string}>
+     * @return array<int, array{key:string,title:string,prompt:string,answer:string,financial_drivers:array<int, array{key:string,category:string,label:string,amount:float,quantity:float,month:int}>}>
      */
     private function normaliseBusinessPlanSections(array $sections, string $pathway): array
     {
-        $byKey = collect($sections)
-            ->keyBy(fn (array $section): string => (string) ($section['key'] ?? ''));
-        $prompts = collect($this->businessPlanPrompts($pathway))->keyBy('key');
-
-        return collect(self::PLAN_SECTION_KEYS)
-            ->map(function (string $key) use ($byKey, $prompts): array {
-                $prompt = (array) ($prompts->get($key) ?? []);
-                $section = (array) ($byKey->get($key) ?? []);
-
-                return [
-                    'key' => $key,
-                    'title' => (string) ($prompt['title'] ?? str($key)->replace('_', ' ')->title()->toString()),
-                    'prompt' => (string) ($prompt['prompt'] ?? ''),
-                    'answer' => trim((string) ($section['answer'] ?? $section['body'] ?? '')),
-                ];
-            })
-            ->values()
-            ->all();
+        return $this->planBudgetCoherence->normaliseBusinessPlanSections(
+            $sections,
+            $this->businessPlanPrompts($pathway),
+            self::PLAN_SECTION_KEYS,
+        );
     }
 
     /**

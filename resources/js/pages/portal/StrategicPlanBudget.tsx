@@ -27,7 +27,16 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { LockedFinancialsPanel } from './strategic-plan-budget-financial-upload';
-
+import {
+    BudgetInput,
+    FinancialDriversEditor,
+    PlanBudgetCoherencePanel,
+} from './strategic-plan-budget-plan-drivers';
+import type {
+    PlanBudgetCoherence,
+    PlanFinancialDriver,
+    PlanFinancialDriverOption,
+} from './strategic-plan-budget-plan-drivers';
 type ClientPayload = {
     id: string;
     legal_name: string;
@@ -35,11 +44,11 @@ type ClientPayload = {
     engagement_type: string;
     engagement_type_label: string;
 };
-
 type BudgetRow = {
     label?: string;
     amount?: number | string;
     quantity?: number | string;
+    plan_financial_driver_key?: string;
     month?: number | string;
     monthly_growth_percent?: number | string;
     variable_cost_percent?: number | string;
@@ -47,12 +56,10 @@ type BudgetRow = {
     gross_profit_percent?: number | string;
     confidence?: 'known' | 'estimate' | 'guess';
 };
-
 type FutureCostRow = BudgetRow & {
     year?: number | string;
     recurring?: boolean;
 };
-
 type FundingScenarioRow = {
     name?: string;
     type?: 'bank_loan' | 'investor' | 'mixed';
@@ -70,6 +77,7 @@ type BusinessPlanSection = {
     title: string;
     prompt: string;
     answer: string;
+    financial_drivers?: PlanFinancialDriver[];
 };
 
 type BusinessPlanSourceDraft = {
@@ -146,6 +154,7 @@ type BudgetPayload = {
         message?: string;
     };
     analytics: BudgetAnalytics;
+    plan_budget_coherence: PlanBudgetCoherence;
     readiness_score: number;
     progress_score: number;
     submitted_at: string | null;
@@ -370,6 +379,17 @@ export default function StrategicPlanBudget({
                 : [blankRow()],
         funding_scenarios: budget.funding_scenarios,
     });
+    const planFinancialDrivers = useMemo<PlanFinancialDriverOption[]>(
+        () =>
+            form.data.business_plan_sections.flatMap((section) =>
+                (section.financial_drivers ?? []).map((driver) => ({
+                    ...driver,
+                    section_key: section.key,
+                    section_title: section.title,
+                })),
+            ),
+        [form.data.business_plan_sections],
+    );
     const [autosaveState, setAutosaveState] = useState<AutosaveState>('saved');
     const [autosaveError, setAutosaveError] = useState<string | null>(null);
     const serializedForm = useMemo(
@@ -888,6 +908,10 @@ export default function StrategicPlanBudget({
                                 </Badge>
                             </div>
 
+                            <PlanBudgetCoherencePanel
+                                coherence={budget.plan_budget_coherence}
+                            />
+
                             {activeTab === 'business_plan' ? (
                                 <div
                                     id="budget-section-business-plan"
@@ -1013,6 +1037,9 @@ export default function StrategicPlanBudget({
                                         helper="One-off costs needed to deliver the plan, complete the acquisition, or start the advisory pathway."
                                         group="implementation_costs"
                                         rows={form.data.implementation_costs}
+                                        planFinancialDrivers={
+                                            planFinancialDrivers
+                                        }
                                         onRowsChange={(rows) =>
                                             form.setData(
                                                 'implementation_costs',
@@ -1029,6 +1056,9 @@ export default function StrategicPlanBudget({
                                         helper="Recurring costs that affect affordability and payment terms."
                                         group="monthly_fixed_costs"
                                         rows={form.data.monthly_fixed_costs}
+                                        planFinancialDrivers={
+                                            planFinancialDrivers
+                                        }
                                         onRowsChange={(rows) =>
                                             form.setData(
                                                 'monthly_fixed_costs',
@@ -1045,6 +1075,9 @@ export default function StrategicPlanBudget({
                                         helper="Expected revenue lines over the budget horizon."
                                         group="revenue_forecast"
                                         rows={form.data.revenue_forecast}
+                                        planFinancialDrivers={
+                                            planFinancialDrivers
+                                        }
                                         onRowsChange={(rows) =>
                                             form.setData(
                                                 'revenue_forecast',
@@ -1062,6 +1095,9 @@ export default function StrategicPlanBudget({
                                         helper="Cash, funding, finance, grants, deposits, or other sources available to fund the plan."
                                         group="funding_sources"
                                         rows={form.data.funding_sources}
+                                        planFinancialDrivers={
+                                            planFinancialDrivers
+                                        }
                                         onRowsChange={(rows) =>
                                             form.setData(
                                                 'funding_sources',
@@ -1255,6 +1291,16 @@ function BusinessPlanEditor({
             ),
         );
     };
+    const updateDrivers = (
+        index: number,
+        financial_drivers: PlanFinancialDriver[],
+    ) => {
+        onSectionsChange(
+            sections.map((section, current) =>
+                current === index ? { ...section, financial_drivers } : section,
+            ),
+        );
+    };
 
     return (
         <section className="space-y-4">
@@ -1317,23 +1363,32 @@ function BusinessPlanEditor({
                             </div>
                         </div>
 
-                        <label className="grid gap-2">
-                            <span className="text-sm font-medium">
-                                {section.title}
-                            </span>
-                            <span className="text-sm text-muted-foreground">
-                                {section.prompt}
-                            </span>
-                            <textarea
-                                value={section.answer}
-                                onChange={(event) =>
-                                    updateSection(index, event.target.value)
+                        <div className="space-y-3">
+                            <label className="grid gap-2">
+                                <span className="text-sm font-medium">
+                                    {section.title}
+                                </span>
+                                <span className="text-sm text-muted-foreground">
+                                    {section.prompt}
+                                </span>
+                                <textarea
+                                    value={section.answer}
+                                    onChange={(event) =>
+                                        updateSection(index, event.target.value)
+                                    }
+                                    rows={8}
+                                    placeholder={`Write the final ${planLabel} section here.`}
+                                    className="min-h-44 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                />
+                            </label>
+                            <FinancialDriversEditor
+                                sectionTitle={section.title}
+                                drivers={section.financial_drivers ?? []}
+                                onChange={(drivers) =>
+                                    updateDrivers(index, drivers)
                                 }
-                                rows={8}
-                                placeholder={`Write the final ${planLabel} section here.`}
-                                className="min-h-44 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                             />
-                        </label>
+                        </div>
                     </article>
                 );
             })}
@@ -2113,6 +2168,7 @@ function BudgetRowsEditor({
     helper,
     group,
     rows,
+    planFinancialDrivers,
     onRowsChange,
     revenue = false,
 }: {
@@ -2121,6 +2177,7 @@ function BudgetRowsEditor({
     helper: string;
     group: BudgetGroupKey;
     rows: BudgetRow[];
+    planFinancialDrivers: PlanFinancialDriverOption[];
     onRowsChange: (rows: BudgetRow[]) => void;
     revenue?: boolean;
 }) {
@@ -2131,6 +2188,9 @@ function BudgetRowsEditor({
             ),
         );
     };
+    const compatibleDrivers = planFinancialDrivers.filter(
+        (driver) => driver.category === group,
+    );
 
     return (
         <section
@@ -2166,8 +2226,8 @@ function BudgetRowsEditor({
                         className={cn(
                             'grid gap-2',
                             revenue
-                                ? 'lg:grid-cols-[minmax(0,1fr)_repeat(6,minmax(72px,0.45fr))_120px]'
-                                : 'lg:grid-cols-[minmax(0,1fr)_repeat(2,minmax(80px,0.35fr))_120px]',
+                                ? 'lg:grid-cols-[minmax(0,1fr)_repeat(6,minmax(72px,0.45fr))_minmax(160px,0.8fr)_120px]'
+                                : 'lg:grid-cols-[minmax(0,1fr)_repeat(2,minmax(80px,0.35fr))_minmax(160px,0.8fr)_120px]',
                         )}
                     >
                         <BudgetInput
@@ -2234,6 +2294,26 @@ function BudgetRowsEditor({
                             </>
                         ) : null}
                         <label className="grid gap-1 text-xs">
+                            <span>Plan link</span>
+                            <select
+                                value={row.plan_financial_driver_key ?? ''}
+                                onChange={(event) =>
+                                    update(index, {
+                                        plan_financial_driver_key:
+                                            event.target.value,
+                                    })
+                                }
+                                className="h-9 rounded-md border bg-background px-2 text-sm"
+                            >
+                                <option value="">Select plan commitment</option>
+                                {compatibleDrivers.map((driver) => (
+                                    <option key={driver.key} value={driver.key}>
+                                        {driver.section_title}: {driver.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label className="grid gap-1 text-xs">
                             <span>Confidence</span>
                             <select
                                 value={row.confidence ?? 'estimate'}
@@ -2256,31 +2336,6 @@ function BudgetRowsEditor({
                 ))}
             </div>
         </section>
-    );
-}
-
-function BudgetInput({
-    label,
-    value,
-    type = 'text',
-    onChange,
-}: {
-    label: string;
-    value: string | number;
-    type?: 'text' | 'number';
-    onChange: (value: string) => void;
-}) {
-    return (
-        <label className="grid gap-1 text-xs">
-            <span>{label}</span>
-            <input
-                type={type}
-                value={value}
-                min={type === 'number' ? 0 : undefined}
-                onChange={(event) => onChange(event.target.value)}
-                className="h-9 rounded-md border bg-background px-2 text-sm"
-            />
-        </label>
     );
 }
 

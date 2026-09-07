@@ -26,6 +26,11 @@ import {
 } from '@/components/ui/tooltip';
 import { formatNzdCurrency, formatNzDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import { planBudgetApprovalBlockedReason } from './service-workspaces-plan-budget-coherence';
+import type {
+    StrategicBudgetAssessmentCriterion,
+    StrategicBudgetPlanBudgetCoherence,
+} from './service-workspaces-plan-budget-coherence';
 type AdvisorServiceTabKey =
     | 'overview'
     | 'due_diligence'
@@ -209,16 +214,6 @@ type StrategicBudgetAnalytics = {
     };
 };
 
-type StrategicBudgetAssessmentCriterion = {
-    key: string;
-    title: string;
-    status: 'met' | 'review' | 'missing';
-    status_label: string;
-    score: number;
-    summary: string;
-    evidence: string[];
-};
-
 type StrategicBudgetAssessmentPriority = {
     rank: number;
     key: string;
@@ -300,6 +295,7 @@ type StrategicBudgetSummary = {
     flags: StrategicBudgetFlag[];
     analytics: StrategicBudgetAnalytics;
     assessment_criteria: StrategicBudgetAssessmentCriterion[];
+    plan_budget_coherence: StrategicBudgetPlanBudgetCoherence;
     confidence: {
         score?: number;
         progress_score?: number;
@@ -316,6 +312,7 @@ type StrategicBudgetSummary = {
     run_assessment_url: string;
     can_run_assessment: boolean;
     assessment_ready_for_approval: boolean;
+    plan_budget_coherence_ready_for_approval: boolean;
     assessment_action_label: string;
     assessment_feedback: StrategicBudgetAssessmentFeedback;
     assessment_history: StrategicBudgetAssessmentHistoryRow[];
@@ -1182,6 +1179,7 @@ function BusinessPlanBudgetActionPanel({
         budget.business_plan_ready &&
         budget.review_submitted_or_later &&
         budget.assessment_ready_for_approval &&
+        budget.plan_budget_coherence_ready_for_approval &&
         !budget.review_approved_or_later;
     const actionStatus = budget.review_approved_or_later
         ? 'Approved'
@@ -1195,17 +1193,7 @@ function BusinessPlanBudgetActionPanel({
           : !budget.review_submitted_or_later
             ? 'Waiting for the client to submit BP&B for advisor review.'
             : 'Assessment can be refreshed from the latest plan, DD context, evidence, and budget assumptions.';
-    const approveBlockedReason = budget.review_approved_or_later
-        ? 'The BP&B assessment is already approved.'
-        : !budget.review_submitted_or_later
-          ? 'Approval unlocks after the client submits BP&B for advisor review.'
-          : !budget.business_plan_ready
-            ? 'Approval unlocks after every BP&B section is complete.'
-            : budget.locked
-              ? 'Approval unlocks after verified financial evidence is available.'
-              : !budget.assessment_ready_for_approval
-                ? 'Approval unlocks after the BP&B assessment has been run.'
-                : 'Approve only after the assessment has been reviewed.';
+    const approveBlockedReason = planBudgetApprovalBlockedReason(budget);
     const feedbackStatus = budget.assessment_feedback.sent_at
         ? 'Sent to client'
         : budget.assessment_feedback.saved_at
@@ -1680,7 +1668,8 @@ function AssessmentCriteriaPanel({
                 <p className="text-sm text-muted-foreground">
                     The BP&amp;B assessment checks the funding-quality plan
                     against DD evidence, forecast assumptions, funding
-                    readiness, and advisor/funder reliance.
+                    readiness, plan-to-budget coherence, and advisor/funder
+                    reliance.
                 </p>
             </div>
 
@@ -1710,6 +1699,14 @@ function AssessmentCriteriaPanel({
                         <p className="text-sm text-muted-foreground">
                             {criterion.summary}
                         </p>
+                        {criterion.blocking && criterion.findings?.[0] && (
+                            <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-950">
+                                <span className="font-medium">
+                                    Approval is blocked.{' '}
+                                </span>
+                                {criterion.findings[0].next_action}
+                            </div>
+                        )}
                         {criterion.evidence.length > 0 && (
                             <ul className="grid gap-1 text-xs text-muted-foreground">
                                 {criterion.evidence.slice(0, 3).map((item) => (
