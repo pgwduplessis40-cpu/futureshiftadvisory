@@ -232,9 +232,12 @@ jobs:
           DEPLOY_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
           DEPLOY_USER: ${{ secrets.PRODUCTION_SSH_USER }}
           DEPLOY_VERSION: ${{ needs.tag-release.outputs.version }}
+          EDGE_WATCHDOG_ALERT_WEBHOOK: ${{ secrets.PRODUCTION_AVAILABILITY_ALERT_WEBHOOK }}
         run: |
           test -n "$DEPLOY_PATH" || { echo "Missing production deployment secret: DEPLOY_PATH" >&2; exit 1; }
           test -n "$DEPLOY_REMOTE_BUNDLE" || { echo "Deployment bundle was not uploaded." >&2; exit 1; }
+          test -n "$EDGE_WATCHDOG_ALERT_WEBHOOK" || { echo "Missing production availability webhook: PRODUCTION_AVAILABILITY_ALERT_WEBHOOK" >&2; exit 1; }
+          edge_watchdog_alert_webhook_b64="$(printf '%s' "$EDGE_WATCHDOG_ALERT_WEBHOOK" | base64 --wrap=0)"
           # An older deploy can leave its own script or generated Wayfinder
           # helpers dirty before the checkout has pulled the self-healing deploy
           # script. Reset only those deployment-managed paths, fast-forward to
@@ -243,9 +246,13 @@ jobs:
           deploy_log="$RUNNER_TEMP/production-deploy.log"
           set +e
           ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "DEPLOY_PATH='$DEPLOY_PATH' DEPLOY_COMMIT='$DEPLOY_COMMIT' DEPLOY_REMOTE_BUNDLE='$DEPLOY_REMOTE_BUNDLE' DEPLOY_VERSION='$DEPLOY_VERSION' bash -s" <<'REMOTE_DEPLOY' \
+            "DEPLOY_PATH='$DEPLOY_PATH' DEPLOY_COMMIT='$DEPLOY_COMMIT' DEPLOY_REMOTE_BUNDLE='$DEPLOY_REMOTE_BUNDLE' DEPLOY_VERSION='$DEPLOY_VERSION' EDGE_WATCHDOG_ALERT_WEBHOOK_B64='$edge_watchdog_alert_webhook_b64' bash -s" <<'REMOTE_DEPLOY' \
             2>&1 | tee "$deploy_log"
           set -euo pipefail
+
+          test -n "${EDGE_WATCHDOG_ALERT_WEBHOOK_B64:-}" || { echo 'Missing edge watchdog alert webhook payload.' >&2; exit 1; }
+          EDGE_WATCHDOG_ALERT_WEBHOOK="$(printf '%s' "$EDGE_WATCHDOG_ALERT_WEBHOOK_B64" | base64 --decode)"
+          export EDGE_WATCHDOG_ALERT_WEBHOOK
 
           cd "$DEPLOY_PATH"
 

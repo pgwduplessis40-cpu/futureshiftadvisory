@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="robots" content="noindex, nofollow">
+        <title>Reconnecting… | Future Shift Advisory</title>
+        <style>
+            :root { color-scheme: light; font-family: Arial, sans-serif; }
+            body { display: grid; min-height: 100vh; margin: 0; place-items: center; background: #f8f6f1; color: #172b4d; }
+            main { max-width: 32rem; padding: 2rem; text-align: center; }
+            h1 { margin: 0 0 0.75rem; font-size: 1.5rem; }
+            p { margin: 0; line-height: 1.55; }
+            button { margin-top: 1.5rem; border: 0; border-radius: 999px; padding: 0.75rem 1.25rem; background: #172b4d; color: white; cursor: pointer; font: inherit; }
+        </style>
+    </head>
+    <body>
+        <main>
+            <h1>Reconnecting…</h1>
+            <p>Future Shift Advisory is briefly reconnecting. We will try again automatically in a few seconds.</p>
+            <button type="button" id="retry">Try again now</button>
+        </main>
+        <script>
+            const retry = () => window.location.replace(window.location.href);
+            document.getElementById('retry').addEventListener('click', retry);
+            window.setTimeout(retry, 5000);
+        </script>
+    </body>
+</html>

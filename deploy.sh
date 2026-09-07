@@ -31,6 +31,15 @@ SCHEDULER_SERVICE="${SCHEDULER_SERVICE:-futureshiftadvisory-scheduler.service}"
 SCHEDULER_TIMER="${SCHEDULER_TIMER:-futureshiftadvisory-scheduler.timer}"
 SCHEDULER_UNIT_DIR="${SCHEDULER_UNIT_DIR:-/etc/systemd/system}"
 SCHEDULER_USER="${SCHEDULER_USER:-$(id -un)}"
+CONFIGURE_EDGE_RESILIENCE="${CONFIGURE_EDGE_RESILIENCE:-yes}"
+EDGE_WATCHDOG_SERVICE="${EDGE_WATCHDOG_SERVICE:-futureshiftadvisory-edge-watchdog.service}"
+EDGE_WATCHDOG_TIMER="${EDGE_WATCHDOG_TIMER:-futureshiftadvisory-edge-watchdog.timer}"
+EDGE_WATCHDOG_UNIT_DIR="${EDGE_WATCHDOG_UNIT_DIR:-/etc/systemd/system}"
+EDGE_WATCHDOG_FAILURE_THRESHOLD="${EDGE_WATCHDOG_FAILURE_THRESHOLD:-2}"
+EDGE_WATCHDOG_ALERT_WEBHOOK="${EDGE_WATCHDOG_ALERT_WEBHOOK:-}"
+NGINX_SERVICE="${NGINX_SERVICE:-nginx}"
+NGINX_SITE_CONFIG="${NGINX_SITE_CONFIG:-}"
+NGINX_RESILIENCE_SNIPPET="${NGINX_RESILIENCE_SNIPPET:-/etc/nginx/snippets/futureshiftadvisory-resilience.conf}"
 EXPECTED_COMMIT="${DEPLOY_EXPECTED_COMMIT:-}"
 EXPECTED_VERSION="${DEPLOY_EXPECTED_VERSION:-}"
 
@@ -420,6 +429,391 @@ EOF
     echo "Laravel scheduler systemd timer '${SCHEDULER_TIMER}' is installed, active, and verified."
 }
 
+validate_positive_integer() {
+    local value="$1"
+    local label="$2"
+    local minimum="$3"
+
+    case "$value" in
+        ''|*[!0-9]*)
+            echo "ERROR: ${label} must be a positive integer." >&2
+            exit 1
+            ;;
+    esac
+
+    if [ "$value" -lt "$minimum" ]; then
+        echo "ERROR: ${label} must be at least ${minimum}." >&2
+        exit 1
+    fi
+}
+
+edge_watchdog_host() {
+    local host
+
+    host="${SITE_URL#*://}"
+    host="${host%%/*}"
+    host="${host%%:*}"
+
+    case "$host" in
+        ''|*[!A-Za-z0-9.-]*)
+            echo "ERROR: SITE_URL must contain a plain host name for nginx resilience configuration." >&2
+            exit 1
+            ;;
+    esac
+
+    printf '%s\n' "$host"
+}
+
+find_nginx_site_config() {
+    local host="$1"
+    local config_dump
+
+    if [ -n "$NGINX_SITE_CONFIG" ]; then
+        printf '%s\n' "$NGINX_SITE_CONFIG"
+        return
+    fi
+
+    config_dump="$(mktemp)"
+    if ! $SUDO nginx -T > "$config_dump" 2>&1; then
+        cat "$config_dump" >&2 || true
+        rm -f -- "$config_dump"
+        echo "ERROR: nginx -T failed; set NGINX_SITE_CONFIG only after repairing the active nginx configuration." >&2
+        exit 1
+    fi
+
+    awk -v host="$host" '
+        /^# configuration file / {
+            config = $0
+            sub(/^# configuration file /, "", config)
+            sub(/:$/, "", config)
+            next
+        }
+        index($0, "server_name") && index($0, host) {
+            print config
+            exit
+        }
+    ' "$config_dump"
+    rm -f -- "$config_dump"
+}
+
+install_nginx_resilience_configuration() {
+    local host nginx_site_config snippet_tmp updated_config backup_config snippet_backup
+
+    if [ "$CONFIGURE_EDGE_RESILIENCE" != "yes" ]; then
+        echo "Skipping nginx resilience setup (CONFIGURE_EDGE_RESILIENCE=$CONFIGURE_EDGE_RESILIENCE)."
+        return
+    fi
+
+    command -v nginx >/dev/null 2>&1 || {
+        echo "ERROR: nginx is required to install public-edge resilience." >&2
+        exit 1
+    }
+
+    host="$(edge_watchdog_host)"
+    nginx_site_config="$(find_nginx_site_config "$host")"
+    if [ -z "$nginx_site_config" ]; then
+        echo "ERROR: could not locate the nginx server block for ${host}; set NGINX_SITE_CONFIG to its file path." >&2
+        exit 1
+    fi
+
+    case "$nginx_site_config" in
+        /etc/nginx/*) ;;
+        *)
+            echo "ERROR: NGINX_SITE_CONFIG must be inside /etc/nginx; found ${nginx_site_config}." >&2
+            exit 1
+            ;;
+    esac
+
+    case "$NGINX_RESILIENCE_SNIPPET" in
+        /etc/nginx/*) ;;
+        *)
+            echo "ERROR: NGINX_RESILIENCE_SNIPPET must be inside /etc/nginx; found ${NGINX_RESILIENCE_SNIPPET}." >&2
+            exit 1
+            ;;
+    esac
+
+    if [ ! -f "$nginx_site_config" ]; then
+        echo "ERROR: nginx site configuration ${nginx_site_config} does not exist." >&2
+        exit 1
+    fi
+
+    if [[ "$APP_DIR" =~ [[:space:]] ]]; then
+        echo "ERROR: APP_DIR cannot contain whitespace when generating nginx configuration." >&2
+        exit 1
+    fi
+
+    snippet_tmp="$(mktemp)"
+    cat > "$snippet_tmp" <<EOF
+# Managed by Future Shift Advisory deploy.sh. Include this file inside the
+# futureshiftadvisory.nz server block; do not move it into a generic JavaScript
+# location, or nginx will intercept the dynamic Laravel service worker.
+location = /sw.js {
+    try_files /__fsa_dynamic_service_worker__ /index.php?\$query_string;
+}
+
+# nginx handles these upstream errors before Laravel can set response headers.
+# Preserve the original 5xx response while rendering a non-cacheable recovery
+# page whose retry performs a safe GET navigation.
+error_page 502 503 504 /_fsa-reconnecting.html;
+location = /_fsa-reconnecting.html {
+    internal;
+    root ${APP_DIR}/public;
+    add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
+    add_header Pragma "no-cache" always;
+    add_header Expires "0" always;
+    add_header Retry-After "5" always;
+    try_files /_fsa-reconnecting.html =500;
+}
+EOF
+
+    if ! $SUDO install -d -m 0755 "$(dirname "$NGINX_RESILIENCE_SNIPPET")"; then
+        rm -f -- "$snippet_tmp"
+        echo "ERROR: could not create nginx snippet directory." >&2
+        exit 1
+    fi
+
+    if [ -f "$NGINX_RESILIENCE_SNIPPET" ]; then
+        snippet_backup="${NGINX_RESILIENCE_SNIPPET}.fsa-resilience.$(date -u +%Y%m%dT%H%M%SZ).bak"
+        $SUDO cp -p "$NGINX_RESILIENCE_SNIPPET" "$snippet_backup"
+    fi
+
+    if ! $SUDO install -m 0644 "$snippet_tmp" "$NGINX_RESILIENCE_SNIPPET"; then
+        rm -f -- "$snippet_tmp"
+        echo "ERROR: could not install ${NGINX_RESILIENCE_SNIPPET}." >&2
+        exit 1
+    fi
+    rm -f -- "$snippet_tmp"
+
+    if ! $SUDO grep -Fq "include ${NGINX_RESILIENCE_SNIPPET};" "$nginx_site_config"; then
+        updated_config="$(mktemp)"
+        if ! awk -v host="$host" -v include="$NGINX_RESILIENCE_SNIPPET" '
+            function count_char(value, character,    index_value, count) {
+                count = 0
+                index_value = index(value, character)
+                while (index_value > 0) {
+                    count++
+                    value = substr(value, index_value + 1)
+                    index_value = index(value, character)
+                }
+                return count
+            }
+            {
+                opens = count_char($0, "{")
+                closes = count_char($0, "}")
+
+                if (server_depth == 0 && $0 ~ /^[[:space:]]*server[[:space:]]*\{/) {
+                    server_depth = depth + opens
+                }
+
+                if (server_depth > 0 && index($0, "server_name") && index($0, host)) {
+                    target_server = 1
+                }
+
+                next_depth = depth + opens - closes
+                if (target_server && ! inserted && next_depth < server_depth) {
+                    print "    include " include ";"
+                    inserted = 1
+                    target_server = 0
+                    server_depth = 0
+                }
+
+                print
+                depth = next_depth
+
+                if (server_depth > 0 && depth < server_depth) {
+                    server_depth = 0
+                    target_server = 0
+                }
+            }
+            END {
+                if (! inserted) {
+                    exit 42
+                }
+            }
+        ' "$nginx_site_config" > "$updated_config"; then
+            rm -f -- "$updated_config"
+            echo "ERROR: could not add the resilience include to ${nginx_site_config}; add 'include ${NGINX_RESILIENCE_SNIPPET};' inside the ${host} server block." >&2
+            exit 1
+        fi
+
+        backup_config="${nginx_site_config}.fsa-resilience.$(date -u +%Y%m%dT%H%M%SZ).bak"
+        $SUDO cp -p "$nginx_site_config" "$backup_config"
+        if ! $SUDO install -m 0644 "$updated_config" "$nginx_site_config"; then
+            rm -f -- "$updated_config"
+            echo "ERROR: could not update ${nginx_site_config}." >&2
+            exit 1
+        fi
+        rm -f -- "$updated_config"
+    fi
+
+    if ! $SUDO nginx -t; then
+        if [ -n "${backup_config:-}" ]; then
+            $SUDO cp -p "$backup_config" "$nginx_site_config" || true
+        fi
+        if [ -n "${snippet_backup:-}" ]; then
+            $SUDO cp -p "$snippet_backup" "$NGINX_RESILIENCE_SNIPPET" || true
+        elif [ -z "${snippet_backup:-}" ]; then
+            $SUDO rm -f "$NGINX_RESILIENCE_SNIPPET" || true
+        fi
+        $SUDO nginx -t || true
+        echo "ERROR: nginx resilience configuration failed validation; the previous site config was restored when possible." >&2
+        exit 1
+    fi
+
+    if ! $SUDO systemctl reload "$NGINX_SERVICE"; then
+        echo "ERROR: nginx could not reload the validated resilience configuration." >&2
+        exit 1
+    fi
+
+    echo "Nginx now routes /sw.js to Laravel and serves a non-cacheable recovery page for upstream 502/503/504 responses."
+}
+
+configure_edge_watchdog() {
+    local watchdog_script environment_dir environment_file service_path timer_path service_tmp timer_tmp nginx_unit
+
+    if [ "$CONFIGURE_EDGE_RESILIENCE" != "yes" ]; then
+        echo "Skipping public-edge watchdog setup (CONFIGURE_EDGE_RESILIENCE=$CONFIGURE_EDGE_RESILIENCE)."
+        return
+    fi
+
+    command -v systemctl >/dev/null 2>&1 || {
+        echo "ERROR: systemd is required for the once-per-minute public-edge watchdog." >&2
+        exit 1
+    }
+
+    validate_systemd_unit_name "$EDGE_WATCHDOG_SERVICE" "EDGE_WATCHDOG_SERVICE" ".service"
+    validate_systemd_unit_name "$EDGE_WATCHDOG_TIMER" "EDGE_WATCHDOG_TIMER" ".timer"
+    validate_systemd_unit_name "$PHP_FPM_SERVICE" "PHP_FPM_SERVICE" ""
+    validate_systemd_unit_name "$NGINX_SERVICE" "NGINX_SERVICE" ""
+    validate_positive_integer "$EDGE_WATCHDOG_FAILURE_THRESHOLD" "EDGE_WATCHDOG_FAILURE_THRESHOLD" 2
+
+    case "$EDGE_WATCHDOG_ALERT_WEBHOOK" in
+        https://*) ;;
+        *)
+            echo "ERROR: EDGE_WATCHDOG_ALERT_WEBHOOK must be configured as an https incident webhook; refusing to install an unalerted recovery watchdog." >&2
+            exit 1
+            ;;
+    esac
+
+    watchdog_script="$APP_DIR/scripts/watch-production-edge.sh"
+    if [ ! -x "$watchdog_script" ]; then
+        chmod 755 "$watchdog_script"
+    fi
+
+    environment_dir="/etc/futureshiftadvisory"
+    environment_file="${environment_dir}/edge-watchdog.env"
+    if ! $SUDO install -d -m 0700 "$environment_dir"; then
+        echo "ERROR: could not create ${environment_dir}." >&2
+        exit 1
+    fi
+
+    if [[ "$EDGE_WATCHDOG_ALERT_WEBHOOK" =~ [[:space:]] ]]; then
+        echo "ERROR: EDGE_WATCHDOG_ALERT_WEBHOOK cannot contain whitespace." >&2
+        exit 1
+    fi
+
+    if ! printf 'EDGE_WATCHDOG_ALERT_WEBHOOK=%s\n' "$EDGE_WATCHDOG_ALERT_WEBHOOK" | $SUDO tee "$environment_file" >/dev/null; then
+        echo "ERROR: could not write ${environment_file}." >&2
+        exit 1
+    fi
+    $SUDO chmod 0600 "$environment_file"
+
+    service_path="${EDGE_WATCHDOG_UNIT_DIR%/}/${EDGE_WATCHDOG_SERVICE}"
+    timer_path="${EDGE_WATCHDOG_UNIT_DIR%/}/${EDGE_WATCHDOG_TIMER}"
+    service_tmp="$(mktemp)"
+    timer_tmp="$(mktemp)"
+
+    nginx_unit="$NGINX_SERVICE"
+    case "$nginx_unit" in
+        *.service) ;;
+        *) nginx_unit="${nginx_unit}.service" ;;
+    esac
+
+    cat > "$service_tmp" <<EOF
+[Unit]
+Description=Recover Future Shift Advisory public nginx edge after consecutive failures
+Wants=network-online.target
+After=network-online.target ${nginx_unit}
+
+[Service]
+Type=oneshot
+User=root
+EnvironmentFile=${environment_file}
+Environment=EDGE_WATCHDOG_URL=${SITE_URL%/}/login
+Environment=EDGE_WATCHDOG_PHP_FPM_SERVICE=${PHP_FPM_SERVICE}
+Environment=EDGE_WATCHDOG_NGINX_SERVICE=${NGINX_SERVICE}
+Environment=EDGE_WATCHDOG_FAILURE_THRESHOLD=${EDGE_WATCHDOG_FAILURE_THRESHOLD}
+Environment=EDGE_WATCHDOG_STATE_DIR=/var/lib/futureshiftadvisory-edge-watchdog
+StateDirectory=futureshiftadvisory-edge-watchdog
+ExecStart=/bin/bash ${watchdog_script}
+TimeoutStartSec=90
+StandardOutput=journal
+StandardError=journal
+EOF
+
+    cat > "$timer_tmp" <<EOF
+[Unit]
+Description=Run Future Shift Advisory public-edge watchdog every minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=1s
+Persistent=true
+Unit=${EDGE_WATCHDOG_SERVICE}
+
+[Install]
+WantedBy=timers.target
+EOF
+
+    $SUDO install -m 0644 "$service_tmp" "$service_path"
+    $SUDO install -m 0644 "$timer_tmp" "$timer_path"
+    rm -f -- "$service_tmp" "$timer_tmp"
+
+    $SUDO systemctl daemon-reload
+    $SUDO systemctl enable "$EDGE_WATCHDOG_TIMER"
+    $SUDO systemctl restart "$EDGE_WATCHDOG_TIMER"
+    if ! systemctl is-active --quiet "$EDGE_WATCHDOG_TIMER"; then
+        $SUDO systemctl status "$EDGE_WATCHDOG_TIMER" --no-pager --full || true
+        echo "ERROR: public-edge watchdog timer is not active." >&2
+        exit 1
+    fi
+
+    if ! $SUDO systemctl start "$EDGE_WATCHDOG_SERVICE"; then
+        $SUDO systemctl status "$EDGE_WATCHDOG_SERVICE" --no-pager --full || true
+        $SUDO journalctl -u "$EDGE_WATCHDOG_SERVICE" -n 80 --no-pager || true
+        echo "ERROR: public-edge watchdog could not complete its initial /login check." >&2
+        exit 1
+    fi
+
+    systemctl list-timers "$EDGE_WATCHDOG_TIMER" --no-pager || true
+    echo "Public-edge watchdog is installed, active, and verified."
+}
+
+verify_live_service_worker_contract() {
+    local headers body status
+
+    headers="$(mktemp)"
+    body="$(mktemp)"
+    if ! status="$(curl --fail --silent --show-error --location --connect-timeout 10 --max-time 20 \
+        --dump-header "$headers" --output "$body" --write-out '%{http_code}' "${SITE_URL%/}/sw.js")"; then
+        rm -f -- "$headers" "$body"
+        echo "ERROR: live /sw.js did not return successfully after nginx was reloaded." >&2
+        exit 1
+    fi
+
+    if [ "$status" != "200" ] \
+        || ! grep -Eiq '^content-type:[[:space:]]*application/javascript([;[:space:]]|$)' "$headers" \
+        || ! grep -Eiq '^cache-control:.*no-store' "$headers"; then
+        cat "$headers" >&2 || true
+        rm -f -- "$headers" "$body"
+        echo "ERROR: live /sw.js must return HTTP 200, JavaScript, and Cache-Control: no-store." >&2
+        exit 1
+    fi
+
+    rm -f -- "$headers" "$body"
+    echo "Live /sw.js is dynamic JavaScript with Cache-Control: no-store."
+}
+
 ensure_malware_scanner() {
     local configured_service="${CLAMAV_SERVICE:-}"
     local wait_seconds="${CLAMAV_START_TIMEOUT_SECONDS:-180}"
@@ -747,6 +1141,12 @@ php artisan view:cache
 log "Configuring Laravel scheduler"
 configure_scheduler_timer
 
+log "Configuring nginx public-edge recovery"
+install_nginx_resilience_configuration
+
+log "Configuring once-per-minute public-edge watchdog"
+configure_edge_watchdog
+
 log "Verifying malware scanner and recovering quarantined documents"
 ensure_malware_scanner
 php artisan fsa:rescan-quarantined-documents --probe --limit=1000
@@ -806,6 +1206,9 @@ for attempt in 1 2 3 4 5; do
 done
 
 if [ "$ssr_ok" = "yes" ]; then
+    log "Verifying the live service worker"
+    verify_live_service_worker_contract
+
     log "Recording deployed release"
     record_deployment_identity
 
