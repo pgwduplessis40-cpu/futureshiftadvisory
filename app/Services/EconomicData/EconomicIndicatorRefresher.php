@@ -206,9 +206,7 @@ final class EconomicIndicatorRefresher
         return abs($previousOcr->value - (float) ($currentOcr['value'] ?? 0)) >= 0.0001;
     }
 
-    /**
-     * @param  array<string, mixed>  $record
-     */
+    /** @param array{degraded?: bool, source_badge?: string} $record */
     private function isVerifiedRecord(array $record): bool
     {
         return ! (bool) ($record['degraded'] ?? false)

@@ -3,7 +3,6 @@ import { wayfinder } from '@laravel/vite-plugin-wayfinder';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
-import { bunny } from 'laravel-vite-plugin/fonts';
 import { defineConfig } from 'vite';
 
 // Wayfinder regenerates every route/action type on boot, which measured at ~78s
@@ -25,11 +24,6 @@ export default defineConfig(({ command, isSsrBuild }) => ({
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
             refresh: true,
-            fonts: [
-                bunny('Instrument Sans', {
-                    weights: [400, 500, 600],
-                }),
-            ],
         }),
         // SSR is production-only here (config/inertia.php: INERTIA_SSR_ENABLED
         // defaults to APP_ENV === 'production'). Outside `vite build --ssr` the
