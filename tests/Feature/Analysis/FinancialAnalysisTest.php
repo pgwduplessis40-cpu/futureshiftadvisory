@@ -340,7 +340,7 @@ final class FinancialAnalysisTest extends TestCase
             'unit' => $unit,
             'period_date' => '2026-04-30',
             'source' => 'fixture',
-            'source_badge' => 'stub',
+            'source_badge' => 'manual_admin',
             'degraded' => false,
             'correlation_id' => null,
             'fetched_at' => now(),

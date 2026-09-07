@@ -110,6 +110,7 @@ final class EconomicIndicatorRefresher
     private function latestIndicator(string $indicator): ?EconomicIndicator
     {
         return EconomicIndicator::query()
+            ->verified()
             ->where('indicator', $indicator)
             ->latest('period_date')
             ->latest('fetched_at')
@@ -198,11 +199,20 @@ final class EconomicIndicatorRefresher
             return false;
         }
 
-        if ((bool) ($currentOcr['degraded'] ?? false)) {
+        if (! $this->isVerifiedRecord($currentOcr)) {
             return false;
         }
 
         return abs($previousOcr->value - (float) ($currentOcr['value'] ?? 0)) >= 0.0001;
+    }
+
+    /**
+     * @param  array<string, mixed>  $record
+     */
+    private function isVerifiedRecord(array $record): bool
+    {
+        return ! (bool) ($record['degraded'] ?? false)
+            && in_array((string) ($record['source_badge'] ?? ''), ['live', 'cached', 'manual_admin'], true);
     }
 
     /**

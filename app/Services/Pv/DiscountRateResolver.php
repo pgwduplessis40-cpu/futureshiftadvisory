@@ -57,6 +57,7 @@ final class DiscountRateResolver implements ProvidesMethodology
         }
 
         $ocr = EconomicIndicator::query()
+            ->verified()
             ->where('indicator', EconomicIndicator::OCR)
             ->latest('period_date')
             ->latest('fetched_at')

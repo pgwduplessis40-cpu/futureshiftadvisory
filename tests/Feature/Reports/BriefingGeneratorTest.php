@@ -278,7 +278,7 @@ final class BriefingGeneratorTest extends TestCase
             'unit' => $unit,
             'period_date' => now()->toDateString(),
             'source' => 'rbnz',
-            'source_badge' => 'fixture',
+            'source_badge' => 'manual_admin',
             'degraded' => false,
             'fetched_at' => now(),
             'payload' => ['fixture' => true],

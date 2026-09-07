@@ -295,6 +295,49 @@ final class LearningUpdateApprovalTest extends TestCase
         $this->assertDatabaseHas('audit_events', ['action' => 'learning_update.impact_reviewed']);
     }
 
+    public function test_delivery_cards_expose_a_stable_rollup_for_related_recommendations(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+        $source = [
+            'type' => 'service_activation',
+            'rollup_key' => 'service_activation:review_service_activation_flow:client_portal_workspace_activation',
+            'rollup_label' => 'Client portal workspace activation',
+        ];
+        $first = $this->candidate([
+            'source' => $source,
+            'summary' => 'Review client portal workspace activation after request.',
+            'status' => LearningUpdate::STATUS_APPROVED,
+            'impact_scope' => ['surface' => 'client_portal_workspace_activation'],
+        ]);
+        $second = $this->candidate([
+            'source' => $source,
+            'summary' => 'Review client portal workspace activation after package selection.',
+            'status' => LearningUpdate::STATUS_IMPLEMENTED,
+            'impact_scope' => ['surface' => 'client_portal_workspace_activation'],
+        ]);
+
+        LearningUpdateImplementation::query()->create([
+            'learning_update_id' => $second->id,
+            'implemented_at' => now()->subDays(31),
+            'review_due' => now()->subDay(),
+            'review_outcome' => null,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.learning-updates.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->has('cards', 2)
+                ->where('cards', fn (Collection $cards): bool => $cards
+                    ->pluck('delivery_rollup.key')
+                    ->unique()
+                    ->all() === ['service_activation:review_service_activation_flow:client_portal_workspace_activation']
+                    && $cards->pluck('delivery_rollup.label')->unique()->all() === ['Client portal workspace activation']
+                    && $cards->contains(fn (array $card): bool => $card['status'] === LearningUpdate::STATUS_IMPLEMENTED
+                        && $card['implementations'][0]['review_outcome'] === null)));
+    }
+
     private function superAdmin(): User
     {
         $user = User::factory()->superAdmin()->withTwoFactor()->create();

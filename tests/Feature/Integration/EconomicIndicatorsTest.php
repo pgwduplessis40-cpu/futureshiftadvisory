@@ -211,7 +211,7 @@ final class EconomicIndicatorsTest extends TestCase
 
     public function test_ocr_change_queues_pv_discount_rate_candidate_without_auto_apply(): void
     {
-        app(EconomicIndicatorRefresher::class)->refresh(now()->subDay());
+        $this->verifiedOcr(5.5, '2026-05-20', 'cached');
         $this->app->instance(RbnzClient::class, new ChangedOcrRbnzClient);
 
         app(EconomicIndicatorRefresher::class)->refresh(now());
@@ -227,6 +227,53 @@ final class EconomicIndicatorsTest extends TestCase
         $this->assertEquals(6.0, $candidate->evidence['current_value']);
         $this->assertDatabaseCount('learning_updates', 1);
         $this->assertSame(0, LearningUpdateImplementation::query()->count());
+    }
+
+    public function test_advisor_dashboard_hides_stub_ocr_until_a_verified_value_is_available(): void
+    {
+        $advisor = User::factory()->withTwoFactor()->create([
+            'email' => 'economic-ocr-stub@example.test',
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $advisor->assignRole(User::TYPE_ADVISOR);
+
+        app(EconomicIndicatorRefresher::class)->refresh(now());
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/Dashboard')
+                ->loadDeferredProps('advisor-signals', fn (Assert $page): Assert => $page
+                    ->where('economicIndicators.summary.indicators', 5)
+                    ->where('economicIndicators.summary.ocr_verification_required', true)
+                    ->where('economicIndicators.indicators', fn ($indicators): bool => $indicators
+                        ->doesntContain('indicator', EconomicIndicator::OCR))));
+    }
+
+    public function test_advisor_dashboard_prefers_verified_manual_ocr_over_a_later_stub_refresh(): void
+    {
+        $advisor = User::factory()->withTwoFactor()->create([
+            'email' => 'economic-ocr-manual@example.test',
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $advisor->assignRole(User::TYPE_ADVISOR);
+
+        app(EconomicIndicatorRefresher::class)->refresh(now());
+        $manual = $this->verifiedOcr(2.75, '2026-09-02', 'manual_admin', source: 'rbnz-manual');
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/Dashboard')
+                ->loadDeferredProps('advisor-signals', fn (Assert $page): Assert => $page
+                    ->where('economicIndicators.summary.ocr_verification_required', false)
+                    ->where('economicIndicators.indicators.0.id', $manual->id)
+                    ->where('economicIndicators.indicators.0.value', 2.75)
+                    ->where('economicIndicators.indicators.0.source_badge', 'manual_admin')));
     }
 
     public function test_stale_older_ocr_feed_does_not_queue_pv_discount_rate_candidate(): void
@@ -266,6 +313,7 @@ final class EconomicIndicatorsTest extends TestCase
         $this->snapshot($client, ['metrics' => ['interest_bearing_debt' => 120000]]);
 
         app(EconomicIndicatorRefresher::class)->refresh(now()->subDay());
+        $this->verifiedOcr(5.5, '2026-05-20', 'cached');
         $this->app->instance(RbnzClient::class, new ChangedOcrRbnzClient);
         app(EconomicIndicatorRefresher::class)->refresh(now());
 
@@ -350,6 +398,23 @@ final class EconomicIndicatorsTest extends TestCase
         ]);
     }
 
+    private function verifiedOcr(float $value, string $periodDate, string $sourceBadge, string $source = 'rbnz'): EconomicIndicator
+    {
+        return EconomicIndicator::query()->updateOrCreate([
+            'indicator' => EconomicIndicator::OCR,
+            'period_date' => $periodDate,
+            'source' => $source,
+        ], [
+            'label' => 'Official Cash Rate',
+            'value' => $value,
+            'unit' => 'percent',
+            'source_badge' => $sourceBadge,
+            'degraded' => false,
+            'fetched_at' => now()->subMinute(),
+            'payload' => ['source_mode' => 'verified_test_source'],
+        ]);
+    }
+
     private function forgetEconomicClients(): void
     {
         foreach ([
@@ -385,7 +450,7 @@ final class ChangedOcrRbnzClient implements RbnzClient
             'unit' => 'percent',
             'period_date' => '2026-06-01',
             'source' => 'rbnz',
-            'source_badge' => 'stub',
+            'source_badge' => 'live',
             'degraded' => false,
             'payload' => ['series' => 'OCR'],
         ];
