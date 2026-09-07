@@ -732,10 +732,25 @@ final class TestingSeedDataSeederTest extends TestCase
 
         $planSections = json_decode((string) $budget->business_plan_sections, true, flags: JSON_THROW_ON_ERROR);
         $this->assertCount(8, collect($planSections)->filter(fn (array $section): bool => trim((string) ($section['answer'] ?? '')) !== ''));
+        $financialDrivers = collect($planSections)
+            ->flatMap(fn (array $section): array => (array) ($section['financial_drivers'] ?? []))
+            ->keyBy('key');
 
         foreach (['implementation_costs', 'monthly_fixed_costs', 'revenue_forecast', 'funding_sources'] as $column) {
             $rows = json_decode((string) $budget->{$column}, true, flags: JSON_THROW_ON_ERROR);
             $this->assertNotEmpty($rows, "Expected seeded [{$column}] rows for submit-for-review testing.");
+
+            foreach ($rows as $row) {
+                $driverKey = (string) ($row['plan_financial_driver_key'] ?? '');
+                $driver = $financialDrivers->get($driverKey);
+
+                $this->assertNotSame('', $driverKey, "Expected seeded [{$column}] row to link back to a plan financial driver.");
+                $this->assertIsArray($driver, "Expected seeded [{$column}] row to link to an existing plan financial driver.");
+                $this->assertSame($column, $driver['category']);
+                $this->assertSame((float) $row['amount'], (float) $driver['amount']);
+                $this->assertSame((float) ($row['quantity'] ?? 1), (float) $driver['quantity']);
+                $this->assertSame((int) ($row['month'] ?? 1), (int) $driver['month']);
+            }
         }
     }
 
