@@ -144,6 +144,41 @@ final class StrategicBudgetServiceTest extends TestCase
         $this->assertSame('Rent', StrategicBudget::query()->findOrFail($saved->getKey())->monthly_fixed_costs[0]['label']);
     }
 
+    public function test_portal_payload_includes_plan_budget_coherence_as_an_assessment_criterion(): void
+    {
+        $budget = new StrategicBudget([
+            'pathway' => StrategicBudget::PATHWAY_ADVISORY,
+            'status' => StrategicBudget::STATUS_SYSTEM_DRAFT,
+            'business_plan_sections' => [[
+                'key' => 'market_customers',
+                'title' => 'Market and customers',
+                'financial_drivers' => [[
+                    'key' => 'driver_enterprise_sales',
+                    'category' => 'revenue_forecast',
+                    'label' => 'Enterprise sales',
+                    'amount' => 10_000,
+                    'quantity' => 2,
+                    'month' => 1,
+                ]],
+            ]],
+            'revenue_forecast' => [[
+                'label' => 'Enterprise sales',
+                'amount' => 10_000,
+                'quantity' => 2,
+                'month' => 1,
+                'plan_financial_driver_key' => 'driver_enterprise_sales',
+            ]],
+        ]);
+
+        $payload = app(StrategicBudgetService::class)->portalPayload($budget);
+        $criterion = collect($payload['assessment_criteria'])->firstWhere('key', 'plan_budget_coherence');
+
+        $this->assertSame('met', $payload['plan_budget_coherence']['status']);
+        $this->assertNotNull($criterion);
+        $this->assertSame('met', $criterion['status']);
+        $this->assertFalse($criterion['blocking']);
+    }
+
     public function test_post_acquisition_source_drafts_gather_onboarding_questionnaire_and_evidence_for_plan_sections(): void
     {
         $client = Client::query()->create([

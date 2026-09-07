@@ -1162,7 +1162,7 @@ final class StrategicBudgetService
     /**
      * @param  array<array-key, mixed>  $computed
      * @param  array<array-key, mixed>  $confidence
-     * @param  array<string, mixed>|null  $coherence
+     * @param  array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<array{severity:string,message:string,next_action:string}>,approval_available:bool,approval_message:string,linked_driver_count:int,material_row_count:int,unresolved_count:int}|null  $coherence
      * @return array<int, array{key:string,title:string,status:string,status_label:string,score:int,summary:string,evidence:array<int, string>}>
      */
     private function assessmentCriteria(StrategicBudget $budget, array $computed, array $confidence, ?array $coherence = null): array

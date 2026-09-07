@@ -12,6 +12,10 @@ use Illuminate\Support\Str;
  * Checks the deliberate links between the client-owned plan commitments and
  * the budget rows that fund or deliver them. The result is entirely
  * deterministic so it can safely gate advisor approval.
+ *
+ * @phpstan-type CoherenceFinding array{severity:string,message:string,next_action:string}
+ * @phpstan-type Coherence array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<CoherenceFinding>,approval_available:bool,approval_message:string,linked_driver_count:int,material_row_count:int,unresolved_count:int}
+ * @phpstan-type CoherenceCriterion array{key:'plan_budget_coherence',title:'Plan–budget coherence',status:'met'|'review'|'missing',status_label:'Met'|'Missing'|'Needs review',score:int,summary:string,evidence:list<string>,blocking:bool,findings:list<CoherenceFinding>}
  */
 final class StrategicBudgetPlanBudgetCoherence
 {
@@ -231,8 +235,8 @@ final class StrategicBudgetPlanBudgetCoherence
      * The calculator owns financial normalisation. BP&B alone retains the
      * non-financial link back to a client-authored plan driver.
      *
-     * @param  array<int, array<string, mixed>>  $rows
-     * @return array<int, array<string, mixed>>
+     * @param  array<int, array<int|string, mixed>>  $rows
+     * @return array<int, array<int|string, mixed>>
      */
     public function normaliseRows(array $rows, BudgetCalculator $calculator): array
     {
@@ -255,7 +259,7 @@ final class StrategicBudgetPlanBudgetCoherence
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $sections
+     * @param  array<int, array<int|string, mixed>>  $sections
      * @param  array<int, array{key:string,title:string,prompt:string}>  $prompts
      * @param  list<string>  $sectionKeys
      * @return array<int, array{key:string,title:string,prompt:string,answer:string,financial_drivers:array<int, array{key:string,category:string,label:string,amount:float,quantity:float,month:int}>}>
@@ -284,12 +288,12 @@ final class StrategicBudgetPlanBudgetCoherence
     }
 
     /**
-     * @param  array<string, mixed>  $coherence
-     * @return array<string, mixed>
+     * @param  Coherence  $coherence
+     * @return CoherenceCriterion
      */
     public function criterion(array $coherence): array
     {
-        $status = (string) ($coherence['status'] ?? 'review');
+        $status = $coherence['status'];
         $safeStatus = in_array($status, ['met', 'review', 'missing'], true) ? $status : 'review';
 
         return [
@@ -301,15 +305,15 @@ final class StrategicBudgetPlanBudgetCoherence
                 'missing' => 'Missing',
                 default => 'Needs review',
             },
-            'score' => max(0, min(100, (int) ($coherence['score'] ?? 0))),
-            'summary' => (string) ($coherence['summary'] ?? 'Plan and budget links need review.'),
-            'evidence' => collect((array) ($coherence['evidence'] ?? []))
+            'score' => max(0, min(100, $coherence['score'])),
+            'summary' => $coherence['summary'],
+            'evidence' => collect($coherence['evidence'])
                 ->map(fn (string $item): string => trim($item))
                 ->filter()
                 ->values()
                 ->all(),
-            'blocking' => ! (bool) ($coherence['approval_available'] ?? false),
-            'findings' => (array) ($coherence['findings'] ?? []),
+            'blocking' => ! $coherence['approval_available'],
+            'findings' => $coherence['findings'],
         ];
     }
 
