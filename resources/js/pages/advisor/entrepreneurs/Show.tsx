@@ -47,6 +47,11 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { AssessmentProgressList } from './assessment-progress-list';
+import {
+    AdvisoryConversionAction,
+    FounderReadyBriefAction,
+    FounderReadyBriefBadge,
+} from './founder-ready-brief-controls';
 import type {
     EntrepreneurDetail,
     EntrepreneurDocument,
@@ -107,6 +112,7 @@ export default function EntrepreneursShow({
     const latestAssessment = entrepreneur.latest_plan?.latest_assessment;
     const executiveSummary = entrepreneur.latest_plan?.executive_summary;
     const funderReady = entrepreneur.latest_plan?.funder_ready;
+    const lenderBrief = entrepreneur.latest_plan?.lender_brief;
     const assessmentHistory =
         entrepreneur.latest_plan?.assessment_history ?? [];
     const latestRevision = entrepreneur.latest_plan?.latest_revision ?? null;
@@ -597,19 +603,9 @@ export default function EntrepreneursShow({
                                 </Link>
                             </Button>
                         ) : null}
-                        {entrepreneur.conversion.available ? (
-                            <Button
-                                type="button"
-                                size="sm"
-                                onClick={() =>
-                                    router.post(
-                                        entrepreneur.conversion.convert_url,
-                                    )
-                                }
-                            >
-                                Prepare Founding Advisory proposal
-                            </Button>
-                        ) : null}
+                        <AdvisoryConversionAction
+                            conversion={entrepreneur.conversion}
+                        />
                         <Button
                             type="button"
                             size="sm"
@@ -982,7 +978,7 @@ export default function EntrepreneursShow({
                                         )}
                                         title={
                                             finaliseReportReady
-                                                ? `Score meets the ${latestAssessment.threshold}/100 advisory-readiness threshold.`
+                                                ? `Score meets the ${latestAssessment.threshold}/100 advisory-readiness threshold. Finalising activates the advisory conversion request and automatically queues the approved executive summary for this assessed plan and budget.`
                                                 : 'Finalise the assessment report and record the advisor outcome.'
                                         }
                                         onClick={() =>
@@ -1017,19 +1013,16 @@ export default function EntrepreneursShow({
                                         automatic after a passing assessment.
                                     </span>
                                 ) : null}
+                                <FounderReadyBriefAction
+                                    lenderBrief={lenderBrief}
+                                />
                                 {funderReady ? (
                                     <Button
                                         asChild
                                         size="sm"
                                         variant="outline"
-                                        className={cn(
-                                            funderReady.ready &&
-                                                'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white',
-                                        )}
                                         title={
-                                            funderReady.ready
-                                                ? `Ready for lender review: ${funderReady.requirements_completed}/${funderReady.requirements_total} plan requirements and ${funderReady.evidence_count} evidence files.`
-                                                : funderReady.reasons.join(' ')
+                                            'Internal full-plan preview. It is not the lender decision brief.'
                                         }
                                     >
                                         <a
@@ -1041,7 +1034,7 @@ export default function EntrepreneursShow({
                                                 className="size-4"
                                                 aria-hidden="true"
                                             />
-                                            Generate funder-ready plan
+                                            View master plan preview
                                         </a>
                                     </Button>
                                 ) : null}
@@ -2254,17 +2247,20 @@ export default function EntrepreneursShow({
                                 {executiveSummary ? (
                                     <HoverBadge
                                         label={
-                                            executiveSummary.stale
-                                                ? 'Summary stale'
-                                                : executiveSummary.present
-                                                  ? 'Summary current'
-                                                  : 'Summary missing'
+                                            executiveSummary.usable
+                                                ? 'Summary current'
+                                                : executiveSummary.legacy_draft
+                                                  ? 'Summary draft ignored'
+                                                  : executiveSummary.stale
+                                                    ? 'Summary stale'
+                                                    : 'Summary pending'
                                         }
                                         variant={
-                                            executiveSummary.stale
-                                                ? 'destructive'
-                                                : executiveSummary.present
-                                                  ? 'secondary'
+                                            executiveSummary.usable
+                                                ? 'secondary'
+                                                : executiveSummary.legacy_draft ||
+                                                    executiveSummary.stale
+                                                  ? 'destructive'
                                                   : 'outline'
                                         }
                                         title="Executive summary"
@@ -2292,13 +2288,13 @@ export default function EntrepreneursShow({
                                 ) : null}
                                 {funderReady ? (
                                     <HoverBadge
-                                        label={funderReady.label}
+                                        label="Master plan preview"
                                         variant={
                                             funderReady.ready
                                                 ? 'secondary'
                                                 : 'destructive'
                                         }
-                                        title="Funder-ready plan"
+                                        title="Internal master plan"
                                         rows={[
                                             {
                                                 label: 'Plan requirements',
@@ -2316,6 +2312,9 @@ export default function EntrepreneursShow({
                                         ]}
                                     />
                                 ) : null}
+                                <FounderReadyBriefBadge
+                                    lenderBrief={lenderBrief}
+                                />
                                 <Button asChild size="sm" variant="outline">
                                     <a
                                         href={

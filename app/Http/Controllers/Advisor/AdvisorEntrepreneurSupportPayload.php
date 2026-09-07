@@ -15,17 +15,22 @@ use App\Models\MessageThreadParticipant;
 use App\Models\ReadinessAssessment;
 use App\Models\Report;
 use App\Models\User;
+use App\Services\Entrepreneurs\AdvisoryReadiness;
 
 /**
  * @phpstan-type ReadinessSummary array{completed:bool, score:float|int|null, outcome:string|null, assessed_at:string|null}
  * @phpstan-type AdvisoryReadinessSummary array{id:string, score:float|int|null, surfaced_at:string|null}
  * @phpstan-type ReportSummary array{id:string, title:string, generated_at:string|null, view_url:string, download_url:string}
- * @phpstan-type ConversionSummary array{available:bool, converted:bool, client_id:string|null, convert_url:string}
+ * @phpstan-type ConversionSummary array{available:bool, request_active:bool, activated_at:string|null, score:float|int|null, converted:bool, client_id:string|null, convert_url:string}
  * @phpstan-type DocumentSummary array{id:string, original_filename:string, category:string, scanner_result:string|null, scanner_message:mixed, uploaded_at:string|null, uploaded_by_name:string|null, url:string|null}
  * @phpstan-type MessageSummary array{threads_count:int, unread_count:int, latest_activity_at:string|null, url:string}
  */
 final class AdvisorEntrepreneurSupportPayload
 {
+    public function __construct(
+        private readonly AdvisoryReadiness $advisoryReadiness,
+    ) {}
+
     /** @return ReadinessSummary */
     public function readiness(EntrepreneurProfile $profile): array
     {
@@ -90,12 +95,14 @@ final class AdvisorEntrepreneurSupportPayload
     /** @return ConversionSummary */
     public function conversion(EntrepreneurProfile $profile, ?BusinessPlan $plan): array
     {
-        $signalExists = AdvisoryReadinessSignal::query()
-            ->where('entrepreneur_profile_id', $profile->getKey())
-            ->exists();
+        $signal = $this->advisoryReadiness->currentSignalForPlan($plan);
+        $requestActive = $signal instanceof AdvisoryReadinessSignal && ! $plan?->client_id;
 
         return [
-            'available' => $signalExists && ! $plan?->client_id,
+            'available' => $requestActive,
+            'request_active' => $requestActive,
+            'activated_at' => $signal?->surfaced_at?->toIso8601String(),
+            'score' => $signal?->score,
             'converted' => $plan?->client_id !== null,
             'client_id' => $plan?->client_id,
             'convert_url' => route('advisor.entrepreneurs.convert', $profile, absolute: false),

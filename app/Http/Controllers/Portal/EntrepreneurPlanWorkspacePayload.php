@@ -84,7 +84,6 @@ final class EntrepreneurPlanWorkspacePayload
                 'budgetFlagAcknowledge' => route('portal.entrepreneur.plan.budget.flags.acknowledge', absolute: false),
                 'budgetAdvisorNudgeDismiss' => route('portal.entrepreneur.plan.budget.advisor-nudge.dismiss', absolute: false),
                 'assistRequirement' => route('portal.entrepreneur.plan.requirements.assist', absolute: false),
-                'executiveSummary' => route('portal.entrepreneur.plan.executive-summary.store', absolute: false),
                 'preview' => route('portal.entrepreneur.plan.preview', absolute: false),
                 'submit' => route('portal.entrepreneur.plan.submit', absolute: false),
                 'documentUpload' => route('portal.documents.store', absolute: false),

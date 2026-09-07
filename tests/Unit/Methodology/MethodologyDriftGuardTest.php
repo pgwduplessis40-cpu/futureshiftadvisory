@@ -52,6 +52,7 @@ use App\Services\Entrepreneurs\ExecutiveSummaryEligibility;
 use App\Services\Entrepreneurs\ExternalIssueReview;
 use App\Services\Entrepreneurs\FounderChangeRequestMessage;
 use App\Services\Entrepreneurs\FoundingAdvisoryService;
+use App\Services\Entrepreneurs\FunderReadyBriefBuilder;
 use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
 use App\Services\Entrepreneurs\Guidance;
 use App\Services\Entrepreneurs\IdeaViabilityGate;
@@ -170,6 +171,7 @@ final class MethodologyDriftGuardTest extends TestCase
         ExternalIssueReview::class => 'External-issue document-quality gate; plan and budget methodologies are owned elsewhere.',
         FoundingAdvisoryService::class => 'Founding engagement and rolling-roadmap orchestration; it applies the finalised plan baseline and does not own a separate calculation methodology.',
         FounderChangeRequestMessage::class => 'Founder change-request message workflow.',
+        FunderReadyBriefBuilder::class => 'Funder-ready lender brief renderer; it composes approved plan, executive-summary, and Budget Pack outputs without owning a calculation methodology.',
         FunderReadyBusinessPlanBuilder::class => 'Funder-ready plan renderer; it maps existing plan, summary, evidence, and Budget Pack outputs without owning a calculation methodology.',
         Guidance::class => 'AI guidance workflow; formula-like predictive score is not exposed by the methodology surface yet.',
         IdeaViabilityGate::class => 'Advisor approval gate over the IdeaValidationService methodology, not a separate methodology.',

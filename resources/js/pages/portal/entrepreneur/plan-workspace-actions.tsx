@@ -15,6 +15,7 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { ExecutiveSummaryNotice } from './executive-summary-notice';
 import {
     BudgetEditor,
     requirementId,
@@ -718,11 +719,7 @@ export function PlanWorkspaceActions({
                                             <div className="flex flex-wrap gap-2">
                                                 {selectedRequirement.key ===
                                                 'executive-summary' ? (
-                                                    <span className="max-w-xs text-sm text-muted-foreground">
-                                                        Generated automatically
-                                                        after a passing
-                                                        assessment
-                                                    </span>
+                                                    <ExecutiveSummaryNotice />
                                                 ) : (
                                                     <Button
                                                         type="button"
