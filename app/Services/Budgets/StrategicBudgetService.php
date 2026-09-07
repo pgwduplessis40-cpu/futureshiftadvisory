@@ -63,6 +63,8 @@ final class StrategicBudgetService
         private readonly AuditWriter $audit,
         private readonly MessageThreadService $messages,
         private readonly StrategicBudgetPlanBudgetCoherence $planBudgetCoherence,
+        private readonly StrategicBudgetPlanBudgetReconciliation $planBudgetReconciliation,
+        private readonly StrategicBudgetAssessmentScorer $assessmentScorer,
     ) {}
 
     public function ensureForClient(Client $client, ?BusinessPlan $plan = null): StrategicBudget
@@ -267,6 +269,7 @@ final class StrategicBudgetService
 
         $budget = $this->recompute($budget);
         abort_unless((bool) data_get($this->planBudgetCoherence->evaluate($budget), 'approval_available'), 422);
+        abort_unless((bool) data_get($this->planBudgetReconciliation->evaluate($budget), 'approval_available'), 422);
         $budget->forceFill([
             'status' => StrategicBudget::STATUS_ADVISOR_APPROVED,
             'approved_at' => now(),
@@ -471,6 +474,7 @@ final class StrategicBudgetService
     public function advisorPayload(StrategicBudget $budget): array
     {
         $coherence = $this->planBudgetCoherence->evaluate($budget);
+        $reconciliation = $this->planBudgetReconciliation->evaluate($budget);
 
         return [
             ...$this->basePayload($budget),
@@ -481,6 +485,7 @@ final class StrategicBudgetService
                 && $this->reviewSubmittedOrLater($budget),
             'assessment_ready_for_approval' => $this->latestAssessmentForCurrentSubmission($budget)?->assessed_at !== null,
             'plan_budget_coherence_ready_for_approval' => (bool) $coherence['approval_available'],
+            'plan_budget_reconciliation_ready_for_approval' => (bool) $reconciliation['approval_available'],
             'assessment_action_label' => $this->reviewApprovedOrLater($budget)
                 ? 'Run reassessment'
                 : 'Run assessment',
@@ -676,6 +681,9 @@ final class StrategicBudgetService
         $computed = $this->computedForRead($budget);
         $confidence = (array) ($budget->confidence ?? []);
         $coherence = $this->planBudgetCoherence->evaluate($budget);
+        $reconciliation = $this->planBudgetReconciliation->evaluate($budget);
+        $criteria = $this->assessmentCriteria($budget, $computed, $confidence, $coherence, $reconciliation);
+        $scores = $this->assessmentScorer->scores($this->businessPlanReadiness($budget), $confidence, $criteria);
         $reviewApprovedOrLater = $this->reviewApprovedOrLater($budget);
         $reviewSubmittedOrLater = $this->reviewSubmittedOrLater($budget);
 
@@ -710,8 +718,9 @@ final class StrategicBudgetService
             'confidence' => $confidence,
             'analytics' => $this->analyticsPayload($budget),
             'plan_budget_coherence' => $coherence,
-            'assessment_criteria' => $this->assessmentCriteria($budget, $computed, $confidence, $coherence),
-            'readiness_score' => (int) data_get($confidence, 'score', 0),
+            'plan_budget_reconciliation' => $reconciliation,
+            'assessment_criteria' => $criteria,
+            'readiness_score' => $scores['readiness'],
             'progress_score' => (int) data_get($confidence, 'progress_score', 0),
             'submitted_at' => $budget->submitted_at?->toIso8601String(),
             'approved_at' => $budget->approved_at?->toIso8601String(),
@@ -1163,11 +1172,13 @@ final class StrategicBudgetService
      * @param  array<array-key, mixed>  $computed
      * @param  array<array-key, mixed>  $confidence
      * @param  array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<array{severity:string,message:string,next_action:string}>,approval_available:bool,approval_message:string,linked_driver_count:int,material_row_count:int,unresolved_count:int}|null  $coherence
+     * @param  array{status:'met'|'review'|'missing',status_label:string,score:int,summary:string,evidence:list<string>,findings:list<array{severity:'missing'|'review',message:string,next_action:string}>,approval_available:bool,approval_message:string,confirmed_plan_assumption_count:int,checked_budget_row_count:int,unresolved_count:int}|null  $reconciliation
      * @return array<int, array{key:string,title:string,status:string,status_label:string,score:int,summary:string,evidence:array<int, string>}>
      */
-    private function assessmentCriteria(StrategicBudget $budget, array $computed, array $confidence, ?array $coherence = null): array
+    private function assessmentCriteria(StrategicBudget $budget, array $computed, array $confidence, ?array $coherence = null, ?array $reconciliation = null): array
     {
         $coherence ??= $this->planBudgetCoherence->evaluate($budget);
+        $reconciliation ??= $this->planBudgetReconciliation->evaluate($budget);
         $sections = collect((array) ($budget->business_plan_sections ?? []))
             ->filter(fn (mixed $section): bool => is_array($section))
             ->keyBy(fn (array $section): string => (string) ($section['key'] ?? ''));
@@ -1385,6 +1396,7 @@ final class StrategicBudgetService
                 ],
             ),
             $this->planBudgetCoherence->criterion($coherence),
+            $this->planBudgetReconciliation->criterion($reconciliation),
         ];
     }
 
@@ -1442,7 +1454,7 @@ final class StrategicBudgetService
                 'status' => $status,
                 'snapshot' => $this->assessmentSnapshot($budget, $computed, $confidence, $criteria),
                 'assessment_criteria' => $criteria,
-                'scores' => $this->assessmentScores($budget, $confidence),
+                'scores' => $this->assessmentScorer->scores($this->businessPlanReadiness($budget), $confidence, $criteria),
                 'priorities' => [],
                 'submitted_at' => $budget->business_plan_submitted_at ?? $budget->submitted_at ?? now(),
                 'submitted_by_user_id' => $actor->getKey(),
@@ -1475,7 +1487,7 @@ final class StrategicBudgetService
             'status' => StrategicBudgetAssessment::STATUS_ASSESSED,
             'snapshot' => $this->assessmentSnapshot($budget, $computed, $confidence, $criteria),
             'assessment_criteria' => $criteria,
-            'scores' => $this->assessmentScores($budget, $confidence),
+            'scores' => $this->assessmentScorer->scores($this->businessPlanReadiness($budget), $confidence, $criteria),
             'priorities' => $priorities,
             'suggested_feedback' => $suggestedFeedback,
             'suggested_reply' => $suggestedReply,
@@ -1564,21 +1576,6 @@ final class StrategicBudgetService
             'assessment_criteria' => $criteria,
         ];
     }
-
-    /**
-     * @param  array<array-key, mixed>  $confidence
-     * @return array<string, int>
-     */
-    private function assessmentScores(StrategicBudget $budget, array $confidence): array
-    {
-        return [
-            'business_plan_readiness' => $this->businessPlanReadiness($budget),
-            'progress' => (int) data_get($confidence, 'progress_score', 0),
-            'readiness' => (int) data_get($confidence, 'score', 0),
-            'confidence' => (int) data_get($confidence, 'score', 0),
-        ];
-    }
-
     /**
      * @param  array<int, mixed>  $criteria
      * @return array<int, array<array-key, mixed>>
@@ -1632,6 +1629,7 @@ final class StrategicBudgetService
             'risk_action_readiness' => 'turn the DD risks and SWOT into first 100-day actions with clear priorities.',
             'advisor_funder_readiness' => 'make the plan reliable enough for advisor approval and funding conversations.',
             'plan_budget_coherence' => 'link each material plan financial driver to its budget row, then resolve any amount or timing differences.',
+            'plan_budget_reconciliation' => 'confirm the plan’s cadence, capacity, growth, opening cash and runway assumptions against the live budget.',
             default => 'add the missing evidence and plain-English explanation for this assessment item.',
         };
     }

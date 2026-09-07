@@ -30,6 +30,7 @@ import { planBudgetApprovalBlockedReason } from './service-workspaces-plan-budge
 import type {
     StrategicBudgetAssessmentCriterion,
     StrategicBudgetPlanBudgetCoherence,
+    StrategicBudgetPlanBudgetReconciliation,
 } from './service-workspaces-plan-budget-coherence';
 type AdvisorServiceTabKey =
     | 'overview'
@@ -296,6 +297,7 @@ type StrategicBudgetSummary = {
     analytics: StrategicBudgetAnalytics;
     assessment_criteria: StrategicBudgetAssessmentCriterion[];
     plan_budget_coherence: StrategicBudgetPlanBudgetCoherence;
+    plan_budget_reconciliation: StrategicBudgetPlanBudgetReconciliation;
     confidence: {
         score?: number;
         progress_score?: number;
@@ -313,6 +315,7 @@ type StrategicBudgetSummary = {
     can_run_assessment: boolean;
     assessment_ready_for_approval: boolean;
     plan_budget_coherence_ready_for_approval: boolean;
+    plan_budget_reconciliation_ready_for_approval: boolean;
     assessment_action_label: string;
     assessment_feedback: StrategicBudgetAssessmentFeedback;
     assessment_history: StrategicBudgetAssessmentHistoryRow[];
@@ -1180,6 +1183,7 @@ function BusinessPlanBudgetActionPanel({
         budget.review_submitted_or_later &&
         budget.assessment_ready_for_approval &&
         budget.plan_budget_coherence_ready_for_approval &&
+        budget.plan_budget_reconciliation_ready_for_approval &&
         !budget.review_approved_or_later;
     const actionStatus = budget.review_approved_or_later
         ? 'Approved'

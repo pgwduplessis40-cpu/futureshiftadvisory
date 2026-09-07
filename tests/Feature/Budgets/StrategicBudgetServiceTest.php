@@ -172,11 +172,16 @@ final class StrategicBudgetServiceTest extends TestCase
 
         $payload = app(StrategicBudgetService::class)->portalPayload($budget);
         $criterion = collect($payload['assessment_criteria'])->firstWhere('key', 'plan_budget_coherence');
+        $reconciliationCriterion = collect($payload['assessment_criteria'])->firstWhere('key', 'plan_budget_reconciliation');
 
         $this->assertSame('met', $payload['plan_budget_coherence']['status']);
+        $this->assertSame('missing', $payload['plan_budget_reconciliation']['status']);
         $this->assertNotNull($criterion);
         $this->assertSame('met', $criterion['status']);
         $this->assertFalse($criterion['blocking']);
+        $this->assertNotNull($reconciliationCriterion);
+        $this->assertSame('missing', $reconciliationCriterion['status']);
+        $this->assertTrue($reconciliationCriterion['blocking']);
     }
 
     public function test_post_acquisition_source_drafts_gather_onboarding_questionnaire_and_evidence_for_plan_sections(): void

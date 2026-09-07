@@ -9,7 +9,6 @@ import {
     FileSpreadsheet,
     FileText,
     Info,
-    Plus,
     Send,
     TrendingUp,
 } from 'lucide-react';
@@ -28,12 +27,16 @@ import {
 import { cn } from '@/lib/utils';
 import { LockedFinancialsPanel } from './strategic-plan-budget-financial-upload';
 import {
-    BudgetInput,
+    blankBudgetRow,
+    BudgetRowsEditor,
+} from './strategic-plan-budget-budget-rows';
+import {
     FinancialDriversEditor,
     PlanBudgetCoherencePanel,
 } from './strategic-plan-budget-plan-drivers';
 import type {
     PlanBudgetCoherence,
+    PlanBudgetReconciliation,
     PlanFinancialDriver,
     PlanFinancialDriverOption,
 } from './strategic-plan-budget-plan-drivers';
@@ -50,6 +53,13 @@ type BudgetRow = {
     quantity?: number | string;
     plan_financial_driver_key?: string;
     month?: number | string;
+    cadence?: 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'annual';
+    cadence_confirmed?: boolean;
+    growth_percent?: number | string;
+    growth_cadence?: 'monthly' | 'annual';
+    growth_cadence_confirmed?: boolean;
+    monthly_capacity_units?: number | string;
+    capacity_confirmed?: boolean;
     monthly_growth_percent?: number | string;
     variable_cost_percent?: number | string;
     unit_cost?: number | string;
@@ -155,6 +165,7 @@ type BudgetPayload = {
     };
     analytics: BudgetAnalytics;
     plan_budget_coherence: PlanBudgetCoherence;
+    plan_budget_reconciliation: PlanBudgetReconciliation;
     readiness_score: number;
     progress_score: number;
     submitted_at: string | null;
@@ -303,12 +314,6 @@ type PendingDraftSave = DraftSaveOptions & {
     sequence: number;
 };
 
-type BudgetGroupKey =
-    | 'implementation_costs'
-    | 'monthly_fixed_costs'
-    | 'revenue_forecast'
-    | 'funding_sources';
-
 export default function StrategicPlanBudget({
     client,
     budget,
@@ -363,20 +368,20 @@ export default function StrategicPlanBudget({
         implementation_costs:
             budget.implementation_costs.length > 0
                 ? budget.implementation_costs
-                : [blankRow()],
+                : [blankBudgetRow()],
         monthly_fixed_costs:
             budget.monthly_fixed_costs.length > 0
                 ? budget.monthly_fixed_costs
-                : [blankRow()],
+                : [blankBudgetRow()],
         future_costs: budget.future_costs,
         revenue_forecast:
             budget.revenue_forecast.length > 0
                 ? budget.revenue_forecast
-                : [blankRow(true)],
+                : [blankBudgetRow(true)],
         funding_sources:
             budget.funding_sources.length > 0
                 ? budget.funding_sources
-                : [blankRow()],
+                : [blankBudgetRow()],
         funding_scenarios: budget.funding_scenarios,
     });
     const planFinancialDrivers = useMemo<PlanFinancialDriverOption[]>(
@@ -910,6 +915,9 @@ export default function StrategicPlanBudget({
 
                             <PlanBudgetCoherencePanel
                                 coherence={budget.plan_budget_coherence}
+                                reconciliation={
+                                    budget.plan_budget_reconciliation
+                                }
                             />
 
                             {activeTab === 'business_plan' ? (
@@ -2161,184 +2169,6 @@ function AssumptionsEditor({
         </section>
     );
 }
-
-function BudgetRowsEditor({
-    highlighted,
-    title,
-    helper,
-    group,
-    rows,
-    planFinancialDrivers,
-    onRowsChange,
-    revenue = false,
-}: {
-    highlighted: boolean;
-    title: string;
-    helper: string;
-    group: BudgetGroupKey;
-    rows: BudgetRow[];
-    planFinancialDrivers: PlanFinancialDriverOption[];
-    onRowsChange: (rows: BudgetRow[]) => void;
-    revenue?: boolean;
-}) {
-    const update = (index: number, patch: Partial<BudgetRow>) => {
-        onRowsChange(
-            rows.map((row, current) =>
-                current === index ? { ...row, ...patch } : row,
-            ),
-        );
-    };
-    const compatibleDrivers = planFinancialDrivers.filter(
-        (driver) => driver.category === group,
-    );
-
-    return (
-        <section
-            id={`budget-section-${group}`}
-            className={cn(
-                'scroll-mt-24 space-y-3 rounded-md border bg-muted/20 p-3 transition-[background-color,box-shadow,border-color] duration-300',
-                highlighted &&
-                    'border-amber-400 bg-amber-50/70 ring-2 ring-amber-400/70',
-            )}
-            style={budgetTargetHighlightStyle(highlighted)}
-        >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h2 className="text-sm font-medium">{title}</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        {helper}
-                    </p>
-                </div>
-                <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onRowsChange([...rows, blankRow(revenue)])}
-                >
-                    <Plus className="size-4" aria-hidden="true" />
-                    Add
-                </Button>
-            </div>
-            <div className="space-y-2">
-                {rows.map((row, index) => (
-                    <div
-                        key={`${group}-${index}`}
-                        className={cn(
-                            'grid gap-2',
-                            revenue
-                                ? 'lg:grid-cols-[minmax(0,1fr)_repeat(6,minmax(72px,0.45fr))_minmax(160px,0.8fr)_120px]'
-                                : 'lg:grid-cols-[minmax(0,1fr)_repeat(2,minmax(80px,0.35fr))_minmax(160px,0.8fr)_120px]',
-                        )}
-                    >
-                        <BudgetInput
-                            label="Item"
-                            value={row.label ?? ''}
-                            onChange={(value) =>
-                                update(index, { label: value })
-                            }
-                        />
-                        <BudgetInput
-                            label="Amount"
-                            type="number"
-                            value={row.amount ?? ''}
-                            onChange={(value) =>
-                                update(index, { amount: value })
-                            }
-                        />
-                        <BudgetInput
-                            label="Qty"
-                            type="number"
-                            value={row.quantity ?? 1}
-                            onChange={(value) =>
-                                update(index, { quantity: value })
-                            }
-                        />
-                        {revenue ? (
-                            <>
-                                <BudgetInput
-                                    label="Start"
-                                    type="number"
-                                    value={row.month ?? 1}
-                                    onChange={(value) =>
-                                        update(index, { month: value })
-                                    }
-                                />
-                                <BudgetInput
-                                    label="Growth %"
-                                    type="number"
-                                    value={row.monthly_growth_percent ?? 0}
-                                    onChange={(value) =>
-                                        update(index, {
-                                            monthly_growth_percent: value,
-                                        })
-                                    }
-                                />
-                                <BudgetInput
-                                    label="GP %"
-                                    type="number"
-                                    value={row.gross_profit_percent ?? ''}
-                                    onChange={(value) =>
-                                        update(index, {
-                                            gross_profit_percent: value,
-                                        })
-                                    }
-                                />
-                                <BudgetInput
-                                    label="Unit cost"
-                                    type="number"
-                                    value={row.unit_cost ?? ''}
-                                    onChange={(value) =>
-                                        update(index, { unit_cost: value })
-                                    }
-                                />
-                            </>
-                        ) : null}
-                        <label className="grid gap-1 text-xs">
-                            <span>Plan link</span>
-                            <select
-                                value={row.plan_financial_driver_key ?? ''}
-                                onChange={(event) =>
-                                    update(index, {
-                                        plan_financial_driver_key:
-                                            event.target.value,
-                                    })
-                                }
-                                className="h-9 rounded-md border bg-background px-2 text-sm"
-                            >
-                                <option value="">Select plan commitment</option>
-                                {compatibleDrivers.map((driver) => (
-                                    <option key={driver.key} value={driver.key}>
-                                        {driver.section_title}: {driver.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <label className="grid gap-1 text-xs">
-                            <span>Confidence</span>
-                            <select
-                                value={row.confidence ?? 'estimate'}
-                                onChange={(event) =>
-                                    update(index, {
-                                        confidence: event.target.value as
-                                            | 'known'
-                                            | 'estimate'
-                                            | 'guess',
-                                    })
-                                }
-                                className="h-9 rounded-md border bg-background px-2 text-sm"
-                            >
-                                <option value="known">Known</option>
-                                <option value="estimate">Estimate</option>
-                                <option value="guess">Guess</option>
-                            </select>
-                        </label>
-                    </div>
-                ))}
-            </div>
-        </section>
-    );
-}
-
 function SummaryPanel({ budget }: { budget: BudgetPayload }) {
     const computed = budget.computed ?? {};
 
@@ -2560,26 +2390,6 @@ function barStyle(value: number, max: number): CSSProperties {
         width: value === 0 ? '0%' : `${Math.max(3, width)}%`,
     };
 }
-
-function blankRow(revenue = false): BudgetRow {
-    return revenue
-        ? {
-              label: '',
-              amount: '',
-              quantity: 1,
-              month: 1,
-              monthly_growth_percent: 0,
-              gross_profit_percent: '',
-              confidence: 'estimate',
-          }
-        : {
-              label: '',
-              amount: '',
-              quantity: 1,
-              confidence: 'estimate',
-          };
-}
-
 function formatCurrency(value: number): string {
     return new Intl.NumberFormat('en-NZ', {
         style: 'currency',
