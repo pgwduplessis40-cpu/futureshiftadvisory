@@ -37,6 +37,7 @@ import {
     PlanWorkspaceHistory,
     planChangesAreLocked,
 } from './plan-workspace-submission';
+import { ExecutiveSummaryNotice } from './executive-summary-notice';
 import type { PlanWorkspace } from './use-plan-workspace';
 
 export function PlanWorkspaceActions({
@@ -718,11 +719,7 @@ export function PlanWorkspaceActions({
                                             <div className="flex flex-wrap gap-2">
                                                 {selectedRequirement.key ===
                                                 'executive-summary' ? (
-                                                    <span className="max-w-xs text-sm text-muted-foreground">
-                                                        Generated after a
-                                                        passing final
-                                                        assessment.
-                                                    </span>
+                                                    <ExecutiveSummaryNotice />
                                                 ) : (
                                                     <Button
                                                         type="button"

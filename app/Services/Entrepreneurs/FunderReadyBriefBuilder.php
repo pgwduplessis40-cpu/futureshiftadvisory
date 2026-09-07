@@ -17,6 +17,10 @@ use Throwable;
  * A lender-facing brief deliberately bounded to the approved summary, a small
  * set of source highlights, and the decision-level financial position. The
  * comprehensive master plan remains available as a separate internal preview.
+ *
+ * @phpstan-type ExecutiveSummaryStatus array{usable:bool,context_hash:string|null}
+ * @phpstan-type FunderReadyBriefStatus array{active:bool,label:string,reasons:list<string>,executive_summary:ExecutiveSummaryStatus}
+ * @phpstan-type FunderReadyBriefDocument array{profile:EntrepreneurProfile,plan:BusinessPlan,status:FunderReadyBriefStatus,business_name:string|null,summary:string,summary_status:ExecutiveSummaryStatus,budget:mixed,highlights:list<array{title:string,body:string,evidence_count:int}>,snapshot:string,prepared_at:string}
  */
 final class FunderReadyBriefBuilder
 {
@@ -39,18 +43,25 @@ final class FunderReadyBriefBuilder
         private readonly EntrepreneurDocumentTemplate $templates,
     ) {}
 
-    /** @return array<string, mixed> */
+    /** @return FunderReadyBriefStatus */
     public function status(BusinessPlan $plan, EntrepreneurProfile $profile): array
     {
-        $summary = $this->executiveSummaries->status($plan, $profile);
+        $summary = $this->executiveSummaryStatus(
+            $this->executiveSummaries->status($plan, $profile),
+        );
         $readiness = $this->issueReadiness->evaluate($plan);
-        $reasons = array_values(array_unique(array_filter([
-            ! (bool) ($summary['usable'] ?? false)
-                ? 'Finalise a passing assessment to generate the approved executive summary.'
-                : null,
-            ...((array) ($readiness['reasons'] ?? [])),
-        ])));
-        $active = (bool) ($summary['usable'] ?? false)
+        $readinessReasons = collect((array) ($readiness['reasons'] ?? []))
+            ->filter(fn (mixed $reason): bool => is_string($reason) && trim($reason) !== '')
+            ->map(fn (mixed $reason): string => trim((string) $reason))
+            ->values()
+            ->all();
+        $reasons = array_values(array_unique([
+            ...(! $summary['usable']
+                ? ['Finalise a passing assessment to generate the approved executive summary.']
+                : []),
+            ...$readinessReasons,
+        ]));
+        $active = $summary['usable']
             && (bool) ($readiness['external_issue_ready'] ?? false);
 
         return [
@@ -83,13 +94,15 @@ final class FunderReadyBriefBuilder
     }
 
     /**
-     * @param  array<string, mixed>  $status
-     * @return array<string, mixed>
+     * @param  FunderReadyBriefStatus  $status
+     * @return FunderReadyBriefDocument
      */
     private function document(EntrepreneurProfile $profile, BusinessPlan $plan, array $status): array
     {
         $plan->loadMissing('sections', 'budgetRunway');
-        $summary = $this->executiveSummaries->status($plan, $profile);
+        $summary = $this->executiveSummaryStatus(
+            $this->executiveSummaries->status($plan, $profile),
+        );
         $section = $plan->sections->first(fn (PlanSection $candidate): bool => $candidate->key === BusinessPlanExecutiveSummary::SECTION_KEY);
         $budget = $this->budgetPack->payload($profile, $plan);
         $sourceBodies = $plan->sections->pluck('body')->filter(fn (mixed $body): bool => is_string($body) && trim($body) !== '')->all();
@@ -103,7 +116,7 @@ final class FunderReadyBriefBuilder
             'summary_status' => $summary,
             'budget' => $budget,
             'highlights' => $this->highlights($plan),
-            'snapshot' => substr((string) ($summary['context_hash'] ?? ''), 0, 12),
+            'snapshot' => substr((string) $summary['context_hash'], 0, 12),
             'prepared_at' => now()->format('M j, Y g:i A'),
         ];
     }
@@ -130,7 +143,7 @@ final class FunderReadyBriefBuilder
             ->all();
     }
 
-    /** @param array<string, mixed> $document */
+    /** @param FunderReadyBriefDocument $document */
     private function html(array $document): string
     {
         $profile = $document['profile'];
@@ -190,7 +203,7 @@ final class FunderReadyBriefBuilder
         );
     }
 
-    /** @param array<string, mixed> $document */
+    /** @param FunderReadyBriefDocument $document */
     private function fallback(array $document): string
     {
         $budget = (array) $document['budget'];
@@ -240,6 +253,21 @@ final class FunderReadyBriefBuilder
         $blocks[] = ['type' => 'paragraph', 'text' => 'Review the business case, documented source evidence, and linked Budget Pack as one reconciled lender package.'];
 
         return $this->fallbackPdf->renderStructured('Funder-Ready Brief', $blocks, 'Future Shift Advisory | Funder-Ready Brief');
+    }
+
+    /**
+     * @return ExecutiveSummaryStatus
+     */
+    private function executiveSummaryStatus(mixed $summary): array
+    {
+        $summary = is_array($summary) ? $summary : [];
+
+        return [
+            'usable' => (bool) ($summary['usable'] ?? false),
+            'context_hash' => is_string($summary['context_hash'] ?? null)
+                ? $summary['context_hash']
+                : null,
+        ];
     }
 
     private function excerpt(string $body, int $limit): string
