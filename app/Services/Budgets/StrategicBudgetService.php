@@ -507,7 +507,7 @@ final class StrategicBudgetService
                 && $this->businessPlanReady($budget)
                 && $this->reviewSubmittedOrLater($budget),
             'assessment_ready_for_approval' => $this->latestAssessmentForCurrentSubmission($budget)?->assessed_at !== null,
-            'plan_budget_coherence_ready_for_approval' => (bool) ($coherence['approval_available'] ?? false),
+            'plan_budget_coherence_ready_for_approval' => (bool) $coherence['approval_available'],
             'assessment_action_label' => $this->reviewApprovedOrLater($budget)
                 ? 'Run reassessment'
                 : 'Run assessment',

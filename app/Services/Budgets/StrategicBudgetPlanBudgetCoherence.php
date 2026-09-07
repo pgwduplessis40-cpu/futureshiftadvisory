@@ -60,7 +60,7 @@ final class StrategicBudgetPlanBudgetCoherence
             $rowsByCategory[$category] = $this->materialRows((array) ($budget->{$category} ?? []), $category);
         }
 
-        $materialRows = array_values(array_merge(...array_values($rowsByCategory)));
+        $materialRows = array_merge(...array_values($rowsByCategory));
         $findings = [];
         $linkedDriverCount = 0;
 
@@ -111,7 +111,7 @@ final class StrategicBudgetPlanBudgetCoherence
             }
 
             if ($driver['category'] === self::CATEGORY_REVENUE_FORECAST && count($linkedRows) === 1) {
-                $budgetMonth = (int) ($linkedRows[0]['month'] ?? 1);
+                $budgetMonth = (int) $linkedRows[0]['month'];
 
                 if ($budgetMonth !== $driver['month']) {
                     $findings[] = $this->finding(
@@ -288,7 +288,7 @@ final class StrategicBudgetPlanBudgetCoherence
             array_values($sections),
         );
 
-        return $drivers === [] ? [] : array_values(array_merge(...$drivers));
+        return $drivers === [] ? [] : array_merge(...$drivers);
     }
 
     /**
