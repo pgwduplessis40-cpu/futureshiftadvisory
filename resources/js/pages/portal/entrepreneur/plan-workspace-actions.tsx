@@ -15,6 +15,7 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { ExecutiveSummaryNotice } from './executive-summary-notice';
 import {
     BudgetEditor,
     requirementId,
@@ -37,7 +38,6 @@ import {
     PlanWorkspaceHistory,
     planChangesAreLocked,
 } from './plan-workspace-submission';
-import { ExecutiveSummaryNotice } from './executive-summary-notice';
 import type { PlanWorkspace } from './use-plan-workspace';
 
 export function PlanWorkspaceActions({
