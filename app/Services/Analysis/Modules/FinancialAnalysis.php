@@ -210,6 +210,7 @@ final class FinancialAnalysis implements AnalysisModule
     private function economicOverlay(): Collection
     {
         return EconomicIndicator::query()
+            ->verified()
             ->whereIn('indicator', [
                 EconomicIndicator::OCR,
                 EconomicIndicator::CPI_ANNUAL,

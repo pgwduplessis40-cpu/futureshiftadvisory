@@ -294,7 +294,7 @@ final class ScenarioPlannerTest extends TestCase
             'unit' => $unit,
             'period_date' => now()->toDateString(),
             'source' => 'fixture',
-            'source_badge' => 'fixture',
+            'source_badge' => 'manual_admin',
             'degraded' => false,
             'fetched_at' => now(),
             'payload' => ['fixture' => true],

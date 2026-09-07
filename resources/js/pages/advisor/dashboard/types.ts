@@ -280,6 +280,7 @@ export type EconomicIndicatorsPayload = {
         indicators: number;
         exchange_rates: number;
         change_alerts: number;
+        ocr_verification_required: boolean;
         latest_fetched_at: string | null;
     };
     indicators: Array<{

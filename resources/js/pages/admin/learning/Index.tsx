@@ -12,6 +12,7 @@ import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { DeliveryRollups } from './DeliveryRollups';
 import { LearningTabList } from './learning-tab-list';
 import type { LearningTab } from './learning-tab-list';
 import { Metric, PlainEnglishSummaryBlock, TableStat } from './LearningDisplay';
@@ -52,8 +53,14 @@ type LearningUpdateCard = {
         id: string;
         implemented_at: string | null;
         review_due: string | null;
+        review_outcome: string | null;
         rolled_back_at: string | null;
     }[];
+    delivery_rollup: {
+        key: string;
+        label: string;
+        surface: string | null;
+    };
     latest_decision: {
         decision: string;
         reason: string | null;
@@ -902,57 +909,13 @@ function PendingLearningRow({
 
 function ApprovedLearningTable({ cards }: { cards: LearningUpdateCard[] }) {
     return (
-        <section className="space-y-3">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-                <div>
-                    <h2 className="text-sm font-semibold">
-                        Approved learnings
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                        Rolled-up view of accepted learning changes and their
-                        implementation tracking.
-                    </p>
-                </div>
-                <Badge variant="secondary">{cards.length} rolled up</Badge>
-            </div>
-
-            {cards.length === 0 ? (
-                <p className="rounded-md border px-3 py-8 text-sm text-muted-foreground">
-                    No approved learnings are waiting for implementation
-                    tracking.
-                </p>
-            ) : (
-                <div className="overflow-hidden rounded-md border bg-background">
-                    <table className="fsa-responsive-table table-fixed md:table-auto">
-                        <thead className="bg-muted/60 text-left">
-                            <tr>
-                                <th className="w-[28%] px-3 py-2 font-medium">
-                                    Learning
-                                </th>
-                                <th className="w-[30%] px-3 py-2 font-medium">
-                                    Rollup
-                                </th>
-                                <th className="px-3 py-2 font-medium">Scope</th>
-                                <th className="px-3 py-2 font-medium">
-                                    Approval
-                                </th>
-                                <th className="px-3 py-2 font-medium">
-                                    Implementation
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {cards.map((card) => (
-                                <ApprovedLearningRow
-                                    key={card.id}
-                                    card={card}
-                                />
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+        <DeliveryRollups
+            cards={cards}
+            formatSurface={label}
+            renderRow={(card) => (
+                <ApprovedLearningRow key={card.id} card={card} />
             )}
-        </section>
+        />
     );
 }
 
@@ -962,7 +925,7 @@ function ApprovedLearningRow({ card }: { card: LearningUpdateCard }) {
             <td className="px-3 py-3" data-label="Learning">
                 <LearningIdentity card={card} />
             </td>
-            <td className="px-3 py-3" data-label="Rollup">
+            <td className="px-3 py-3" data-label="What we learnt">
                 <PlainEnglishSummaryBlock
                     summary={card.plain_english}
                     compact
@@ -1302,11 +1265,19 @@ function metadataSummary(record: Record<string, unknown> | null): string {
 }
 
 function firstRecord(value: unknown): Record<string, unknown> | null {
-    return Array.isArray(value)
-        ? ((value.find((item) => asRecord(item) !== null) as
-              | Record<string, unknown>
-              | undefined) ?? null)
-        : null;
+    if (!Array.isArray(value)) {
+        return null;
+    }
+
+    for (const item of value) {
+        const record = asRecord(item);
+
+        if (record !== null) {
+            return record;
+        }
+    }
+
+    return null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

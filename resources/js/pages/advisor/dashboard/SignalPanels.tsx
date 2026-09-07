@@ -27,6 +27,7 @@ import {
     formatSignedPercent,
     healthVariant,
 } from './formatters';
+import { OcrVerificationNotice } from './OcrVerificationNotice';
 import type {
     EconomicExposure,
     EconomicIndicatorItem,
@@ -309,6 +310,10 @@ export function EconomicIndicators({
                     </Badge>
                 </div>
             </div>
+
+            {payload.summary.ocr_verification_required && (
+                <OcrVerificationNotice />
+            )}
 
             {payload.indicators.length === 0 ? (
                 <p className="text-sm text-muted-foreground">

@@ -158,8 +158,6 @@
         <link rel="manifest" href="/manifest.webmanifest?v=fsa-20260703">
         <meta name="theme-color" content="#2f6f68">
 
-        @fonts
-
         @viteReactRefresh
         @vite(['resources/css/app.css', 'resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
         <x-inertia::head>

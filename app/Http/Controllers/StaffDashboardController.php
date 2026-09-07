@@ -2490,12 +2490,24 @@ final class StaffDashboardController extends Controller
             EconomicIndicator::LIVING_WAGE,
         ];
 
-        $indicators = EconomicIndicator::query()
+        $storedIndicators = EconomicIndicator::query()
             ->whereIn('indicator', $indicatorOrder)
             ->latest('fetched_at')
             ->limit(100)
-            ->get()
+            ->get();
+
+        $verifiedOcr = EconomicIndicator::query()
+            ->verified()
+            ->where('indicator', EconomicIndicator::OCR)
+            ->latest('period_date')
+            ->orderByRaw("case source_badge when 'live' then 0 when 'cached' then 1 else 2 end")
+            ->latest('fetched_at')
+            ->first();
+
+        $indicators = $storedIndicators
+            ->reject(fn (EconomicIndicator $indicator): bool => $indicator->indicator === EconomicIndicator::OCR)
             ->unique('indicator')
+            ->when($verifiedOcr instanceof EconomicIndicator, fn ($items) => $items->prepend($verifiedOcr))
             ->sortBy(function (EconomicIndicator $indicator) use ($indicatorOrder): int {
                 $position = array_search($indicator->indicator, $indicatorOrder, true);
 
@@ -2537,6 +2549,9 @@ final class StaffDashboardController extends Controller
                 'indicators' => $indicators->count(),
                 'exchange_rates' => $exchangeRates->count(),
                 'change_alerts' => $alerts->count(),
+                'ocr_verification_required' => $storedIndicators
+                    ->contains(fn (EconomicIndicator $indicator): bool => $indicator->indicator === EconomicIndicator::OCR)
+                    && ! ($verifiedOcr instanceof EconomicIndicator),
                 'latest_fetched_at' => $latestFetchedAt instanceof Carbon ? $latestFetchedAt->toIso8601String() : null,
             ],
             'indicators' => $indicators
@@ -2782,6 +2797,7 @@ final class StaffDashboardController extends Controller
                 'indicators' => 0,
                 'exchange_rates' => 0,
                 'change_alerts' => 0,
+                'ocr_verification_required' => false,
                 'latest_fetched_at' => null,
             ],
             'indicators' => [],

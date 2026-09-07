@@ -139,7 +139,7 @@ final class PvEngineTest extends TestCase
             'unit' => 'percent',
             'period_date' => $periodDate,
             'source' => 'rbnz',
-            'source_badge' => 'stub',
+            'source_badge' => 'manual_admin',
             'degraded' => false,
             'fetched_at' => now(),
             'payload' => ['series' => 'OCR'],

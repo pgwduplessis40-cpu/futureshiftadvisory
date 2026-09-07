@@ -34,6 +34,11 @@ return [
             'production_limit' => 1237,
             'contract_tests' => ['tests/Feature/Portal/PortalWorkspaceDraftTest.php'],
         ],
+        'app/Http/Controllers/StaffDashboardController.php' => [
+            'ceiling' => 2862,
+            'production_limit' => 3000,
+            'contract_tests' => ['tests/Feature/Integration/EconomicIndicatorsTest.php'],
+        ],
         'resources/js/pages/advisor/clients/Show.tsx' => [
             'ceiling' => 7780,
             'production_limit' => 1000,
@@ -43,6 +48,11 @@ return [
             'ceiling' => 376,
             'production_limit' => 1000,
             'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Advisor/DashboardTest.php'],
+        ],
+        'resources/js/pages/advisor/dashboard/SignalPanels.tsx' => [
+            'ceiling' => 1051,
+            'production_limit' => 1100,
+            'contract_tests' => ['tests/Feature/Integration/EconomicIndicatorsTest.php'],
         ],
         'resources/js/pages/portal/entrepreneur/Plan.tsx' => [
             'ceiling' => 5805,
@@ -65,6 +75,11 @@ return [
             'ceiling' => 2758,
             'production_limit' => 3000,
             'contract_tests' => ['tests/Feature/Budgets', 'tests/Unit/Entrepreneurs/BudgetCalculatorTest.php'],
+        ],
+        'app/Services/ServiceActivations/ServiceActivationManager.php' => [
+            'ceiling' => 1431,
+            'production_limit' => 1500,
+            'contract_tests' => ['tests/Feature/Admin/LearningUpdateApprovalTest.php'],
         ],
         'resources/js/pages/portal/StrategicPlanBudget.tsx' => [
             'ceiling' => 2616,
