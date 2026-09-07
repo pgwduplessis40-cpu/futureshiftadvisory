@@ -47,6 +47,11 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { AssessmentProgressList } from './assessment-progress-list';
+import {
+    AdvisoryConversionAction,
+    FounderReadyBriefAction,
+    FounderReadyBriefBadge,
+} from './founder-ready-brief-controls';
 import type {
     EntrepreneurDetail,
     EntrepreneurDocument,
@@ -598,31 +603,9 @@ export default function EntrepreneursShow({
                                 </Link>
                             </Button>
                         ) : null}
-                        {entrepreneur.conversion.request_active ? (
-                            <Badge
-                                variant="secondary"
-                                title="Activated from the current finalised, passing Business Plan & Budget assessment."
-                            >
-                                Advisory request active
-                            </Badge>
-                        ) : null}
-                        {entrepreneur.conversion.available ? (
-                            <Button
-                                type="button"
-                                size="sm"
-                                title="The finalised, passing assessment activated this conversion request. Creating the advisory client remains an explicit advisor decision."
-                                onClick={() =>
-                                    window.confirm(
-                                        'Create this entrepreneur as an advisory client now? This is the explicit conversion step after the activated request.',
-                                    ) &&
-                                    router.post(
-                                        entrepreneur.conversion.convert_url,
-                                    )
-                                }
-                            >
-                                Create advisory client
-                            </Button>
-                        ) : null}
+                        <AdvisoryConversionAction
+                            conversion={entrepreneur.conversion}
+                        />
                         <Button
                             type="button"
                             size="sm"
@@ -1030,44 +1013,9 @@ export default function EntrepreneursShow({
                                         automatic after a passing assessment.
                                     </span>
                                 ) : null}
-                                {lenderBrief ? (
-                                    lenderBrief.active ? (
-                                        <Button
-                                            asChild
-                                            size="sm"
-                                            className="bg-emerald-600 text-white hover:bg-emerald-700"
-                                            title="Compact lender decision brief: executive summary, financial position, selected highlights, and three-year outlook."
-                                        >
-                                            <a
-                                                href={lenderBrief.document_url}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                            >
-                                                <FileText
-                                                    className="size-4"
-                                                    aria-hidden="true"
-                                                />
-                                                Generate founder-ready brief
-                                            </a>
-                                        </Button>
-                                    ) : (
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            disabled
-                                            title={lenderBrief.reasons.join(
-                                                ' ',
-                                            )}
-                                        >
-                                            <FileText
-                                                className="size-4"
-                                                aria-hidden="true"
-                                            />
-                                            Founder-ready brief blocked
-                                        </Button>
-                                    )
-                                ) : null}
+                                <FounderReadyBriefAction
+                                    lenderBrief={lenderBrief}
+                                />
                                 {funderReady ? (
                                     <Button
                                         asChild
@@ -2364,30 +2312,9 @@ export default function EntrepreneursShow({
                                         ]}
                                     />
                                 ) : null}
-                                {lenderBrief ? (
-                                    <HoverBadge
-                                        label={lenderBrief.label}
-                                        variant={
-                                            lenderBrief.active
-                                                ? 'secondary'
-                                                : 'destructive'
-                                        }
-                                        title="Founder-ready lender brief"
-                                        rows={[
-                                            {
-                                                label: 'Release status',
-                                                value: lenderBrief.active
-                                                    ? 'Available'
-                                                    : 'Blocked',
-                                            },
-                                            {
-                                                label: 'Open controls',
-                                                value: lenderBrief.reasons
-                                                    .length,
-                                            },
-                                        ]}
-                                    />
-                                ) : null}
+                                <FounderReadyBriefBadge
+                                    lenderBrief={lenderBrief}
+                                />
                                 <Button asChild size="sm" variant="outline">
                                     <a
                                         href={

@@ -719,11 +719,9 @@ export function PlanWorkspaceActions({
                                                 {selectedRequirement.key ===
                                                 'executive-summary' ? (
                                                     <span className="max-w-xs text-sm text-muted-foreground">
-                                                        Generated automatically
-                                                        after the current plan
-                                                        and budget assessment is
-                                                        finalised with a passing
-                                                        score
+                                                        Generated after a
+                                                        passing final
+                                                        assessment.
                                                     </span>
                                                 ) : (
                                                     <Button
@@ -819,14 +817,6 @@ export function PlanWorkspaceActions({
                                                         }
                                                     </span>
                                                 ) : null}
-                                            </div>
-                                        ) : null}
-                                        {selectedRequirement.key ===
-                                        'executive-summary' ? (
-                                            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-                                                This section is locked so the
-                                                lender brief always matches the
-                                                assessed plan and budget.
                                             </div>
                                         ) : null}
                                         <label className="grid gap-1 text-sm">
