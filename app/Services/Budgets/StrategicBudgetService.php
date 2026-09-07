@@ -176,11 +176,11 @@ final class StrategicBudgetService
                     'horizon_months' => $this->horizonMonths($input['horizon_months'] ?? $budget->horizon_months),
                     'expected_runway_months' => $this->expectedRunway($input['expected_runway_months'] ?? null),
                     'assumptions' => (array) ($input['assumptions'] ?? []),
-                    'implementation_costs' => $this->normaliseRowsWithPlanDrivers((array) ($input['implementation_costs'] ?? [])),
-                    'monthly_fixed_costs' => $this->normaliseRowsWithPlanDrivers((array) ($input['monthly_fixed_costs'] ?? [])),
+                    'implementation_costs' => $this->planBudgetCoherence->normaliseRows((array) ($input['implementation_costs'] ?? []), $this->calculator),
+                    'monthly_fixed_costs' => $this->planBudgetCoherence->normaliseRows((array) ($input['monthly_fixed_costs'] ?? []), $this->calculator),
                     'future_costs' => $this->calculator->normaliseFutureCosts((array) ($input['future_costs'] ?? [])),
-                    'revenue_forecast' => $this->normaliseRowsWithPlanDrivers((array) ($input['revenue_forecast'] ?? [])),
-                    'funding_sources' => $this->normaliseRowsWithPlanDrivers((array) ($input['funding_sources'] ?? [])),
+                    'revenue_forecast' => $this->planBudgetCoherence->normaliseRows((array) ($input['revenue_forecast'] ?? []), $this->calculator),
+                    'funding_sources' => $this->planBudgetCoherence->normaliseRows((array) ($input['funding_sources'] ?? []), $this->calculator),
                     'funding_scenarios' => $this->calculator->normaliseFundingScenarios((array) ($input['funding_scenarios'] ?? [])),
                 ];
             }
@@ -201,33 +201,6 @@ final class StrategicBudgetService
 
             return $budget->refresh();
         });
-    }
-
-    /**
-     * The calculator owns the financial normalisation. BP&B alone retains the
-     * non-financial link back to a client-authored plan driver.
-     *
-     * @param  array<int, array<string, mixed>>  $rows
-     * @return array<int, array<string, mixed>>
-     */
-    private function normaliseRowsWithPlanDrivers(array $rows): array
-    {
-        return collect($rows)
-            ->map(function (array $row): ?array {
-                $normalised = $this->calculator->normaliseRows([$row]);
-
-                if ($normalised === []) {
-                    return null;
-                }
-
-                return [
-                    ...$normalised[0],
-                    'plan_financial_driver_key' => trim((string) ($row['plan_financial_driver_key'] ?? '')),
-                ];
-            })
-            ->filter()
-            ->values()
-            ->all();
     }
 
     private function lockForMutation(StrategicBudget $budget, int $expectedRevision): StrategicBudget
@@ -1411,27 +1384,7 @@ final class StrategicBudgetService
                     $hasFinancials ? 'Financial evidence is available.' : 'Financial evidence is not yet available.',
                 ],
             ),
-            $this->planBudgetCoherenceCriterion($coherence),
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $coherence
-     * @return array<string, mixed>
-     */
-    private function planBudgetCoherenceCriterion(array $coherence): array
-    {
-        return [
-            ...$this->criterion(
-                'plan_budget_coherence',
-                'Plan–budget coherence',
-                (string) ($coherence['status'] ?? 'review'),
-                (int) ($coherence['score'] ?? 0),
-                (string) ($coherence['summary'] ?? 'Plan and budget links need review.'),
-                (array) ($coherence['evidence'] ?? []),
-            ),
-            'blocking' => ! (bool) ($coherence['approval_available'] ?? false),
-            'findings' => (array) ($coherence['findings'] ?? []),
+            $this->planBudgetCoherence->criterion($coherence),
         ];
     }
 
@@ -2082,49 +2035,11 @@ final class StrategicBudgetService
      */
     private function normaliseBusinessPlanSections(array $sections, string $pathway): array
     {
-        $byKey = collect($sections)
-            ->keyBy(fn (array $section): string => (string) ($section['key'] ?? ''));
-        $prompts = collect($this->businessPlanPrompts($pathway))->keyBy('key');
-
-        return collect(self::PLAN_SECTION_KEYS)
-            ->map(function (string $key) use ($byKey, $prompts): array {
-                $prompt = (array) ($prompts->get($key) ?? []);
-                $section = (array) ($byKey->get($key) ?? []);
-                $financialDrivers = collect((array) ($section['financial_drivers'] ?? []))
-                    ->filter(fn (mixed $driver): bool => is_array($driver))
-                    ->map(function (array $driver): array {
-                        $category = (string) ($driver['category'] ?? '');
-                        $label = trim((string) ($driver['label'] ?? ''));
-                        $amount = max(0.0, (float) ($driver['amount'] ?? 0));
-
-                        return [
-                            'key' => trim((string) ($driver['key'] ?? '')) ?: 'driver_'.Str::uuid(),
-                            'category' => in_array($category, [
-                                StrategicBudgetPlanBudgetCoherence::CATEGORY_IMPLEMENTATION_COSTS,
-                                StrategicBudgetPlanBudgetCoherence::CATEGORY_MONTHLY_FIXED_COSTS,
-                                StrategicBudgetPlanBudgetCoherence::CATEGORY_REVENUE_FORECAST,
-                                StrategicBudgetPlanBudgetCoherence::CATEGORY_FUNDING_SOURCES,
-                            ], true) ? $category : StrategicBudgetPlanBudgetCoherence::CATEGORY_REVENUE_FORECAST,
-                            'label' => $label,
-                            'amount' => round($amount, 2),
-                            'quantity' => round(max(1.0, (float) ($driver['quantity'] ?? 1)), 2),
-                            'month' => min(36, max(1, (int) ($driver['month'] ?? 1))),
-                        ];
-                    })
-                    ->filter(fn (array $driver): bool => $driver['label'] !== '' && $driver['amount'] > 0)
-                    ->values()
-                    ->all();
-
-                return [
-                    'key' => $key,
-                    'title' => (string) ($prompt['title'] ?? str($key)->replace('_', ' ')->title()->toString()),
-                    'prompt' => (string) ($prompt['prompt'] ?? ''),
-                    'answer' => trim((string) ($section['answer'] ?? $section['body'] ?? '')),
-                    'financial_drivers' => $financialDrivers,
-                ];
-            })
-            ->values()
-            ->all();
+        return $this->planBudgetCoherence->normaliseBusinessPlanSections(
+            $sections,
+            $this->businessPlanPrompts($pathway),
+            self::PLAN_SECTION_KEYS,
+        );
     }
 
     /**

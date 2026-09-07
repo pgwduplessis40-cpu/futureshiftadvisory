@@ -26,6 +26,11 @@ import {
 } from '@/components/ui/tooltip';
 import { formatNzdCurrency, formatNzDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import { planBudgetApprovalBlockedReason } from './service-workspaces-plan-budget-coherence';
+import type {
+    StrategicBudgetAssessmentCriterion,
+    StrategicBudgetPlanBudgetCoherence,
+} from './service-workspaces-plan-budget-coherence';
 type AdvisorServiceTabKey =
     | 'overview'
     | 'due_diligence'
@@ -207,32 +212,6 @@ type StrategicBudgetAnalytics = {
             reason?: string;
         }>;
     };
-};
-
-type StrategicBudgetAssessmentCriterion = {
-    key: string;
-    title: string;
-    status: 'met' | 'review' | 'missing';
-    status_label: string;
-    score: number;
-    summary: string;
-    evidence: string[];
-    blocking?: boolean;
-    findings?: Array<{
-        severity: string;
-        message: string;
-        next_action: string;
-    }>;
-};
-
-type StrategicBudgetPlanBudgetCoherence = {
-    status: 'met' | 'review' | 'missing';
-    status_label: string;
-    score: number;
-    summary: string;
-    approval_available: boolean;
-    approval_message: string;
-    unresolved_count: number;
 };
 
 type StrategicBudgetAssessmentPriority = {
@@ -1214,19 +1193,7 @@ function BusinessPlanBudgetActionPanel({
           : !budget.review_submitted_or_later
             ? 'Waiting for the client to submit BP&B for advisor review.'
             : 'Assessment can be refreshed from the latest plan, DD context, evidence, and budget assumptions.';
-    const approveBlockedReason = budget.review_approved_or_later
-        ? 'The BP&B assessment is already approved.'
-        : !budget.review_submitted_or_later
-          ? 'Approval unlocks after the client submits BP&B for advisor review.'
-          : !budget.business_plan_ready
-            ? 'Approval unlocks after every BP&B section is complete.'
-            : budget.locked
-              ? 'Approval unlocks after verified financial evidence is available.'
-              : !budget.assessment_ready_for_approval
-                ? 'Approval unlocks after the BP&B assessment has been run.'
-                : !budget.plan_budget_coherence_ready_for_approval
-                  ? budget.plan_budget_coherence.approval_message
-                  : 'Approve only after the assessment has been reviewed.';
+    const approveBlockedReason = planBudgetApprovalBlockedReason(budget);
     const feedbackStatus = budget.assessment_feedback.sent_at
         ? 'Sent to client'
         : budget.assessment_feedback.saved_at

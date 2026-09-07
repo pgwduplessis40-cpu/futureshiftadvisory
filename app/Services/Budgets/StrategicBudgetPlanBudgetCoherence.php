@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Budgets;
 
 use App\Models\StrategicBudget;
+use App\Services\Entrepreneurs\BudgetCalculator;
+use Illuminate\Support\Str;
 
 /**
  * Checks the deliberate links between the client-owned plan commitments and
@@ -223,6 +225,119 @@ final class StrategicBudgetPlanBudgetCoherence
             'material_row_count' => count($materialRows),
             'unresolved_count' => $unresolvedCount,
         ];
+    }
+
+    /**
+     * The calculator owns financial normalisation. BP&B alone retains the
+     * non-financial link back to a client-authored plan driver.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<int, array<string, mixed>>
+     */
+    public function normaliseRows(array $rows, BudgetCalculator $calculator): array
+    {
+        return collect($rows)
+            ->map(function (array $row) use ($calculator): ?array {
+                $normalised = $calculator->normaliseRows([$row]);
+
+                if ($normalised === []) {
+                    return null;
+                }
+
+                return [
+                    ...$normalised[0],
+                    'plan_financial_driver_key' => trim((string) ($row['plan_financial_driver_key'] ?? '')),
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $sections
+     * @param  array<int, array{key:string,title:string,prompt:string}>  $prompts
+     * @param  list<string>  $sectionKeys
+     * @return array<int, array{key:string,title:string,prompt:string,answer:string,financial_drivers:array<int, array{key:string,category:string,label:string,amount:float,quantity:float,month:int}>}>
+     */
+    public function normaliseBusinessPlanSections(array $sections, array $prompts, array $sectionKeys): array
+    {
+        $byKey = collect($sections)
+            ->keyBy(fn (array $section): string => (string) ($section['key'] ?? ''));
+        $promptsByKey = collect($prompts)->keyBy('key');
+
+        return collect($sectionKeys)
+            ->map(function (string $key) use ($byKey, $promptsByKey): array {
+                $prompt = (array) ($promptsByKey->get($key) ?? []);
+                $section = (array) ($byKey->get($key) ?? []);
+
+                return [
+                    'key' => $key,
+                    'title' => (string) ($prompt['title'] ?? str($key)->replace('_', ' ')->title()->toString()),
+                    'prompt' => (string) ($prompt['prompt'] ?? ''),
+                    'answer' => trim((string) ($section['answer'] ?? $section['body'] ?? '')),
+                    'financial_drivers' => $this->normaliseDrivers((array) ($section['financial_drivers'] ?? [])),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $coherence
+     * @return array<string, mixed>
+     */
+    public function criterion(array $coherence): array
+    {
+        $status = (string) ($coherence['status'] ?? 'review');
+        $safeStatus = in_array($status, ['met', 'review', 'missing'], true) ? $status : 'review';
+
+        return [
+            'key' => 'plan_budget_coherence',
+            'title' => 'Plan–budget coherence',
+            'status' => $safeStatus,
+            'status_label' => match ($safeStatus) {
+                'met' => 'Met',
+                'missing' => 'Missing',
+                default => 'Needs review',
+            },
+            'score' => max(0, min(100, (int) ($coherence['score'] ?? 0))),
+            'summary' => (string) ($coherence['summary'] ?? 'Plan and budget links need review.'),
+            'evidence' => collect((array) ($coherence['evidence'] ?? []))
+                ->map(fn (string $item): string => trim($item))
+                ->filter()
+                ->values()
+                ->all(),
+            'blocking' => ! (bool) ($coherence['approval_available'] ?? false),
+            'findings' => (array) ($coherence['findings'] ?? []),
+        ];
+    }
+
+    /**
+     * @param  array<int, mixed>  $drivers
+     * @return array<int, array{key:string,category:string,label:string,amount:float,quantity:float,month:int}>
+     */
+    private function normaliseDrivers(array $drivers): array
+    {
+        return collect($drivers)
+            ->filter(fn (mixed $driver): bool => is_array($driver))
+            ->map(function (array $driver): array {
+                $category = (string) ($driver['category'] ?? '');
+                $label = trim((string) ($driver['label'] ?? ''));
+                $amount = max(0.0, (float) ($driver['amount'] ?? 0));
+
+                return [
+                    'key' => trim((string) ($driver['key'] ?? '')) ?: 'driver_'.Str::uuid(),
+                    'category' => in_array($category, self::CATEGORIES, true) ? $category : self::CATEGORY_REVENUE_FORECAST,
+                    'label' => $label,
+                    'amount' => round($amount, 2),
+                    'quantity' => round(max(1.0, (float) ($driver['quantity'] ?? 1)), 2),
+                    'month' => min(36, max(1, (int) ($driver['month'] ?? 1))),
+                ];
+            })
+            ->filter(fn (array $driver): bool => $driver['label'] !== '' && $driver['amount'] > 0)
+            ->values()
+            ->all();
     }
 
     /**
