@@ -41,6 +41,7 @@ export const emptyEconomicIndicators: EconomicIndicatorsPayload = {
         indicators: 0,
         exchange_rates: 0,
         change_alerts: 0,
+        ocr_verification_required: false,
         latest_fetched_at: null,
     },
     indicators: [],

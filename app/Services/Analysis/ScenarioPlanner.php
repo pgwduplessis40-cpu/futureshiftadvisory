@@ -246,6 +246,7 @@ final class ScenarioPlanner
         ];
 
         $indicators = EconomicIndicator::query()
+            ->verified()
             ->whereIn('indicator', $indicatorOrder)
             ->latest('period_date')
             ->latest('fetched_at')

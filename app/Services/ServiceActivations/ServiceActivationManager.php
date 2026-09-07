@@ -1394,6 +1394,8 @@ final class ServiceActivationManager
                 'service_activation_id' => $activation->getKey(),
                 'event' => $event,
                 'service_type' => $activation->service_type,
+                'rollup_key' => 'service_activation:review_service_activation_flow:client_portal_workspace_activation',
+                'rollup_label' => 'Client portal workspace activation',
             ],
             'summary' => 'Service activation learning signal captured for '.$activation->clientLabel().' at '.$event.'.',
             'proposed_change' => [

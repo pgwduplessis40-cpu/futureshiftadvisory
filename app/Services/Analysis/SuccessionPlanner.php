@@ -265,7 +265,7 @@ final class SuccessionPlanner
             return DiscountMethod::from($method);
         }
 
-        return EconomicIndicator::query()->where('indicator', EconomicIndicator::OCR)->exists()
+        return EconomicIndicator::query()->verified()->where('indicator', EconomicIndicator::OCR)->exists()
             ? DiscountMethod::OcrLinked
             : DiscountMethod::AdvisorConfigured;
     }

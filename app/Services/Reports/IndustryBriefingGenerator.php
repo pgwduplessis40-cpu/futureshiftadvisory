@@ -92,6 +92,7 @@ final class IndustryBriefingGenerator
     private function nzSources(): Collection
     {
         return EconomicIndicator::query()
+            ->verified()
             ->whereIn('indicator', [
                 EconomicIndicator::OCR,
                 EconomicIndicator::CPI_ANNUAL,

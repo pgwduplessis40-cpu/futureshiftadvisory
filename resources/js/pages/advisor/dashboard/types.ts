@@ -15,9 +15,7 @@ export type EngagementScoreKey =
 
 export type EngagementScore = {
     scoring_mode:
-        | 'standard_advisory'
-        | 'entrepreneur_validation'
-        | 'entrepreneur_plan';
+        'standard_advisory' | 'entrepreneur_validation' | 'entrepreneur_plan';
     level: HealthLevel;
     score: number;
     scores: {
@@ -280,6 +278,7 @@ export type EconomicIndicatorsPayload = {
         indicators: number;
         exchange_rates: number;
         change_alerts: number;
+        ocr_verification_required: boolean;
         latest_fetched_at: string | null;
     };
     indicators: Array<{

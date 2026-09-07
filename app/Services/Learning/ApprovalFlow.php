@@ -15,6 +15,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -49,6 +50,7 @@ final class ApprovalFlow
                 LearningUpdate::STATUS_STAGED,
                 LearningUpdate::STATUS_DEFERRED,
                 LearningUpdate::STATUS_APPROVED,
+                LearningUpdate::STATUS_IMPLEMENTED,
                 LearningUpdate::STATUS_ROLLED_BACK,
             ])
             ->orderByRaw("case status when 'detected' then 0 when 'staged' then 1 when 'deferred' then 2 else 3 end")
@@ -480,10 +482,12 @@ final class ApprovalFlow
                     'id' => $implementation->id,
                     'implemented_at' => $implementation->implemented_at?->toIso8601String(),
                     'review_due' => $implementation->review_due?->toIso8601String(),
+                    'review_outcome' => $implementation->review_outcome,
                     'rolled_back_at' => $implementation->rolled_back_at?->toIso8601String(),
                 ])
                 ->values()
                 ->all(),
+            'delivery_rollup' => $this->deliveryRollup($update),
             'latest_decision' => $decisions->first() instanceof LearningUpdateDecision
                 ? [
                     'decision' => $decisions->first()->decision,
@@ -491,6 +495,33 @@ final class ApprovalFlow
                     'decided_at' => $decisions->first()->decided_at?->toIso8601String(),
                 ]
                 : null,
+        ];
+    }
+
+    /**
+     * @return array{key:string, label:string, surface:?string}
+     */
+    private function deliveryRollup(LearningUpdate $update): array
+    {
+        $source = $update->source ?? [];
+        $proposedChange = $update->proposed_change ?? [];
+        $impactScope = $update->impact_scope ?? [];
+        $sourceType = trim((string) data_get($source, 'type', 'learning_update'));
+        $action = trim((string) data_get($proposedChange, 'action', 'review'));
+        $surface = trim((string) (data_get($impactScope, 'surface') ?? data_get($impactScope, 'module', '')));
+        $configuredKey = trim((string) data_get($source, 'rollup_key', ''));
+        $configuredLabel = trim((string) data_get($source, 'rollup_label', ''));
+
+        return [
+            // New producers may nominate a stable key. The legacy fallback uses
+            // exact machine fields only; it never groups based on similar prose.
+            'key' => $configuredKey !== ''
+                ? $configuredKey
+                : implode(':', array_filter([$sourceType, $action, $surface])),
+            'label' => $configuredLabel !== ''
+                ? $configuredLabel
+                : Str::headline($surface !== '' ? $surface : $sourceType),
+            'surface' => $surface !== '' ? $surface : null,
         ];
     }
 

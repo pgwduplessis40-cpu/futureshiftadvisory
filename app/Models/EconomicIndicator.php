@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
@@ -34,4 +35,20 @@ final class EconomicIndicator extends Model
         'fetched_at' => 'datetime',
         'payload' => 'array',
     ];
+
+    /**
+     * Restrict a query to values that are safe to present as current reference data.
+     *
+     * Fixture and degraded fallback rows remain stored for diagnostics, but must not
+     * influence client-facing financial guidance or an OCR-linked calculation.
+     *
+     * @param  Builder<EconomicIndicator>  $query
+     * @return Builder<EconomicIndicator>
+     */
+    public function scopeVerified(Builder $query): Builder
+    {
+        return $query
+            ->where('degraded', false)
+            ->whereIn('source_badge', ['live', 'cached', 'manual_admin']);
+    }
 }
