@@ -20,6 +20,7 @@ export function PlanWorkspaceLayout(workspace: PlanWorkspace) {
         activeTab,
         setActiveTab,
         companyNameForm,
+        companyNameAutosaveState,
         includesPlanBudget,
         requestGamificationDisablement,
     } = workspace;
@@ -42,18 +43,7 @@ export function PlanWorkspaceLayout(workspace: PlanWorkspace) {
                             )}
                         </div>
                         {includesPlanBudget ? (
-                            <form
-                                className="mt-3 flex max-w-xl flex-col gap-2 sm:flex-row sm:items-end"
-                                onSubmit={(event) => {
-                                    event.preventDefault();
-                                    companyNameForm.post(
-                                        urls.companyNameUpdate,
-                                        {
-                                            preserveScroll: true,
-                                        },
-                                    );
-                                }}
-                            >
+                            <div className="mt-3 flex max-w-xl flex-col gap-2 sm:flex-row sm:items-end">
                                 <label className="grid flex-1 gap-1 text-xs font-medium text-muted-foreground">
                                     Company / proposed company name
                                     <input
@@ -70,14 +60,19 @@ export function PlanWorkspaceLayout(workspace: PlanWorkspace) {
                                         placeholder="e.g. Harbour Studio Limited"
                                     />
                                 </label>
-                                <Button
-                                    type="submit"
-                                    size="sm"
-                                    disabled={companyNameForm.processing}
+                                <span
+                                    className="pb-2 text-xs text-muted-foreground"
+                                    role="status"
                                 >
-                                    Save name
-                                </Button>
-                            </form>
+                                    {companyNameAutosaveState === 'saving'
+                                        ? 'Saving…'
+                                        : companyNameAutosaveState === 'saved'
+                                          ? 'Saved automatically'
+                                          : companyNameAutosaveState === 'error'
+                                            ? 'Could not save yet'
+                                            : 'Saves automatically'}
+                                </span>
+                            </div>
                         ) : null}
                     </div>
                     <div className="flex flex-wrap gap-2">

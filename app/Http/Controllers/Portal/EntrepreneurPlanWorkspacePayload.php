@@ -74,6 +74,7 @@ final class EntrepreneurPlanWorkspacePayload
                 'dashboard' => route('portal.entrepreneur.dashboard', absolute: false),
                 'readiness' => route('portal.entrepreneur.readiness.store', absolute: false),
                 'ideaValidation' => route('portal.entrepreneur.idea-validation.store', absolute: false),
+                'ideaValidationDraft' => route('portal.drafts.show', ['draftKey' => 'entrepreneur-idea:'.$profile->getKey()], absolute: false),
                 'recallIdeaValidation' => route('portal.entrepreneur.idea-validation.recall', absolute: false),
                 'startPlan' => route('portal.entrepreneur.plan.start', absolute: false),
                 'companyNameUpdate' => route('portal.entrepreneur.plan.company-name.update', absolute: false),

@@ -151,6 +151,7 @@ final class PlanBuilderTest extends TestCase
                 ->component('portal/entrepreneur/Plan')
                 ->has('planTemplate')
                 ->has('urls')
+                ->where('urls.ideaValidationDraft', route('portal.drafts.show', ['draftKey' => 'entrepreneur-idea:'.$profile->getKey()], absolute: false))
                 ->has('portalScreenShare.portal_context_token')
                 ->where('portalScreenShare.connection_url', route('portal.entrepreneur-screen-share.connections.store', absolute: false))
                 ->where('planTemplate.3.title', 'Legal & Operations')
@@ -179,6 +180,21 @@ final class PlanBuilderTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('profile.company_name', 'Harbour Studio Limited')
             );
+    }
+
+    public function test_entrepreneur_company_name_can_be_saved_automatically_as_json(): void
+    {
+        [, $profile] = $this->profile('company-name-autosave-founder@example.test');
+        $entrepreneur = $profile->user()->firstOrFail();
+
+        $this->actingAsMfa($entrepreneur)
+            ->postJson(route('portal.entrepreneur.plan.company-name.update'), [
+                'company_name' => 'Harbour Studio Limited',
+            ])
+            ->assertOk()
+            ->assertJsonPath('company_name', 'Harbour Studio Limited');
+
+        $this->assertSame('Harbour Studio Limited', $profile->refresh()->company_name);
     }
 
     public function test_jump_ahead_dependency_warning_is_stored_on_section_metadata(): void

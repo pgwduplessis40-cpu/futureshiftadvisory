@@ -1,6 +1,8 @@
 import { router, useForm } from '@inertiajs/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
+import { useAutoSavedForm } from '@/hooks/use-auto-saved-form';
+import { usePersistedWorkspaceDraft } from '@/hooks/use-persisted-workspace-draft';
 import {
     BUDGET_ASSUMPTIONS_REQUIREMENT_KEY,
     BUDGET_UNLOCK_REQUIREMENT_KEY,
@@ -42,6 +44,11 @@ export function usePlanWorkspace({
     const [activeTab, setActiveTab] = useState<Tab>('actions');
     const companyNameForm = useForm({
         company_name: profile.company_name ?? '',
+    });
+    const companyNameAutosaveState = useAutoSavedForm({
+        url: urls.companyNameUpdate,
+        data: companyNameForm.data,
+        enabled: packageAccess.includes_plan_budget,
     });
     const ideaForm = useForm<IdeaValidationForm>({
         problem: ideaValidation?.problem ?? '',
@@ -160,6 +167,13 @@ export function usePlanWorkspace({
         ideaChangesRequested ||
         ideaValidationRecalled ||
         (ideaValidationApproved && showValidatedIdeaForm);
+    const ideaDraftState = usePersistedWorkspaceDraft({
+        url: urls.ideaValidationDraft,
+        data: ideaForm.data,
+        hydrate: (payload) =>
+            ideaForm.setData({ ...ideaForm.data, ...payload }),
+        enabled: includesIdeaValidation && showIdeaValidationEditor,
+    });
     const ideaValidationSummary = ideaFields.map((field) => ({
         label: field.label,
         value: ideaValidation?.[field.key as keyof IdeaValidationForm] ?? '-',
@@ -857,7 +871,9 @@ export function usePlanWorkspace({
         activeTab,
         setActiveTab,
         companyNameForm,
+        companyNameAutosaveState,
         ideaForm,
+        ideaDraftState,
         showValidatedIdeaForm,
         setShowValidatedIdeaForm,
         recallingIdea,

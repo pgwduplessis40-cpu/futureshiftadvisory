@@ -53,6 +53,7 @@ export function PlanWorkspaceActions({
         advisoryRequest,
         gamification,
         ideaForm,
+        ideaDraftState,
         setShowValidatedIdeaForm,
         recallingIdea,
         restoringIdeaVersionId,
@@ -521,6 +522,18 @@ export function PlanWorkspaceActions({
                                             ? 'Update idea validation'
                                             : 'Submit idea validation'}
                                 </Button>
+                                <p
+                                    className="mt-2 text-xs text-muted-foreground"
+                                    role="status"
+                                >
+                                    {ideaDraftState === 'saving'
+                                        ? 'Saving your idea draft…'
+                                        : ideaDraftState === 'saved'
+                                          ? 'Idea draft saved automatically.'
+                                          : ideaDraftState === 'error'
+                                            ? 'Your idea draft could not be saved just yet. Keep this page open and try again shortly.'
+                                            : 'Your answers save automatically while you work.'}
+                                </p>
                                 {ideaForm.recentlySuccessful ? (
                                     <p className="mt-2 text-xs text-muted-foreground">
                                         Idea validation submitted for advisor
