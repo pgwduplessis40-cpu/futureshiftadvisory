@@ -25,7 +25,7 @@ final class AssessmentFeedbackRequest extends FormRequest
     {
         return [
             'feedback' => ['required', 'string', 'min:10', 'max:4000'],
-            'proposed_reply' => ['required', 'string', 'min:10', 'max:4000'],
+            'proposed_reply' => ['required', 'string', 'min:10', 'max:50000'],
             'send_to_founder' => ['required', 'boolean'],
         ];
     }

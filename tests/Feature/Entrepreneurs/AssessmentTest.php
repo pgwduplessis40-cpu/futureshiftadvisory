@@ -1025,7 +1025,7 @@ final class AssessmentTest extends TestCase
         $profile = $plan->entrepreneurProfile()->firstOrFail();
         $assessment = app(Assessment::class)->firstPass($plan, $advisor);
         $feedback = 'Strengthen the financial assumptions and add customer evidence before the next assessment.';
-        $proposedReply = "Dear Assessment,\n\nThank you for the work on your plan. Please strengthen the financial assumptions and add customer evidence before the next assessment.";
+        $proposedReply = str_repeat('A', 50_000);
 
         $response = $this->actingAsMfa($advisor)
             ->patch(route('advisor.entrepreneurs.assessments.feedback.update', [$profile, $assessment]), [
