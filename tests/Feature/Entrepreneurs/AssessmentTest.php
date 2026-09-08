@@ -718,7 +718,7 @@ final class AssessmentTest extends TestCase
             fn (array $score): bool => $score['score_source'] === 'reused_unchanged_evidence',
         ));
         $this->assertFalse((bool) data_get($coherence, 'approval_available'));
-        $this->assertSame('review', data_get($coherence, 'budget_support.status'));
+        $this->assertSame('missing', data_get($coherence, 'budget_support.status'));
         $this->assertSame('review', data_get($coherence, 'plan_correlation.status'));
         $this->assertContains(
             'The budget currently shows 0 months of runway.',
@@ -742,6 +742,10 @@ final class AssessmentTest extends TestCase
         );
         $this->assertContains(
             'Large monthly fixed-cost base: Monthly fixed costs total $51,573. Recheck the cost cadence and supporting source for the largest items.',
+            array_column((array) data_get($coherence, 'findings'), 'message'),
+        );
+        $this->assertContains(
+            'Fixed-cost trace mismatch: itemised monthly fixed costs total $1,200, but the model base is $51,573. Add the missing rows or relabel the table if it is only a subset.',
             array_column((array) data_get($coherence, 'findings'), 'message'),
         );
         $this->assertContains(
@@ -769,7 +773,7 @@ final class AssessmentTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('entrepreneur.latest_plan.latest_assessment.meets_advisory_threshold', false)
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.approval_available', false)
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.budget_support.status', 'review')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.budget_support.status', 'missing')
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.plan_correlation.status', 'review')
             );
 
