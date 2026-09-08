@@ -55,7 +55,7 @@ final class PlanBudgetCoherence
         $budgetSupportFindings = [];
         $planCorrelationFindings = [];
 
-        if (!is_array($budget)) {
+        if (! is_array($budget)) {
             $budgetSupportFindings[] = $this->finding(
                 'budget_support',
                 'missing',
@@ -139,7 +139,6 @@ final class PlanBudgetCoherence
         $flags = data_get($budget, 'flags');
         $flags = is_array($flags) ? $flags : [];
         /** @var list<BudgetFlag> $flags */
-
         if ($status !== 'complete') {
             $findings[] = $this->finding(
                 'budget_support',
@@ -162,14 +161,14 @@ final class PlanBudgetCoherence
         $expectedRunway = data_get($budget, 'expected_runway_months');
         $actualRunway = data_get($computed, 'runway_months');
         $openEnded = (bool) data_get($computed, 'runway_open_ended', false);
-        if (is_numeric($actualRunway) && !$openEnded && (float) $actualRunway <= 0) {
+        if (is_numeric($actualRunway) && ! $openEnded && (float) $actualRunway <= 0) {
             $findings[] = $this->finding(
                 'budget_support',
                 'review',
                 'The budget currently shows 0 months of runway.',
                 'Correct the opening cash, timing, costs, revenue or funding before relying on this plan.',
             );
-        } elseif (is_numeric($expectedRunway) && is_numeric($actualRunway) && !$openEnded && (float) $actualRunway + 2 < (float) $expectedRunway) {
+        } elseif (is_numeric($expectedRunway) && is_numeric($actualRunway) && ! $openEnded && (float) $actualRunway + 2 < (float) $expectedRunway) {
             $findings[] = $this->finding(
                 'budget_support',
                 'review',
@@ -211,7 +210,7 @@ final class PlanBudgetCoherence
         $planCapacity = $this->monthlyCapacity($planText);
         $hasCheckableClaim = $planRunway !== null || $planOpeningCash !== null || $planCapacity !== null || $this->claimsDebtFree($planText);
 
-        if (!$hasCheckableClaim) {
+        if (! $hasCheckableClaim) {
             $findings[] = $this->finding(
                 'plan_correlation',
                 'missing',
@@ -222,7 +221,7 @@ final class PlanBudgetCoherence
 
         $actualRunway = data_get($computed, 'runway_months');
         $openEnded = (bool) data_get($computed, 'runway_open_ended', false);
-        if ($planRunway !== null && is_numeric($actualRunway) && !$openEnded && (float) $actualRunway + 2 < $planRunway) {
+        if ($planRunway !== null && is_numeric($actualRunway) && ! $openEnded && (float) $actualRunway + 2 < $planRunway) {
             $findings[] = $this->finding(
                 'plan_correlation',
                 'review',
@@ -236,7 +235,7 @@ final class PlanBudgetCoherence
         }
 
         $budgetOpeningCash = data_get($assumptions, 'opening_cash_balance');
-        if ($planOpeningCash !== null && is_numeric($budgetOpeningCash) && !$this->withinTolerance($planOpeningCash, (float) $budgetOpeningCash)) {
+        if ($planOpeningCash !== null && is_numeric($budgetOpeningCash) && ! $this->withinTolerance($planOpeningCash, (float) $budgetOpeningCash)) {
             $findings[] = $this->finding(
                 'plan_correlation',
                 'review',
@@ -250,7 +249,7 @@ final class PlanBudgetCoherence
         /** @var list<BudgetRow> $revenueRows */
         if ($planCapacity !== null) {
             foreach ($revenueRows as $row) {
-                if (!is_numeric($row['monthly_capacity_units'] ?? null)) {
+                if (! is_numeric($row['monthly_capacity_units'] ?? null)) {
                     continue;
                 }
 
@@ -318,7 +317,7 @@ final class PlanBudgetCoherence
 
         foreach ($flags as $flag) {
             $key = (string) ($flag['key'] ?? '');
-            if (!array_key_exists($key, $keys)) {
+            if (! array_key_exists($key, $keys)) {
                 continue;
             }
 
@@ -342,7 +341,7 @@ final class PlanBudgetCoherence
 
         foreach ($phases as $phase) {
             foreach ($phase['sections'] ?? [] as $section) {
-                if (!in_array((string) ($section['requirement_key'] ?? ''), self::FINANCIAL_REQUIREMENT_KEYS, true)) {
+                if (! in_array((string) ($section['requirement_key'] ?? ''), self::FINANCIAL_REQUIREMENT_KEYS, true)) {
                     continue;
                 }
 
@@ -410,7 +409,7 @@ final class PlanBudgetCoherence
             $budget['funding_scenarios'] ?? [],
         ] as $rows) {
             foreach ($rows as $row) {
-                if (!is_numeric($row['amount'] ?? null) || (float) $row['amount'] <= 0) {
+                if (! is_numeric($row['amount'] ?? null) || (float) $row['amount'] <= 0) {
                     continue;
                 }
 
