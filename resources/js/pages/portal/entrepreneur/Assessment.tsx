@@ -163,6 +163,8 @@ type Props = {
     } | null;
 };
 
+const PROPOSED_REPLY_MAX_LENGTH = 50_000;
+
 export default function EntrepreneurAssessment({
     profile,
     assessment,
@@ -649,10 +651,25 @@ export default function EntrepreneurAssessment({
                                         )
                                     }
                                     rows={12}
+                                    maxLength={PROPOSED_REPLY_MAX_LENGTH}
+                                    aria-describedby="proposed-reply-character-count"
                                     aria-invalid={Boolean(
                                         feedbackErrors.proposed_reply,
                                     )}
                                 />
+                                <p
+                                    id="proposed-reply-character-count"
+                                    className="text-right text-xs font-normal text-muted-foreground"
+                                >
+                                    {proposedReply.length.toLocaleString(
+                                        'en-NZ',
+                                    )}{' '}
+                                    /{' '}
+                                    {PROPOSED_REPLY_MAX_LENGTH.toLocaleString(
+                                        'en-NZ',
+                                    )}{' '}
+                                    characters
+                                </p>
                                 <InputError
                                     message={feedbackErrors.proposed_reply}
                                 />
