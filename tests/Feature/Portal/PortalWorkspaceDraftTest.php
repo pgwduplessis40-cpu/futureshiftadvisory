@@ -97,6 +97,31 @@ final class PortalWorkspaceDraftTest extends TestCase
         ]);
     }
 
+    public function test_entrepreneur_idea_drafts_are_persisted_without_a_client_portal_record(): void
+    {
+        $user = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $user->assignRole(User::TYPE_ENTREPRENEUR);
+        $key = 'entrepreneur-idea:9c7f36e0-2960-4ae5-bd80-e02fed8fd210';
+
+        $this->actingAsMfa($user)
+            ->postJson(route('portal.drafts.store', ['draftKey' => $key]), [
+                'payload' => [
+                    'problem' => 'Business owners cannot see their next practical step.',
+                    'target_customer' => 'Small business owners who need a clear plan.',
+                ],
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('portal_workspace_drafts', [
+            'user_id' => $user->getKey(),
+            'client_id' => null,
+            'draft_key' => $key,
+        ]);
+    }
+
     public function test_unknown_draft_keys_are_not_accepted(): void
     {
         [$user] = $this->clientUser('Karin');

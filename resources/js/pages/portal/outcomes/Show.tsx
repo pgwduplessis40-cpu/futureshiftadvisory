@@ -4,6 +4,7 @@ import type { FormEvent, ReactNode } from 'react';
 import { ExplainedSectionHeader, Explainer } from '@/components/explainer';
 import type { Explanation } from '@/components/explainer';
 import InputError from '@/components/input-error';
+import { DraftSaveStatus } from '@/components/portal/draft-save-status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -130,7 +131,10 @@ export default function OutcomeFollowUpShow({
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        form.post(storeUrl, { preserveScroll: true });
+        form.post(storeUrl, {
+            preserveScroll: true,
+            onSuccess: draftState.discardRecovery,
+        });
     };
 
     const title =
@@ -515,7 +519,7 @@ export default function OutcomeFollowUpShow({
                     </section>
 
                     <div className="flex flex-wrap items-center justify-end gap-3">
-                        <DraftStatus state={draftState} />
+                        <DraftSaveStatus draft={draftState} />
                         <Button
                             type="submit"
                             disabled={!followUp.is_open || form.processing}
@@ -530,26 +534,6 @@ export default function OutcomeFollowUpShow({
                 </form>
             </main>
         </>
-    );
-}
-
-function DraftStatus({
-    state,
-}: {
-    state: ReturnType<typeof usePersistedWorkspaceDraft>;
-}) {
-    if (state === 'idle') {
-        return null;
-    }
-
-    return (
-        <span className="text-xs text-muted-foreground" role="status">
-            {state === 'saving'
-                ? 'Saving draft…'
-                : state === 'saved'
-                  ? 'Draft saved'
-                  : 'Draft could not be saved'}
-        </span>
     );
 }
 

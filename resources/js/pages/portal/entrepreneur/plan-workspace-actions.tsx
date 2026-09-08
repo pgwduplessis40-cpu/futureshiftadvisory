@@ -12,15 +12,12 @@ import {
 import FileDropzone from '@/components/file-dropzone';
 import { FormattedTextarea } from '@/components/formatted-textarea';
 import InputError from '@/components/input-error';
+import { DraftSaveStatus } from '@/components/portal/draft-save-status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ExecutiveSummaryNotice } from './executive-summary-notice';
-import {
-    BudgetEditor,
-    requirementId,
-    sectionAutosaveStateLabel,
-} from './plan-budget';
+import { BudgetEditor, requirementId } from './plan-budget';
 import {
     ActionPanel,
     IdeaValidationSnapshot,
@@ -53,6 +50,7 @@ export function PlanWorkspaceActions({
         advisoryRequest,
         gamification,
         ideaForm,
+        ideaDraftState,
         setShowValidatedIdeaForm,
         recallingIdea,
         restoringIdeaVersionId,
@@ -89,8 +87,10 @@ export function PlanWorkspaceActions({
         budgetForm,
         setBudgetForm,
         savingBudget,
-        sectionAutosaveState,
+        sectionAutosaveState: sectionDraftState,
         budgetAutosaveState,
+        retrySectionAutosave: retrySectionDraft,
+        retryBudgetAutosave,
         submitIdea,
         recallIdeaForRevision,
         restoreIdeaVersion,
@@ -105,6 +105,7 @@ export function PlanWorkspaceActions({
         dismissBudgetAdvisorNudge,
     } = workspace;
     const planChangesLocked = planChangesAreLocked(plan);
+    const draft = { state: sectionDraftState, retry: retrySectionDraft };
 
     return (
         <div className="space-y-6">
@@ -521,6 +522,12 @@ export function PlanWorkspaceActions({
                                             ? 'Update idea validation'
                                             : 'Submit idea validation'}
                                 </Button>
+                                <DraftSaveStatus
+                                    draft={ideaDraftState}
+                                    className="mt-2"
+                                    idleLabel="Your answers save automatically while you work."
+                                    savedLabel="Idea draft saved automatically."
+                                />
                                 {ideaForm.recentlySuccessful ? (
                                     <p className="mt-2 text-xs text-muted-foreground">
                                         Idea validation submitted for advisor
@@ -693,6 +700,9 @@ export function PlanWorkspaceActions({
                                             gamification={gamification}
                                             saving={savingBudget}
                                             autosaveState={budgetAutosaveState}
+                                            onRetryAutosave={
+                                                retryBudgetAutosave
+                                            }
                                             onFormChange={setBudgetForm}
                                             onSave={saveBudget}
                                             onAcknowledgeFlag={
@@ -839,20 +849,13 @@ export function PlanWorkspaceActions({
                                                     Plan detail
                                                 </label>
                                                 <span className="shrink-0 text-xs font-normal text-muted-foreground tabular-nums">
-                                                    {sectionAutosaveStateLabel(
-                                                        sectionAutosaveState,
-                                                    )}
-                                                    {sectionAutosaveState !==
-                                                    'idle'
-                                                        ? ' | '
-                                                        : ''}
-                                                    {sectionBody.length}
-                                                    {' / '}
+                                                    {sectionBody.length} /{' '}
                                                     {
                                                         PLAN_SECTION_BODY_MAX_LENGTH
                                                     }
                                                 </span>
                                             </span>
+                                            <DraftSaveStatus draft={draft} />
                                             <FormattedTextarea
                                                 id="entrepreneur-plan-section-body"
                                                 value={sectionBody}

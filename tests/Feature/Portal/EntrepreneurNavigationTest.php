@@ -12,6 +12,7 @@ use App\Models\ClientTeamMember;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
 use App\Models\InviteToken;
+use App\Models\PortalWorkspaceDraft;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\User;
@@ -301,10 +302,23 @@ final class EntrepreneurNavigationTest extends TestCase
 
         $payload = $atLimitPayload;
 
+        PortalWorkspaceDraft::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'client_id' => null,
+            'draft_key' => 'entrepreneur-idea:'.$profile->getKey(),
+            'payload' => $payload,
+            'saved_at' => now(),
+        ]);
+
         $this->actingAsMfa($entrepreneur)
             ->post(route('portal.entrepreneur.idea-validation.store'), $payload)
             ->assertRedirect(route('portal.entrepreneur.plan.show', absolute: false))
             ->assertSessionHas('status', 'entrepreneur-idea-submitted');
+
+        $this->assertDatabaseMissing('portal_workspace_drafts', [
+            'user_id' => $entrepreneur->getKey(),
+            'draft_key' => 'entrepreneur-idea:'.$profile->getKey(),
+        ]);
 
         $validation = IdeaValidation::query()
             ->where('entrepreneur_profile_id', $profile->getKey())

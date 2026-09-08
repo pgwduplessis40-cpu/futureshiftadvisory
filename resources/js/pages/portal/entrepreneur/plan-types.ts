@@ -389,6 +389,7 @@ export type Props = {
     urls: {
         dashboard: string;
         ideaValidation: string;
+        ideaValidationDraft: string;
         recallIdeaValidation: string;
         startPlan: string;
         companyNameUpdate: string;

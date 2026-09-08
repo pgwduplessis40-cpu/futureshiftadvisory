@@ -64,6 +64,6 @@ final class PortalWorkspaceDraftController extends Controller
 
     private function assertAllowedKey(string $draftKey): void
     {
-        abort_unless((bool) preg_match('/^(wellbeing|service-request|dd-questionnaire|onboarding|outcome|message|npo-metric|strategic-milestone)(?::[A-Za-z0-9._-]+)*$/', $draftKey), 404);
+        abort_unless((bool) preg_match('/^(wellbeing|service-request|dd-questionnaire|onboarding|outcome|message|npo-metric|strategic-milestone|entrepreneur-idea)(?::[A-Za-z0-9._-]+)*$/', $draftKey), 404);
     }
 }

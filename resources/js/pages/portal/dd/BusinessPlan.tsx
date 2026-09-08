@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
+import { DraftSaveStatus } from '@/components/portal/draft-save-status';
 import { WorkspaceSwitcher } from '@/components/portal/WorkspaceSwitcher';
 import type { WorkspaceSwitcherPayload } from '@/components/portal/WorkspaceSwitcher';
 import { QuestionnaireRenderer } from '@/components/questionnaires/QuestionnaireRenderer';
@@ -296,7 +297,10 @@ export default function DdBusinessPlan({
                     setQuestionnaireErrors(
                         errors as Record<string, string | undefined>,
                     ),
-                onSuccess: () => setQuestionnaireErrors({}),
+                onSuccess: () => {
+                    questionnaireDraftState.discardRecovery();
+                    setQuestionnaireErrors({});
+                },
                 onFinish: () => setSavingQuestionnaire(false),
             },
         );
@@ -784,33 +788,16 @@ function QuestionnairePanel({
                 showCharacterCounts
             />
             <div className="flex flex-wrap items-center gap-3">
-                <DraftStatus state={draftState} />
+                <DraftSaveStatus
+                    draft={draftState}
+                    savedLabel="Answers saved automatically"
+                />
                 <Button type="button" disabled={saving} onClick={onSubmit}>
                     <CheckCircle2 className="size-4" aria-hidden="true" />
                     {saving ? 'Saving answers' : 'Submit DD answers'}
                 </Button>
             </div>
         </div>
-    );
-}
-
-function DraftStatus({
-    state,
-}: {
-    state: ReturnType<typeof usePersistedWorkspaceDraft>;
-}) {
-    if (state === 'idle') {
-        return null;
-    }
-
-    return (
-        <span className="text-xs text-muted-foreground" role="status">
-            {state === 'saving'
-                ? 'Saving answers…'
-                : state === 'saved'
-                  ? 'Answers saved'
-                  : 'Answers could not be saved'}
-        </span>
     );
 }
 

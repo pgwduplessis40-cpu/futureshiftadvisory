@@ -13,6 +13,7 @@ import {
 import { useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { BudgetCashChart } from '@/components/budget-cash-chart';
+import { DraftSaveStatus } from '@/components/portal/draft-save-status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -240,7 +241,8 @@ export function BudgetEditor({
     ideaValidation,
     gamification,
     saving,
-    autosaveState,
+    autosaveState: budgetDraftState,
+    onRetryAutosave: retryBudgetDraft,
     onFormChange,
     onSave,
     onAcknowledgeFlag,
@@ -253,6 +255,7 @@ export function BudgetEditor({
     gamification: GamificationPayload;
     saving: boolean;
     autosaveState: 'idle' | 'saving' | 'saved' | 'error';
+    onRetryAutosave: () => void;
     onFormChange: Dispatch<SetStateAction<BudgetFormState>>;
     onSave: () => void;
     onAcknowledgeFlag: (key: string) => void;
@@ -277,6 +280,7 @@ export function BudgetEditor({
     const budgetUnlocked =
         budgetSource.requirement?.complete === true &&
         assumptionsSource.requirement?.complete === true;
+    const budgetDraft = { state: budgetDraftState, retry: retryBudgetDraft };
     const [mode, setMode] = useState<BudgetSetupMode>('guided');
     const template = budgetTemplates[inferredTemplate];
     const assumptionLabels = computed.assumptions?.field_labels ?? {};
@@ -839,11 +843,7 @@ export function BudgetEditor({
                             <Upload className="size-4" aria-hidden="true" />
                             {saving ? 'Saving' : 'Save budget'}
                         </Button>
-                        {autosaveState !== 'idle' ? (
-                            <span className="text-xs text-muted-foreground">
-                                {sectionAutosaveStateLabel(autosaveState)}
-                            </span>
-                        ) : null}
+                        <DraftSaveStatus draft={budgetDraft} />
                     </div>
                 </>
             ) : null}

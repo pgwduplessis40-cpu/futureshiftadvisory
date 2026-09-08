@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { Eye, MessageSquare, Trophy } from 'lucide-react';
+import { DraftSaveStatus } from '@/components/portal/draft-save-status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -20,6 +21,7 @@ export function PlanWorkspaceLayout(workspace: PlanWorkspace) {
         activeTab,
         setActiveTab,
         companyNameForm,
+        companyNameAutosaveState,
         includesPlanBudget,
         requestGamificationDisablement,
     } = workspace;
@@ -42,18 +44,7 @@ export function PlanWorkspaceLayout(workspace: PlanWorkspace) {
                             )}
                         </div>
                         {includesPlanBudget ? (
-                            <form
-                                className="mt-3 flex max-w-xl flex-col gap-2 sm:flex-row sm:items-end"
-                                onSubmit={(event) => {
-                                    event.preventDefault();
-                                    companyNameForm.post(
-                                        urls.companyNameUpdate,
-                                        {
-                                            preserveScroll: true,
-                                        },
-                                    );
-                                }}
-                            >
+                            <div className="mt-3 flex max-w-xl flex-col gap-2 sm:flex-row sm:items-end">
                                 <label className="grid flex-1 gap-1 text-xs font-medium text-muted-foreground">
                                     Company / proposed company name
                                     <input
@@ -70,14 +61,12 @@ export function PlanWorkspaceLayout(workspace: PlanWorkspace) {
                                         placeholder="e.g. Harbour Studio Limited"
                                     />
                                 </label>
-                                <Button
-                                    type="submit"
-                                    size="sm"
-                                    disabled={companyNameForm.processing}
-                                >
-                                    Save name
-                                </Button>
-                            </form>
+                                <DraftSaveStatus
+                                    draft={companyNameAutosaveState}
+                                    className="pb-2"
+                                    savedLabel="Company name saved automatically"
+                                />
+                            </div>
                         ) : null}
                     </div>
                     <div className="flex flex-wrap gap-2">

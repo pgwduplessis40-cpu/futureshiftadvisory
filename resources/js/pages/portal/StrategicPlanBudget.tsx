@@ -25,6 +25,8 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { AutosaveStatus } from './strategic-plan-budget-autosave-status';
+import type { AutosaveState } from './strategic-plan-budget-autosave-status';
 import {
     blankBudgetRow,
     BudgetRowsEditor,
@@ -301,8 +303,6 @@ type BudgetForm = {
 };
 
 type WorkspaceTab = 'business_plan' | 'budget' | 'insights';
-
-type AutosaveState = 'saved' | 'pending' | 'saving' | 'error';
 
 type DraftSaveOptions = {
     onSuccess?: () => void;
@@ -692,6 +692,7 @@ export default function StrategicPlanBudget({
                         <AutosaveStatus
                             state={autosaveState}
                             error={autosaveError}
+                            onRetry={() => postDraft(latestSignature.current)}
                         />
                         <Button asChild variant="outline">
                             <Link href={dashboardUrl}>
@@ -1125,6 +1126,9 @@ export default function StrategicPlanBudget({
                                 <AutosaveStatus
                                     state={autosaveState}
                                     error={autosaveError}
+                                    onRetry={() =>
+                                        postDraft(latestSignature.current)
+                                    }
                                 />
                                 <Button
                                     type="button"
@@ -1171,32 +1175,6 @@ export default function StrategicPlanBudget({
             </div>
         </>
     );
-}
-
-function AutosaveStatus({
-    state,
-    error,
-}: {
-    state: AutosaveState;
-    error: string | null;
-}) {
-    if (state === 'error') {
-        return (
-            <Badge variant="destructive" title={error ?? undefined}>
-                Autosave failed
-            </Badge>
-        );
-    }
-
-    if (state === 'saving') {
-        return <Badge variant="outline">Autosaving…</Badge>;
-    }
-
-    if (state === 'pending') {
-        return <Badge variant="outline">Saving shortly…</Badge>;
-    }
-
-    return <Badge variant="secondary">Saved automatically</Badge>;
 }
 
 function WorkspaceTabs({

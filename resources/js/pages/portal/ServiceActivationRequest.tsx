@@ -5,6 +5,7 @@ import type { FormEvent } from 'react';
 import { ExplainedSectionHeader, Explainer } from '@/components/explainer';
 import type { Explanation } from '@/components/explainer';
 import InputError from '@/components/input-error';
+import { DraftSaveStatus } from '@/components/portal/draft-save-status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -124,7 +125,7 @@ export default function ServiceActivationRequest({
 
     function submit(event: FormEvent) {
         event.preventDefault();
-        form.post(requestUrl);
+        form.post(requestUrl, { onSuccess: draftState.discardRecovery });
     }
 
     function updateAskingPrice(value: string) {
@@ -257,7 +258,10 @@ export default function ServiceActivationRequest({
                     />
 
                     <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
-                        <DraftStatus state={draftState} />
+                        <DraftSaveStatus
+                            draft={draftState}
+                            savedLabel="Request draft saved"
+                        />
                         <Button
                             type="submit"
                             disabled={
@@ -272,26 +276,6 @@ export default function ServiceActivationRequest({
                 </form>
             </main>
         </>
-    );
-}
-
-function DraftStatus({
-    state,
-}: {
-    state: ReturnType<typeof usePersistedWorkspaceDraft>;
-}) {
-    if (state === 'idle') {
-        return null;
-    }
-
-    return (
-        <span className="text-xs text-muted-foreground" role="status">
-            {state === 'saving'
-                ? 'Saving request draft…'
-                : state === 'saved'
-                  ? 'Request draft saved'
-                  : 'Draft could not be saved'}
-        </span>
     );
 }
 

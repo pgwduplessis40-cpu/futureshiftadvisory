@@ -23,6 +23,7 @@ use App\Services\Entrepreneurs\PlanRequirements;
 use App\Services\Entrepreneurs\Readiness;
 use App\Services\Entrepreneurs\Revision;
 use App\Services\Plans\PlanBuilder as SharedPlanBuilder;
+use App\Services\Portal\PortalWorkspaceDrafts;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -45,6 +46,7 @@ final class EntrepreneurPlanController extends Controller
         private readonly PlanDocuments $documents,
         private readonly AuditWriter $audit,
         private readonly EntrepreneurMilestones $milestones,
+        private readonly PortalWorkspaceDrafts $drafts,
     ) {}
 
     public function readiness(Request $request): RedirectResponse
@@ -83,6 +85,7 @@ final class EntrepreneurPlanController extends Controller
         ]);
 
         $this->ideas->evaluate($profile, $validated, $user);
+        $this->drafts->forget($user, 'entrepreneur-idea:'.$profile->getKey());
 
         return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-idea-submitted');
     }
@@ -164,25 +167,9 @@ final class EntrepreneurPlanController extends Controller
         return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-plan-started');
     }
 
-    public function updateCompanyName(Request $request): RedirectResponse
+    public function updateCompanyName(Request $request): RedirectResponse|JsonResponse
     {
-        $user = $this->workspace->user($request);
-        $profile = $this->workspace->profileFor($user);
-        if (! $this->workspace->includesPlanBudget($profile)) {
-            return $this->workspace->packageLockedResponse('Business plan and budget are not included in your selected package.');
-        }
-
-        $validated = $request->validate([
-            'company_name' => ['nullable', 'string', 'max:160'],
-        ]);
-
-        $profile->forceFill([
-            'company_name' => filled($validated['company_name'] ?? null)
-                ? trim((string) $validated['company_name'])
-                : null,
-        ])->save();
-
-        return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-company-name-saved');
+        return $this->workspace->updateCompanyName($request);
     }
 
     public function section(Request $request): RedirectResponse|JsonResponse

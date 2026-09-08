@@ -1,6 +1,8 @@
 import { router, useForm } from '@inertiajs/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
+import { useAutoSavedForm } from '@/hooks/use-auto-saved-form';
+import { usePersistedWorkspaceDraft } from '@/hooks/use-persisted-workspace-draft';
 import {
     BUDGET_ASSUMPTIONS_REQUIREMENT_KEY,
     BUDGET_UNLOCK_REQUIREMENT_KEY,
@@ -42,6 +44,11 @@ export function usePlanWorkspace({
     const [activeTab, setActiveTab] = useState<Tab>('actions');
     const companyNameForm = useForm({
         company_name: profile.company_name ?? '',
+    });
+    const companyNameAutosaveState = useAutoSavedForm({
+        url: urls.companyNameUpdate,
+        data: companyNameForm.data,
+        enabled: packageAccess.includes_plan_budget,
     });
     const ideaForm = useForm<IdeaValidationForm>({
         problem: ideaValidation?.problem ?? '',
@@ -160,6 +167,13 @@ export function usePlanWorkspace({
         ideaChangesRequested ||
         ideaValidationRecalled ||
         (ideaValidationApproved && showValidatedIdeaForm);
+    const ideaDraftState = usePersistedWorkspaceDraft({
+        url: urls.ideaValidationDraft,
+        data: ideaForm.data,
+        hydrate: (payload) =>
+            ideaForm.setData({ ...ideaForm.data, ...payload }),
+        enabled: includesIdeaValidation && showIdeaValidationEditor,
+    });
     const ideaValidationSummary = ideaFields.map((field) => ({
         label: field.label,
         value: ideaValidation?.[field.key as keyof IdeaValidationForm] ?? '-',
@@ -388,7 +402,7 @@ export function usePlanWorkspace({
         return () => window.clearTimeout(timeout);
     }, [sectionBody, sectionTitle, selectedRequirement, workspaceKey]);
 
-    useEffect(() => {
+    const saveSectionDraft = useCallback(async () => {
         if (!selectedRequirement || selectedRequirement.type === 'budget') {
             return;
         }
@@ -405,35 +419,21 @@ export function usePlanWorkspace({
             return;
         }
 
-        let cancelled = false;
-        const timeout = window.setTimeout(() => {
-            setSectionAutosaveState('saving');
+        setSectionAutosaveState('saving');
 
-            void postSectionAutosave(urls.sectionStore, {
+        try {
+            const saved = await postSectionAutosave(urls.sectionStore, {
                 phase_key: selectedRequirement.phase_key,
                 requirement_key: selectedRequirement.key,
                 title: sectionTitle,
                 body: sectionBody,
                 attached_document_ids: supportingDocumentIds,
-            })
-                .then((saved) => {
-                    if (cancelled) {
-                        return;
-                    }
+            });
 
-                    setSectionAutosaveState(saved ? 'saved' : 'error');
-                })
-                .catch(() => {
-                    if (!cancelled) {
-                        setSectionAutosaveState('error');
-                    }
-                });
-        }, 2000);
-
-        return () => {
-            cancelled = true;
-            window.clearTimeout(timeout);
-        };
+            setSectionAutosaveState(saved ? 'saved' : 'error');
+        } catch {
+            setSectionAutosaveState('error');
+        }
     }, [
         plan,
         sectionBody,
@@ -445,11 +445,52 @@ export function usePlanWorkspace({
     ]);
 
     useEffect(() => {
+        if (!selectedRequirement || selectedRequirement.type === 'budget') {
+            return;
+        }
+
+        const timeout = window.setTimeout(() => {
+            void saveSectionDraft();
+        }, 2000);
+
+        return () => window.clearTimeout(timeout);
+    }, [saveSectionDraft, selectedRequirement]);
+
+    useEffect(() => {
         updatePlanWorkspaceDraft<BudgetFormState>(workspaceKey, (draft) => ({
             ...draft,
             budgetForm,
         }));
     }, [budgetForm, workspaceKey]);
+
+    const saveBudgetDraft = useCallback(async () => {
+        if (
+            !plan ||
+            selectedRequirement?.type !== 'budget' ||
+            !budgetAutosaveUnlocked
+        ) {
+            return;
+        }
+
+        setBudgetAutosaveState('saving');
+
+        try {
+            const saved = await postBudgetAutosave(
+                urls.budgetUpdate,
+                cleanBudgetForm(budgetForm),
+            );
+
+            setBudgetAutosaveState(saved ? 'saved' : 'error');
+        } catch {
+            setBudgetAutosaveState('error');
+        }
+    }, [
+        budgetAutosaveUnlocked,
+        budgetForm,
+        plan,
+        selectedRequirement?.type,
+        urls.budgetUpdate,
+    ]);
 
     useEffect(() => {
         if (
@@ -466,38 +507,17 @@ export function usePlanWorkspace({
             return;
         }
 
-        let cancelled = false;
         const timeout = window.setTimeout(() => {
-            setBudgetAutosaveState('saving');
-
-            void postBudgetAutosave(
-                urls.budgetUpdate,
-                cleanBudgetForm(budgetForm),
-            )
-                .then((saved) => {
-                    if (cancelled) {
-                        return;
-                    }
-
-                    setBudgetAutosaveState(saved ? 'saved' : 'error');
-                })
-                .catch(() => {
-                    if (!cancelled) {
-                        setBudgetAutosaveState('error');
-                    }
-                });
+            void saveBudgetDraft();
         }, 2500);
 
-        return () => {
-            cancelled = true;
-            window.clearTimeout(timeout);
-        };
+        return () => window.clearTimeout(timeout);
     }, [
         budgetAutosaveUnlocked,
         budgetForm,
         plan,
+        saveBudgetDraft,
         selectedRequirement?.type,
-        urls.budgetUpdate,
     ]);
 
     useEffect(() => {
@@ -547,6 +567,8 @@ export function usePlanWorkspace({
         ideaForm.post(urls.ideaValidation, {
             preserveScroll: true,
             onSuccess: () => {
+                ideaDraftState.discardRecovery();
+
                 if (ideaValidationApproved) {
                     setShowValidatedIdeaForm(false);
                 }
@@ -857,7 +879,9 @@ export function usePlanWorkspace({
         activeTab,
         setActiveTab,
         companyNameForm,
+        companyNameAutosaveState,
         ideaForm,
+        ideaDraftState,
         showValidatedIdeaForm,
         setShowValidatedIdeaForm,
         recallingIdea,
@@ -904,6 +928,8 @@ export function usePlanWorkspace({
         savingBudget,
         sectionAutosaveState,
         budgetAutosaveState,
+        retrySectionAutosave: () => void saveSectionDraft(),
+        retryBudgetAutosave: () => void saveBudgetDraft(),
         submitIdea,
         recallIdeaForRevision,
         restoreIdeaVersion,

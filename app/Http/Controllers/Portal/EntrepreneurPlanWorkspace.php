@@ -15,6 +15,7 @@ use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -113,6 +114,33 @@ final class EntrepreneurPlanWorkspace
         return to_route('portal.entrepreneur.plan.show')
             ->with('status', 'entrepreneur-package-locked')
             ->with('entrepreneur_plan_error', $message);
+    }
+
+    public function updateCompanyName(Request $request): RedirectResponse|JsonResponse
+    {
+        $user = $this->user($request);
+        $profile = $this->profileFor($user);
+        if (! $this->includesPlanBudget($profile)) {
+            return $this->packageLockedResponse('Business plan and budget are not included in your selected package.');
+        }
+
+        $validated = $request->validate([
+            'company_name' => ['nullable', 'string', 'max:160'],
+        ]);
+
+        $profile->forceFill([
+            'company_name' => filled($validated['company_name'] ?? null)
+                ? trim((string) $validated['company_name'])
+                : null,
+        ])->save();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'company_name' => $profile->company_name,
+            ]);
+        }
+
+        return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-company-name-saved');
     }
 
     public function latestPlan(EntrepreneurProfile $profile): ?BusinessPlan
