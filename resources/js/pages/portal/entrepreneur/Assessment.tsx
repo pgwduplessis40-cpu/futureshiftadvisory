@@ -11,9 +11,17 @@ import {
 import { useState } from 'react';
 import { toast } from 'sonner';
 import InputError from '@/components/input-error';
+import { PlanBudgetCoherencePanel } from '@/components/plan-budget-coherence';
+import type { PlanBudgetCoherenceSummary } from '@/components/plan-budget-coherence';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import {
+    formatDate,
+    formatDateTime,
+    formatLabel,
+    formatRubricVersion,
+} from './assessment-formatters';
 import { AssessmentScoreSummary } from './assessment-score-summary';
 
 type Criterion = {
@@ -60,28 +68,6 @@ type RevisionPriority = {
     where_in_plan: string;
 };
 
-type PlanBudgetCoherence = {
-    status_label: string;
-    score: number;
-    summary: string;
-    approval_available: boolean;
-    approval_message: string;
-    budget_support: {
-        status_label: string;
-        summary: string;
-    };
-    plan_correlation: {
-        status_label: string;
-        summary: string;
-    };
-    findings: {
-        category: string;
-        severity: string;
-        message: string;
-        next_action: string;
-    }[];
-};
-
 type Assessment = {
     id: string;
     round: number;
@@ -111,7 +97,7 @@ type Assessment = {
         cross_plan_review_required: boolean;
         cross_plan_review_message: string | null;
     } | null;
-    plan_budget_coherence: PlanBudgetCoherence | null;
+    plan_budget_coherence: PlanBudgetCoherenceSummary | null;
     finalised_at: string | null;
     created_at: string | null;
     basis: {
@@ -410,131 +396,10 @@ export default function EntrepreneurAssessment({
                     }
                 />
 
-                {assessment.plan_budget_coherence ? (
-                    <section
-                        className={
-                            assessment.plan_budget_coherence
-                                .approval_available
-                                ? 'space-y-4 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950'
-                                : 'space-y-4 rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-foreground'
-                        }
-                        role={
-                            assessment.plan_budget_coherence
-                                .approval_available
-                                ? 'status'
-                                : 'alert'
-                        }
-                    >
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div className="flex items-start gap-3">
-                                {assessment.plan_budget_coherence
-                                    .approval_available ? (
-                                    <ClipboardCheck
-                                        className="mt-0.5 size-5 shrink-0"
-                                        aria-hidden="true"
-                                    />
-                                ) : (
-                                    <AlertTriangle
-                                        className="mt-0.5 size-5 shrink-0 text-destructive"
-                                        aria-hidden="true"
-                                    />
-                                )}
-                                <div className="space-y-1">
-                                    <h2 className="font-medium">
-                                        Plan–budget coherence
-                                    </h2>
-                                    <p className="max-w-4xl text-muted-foreground">
-                                        {
-                                            assessment.plan_budget_coherence
-                                                .summary
-                                        }
-                                    </p>
-                                </div>
-                            </div>
-                            <Badge
-                                variant={
-                                    assessment.plan_budget_coherence
-                                        .approval_available
-                                        ? 'secondary'
-                                        : 'destructive'
-                                }
-                            >
-                                {
-                                    assessment.plan_budget_coherence
-                                        .status_label
-                                }
-                            </Badge>
-                        </div>
-
-                        <div className="grid gap-3 md:grid-cols-2">
-                            <div className="rounded border bg-background/70 p-3">
-                                <p className="font-medium">
-                                    Budget support
-                                </p>
-                                <p className="mt-1 text-muted-foreground">
-                                    {
-                                        assessment.plan_budget_coherence
-                                            .budget_support.summary
-                                    }
-                                </p>
-                            </div>
-                            <div className="rounded border bg-background/70 p-3">
-                                <p className="font-medium">
-                                    Plan correlation
-                                </p>
-                                <p className="mt-1 text-muted-foreground">
-                                    {
-                                        assessment.plan_budget_coherence
-                                            .plan_correlation.summary
-                                    }
-                                </p>
-                            </div>
-                        </div>
-
-                        {assessment.plan_budget_coherence.findings.length >
-                        0 ? (
-                            <ul className="space-y-3 border-t pt-3">
-                                {assessment.plan_budget_coherence.findings.map(
-                                    (finding, index) => (
-                                        <li
-                                            key={`${finding.category}-${finding.message}-${index}`}
-                                            className="space-y-1"
-                                        >
-                                            <p className="font-medium">
-                                                {finding.message}
-                                            </p>
-                                            <p className="text-muted-foreground">
-                                                Next action:{' '}
-                                                {finding.next_action}
-                                            </p>
-                                        </li>
-                                    ),
-                                )}
-                            </ul>
-                        ) : null}
-                    </section>
-                ) : (
-                    <section
-                        className="flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
-                        role="alert"
-                    >
-                        <AlertTriangle
-                            className="mt-0.5 size-5 shrink-0"
-                            aria-hidden="true"
-                        />
-                        <div className="space-y-1">
-                            <h2 className="font-medium">
-                                Plan–budget coherence not assessed
-                            </h2>
-                            <p>
-                                This historical assessment cannot be used to
-                                finalise or issue lender-facing material until
-                                it is reassessed with the current coherence
-                                gate.
-                            </p>
-                        </div>
-                    </section>
-                )}
+                <PlanBudgetCoherencePanel
+                    coherence={assessment.plan_budget_coherence}
+                    historicalMessage="This historical assessment cannot be used to finalise or issue lender-facing material until it is reassessed with the current coherence gate."
+                />
 
                 {assessment.requires_full_reassessment ? (
                     <section className="flex flex-wrap items-center justify-between gap-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-950">
@@ -1051,38 +916,6 @@ function Detail({
             <dd>{value || '-'}</dd>
         </div>
     );
-}
-
-function formatDate(value: string | null): string {
-    if (!value) {
-        return '-';
-    }
-
-    return new Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-    }).format(new Date(value));
-}
-
-function formatDateTime(value: string | null): string {
-    if (!value) {
-        return '-';
-    }
-
-    return new Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    }).format(new Date(value));
-}
-
-function formatLabel(value: string): string {
-    return value
-        .split('_')
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(' ');
-}
-
-function formatRubricVersion(value: number | null): string {
-    return value ? `rubric v${value}` : 'the assigned rubric';
 }
 
 EntrepreneurAssessment.layout = {

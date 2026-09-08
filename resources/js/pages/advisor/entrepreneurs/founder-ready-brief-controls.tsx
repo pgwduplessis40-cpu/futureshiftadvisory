@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { FileText } from 'lucide-react';
+import { CheckCircle2, FileText } from 'lucide-react';
 import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,16 @@ type Props = {
 
 type ConversionProps = {
     conversion: EntrepreneurDetail['conversion'];
+};
+
+type FinaliseReportActionProps = {
+    assessment: {
+        threshold: number;
+        finalise_url: string;
+    };
+    ready: boolean;
+    blocked: boolean;
+    blockingMessage: string | null;
 };
 
 export function AdvisoryConversionAction({ conversion }: ConversionProps) {
@@ -103,5 +113,44 @@ export function FounderReadyBriefBadge({ lenderBrief }: Props) {
                 {lenderBrief.label}
             </Badge>
         </InsightHoverCard>
+    );
+}
+
+export function PlanBudgetFinaliseReportAction({
+    assessment,
+    ready,
+    blocked,
+    blockingMessage,
+}: FinaliseReportActionProps) {
+    return (
+        <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={blocked}
+            className={
+                ready
+                    ? 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white'
+                    : undefined
+            }
+            title={
+                blocked
+                    ? (blockingMessage ??
+                      'Run a reassessment with Plan–budget coherence before finalising.')
+                    : ready
+                      ? `Score meets the ${assessment.threshold}/100 advisory-readiness threshold. Finalising activates the advisory conversion request and automatically queues the approved executive summary for this assessed plan and budget.`
+                      : 'Finalise the assessment report and record the advisor outcome.'
+            }
+            onClick={() =>
+                router.patch(
+                    assessment.finalise_url,
+                    {},
+                    { preserveScroll: true },
+                )
+            }
+        >
+            <CheckCircle2 className="size-4" aria-hidden="true" />
+            Finalise report
+        </Button>
     );
 }

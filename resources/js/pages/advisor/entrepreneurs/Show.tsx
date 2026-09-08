@@ -27,6 +27,7 @@ import { FormattedMarkdown } from '@/components/formatted-textarea';
 import InputError from '@/components/input-error';
 import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
 import type { InsightHoverCardRow } from '@/components/insight/InsightHoverCard';
+import { PlanBudgetCoherencePanel } from '@/components/plan-budget-coherence';
 import { AdvisorSupportAction } from '@/components/screen-share/AdvisorSupportAction';
 import type { AdvisorScreenShareConfig } from '@/components/screen-share/AdvisorSupportAction';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +52,7 @@ import {
     AdvisoryConversionAction,
     FounderReadyBriefAction,
     FounderReadyBriefBadge,
+    PlanBudgetFinaliseReportAction,
 } from './founder-ready-brief-controls';
 import type {
     EntrepreneurDetail,
@@ -973,37 +975,15 @@ export default function EntrepreneursShow({
                                 ) : null}
                                 {latestAssessment &&
                                 !latestAssessment.finalised_at ? (
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        disabled={planBudgetFinalisationBlocked}
-                                        className={cn(
-                                            finaliseReportReady &&
-                                                'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white',
-                                        )}
-                                        title={
-                                            planBudgetFinalisationBlocked
-                                                ? (planBudgetCoherence?.approval_message ??
-                                                  'Run a reassessment with Plan–budget coherence before finalising.')
-                                                : finaliseReportReady
-                                                ? `Score meets the ${latestAssessment.threshold}/100 advisory-readiness threshold. Finalising activates the advisory conversion request and automatically queues the approved executive summary for this assessed plan and budget.`
-                                                : 'Finalise the assessment report and record the advisor outcome.'
+                                    <PlanBudgetFinaliseReportAction
+                                        assessment={latestAssessment}
+                                        ready={finaliseReportReady}
+                                        blocked={planBudgetFinalisationBlocked}
+                                        blockingMessage={
+                                            planBudgetCoherence?.approval_message ??
+                                            null
                                         }
-                                        onClick={() =>
-                                            router.patch(
-                                                latestAssessment.finalise_url,
-                                                {},
-                                                { preserveScroll: true },
-                                            )
-                                        }
-                                    >
-                                        <CheckCircle2
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        Finalise report
-                                    </Button>
+                                    />
                                 ) : null}
                                 {entrepreneur.latest_plan ? (
                                     <Button asChild size="sm" variant="outline">
@@ -2409,120 +2389,12 @@ export default function EntrepreneursShow({
                             Validation.
                         </p>
 
-                        {latestAssessment && planBudgetCoherence ? (
-                            <section
-                                className={cn(
-                                    'space-y-3 rounded-md border p-4 text-sm',
-                                    planBudgetCoherence.approval_available
-                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-950'
-                                        : 'border-destructive/40 bg-destructive/5 text-foreground',
-                                )}
-                                role={
-                                    planBudgetCoherence.approval_available
-                                        ? 'status'
-                                        : 'alert'
-                                }
-                            >
-                                <div className="flex flex-wrap items-start justify-between gap-3">
-                                    <div className="flex min-w-0 items-start gap-3">
-                                        {planBudgetCoherence.approval_available ? (
-                                            <CheckCircle2
-                                                className="mt-0.5 size-5 shrink-0"
-                                                aria-hidden="true"
-                                            />
-                                        ) : (
-                                            <AlertTriangle
-                                                className="mt-0.5 size-5 shrink-0 text-destructive"
-                                                aria-hidden="true"
-                                            />
-                                        )}
-                                        <div className="space-y-1">
-                                            <h3 className="font-medium">
-                                                Plan–budget coherence
-                                            </h3>
-                                            <p className="max-w-4xl text-muted-foreground">
-                                                {planBudgetCoherence.summary}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <Badge
-                                        variant={
-                                            planBudgetCoherence.approval_available
-                                                ? 'secondary'
-                                                : 'destructive'
-                                        }
-                                    >
-                                        {planBudgetCoherence.status_label}
-                                    </Badge>
-                                </div>
-
-                                <div className="grid gap-3 md:grid-cols-2">
-                                    <div className="rounded border bg-background/70 p-3">
-                                        <p className="font-medium">
-                                            Does the budget support the plan?
-                                        </p>
-                                        <p className="mt-1 text-muted-foreground">
-                                            {
-                                                planBudgetCoherence
-                                                    .budget_support.summary
-                                            }
-                                        </p>
-                                    </div>
-                                    <div className="rounded border bg-background/70 p-3">
-                                        <p className="font-medium">
-                                            Does the plan correlate to the budget?
-                                        </p>
-                                        <p className="mt-1 text-muted-foreground">
-                                            {
-                                                planBudgetCoherence
-                                                    .plan_correlation.summary
-                                            }
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {planBudgetCoherence.findings.length > 0 ? (
-                                    <ul className="space-y-2 border-t pt-3">
-                                        {planBudgetCoherence.findings.map(
-                                            (finding, index) => (
-                                                <li
-                                                    key={`${finding.category}-${finding.message}-${index}`}
-                                                    className="space-y-1"
-                                                >
-                                                    <p className="font-medium">
-                                                        {finding.message}
-                                                    </p>
-                                                    <p className="text-muted-foreground">
-                                                        Next action:{' '}
-                                                        {finding.next_action}
-                                                    </p>
-                                                </li>
-                                            ),
-                                        )}
-                                    </ul>
-                                ) : null}
-                            </section>
-                        ) : latestAssessment ? (
-                            <section
-                                className="flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
-                                role="alert"
-                            >
-                                <AlertTriangle
-                                    className="mt-0.5 size-5 shrink-0"
-                                    aria-hidden="true"
-                                />
-                                <div className="space-y-1">
-                                    <h3 className="font-medium">
-                                        Plan–budget coherence not assessed
-                                    </h3>
-                                    <p>
-                                        This historical round predates the
-                                        coherence gate. Run a reassessment
-                                        before using it to finalise or issue
-                                        lender-facing material.
-                                    </p>
-                                </div>
-                            </section>
+                        {latestAssessment ? (
+                            <PlanBudgetCoherencePanel
+                                coherence={planBudgetCoherence}
+                                heading="h3"
+                                historicalMessage="This historical round predates the coherence gate. Run a reassessment before using it to finalise or issue lender-facing material."
+                            />
                         ) : null}
 
                         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
