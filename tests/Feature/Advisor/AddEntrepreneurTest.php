@@ -1244,6 +1244,8 @@ final class AddEntrepreneurTest extends TestCase
             ]],
             'computed' => [
                 'available_after_launch' => 8_000,
+                'opening_cash_balance' => 10_000,
+                'monthly_fixed_costs' => 100,
                 'runway_months' => 12,
                 'runway_open_ended' => false,
                 'break_even_reached' => true,

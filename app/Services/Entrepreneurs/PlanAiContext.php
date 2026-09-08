@@ -12,7 +12,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 /**
- * @phpstan-type BudgetEvidence array{forecast_years:int|float|null,expected_runway_months:int|float|null,assumptions:array<array-key,mixed>,launch_costs:array<array-key,mixed>,monthly_fixed_costs:array<array-key,mixed>,future_costs:array<array-key,mixed>,revenue_forecast:array<array-key,mixed>,funding_sources:array<array-key,mixed>,funding_scenarios:array<array-key,mixed>,computed:array<array-key,mixed>,flags:array<array-key,mixed>}
+ * @phpstan-type BudgetEvidence array{forecast_years:int|float|null,expected_runway_months:int|float|null,assumptions:array<array-key,mixed>,launch_costs:array<array-key,mixed>,monthly_fixed_costs:array<array-key,mixed>,future_costs:array<array-key,mixed>,revenue_forecast:array<array-key,mixed>,funding_sources:array<array-key,mixed>,funding_scenarios:array<array-key,mixed>,computed:array<array-key,mixed>,flags:array<array-key,mixed>,funding_readiness?:array<array-key,mixed>}
  * @phpstan-type CriterionEvidenceSection array{section_id:string,phase_key:string,phase_title:string,title:string,requirement_key:string|null,updated_at:string|null,attached_document_ids:list<int|string>,body:string}
  * @phpstan-type CriterionPlanContext array{evidence_mode:'criterion_scoped_submitted_snapshot',criterion_focus:array{number:int,name:string,preferred_requirement_keys:list<string>},scope_fallback:bool,criterion_focus_sections:list<CriterionEvidenceSection>,budget_evidence:BudgetEvidence|null,evidence_hash:string}
  */

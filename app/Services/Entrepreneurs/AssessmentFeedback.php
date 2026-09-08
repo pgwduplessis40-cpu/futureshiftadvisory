@@ -202,6 +202,15 @@ final class AssessmentFeedback
 
     public function proposedReply(EntrepreneurProfile $profile, PlanAssessment $assessment): string
     {
+        $planBudgetFindings = $this->planBudgetFindings($assessment);
+        if ($planBudgetFindings !== []) {
+            return $this->changeRequestMessages->build($profile, [
+                'Before we can finalise this assessment, please correct the plan–budget issues below. The rubric evidence has not changed, but the submitted budget still needs to support the financial plan.',
+                "Please work through these items in the next version:\n\n".$this->formatPlanBudgetFindings($planBudgetFindings),
+                'Update the named budget areas and the matching financial plan sections, then resubmit. Reply first if you would like to talk through a budget assumption or funding decision.',
+            ]);
+        }
+
         $priorities = $this->priorities($assessment);
 
         if ($priorities === []) {
@@ -275,6 +284,87 @@ final class AssessmentFeedback
                 return implode("\n", $lines);
             })
             ->implode("\n\n");
+    }
+
+    /**
+     * @return list<array{category:string,severity:string,message:string,next_action:string}>
+     */
+    private function planBudgetFindings(PlanAssessment $assessment): array
+    {
+        $coherence = data_get($assessment->scoring_scope, 'plan_budget_coherence');
+        if (! is_array($coherence) || (bool) ($coherence['approval_available'] ?? true)) {
+            return [];
+        }
+
+        $findings = $coherence['findings'] ?? [];
+        if (! is_array($findings)) {
+            return [];
+        }
+
+        $planBudgetFindings = [];
+        foreach ($findings as $finding) {
+            if (! is_array($finding)
+                || ! in_array($finding['category'] ?? null, ['budget_support', 'plan_correlation'], true)
+                || trim((string) ($finding['message'] ?? '')) === '') {
+                continue;
+            }
+
+            $planBudgetFindings[] = [
+                'category' => (string) $finding['category'],
+                'severity' => (string) ($finding['severity'] ?? 'review'),
+                'message' => trim((string) $finding['message']),
+                'next_action' => trim((string) ($finding['next_action'] ?? 'Update the matching budget input and plan assumption.')),
+            ];
+        }
+
+        return $planBudgetFindings;
+    }
+
+    /**
+     * @param  list<array{category:string,severity:string,message:string,next_action:string}>  $findings
+     */
+    private function formatPlanBudgetFindings(array $findings): string
+    {
+        return collect($findings)
+            ->groupBy(fn (array $finding): string => $this->planBudgetLocation($finding))
+            ->map(function ($group, string $location): string {
+                $items = $group
+                    ->map(function (array $finding): string {
+                        return '- Assessment finding: '.$finding['message']."\n"
+                            .'  What to do: '.$finding['next_action'];
+                    })
+                    ->implode("\n");
+
+                return $location."\n".$items;
+            })
+            ->values()
+            ->implode("\n\n");
+    }
+
+    /** @param array{category:string,severity:string,message:string,next_action:string} $finding */
+    private function planBudgetLocation(array $finding): string
+    {
+        $message = strtolower($finding['message']);
+
+        if (str_contains($message, 'funding') || str_contains($message, 'cash') || str_contains($message, 'runway') || str_contains($message, 'break-even')) {
+            return 'Budget > Funding and runway';
+        }
+
+        if (str_contains($message, 'fixed cost')
+            || str_contains($message, 'owner compensation')
+            || str_contains($message, 'cadence')
+            || str_contains($message, 'insurance')
+            || str_contains($message, 'trademark')) {
+            return 'Budget > Monthly fixed costs';
+        }
+
+        if (str_contains($message, 'revenue') || str_contains($message, 'capacity') || str_contains($message, 'contractor')) {
+            return 'Budget > Revenue forecast';
+        }
+
+        return $finding['category'] === 'plan_correlation'
+            ? 'Financial plan > Financial assumptions, Revenue model, and Funding and support'
+            : 'Budget > Financial assumptions';
     }
 
     private function movementLine(array $priority): ?string

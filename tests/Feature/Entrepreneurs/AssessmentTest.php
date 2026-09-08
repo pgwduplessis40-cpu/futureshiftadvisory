@@ -659,7 +659,7 @@ final class AssessmentTest extends TestCase
             phaseKey: 'financial',
             key: 'assessment-financial-assumptions',
             title: 'Financial assumptions',
-            body: 'Starting cash is $7,830. The plan requires 12 months of runway and remains debt-free. Delivery capacity is 95 clients per month. Insurance is an annual cost.',
+            body: 'Starting cash is $7,830. The plan requires 12 months of runway and remains debt-free. Delivery capacity is 95 clients per month. Operating costs are $600 per month. Insurance is an annual cost. Professional indemnity insurance and trade mark registration are required before launch.',
             actor: $advisor,
             metadata: ['requirement_key' => 'financial-assumptions'],
         );
@@ -688,12 +688,25 @@ final class AssessmentTest extends TestCase
             ]],
             'computed' => [
                 'available_after_launch' => -190_057,
+                'monthly_fixed_costs' => 51_573,
                 'runway_months' => 0,
                 'runway_open_ended' => false,
                 'break_even_reached' => false,
                 'input_count' => 4,
+                'monthly_detail' => [[
+                    'month' => 1,
+                    'cumulative_cash' => -190_057,
+                ]],
             ],
-            'flags' => [],
+            'flags' => [[
+                'key' => 'large_monthly_fixed_cost_base',
+                'title' => 'Large monthly fixed-cost base',
+                'message' => 'Monthly fixed costs total $51,573. Recheck the cost cadence and supporting source for the largest items.',
+            ], [
+                'key' => 'monthly_revenue_growth_needs_review',
+                'title' => 'Monthly revenue growth needs review',
+                'message' => 'The revenue forecast compounds growth monthly. Confirm the growth rate and cadence against the sales plan.',
+            ]],
         ]);
 
         app(Assessment::class)->firstPass($plan->refresh(), $advisor);
@@ -705,7 +718,7 @@ final class AssessmentTest extends TestCase
             fn (array $score): bool => $score['score_source'] === 'reused_unchanged_evidence',
         ));
         $this->assertFalse((bool) data_get($coherence, 'approval_available'));
-        $this->assertSame('review', data_get($coherence, 'budget_support.status'));
+        $this->assertSame('missing', data_get($coherence, 'budget_support.status'));
         $this->assertSame('review', data_get($coherence, 'plan_correlation.status'));
         $this->assertContains(
             'The budget currently shows 0 months of runway.',
@@ -723,15 +736,44 @@ final class AssessmentTest extends TestCase
             'The plan describes "Insurance" as an annual cost, but the budget treats it as monthly.',
             array_column((array) data_get($coherence, 'findings'), 'message'),
         );
+        $this->assertContains(
+            'The plan states monthly operating costs of $600, but the budget uses $51,573 of monthly fixed costs.',
+            array_column((array) data_get($coherence, 'findings'), 'message'),
+        );
+        $this->assertContains(
+            'Large monthly fixed-cost base: Monthly fixed costs total $51,573. Recheck the cost cadence and supporting source for the largest items.',
+            array_column((array) data_get($coherence, 'findings'), 'message'),
+        );
+        $this->assertContains(
+            'Fixed-cost trace mismatch: itemised monthly fixed costs total $1,200, but the model base is $51,573. Add the missing rows or relabel the table if it is only a subset.',
+            array_column((array) data_get($coherence, 'findings'), 'message'),
+        );
+        $this->assertContains(
+            'The plan refers to professional indemnity insurance, but the budget does not name a matching cost row.',
+            array_column((array) data_get($coherence, 'findings'), 'message'),
+        );
+        $this->assertContains(
+            'The plan refers to trademark registration and protection, but the budget does not name a matching cost row.',
+            array_column((array) data_get($coherence, 'findings'), 'message'),
+        );
 
         $profile = $plan->entrepreneurProfile()->firstOrFail();
+        $reply = app(AssessmentFeedback::class)->proposedReply($profile, $second->refresh());
+        $this->assertStringContainsString('Before we can finalise this assessment', $reply);
+        $this->assertStringContainsString('The budget has a funding gap of $190,057', $reply);
+        $this->assertStringContainsString('Large monthly fixed-cost base: Monthly fixed costs total $51,573', $reply);
+        $this->assertStringContainsString('The plan refers to professional indemnity insurance', $reply);
+        $this->assertStringContainsString('Budget > Funding and runway', $reply);
+        $this->assertStringContainsString('Budget > Monthly fixed costs', $reply);
+        $this->assertStringNotContainsString('The three areas below are simply the best places', $reply);
+
         $this->actingAsMfa($advisor)
             ->get(route('advisor.entrepreneurs.show', $profile))
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('entrepreneur.latest_plan.latest_assessment.meets_advisory_threshold', false)
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.approval_available', false)
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.budget_support.status', 'review')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.budget_support.status', 'missing')
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.plan_correlation.status', 'review')
             );
 
@@ -957,7 +999,9 @@ final class AssessmentTest extends TestCase
     public function test_assessment_feedback_draft_uses_the_actual_scored_priorities(): void
     {
         [$advisor, $plan] = $this->plan('assessment-feedback-draft@example.test');
-        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $assessment = $this->withResolvedPlanBudgetCoherence(
+            app(Assessment::class)->firstPass($plan, $advisor),
+        );
         $feedbacks = app(AssessmentFeedback::class);
 
         $feedback = $feedbacks->draft($assessment);
@@ -982,7 +1026,9 @@ final class AssessmentTest extends TestCase
     public function test_assessment_feedback_reply_uses_plain_language_without_truncated_ai_rationale(): void
     {
         [$advisor, $plan] = $this->plan('assessment-feedback-plain-language@example.test');
-        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $assessment = $this->withResolvedPlanBudgetCoherence(
+            app(Assessment::class)->firstPass($plan, $advisor),
+        );
         $assessment->forceFill([
             'ai_scores' => collect($assessment->ai_scores)
                 ->map(fn (array $row, int $index): array => [
@@ -1009,7 +1055,9 @@ final class AssessmentTest extends TestCase
     public function test_assessment_feedback_uses_complete_sentences_when_ai_rationale_is_long_or_truncated(): void
     {
         [$advisor, $plan] = $this->plan('assessment-feedback-complete-sentences@example.test');
-        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $assessment = $this->withResolvedPlanBudgetCoherence(
+            app(Assessment::class)->firstPass($plan, $advisor),
+        );
         $longRationale = implode(' ', [
             'The industry discussion has a useful starting point and identifies the broad customer problem.',
             'It needs current customer interviews, competitor pricing, and tested demand evidence before the next review.',
@@ -1405,6 +1453,8 @@ final class AssessmentTest extends TestCase
             ]],
             'computed' => [
                 'available_after_launch' => 8_000,
+                'opening_cash_balance' => 10_000,
+                'monthly_fixed_costs' => 100,
                 'runway_months' => 12,
                 'runway_open_ended' => false,
                 'break_even_reached' => true,
@@ -1412,6 +1462,19 @@ final class AssessmentTest extends TestCase
             ],
             'flags' => [],
         ]);
+    }
+
+    private function withResolvedPlanBudgetCoherence(PlanAssessment $assessment): PlanAssessment
+    {
+        $scope = (array) ($assessment->scoring_scope ?? []);
+        $scope['plan_budget_coherence'] = [
+            'approval_available' => true,
+            'findings' => [],
+        ];
+
+        $assessment->forceFill(['scoring_scope' => $scope])->save();
+
+        return $assessment->refresh();
     }
 }
 

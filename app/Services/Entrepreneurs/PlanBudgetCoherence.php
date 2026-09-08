@@ -15,10 +15,11 @@ namespace App\Services\Entrepreneurs;
  * @phpstan-type Reconciliation array{status:'met'|'review'|'missing',status_label:string,score:int,summary:string,evidence:list<string>,findings:list<Finding>,approval_available:bool,approval_message:string,budget_support:Direction,plan_correlation:Direction,unresolved_count:int}
  * @phpstan-type BudgetRow array{label?:string,type?:string,amount?:float|int,monthly_capacity_units?:float|int,cadence?:string}
  * @phpstan-type BudgetFlag array{key?:string,message?:string,title?:string}
- * @phpstan-type BudgetComputed array{available_after_launch?:float|int,runway_months?:float|int,runway_open_ended?:bool,input_count?:int,break_even_reached?:bool}
+ * @phpstan-type BudgetComputed array{available_after_launch?:float|int,monthly_fixed_costs?:float|int,runway_months?:float|int,runway_open_ended?:bool,input_count?:int,break_even_reached?:bool}
  * @phpstan-type BudgetAssumptions array{opening_cash_balance?:float|int}
- * @phpstan-type BudgetEvidence array{expected_runway_months?:float|int,assumptions?:BudgetAssumptions,monthly_fixed_costs?:list<BudgetRow>,revenue_forecast?:list<BudgetRow>,funding_sources?:list<BudgetRow>,funding_scenarios?:list<BudgetRow>,computed?:BudgetComputed,flags?:list<BudgetFlag>}
- * @phpstan-type Budget array{status:string,expected_runway_months?:float|int,assumptions?:BudgetAssumptions,monthly_fixed_costs?:list<BudgetRow>,revenue_forecast?:list<BudgetRow>,funding_sources?:list<BudgetRow>,funding_scenarios?:list<BudgetRow>,computed?:BudgetComputed,flags?:list<BudgetFlag>}
+ * @phpstan-type FundingReadiness array{required_additional_funding?:float|int,monthly_fixed_costs?:float|int,warnings?:list<string>}
+ * @phpstan-type BudgetEvidence array{expected_runway_months?:float|int,assumptions?:BudgetAssumptions,monthly_fixed_costs?:list<BudgetRow>,revenue_forecast?:list<BudgetRow>,funding_sources?:list<BudgetRow>,funding_scenarios?:list<BudgetRow>,computed?:BudgetComputed,flags?:list<BudgetFlag>,funding_readiness?:FundingReadiness}
+ * @phpstan-type Budget array{status:string,expected_runway_months?:float|int,assumptions?:BudgetAssumptions,monthly_fixed_costs?:list<BudgetRow>,revenue_forecast?:list<BudgetRow>,funding_sources?:list<BudgetRow>,funding_scenarios?:list<BudgetRow>,computed?:BudgetComputed,flags?:list<BudgetFlag>,funding_readiness?:FundingReadiness}
  * @phpstan-type FinancialSection array{title?:string,body?:string,requirement_key?:string}
  * @phpstan-type SnapshotPhase array{sections?:list<FinancialSection>}
  * @phpstan-type SnapshotBudget array{status?:string,assessment_evidence?:BudgetEvidence}
@@ -191,6 +192,12 @@ final class PlanBudgetCoherence
         }
 
         $this->addInputQualityFindings($flags, $findings);
+
+        $fundingReadiness = $budget['funding_readiness'] ?? null;
+        if (is_array($fundingReadiness)) {
+            /** @var FundingReadiness $fundingReadiness */
+            $this->addFundingReadinessFindings($fundingReadiness, $availableAfterLaunch, $findings);
+        }
     }
 
     /**
@@ -208,7 +215,8 @@ final class PlanBudgetCoherence
         $planRunway = $this->runwayMonths($planText);
         $planOpeningCash = $this->openingCash($planText);
         $planCapacity = $this->monthlyCapacity($planText);
-        $hasCheckableClaim = $planRunway !== null || $planOpeningCash !== null || $planCapacity !== null || $this->claimsDebtFree($planText);
+        $planMonthlyCosts = $this->monthlyOperatingCosts($planText);
+        $hasCheckableClaim = $planRunway !== null || $planOpeningCash !== null || $planCapacity !== null || $planMonthlyCosts !== null || $this->claimsDebtFree($planText);
 
         if (! $hasCheckableClaim) {
             $findings[] = $this->finding(
@@ -289,6 +297,18 @@ final class PlanBudgetCoherence
             }
         }
 
+        $this->addMissingPlannedCostFindings($planText, $fixedCosts, $findings);
+
+        $budgetMonthlyCosts = data_get($computed, 'monthly_fixed_costs');
+        if ($planMonthlyCosts !== null && is_numeric($budgetMonthlyCosts) && ! $this->withinTolerance($planMonthlyCosts, (float) $budgetMonthlyCosts)) {
+            $findings[] = $this->finding(
+                'plan_correlation',
+                'review',
+                'The plan states monthly operating costs of '.$this->money($planMonthlyCosts).', but the budget uses '.$this->money((float) $budgetMonthlyCosts).' of monthly fixed costs.',
+                'Reconcile the recurring cost base in Financial assumptions and Budget before relying on the stated runway or funding requirement.',
+            );
+        }
+
         if ($this->claimsDebtFree($planText) && $this->budgetUsesDebtFunding($budget)) {
             $findings[] = $this->finding(
                 'plan_correlation',
@@ -331,6 +351,129 @@ final class PlanBudgetCoherence
     }
 
     /**
+     * Adds the fuller readiness diagnostics which are captured with new assessment
+     * snapshots. These diagnostics are intentionally separate from the existing
+     * small set of gating flags: they explain the specific budget rows and
+     * assumptions a founder must correct.
+     *
+     * @param  FundingReadiness  $readiness
+     * @param  float|int|mixed  $availableAfterLaunch
+     * @param  list<Finding>  $findings
+     */
+    private function addFundingReadinessFindings(array $readiness, mixed $availableAfterLaunch, array &$findings): void
+    {
+        $requiredFunding = $readiness['required_additional_funding'] ?? null;
+        $sameAsLaunchGap = is_numeric($requiredFunding)
+            && is_numeric($availableAfterLaunch)
+            && (float) $availableAfterLaunch < 0
+            && $this->withinTolerance((float) $requiredFunding, abs((float) $availableAfterLaunch));
+
+        if (is_numeric($requiredFunding) && (float) $requiredFunding > 0 && ! $sameAsLaunchGap) {
+            $this->addFindingOnce(
+                $findings,
+                'budget_support',
+                'review',
+                'The forecast requires '.$this->money((float) $requiredFunding).' of additional funding to cover the modelled cash trough and planned operating buffer.',
+                'Confirm the cost cadence, opening cash, forecast timing, revenue capacity and funding position before treating this as a funding requirement.',
+            );
+        }
+
+        foreach ($readiness['warnings'] ?? [] as $warning) {
+            $message = trim($warning);
+            if ($message === '' || str_starts_with($message, 'Tax not configured:')) {
+                continue;
+            }
+
+            $this->addFindingOnce(
+                $findings,
+                'budget_support',
+                $this->warningNeedsEvidence($message) ? 'missing' : 'review',
+                $message,
+                $this->warningNextAction($message),
+            );
+        }
+    }
+
+    /**
+     * @param  list<Finding>  $findings
+     */
+    private function addFindingOnce(array &$findings, string $category, string $severity, string $message, string $nextAction): void
+    {
+        $normalisedMessage = strtolower(trim($message));
+        foreach ($findings as $finding) {
+            if (strtolower(trim($finding['message'])) === $normalisedMessage) {
+                return;
+            }
+        }
+
+        $findings[] = $this->finding($category, $severity, $message, $nextAction);
+    }
+
+    private function warningNeedsEvidence(string $warning): bool
+    {
+        if (str_contains(strtolower($warning), 'needs review')) {
+            return false;
+        }
+
+        return preg_match('/\b(?:missing|incomplete|not confirmed|set the)\b/i', $warning) === 1;
+    }
+
+    private function warningNextAction(string $warning): string
+    {
+        $normalised = strtolower($warning);
+
+        if (str_contains($normalised, 'funding') || str_contains($normalised, 'cash') || str_contains($normalised, 'runway') || str_contains($normalised, 'break-even')) {
+            return 'Update Budget > Funding and runway with the verified cash position, funding source, timing and funding purpose.';
+        }
+
+        if (str_contains($normalised, 'fixed cost') || str_contains($normalised, 'owner compensation') || str_contains($normalised, 'cadence')) {
+            return 'Update Budget > Monthly fixed costs so every recurring cost has one verified amount, cadence and source.';
+        }
+
+        if (str_contains($normalised, 'revenue') || str_contains($normalised, 'capacity') || str_contains($normalised, 'contractor')) {
+            return 'Update Budget > Revenue forecast with supported price, growth cadence, delivery capacity and contractor cost assumptions.';
+        }
+
+        return 'Update Budget > Financial assumptions with the missing source, timing and basis, then check the revised forecast against the financial plan.';
+    }
+
+    /**
+     * @param  list<BudgetRow>  $fixedCosts
+     * @param  list<Finding>  $findings
+     */
+    private function addMissingPlannedCostFindings(string $planText, array $fixedCosts, array &$findings): void
+    {
+        $budgetLabels = strtolower(implode(' ', array_map(
+            fn (array $row): string => $this->rowLabel($row),
+            $fixedCosts,
+        )));
+        $commitments = [
+            'professional indemnity insurance' => [
+                'plan_pattern' => '/\b(?:professional\s+indemnity|pi)\s+insurance\b/i',
+                'budget_pattern' => '/\b(?:professional\s+indemnity|pi)\s+insurance\b/i',
+            ],
+            'trademark registration and protection' => [
+                'plan_pattern' => '/\b(?:trade\s?mark|trademark)\b/i',
+                'budget_pattern' => '/\b(?:trade\s?mark|trademark|intellectual\s+property)\b/i',
+            ],
+        ];
+
+        foreach ($commitments as $commitment => $patterns) {
+            if (preg_match($patterns['plan_pattern'], $planText) !== 1 || preg_match($patterns['budget_pattern'], $budgetLabels) === 1) {
+                continue;
+            }
+
+            $this->addFindingOnce(
+                $findings,
+                'plan_correlation',
+                'review',
+                'The plan refers to '.$commitment.', but the budget does not name a matching cost row.',
+                'Add the expected cost, timing and source in Budget > Monthly fixed costs or launch costs, then align the financial plan statement.',
+            );
+        }
+    }
+
+    /**
      * @param  Snapshot  $snapshot
      * @return list<array{title:string,body:string}>
      */
@@ -341,12 +484,9 @@ final class PlanBudgetCoherence
 
         foreach ($phases as $phase) {
             foreach ($phase['sections'] ?? [] as $section) {
-                if (! in_array((string) ($section['requirement_key'] ?? ''), self::FINANCIAL_REQUIREMENT_KEYS, true)) {
-                    continue;
-                }
-
                 $body = trim((string) ($section['body'] ?? ''));
-                if ($body === '') {
+                $isFinancialRequirement = in_array((string) ($section['requirement_key'] ?? ''), self::FINANCIAL_REQUIREMENT_KEYS, true);
+                if ($body === '' || (! $isFinancialRequirement && ! $this->containsFinancialClaim($body))) {
                     continue;
                 }
 
@@ -394,6 +534,29 @@ final class PlanBudgetCoherence
         }
 
         return is_numeric($matches[1]) ? max(0.0, (float) $matches[1]) : null;
+    }
+
+    private function monthlyOperatingCosts(string $planText): ?float
+    {
+        $patterns = [
+            '/\b(?:operating|fixed|overhead)\s+costs?\D{0,30}?\$?\s*([0-9][0-9,]*(?:\.\d{1,2})?)\s*(?:\/|per\s*)\s*month\b/i',
+            '/\$?\s*([0-9][0-9,]*(?:\.\d{1,2})?)\s*(?:\/|per\s*)\s*month\D{0,30}?\b(?:operating|fixed|overhead)\s+costs?\b/i',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $planText, $matches) === 1) {
+                $amount = str_replace(',', '', (string) $matches[1]);
+
+                return is_numeric($amount) ? max(0.0, (float) $amount) : null;
+            }
+        }
+
+        return null;
+    }
+
+    private function containsFinancialClaim(string $body): bool
+    {
+        return preg_match('/\b(?:runway|opening\s+cash|starting\s+cash|monthly\s+(?:operating|fixed|overhead)\s+costs?|funding|debt[- ]?free|delivery\s+capacity|(?:professional\s+indemnity|pi)\s+insurance|trade\s?mark|trademark)\b/i', $body) === 1;
     }
 
     private function claimsDebtFree(string $planText): bool
