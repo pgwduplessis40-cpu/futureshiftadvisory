@@ -1576,6 +1576,7 @@ final class StrategicBudgetService
             'assessment_criteria' => $criteria,
         ];
     }
+
     /**
      * @param  array<int, mixed>  $criteria
      * @return array<int, array<array-key, mixed>>

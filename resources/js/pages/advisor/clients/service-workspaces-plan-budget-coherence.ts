@@ -34,7 +34,7 @@ export type StrategicBudgetPlanBudgetReconciliation = {
     unresolved_count: number;
 };
 
-type PlanBudgetApprovalState = {
+export type PlanBudgetApprovalState = {
     review_approved_or_later: boolean;
     review_submitted_or_later: boolean;
     business_plan_ready: boolean;

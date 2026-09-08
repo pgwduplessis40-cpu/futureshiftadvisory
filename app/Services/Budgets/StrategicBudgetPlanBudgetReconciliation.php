@@ -427,6 +427,7 @@ final class StrategicBudgetPlanBudgetReconciliation
 
     /**
      * @template T of array{plan_financial_driver_key:string}
+     *
      * @param  list<T>  $rows
      * @return list<T>
      */
