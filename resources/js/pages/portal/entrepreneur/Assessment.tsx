@@ -11,9 +11,17 @@ import {
 import { useState } from 'react';
 import { toast } from 'sonner';
 import InputError from '@/components/input-error';
+import { PlanBudgetCoherencePanel } from '@/components/plan-budget-coherence';
+import type { PlanBudgetCoherenceSummary } from '@/components/plan-budget-coherence';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import {
+    formatDate,
+    formatDateTime,
+    formatLabel,
+    formatRubricVersion,
+} from './assessment-formatters';
 import { AssessmentScoreSummary } from './assessment-score-summary';
 
 type Criterion = {
@@ -89,6 +97,7 @@ type Assessment = {
         cross_plan_review_required: boolean;
         cross_plan_review_message: string | null;
     } | null;
+    plan_budget_coherence: PlanBudgetCoherenceSummary | null;
     finalised_at: string | null;
     created_at: string | null;
     basis: {
@@ -385,6 +394,11 @@ export default function EntrepreneurAssessment({
                                   )
                             : undefined
                     }
+                />
+
+                <PlanBudgetCoherencePanel
+                    coherence={assessment.plan_budget_coherence}
+                    historicalMessage="This historical assessment cannot be used to finalise or issue lender-facing material until it is reassessed with the current coherence gate."
                 />
 
                 {assessment.requires_full_reassessment ? (
@@ -902,38 +916,6 @@ function Detail({
             <dd>{value || '-'}</dd>
         </div>
     );
-}
-
-function formatDate(value: string | null): string {
-    if (!value) {
-        return '-';
-    }
-
-    return new Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-    }).format(new Date(value));
-}
-
-function formatDateTime(value: string | null): string {
-    if (!value) {
-        return '-';
-    }
-
-    return new Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    }).format(new Date(value));
-}
-
-function formatLabel(value: string): string {
-    return value
-        .split('_')
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(' ');
-}
-
-function formatRubricVersion(value: number | null): string {
-    return value ? `rubric v${value}` : 'the assigned rubric';
 }
 
 EntrepreneurAssessment.layout = {

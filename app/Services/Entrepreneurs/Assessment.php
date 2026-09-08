@@ -51,6 +51,7 @@ final class Assessment implements ProvidesMethodology
         private readonly EntrepreneurMilestones $milestones,
         private readonly PlanAiContext $contexts,
         private readonly BusinessPlanSnapshot $snapshots,
+        private readonly PlanBudgetCoherence $planBudgetCoherence,
         private readonly ExecutiveSummaryEligibility $executiveSummaryEligibility,
         private readonly AssessmentEvidenceScopeCorrection $scopeCorrections,
     ) {}
@@ -75,6 +76,7 @@ final class Assessment implements ProvidesMethodology
         }
 
         $planSnapshot = $this->snapshots->capture($plan);
+        $planBudgetCoherence = $this->planBudgetCoherence->evaluate($planSnapshot);
         $previousAssessment = PlanAssessment::query()
             ->where('business_plan_id', $plan->getKey())
             ->where('rating_framework_id', $framework->getKey())
@@ -206,6 +208,7 @@ final class Assessment implements ProvidesMethodology
                     ? 'Budget evidence changed. It did not automatically change non-budget criterion scores; review cross-plan consistency before finalising.'
                     : null,
             ],
+            'plan_budget_coherence' => $planBudgetCoherence,
         ];
 
         return DB::transaction(function () use ($plan, $actor, $framework, $aiScores, $advisorScores, $documentSupport, $planSnapshot, $scoringScope, $totalCriteria, $weighted): PlanAssessment {
@@ -261,6 +264,9 @@ final class Assessment implements ProvidesMethodology
                 'reused_criterion_numbers' => $scoringScope['reused_criterion_numbers'],
                 'scope_correction_criterion_numbers' => $scoringScope['scope_correction_criterion_numbers'],
                 'cross_plan_review_required' => data_get($scoringScope, 'cross_plan_review.required', false),
+                'plan_budget_coherence_status' => data_get($scoringScope, 'plan_budget_coherence.status'),
+                'plan_budget_coherence_approval_available' => data_get($scoringScope, 'plan_budget_coherence.approval_available', false),
+                'plan_budget_coherence_unresolved_count' => data_get($scoringScope, 'plan_budget_coherence.unresolved_count', 0),
             ]);
 
             return $assessment->refresh()->load('ratingFramework.criteria');
@@ -564,6 +570,16 @@ final class Assessment implements ProvidesMethodology
             ]);
         }
 
+        if (! $this->planBudgetCoherenceAllowsFinalisation($assessment)) {
+            throw ValidationException::withMessages([
+                'assessment' => (string) data_get(
+                    $assessment->scoring_scope,
+                    'plan_budget_coherence.approval_message',
+                    'Run a fresh assessment and resolve the plan–budget coherence findings before finalising.',
+                ),
+            ]);
+        }
+
         $weighted = $assessment->ratingFramework instanceof RatingFramework
             ? AssessmentScoring::weightedScoreForFramework($assessment->ratingFramework, $assessment->ai_scores ?? [], $assessment->advisor_scores ?? [])
             : 0.0;
@@ -684,6 +700,13 @@ final class Assessment implements ProvidesMethodology
 
         return (bool) data_get($scope, 'advisor_review.required', false)
             && empty(data_get($scope, 'advisor_review.confirmed_at'));
+    }
+
+    private function planBudgetCoherenceAllowsFinalisation(PlanAssessment $assessment): bool
+    {
+        $coherence = data_get($assessment->scoring_scope, 'plan_budget_coherence');
+
+        return is_array($coherence) && (bool) ($coherence['approval_available'] ?? false);
     }
 
     /**

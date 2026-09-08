@@ -7,6 +7,35 @@ export type CapacitySummary = {
     blocked: boolean;
 };
 
+export type PlanBudgetCoherence = {
+    status: 'met' | 'review' | 'missing' | string;
+    status_label: string;
+    score: number;
+    summary: string;
+    evidence: string[];
+    findings: {
+        category: 'budget_support' | 'plan_correlation' | string;
+        severity: 'missing' | 'review' | string;
+        message: string;
+        next_action: string;
+    }[];
+    approval_available: boolean;
+    approval_message: string;
+    budget_support: {
+        status: string;
+        status_label: string;
+        summary: string;
+        unresolved_count: number;
+    };
+    plan_correlation: {
+        status: string;
+        status_label: string;
+        summary: string;
+        unresolved_count: number;
+    };
+    unresolved_count: number;
+};
+
 export type EntrepreneurSummary = {
     id: string;
     name: string;
@@ -71,6 +100,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             meets_advisory_threshold: boolean;
             automated_score_available: boolean;
             finalised_at: string | null;
+            plan_budget_coherence: PlanBudgetCoherence | null;
             rating_framework: {
                 id: string | null;
                 version: number | null;

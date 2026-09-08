@@ -27,6 +27,7 @@ import { FormattedMarkdown } from '@/components/formatted-textarea';
 import InputError from '@/components/input-error';
 import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
 import type { InsightHoverCardRow } from '@/components/insight/InsightHoverCard';
+import { PlanBudgetCoherencePanel } from '@/components/plan-budget-coherence';
 import { AdvisorSupportAction } from '@/components/screen-share/AdvisorSupportAction';
 import type { AdvisorScreenShareConfig } from '@/components/screen-share/AdvisorSupportAction';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +52,7 @@ import {
     AdvisoryConversionAction,
     FounderReadyBriefAction,
     FounderReadyBriefBadge,
+    PlanBudgetFinaliseReportAction,
 } from './founder-ready-brief-controls';
 import type {
     EntrepreneurDetail,
@@ -110,6 +112,11 @@ export default function EntrepreneursShow({
     coBrowse,
 }: Props) {
     const latestAssessment = entrepreneur.latest_plan?.latest_assessment;
+    const planBudgetCoherence = latestAssessment?.plan_budget_coherence ?? null;
+    const planBudgetFinalisationBlocked =
+        latestAssessment !== undefined &&
+        (planBudgetCoherence === null ||
+            !planBudgetCoherence.approval_available);
     const executiveSummary = entrepreneur.latest_plan?.executive_summary;
     const funderReady = entrepreneur.latest_plan?.funder_ready;
     const lenderBrief = entrepreneur.latest_plan?.lender_brief;
@@ -968,33 +975,15 @@ export default function EntrepreneursShow({
                                 ) : null}
                                 {latestAssessment &&
                                 !latestAssessment.finalised_at ? (
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        className={cn(
-                                            finaliseReportReady &&
-                                                'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white',
-                                        )}
-                                        title={
-                                            finaliseReportReady
-                                                ? `Score meets the ${latestAssessment.threshold}/100 advisory-readiness threshold. Finalising activates the advisory conversion request and automatically queues the approved executive summary for this assessed plan and budget.`
-                                                : 'Finalise the assessment report and record the advisor outcome.'
+                                    <PlanBudgetFinaliseReportAction
+                                        assessment={latestAssessment}
+                                        ready={finaliseReportReady}
+                                        blocked={planBudgetFinalisationBlocked}
+                                        blockingMessage={
+                                            planBudgetCoherence?.approval_message ??
+                                            null
                                         }
-                                        onClick={() =>
-                                            router.patch(
-                                                latestAssessment.finalise_url,
-                                                {},
-                                                { preserveScroll: true },
-                                            )
-                                        }
-                                    >
-                                        <CheckCircle2
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        Finalise report
-                                    </Button>
+                                    />
                                 ) : null}
                                 {entrepreneur.latest_plan ? (
                                     <Button asChild size="sm" variant="outline">
@@ -2399,6 +2388,14 @@ export default function EntrepreneursShow({
                             decision in the same workflow that follows Idea
                             Validation.
                         </p>
+
+                        {latestAssessment ? (
+                            <PlanBudgetCoherencePanel
+                                coherence={planBudgetCoherence}
+                                heading="h3"
+                                historicalMessage="This historical round predates the coherence gate. Run a reassessment before using it to finalise or issue lender-facing material."
+                            />
+                        ) : null}
 
                         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                             <ActionMetric
