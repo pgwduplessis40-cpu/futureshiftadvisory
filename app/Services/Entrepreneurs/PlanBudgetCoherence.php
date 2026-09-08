@@ -415,7 +415,7 @@ final class PlanBudgetCoherence
             return false;
         }
 
-        return preg_match('/\b(?:confirm|missing|incomplete|not confirmed|set the|verify)\b/i', $warning) === 1;
+        return preg_match('/\b(?:missing|incomplete|not confirmed|set the)\b/i', $warning) === 1;
     }
 
     private function warningNextAction(string $warning): string
