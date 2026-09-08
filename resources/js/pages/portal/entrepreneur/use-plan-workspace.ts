@@ -402,7 +402,7 @@ export function usePlanWorkspace({
         return () => window.clearTimeout(timeout);
     }, [sectionBody, sectionTitle, selectedRequirement, workspaceKey]);
 
-    useEffect(() => {
+    const saveSectionDraft = useCallback(async () => {
         if (!selectedRequirement || selectedRequirement.type === 'budget') {
             return;
         }
@@ -419,35 +419,21 @@ export function usePlanWorkspace({
             return;
         }
 
-        let cancelled = false;
-        const timeout = window.setTimeout(() => {
-            setSectionAutosaveState('saving');
+        setSectionAutosaveState('saving');
 
-            void postSectionAutosave(urls.sectionStore, {
+        try {
+            const saved = await postSectionAutosave(urls.sectionStore, {
                 phase_key: selectedRequirement.phase_key,
                 requirement_key: selectedRequirement.key,
                 title: sectionTitle,
                 body: sectionBody,
                 attached_document_ids: supportingDocumentIds,
-            })
-                .then((saved) => {
-                    if (cancelled) {
-                        return;
-                    }
+            });
 
-                    setSectionAutosaveState(saved ? 'saved' : 'error');
-                })
-                .catch(() => {
-                    if (!cancelled) {
-                        setSectionAutosaveState('error');
-                    }
-                });
-        }, 2000);
-
-        return () => {
-            cancelled = true;
-            window.clearTimeout(timeout);
-        };
+            setSectionAutosaveState(saved ? 'saved' : 'error');
+        } catch {
+            setSectionAutosaveState('error');
+        }
     }, [
         plan,
         sectionBody,
@@ -459,11 +445,52 @@ export function usePlanWorkspace({
     ]);
 
     useEffect(() => {
+        if (!selectedRequirement || selectedRequirement.type === 'budget') {
+            return;
+        }
+
+        const timeout = window.setTimeout(() => {
+            void saveSectionDraft();
+        }, 2000);
+
+        return () => window.clearTimeout(timeout);
+    }, [saveSectionDraft, selectedRequirement]);
+
+    useEffect(() => {
         updatePlanWorkspaceDraft<BudgetFormState>(workspaceKey, (draft) => ({
             ...draft,
             budgetForm,
         }));
     }, [budgetForm, workspaceKey]);
+
+    const saveBudgetDraft = useCallback(async () => {
+        if (
+            !plan ||
+            selectedRequirement?.type !== 'budget' ||
+            !budgetAutosaveUnlocked
+        ) {
+            return;
+        }
+
+        setBudgetAutosaveState('saving');
+
+        try {
+            const saved = await postBudgetAutosave(
+                urls.budgetUpdate,
+                cleanBudgetForm(budgetForm),
+            );
+
+            setBudgetAutosaveState(saved ? 'saved' : 'error');
+        } catch {
+            setBudgetAutosaveState('error');
+        }
+    }, [
+        budgetAutosaveUnlocked,
+        budgetForm,
+        plan,
+        selectedRequirement?.type,
+        urls.budgetUpdate,
+    ]);
 
     useEffect(() => {
         if (
@@ -480,38 +507,17 @@ export function usePlanWorkspace({
             return;
         }
 
-        let cancelled = false;
         const timeout = window.setTimeout(() => {
-            setBudgetAutosaveState('saving');
-
-            void postBudgetAutosave(
-                urls.budgetUpdate,
-                cleanBudgetForm(budgetForm),
-            )
-                .then((saved) => {
-                    if (cancelled) {
-                        return;
-                    }
-
-                    setBudgetAutosaveState(saved ? 'saved' : 'error');
-                })
-                .catch(() => {
-                    if (!cancelled) {
-                        setBudgetAutosaveState('error');
-                    }
-                });
+            void saveBudgetDraft();
         }, 2500);
 
-        return () => {
-            cancelled = true;
-            window.clearTimeout(timeout);
-        };
+        return () => window.clearTimeout(timeout);
     }, [
         budgetAutosaveUnlocked,
         budgetForm,
         plan,
+        saveBudgetDraft,
         selectedRequirement?.type,
-        urls.budgetUpdate,
     ]);
 
     useEffect(() => {
@@ -561,6 +567,8 @@ export function usePlanWorkspace({
         ideaForm.post(urls.ideaValidation, {
             preserveScroll: true,
             onSuccess: () => {
+                ideaDraftState.discardRecovery();
+
                 if (ideaValidationApproved) {
                     setShowValidatedIdeaForm(false);
                 }
@@ -920,6 +928,8 @@ export function usePlanWorkspace({
         savingBudget,
         sectionAutosaveState,
         budgetAutosaveState,
+        retrySectionAutosave: () => void saveSectionDraft(),
+        retryBudgetAutosave: () => void saveBudgetDraft(),
         submitIdea,
         recallIdeaForRevision,
         restoreIdeaVersion,

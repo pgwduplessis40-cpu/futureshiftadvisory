@@ -692,6 +692,7 @@ export default function StrategicPlanBudget({
                         <AutosaveStatus
                             state={autosaveState}
                             error={autosaveError}
+                            onRetry={() => postDraft(latestSignature.current)}
                         />
                         <Button asChild variant="outline">
                             <Link href={dashboardUrl}>
@@ -1125,6 +1126,9 @@ export default function StrategicPlanBudget({
                                 <AutosaveStatus
                                     state={autosaveState}
                                     error={autosaveError}
+                                    onRetry={() =>
+                                        postDraft(latestSignature.current)
+                                    }
                                 />
                                 <Button
                                     type="button"
@@ -1176,15 +1180,28 @@ export default function StrategicPlanBudget({
 function AutosaveStatus({
     state,
     error,
+    onRetry,
 }: {
     state: AutosaveState;
     error: string | null;
+    onRetry: () => void;
 }) {
     if (state === 'error') {
         return (
-            <Badge variant="destructive" title={error ?? undefined}>
-                Autosave failed
-            </Badge>
+            <span className="inline-flex items-center gap-1" role="alert">
+                <Badge variant="destructive" title={error ?? undefined}>
+                    Autosave failed
+                </Badge>
+                <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto px-0 text-xs text-destructive"
+                    onClick={onRetry}
+                >
+                    Retry save
+                </Button>
+            </span>
         );
     }
 

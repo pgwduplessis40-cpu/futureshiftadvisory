@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { Eye, MessageSquare, Trophy } from 'lucide-react';
+import { DraftSaveStatus } from '@/components/portal/draft-save-status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -60,18 +61,11 @@ export function PlanWorkspaceLayout(workspace: PlanWorkspace) {
                                         placeholder="e.g. Harbour Studio Limited"
                                     />
                                 </label>
-                                <span
-                                    className="pb-2 text-xs text-muted-foreground"
-                                    role="status"
-                                >
-                                    {companyNameAutosaveState === 'saving'
-                                        ? 'Saving…'
-                                        : companyNameAutosaveState === 'saved'
-                                          ? 'Saved automatically'
-                                          : companyNameAutosaveState === 'error'
-                                            ? 'Could not save yet'
-                                            : 'Saves automatically'}
-                                </span>
+                                <DraftSaveStatus
+                                    draft={companyNameAutosaveState}
+                                    className="pb-2"
+                                    savedLabel="Company name saved automatically"
+                                />
                             </div>
                         ) : null}
                     </div>

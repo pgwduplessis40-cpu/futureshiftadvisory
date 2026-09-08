@@ -241,6 +241,7 @@ export function BudgetEditor({
     gamification,
     saving,
     autosaveState,
+    onRetryAutosave,
     onFormChange,
     onSave,
     onAcknowledgeFlag,
@@ -253,6 +254,7 @@ export function BudgetEditor({
     gamification: GamificationPayload;
     saving: boolean;
     autosaveState: 'idle' | 'saving' | 'saved' | 'error';
+    onRetryAutosave: () => void;
     onFormChange: Dispatch<SetStateAction<BudgetFormState>>;
     onSave: () => void;
     onAcknowledgeFlag: (key: string) => void;
@@ -840,9 +842,27 @@ export function BudgetEditor({
                             {saving ? 'Saving' : 'Save budget'}
                         </Button>
                         {autosaveState !== 'idle' ? (
-                            <span className="text-xs text-muted-foreground">
-                                {sectionAutosaveStateLabel(autosaveState)}
-                            </span>
+                            autosaveState === 'error' ? (
+                                <span
+                                    className="inline-flex items-center gap-1 text-xs text-destructive"
+                                    role="alert"
+                                >
+                                    Draft could not be saved.
+                                    <Button
+                                        type="button"
+                                        variant="link"
+                                        size="sm"
+                                        className="h-auto px-0 text-xs text-destructive"
+                                        onClick={onRetryAutosave}
+                                    >
+                                        Retry save
+                                    </Button>
+                                </span>
+                            ) : (
+                                <span className="text-xs text-muted-foreground">
+                                    {sectionAutosaveStateLabel(autosaveState)}
+                                </span>
+                            )
                         ) : null}
                     </div>
                 </>

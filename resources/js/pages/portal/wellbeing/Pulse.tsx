@@ -4,6 +4,7 @@ import type { FormEvent } from 'react';
 import { ExplainedSectionHeader, Explainer } from '@/components/explainer';
 import type { Explanation } from '@/components/explainer';
 import InputError from '@/components/input-error';
+import { DraftSaveStatus } from '@/components/portal/draft-save-status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -73,6 +74,7 @@ export default function WellbeingPulse({
         event.preventDefault();
         form.post(storeUrl, {
             preserveScroll: true,
+            onSuccess: draftState.discardRecovery,
         });
     };
 
@@ -180,7 +182,7 @@ export default function WellbeingPulse({
                         </Button>
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                             {currentCheckin === null && (
-                                <DraftStatus state={draftState} />
+                                <DraftSaveStatus draft={draftState} />
                             )}
                             {currentCheckin?.can_delete && (
                                 <Button
@@ -203,26 +205,6 @@ export default function WellbeingPulse({
                 </form>
             </main>
         </>
-    );
-}
-
-function DraftStatus({
-    state,
-}: {
-    state: ReturnType<typeof usePersistedWorkspaceDraft>;
-}) {
-    if (state === 'idle') {
-        return null;
-    }
-
-    return (
-        <span className="text-xs text-muted-foreground" role="status">
-            {state === 'saving'
-                ? 'Saving draft…'
-                : state === 'saved'
-                  ? 'Draft saved'
-                  : 'Draft could not be saved'}
-        </span>
     );
 }
 

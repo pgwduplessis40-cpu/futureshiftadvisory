@@ -17,6 +17,7 @@ import { ExplainedSectionHeader } from '@/components/explainer';
 import type { Explanation } from '@/components/explainer';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
+import { DraftSaveStatus } from '@/components/portal/draft-save-status';
 import { QuestionnaireRenderer } from '@/components/questionnaires/QuestionnaireRenderer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -260,6 +261,7 @@ export default function OnboardingStep({
 
         form.post(submitUrl, {
             preserveScroll: true,
+            onSuccess: workspaceDraftState.discardRecovery,
         });
     };
     const returnToDashboard = async () => {
@@ -386,7 +388,7 @@ export default function OnboardingStep({
                     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
                         <div className="flex items-center gap-3">
                             {step.slug !== 'questionnaire' && (
-                                <DraftStatus state={workspaceDraftState} />
+                                <DraftSaveStatus draft={workspaceDraftState} />
                             )}
                             <Button
                                 type="button"
@@ -414,26 +416,6 @@ export default function OnboardingStep({
                 </form>
             </main>
         </>
-    );
-}
-
-function DraftStatus({
-    state,
-}: {
-    state: ReturnType<typeof usePersistedWorkspaceDraft>;
-}) {
-    if (state === 'idle') {
-        return null;
-    }
-
-    return (
-        <span className="text-xs text-muted-foreground" role="status">
-            {state === 'saving'
-                ? 'Saving draft…'
-                : state === 'saved'
-                  ? 'Draft saved'
-                  : 'Draft could not be saved'}
-        </span>
     );
 }
 

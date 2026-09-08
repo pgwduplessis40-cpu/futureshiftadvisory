@@ -15,6 +15,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
+import { DraftSaveStatus } from '@/components/portal/draft-save-status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -160,6 +161,7 @@ export function ThreadedMessaging({
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
+                createDraftState.discardRecovery();
                 createForm.reset();
                 setCreateUploadKey((key) => key + 1);
             },
@@ -177,6 +179,7 @@ export function ThreadedMessaging({
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
+                replyDraftState.discardRecovery();
                 replyForm.reset();
                 setReplyUploadKey((key) => key + 1);
             },
@@ -315,7 +318,7 @@ export function ThreadedMessaging({
                             />
 
                             <div className="flex flex-wrap items-center justify-end gap-3">
-                                <DraftStatus state={createDraftState} />
+                                <DraftSaveStatus draft={createDraftState} />
                                 <Button
                                     type="submit"
                                     disabled={createForm.processing}
@@ -433,7 +436,7 @@ export function ThreadedMessaging({
                                 />
 
                                 <div className="flex flex-wrap items-center justify-end gap-3">
-                                    <DraftStatus state={replyDraftState} />
+                                    <DraftSaveStatus draft={replyDraftState} />
                                     <Button
                                         type="submit"
                                         disabled={replyForm.processing}
@@ -463,26 +466,6 @@ export function ThreadedMessaging({
                 </section>
             </div>
         </div>
-    );
-}
-
-function DraftStatus({
-    state,
-}: {
-    state: ReturnType<typeof usePersistedWorkspaceDraft>;
-}) {
-    if (state === 'idle') {
-        return null;
-    }
-
-    return (
-        <span className="text-xs text-muted-foreground" role="status">
-            {state === 'saving'
-                ? 'Saving draft…'
-                : state === 'saved'
-                  ? 'Draft saved'
-                  : 'Draft could not be saved'}
-        </span>
     );
 }
 

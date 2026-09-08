@@ -35,6 +35,7 @@ import { InspirationCard } from '@/components/inspiration/InspirationCard';
 import type { InspirationPost } from '@/components/inspiration/InspirationCard';
 import { NpoHealthPanel } from '@/components/npo/NpoHealthPanel';
 import type { NpoHealthPayload } from '@/components/npo/NpoHealthPanel';
+import { DraftSaveStatus } from '@/components/portal/draft-save-status';
 import { ServiceJourneyRecognitionPanel } from '@/components/portal/ServiceJourneyRecognitionPanel';
 import type { ServiceJourneyRecognitionPayload } from '@/components/portal/ServiceJourneyRecognitionPanel';
 import { WorkspaceSwitcher } from '@/components/portal/WorkspaceSwitcher';
@@ -2027,6 +2028,8 @@ function NpoPortalPanel({
             metric?: NpoImpactMetricPayload;
         };
 
+        metricDraftState.discardRecovery();
+
         if (saved.metric) {
             setMetrics((current) => [
                 saved.metric as NpoImpactMetricPayload,
@@ -2375,18 +2378,7 @@ function NpoPortalPanel({
                             <Save className="size-4" aria-hidden="true" />
                             {savingMetric ? 'Saving' : 'Save metric'}
                         </Button>
-                        {metricDraftState === 'saving' ? (
-                            <span
-                                className="text-xs text-muted-foreground"
-                                role="status"
-                            >
-                                Saving draft…
-                            </span>
-                        ) : metricDraftState === 'saved' ? (
-                            <span className="text-xs text-muted-foreground">
-                                Draft saved automatically
-                            </span>
-                        ) : null}
+                        <DraftSaveStatus draft={metricDraftState} />
                     </div>
                 </article>
             </div>
@@ -3175,7 +3167,10 @@ function StrategicPlanMilestoneCard({
     });
 
     const save = () => {
-        form.patch(milestone.update_url, { preserveScroll: true });
+        form.patch(milestone.update_url, {
+            preserveScroll: true,
+            onSuccess: draftState.discardRecovery,
+        });
     };
 
     return (
@@ -3257,15 +3252,7 @@ function StrategicPlanMilestoneCard({
             <InputError message={form.errors.status} />
             <InputError message={form.errors.progress_percent} />
             <InputError message={form.errors.evidence_notes} />
-            {draftState === 'saving' ? (
-                <span className="text-xs text-muted-foreground" role="status">
-                    Saving draft…
-                </span>
-            ) : draftState === 'saved' ? (
-                <span className="text-xs text-muted-foreground">
-                    Draft saved automatically
-                </span>
-            ) : null}
+            <DraftSaveStatus draft={draftState} />
         </article>
     );
 }

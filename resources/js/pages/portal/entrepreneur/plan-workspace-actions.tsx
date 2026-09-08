@@ -12,6 +12,7 @@ import {
 import FileDropzone from '@/components/file-dropzone';
 import { FormattedTextarea } from '@/components/formatted-textarea';
 import InputError from '@/components/input-error';
+import { DraftSaveStatus } from '@/components/portal/draft-save-status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -92,6 +93,8 @@ export function PlanWorkspaceActions({
         savingBudget,
         sectionAutosaveState,
         budgetAutosaveState,
+        retrySectionAutosave,
+        retryBudgetAutosave,
         submitIdea,
         recallIdeaForRevision,
         restoreIdeaVersion,
@@ -522,18 +525,12 @@ export function PlanWorkspaceActions({
                                             ? 'Update idea validation'
                                             : 'Submit idea validation'}
                                 </Button>
-                                <p
-                                    className="mt-2 text-xs text-muted-foreground"
-                                    role="status"
-                                >
-                                    {ideaDraftState === 'saving'
-                                        ? 'Saving your idea draft…'
-                                        : ideaDraftState === 'saved'
-                                          ? 'Idea draft saved automatically.'
-                                          : ideaDraftState === 'error'
-                                            ? 'Your idea draft could not be saved just yet. Keep this page open and try again shortly.'
-                                            : 'Your answers save automatically while you work.'}
-                                </p>
+                                <DraftSaveStatus
+                                    draft={ideaDraftState}
+                                    className="mt-2"
+                                    idleLabel="Your answers save automatically while you work."
+                                    savedLabel="Idea draft saved automatically."
+                                />
                                 {ideaForm.recentlySuccessful ? (
                                     <p className="mt-2 text-xs text-muted-foreground">
                                         Idea validation submitted for advisor
@@ -706,6 +703,9 @@ export function PlanWorkspaceActions({
                                             gamification={gamification}
                                             saving={savingBudget}
                                             autosaveState={budgetAutosaveState}
+                                            onRetryAutosave={
+                                                retryBudgetAutosave
+                                            }
                                             onFormChange={setBudgetForm}
                                             onSave={saveBudget}
                                             onAcknowledgeFlag={
@@ -866,6 +866,26 @@ export function PlanWorkspaceActions({
                                                     }
                                                 </span>
                                             </span>
+                                            {sectionAutosaveState ===
+                                            'error' ? (
+                                                <span
+                                                    className="inline-flex items-center gap-1 text-xs text-destructive"
+                                                    role="alert"
+                                                >
+                                                    Draft could not be saved.
+                                                    <Button
+                                                        type="button"
+                                                        variant="link"
+                                                        size="sm"
+                                                        className="h-auto px-0 text-xs text-destructive"
+                                                        onClick={
+                                                            retrySectionAutosave
+                                                        }
+                                                    >
+                                                        Retry save
+                                                    </Button>
+                                                </span>
+                                            ) : null}
                                             <FormattedTextarea
                                                 id="entrepreneur-plan-section-body"
                                                 value={sectionBody}

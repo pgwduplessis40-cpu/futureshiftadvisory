@@ -2,6 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type AutosavedFormState = 'idle' | 'saving' | 'saved' | 'error';
 
+export type AutosavedForm = {
+    state: AutosavedFormState;
+    retry: () => void;
+};
+
 type Options<T extends object> = {
     url: string | null;
     data: T;
@@ -20,7 +25,7 @@ export function useAutoSavedForm<T extends object>({
     data,
     enabled = true,
     delay = 750,
-}: Options<T>): AutosavedFormState {
+}: Options<T>): AutosavedForm {
     const signature = JSON.stringify(data);
     const savedSignature = useRef(signature);
     const dataRef = useRef(data);
@@ -93,6 +98,10 @@ export function useAutoSavedForm<T extends object>({
         };
     }, [save]);
 
+    const retry = useCallback(() => {
+        void save();
+    }, [save]);
+
     useEffect(() => {
         if (!url || !enabled || signature === savedSignature.current) {
             return;
@@ -124,7 +133,21 @@ export function useAutoSavedForm<T extends object>({
         };
     }, [enabled, save, url]);
 
-    return state;
+    useEffect(() => {
+        if (!url || !enabled) {
+            return;
+        }
+
+        const retryWhenOnline = () => {
+            void save();
+        };
+
+        window.addEventListener('online', retryWhenOnline);
+
+        return () => window.removeEventListener('online', retryWhenOnline);
+    }, [enabled, save, url]);
+
+    return { state, retry };
 }
 
 function csrfToken(): string {
