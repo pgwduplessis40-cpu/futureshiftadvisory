@@ -17,11 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ExecutiveSummaryNotice } from './executive-summary-notice';
-import {
-    BudgetEditor,
-    requirementId,
-    sectionAutosaveStateLabel,
-} from './plan-budget';
+import { BudgetEditor, requirementId } from './plan-budget';
 import {
     ActionPanel,
     IdeaValidationSnapshot,
@@ -91,9 +87,9 @@ export function PlanWorkspaceActions({
         budgetForm,
         setBudgetForm,
         savingBudget,
-        sectionAutosaveState,
+        sectionAutosaveState: sectionDraftState,
         budgetAutosaveState,
-        retrySectionAutosave,
+        retrySectionAutosave: retrySectionDraft,
         retryBudgetAutosave,
         submitIdea,
         recallIdeaForRevision,
@@ -109,6 +105,7 @@ export function PlanWorkspaceActions({
         dismissBudgetAdvisorNudge,
     } = workspace;
     const planChangesLocked = planChangesAreLocked(plan);
+    const draft = { state: sectionDraftState, retry: retrySectionDraft };
 
     return (
         <div className="space-y-6">
@@ -852,40 +849,13 @@ export function PlanWorkspaceActions({
                                                     Plan detail
                                                 </label>
                                                 <span className="shrink-0 text-xs font-normal text-muted-foreground tabular-nums">
-                                                    {sectionAutosaveStateLabel(
-                                                        sectionAutosaveState,
-                                                    )}
-                                                    {sectionAutosaveState !==
-                                                    'idle'
-                                                        ? ' | '
-                                                        : ''}
-                                                    {sectionBody.length}
-                                                    {' / '}
+                                                    {sectionBody.length} /{' '}
                                                     {
                                                         PLAN_SECTION_BODY_MAX_LENGTH
                                                     }
                                                 </span>
                                             </span>
-                                            {sectionAutosaveState ===
-                                            'error' ? (
-                                                <span
-                                                    className="inline-flex items-center gap-1 text-xs text-destructive"
-                                                    role="alert"
-                                                >
-                                                    Draft could not be saved.
-                                                    <Button
-                                                        type="button"
-                                                        variant="link"
-                                                        size="sm"
-                                                        className="h-auto px-0 text-xs text-destructive"
-                                                        onClick={
-                                                            retrySectionAutosave
-                                                        }
-                                                    >
-                                                        Retry save
-                                                    </Button>
-                                                </span>
-                                            ) : null}
+                                            <DraftSaveStatus draft={draft} />
                                             <FormattedTextarea
                                                 id="entrepreneur-plan-section-body"
                                                 value={sectionBody}

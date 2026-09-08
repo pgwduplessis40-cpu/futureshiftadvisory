@@ -169,29 +169,7 @@ final class EntrepreneurPlanController extends Controller
 
     public function updateCompanyName(Request $request): RedirectResponse|JsonResponse
     {
-        $user = $this->workspace->user($request);
-        $profile = $this->workspace->profileFor($user);
-        if (! $this->workspace->includesPlanBudget($profile)) {
-            return $this->workspace->packageLockedResponse('Business plan and budget are not included in your selected package.');
-        }
-
-        $validated = $request->validate([
-            'company_name' => ['nullable', 'string', 'max:160'],
-        ]);
-
-        $profile->forceFill([
-            'company_name' => filled($validated['company_name'] ?? null)
-                ? trim((string) $validated['company_name'])
-                : null,
-        ])->save();
-
-        if ($request->expectsJson()) {
-            return response()->json([
-                'company_name' => $profile->company_name,
-            ]);
-        }
-
-        return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-company-name-saved');
+        return $this->workspace->updateCompanyName($request);
     }
 
     public function section(Request $request): RedirectResponse|JsonResponse
