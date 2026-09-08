@@ -162,14 +162,14 @@ final class PlanBudgetCoherence
         $expectedRunway = data_get($budget, 'expected_runway_months');
         $actualRunway = data_get($computed, 'runway_months');
         $openEnded = (bool) data_get($computed, 'runway_open_ended', false);
-        if (is_numeric($actualRunway) && ! $openEnded && (float) $actualRunway <= 0) {
+        if (is_numeric($actualRunway) && !$openEnded && (float) $actualRunway <= 0) {
             $findings[] = $this->finding(
                 'budget_support',
                 'review',
                 'The budget currently shows 0 months of runway.',
                 'Correct the opening cash, timing, costs, revenue or funding before relying on this plan.',
             );
-        } elseif (is_numeric($expectedRunway) && is_numeric($actualRunway) && ! $openEnded && (float) $actualRunway + 2 < (float) $expectedRunway) {
+        } elseif (is_numeric($expectedRunway) && is_numeric($actualRunway) && !$openEnded && (float) $actualRunway + 2 < (float) $expectedRunway) {
             $findings[] = $this->finding(
                 'budget_support',
                 'review',
@@ -211,7 +211,7 @@ final class PlanBudgetCoherence
         $planCapacity = $this->monthlyCapacity($planText);
         $hasCheckableClaim = $planRunway !== null || $planOpeningCash !== null || $planCapacity !== null || $this->claimsDebtFree($planText);
 
-        if (! $hasCheckableClaim) {
+        if (!$hasCheckableClaim) {
             $findings[] = $this->finding(
                 'plan_correlation',
                 'missing',
@@ -222,7 +222,7 @@ final class PlanBudgetCoherence
 
         $actualRunway = data_get($computed, 'runway_months');
         $openEnded = (bool) data_get($computed, 'runway_open_ended', false);
-        if ($planRunway !== null && is_numeric($actualRunway) && ! $openEnded && (float) $actualRunway + 2 < $planRunway) {
+        if ($planRunway !== null && is_numeric($actualRunway) && !$openEnded && (float) $actualRunway + 2 < $planRunway) {
             $findings[] = $this->finding(
                 'plan_correlation',
                 'review',
@@ -236,7 +236,7 @@ final class PlanBudgetCoherence
         }
 
         $budgetOpeningCash = data_get($assumptions, 'opening_cash_balance');
-        if ($planOpeningCash !== null && is_numeric($budgetOpeningCash) && ! $this->withinTolerance($planOpeningCash, (float) $budgetOpeningCash)) {
+        if ($planOpeningCash !== null && is_numeric($budgetOpeningCash) && !$this->withinTolerance($planOpeningCash, (float) $budgetOpeningCash)) {
             $findings[] = $this->finding(
                 'plan_correlation',
                 'review',

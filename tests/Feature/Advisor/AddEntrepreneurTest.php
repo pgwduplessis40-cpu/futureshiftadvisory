@@ -20,6 +20,8 @@ use App\Models\RatingFramework;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\User;
+use App\Services\Entrepreneurs\BusinessPlanSnapshot;
+use App\Services\Entrepreneurs\PlanBudgetCoherence;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Plans\PlanBuilder as SharedPlanBuilder;
 use App\Services\Security\InviteIssuer;
@@ -803,15 +805,15 @@ final class AddEntrepreneurTest extends TestCase
             'descriptors' => ['strong' => 'Market evidence is clear.'],
             'is_placeholder' => false,
         ]);
-        $plan = BusinessPlan::query()->create([
-            'entrepreneur_profile_id' => $profile->id,
+        $plan = app(SharedPlanBuilder::class)->createOrUpdateForEntrepreneur($profile, [
             'title' => 'Portal founder plan',
-            'source_type' => BusinessPlan::SOURCE_ENTREPRENEUR,
             'status' => BusinessPlan::STATUS_FINALISED,
             'current_phase' => 1,
-            'created_by_user_id' => $advisor->getKey(),
-            'completed_at' => now(),
-        ]);
+        ], $advisor);
+        $plan->forceFill(['completed_at' => now()])->save();
+        $this->seedCoherentPlanBudget($plan, $advisor);
+        $planSnapshot = app(BusinessPlanSnapshot::class)->capture($plan);
+        $planBudgetCoherence = app(PlanBudgetCoherence::class)->evaluate($planSnapshot);
         $assessment = PlanAssessment::query()->create([
             'business_plan_id' => $plan->id,
             'round' => 1,
@@ -826,6 +828,8 @@ final class AddEntrepreneurTest extends TestCase
             'advisor_scores' => [],
             'mentor_notes' => ['overall_visible' => 'Strong evidence base.'],
             'document_support' => ['attached_document_count' => 1],
+            'plan_snapshot' => $planSnapshot,
+            'scoring_scope' => ['plan_budget_coherence' => $planBudgetCoherence],
             'overall_grade' => 'strong',
             'finalised_at' => now(),
             'finalised_by_user_id' => $advisor->getKey(),
@@ -1194,5 +1198,58 @@ final class AddEntrepreneurTest extends TestCase
                 'stage' => EntrepreneurStage::INVITED,
             ]);
         }
+    }
+
+    private function seedCoherentPlanBudget(BusinessPlan $plan, User $advisor): void
+    {
+        app(SharedPlanBuilder::class)->upsertSection(
+            plan: $plan,
+            phaseKey: 'financial',
+            key: 'founder-financial-financial-assumptions',
+            title: 'Financial assumptions',
+            body: 'Starting cash is $10,000 and the business requires 12 months of runway.',
+            sourceType: BusinessPlan::SOURCE_ENTREPRENEUR,
+            metadata: ['requirement_key' => 'financial-assumptions'],
+        );
+        app(SharedPlanBuilder::class)->upsertSection(
+            plan: $plan,
+            phaseKey: 'financial',
+            key: 'founder-financial-revenue-model',
+            title: 'Revenue model',
+            body: 'Delivery capacity is 100 clients per month and the service remains debt-free.',
+            sourceType: BusinessPlan::SOURCE_ENTREPRENEUR,
+            metadata: ['requirement_key' => 'revenue-model'],
+        );
+        EntrepreneurBudget::query()->create([
+            'business_plan_id' => $plan->getKey(),
+            'status' => EntrepreneurBudget::STATUS_COMPLETE,
+            'expected_runway_months' => 12,
+            'forecast_years' => 3,
+            'assumptions' => ['opening_cash_balance' => 10_000],
+            'monthly_fixed_costs' => [[
+                'label' => 'Insurance',
+                'amount' => 1_200,
+                'cadence' => 'annual',
+                'cadence_confirmed' => true,
+            ]],
+            'revenue_forecast' => [[
+                'label' => 'Core service',
+                'amount' => 100,
+                'monthly_capacity_units' => 100,
+                'capacity_confirmed' => true,
+            ]],
+            'funding_sources' => [[
+                'label' => 'Founder cash',
+                'amount' => 10_000,
+            ]],
+            'computed' => [
+                'available_after_launch' => 8_000,
+                'runway_months' => 12,
+                'runway_open_ended' => false,
+                'break_even_reached' => true,
+                'input_count' => 4,
+            ],
+            'flags' => [],
+        ]);
     }
 }
