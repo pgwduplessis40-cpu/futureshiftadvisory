@@ -659,7 +659,7 @@ final class AssessmentTest extends TestCase
             phaseKey: 'financial',
             key: 'assessment-financial-assumptions',
             title: 'Financial assumptions',
-            body: 'Starting cash is $7,830. The plan requires 12 months of runway and remains debt-free. Delivery capacity is 95 clients per month. Insurance is an annual cost.',
+            body: 'Starting cash is $7,830. The plan requires 12 months of runway and remains debt-free. Delivery capacity is 95 clients per month. Operating costs are $600 per month. Insurance is an annual cost. Professional indemnity insurance and trade mark registration are required before launch.',
             actor: $advisor,
             metadata: ['requirement_key' => 'financial-assumptions'],
         );
@@ -688,12 +688,25 @@ final class AssessmentTest extends TestCase
             ]],
             'computed' => [
                 'available_after_launch' => -190_057,
+                'monthly_fixed_costs' => 51_573,
                 'runway_months' => 0,
                 'runway_open_ended' => false,
                 'break_even_reached' => false,
                 'input_count' => 4,
+                'monthly_detail' => [[
+                    'month' => 1,
+                    'cumulative_cash' => -190_057,
+                ]],
             ],
-            'flags' => [],
+            'flags' => [[
+                'key' => 'large_monthly_fixed_cost_base',
+                'title' => 'Large monthly fixed-cost base',
+                'message' => 'Monthly fixed costs total $51,573. Recheck the cost cadence and supporting source for the largest items.',
+            ], [
+                'key' => 'monthly_revenue_growth_needs_review',
+                'title' => 'Monthly revenue growth needs review',
+                'message' => 'The revenue forecast compounds growth monthly. Confirm the growth rate and cadence against the sales plan.',
+            ]],
         ]);
 
         app(Assessment::class)->firstPass($plan->refresh(), $advisor);
@@ -723,8 +736,33 @@ final class AssessmentTest extends TestCase
             'The plan describes "Insurance" as an annual cost, but the budget treats it as monthly.',
             array_column((array) data_get($coherence, 'findings'), 'message'),
         );
+        $this->assertContains(
+            'The plan states monthly operating costs of $600, but the budget uses $51,573 of monthly fixed costs.',
+            array_column((array) data_get($coherence, 'findings'), 'message'),
+        );
+        $this->assertContains(
+            'Large monthly fixed-cost base: Monthly fixed costs total $51,573. Recheck the cost cadence and supporting source for the largest items.',
+            array_column((array) data_get($coherence, 'findings'), 'message'),
+        );
+        $this->assertContains(
+            'The plan refers to professional indemnity insurance, but the budget does not name a matching cost row.',
+            array_column((array) data_get($coherence, 'findings'), 'message'),
+        );
+        $this->assertContains(
+            'The plan refers to trademark registration and protection, but the budget does not name a matching cost row.',
+            array_column((array) data_get($coherence, 'findings'), 'message'),
+        );
 
         $profile = $plan->entrepreneurProfile()->firstOrFail();
+        $reply = app(AssessmentFeedback::class)->proposedReply($profile, $second->refresh());
+        $this->assertStringContainsString('Before we can finalise this assessment', $reply);
+        $this->assertStringContainsString('The budget has a funding gap of $190,057', $reply);
+        $this->assertStringContainsString('Large monthly fixed-cost base: Monthly fixed costs total $51,573', $reply);
+        $this->assertStringContainsString('The plan refers to professional indemnity insurance', $reply);
+        $this->assertStringContainsString('Budget > Funding and runway', $reply);
+        $this->assertStringContainsString('Budget > Monthly fixed costs', $reply);
+        $this->assertStringNotContainsString('The three areas below are simply the best places', $reply);
+
         $this->actingAsMfa($advisor)
             ->get(route('advisor.entrepreneurs.show', $profile))
             ->assertOk()

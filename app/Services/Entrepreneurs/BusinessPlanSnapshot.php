@@ -11,7 +11,10 @@ use App\Models\PlanSection;
 
 final class BusinessPlanSnapshot
 {
-    public function __construct(private readonly PlanIssueReadiness $issueReadiness) {}
+    public function __construct(
+        private readonly PlanIssueReadiness $issueReadiness,
+        private readonly BudgetFundingReadiness $fundingReadiness,
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -62,6 +65,7 @@ final class BusinessPlanSnapshot
                     'funding_scenarios' => $budget->funding_scenarios ?? [],
                     'computed' => $budget->computed ?? [],
                     'flags' => $budget->flags ?? [],
+                    'funding_readiness' => $this->fundingReadiness->evaluate($budget),
                 ],
             ] : null,
             'phases' => collect(PlanRequirements::definitions())
