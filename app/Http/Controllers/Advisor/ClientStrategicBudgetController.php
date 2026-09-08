@@ -47,6 +47,10 @@ final class ClientStrategicBudgetController extends Controller
             return to_route('advisor.clients.show', $client)
                 ->withErrors(['strategic_budget' => 'Resolve the Plan–budget coherence findings before approving it.']);
         }
+        if (($payload['plan_budget_reconciliation_ready_for_approval'] ?? false) !== true) {
+            return to_route('advisor.clients.show', $client)
+                ->withErrors(['strategic_budget' => 'Resolve the Plan–budget assumptions reconciliation findings before approving it.']);
+        }
 
         $this->budgets->approve($budget, $user);
 

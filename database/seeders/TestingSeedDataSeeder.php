@@ -6089,6 +6089,21 @@ XML);
             'revenue_forecast' => $this->budgetRows($scenario, 'revenue'),
             'funding_sources' => $this->budgetRows($scenario, 'funding'),
         ];
+        $rowsByCategory['monthly_fixed_costs'] = array_map(
+            fn (array $row): array => [...$row, 'cadence' => 'monthly', 'cadence_confirmed' => true],
+            $rowsByCategory['monthly_fixed_costs'],
+        );
+        $rowsByCategory['revenue_forecast'] = array_map(
+            fn (array $row): array => [
+                ...$row,
+                'growth_percent' => (float) ($row['monthly_growth_percent'] ?? 0),
+                'growth_cadence' => 'monthly',
+                'growth_cadence_confirmed' => true,
+                'monthly_capacity_units' => 100,
+                'capacity_confirmed' => true,
+            ],
+            $rowsByCategory['revenue_forecast'],
+        );
         $driversBySection = [];
 
         foreach ($rowsByCategory as $category => $rows) {
@@ -6108,9 +6123,32 @@ XML);
                     'amount' => (float) $row['amount'],
                     'quantity' => (float) ($row['quantity'] ?? 1),
                     'month' => (int) ($row['month'] ?? 1),
+                    'cadence' => (string) ($row['cadence'] ?? 'monthly'),
+                    'cadence_confirmed' => (bool) ($row['cadence_confirmed'] ?? false),
+                    'growth_percent' => (float) ($row['growth_percent'] ?? $row['monthly_growth_percent'] ?? 0),
+                    'growth_cadence' => (string) ($row['growth_cadence'] ?? 'monthly'),
+                    'growth_cadence_confirmed' => (bool) ($row['growth_cadence_confirmed'] ?? false),
+                    'monthly_capacity_units' => $row['monthly_capacity_units'] ?? null,
+                    'capacity_confirmed' => (bool) ($row['capacity_confirmed'] ?? false),
                 ];
             }
         }
+        $driversBySection['goals'][] = [
+            'key' => 'seed_opening_cash',
+            'category' => 'opening_cash',
+            'label' => 'Opening cash',
+            'amount' => 7_500.0,
+            'quantity' => 1.0,
+            'month' => 1,
+        ];
+        $driversBySection['goals'][] = [
+            'key' => 'seed_minimum_runway',
+            'category' => 'runway_target',
+            'label' => 'Minimum runway target',
+            'amount' => 1.0,
+            'quantity' => 1.0,
+            'month' => 1,
+        ];
 
         return [
             'business_plan_sections' => collect($this->businessPlanSectionAnswers($scenario))
@@ -6130,6 +6168,7 @@ XML);
                 default => 4,
             },
             'assumptions' => [
+                'opening_cash_balance' => 7_500,
                 'revenue_growth_percent' => match ($scenario) {
                     'npo' => 5,
                     'due_diligence' => 9,

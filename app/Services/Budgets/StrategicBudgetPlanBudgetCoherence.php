@@ -27,6 +27,10 @@ final class StrategicBudgetPlanBudgetCoherence
 
     public const CATEGORY_FUNDING_SOURCES = 'funding_sources';
 
+    public const CATEGORY_OPENING_CASH = StrategicBudgetPlanBudgetReconciliation::CATEGORY_OPENING_CASH;
+
+    public const CATEGORY_RUNWAY_TARGET = StrategicBudgetPlanBudgetReconciliation::CATEGORY_RUNWAY_TARGET;
+
     /** @var array<string, string> */
     private const CATEGORY_LABELS = [
         self::CATEGORY_IMPLEMENTATION_COSTS => 'implementation cost',
@@ -43,6 +47,13 @@ final class StrategicBudgetPlanBudgetCoherence
         self::CATEGORY_FUNDING_SOURCES,
     ];
 
+    /** @var list<string> */
+    private const PLAN_DRIVER_CATEGORIES = [
+        ...self::CATEGORIES,
+        self::CATEGORY_OPENING_CASH,
+        self::CATEGORY_RUNWAY_TARGET,
+    ];
+
     /**
      * @return array{
      *     status:string,status_label:string,score:int,summary:string,evidence:list<string>,
@@ -54,7 +65,10 @@ final class StrategicBudgetPlanBudgetCoherence
     public function evaluate(StrategicBudget $budget): array
     {
         $sections = $this->sections($budget);
-        $drivers = $this->drivers($sections);
+        $drivers = array_values(array_filter(
+            $this->drivers($sections),
+            fn (array $driver): bool => in_array($driver['category'], self::CATEGORIES, true),
+        ));
         $driversByKey = [];
 
         foreach ($drivers as $driver) {
@@ -72,7 +86,7 @@ final class StrategicBudgetPlanBudgetCoherence
 
         foreach ($drivers as $driver) {
             $linkedRows = array_values(array_filter(
-                $rowsByCategory[$driver['category']] ?? [],
+                $rowsByCategory[$driver['category']],
                 fn (array $row): bool => $row['plan_financial_driver_key'] === $driver['key'],
             ));
 
@@ -262,7 +276,7 @@ final class StrategicBudgetPlanBudgetCoherence
      * @param  array<int, array<int|string, mixed>>  $sections
      * @param  array<int, array{key:string,title:string,prompt:string}>  $prompts
      * @param  list<string>  $sectionKeys
-     * @return array<int, array{key:string,title:string,prompt:string,answer:string,financial_drivers:array<int, array{key:string,category:string,label:string,amount:float,quantity:float,month:int}>}>
+     * @return array<int, array{key:string,title:string,prompt:string,answer:string,financial_drivers:array<int, array{key:string,category:string,label:string,amount:float,quantity:float,month:int,cadence:string,cadence_confirmed:bool,growth_percent:float,growth_cadence:string,growth_cadence_confirmed:bool,monthly_capacity_units:float|null,capacity_confirmed:bool}>}>
      */
     public function normaliseBusinessPlanSections(array $sections, array $prompts, array $sectionKeys): array
     {
@@ -319,7 +333,7 @@ final class StrategicBudgetPlanBudgetCoherence
 
     /**
      * @param  array<int, mixed>  $drivers
-     * @return array<int, array{key:string,category:string,label:string,amount:float,quantity:float,month:int}>
+     * @return array<int, array{key:string,category:string,label:string,amount:float,quantity:float,month:int,cadence:string,cadence_confirmed:bool,growth_percent:float,growth_cadence:string,growth_cadence_confirmed:bool,monthly_capacity_units:float|null,capacity_confirmed:bool}>
      */
     private function normaliseDrivers(array $drivers): array
     {
@@ -332,14 +346,30 @@ final class StrategicBudgetPlanBudgetCoherence
 
                 return [
                     'key' => trim((string) ($driver['key'] ?? '')) ?: 'driver_'.Str::uuid(),
-                    'category' => in_array($category, self::CATEGORIES, true) ? $category : self::CATEGORY_REVENUE_FORECAST,
+                    'category' => in_array($category, self::PLAN_DRIVER_CATEGORIES, true) ? $category : self::CATEGORY_REVENUE_FORECAST,
                     'label' => $label,
                     'amount' => round($amount, 2),
                     'quantity' => round(max(1.0, (float) ($driver['quantity'] ?? 1)), 2),
                     'month' => min(36, max(1, (int) ($driver['month'] ?? 1))),
+                    'cadence' => in_array($driver['cadence'] ?? null, ['weekly', 'fortnightly', 'monthly', 'quarterly', 'annual'], true)
+                        ? (string) $driver['cadence']
+                        : 'monthly',
+                    'cadence_confirmed' => (bool) ($driver['cadence_confirmed'] ?? false),
+                    'growth_percent' => round(max(-100.0, min(500.0, (float) ($driver['growth_percent'] ?? 0))), 2),
+                    'growth_cadence' => in_array($driver['growth_cadence'] ?? null, ['monthly', 'annual'], true)
+                        ? (string) $driver['growth_cadence']
+                        : 'monthly',
+                    'growth_cadence_confirmed' => (bool) ($driver['growth_cadence_confirmed'] ?? false),
+                    'monthly_capacity_units' => is_numeric($driver['monthly_capacity_units'] ?? null)
+                        ? round(max(0.0, (float) $driver['monthly_capacity_units']), 2)
+                        : null,
+                    'capacity_confirmed' => (bool) ($driver['capacity_confirmed'] ?? false),
                 ];
             })
-            ->filter(fn (array $driver): bool => $driver['label'] !== '' && $driver['amount'] > 0)
+            ->filter(fn (array $driver): bool => $driver['label'] !== '' && (
+                $driver['amount'] > 0
+                || in_array($driver['category'], [self::CATEGORY_OPENING_CASH, self::CATEGORY_RUNWAY_TARGET], true)
+            ))
             ->values()
             ->all();
     }
@@ -372,7 +402,7 @@ final class StrategicBudgetPlanBudgetCoherence
                 $label = trim((string) ($driver['label'] ?? ''));
                 $amount = max(0.0, (float) ($driver['amount'] ?? 0));
 
-                if (! in_array($category, self::CATEGORIES, true) || $driverKey === '' || $label === '' || $amount <= 0) {
+                if (! in_array($category, self::PLAN_DRIVER_CATEGORIES, true) || $driverKey === '' || $label === '' || $amount <= 0) {
                     continue;
                 }
 

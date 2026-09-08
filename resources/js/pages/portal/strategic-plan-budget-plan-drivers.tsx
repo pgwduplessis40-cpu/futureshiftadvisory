@@ -6,7 +6,9 @@ export type PlanFinancialDriverCategory =
     | 'implementation_costs'
     | 'monthly_fixed_costs'
     | 'revenue_forecast'
-    | 'funding_sources';
+    | 'funding_sources'
+    | 'opening_cash'
+    | 'runway_target';
 
 export type PlanFinancialDriver = {
     key: string;
@@ -15,6 +17,13 @@ export type PlanFinancialDriver = {
     amount: number | string;
     quantity: number | string;
     month: number | string;
+    cadence?: 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'annual';
+    cadence_confirmed?: boolean;
+    growth_percent?: number | string;
+    growth_cadence?: 'monthly' | 'annual';
+    growth_cadence_confirmed?: boolean;
+    monthly_capacity_units?: number | string;
+    capacity_confirmed?: boolean;
 };
 
 export type PlanFinancialDriverOption = PlanFinancialDriver & {
@@ -40,12 +49,46 @@ export type PlanBudgetCoherence = {
     unresolved_count: number;
 };
 
+export type PlanBudgetReconciliation = Omit<
+    PlanBudgetCoherence,
+    'linked_driver_count' | 'material_row_count'
+> & {
+    confirmed_plan_assumption_count: number;
+    checked_budget_row_count: number;
+};
+
 export function PlanBudgetCoherencePanel({
     coherence,
+    reconciliation,
 }: {
     coherence: PlanBudgetCoherence;
+    reconciliation: PlanBudgetReconciliation;
 }) {
-    const aligned = coherence.approval_available;
+    return (
+        <div className="grid gap-3 lg:grid-cols-2">
+            <ReconciliationStatusCard
+                title="Plan–budget traceability"
+                result={coherence}
+            />
+            <ReconciliationStatusCard
+                title="Plan–budget assumptions"
+                result={reconciliation}
+            />
+        </div>
+    );
+}
+
+function ReconciliationStatusCard({
+    title,
+    result,
+}: {
+    title: string;
+    result: Pick<
+        PlanBudgetCoherence,
+        'status_label' | 'score' | 'summary' | 'approval_available' | 'findings'
+    >;
+}) {
+    const aligned = result.approval_available;
 
     return (
         <section className="space-y-3 rounded-md border bg-muted/20 p-3">
@@ -63,24 +106,22 @@ export function PlanBudgetCoherencePanel({
                                 aria-hidden="true"
                             />
                         )}
-                        <h2 className="text-sm font-medium">
-                            Plan–budget coherence
-                        </h2>
+                        <h2 className="text-sm font-medium">{title}</h2>
                         <Badge variant={aligned ? 'secondary' : 'destructive'}>
-                            {coherence.status_label}
+                            {result.status_label}
                         </Badge>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                        {coherence.summary}
+                        {result.summary}
                     </p>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                    {coherence.score}/100
+                    {result.score}/100
                 </div>
             </div>
-            {!aligned && coherence.findings.length > 0 && (
+            {!aligned && result.findings.length > 0 && (
                 <ul className="grid gap-2 text-sm text-muted-foreground">
-                    {coherence.findings.slice(0, 3).map((finding) => (
+                    {result.findings.slice(0, 3).map((finding) => (
                         <li
                             key={finding.message}
                             className="rounded-md bg-background p-2"
@@ -143,85 +184,258 @@ export function FinancialDriversEditor({
                     {drivers.map((driver, index) => (
                         <div
                             key={driver.key}
-                            className="grid gap-2 rounded-md bg-muted/30 p-2 md:grid-cols-[minmax(0,1fr)_140px_repeat(3,minmax(82px,0.35fr))_auto]"
+                            className="space-y-2 rounded-md bg-muted/30 p-2"
                         >
-                            <BudgetInput
-                                label="Commitment"
-                                value={driver.label}
-                                onChange={(value) =>
-                                    update(index, { label: value })
-                                }
-                            />
-                            <label className="grid gap-1 text-xs">
-                                <span>Category</span>
-                                <select
-                                    value={driver.category}
-                                    onChange={(event) =>
-                                        update(index, {
-                                            category: event.target
-                                                .value as PlanFinancialDriverCategory,
-                                        })
+                            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_140px_repeat(3,minmax(82px,0.35fr))_auto]">
+                                <BudgetInput
+                                    label="Commitment"
+                                    value={driver.label}
+                                    onChange={(value) =>
+                                        update(index, { label: value })
                                     }
-                                    className="h-9 rounded-md border bg-background px-2 text-sm"
+                                />
+                                <label className="grid gap-1 text-xs">
+                                    <span>Category</span>
+                                    <select
+                                        value={driver.category}
+                                        onChange={(event) =>
+                                            update(index, {
+                                                category: event.target
+                                                    .value as PlanFinancialDriverCategory,
+                                            })
+                                        }
+                                        className="h-9 rounded-md border bg-background px-2 text-sm"
+                                    >
+                                        <option value="revenue_forecast">
+                                            Revenue
+                                        </option>
+                                        <option value="implementation_costs">
+                                            Implementation cost
+                                        </option>
+                                        <option value="monthly_fixed_costs">
+                                            Operating cost
+                                        </option>
+                                        <option value="funding_sources">
+                                            Funding
+                                        </option>
+                                        <option value="opening_cash">
+                                            Opening cash
+                                        </option>
+                                        <option value="runway_target">
+                                            Runway target
+                                        </option>
+                                    </select>
+                                </label>
+                                <BudgetInput
+                                    label={
+                                        driver.category === 'runway_target'
+                                            ? 'Months'
+                                            : 'Amount'
+                                    }
+                                    type="number"
+                                    value={driver.amount}
+                                    onChange={(value) =>
+                                        update(index, { amount: value })
+                                    }
+                                />
+                                <BudgetInput
+                                    label="Qty"
+                                    type="number"
+                                    value={driver.quantity}
+                                    onChange={(value) =>
+                                        update(index, { quantity: value })
+                                    }
+                                />
+                                <BudgetInput
+                                    label="Start"
+                                    type="number"
+                                    value={driver.month}
+                                    onChange={(value) =>
+                                        update(index, { month: value })
+                                    }
+                                />
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="self-end"
+                                    onClick={() =>
+                                        onChange(
+                                            drivers.filter(
+                                                (_, current) =>
+                                                    current !== index,
+                                            ),
+                                        )
+                                    }
                                 >
-                                    <option value="revenue_forecast">
-                                        Revenue
-                                    </option>
-                                    <option value="implementation_costs">
-                                        Implementation cost
-                                    </option>
-                                    <option value="monthly_fixed_costs">
-                                        Monthly cost
-                                    </option>
-                                    <option value="funding_sources">
-                                        Funding
-                                    </option>
-                                </select>
-                            </label>
-                            <BudgetInput
-                                label="Amount"
-                                type="number"
-                                value={driver.amount}
-                                onChange={(value) =>
-                                    update(index, { amount: value })
-                                }
-                            />
-                            <BudgetInput
-                                label="Qty"
-                                type="number"
-                                value={driver.quantity}
-                                onChange={(value) =>
-                                    update(index, { quantity: value })
-                                }
-                            />
-                            <BudgetInput
-                                label="Start"
-                                type="number"
-                                value={driver.month}
-                                onChange={(value) =>
-                                    update(index, { month: value })
-                                }
-                            />
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                className="self-end"
-                                onClick={() =>
-                                    onChange(
-                                        drivers.filter(
-                                            (_, current) => current !== index,
-                                        ),
-                                    )
-                                }
-                            >
-                                Remove
-                            </Button>
+                                    Remove
+                                </Button>
+                            </div>
+                            {driver.category === 'monthly_fixed_costs' && (
+                                <div className="grid gap-2 md:grid-cols-[160px_200px]">
+                                    <CadenceInput
+                                        cadence={driver.cadence ?? 'monthly'}
+                                        confirmed={
+                                            driver.cadence_confirmed ?? false
+                                        }
+                                        onChange={(patch) =>
+                                            update(index, patch)
+                                        }
+                                    />
+                                </div>
+                            )}
+                            {driver.category === 'revenue_forecast' && (
+                                <div className="grid gap-2 md:grid-cols-4">
+                                    <BudgetInput
+                                        label="Monthly capacity"
+                                        type="number"
+                                        value={
+                                            driver.monthly_capacity_units ?? ''
+                                        }
+                                        onChange={(value) =>
+                                            update(index, {
+                                                monthly_capacity_units: value,
+                                            })
+                                        }
+                                    />
+                                    <ConfirmationInput
+                                        label="Capacity confirmed"
+                                        checked={
+                                            driver.capacity_confirmed ?? false
+                                        }
+                                        onChange={(capacity_confirmed) =>
+                                            update(index, {
+                                                capacity_confirmed,
+                                            })
+                                        }
+                                    />
+                                    <BudgetInput
+                                        label="Growth %"
+                                        type="number"
+                                        value={driver.growth_percent ?? 0}
+                                        onChange={(value) =>
+                                            update(index, {
+                                                growth_percent: value,
+                                            })
+                                        }
+                                    />
+                                    <GrowthCadenceInput
+                                        cadence={
+                                            driver.growth_cadence ?? 'monthly'
+                                        }
+                                        confirmed={
+                                            driver.growth_cadence_confirmed ??
+                                            false
+                                        }
+                                        onChange={(patch) =>
+                                            update(index, patch)
+                                        }
+                                    />
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
             )}
         </section>
+    );
+}
+
+function CadenceInput({
+    cadence,
+    confirmed,
+    onChange,
+}: {
+    cadence: NonNullable<PlanFinancialDriver['cadence']>;
+    confirmed: boolean;
+    onChange: (patch: Partial<PlanFinancialDriver>) => void;
+}) {
+    return (
+        <>
+            <label className="grid gap-1 text-xs">
+                <span>Cost cadence</span>
+                <select
+                    value={cadence}
+                    onChange={(event) =>
+                        onChange({
+                            cadence: event.target
+                                .value as PlanFinancialDriver['cadence'],
+                        })
+                    }
+                    className="h-9 rounded-md border bg-background px-2 text-sm"
+                >
+                    <option value="weekly">Weekly</option>
+                    <option value="fortnightly">Fortnightly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="annual">Annual</option>
+                </select>
+            </label>
+            <ConfirmationInput
+                label="Cadence confirmed"
+                checked={confirmed}
+                onChange={(cadence_confirmed) =>
+                    onChange({ cadence_confirmed })
+                }
+            />
+        </>
+    );
+}
+
+function GrowthCadenceInput({
+    cadence,
+    confirmed,
+    onChange,
+}: {
+    cadence: NonNullable<PlanFinancialDriver['growth_cadence']>;
+    confirmed: boolean;
+    onChange: (patch: Partial<PlanFinancialDriver>) => void;
+}) {
+    return (
+        <div className="grid gap-1 text-xs">
+            <span>Growth cadence</span>
+            <select
+                value={cadence}
+                onChange={(event) =>
+                    onChange({
+                        growth_cadence: event.target
+                            .value as PlanFinancialDriver['growth_cadence'],
+                    })
+                }
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+            >
+                <option value="monthly">Monthly</option>
+                <option value="annual">Annual</option>
+            </select>
+            <ConfirmationInput
+                label="Growth confirmed"
+                checked={confirmed}
+                onChange={(growth_cadence_confirmed) =>
+                    onChange({ growth_cadence_confirmed })
+                }
+            />
+        </div>
+    );
+}
+
+function ConfirmationInput({
+    label,
+    checked,
+    onChange,
+}: {
+    label: string;
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+}) {
+    return (
+        <label className="flex h-9 items-center gap-2 self-end text-xs">
+            <input
+                type="checkbox"
+                checked={checked}
+                onChange={(event) => onChange(event.target.checked)}
+            />
+            {label}
+        </label>
     );
 }
 
@@ -258,5 +472,12 @@ export function blankPlanFinancialDriver(): PlanFinancialDriver {
         amount: '',
         quantity: 1,
         month: 1,
+        cadence: 'monthly',
+        cadence_confirmed: false,
+        growth_percent: 0,
+        growth_cadence: 'monthly',
+        growth_cadence_confirmed: false,
+        monthly_capacity_units: '',
+        capacity_confirmed: false,
     };
 }

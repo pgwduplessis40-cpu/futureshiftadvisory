@@ -28,8 +28,8 @@ import { formatNzdCurrency, formatNzDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { planBudgetApprovalBlockedReason } from './service-workspaces-plan-budget-coherence';
 import type {
+    PlanBudgetApprovalState,
     StrategicBudgetAssessmentCriterion,
-    StrategicBudgetPlanBudgetCoherence,
 } from './service-workspaces-plan-budget-coherence';
 type AdvisorServiceTabKey =
     | 'overview'
@@ -264,7 +264,7 @@ type StrategicBudgetAssessmentHistoryRow = {
     snapshot_captured_at: string | null;
 };
 
-type StrategicBudgetSummary = {
+type StrategicBudgetSummary = PlanBudgetApprovalState & {
     id: string;
     label: string;
     pathway: string;
@@ -295,7 +295,6 @@ type StrategicBudgetSummary = {
     flags: StrategicBudgetFlag[];
     analytics: StrategicBudgetAnalytics;
     assessment_criteria: StrategicBudgetAssessmentCriterion[];
-    plan_budget_coherence: StrategicBudgetPlanBudgetCoherence;
     confidence: {
         score?: number;
         progress_score?: number;
@@ -311,13 +310,9 @@ type StrategicBudgetSummary = {
     approve_url: string;
     run_assessment_url: string;
     can_run_assessment: boolean;
-    assessment_ready_for_approval: boolean;
-    plan_budget_coherence_ready_for_approval: boolean;
     assessment_action_label: string;
     assessment_feedback: StrategicBudgetAssessmentFeedback;
     assessment_history: StrategicBudgetAssessmentHistoryRow[];
-    review_submitted_or_later: boolean;
-    review_approved_or_later: boolean;
 };
 
 type StrategicPlanDeploymentGuard = {
@@ -1180,6 +1175,7 @@ function BusinessPlanBudgetActionPanel({
         budget.review_submitted_or_later &&
         budget.assessment_ready_for_approval &&
         budget.plan_budget_coherence_ready_for_approval &&
+        budget.plan_budget_reconciliation_ready_for_approval &&
         !budget.review_approved_or_later;
     const actionStatus = budget.review_approved_or_later
         ? 'Approved'

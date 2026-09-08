@@ -24,14 +24,26 @@ export type StrategicBudgetPlanBudgetCoherence = {
     unresolved_count: number;
 };
 
-type PlanBudgetApprovalState = {
+export type StrategicBudgetPlanBudgetReconciliation = {
+    status: 'met' | 'review' | 'missing';
+    status_label: string;
+    score: number;
+    summary: string;
+    approval_available: boolean;
+    approval_message: string;
+    unresolved_count: number;
+};
+
+export type PlanBudgetApprovalState = {
     review_approved_or_later: boolean;
     review_submitted_or_later: boolean;
     business_plan_ready: boolean;
     locked: boolean;
     assessment_ready_for_approval: boolean;
     plan_budget_coherence_ready_for_approval: boolean;
+    plan_budget_reconciliation_ready_for_approval: boolean;
     plan_budget_coherence: StrategicBudgetPlanBudgetCoherence;
+    plan_budget_reconciliation: StrategicBudgetPlanBudgetReconciliation;
 };
 
 export function planBudgetApprovalBlockedReason(
@@ -49,5 +61,7 @@ export function planBudgetApprovalBlockedReason(
                 ? 'Approval unlocks after the BP&B assessment has been run.'
                 : !budget.plan_budget_coherence_ready_for_approval
                   ? budget.plan_budget_coherence.approval_message
-                  : 'Approve only after the assessment has been reviewed.';
+                  : !budget.plan_budget_reconciliation_ready_for_approval
+                    ? budget.plan_budget_reconciliation.approval_message
+                    : 'Approve only after the assessment has been reviewed.';
 }
