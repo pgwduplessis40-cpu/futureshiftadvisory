@@ -87,6 +87,7 @@ final class EntrepreneurAssessmentController extends Controller
                 'suggested_reply' => $suggestedReply,
                 'sent_at' => $notes['feedback_sent_at'] ?? null,
                 'action_url' => route('advisor.entrepreneurs.assessments.feedback.update', [$profile, $planAssessment], absolute: false),
+                'plain_language_draft_url' => route('advisor.entrepreneurs.assessments.feedback.plain-language-draft', [$profile, $planAssessment], absolute: false),
             ],
             'advisorScoringReview' => Gate::allows('finaliseAssessment', $profile)
                 && (bool) data_get($assessmentPayload, 'scoring_scope.advisor_review_required', false)

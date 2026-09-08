@@ -494,6 +494,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/feedback', [EntrepreneurActionController::class, 'updateAssessmentFeedback'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.assessments.feedback.update');
+        Route::post('entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/feedback/plain-language-draft', [EntrepreneurActionController::class, 'regenerateAssessmentFeedbackDraft'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.assessments.feedback.plain-language-draft');
         Route::patch('entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/scoring-scope/confirm', [EntrepreneurActionController::class, 'confirmAssessmentScoringScope'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.assessments.scoring-scope.confirm');

@@ -757,15 +757,32 @@ final class AssessmentTest extends TestCase
             array_column((array) data_get($coherence, 'findings'), 'message'),
         );
 
+        $scope = (array) $second->scoring_scope;
+        $findings = (array) data_get($scope, 'plan_budget_coherence.findings');
+        $findings[] = $findings[0];
+        $scope['plan_budget_coherence']['findings'] = $findings;
+        $second->forceFill(['scoring_scope' => $scope])->save();
+
         $profile = $plan->entrepreneurProfile()->firstOrFail();
         $reply = app(AssessmentFeedback::class)->proposedReply($profile, $second->refresh());
-        $this->assertStringContainsString('Before we can finalise this assessment', $reply);
-        $this->assertStringContainsString('The budget has a funding gap of $190,057', $reply);
-        $this->assertStringContainsString('Large monthly fixed-cost base: Monthly fixed costs total $51,573', $reply);
-        $this->assertStringContainsString('The plan refers to professional indemnity insurance', $reply);
+        $this->assertStringContainsString('Before we can finish this review', $reply);
+        $this->assertStringContainsString('1. Check the cash and funding plan', $reply);
+        $this->assertStringContainsString('The budget is short by $190,057 after planned launch costs.', $reply);
+        $this->assertStringContainsString('Cash runway means how long the business can pay its bills with the money available.', $reply);
+        $this->assertStringContainsString('The itemised regular costs do not add up to the total used in the budget.', $reply);
+        $this->assertStringContainsString('The plan refers to professional indemnity insurance, but no matching cost appears in the budget.', $reply);
         $this->assertStringContainsString('Budget > Funding and runway', $reply);
         $this->assertStringContainsString('Budget > Monthly fixed costs', $reply);
+        $this->assertSame(1, substr_count($reply, 'The budget is short by $190,057 after planned launch costs.'));
         $this->assertStringNotContainsString('The three areas below are simply the best places', $reply);
+
+        $notesBeforeDraftGeneration = $second->refresh()->mentor_notes;
+        $this->actingAsMfa($advisor)
+            ->postJson(route('advisor.entrepreneurs.assessments.feedback.plain-language-draft', [$profile, $second]))
+            ->assertOk()
+            ->assertJsonPath('proposed_reply', $reply)
+            ->assertJsonStructure(['generated_at']);
+        $this->assertSame($notesBeforeDraftGeneration, $second->refresh()->mentor_notes);
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.entrepreneurs.show', $profile))
