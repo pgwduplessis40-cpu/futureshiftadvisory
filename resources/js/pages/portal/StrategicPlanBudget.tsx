@@ -25,11 +25,11 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { LockedFinancialsPanel } from './strategic-plan-budget-financial-upload';
 import {
     blankBudgetRow,
     BudgetRowsEditor,
 } from './strategic-plan-budget-budget-rows';
+import { LockedFinancialsPanel } from './strategic-plan-budget-financial-upload';
 import {
     FinancialDriversEditor,
     PlanBudgetCoherencePanel,

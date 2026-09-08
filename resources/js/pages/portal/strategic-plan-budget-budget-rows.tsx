@@ -327,6 +327,8 @@ function ConfirmationControl({
         <label className="flex h-9 items-center gap-2 self-end text-xs">
             <input
                 type="checkbox"
+                name={`budget-${label.toLowerCase().replace(/\s+/g, '-')}`}
+                aria-label={label}
                 checked={checked}
                 onChange={(event) => onChange(event.target.checked)}
             />
