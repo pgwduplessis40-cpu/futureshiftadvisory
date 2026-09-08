@@ -1,11 +1,11 @@
+import { formatNzDate } from '@/lib/formatters';
+
 export function formatDate(value: string | null): string {
     if (!value) {
         return '-';
     }
 
-    return new Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-    }).format(new Date(value));
+    return formatNzDate(value);
 }
 
 export function formatDateTime(value: string | null): string {
@@ -13,10 +13,10 @@ export function formatDateTime(value: string | null): string {
         return '-';
     }
 
-    return new Intl.DateTimeFormat(undefined, {
+    return formatNzDate(value, {
         dateStyle: 'medium',
         timeStyle: 'short',
-    }).format(new Date(value));
+    });
 }
 
 export function formatLabel(value: string): string {
