@@ -411,6 +411,10 @@ final class PlanBudgetCoherence
 
     private function warningNeedsEvidence(string $warning): bool
     {
+        if (str_contains(strtolower($warning), 'needs review')) {
+            return false;
+        }
+
         return preg_match('/\b(?:confirm|missing|incomplete|not confirmed|set the|verify)\b/i', $warning) === 1;
     }
 

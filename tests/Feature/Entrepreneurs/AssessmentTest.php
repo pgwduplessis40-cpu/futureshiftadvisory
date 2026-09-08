@@ -995,7 +995,9 @@ final class AssessmentTest extends TestCase
     public function test_assessment_feedback_draft_uses_the_actual_scored_priorities(): void
     {
         [$advisor, $plan] = $this->plan('assessment-feedback-draft@example.test');
-        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $assessment = $this->withResolvedPlanBudgetCoherence(
+            app(Assessment::class)->firstPass($plan, $advisor),
+        );
         $feedbacks = app(AssessmentFeedback::class);
 
         $feedback = $feedbacks->draft($assessment);
@@ -1020,7 +1022,9 @@ final class AssessmentTest extends TestCase
     public function test_assessment_feedback_reply_uses_plain_language_without_truncated_ai_rationale(): void
     {
         [$advisor, $plan] = $this->plan('assessment-feedback-plain-language@example.test');
-        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $assessment = $this->withResolvedPlanBudgetCoherence(
+            app(Assessment::class)->firstPass($plan, $advisor),
+        );
         $assessment->forceFill([
             'ai_scores' => collect($assessment->ai_scores)
                 ->map(fn (array $row, int $index): array => [
@@ -1047,7 +1051,9 @@ final class AssessmentTest extends TestCase
     public function test_assessment_feedback_uses_complete_sentences_when_ai_rationale_is_long_or_truncated(): void
     {
         [$advisor, $plan] = $this->plan('assessment-feedback-complete-sentences@example.test');
-        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $assessment = $this->withResolvedPlanBudgetCoherence(
+            app(Assessment::class)->firstPass($plan, $advisor),
+        );
         $longRationale = implode(' ', [
             'The industry discussion has a useful starting point and identifies the broad customer problem.',
             'It needs current customer interviews, competitor pricing, and tested demand evidence before the next review.',
@@ -1443,6 +1449,8 @@ final class AssessmentTest extends TestCase
             ]],
             'computed' => [
                 'available_after_launch' => 8_000,
+                'opening_cash_balance' => 10_000,
+                'monthly_fixed_costs' => 100,
                 'runway_months' => 12,
                 'runway_open_ended' => false,
                 'break_even_reached' => true,
@@ -1450,6 +1458,19 @@ final class AssessmentTest extends TestCase
             ],
             'flags' => [],
         ]);
+    }
+
+    private function withResolvedPlanBudgetCoherence(PlanAssessment $assessment): PlanAssessment
+    {
+        $scope = (array) ($assessment->scoring_scope ?? []);
+        $scope['plan_budget_coherence'] = [
+            'approval_available' => true,
+            'findings' => [],
+        ];
+
+        $assessment->forceFill(['scoring_scope' => $scope])->save();
+
+        return $assessment->refresh();
     }
 }
 
