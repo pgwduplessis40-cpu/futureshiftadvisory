@@ -13,6 +13,16 @@ namespace App\Services\Entrepreneurs;
  * @phpstan-type Finding array{category:'budget_support'|'plan_correlation',severity:'missing'|'review',message:string,next_action:string}
  * @phpstan-type Direction array{status:'met'|'review'|'missing',status_label:string,summary:string,unresolved_count:int}
  * @phpstan-type Reconciliation array{status:'met'|'review'|'missing',status_label:string,score:int,summary:string,evidence:list<string>,findings:list<Finding>,approval_available:bool,approval_message:string,budget_support:Direction,plan_correlation:Direction,unresolved_count:int}
+ * @phpstan-type BudgetRow array{label?:string,type?:string,amount?:float|int,monthly_capacity_units?:float|int,cadence?:string}
+ * @phpstan-type BudgetFlag array{key?:string,message?:string,title?:string}
+ * @phpstan-type BudgetComputed array{available_after_launch?:float|int,runway_months?:float|int,runway_open_ended?:bool,input_count?:int,break_even_reached?:bool}
+ * @phpstan-type BudgetAssumptions array{opening_cash_balance?:float|int}
+ * @phpstan-type BudgetEvidence array{expected_runway_months?:float|int,assumptions?:BudgetAssumptions,monthly_fixed_costs?:list<BudgetRow>,revenue_forecast?:list<BudgetRow>,funding_sources?:list<BudgetRow>,funding_scenarios?:list<BudgetRow>,computed?:BudgetComputed,flags?:list<BudgetFlag>}
+ * @phpstan-type Budget BudgetEvidence&array{status:string}
+ * @phpstan-type FinancialSection array{title?:string,body?:string,requirement_key?:string}
+ * @phpstan-type SnapshotPhase array{sections?:list<FinancialSection>}
+ * @phpstan-type SnapshotBudget array{status?:string,assessment_evidence?:BudgetEvidence}
+ * @phpstan-type Snapshot array{budget?:SnapshotBudget|null,phases?:list<SnapshotPhase>}
  */
 final class PlanBudgetCoherence
 {
@@ -24,7 +34,7 @@ final class PlanBudgetCoherence
     ];
 
     /**
-     * @param  array<string, mixed>  $snapshot
+     * @param  Snapshot  $snapshot
      * @return Reconciliation
      */
     public function evaluate(array $snapshot): array
@@ -37,6 +47,7 @@ final class PlanBudgetCoherence
                 'status' => (string) ($budgetSnapshot['status'] ?? 'not_started'),
             ]
             : null;
+        /** @var Budget|null $budget */
         $financialSections = $this->financialSections($snapshot);
         $planText = implode("\n", array_column($financialSections, 'body'));
         $budgetSupportFindings = [];
@@ -114,7 +125,7 @@ final class PlanBudgetCoherence
     }
 
     /**
-     * @param  array<string, mixed>  $budget
+     * @param  Budget  $budget
      * @param  list<Finding>  $findings
      */
     private function evaluateBudgetSupport(array $budget, array &$findings): void
@@ -122,8 +133,10 @@ final class PlanBudgetCoherence
         $status = (string) data_get($budget, 'status', 'not_started');
         $computed = data_get($budget, 'computed');
         $computed = is_array($computed) ? $computed : [];
+        /** @var BudgetComputed $computed */
         $flags = data_get($budget, 'flags');
         $flags = is_array($flags) ? $flags : [];
+        /** @var list<BudgetFlag> $flags */
 
         if ($status !== 'complete') {
             $findings[] = $this->finding(
@@ -180,15 +193,17 @@ final class PlanBudgetCoherence
     }
 
     /**
-     * @param  array<string, mixed>  $budget
+     * @param  Budget  $budget
      * @param  list<Finding>  $findings
      */
     private function evaluatePlanCorrelation(string $planText, array $budget, array &$findings): void
     {
         $computed = data_get($budget, 'computed');
         $computed = is_array($computed) ? $computed : [];
+        /** @var BudgetComputed $computed */
         $assumptions = data_get($budget, 'assumptions');
         $assumptions = is_array($assumptions) ? $assumptions : [];
+        /** @var BudgetAssumptions $assumptions */
         $planRunway = $this->runwayMonths($planText);
         $planOpeningCash = $this->openingCash($planText);
         $planCapacity = $this->monthlyCapacity($planText);
@@ -230,6 +245,7 @@ final class PlanBudgetCoherence
 
         $revenueRows = data_get($budget, 'revenue_forecast');
         $revenueRows = is_array($revenueRows) ? $revenueRows : [];
+        /** @var list<BudgetRow> $revenueRows */
         if ($planCapacity !== null) {
             foreach ($revenueRows as $row) {
                 if (! is_array($row) || ! is_numeric($row['monthly_capacity_units'] ?? null)) {
@@ -255,6 +271,7 @@ final class PlanBudgetCoherence
 
         $fixedCosts = data_get($budget, 'monthly_fixed_costs');
         $fixedCosts = is_array($fixedCosts) ? $fixedCosts : [];
+        /** @var list<BudgetRow> $fixedCosts */
         foreach ($fixedCosts as $row) {
             if (! is_array($row) || (string) ($row['cadence'] ?? '') !== 'monthly') {
                 continue;
@@ -282,7 +299,7 @@ final class PlanBudgetCoherence
     }
 
     /**
-     * @param  array<int, mixed>  $flags
+     * @param  list<BudgetFlag>  $flags
      * @param  list<Finding>  $findings
      */
     private function addInputQualityFindings(array $flags, array &$findings): void
@@ -317,7 +334,7 @@ final class PlanBudgetCoherence
     }
 
     /**
-     * @param  array<string, mixed>  $snapshot
+     * @param  Snapshot  $snapshot
      * @return list<array{title:string,body:string}>
      */
     private function financialSections(array $snapshot): array
@@ -394,7 +411,7 @@ final class PlanBudgetCoherence
         return preg_match('/\\b(?:debt[- ]?free|no debt|without debt)\\b/i', $planText) === 1;
     }
 
-    /** @param array<string, mixed> $budget */
+    /** @param Budget $budget */
     private function budgetUsesDebtFunding(array $budget): bool
     {
         foreach (['funding_sources', 'funding_scenarios'] as $attribute) {
@@ -402,6 +419,7 @@ final class PlanBudgetCoherence
             if (! is_array($rows)) {
                 continue;
             }
+            /** @var list<BudgetRow> $rows */
 
             foreach ($rows as $row) {
                 if (! is_array($row) || ! is_numeric($row['amount'] ?? null) || (float) $row['amount'] <= 0) {
@@ -428,7 +446,7 @@ final class PlanBudgetCoherence
             || preg_match('/'.$annual.'.{0,100}'.$quotedLabel.'/is', $planText) === 1;
     }
 
-    /** @param array<string, mixed> $row */
+    /** @param BudgetRow $row */
     private function rowLabel(array $row): string
     {
         $label = trim((string) ($row['label'] ?? ''));
