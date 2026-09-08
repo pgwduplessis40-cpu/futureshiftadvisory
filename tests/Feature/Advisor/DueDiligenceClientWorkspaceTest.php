@@ -79,14 +79,16 @@ final class DueDiligenceClientWorkspaceTest extends TestCase
                 ->where('client.strategic_budget.assessment_action_label', 'Run assessment')
                 ->where('client.strategic_budget.assessment_feedback.status', 'not_started')
                 ->has('client.strategic_budget.assessment_history', 0)
-                ->has('client.strategic_budget.assessment_criteria', 10)
+                ->has('client.strategic_budget.assessment_criteria', 11)
                 ->where('client.strategic_budget.assessment_criteria.0.key', 'plan_structure')
                 ->where('client.strategic_budget.assessment_criteria.1.key', 'dd_evidence_linkage')
                 ->where('client.strategic_budget.assessment_criteria.2.key', 'financial_evidence_quality')
                 ->where('client.strategic_budget.assessment_criteria.2.status', 'review')
                 ->where('client.strategic_budget.assessment_criteria.8.key', 'advisor_funder_readiness')
                 ->where('client.strategic_budget.assessment_criteria.9.key', 'plan_budget_coherence')
+                ->where('client.strategic_budget.assessment_criteria.10.key', 'plan_budget_reconciliation')
                 ->where('client.strategic_budget.plan_budget_coherence.status', 'met')
+                ->where('client.strategic_budget.plan_budget_reconciliation.status', 'met')
                 ->has('client.strategic_budget.analytics.descriptive.summary')
                 ->where('client.strategic_plan', null)
                 ->where('client.strategic_plan_deployment_guard.allowed', false)
@@ -116,8 +118,10 @@ final class DueDiligenceClientWorkspaceTest extends TestCase
         $this->assertSame(1, $assessment->round);
         $this->assertSame(StrategicBudgetAssessment::STATUS_ASSESSED, $assessment->status);
         $this->assertNotEmpty($assessment->snapshot);
-        $this->assertCount(10, $assessment->assessment_criteria);
+        $this->assertCount(11, $assessment->assessment_criteria);
         $this->assertSame('met', data_get($assessment->assessment_criteria, '9.status'));
+        $this->assertSame('plan_budget_reconciliation', data_get($assessment->assessment_criteria, '10.key'));
+        $this->assertSame('met', data_get($assessment->assessment_criteria, '10.status'));
         $this->assertCount(3, $assessment->priorities);
         $this->assertStringContainsString('Business Plan & Budget', (string) $assessment->suggested_reply);
 
@@ -133,6 +137,7 @@ final class DueDiligenceClientWorkspaceTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('client.strategic_budget.assessment_ready_for_approval', true)
                 ->where('client.strategic_budget.plan_budget_coherence_ready_for_approval', true)
+                ->where('client.strategic_budget.plan_budget_reconciliation_ready_for_approval', true)
                 ->where('client.strategic_budget.assessment_feedback.status', StrategicBudgetAssessment::STATUS_ASSESSED)
                 ->where('client.strategic_budget.assessment_feedback.version', 1)
                 ->where('client.strategic_budget.assessment_feedback.can_send', true)
@@ -477,7 +482,7 @@ final class DueDiligenceClientWorkspaceTest extends TestCase
             'business_plan_sections' => $this->completedBusinessPlanSections(),
             'business_plan_source_drafts' => [],
             'business_plan_prompts' => [],
-            'assumptions' => [],
+            'assumptions' => ['opening_cash_balance' => 7_500],
             'implementation_costs' => [[
                 'label' => 'Professional advice',
                 'amount' => 12000,
@@ -489,6 +494,8 @@ final class DueDiligenceClientWorkspaceTest extends TestCase
                 'label' => 'Operating support',
                 'amount' => 4200,
                 'quantity' => 1,
+                'cadence' => 'monthly',
+                'cadence_confirmed' => true,
                 'confidence' => 'estimate',
                 'plan_financial_driver_key' => 'driver_operating_support',
             ]],
@@ -589,12 +596,26 @@ final class DueDiligenceClientWorkspaceTest extends TestCase
     }
 
     /**
-     * @return array<int, array{key: string, title: string, prompt: string, answer: string, financial_drivers: array<int, array<string, int|string>>}>
+     * @return array<int, array{key: string, title: string, prompt: string, answer: string, financial_drivers: array<int, array<string, bool|float|int|string>}>
      */
     private function completedBusinessPlanSections(): array
     {
         $drivers = [
             'current_position' => [[
+                'key' => 'driver_opening_cash',
+                'category' => 'opening_cash',
+                'label' => 'Opening cash',
+                'amount' => 7500,
+                'quantity' => 1,
+                'month' => 1,
+            ], [
+                'key' => 'driver_runway_target',
+                'category' => 'runway_target',
+                'label' => 'Minimum runway',
+                'amount' => 12,
+                'quantity' => 1,
+                'month' => 1,
+            ], [
                 'key' => 'driver_available_funding',
                 'category' => 'funding_sources',
                 'label' => 'Available acquisition funding',
@@ -618,6 +639,8 @@ final class DueDiligenceClientWorkspaceTest extends TestCase
                     'amount' => 4200,
                     'quantity' => 1,
                     'month' => 1,
+                    'cadence' => 'monthly',
+                    'cadence_confirmed' => true,
                 ],
             ],
         ];
