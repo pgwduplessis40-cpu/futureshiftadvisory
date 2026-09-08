@@ -21,7 +21,10 @@ use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
  * @phpstan-type BudgetSummary array{status:string, expected_runway_months:float|int|null, calculated_runway_months:mixed, runway_open_ended:bool, break_even_month:mixed, available_after_launch:mixed, active_flags:list<mixed>}
  * @phpstan-type AssessmentScopePayload array{is_full_reassessment:bool,has_scope_correction:bool,scope_correction_criterion_numbers:list<int>}
  * @phpstan-type AssessmentCriterionPayload array{criterion_number:int,name:string,score:float|int}
- * @phpstan-type LatestAssessmentPayload array{round:int,scoring_scope:AssessmentScopePayload|null,criteria:list<AssessmentCriterionPayload>}
+ * @phpstan-type PlanBudgetCoherenceFindingPayload array{category:string,severity:string,message:string,next_action:string}
+ * @phpstan-type PlanBudgetCoherenceDirectionPayload array{status:string,status_label:string,summary:string,unresolved_count:int}
+ * @phpstan-type PlanBudgetCoherencePayload array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<PlanBudgetCoherenceFindingPayload>,approval_available:bool,approval_message:string,budget_support:PlanBudgetCoherenceDirectionPayload,plan_correlation:PlanBudgetCoherenceDirectionPayload,unresolved_count:int}
+ * @phpstan-type LatestAssessmentPayload array{round:int,scoring_scope:AssessmentScopePayload|null,criteria:list<AssessmentCriterionPayload>,plan_budget_coherence:PlanBudgetCoherencePayload|null}
  * @phpstan-type CriterionDeltaPayload array{criterion_number:int,criterion_name:string,previous_score:float|int|null,current_score:int,delta:float|int,direction:string}
  * @phpstan-type LatestRevisionPayload array{id:string,round:int,submitted_at:string|null,trajectory_percent:float|int|null,overall_delta:float|int|null,biggest_improvements:list<mixed>,remaining_gaps:list<CriterionDeltaPayload>,comparison_mode:'evidence_progress'|'full_evidence_reassessment'|'scope_correction',comparison_notice:string|null}
  * @phpstan-type PlanProgressSummary array{id:string, title:string, status:string, assessment_count:int, latest_round:int|null, latest_grade:string|null, can_assess:bool, assessment_action_label:string, assessment_run:array{status:string|null, requested_at:string|null, started_at:string|null, total_criteria:int|null, completed_criteria:int|null, current_criterion:string|null, completed_at:string|null, failed_at:string|null, failure:string|null}, latest_assessment:mixed, executive_summary:mixed, budget:BudgetSummary, preview_pdf_url:string, budget_pdf_url:string|null, funder_ready:mixed, lender_brief:mixed, assess_url:string, assessment_history:list<AssessmentHistoryEntry>, latest_revision:mixed}
@@ -83,8 +86,10 @@ final class AdvisorEntrepreneurPlanPayload
                 'weighted_score' => $latestAssessmentPayload['weighted_score'],
                 'threshold' => $latestAssessmentPayload['threshold'],
                 'meets_advisory_threshold' => (bool) $latestAssessmentPayload['automated_score_available']
-                    && (float) $latestAssessmentPayload['weighted_score'] >= (float) $latestAssessmentPayload['threshold'],
+                    && (float) $latestAssessmentPayload['weighted_score'] >= (float) $latestAssessmentPayload['threshold']
+                    && (bool) data_get($latestAssessmentPayload, 'plan_budget_coherence.approval_available', false),
                 'automated_score_available' => $latestAssessmentPayload['automated_score_available'],
+                'plan_budget_coherence' => $latestAssessmentPayload['plan_budget_coherence'],
                 'finalised_at' => $latestAssessmentPayload['finalised_at'],
                 'rating_framework' => $latestAssessmentPayload['rating_framework'],
                 'url' => route('advisor.entrepreneurs.assessments.show', [$profile, $latestAssessment], absolute: false),

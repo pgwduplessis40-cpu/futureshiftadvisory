@@ -10,7 +10,10 @@ use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\AssessmentScoring;
 
 /**
- * @phpstan-type ScoringScope array{version?:string,rescored_criterion_numbers?:list<int|numeric-string>,reused_criterion_numbers?:list<int|numeric-string>,scope_correction_criterion_numbers?:list<int|numeric-string>,advisor_review?:array{required?:bool,confirmed_at?:string|null,confirmed_by_user_id?:int|null},cross_plan_review?:array{required?:bool,trigger?:string|null,message?:string|null}}
+ * @phpstan-type PlanBudgetCoherenceFindingPayload array{category:string,severity:string,message:string,next_action:string}
+ * @phpstan-type PlanBudgetCoherenceDirectionPayload array{status:string,status_label:string,summary:string,unresolved_count:int}
+ * @phpstan-type PlanBudgetCoherencePayload array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<PlanBudgetCoherenceFindingPayload>,approval_available:bool,approval_message:string,budget_support:PlanBudgetCoherenceDirectionPayload,plan_correlation:PlanBudgetCoherenceDirectionPayload,unresolved_count:int}
+ * @phpstan-type ScoringScope array{version?:string,rescored_criterion_numbers?:list<int|numeric-string>,reused_criterion_numbers?:list<int|numeric-string>,scope_correction_criterion_numbers?:list<int|numeric-string>,advisor_review?:array{required?:bool,confirmed_at?:string|null,confirmed_by_user_id?:int|null},cross_plan_review?:array{required?:bool,trigger?:string|null,message?:string|null},plan_budget_coherence?:PlanBudgetCoherencePayload}
  * @phpstan-type ScoringScopePayload array{rescored_criterion_numbers:list<int>,reused_criterion_numbers:list<int>,scope_correction_criterion_numbers:list<int>,is_full_reassessment:bool,has_scope_correction:bool,is_scope_correction_only:bool,advisor_review_required:bool,advisor_review_confirmed_at:string|null,cross_plan_review_required:bool,cross_plan_review_message:string|null}
  * @phpstan-type AssessmentCriterionPayload array{criterion_number:int,name:string,score:float|int}
  */
@@ -25,6 +28,7 @@ trait BuildsEntrepreneurAssessmentPayload
 
         $criteria = AssessmentScoring::criteriaPayload($assessment);
         $scoringScope = $this->scoringScopePayload($assessment->scoring_scope, $criteria);
+        $planBudgetCoherence = $this->planBudgetCoherencePayload($assessment->scoring_scope);
         $isFullEvidenceReassessment = (bool) data_get($scoringScope, 'is_full_reassessment', false);
         $hasScopeCorrection = (bool) data_get($scoringScope, 'has_scope_correction', false);
         $framework = $assessment->ratingFramework;
@@ -123,6 +127,11 @@ trait BuildsEntrepreneurAssessmentPayload
                 AdvisoryReadiness::THRESHOLD,
             ),
         };
+        $planBudgetCoherenceDetail = $planBudgetCoherence === null
+            ? 'Plan–budget coherence was not recorded for this historical assessment. Run a fresh assessment before relying on it for progression.'
+            : ((bool) $planBudgetCoherence['approval_available']
+                ? 'Plan–budget coherence is reconciled.'
+                : 'Plan–budget coherence is blocked: '.$planBudgetCoherence['summary']);
 
         return [
             'id' => $assessment->id,
@@ -159,6 +168,7 @@ trait BuildsEntrepreneurAssessmentPayload
                 'detail' => $automatedScoreDescription,
             ],
             'scoring_scope' => $scoringScope,
+            'plan_budget_coherence' => $planBudgetCoherence,
             'finalised_at' => $assessment->finalised_at?->toIso8601String(),
             'created_at' => $assessment->created_at?->toIso8601String(),
             'basis' => [
@@ -210,7 +220,7 @@ trait BuildsEntrepreneurAssessmentPayload
             ),
             'mentor_notes' => $this->entrepreneurVisibleMentorNotes($assessment),
             'criteria' => $criteria,
-            'explanation' => $explanation,
+            'explanation' => $planBudgetCoherenceDetail.' '.$explanation,
         ];
     }
 
@@ -360,6 +370,53 @@ trait BuildsEntrepreneurAssessmentPayload
             'advisor_review_confirmed_at' => is_string($confirmedAt) ? $confirmedAt : null,
             'cross_plan_review_required' => (bool) data_get($scope, 'cross_plan_review.required', false),
             'cross_plan_review_message' => is_string($crossPlanReviewMessage) ? $crossPlanReviewMessage : null,
+        ];
+    }
+
+    /**
+     * @param  ScoringScope|null  $scope
+     * @return PlanBudgetCoherencePayload|null
+     */
+    private function planBudgetCoherencePayload(?array $scope): ?array
+    {
+        $coherence = data_get($scope, 'plan_budget_coherence');
+        if (! is_array($coherence)) {
+            return null;
+        }
+
+        $findings = collect((array) ($coherence['findings'] ?? []))
+            ->filter(fn (mixed $finding): bool => is_array($finding))
+            ->map(fn (array $finding): array => [
+                'category' => (string) ($finding['category'] ?? 'plan_correlation'),
+                'severity' => (string) ($finding['severity'] ?? 'review'),
+                'message' => (string) ($finding['message'] ?? ''),
+                'next_action' => (string) ($finding['next_action'] ?? ''),
+            ])
+            ->filter(fn (array $finding): bool => $finding['message'] !== '')
+            ->values()
+            ->all();
+        $direction = fn (mixed $value): array => [
+            'status' => (string) data_get($value, 'status', 'missing'),
+            'status_label' => (string) data_get($value, 'status_label', 'Evidence needed'),
+            'summary' => (string) data_get($value, 'summary', ''),
+            'unresolved_count' => (int) data_get($value, 'unresolved_count', 0),
+        ];
+
+        return [
+            'status' => (string) ($coherence['status'] ?? 'missing'),
+            'status_label' => (string) ($coherence['status_label'] ?? 'Blocked — evidence needed'),
+            'score' => (int) ($coherence['score'] ?? 0),
+            'summary' => (string) ($coherence['summary'] ?? 'Plan–budget coherence has not been established.'),
+            'evidence' => collect((array) ($coherence['evidence'] ?? []))
+                ->filter(fn (mixed $evidence): bool => is_string($evidence) && trim($evidence) !== '')
+                ->values()
+                ->all(),
+            'findings' => $findings,
+            'approval_available' => (bool) ($coherence['approval_available'] ?? false),
+            'approval_message' => (string) ($coherence['approval_message'] ?? 'Resolve the plan–budget coherence findings before finalising.'),
+            'budget_support' => $direction($coherence['budget_support'] ?? null),
+            'plan_correlation' => $direction($coherence['plan_correlation'] ?? null),
+            'unresolved_count' => (int) ($coherence['unresolved_count'] ?? count($findings)),
         ];
     }
 }

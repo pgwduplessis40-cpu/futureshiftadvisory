@@ -650,6 +650,96 @@ final class AssessmentTest extends TestCase
         $this->assertSame('budget_evidence_changed', data_get($second->scoring_scope, 'cross_plan_review.trigger'));
     }
 
+    public function test_reassessment_records_plan_budget_coherence_even_when_all_rubric_scores_are_reused(): void
+    {
+        [$advisor, $plan] = $this->plan('plan-budget-coherence-founder@example.test');
+        $this->seedMappedAssessmentSections($plan, $advisor);
+        app(PlanBuilder::class)->upsertSection(
+            plan: $plan->refresh(),
+            phaseKey: 'financial',
+            key: 'assessment-financial-assumptions',
+            title: 'Financial assumptions',
+            body: 'Starting cash is $7,830. The plan requires 12 months of runway and remains debt-free. Delivery capacity is 95 clients per month. Insurance is an annual cost.',
+            actor: $advisor,
+            metadata: ['requirement_key' => 'financial-assumptions'],
+        );
+        EntrepreneurBudget::query()->create([
+            'business_plan_id' => $plan->getKey(),
+            'status' => EntrepreneurBudget::STATUS_COMPLETE,
+            'expected_runway_months' => 12,
+            'forecast_years' => 3,
+            'assumptions' => ['opening_cash_balance' => 0],
+            'monthly_fixed_costs' => [[
+                'label' => 'Insurance',
+                'amount' => 1_200,
+                'cadence' => 'monthly',
+                'cadence_confirmed' => true,
+            ]],
+            'revenue_forecast' => [[
+                'label' => 'Core service',
+                'amount' => 100,
+                'monthly_capacity_units' => 120,
+                'capacity_confirmed' => true,
+            ]],
+            'funding_scenarios' => [[
+                'name' => 'Bank funding',
+                'type' => 'bank_loan',
+                'amount' => 100_000,
+            ]],
+            'computed' => [
+                'available_after_launch' => -190_057,
+                'runway_months' => 0,
+                'runway_open_ended' => false,
+                'break_even_reached' => false,
+                'input_count' => 4,
+            ],
+            'flags' => [],
+        ]);
+
+        app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+        $second = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+
+        $coherence = data_get($second->scoring_scope, 'plan_budget_coherence');
+        $this->assertCount(12, $second->ai_scores);
+        $this->assertTrue(collect($second->ai_scores)->every(
+            fn (array $score): bool => $score['score_source'] === 'reused_unchanged_evidence',
+        ));
+        $this->assertFalse((bool) data_get($coherence, 'approval_available'));
+        $this->assertSame('review', data_get($coherence, 'budget_support.status'));
+        $this->assertSame('review', data_get($coherence, 'plan_correlation.status'));
+        $this->assertContains(
+            'The budget currently shows 0 months of runway.',
+            array_column((array) data_get($coherence, 'findings'), 'message'),
+        );
+        $this->assertContains(
+            'The plan states 12 months of runway, but the budget forecasts 0 months.',
+            array_column((array) data_get($coherence, 'findings'), 'message'),
+        );
+        $this->assertContains(
+            'The plan states opening cash of $7,830, but the budget starts with $0.',
+            array_column((array) data_get($coherence, 'findings'), 'message'),
+        );
+        $this->assertContains(
+            'The plan describes "Insurance" as an annual cost, but the budget treats it as monthly.',
+            array_column((array) data_get($coherence, 'findings'), 'message'),
+        );
+
+        $profile = $plan->entrepreneurProfile()->firstOrFail();
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('entrepreneur.latest_plan.latest_assessment.meets_advisory_threshold', false)
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.approval_available', false)
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.budget_support.status', 'review')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.plan_correlation.status', 'review')
+            );
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Resolve the plan–budget findings before finalising');
+        app(Assessment::class)->finalise($second, $advisor);
+    }
+
     public function test_historical_fallback_scores_are_unavailable_and_do_not_affect_score_movement(): void
     {
         $this->app->instance(AiClient::class, new StructuredScoreAiClient(50));
@@ -1099,6 +1189,7 @@ final class AssessmentTest extends TestCase
     public function test_criteria_are_hidden_until_assessment_is_finalised(): void
     {
         [$advisor, $plan] = $this->plan('visibility-founder@example.test');
+        $this->seedCoherentPlanBudget($plan, $advisor);
         $assessment = app(Assessment::class)->firstPass($plan, $advisor);
 
         $this->assertFalse(app(Assessment::class)->criteriaVisible($plan));
@@ -1113,6 +1204,7 @@ final class AssessmentTest extends TestCase
     {
         $this->app->instance(AiClient::class, new StructuredScoreAiClient(80));
         [$advisor, $plan] = $this->plan('summary-eligibility-founder@example.test');
+        $this->seedCoherentPlanBudget($plan, $advisor);
         $assessment = app(Assessment::class)->firstPass($plan, $advisor);
         Queue::fake();
 
@@ -1266,6 +1358,60 @@ final class AssessmentTest extends TestCase
                 metadata: ['requirement_key' => $requirementKey],
             );
         }
+    }
+
+    private function seedCoherentPlanBudget(BusinessPlan $plan, User $advisor): void
+    {
+        app(PlanBuilder::class)->upsertSection(
+            plan: $plan->refresh(),
+            phaseKey: 'financial',
+            key: 'coherent-financial-assumptions',
+            title: 'Financial assumptions',
+            body: 'Starting cash is $10,000 and the business requires 12 months of runway.',
+            actor: $advisor,
+            metadata: ['requirement_key' => 'financial-assumptions'],
+        );
+        app(PlanBuilder::class)->upsertSection(
+            plan: $plan->refresh(),
+            phaseKey: 'financial',
+            key: 'coherent-revenue-model',
+            title: 'Revenue model',
+            body: 'Delivery capacity is 100 clients per month and the service remains debt-free.',
+            actor: $advisor,
+            metadata: ['requirement_key' => 'revenue-model'],
+        );
+        EntrepreneurBudget::query()->updateOrCreate([
+            'business_plan_id' => $plan->getKey(),
+        ], [
+            'status' => EntrepreneurBudget::STATUS_COMPLETE,
+            'expected_runway_months' => 12,
+            'forecast_years' => 3,
+            'assumptions' => ['opening_cash_balance' => 10_000],
+            'monthly_fixed_costs' => [[
+                'label' => 'Insurance',
+                'amount' => 1_200,
+                'cadence' => 'annual',
+                'cadence_confirmed' => true,
+            ]],
+            'revenue_forecast' => [[
+                'label' => 'Core service',
+                'amount' => 100,
+                'monthly_capacity_units' => 100,
+                'capacity_confirmed' => true,
+            ]],
+            'funding_sources' => [[
+                'label' => 'Founder cash',
+                'amount' => 10_000,
+            ]],
+            'computed' => [
+                'available_after_launch' => 8_000,
+                'runway_months' => 12,
+                'runway_open_ended' => false,
+                'break_even_reached' => true,
+                'input_count' => 4,
+            ],
+            'flags' => [],
+        ]);
     }
 }
 
