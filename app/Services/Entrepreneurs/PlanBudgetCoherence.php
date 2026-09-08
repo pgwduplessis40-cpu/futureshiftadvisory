@@ -18,7 +18,7 @@ namespace App\Services\Entrepreneurs;
  * @phpstan-type BudgetComputed array{available_after_launch?:float|int,runway_months?:float|int,runway_open_ended?:bool,input_count?:int,break_even_reached?:bool}
  * @phpstan-type BudgetAssumptions array{opening_cash_balance?:float|int}
  * @phpstan-type BudgetEvidence array{expected_runway_months?:float|int,assumptions?:BudgetAssumptions,monthly_fixed_costs?:list<BudgetRow>,revenue_forecast?:list<BudgetRow>,funding_sources?:list<BudgetRow>,funding_scenarios?:list<BudgetRow>,computed?:BudgetComputed,flags?:list<BudgetFlag>}
- * @phpstan-type Budget BudgetEvidence&array{status:string}
+ * @phpstan-type Budget array{status:string,expected_runway_months?:float|int,assumptions?:BudgetAssumptions,monthly_fixed_costs?:list<BudgetRow>,revenue_forecast?:list<BudgetRow>,funding_sources?:list<BudgetRow>,funding_scenarios?:list<BudgetRow>,computed?:BudgetComputed,flags?:list<BudgetFlag>}
  * @phpstan-type FinancialSection array{title?:string,body?:string,requirement_key?:string}
  * @phpstan-type SnapshotPhase array{sections?:list<FinancialSection>}
  * @phpstan-type SnapshotBudget array{status?:string,assessment_evidence?:BudgetEvidence}
@@ -41,19 +41,21 @@ final class PlanBudgetCoherence
     {
         $budgetSnapshot = data_get($snapshot, 'budget');
         $budgetEvidence = data_get($snapshot, 'budget.assessment_evidence');
-        $budget = is_array($budgetSnapshot) && is_array($budgetEvidence)
-            ? [
+        if (is_array($budgetSnapshot) && is_array($budgetEvidence)) {
+            /** @var BudgetEvidence $budgetEvidence */
+            $budget = [
                 ...$budgetEvidence,
                 'status' => (string) ($budgetSnapshot['status'] ?? 'not_started'),
-            ]
-            : null;
-        /** @var Budget|null $budget */
+            ];
+        } else {
+            $budget = null;
+        }
         $financialSections = $this->financialSections($snapshot);
         $planText = implode("\n", array_column($financialSections, 'body'));
         $budgetSupportFindings = [];
         $planCorrelationFindings = [];
 
-        if (! is_array($budget)) {
+        if (!is_array($budget)) {
             $budgetSupportFindings[] = $this->finding(
                 'budget_support',
                 'missing',
@@ -248,7 +250,7 @@ final class PlanBudgetCoherence
         /** @var list<BudgetRow> $revenueRows */
         if ($planCapacity !== null) {
             foreach ($revenueRows as $row) {
-                if (! is_array($row) || ! is_numeric($row['monthly_capacity_units'] ?? null)) {
+                if (!is_numeric($row['monthly_capacity_units'] ?? null)) {
                     continue;
                 }
 
@@ -273,7 +275,7 @@ final class PlanBudgetCoherence
         $fixedCosts = is_array($fixedCosts) ? $fixedCosts : [];
         /** @var list<BudgetRow> $fixedCosts */
         foreach ($fixedCosts as $row) {
-            if (! is_array($row) || (string) ($row['cadence'] ?? '') !== 'monthly') {
+            if ((string) ($row['cadence'] ?? '') !== 'monthly') {
                 continue;
             }
 
@@ -315,12 +317,8 @@ final class PlanBudgetCoherence
         ];
 
         foreach ($flags as $flag) {
-            if (! is_array($flag)) {
-                continue;
-            }
-
             $key = (string) ($flag['key'] ?? '');
-            if (! array_key_exists($key, $keys)) {
+            if (!array_key_exists($key, $keys)) {
                 continue;
             }
 
@@ -341,17 +339,10 @@ final class PlanBudgetCoherence
     {
         $sections = [];
         $phases = $snapshot['phases'] ?? [];
-        if (! is_array($phases)) {
-            return [];
-        }
 
         foreach ($phases as $phase) {
-            if (! is_array($phase) || ! is_array($phase['sections'] ?? null)) {
-                continue;
-            }
-
-            foreach ($phase['sections'] as $section) {
-                if (! is_array($section) || ! in_array((string) ($section['requirement_key'] ?? ''), self::FINANCIAL_REQUIREMENT_KEYS, true)) {
+            foreach ($phase['sections'] ?? [] as $section) {
+                if (!in_array((string) ($section['requirement_key'] ?? ''), self::FINANCIAL_REQUIREMENT_KEYS, true)) {
                     continue;
                 }
 
@@ -414,15 +405,12 @@ final class PlanBudgetCoherence
     /** @param Budget $budget */
     private function budgetUsesDebtFunding(array $budget): bool
     {
-        foreach (['funding_sources', 'funding_scenarios'] as $attribute) {
-            $rows = $budget[$attribute] ?? [];
-            if (! is_array($rows)) {
-                continue;
-            }
-            /** @var list<BudgetRow> $rows */
-
+        foreach ([
+            $budget['funding_sources'] ?? [],
+            $budget['funding_scenarios'] ?? [],
+        ] as $rows) {
             foreach ($rows as $row) {
-                if (! is_array($row) || ! is_numeric($row['amount'] ?? null) || (float) $row['amount'] <= 0) {
+                if (!is_numeric($row['amount'] ?? null) || (float) $row['amount'] <= 0) {
                     continue;
                 }
 
