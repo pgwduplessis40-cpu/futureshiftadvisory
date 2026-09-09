@@ -29,6 +29,7 @@ use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\Revision;
 use App\Services\Messaging\MessageThreadService;
 use App\Services\Reports\ReportComposer;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -215,6 +216,21 @@ final class EntrepreneurActionController extends Controller
             ->with('status', $sendToFounder
                 ? 'entrepreneur-assessment-feedback-sent'
                 : 'entrepreneur-assessment-feedback-saved');
+    }
+
+    public function regenerateAssessmentFeedbackDraft(
+        Request $request,
+        EntrepreneurProfile $entrepreneurProfile,
+        PlanAssessment $planAssessment,
+        AssessmentFeedback $feedbacks,
+    ): JsonResponse {
+        $this->assertAssessmentBelongsToProfile($planAssessment, $entrepreneurProfile);
+        $this->advisor($request);
+
+        return response()->json([
+            'proposed_reply' => $feedbacks->proposedReply($entrepreneurProfile, $planAssessment),
+            'generated_at' => now()->toIso8601String(),
+        ]);
     }
 
     public function convert(

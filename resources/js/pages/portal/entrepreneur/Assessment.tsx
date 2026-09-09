@@ -166,6 +166,7 @@ type Props = {
         suggested_reply: string;
         sent_at: string | null;
         action_url: string;
+        plain_language_draft_url: string;
     } | null;
     advisorScoringReview?: {
         action_url: string;
@@ -219,28 +220,6 @@ export default function EntrepreneurAssessment({
         });
     };
 
-    const useSuggestedReply = () => {
-        if (!advisorFeedback) {
-            return;
-        }
-
-        updateAdvisorFeedbackDraft(feedback, advisorFeedback.suggested_reply);
-        setFeedbackErrors((errors) => ({
-            ...errors,
-            proposed_reply: undefined,
-        }));
-
-        if (proposedReply.trim() === advisorFeedback.suggested_reply.trim()) {
-            toast.message(
-                'The suggested reply is already loaded. Use Send reply to founder when you are ready.',
-            );
-
-            return;
-        }
-
-        toast.success('Suggested reply loaded into the draft.');
-    };
-
     const submitAdvisorFeedback = (sendToFounder: boolean) => {
         if (!advisorFeedback || feedbackPending) {
             return;
@@ -276,25 +255,64 @@ export default function EntrepreneurAssessment({
         );
     };
 
-    const regenerateAdvisorFeedbackDraft = () => {
+    const regenerateAdvisorFeedbackDraft = async () => {
         if (!advisorFeedback || regeneratingDraft || feedbackPending) {
             return;
         }
 
-        router.reload({
-            only: ['advisorFeedback'],
-            onStart: () => setRegeneratingDraft(true),
-            onSuccess: () => {
-                setAdvisorFeedbackDraft(null);
-                setFeedbackErrors({});
-                toast.success('Plain-language draft regenerated.');
-            },
-            onError: () =>
-                toast.error(
-                    'The plain-language draft could not be regenerated. Please try again.',
-                ),
-            onFinish: () => setRegeneratingDraft(false),
-        });
+        setRegeneratingDraft(true);
+        setFeedbackErrors((errors) => ({
+            ...errors,
+            proposed_reply: undefined,
+        }));
+
+        try {
+            const response = await window.fetch(
+                advisorFeedback.plain_language_draft_url,
+                {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': csrfToken(),
+                    },
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error('Could not create a plain-English draft.');
+            }
+
+            const payload = (await response.json()) as {
+                proposed_reply?: unknown;
+            };
+            const nextProposedReply = payload.proposed_reply;
+
+            if (
+                typeof nextProposedReply !== 'string' ||
+                nextProposedReply.trim() === ''
+            ) {
+                throw new Error('The draft response was incomplete.');
+            }
+
+            const draftHasChanged =
+                proposedReply.trim() !== nextProposedReply.trim();
+            updateAdvisorFeedbackDraft(feedback, nextProposedReply);
+
+            if (draftHasChanged) {
+                toast.success('A clearer client draft has been created.');
+            } else {
+                toast.message(
+                    'This draft is already using the latest plain-English wording.',
+                );
+            }
+        } catch {
+            toast.error(
+                'The plain-English draft could not be created. Please try again.',
+            );
+        } finally {
+            setRegeneratingDraft(false);
+        }
     };
 
     return (
@@ -608,7 +626,9 @@ export default function EntrepreneurAssessment({
                                 size="sm"
                                 variant="outline"
                                 disabled={feedbackPending || regeneratingDraft}
-                                onClick={regenerateAdvisorFeedbackDraft}
+                                onClick={() => {
+                                    void regenerateAdvisorFeedbackDraft();
+                                }}
                             >
                                 <RefreshCw
                                     className={
@@ -619,17 +639,8 @@ export default function EntrepreneurAssessment({
                                     aria-hidden="true"
                                 />
                                 {regeneratingDraft
-                                    ? 'Regenerating draft'
-                                    : 'Regenerate plain-language draft'}
-                            </Button>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                disabled={feedbackPending || regeneratingDraft}
-                                onClick={useSuggestedReply}
-                            >
-                                Reset reply to suggested draft
+                                    ? 'Creating clearer draft'
+                                    : 'Create plain-English client draft'}
                             </Button>
                         </div>
 
@@ -884,6 +895,14 @@ export default function EntrepreneurAssessment({
                 </section>
             </div>
         </>
+    );
+}
+
+function csrfToken(): string {
+    return (
+        document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content') ?? ''
     );
 }
 

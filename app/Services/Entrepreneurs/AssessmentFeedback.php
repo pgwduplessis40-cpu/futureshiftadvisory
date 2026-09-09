@@ -205,9 +205,9 @@ final class AssessmentFeedback
         $planBudgetFindings = $this->planBudgetFindings($assessment);
         if ($planBudgetFindings !== []) {
             return $this->changeRequestMessages->build($profile, [
-                'Before we can finalise this assessment, please correct the plan–budget issues below. The rubric evidence has not changed, but the submitted budget still needs to support the financial plan.',
-                "Please work through these items in the next version:\n\n".$this->formatPlanBudgetFindings($planBudgetFindings),
-                'Update the named budget areas and the matching financial plan sections, then resubmit. Reply first if you would like to talk through a budget assumption or funding decision.',
+                'Before we can finish this review, please update the budget items below. You do not need to start again: we need the written plan and the budget to tell the same financial story.',
+                "Please work through these steps:\n\n".$this->formatPlanBudgetFindings($planBudgetFindings),
+                'Once the numbers and explanations match, send the plan back for review. If any of the numbers are unclear, reply before changing them and we can talk them through together.',
             ]);
         }
 
@@ -317,7 +317,12 @@ final class AssessmentFeedback
             ];
         }
 
-        return $planBudgetFindings;
+        return collect($planBudgetFindings)
+            ->unique(fn (array $finding): string => Str::lower(
+                $finding['category'].'|'.$finding['message'].'|'.$finding['next_action'],
+            ))
+            ->values()
+            ->all();
     }
 
     /**
@@ -326,28 +331,35 @@ final class AssessmentFeedback
     private function formatPlanBudgetFindings(array $findings): string
     {
         return collect($findings)
-            ->groupBy(fn (array $finding): string => $this->planBudgetLocation($finding))
-            ->map(function ($group, string $location): string {
-                $items = $group
-                    ->map(function (array $finding): string {
-                        return '- Assessment finding: '.$finding['message']."\n"
-                            .'  What to do: '.$finding['next_action'];
-                    })
+            ->groupBy(fn (array $finding): string => $this->planBudgetTopic($finding))
+            ->map(function ($group, string $topic): string {
+                $details = $group
+                    ->map(fn (array $finding): string => '- '.$this->plainLanguageFinding($finding))
+                    ->unique()
+                    ->values()
                     ->implode("\n");
 
-                return $location."\n".$items;
+                return implode("\n", [
+                    $this->plainLanguageTopicTitle($topic),
+                    'What we found:',
+                    $details,
+                    'Why this matters: '.$this->plainLanguageWhyItMatters($topic),
+                    'What to do: '.$this->plainLanguageNextStep($topic),
+                    'Where to update: '.$this->plainLanguageLocation($topic),
+                ]);
             })
             ->values()
+            ->map(fn (string $item, int $index): string => ($index + 1).'. '.$item)
             ->implode("\n\n");
     }
 
     /** @param array{category:string,severity:string,message:string,next_action:string} $finding */
-    private function planBudgetLocation(array $finding): string
+    private function planBudgetTopic(array $finding): string
     {
         $message = strtolower($finding['message']);
 
         if (str_contains($message, 'funding') || str_contains($message, 'cash') || str_contains($message, 'runway') || str_contains($message, 'break-even')) {
-            return 'Budget > Funding and runway';
+            return 'cash_and_funding';
         }
 
         if (str_contains($message, 'fixed cost')
@@ -355,16 +367,99 @@ final class AssessmentFeedback
             || str_contains($message, 'cadence')
             || str_contains($message, 'insurance')
             || str_contains($message, 'trademark')) {
-            return 'Budget > Monthly fixed costs';
+            return 'regular_costs';
         }
 
         if (str_contains($message, 'revenue') || str_contains($message, 'capacity') || str_contains($message, 'contractor')) {
-            return 'Budget > Revenue forecast';
+            return 'sales_forecast';
         }
 
         return $finding['category'] === 'plan_correlation'
-            ? 'Financial plan > Financial assumptions, Revenue model, and Funding and support'
-            : 'Budget > Financial assumptions';
+            ? 'plan_and_budget'
+            : 'budget_details';
+    }
+
+    private function plainLanguageTopicTitle(string $topic): string
+    {
+        return match ($topic) {
+            'cash_and_funding' => 'Check the cash and funding plan',
+            'regular_costs' => 'Check the regular business costs',
+            'sales_forecast' => 'Check the sales forecast',
+            'plan_and_budget' => 'Make the written plan and budget agree',
+            default => 'Complete the missing budget details',
+        };
+    }
+
+    private function plainLanguageWhyItMatters(string $topic): string
+    {
+        return match ($topic) {
+            'cash_and_funding' => 'Cash runway means how long the business can pay its bills with the money available. We need to see how that period will be funded.',
+            'regular_costs' => 'Every regular cost needs to be included so the total cost of running the business is realistic.',
+            'sales_forecast' => 'The sales forecast needs to match the number of customers you can realistically serve and the cost of delivering the work.',
+            'plan_and_budget' => 'We need the written plan and budget to use the same numbers before we can rely on them.',
+            default => 'We need enough clear information to check that the budget supports the plan.',
+        };
+    }
+
+    private function plainLanguageNextStep(string $topic): string
+    {
+        return match ($topic) {
+            'cash_and_funding' => 'Check the cash you start with, the dates money comes in, and the dates bills are paid. If more money is needed, say where it will come from and when it will arrive.',
+            'regular_costs' => 'Add every regular cost, the amount, and whether it is paid weekly, monthly, or yearly. Make sure the total matches the number used in the financial plan.',
+            'sales_forecast' => 'Check the expected number of sales, the price of each sale, when customers will pay, and the people or contractor time needed to deliver the work.',
+            'plan_and_budget' => 'Update the number in the budget and the matching statement in the financial plan so both say the same thing.',
+            default => 'Add the missing information in the budget, then check it against the matching financial plan section.',
+        };
+    }
+
+    private function plainLanguageLocation(string $topic): string
+    {
+        return match ($topic) {
+            'cash_and_funding' => 'Budget > Funding and runway',
+            'regular_costs' => 'Budget > Monthly fixed costs',
+            'sales_forecast' => 'Budget > Revenue forecast',
+            'plan_and_budget' => 'Financial plan > Financial assumptions, Revenue model, and Funding and support',
+            default => 'Budget > Financial assumptions',
+        };
+    }
+
+    /** @param array{category:string,severity:string,message:string,next_action:string} $finding */
+    private function plainLanguageFinding(array $finding): string
+    {
+        $message = $finding['message'];
+        $normalised = strtolower($message);
+
+        if (str_contains($normalised, '0 months of runway')) {
+            return 'The budget shows no months of cash available to pay business bills.';
+        }
+
+        if (str_contains($normalised, 'funding gap of ')) {
+            return str_replace('The budget has a funding gap of ', 'The budget is short by ', $message);
+        }
+
+        if (str_contains($normalised, 'additional funding to cover the modelled cash trough')) {
+            $plainMessage = preg_replace(
+                '/^The forecast requires (.+?) of additional funding to cover the modelled cash trough and planned operating buffer\.$/',
+                'The budget shows it may need $1 more cash to cover costs and keep a small safety buffer.',
+                $message,
+            );
+
+            return is_string($plainMessage) ? $plainMessage : $message;
+        }
+
+        if (str_contains($normalised, 'fixed-cost trace mismatch')) {
+            return 'The itemised regular costs do not add up to the total used in the budget.';
+        }
+
+        if (str_contains($normalised, 'does not name a matching cost row')) {
+            return str_replace('but the budget does not name a matching cost row.', 'but no matching cost appears in the budget.', $message);
+        }
+
+        if (str_contains($normalised, 'cost cadence')) {
+            return str_replace('cost cadence', 'whether costs are paid weekly, monthly, or yearly', $message);
+        }
+
+        return $message;
     }
 
     private function movementLine(array $priority): ?string
