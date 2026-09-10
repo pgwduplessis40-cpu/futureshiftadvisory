@@ -580,6 +580,8 @@ export default function EntrepreneurPlan({
             : planCompletion.percent;
     const includesIdeaValidation = packageAccess.includes_idea_validation;
     const includesPlanBudget = packageAccess.includes_plan_budget;
+    const isIdeaValidationOnlyWorkspace =
+        includesIdeaValidation && !includesPlanBudget;
     const directPlanAccess = includesPlanBudget && !includesIdeaValidation;
     const hasIdeaValidation = Boolean(ideaValidation);
     const planBuilderUnlocked =
@@ -591,6 +593,11 @@ export default function EntrepreneurPlan({
     const ideaChangesRequested =
         ideaValidation?.advisor_gate_status === 'changes_requested';
     const ideaValidationRecalled = Boolean(ideaValidation?.recalled_at);
+    const workspaceCompletionPercent = isIdeaValidationOnlyWorkspace
+        ? hasIdeaValidation && !ideaChangesRequested && !ideaValidationRecalled
+            ? 100
+            : 0
+        : planCompletion.percent;
     const ideaUnderAdvisorReview =
         hasIdeaValidation &&
         !ideaValidationApproved &&
@@ -1221,13 +1228,21 @@ export default function EntrepreneurPlan({
 
     return (
         <TooltipProvider>
-            <Head title="Business plan" />
+            <Head
+                title={
+                    isIdeaValidationOnlyWorkspace
+                        ? 'Idea Validation'
+                        : 'Business plan'
+                }
+            />
 
             <div className="space-y-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">
-                            Business plan workspace
+                            {isIdeaValidationOnlyWorkspace
+                                ? 'Idea Validation'
+                                : 'Business plan workspace'}
                         </h1>
                         <div className="text-sm text-muted-foreground">
                             {profile.name} /{' '}
@@ -1276,16 +1291,21 @@ export default function EntrepreneurPlan({
                         ) : null}
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <Button asChild size="sm" variant="outline">
-                            <a
-                                href={urls.preview}
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                <Eye className="size-4" aria-hidden="true" />
-                                Preview business plan
-                            </a>
-                        </Button>
+                        {includesPlanBudget && plan ? (
+                            <Button asChild size="sm" variant="outline">
+                                <a
+                                    href={urls.preview}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    <Eye
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Preview business plan
+                                </a>
+                            </Button>
+                        ) : null}
                         <Button asChild size="sm" variant="outline">
                             <Link href={urls.messages}>
                                 <MessageSquare
@@ -1367,10 +1387,10 @@ export default function EntrepreneurPlan({
                                         )}
                                     </span>
                                     <span>
-                                        Plan{' '}
-                                        {gamification.plan_completion
-                                            ?.percent ?? 0}
-                                        %
+                                        {isIdeaValidationOnlyWorkspace
+                                            ? 'Idea validation'
+                                            : 'Plan'}{' '}
+                                        {workspaceCompletionPercent}%
                                     </span>
                                     <span>
                                         Journey points{' '}
@@ -1423,7 +1443,10 @@ export default function EntrepreneurPlan({
 
                 {activeTab === 'actions' ? (
                     <div className="space-y-6">
-                        <section className="space-y-3">
+                        <section
+                            className="space-y-3"
+                            hidden={isIdeaValidationOnlyWorkspace}
+                        >
                             <div>
                                 <h2 className="text-base font-semibold">
                                     Priority actions
@@ -1691,14 +1714,20 @@ export default function EntrepreneurPlan({
                                 </div>
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                        <span>Plan progress</span>
-                                        <span>{planCompletion.percent}%</span>
+                                        <span>
+                                            {isIdeaValidationOnlyWorkspace
+                                                ? 'Idea validation completion'
+                                                : 'Plan progress'}
+                                        </span>
+                                        <span>
+                                            {workspaceCompletionPercent}%
+                                        </span>
                                     </div>
                                     <div className="h-2 overflow-hidden rounded-full bg-muted">
                                         <div
                                             className="h-full rounded-full bg-emerald-500 transition-all"
                                             style={{
-                                                width: `${Math.min(100, Math.max(0, planCompletion.percent))}%`,
+                                                width: `${Math.min(100, Math.max(0, workspaceCompletionPercent))}%`,
                                             }}
                                         />
                                     </div>
@@ -2028,6 +2057,7 @@ export default function EntrepreneurPlan({
 
                         <section
                             id="business-plan-requirements"
+                            hidden={!includesPlanBudget}
                             className="space-y-4 rounded-md border bg-background p-4"
                         >
                             <div className="flex flex-wrap items-start justify-between gap-3">

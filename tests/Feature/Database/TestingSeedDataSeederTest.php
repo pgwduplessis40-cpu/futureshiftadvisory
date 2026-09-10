@@ -438,13 +438,24 @@ final class TestingSeedDataSeederTest extends TestCase
         $review = DB::table('entrepreneur_profiles')
             ->where('email', 'seed.idea.review@futureshiftadvisory.test')
             ->first();
+        $approved = DB::table('entrepreneur_profiles')
+            ->where('email', 'seed.idea.approved@futureshiftadvisory.test')
+            ->first();
+        $cancellation = DB::table('entrepreneur_profiles')
+            ->where('email', 'seed.idea.cancel@futureshiftadvisory.test')
+            ->first();
 
         $this->assertNotNull($starter);
         $this->assertNotNull($review);
+        $this->assertNotNull($approved);
+        $this->assertNotNull($cancellation);
         $this->assertSame('idea_validation', $starter->stage);
         $this->assertSame('idea_validation', $review->stage);
+        $this->assertSame('building_phase1', $approved->stage);
         $this->assertSame('idea_validation', $starter->intended_package_scope);
         $this->assertSame('idea_validation', $review->intended_package_scope);
+        $this->assertSame('idea_validation', $approved->intended_package_scope);
+        $this->assertSame('idea_validation', $cancellation->intended_package_scope);
         $this->assertDatabaseMissing('idea_validations', [
             'entrepreneur_profile_id' => $starter->id,
         ]);
@@ -452,6 +463,24 @@ final class TestingSeedDataSeederTest extends TestCase
             'entrepreneur_profile_id' => $review->id,
             'revision_number' => 1,
             'advisor_gate_passed_at' => null,
+        ]);
+        $this->assertNotNull(DB::table('idea_validations')
+            ->where('entrepreneur_profile_id', $approved->id)
+            ->where('revision_number', 1)
+            ->value('advisor_gate_passed_at'));
+        $this->assertDatabaseMissing('idea_validations', [
+            'entrepreneur_profile_id' => $cancellation->id,
+        ]);
+        $this->assertDatabaseHas('service_activations', [
+            'related_entrepreneur_profile_id' => $cancellation->id,
+            'service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'status' => ServiceActivation::STATUS_ACTIVE,
+            'payment_status' => ServiceActivation::PAYMENT_PAID,
+            'payment_reference' => 'pi_seed_idea_validation_cancellation',
+        ]);
+        $this->assertDatabaseHas('users', [
+            'email' => 'seed.idea.cancel@futureshiftadvisory.test',
+            'suspended_at' => null,
         ]);
     }
 

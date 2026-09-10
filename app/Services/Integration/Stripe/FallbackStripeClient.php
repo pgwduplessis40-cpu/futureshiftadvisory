@@ -11,6 +11,8 @@ use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
+use App\Services\Payments\PaymentRefundRequest;
+use App\Services\Payments\PaymentRefundResult;
 use App\Services\Payments\PaymentSetupIntent;
 
 final class FallbackStripeClient implements StripeClient
@@ -56,6 +58,19 @@ final class FallbackStripeClient implements StripeClient
             return $this->live->charge($request);
         } catch (IntegrationDisabledException) {
             return $this->fake->charge($request);
+        }
+    }
+
+    public function refund(PaymentRefundRequest $request): PaymentRefundResult
+    {
+        if ($this->usesFixtures()) {
+            return $this->fake->refund($request);
+        }
+
+        try {
+            return $this->live->refund($request);
+        } catch (IntegrationDisabledException) {
+            return $this->fake->refund($request);
         }
     }
 

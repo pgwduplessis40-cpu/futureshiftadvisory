@@ -12,6 +12,7 @@ Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::post('settings/profile/deactivation-request', [ProfileController::class, 'requestDeactivation'])->name('profile.deactivation-request');
+    Route::post('settings/profile/idea-validation/cancel', [ProfileController::class, 'cancelIdeaValidation'])->name('profile.idea-validation.cancel');
     Route::get('settings/communication', [CommunicationController::class, 'edit'])->name('communication.edit');
     Route::put('settings/communication', [CommunicationController::class, 'update'])->name('communication.update');
     Route::get('settings/calendar', [CalendarController::class, 'edit'])->name('calendar.edit');

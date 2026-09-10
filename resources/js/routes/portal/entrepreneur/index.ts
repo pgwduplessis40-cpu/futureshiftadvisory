@@ -1,5 +1,6 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../wayfinder'
 import plan from './plan'
+import planBudget from './plan-budget'
 import readiness from './readiness'
 import ideaValidation from './idea-validation'
 import advisoryRequest from './advisory-request'
@@ -8,7 +9,7 @@ import assessments from './assessments'
 import surveys from './surveys'
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
-* @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:50
+* @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:53
 * @route '/portal/entrepreneur'
 */
 export const dashboard = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -23,7 +24,7 @@ dashboard.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
-* @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:50
+* @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:53
 * @route '/portal/entrepreneur'
 */
 dashboard.url = (options?: RouteQueryOptions) => {
@@ -32,7 +33,7 @@ dashboard.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
-* @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:50
+* @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:53
 * @route '/portal/entrepreneur'
 */
 dashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -42,7 +43,7 @@ dashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
-* @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:50
+* @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:53
 * @route '/portal/entrepreneur'
 */
 dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -52,7 +53,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
-* @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:50
+* @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:53
 * @route '/portal/entrepreneur'
 */
 const dashboardForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -62,7 +63,7 @@ const dashboardForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> 
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
-* @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:50
+* @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:53
 * @route '/portal/entrepreneur'
 */
 dashboardForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -72,7 +73,7 @@ dashboardForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =>
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
-* @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:50
+* @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:53
 * @route '/portal/entrepreneur'
 */
 dashboardForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -90,6 +91,7 @@ dashboard.form = dashboardForm
 const entrepreneur = {
     dashboard: Object.assign(dashboard, dashboard),
     plan: Object.assign(plan, plan),
+    planBudget: Object.assign(planBudget, planBudget),
     readiness: Object.assign(readiness, readiness),
     ideaValidation: Object.assign(ideaValidation, ideaValidation),
     advisoryRequest: Object.assign(advisoryRequest, advisoryRequest),

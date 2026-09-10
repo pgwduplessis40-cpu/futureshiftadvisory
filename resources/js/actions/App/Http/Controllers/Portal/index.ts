@@ -8,6 +8,7 @@ import ClientLeavePeriodController from './ClientLeavePeriodController'
 import DdBusinessPlanController from './DdBusinessPlanController'
 import EntrepreneurDashboardController from './EntrepreneurDashboardController'
 import EntrepreneurPlanWorkspaceController from './EntrepreneurPlanWorkspaceController'
+import EntrepreneurPlanBudgetAccessController from './EntrepreneurPlanBudgetAccessController'
 import EntrepreneurPlanDocumentController from './EntrepreneurPlanDocumentController'
 import EntrepreneurPlanController from './EntrepreneurPlanController'
 import EntrepreneurPlanBudgetController from './EntrepreneurPlanBudgetController'
@@ -36,6 +37,7 @@ const Portal = {
     DdBusinessPlanController: Object.assign(DdBusinessPlanController, DdBusinessPlanController),
     EntrepreneurDashboardController: Object.assign(EntrepreneurDashboardController, EntrepreneurDashboardController),
     EntrepreneurPlanWorkspaceController: Object.assign(EntrepreneurPlanWorkspaceController, EntrepreneurPlanWorkspaceController),
+    EntrepreneurPlanBudgetAccessController: Object.assign(EntrepreneurPlanBudgetAccessController, EntrepreneurPlanBudgetAccessController),
     EntrepreneurPlanDocumentController: Object.assign(EntrepreneurPlanDocumentController, EntrepreneurPlanDocumentController),
     EntrepreneurPlanController: Object.assign(EntrepreneurPlanController, EntrepreneurPlanController),
     EntrepreneurPlanBudgetController: Object.assign(EntrepreneurPlanBudgetController, EntrepreneurPlanBudgetController),

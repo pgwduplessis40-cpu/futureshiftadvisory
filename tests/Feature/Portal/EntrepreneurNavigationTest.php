@@ -234,6 +234,22 @@ final class EntrepreneurNavigationTest extends TestCase
                 ->where('packageAccess.includes_plan_budget', false));
 
         $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('isIdeaValidationOnly', true)
+                ->where('ideaValidationSubmitted', false)
+                ->where('ideaValidationApproved', false));
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.plan-budget.show'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('portal/entrepreneur/PlanBudgetAccess')
+                ->where('hasPlanBudgetAccess', false)
+                ->where('ideaValidationApproved', false));
+
+        $this->actingAsMfa($entrepreneur)
             ->post(route('portal.entrepreneur.plan.start'))
             ->assertRedirect(route('portal.entrepreneur.plan.show', absolute: false))
             ->assertSessionHas('entrepreneur_plan_error', 'Business plan and budget are not included in your selected package.');
@@ -324,6 +340,14 @@ final class EntrepreneurNavigationTest extends TestCase
                 ->where('ideaValidation.revision_number', 1)
                 ->where('ideaValidation.plan_builder_unlocked', false)
                 ->where('ideaValidation.problem', $payload['problem']));
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('isIdeaValidationOnly', true)
+                ->where('ideaValidationSubmitted', true)
+                ->where('ideaValidationApproved', false));
 
         $this->actingAsMfa($advisor)
             ->get(route('dashboard'))

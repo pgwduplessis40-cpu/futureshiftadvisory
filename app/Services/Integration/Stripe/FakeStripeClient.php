@@ -12,6 +12,8 @@ use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
 use App\Services\Payments\PaymentGatewayException;
+use App\Services\Payments\PaymentRefundRequest;
+use App\Services\Payments\PaymentRefundResult;
 use App\Services\Payments\PaymentSetupIntent;
 use Illuminate\Support\Arr;
 
@@ -91,6 +93,29 @@ final class FakeStripeClient implements StripeClient
         $this->charges[$request->idempotencyKey] = $result;
 
         return $result;
+    }
+
+    public function refund(PaymentRefundRequest $request): PaymentRefundResult
+    {
+        if ((bool) Arr::get($request->metadata, 'fixture_fail', false)) {
+            throw new PaymentGatewayException('Stripe fixture refund failed.');
+        }
+
+        $hash = substr(hash('sha256', implode('|', [
+            $request->paymentReference,
+            $request->amount,
+            $request->currency,
+            $request->idempotencyKey,
+        ])), 0, 16);
+
+        return new PaymentRefundResult(
+            gateway: 'stripe',
+            gatewayRef: 're_stripe_'.$hash,
+            status: 'succeeded',
+            amount: $request->amount,
+            currency: $request->currency,
+            metadata: ['fixture' => true],
+        );
     }
 
     public function findCharge(?string $gatewayRef, string $idempotencyKey, string $paymentId): PaymentChargeLookup

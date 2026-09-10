@@ -24,6 +24,10 @@ All seeded users use the password `password`. MFA enrolment is intentionally cle
 | Buyer principal | `seed.buyer.primary@futureshiftadvisory.test` |
 | Buyer analyst | `seed.buyer.analyst@futureshiftadvisory.test` |
 | Entrepreneur | `seed.entrepreneur@futureshiftadvisory.test` |
+| Idea Validation — ready to start | `seed.idea.start@futureshiftadvisory.test` |
+| Idea Validation — advisor review | `seed.idea.review@futureshiftadvisory.test` |
+| Idea Validation — approved | `seed.idea.approved@futureshiftadvisory.test` |
+| Idea Validation — cancellation eligible | `seed.idea.cancel@futureshiftadvisory.test` |
 | Broker | `seed.broker@futureshiftadvisory.test` |
 | Coach | `seed.coach@futureshiftadvisory.test` |
 | Mentor | `seed.mentor@futureshiftadvisory.test` |
