@@ -157,6 +157,7 @@ final class TestingSeedDataSeeder extends Seeder
             'ddExperience' => ['Seed DD Experienced Buyer', 'seed.dd.experience@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
             'ideaValidationStart' => ['Seed Idea Validation Starter', 'seed.idea.start@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
             'ideaValidationReview' => ['Seed Idea Validation Review', 'seed.idea.review@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
+            'ideaValidationApproved' => ['Seed Idea Validation Approved', 'seed.idea.approved@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
             'broker' => ['Seed Broker Partner', 'seed.broker@futureshiftadvisory.test', User::TYPE_BROKER, 20],
             'coach' => ['Seed Coach Partner', 'seed.coach@futureshiftadvisory.test', User::TYPE_COACH, 20],
             'mentor' => ['Seed Entrepreneur Mentor', 'seed.mentor@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR_MENTOR, 20],
@@ -2819,6 +2820,50 @@ XML);
             'advisor_gate_passed_at' => null,
             'advisor_gate_passed_by_user_id' => null,
             'advisor_gate_note' => null,
+            'recalled_at' => null,
+            'recalled_by_user_id' => null,
+        ]);
+
+        $approvedProfileId = $this->upsert('entrepreneur_profiles', [
+            'email' => $this->users['ideaValidationApproved']->email,
+        ], [
+            'user_id' => $this->users['ideaValidationApproved']->getKey(),
+            'client_id' => null,
+            'assigned_advisor_id' => $this->users['advisor']->getKey(),
+            'invite_token_id' => null,
+            'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'intended_package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION,
+            'name' => 'Seed Idea Validation Approved',
+            'stage' => EntrepreneurStage::BUILDING_PHASE_1->value,
+            'concept_summary' => 'An approved idea-validation client who can test the Business Plan & Budget next-step service.',
+            'gamification_on' => true,
+        ]);
+        $this->ids['idea_validation_approved_profile'] = $approvedProfileId;
+
+        $this->ids['idea_validation_approved'] = $this->upsert('idea_validations', [
+            'entrepreneur_profile_id' => $approvedProfileId,
+            'evaluated_at' => $this->stableTimestamp('2026-07-17 09:00:00'),
+        ], [
+            'revision_number' => 1,
+            'previous_validation_id' => null,
+            'problem' => 'Independent trades businesses lose profitable work because job estimates, follow-up, and customer reminders are spread across paper, text messages, and separate tools.',
+            'target_customer' => 'New Zealand owner-operated electrical and plumbing businesses with two to ten field staff.',
+            'solution' => 'A lightweight workflow that turns site visits into estimates, sends timed follow-ups, and gives owners a single view of jobs awaiting approval.',
+            'value_proposition' => 'Help small trades firms win more quoted work without forcing the owner to replace the accounting and job-management tools already in use.',
+            'demand_signal' => 'Five owners agreed to share their quote follow-up process and two have committed to a paid pilot if the workflow reduces unpaid admin time.',
+            'revenue_model' => 'Monthly subscription per business with a one-off onboarding and workflow setup fee.',
+            'ai_evaluation' => $this->json([
+                'summary' => 'The customer, problem, and early demand are clear enough to move into detailed business-plan and budget work.',
+                'model' => 'seeded-idea-approved',
+                'prompt_id' => 'entrepreneur.idea_validation',
+                'prompt_hash' => hash('sha256', 'seeded-idea-validation-approved'),
+                'metadata' => ['advisor_gate_status' => 'approved', 'fixture' => true],
+            ]),
+            'viability_alerts' => $this->json([]),
+            'evaluated_by_user_id' => $this->users['advisor']->getKey(),
+            'advisor_gate_passed_at' => $this->stableTimestamp('2026-07-17 11:00:00'),
+            'advisor_gate_passed_by_user_id' => $this->users['advisor']->getKey(),
+            'advisor_gate_note' => 'The idea is ready for Business Plan & Budget. Focus the next step on the first paid pilot, pricing, and cash requirements.',
             'recalled_at' => null,
             'recalled_by_user_id' => null,
         ]);

@@ -10,6 +10,9 @@ use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\LlmsTxtController;
 use App\Http\Controllers\Public\ServicesController;
 use App\Http\Controllers\Public\SitemapController;
+use App\Models\ServiceRatePackage;
+use App\Services\Entrepreneurs\EntrepreneurServiceOffer;
+use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -25,6 +28,11 @@ use Illuminate\Support\Facades\Route;
 // Home keeps the short `home` route name so existing Wayfinder consumers
 // (auth layouts) continue to resolve `home()` without churn.
 Route::get('/', HomeController::class)->name('home');
+Route::get('/validate-idea', function (EntrepreneurServiceOffer $offers) {
+    return Inertia::render('public/validate-idea', [
+        'offer' => $offers->forScope(ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION),
+    ]);
+})->name('public.validate-idea');
 
 Route::name('public.')->group(function (): void {
     Route::get('/services', ServicesController::class)->name('services');

@@ -818,6 +818,7 @@ final class EntrepreneurNavigationTest extends TestCase
         return [
             route('portal.entrepreneur.dashboard', absolute: false),
             route('portal.entrepreneur.plan.show', absolute: false),
+            route('portal.entrepreneur.plan-budget.show', absolute: false),
             route('portal.calendar.index', absolute: false),
             route('portal.inspiration-board.index', absolute: false),
             route('portal.entrepreneur.surveys.index', absolute: false),

@@ -16,6 +16,7 @@ use App\Http\Controllers\Portal\EntrepreneurGamificationController;
 use App\Http\Controllers\Portal\EntrepreneurPlanBudgetController;
 use App\Http\Controllers\Portal\EntrepreneurPlanController;
 use App\Http\Controllers\Portal\EntrepreneurPlanDocumentController;
+use App\Http\Controllers\Portal\EntrepreneurPlanBudgetAccessController;
 use App\Http\Controllers\Portal\EntrepreneurPlanWorkspaceController;
 use App\Http\Controllers\Portal\EntrepreneurServiceOfferController;
 use App\Http\Controllers\Portal\EntrepreneurSurveyController;
@@ -101,6 +102,7 @@ Route::middleware(['auth', 'verified', 'mfa', EnsureEntrepreneurInviteOfferAccep
         Route::get('entrepreneur/service-offer', [EntrepreneurServiceOfferController::class, 'show'])->name('entrepreneur.service-offer.show');
         Route::post('entrepreneur/service-offer', [EntrepreneurServiceOfferController::class, 'store'])->name('entrepreneur.service-offer.store');
         Route::get('entrepreneur/plan', [EntrepreneurPlanWorkspaceController::class, 'show'])->name('entrepreneur.plan.show');
+        Route::get('entrepreneur/plan-budget', EntrepreneurPlanBudgetAccessController::class)->name('entrepreneur.plan-budget.show');
         Route::get('entrepreneur/plan/preview', [EntrepreneurPlanDocumentController::class, 'preview'])->name('entrepreneur.plan.preview');
         Route::post('entrepreneur/readiness', [EntrepreneurPlanController::class, 'readiness'])->name('entrepreneur.readiness.store');
         Route::post('entrepreneur/idea-validation', [EntrepreneurPlanController::class, 'ideaValidation'])->name('entrepreneur.idea-validation.store');

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
+use App\Models\ServiceRatePackage;
+use App\Services\Entrepreneurs\EntrepreneurServiceOffer;
 use App\Support\Public\EngagementTypeCatalog;
 use App\Support\Public\FaqCatalog;
 use Illuminate\Http\Response;
@@ -16,7 +18,7 @@ use Illuminate\Http\Response;
  */
 class LlmsTxtController extends Controller
 {
-    public function __invoke(): Response
+    public function __invoke(EntrepreneurServiceOffer $offers): Response
     {
         $base = rtrim((string) config('app.public_url'), '/');
 
@@ -29,7 +31,7 @@ class LlmsTxtController extends Controller
         $lines[] = '';
         $lines[] = 'Future Shift Advisory is led by Pieter Du Plessis, Principal Advisor, a member '
             .'of the Institute of Advisors (IOA). The practice works remotely across New Zealand '
-            .'from Hamilton, Waikato. Engagements are invite-only and begin with a discovery call. '
+            .'from Hamilton, Waikato. Most engagements begin with a discovery call; Idea Validation has a dedicated online entry page. '
             .'Confidentiality is the baseline: multi-factor sign-in, encrypted documents, and '
             .'access limited to the people working on the engagement.';
         $lines[] = '';
@@ -57,6 +59,11 @@ class LlmsTxtController extends Controller
         $lines[] = "- [Home]({$base}/): Overview of the practice and how we work.";
         $lines[] = "- [Services]({$base}/services): All engagement types, who each is for, and what you receive.";
         $lines[] = "- [Entrepreneur Module]({$base}/services/entrepreneur): Idea validation, business plans, and funding readiness for founders.";
+        $ideaOffer = $offers->forScope(ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION);
+        $ideaPrice = $ideaOffer['available'] && $ideaOffer['amount_ex_gst'] !== null
+            ? ' Current price: $'.number_format($ideaOffer['amount_ex_gst'], 2).' + GST.'
+            : '';
+        $lines[] = "- [Validate your idea]({$base}/validate-idea): Idea Validation information, current rate, and advisor review within 24 hours.{$ideaPrice}";
         $lines[] = "- [About]({$base}/about): The practice's principles and the Principal Advisor's background.";
         $lines[] = "- [FAQ]({$base}/faq): Answers on engagements, fees, security, not-for-profits, and use of AI.";
         $lines[] = "- [Contact]({$base}/contact): Enquiry form to book a discovery call.";
