@@ -1,4 +1,5 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
+import services11ad26 from './services'
 import contact50a660 from './contact'
 /**
 * @see \App\Http\Controllers\Public\ServicesController::__invoke
@@ -487,7 +488,7 @@ llmsForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 llms.form = llmsForm
 
 const publicMethod = {
-    services: Object.assign(services, services),
+    services: Object.assign(services, services11ad26),
     about: Object.assign(about, about),
     faq: Object.assign(faq, faq),
     contact: Object.assign(contact, contact50a660),

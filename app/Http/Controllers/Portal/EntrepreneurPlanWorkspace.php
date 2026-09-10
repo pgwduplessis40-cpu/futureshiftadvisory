@@ -15,6 +15,7 @@ use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
+use App\Services\Entrepreneurs\IdeaValidationCancellation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,6 +36,7 @@ final class EntrepreneurPlanWorkspace
     {
         $user = $request->user();
         abort_unless($user instanceof User, 403);
+        abort_if($user->suspended_reason === IdeaValidationCancellation::SUSPENSION_REASON, 403);
         abort_unless(
             $user->user_type === User::TYPE_ENTREPRENEUR
             || ($this->activeActivationForUser($user) instanceof ServiceActivation)
@@ -75,6 +77,9 @@ final class EntrepreneurPlanWorkspace
         $snapshot = $activation instanceof ServiceActivation
             ? (array) $activation->selected_package_snapshot
             : [];
+        $cancellationStatus = $activation instanceof ServiceActivation
+            ? (string) data_get($activation->metadata, 'idea_validation_cancellation.status', '')
+            : '';
         $profile->loadMissing('inviteToken');
         $invite = $profile->inviteToken;
         $inviteScope = $invite instanceof InviteToken
@@ -91,6 +96,13 @@ final class EntrepreneurPlanWorkspace
             ServiceRatePackage::SERVICE_ENTREPRENEUR,
             $scope,
         );
+
+        if (in_array($cancellationStatus, ['processing', 'accepted'], true)) {
+            $access = [
+                'includes_idea_validation' => false,
+                'includes_plan_budget' => false,
+            ];
+        }
 
         return [
             ...$access,

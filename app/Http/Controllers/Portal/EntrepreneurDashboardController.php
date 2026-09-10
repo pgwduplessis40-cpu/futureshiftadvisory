@@ -15,6 +15,7 @@ use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\EntrepreneurProfile;
+use App\Models\IdeaValidation;
 use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\MessageThreadParticipant;
@@ -26,6 +27,7 @@ use App\Services\Board\InspirationBoard;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Entrepreneurs\FoundingAdvisoryService;
+use App\Services\Entrepreneurs\IdeaValidationCancellation;
 use App\Services\Portal\ServiceWorkspaces;
 use App\Services\Portal\Welcome\WelcomeMessageRenderer;
 use App\Services\ScreenShare\ClientPortalContextTokens;
@@ -41,6 +43,7 @@ final class EntrepreneurDashboardController extends Controller
         private readonly InspirationBoard $inspirationBoard,
         private readonly EntrepreneurGamification $gamification,
         private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
+        private readonly EntrepreneurPlanWorkspace $planWorkspace,
         private readonly FoundingAdvisoryService $foundingAdvisory,
         private readonly ServiceWorkspaces $workspaces,
         private readonly WelcomeMessageRenderer $welcomeMessage,
@@ -51,6 +54,7 @@ final class EntrepreneurDashboardController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 403);
+        abort_if($user->suspended_reason === IdeaValidationCancellation::SUSPENSION_REASON, 403);
         $clientActivation = $this->activeEntrepreneurActivationForUser($user);
         $entrepreneurModuleClient = $this->entrepreneurModuleClientForUser($user);
         abort_unless(
@@ -87,6 +91,16 @@ final class EntrepreneurDashboardController extends Controller
             ->first();
         $latestAssessmentPayload = $latestAssessment ? $this->assessmentPayload($latestAssessment) : null;
         $workspaceClient = $this->workspaceClient($profile, $clientActivation);
+        $packageAccess = $profile instanceof EntrepreneurProfile
+            ? $this->planWorkspace->packageAccess($profile)
+            : null;
+        $latestIdeaValidation = $profile instanceof EntrepreneurProfile
+            ? IdeaValidation::query()
+                ->where('entrepreneur_profile_id', $profile->getKey())
+                ->orderByDesc('revision_number')
+                ->orderByDesc('evaluated_at')
+                ->first()
+            : null;
 
         return Inertia::render('portal/entrepreneur/Dashboard', [
             'profile' => $profile ? [
@@ -130,6 +144,13 @@ final class EntrepreneurDashboardController extends Controller
             'inspirationBoard' => $this->inspirationBoardPayload(),
             'messagesUrl' => route('portal.messages.index', absolute: false),
             'planWorkspaceUrl' => route('portal.entrepreneur.plan.show', absolute: false),
+            'isIdeaValidationOnly' => $packageAccess !== null
+                && $packageAccess['includes_idea_validation']
+                && ! $packageAccess['includes_plan_budget'],
+            'ideaValidationSubmitted' => $latestIdeaValidation instanceof IdeaValidation
+                && $latestIdeaValidation->recalled_at === null,
+            'ideaValidationApproved' => $latestIdeaValidation instanceof IdeaValidation
+                && $latestIdeaValidation->advisor_gate_passed_at !== null,
             'workspaces' => $workspaceClient instanceof Client
                 ? $this->workspaces->payload($workspaceClient, ServiceWorkspaces::KEY_ENTREPRENEUR)
                 : null,

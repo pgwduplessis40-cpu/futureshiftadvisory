@@ -441,15 +441,21 @@ final class TestingSeedDataSeederTest extends TestCase
         $approved = DB::table('entrepreneur_profiles')
             ->where('email', 'seed.idea.approved@futureshiftadvisory.test')
             ->first();
+        $cancellation = DB::table('entrepreneur_profiles')
+            ->where('email', 'seed.idea.cancel@futureshiftadvisory.test')
+            ->first();
 
         $this->assertNotNull($starter);
         $this->assertNotNull($review);
         $this->assertNotNull($approved);
+        $this->assertNotNull($cancellation);
         $this->assertSame('idea_validation', $starter->stage);
         $this->assertSame('idea_validation', $review->stage);
+        $this->assertSame('building_phase1', $approved->stage);
         $this->assertSame('idea_validation', $starter->intended_package_scope);
         $this->assertSame('idea_validation', $review->intended_package_scope);
         $this->assertSame('idea_validation', $approved->intended_package_scope);
+        $this->assertSame('idea_validation', $cancellation->intended_package_scope);
         $this->assertDatabaseMissing('idea_validations', [
             'entrepreneur_profile_id' => $starter->id,
         ]);
@@ -464,6 +470,20 @@ final class TestingSeedDataSeederTest extends TestCase
             'advisor_gate_passed_by_user_id' => DB::table('users')
                 ->where('email', 'seed.advisor@futureshiftadvisory.test')
                 ->value('id'),
+        ]);
+        $this->assertDatabaseMissing('idea_validations', [
+            'entrepreneur_profile_id' => $cancellation->id,
+        ]);
+        $this->assertDatabaseHas('service_activations', [
+            'related_entrepreneur_profile_id' => $cancellation->id,
+            'service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'status' => ServiceActivation::STATUS_ACTIVE,
+            'payment_status' => ServiceActivation::PAYMENT_PAID,
+            'payment_reference' => 'pi_seed_idea_validation_cancellation',
+        ]);
+        $this->assertDatabaseHas('users', [
+            'email' => 'seed.idea.cancel@futureshiftadvisory.test',
+            'suspended_at' => null,
         ]);
     }
 

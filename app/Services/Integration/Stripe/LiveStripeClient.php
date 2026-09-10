@@ -17,6 +17,8 @@ use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
 use App\Services\Payments\PaymentGatewayException;
+use App\Services\Payments\PaymentRefundRequest;
+use App\Services\Payments\PaymentRefundResult;
 use App\Services\Payments\PaymentSetupIntent;
 use Illuminate\Support\Facades\Config;
 
@@ -181,6 +183,54 @@ final class LiveStripeClient implements StripeClient
             status: $status,
             amount: $request->amount,
             currency: $request->currency,
+            metadata: [
+                'live' => true,
+                'correlation_id' => $result->correlationId,
+            ],
+        );
+    }
+
+    public function refund(PaymentRefundRequest $request): PaymentRefundResult
+    {
+        $paymentReference = trim($request->paymentReference);
+        $referenceKey = str_starts_with($paymentReference, 'pi_')
+            ? 'payment_intent'
+            : (str_starts_with($paymentReference, 'ch_') ? 'charge' : null);
+
+        if ($referenceKey === null) {
+            throw new PaymentGatewayException('The original Stripe payment reference is not available for a refund.');
+        }
+
+        $result = $this->http->request(
+            method: 'POST',
+            service: 'stripe',
+            endpoint: $this->endpoint('/v1/refunds'),
+            options: [
+                'headers' => $this->headers($this->secret(), $request->idempotencyKey),
+                'form_params' => $this->params([
+                    $referenceKey => $paymentReference,
+                    'amount' => (int) round(((float) $request->amount) * 100),
+                    'metadata' => $this->metadata($request->metadata),
+                ]),
+            ],
+        );
+
+        if (! $result->successful() || $result->fromFallback || ! is_array($result->data)) {
+            throw new PaymentGatewayException($this->stripeFailureMessage($result->data, 'Stripe refund could not be started.'));
+        }
+
+        $refundReference = (string) data_get($result->data, 'id', '');
+        $status = (string) data_get($result->data, 'status', '');
+        if ($refundReference === '' || ! in_array($status, ['succeeded', 'pending'], true)) {
+            throw new PaymentGatewayException($this->stripeFailureMessage($result->data, 'Stripe did not accept the refund.'));
+        }
+
+        return new PaymentRefundResult(
+            gateway: 'stripe',
+            gatewayRef: $refundReference,
+            status: $status,
+            amount: number_format(((float) data_get($result->data, 'amount', 0)) / 100, 2, '.', ''),
+            currency: strtoupper((string) data_get($result->data, 'currency', $request->currency)),
             metadata: [
                 'live' => true,
                 'correlation_id' => $result->correlationId,

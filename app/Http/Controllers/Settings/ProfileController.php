@@ -9,15 +9,19 @@ use App\Models\EntrepreneurProfile;
 use App\Models\User;
 use App\Notifications\EntrepreneurDeactivationRequestedNotification;
 use App\Services\Audit\AuditWriter;
+use App\Services\Entrepreneurs\IdeaValidationCancellation;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ProfileController extends Controller
 {
+    public function __construct(private readonly IdeaValidationCancellation $ideaValidationCancellation) {}
+
     /**
      * Show the user's profile settings page.
      */
@@ -27,6 +31,9 @@ class ProfileController extends Controller
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
             'deactivationRequestedAt' => $request->user()?->deactivation_requested_at?->toIso8601String(),
+            'ideaValidationCancellation' => $request->user() instanceof User
+                ? $this->ideaValidationCancellation->summaryFor($request->user())
+                : null,
         ]);
     }
 
@@ -96,5 +103,30 @@ class ProfileController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Deactivation request submitted.')]);
 
         return to_route('profile.edit');
+    }
+
+    public function cancelIdeaValidation(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $request->validate([
+            'confirm_cancellation' => ['accepted'],
+        ]);
+
+        $refund = $this->ideaValidationCancellation->cancel($user);
+
+        Auth::guard()->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return to_route('login')->with(
+            'status',
+            sprintf(
+                'Your Idea Validation has been cancelled. Your account is now deactivated and your full refund of %s %s has been initiated to the original payment method.',
+                $refund->currency,
+                number_format((float) $refund->amount, 2),
+            ),
+        );
     }
 }
