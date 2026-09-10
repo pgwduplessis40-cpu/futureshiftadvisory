@@ -38,6 +38,7 @@ use App\Console\Commands\SendMeetingReminders;
 use App\Console\Commands\SendReengagementReminders;
 use App\Console\Commands\SendWellbeingCheckinPrompts;
 use App\Console\Commands\VerifyAuditChain;
+use App\Http\Middleware\AddSecurityHeaders;
 use App\Http\Middleware\AuthenticateAdvisorApiToken;
 use App\Http\Middleware\AuthenticateMobileDeviceToken;
 use App\Http\Middleware\EnforceClientScope;
@@ -76,6 +77,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
         $middleware->web(prepend: [
+            AddSecurityHeaders::class,
             LogFailedRequest::class,
         ]);
 
@@ -92,6 +94,10 @@ return Application::configure(basePath: dirname(__DIR__))
             EnforceClientScope::class,
             EnforceSessionSecurity::class,
             RequireAcceptedTerms::class,
+        ]);
+
+        $middleware->api(prepend: [
+            AddSecurityHeaders::class,
         ]);
 
         $middleware->api(append: [

@@ -15,6 +15,8 @@ final class ProductionEdgeResilienceTest extends TestCase
         $this->assertIsString($deploy);
         $this->assertStringContainsString('install_nginx_resilience_configuration', $deploy);
         $this->assertStringContainsString('location = /sw.js', $deploy);
+        $this->assertStringContainsString('Strict-Transport-Security "max-age=31536000" always;', $deploy);
+        $this->assertStringContainsString('client_max_body_size 25m;', $deploy);
         $this->assertStringContainsString('error_page 502 503 504 /_fsa-reconnecting.html;', $deploy);
         $this->assertStringContainsString('Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;', $deploy);
         $this->assertStringContainsString('configure_edge_watchdog', $deploy);
@@ -47,6 +49,9 @@ final class ProductionEdgeResilienceTest extends TestCase
         $this->assertStringContainsString('"$production_url/sw.js"', $probe);
         $this->assertStringContainsString('application/javascript', $probe);
         $this->assertStringContainsString('cache-control:.*no-store', $probe);
+        $this->assertStringContainsString('Checking public security headers.', $probe);
+        $this->assertStringContainsString('strict-transport-security:', $probe);
+        $this->assertStringContainsString('frame-ancestors', $probe);
     }
 
     public function test_reconnecting_page_retries_without_storing_a_client_error(): void

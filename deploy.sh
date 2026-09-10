@@ -547,6 +547,14 @@ install_nginx_resilience_configuration() {
 # Managed by Future Shift Advisory deploy.sh. Include this file inside the
 # futureshiftadvisory.nz server block; do not move it into a generic JavaScript
 # location, or nginx will intercept the dynamic Laravel service worker.
+# Keep the transport guarantee at the edge so it also covers nginx-generated
+# recovery responses. The application supplies the remaining response headers.
+add_header Strict-Transport-Security "max-age=31536000" always;
+
+# Laravel rejects individual files above 20MB. Stop substantially larger
+# anonymous request bodies at nginx before PHP receives them.
+client_max_body_size 25m;
+
 location = /sw.js {
     try_files /__fsa_dynamic_service_worker__ /index.php?\$query_string;
 }
@@ -1137,6 +1145,9 @@ log "Refreshing caches"
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
+
+log "Verifying production security configuration"
+php artisan fsa:assert-production-security-config
 
 log "Configuring Laravel scheduler"
 configure_scheduler_timer
