@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Database;
 
+use App\Http\Middleware\EnforceClientScope;
 use App\Support\RequestContext;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -159,6 +161,28 @@ final class RlsHarnessTest extends TestCase
         // Explicitly reset context to simulate an unauthenticated request that
         // somehow reached an RLS-protected query.
         app(RequestContext::class)->apply(RequestContext::ROLE_GUEST, []);
+
+        $this->assertSame(
+            0,
+            $this->withRlsRole(fn () => DB::table('rls_smoke_documents')->count()),
+        );
+    }
+
+    public function test_request_scope_is_reset_to_guest_after_the_response(): void
+    {
+        $context = app(RequestContext::class);
+        $middleware = app(EnforceClientScope::class);
+
+        $middleware->handle(Request::create('/'), function () use ($context): \Symfony\Component\HttpFoundation\Response {
+            $context->apply(RequestContext::ROLE_SUPER_ADMIN, []);
+
+            $this->assertSame(
+                3,
+                $this->withRlsRole(fn () => DB::table('rls_smoke_documents')->count()),
+            );
+
+            return response('ok');
+        });
 
         $this->assertSame(
             0,

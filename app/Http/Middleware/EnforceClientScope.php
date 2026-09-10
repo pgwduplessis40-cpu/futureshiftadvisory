@@ -40,6 +40,13 @@ final class EnforceClientScope
 
         $this->context->apply($role, $clientIds, $userId);
 
-        return $next($request);
+        try {
+            return $next($request);
+        } finally {
+            // Persistent workers and pooled database connections may process a
+            // second request on this connection. Clear any temporary elevated
+            // context before that can happen; guests are the fail-closed state.
+            $this->context->apply(RequestContext::ROLE_GUEST, []);
+        }
     }
 }

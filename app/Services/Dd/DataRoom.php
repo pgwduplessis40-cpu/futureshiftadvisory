@@ -116,74 +116,77 @@ final class DataRoom
         ?string $guestEmail = null,
         array $metadata = [],
     ): DdDataRoomItem {
-        $this->context->apply('system', []);
+        /** @var DdDataRoomItem $item */
+        $item = $this->context->withSystemContext(function () use ($token, $file, $guestName, $guestEmail, $metadata): DdDataRoomItem {
+            $link = $this->resolveUsableLink($token);
+            $engagement = $link->engagement;
 
-        $link = $this->resolveUsableLink($token);
-        $engagement = $link->engagement;
+            if ($engagement instanceof DdEngagement) {
+                $this->assertActivated($engagement);
+            }
 
-        if ($engagement instanceof DdEngagement) {
-            $this->assertActivated($engagement);
-        }
+            try {
+                $document = $this->files->write(
+                    uploadedFile: $file,
+                    owner: null,
+                    category: Document::CATEGORY_DD_ARTIFACT,
+                    clientId: (string) $link->client_id,
+                );
+            } catch (InfectedFileException $e) {
+                $this->audit->record('dd.guest_upload_rejected', subject: $link, context: [
+                    'reason' => 'infected',
+                    'scanner' => $e->scanResult->toPayload(),
+                    'workstream' => $link->workstream,
+                    'folder' => $link->folder,
+                ]);
 
-        try {
-            $document = $this->files->write(
-                uploadedFile: $file,
-                owner: null,
-                category: Document::CATEGORY_DD_ARTIFACT,
-                clientId: (string) $link->client_id,
-            );
-        } catch (InfectedFileException $e) {
-            $this->audit->record('dd.guest_upload_rejected', subject: $link, context: [
-                'reason' => 'infected',
-                'scanner' => $e->scanResult->toPayload(),
-                'workstream' => $link->workstream,
-                'folder' => $link->folder,
-            ]);
+                throw $e;
+            }
 
-            throw $e;
-        }
+            if ($document->scanner_result !== Document::SCANNER_CLEAN) {
+                $this->audit->record('dd.guest_upload_quarantined', subject: $link, context: [
+                    'document_id' => $document->getKey(),
+                    'scanner_result' => $document->scanner_result,
+                    'workstream' => $link->workstream,
+                    'folder' => $link->folder,
+                ]);
+            }
 
-        if ($document->scanner_result !== Document::SCANNER_CLEAN) {
-            $this->audit->record('dd.guest_upload_quarantined', subject: $link, context: [
-                'document_id' => $document->getKey(),
-                'scanner_result' => $document->scanner_result,
-                'workstream' => $link->workstream,
-                'folder' => $link->folder,
-            ]);
-        }
+            return DB::transaction(function () use ($link, $document, $guestName, $guestEmail, $metadata): DdDataRoomItem {
+                $item = DdDataRoomItem::query()->create([
+                    'client_id' => $link->client_id,
+                    'dd_engagement_id' => $link->dd_engagement_id,
+                    'document_id' => $document->getKey(),
+                    'workstream' => $link->workstream,
+                    'folder' => $link->folder,
+                    'artifact_type' => DdDataRoomItem::ARTIFACT_TYPE,
+                    'source' => DdDataRoomItem::SOURCE_GUEST_UPLOAD,
+                    'dd_guest_link_id' => $link->getKey(),
+                    'guest_name' => $guestName,
+                    'guest_email' => $guestEmail,
+                    'metadata' => $metadata,
+                ]);
 
-        return DB::transaction(function () use ($link, $document, $guestName, $guestEmail, $metadata): DdDataRoomItem {
-            $item = DdDataRoomItem::query()->create([
-                'client_id' => $link->client_id,
-                'dd_engagement_id' => $link->dd_engagement_id,
-                'document_id' => $document->getKey(),
-                'workstream' => $link->workstream,
-                'folder' => $link->folder,
-                'artifact_type' => DdDataRoomItem::ARTIFACT_TYPE,
-                'source' => DdDataRoomItem::SOURCE_GUEST_UPLOAD,
-                'dd_guest_link_id' => $link->getKey(),
-                'guest_name' => $guestName,
-                'guest_email' => $guestEmail,
-                'metadata' => $metadata,
-            ]);
+                $link->forceFill([
+                    'upload_count' => $link->upload_count + 1,
+                    'last_used_at' => now(),
+                ])->save();
 
-            $link->forceFill([
-                'upload_count' => $link->upload_count + 1,
-                'last_used_at' => now(),
-            ])->save();
+                $this->audit->record('dd.guest_upload_received', subject: $item, after: [
+                    'dd_engagement_id' => $link->dd_engagement_id,
+                    'document_id' => $document->getKey(),
+                    'workstream' => $link->workstream,
+                    'folder' => $link->folder,
+                    'artifact_type' => DdDataRoomItem::ARTIFACT_TYPE,
+                    'scanner_result' => $document->scanner_result,
+                    'token_type' => 'upload_only',
+                ]);
 
-            $this->audit->record('dd.guest_upload_received', subject: $item, after: [
-                'dd_engagement_id' => $link->dd_engagement_id,
-                'document_id' => $document->getKey(),
-                'workstream' => $link->workstream,
-                'folder' => $link->folder,
-                'artifact_type' => DdDataRoomItem::ARTIFACT_TYPE,
-                'scanner_result' => $document->scanner_result,
-                'token_type' => 'upload_only',
-            ]);
-
-            return $item->load('document', 'guestLink');
+                return $item->load('document', 'guestLink', 'engagement.client');
+            });
         });
+
+        return $item;
     }
 
     /**

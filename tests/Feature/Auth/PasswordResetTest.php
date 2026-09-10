@@ -40,6 +40,23 @@ class PasswordResetTest extends TestCase
         Notification::assertSentTo($user, PasswordResetLinkNotification::class);
     }
 
+    public function test_reset_link_request_uses_the_same_response_for_known_and_unknown_emails(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create(['email' => 'known-reset@example.test']);
+        $message = 'If that email has an account, a reset link is on its way.';
+
+        $this->post(route('password.email'), ['email' => $user->email])
+            ->assertRedirect()
+            ->assertSessionHas('status', $message);
+
+        $this->post(route('password.email'), ['email' => 'unknown-reset@example.test'])
+            ->assertRedirect()
+            ->assertSessionHas('status', $message);
+
+        Notification::assertSentTo($user, PasswordResetLinkNotification::class);
+    }
+
     public function test_reset_password_screen_can_be_rendered()
     {
         Notification::fake();

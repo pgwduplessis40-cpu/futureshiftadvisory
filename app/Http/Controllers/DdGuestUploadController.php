@@ -11,6 +11,7 @@ use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Storage\Exceptions\InfectedFileException;
 use App\Services\Storage\Exceptions\SecureFileStorageException;
+use App\Support\RequestContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -23,6 +24,7 @@ final class DdGuestUploadController extends Controller
         string $token,
         DataRoom $dataRoom,
         DdAdviceReportGenerator $reports,
+        RequestContext $context,
     ): JsonResponse {
         $validated = $request->validate([
             'file' => ['required', 'file', 'max:20480', 'mimes:pdf,doc,docx,xls,xlsx'],
@@ -55,13 +57,14 @@ final class DdGuestUploadController extends Controller
             ]);
         }
 
-        $item->loadMissing('engagement.client');
-        if (
-            $item->engagement instanceof DdEngagement
-            && $item->document?->scanner_result === Document::SCANNER_CLEAN
-        ) {
-            $reports->generateIfReady($item->engagement);
-        }
+        $context->withSystemContext(function () use ($item, $reports): void {
+            if (
+                $item->engagement instanceof DdEngagement
+                && $item->document?->scanner_result === Document::SCANNER_CLEAN
+            ) {
+                $reports->generateIfReady($item->engagement);
+            }
+        });
 
         return response()->json([
             'data_room_item' => $this->payload($item),

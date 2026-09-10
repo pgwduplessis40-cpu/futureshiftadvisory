@@ -22,6 +22,7 @@ Route::post('telemetry/client-errors', ClientErrorTelemetryController::class)
     ->name('telemetry.client-errors.store');
 
 Route::post('dd/guest-uploads/{token}', DdGuestUploadController::class)
+    ->middleware('throttle:dd-guest-uploads')
     ->name('dd.guest-uploads.store');
 
 Route::post('webhooks/prospects', [ProspectIntakeController::class, 'store'])
