@@ -14,7 +14,7 @@ final class IdeaValidationOfferTest extends TestCase
 
     public function test_validate_idea_hides_a_price_when_no_current_rate_is_available(): void
     {
-        $this->get(route('public.validate-idea'))
+        $this->get('/validate-idea')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('public/validate-idea')
@@ -37,7 +37,7 @@ final class IdeaValidationOfferTest extends TestCase
             'effective_from' => now()->subMinute(),
         ]);
 
-        $this->get(route('public.validate-idea'))
+        $this->get('/validate-idea')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('public/validate-idea')

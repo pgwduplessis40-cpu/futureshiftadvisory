@@ -22,19 +22,33 @@ export function PlanWorkspaceLayout(workspace: PlanWorkspace) {
         setActiveTab,
         companyNameForm,
         companyNameAutosaveState,
+        includesIdeaValidation,
         includesPlanBudget,
+        hasIdeaValidation,
         requestGamificationDisablement,
     } = workspace;
+    const isIdeaValidationOnly = includesIdeaValidation && !includesPlanBudget;
+    const completionPercent = isIdeaValidationOnly
+        ? hasIdeaValidation
+            ? 100
+            : 0
+        : (gamification.plan_completion?.percent ?? 0);
 
     return (
         <TooltipProvider>
-            <Head title="Business plan" />
+            <Head
+                title={
+                    isIdeaValidationOnly ? 'Idea Validation' : 'Business plan'
+                }
+            />
 
             <div className="space-y-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">
-                            Business plan workspace
+                            {isIdeaValidationOnly
+                                ? 'Idea Validation'
+                                : 'Business plan workspace'}
                         </h1>
                         <div className="text-sm text-muted-foreground">
                             {profile.name} /{' '}
@@ -70,16 +84,21 @@ export function PlanWorkspaceLayout(workspace: PlanWorkspace) {
                         ) : null}
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <Button asChild size="sm" variant="outline">
-                            <a
-                                href={urls.preview}
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                <Eye className="size-4" aria-hidden="true" />
-                                Preview business plan
-                            </a>
-                        </Button>
+                        {!isIdeaValidationOnly ? (
+                            <Button asChild size="sm" variant="outline">
+                                <a
+                                    href={urls.preview}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    <Eye
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Preview business plan
+                                </a>
+                            </Button>
+                        ) : null}
                         <Button asChild size="sm" variant="outline">
                             <Link href={urls.messages}>
                                 <MessageSquare
@@ -125,10 +144,10 @@ export function PlanWorkspaceLayout(workspace: PlanWorkspace) {
                                         )}
                                     </span>
                                     <span>
-                                        Plan{' '}
-                                        {gamification.plan_completion
-                                            ?.percent ?? 0}
-                                        %
+                                        {isIdeaValidationOnly
+                                            ? 'Idea Validation'
+                                            : 'Plan'}{' '}
+                                        {completionPercent}%
                                     </span>
                                     <span>
                                         Journey points{' '}
