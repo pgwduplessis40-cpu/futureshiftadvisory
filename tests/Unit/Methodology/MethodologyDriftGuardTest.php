@@ -46,6 +46,7 @@ use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Entrepreneurs\EntrepreneurPoints;
 use App\Services\Entrepreneurs\EntrepreneurPromptRegistry;
+use App\Services\Entrepreneurs\EntrepreneurServiceOffer;
 use App\Services\Entrepreneurs\EntrepreneurStreak;
 use App\Services\Entrepreneurs\ExecutiveSummaryContext;
 use App\Services\Entrepreneurs\ExecutiveSummaryEligibility;
@@ -55,6 +56,8 @@ use App\Services\Entrepreneurs\FoundingAdvisoryService;
 use App\Services\Entrepreneurs\FunderReadyBriefBuilder;
 use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
 use App\Services\Entrepreneurs\Guidance;
+use App\Services\Entrepreneurs\IdeaValidationCancellation;
+use App\Services\Entrepreneurs\IdeaValidationCheckout;
 use App\Services\Entrepreneurs\IdeaViabilityGate;
 use App\Services\Entrepreneurs\LivingPlan;
 use App\Services\Entrepreneurs\PlanAiContext;
@@ -74,6 +77,8 @@ use App\Services\Payments\BillingAdjustmentAllocator;
 use App\Services\Payments\ClientBillingCode;
 use App\Services\Payments\DefinitivePaymentDecline;
 use App\Services\Payments\Gateway;
+use App\Services\Payments\IdeaValidationPaymentIntent;
+use App\Services\Payments\IdeaValidationPaymentIntentRequest;
 use App\Services\Payments\InstallmentPaymentProcessor;
 use App\Services\Payments\InstallmentScheduleBuilder;
 use App\Services\Payments\PaymentAuthorityRequest;
@@ -81,6 +86,8 @@ use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
 use App\Services\Payments\PaymentGatewayException;
+use App\Services\Payments\PaymentRefundRequest;
+use App\Services\Payments\PaymentRefundResult;
 use App\Services\Payments\PaymentSetupIntent;
 use App\Services\Payments\PaymentWebhookReconciler;
 use App\Services\Payments\PaymentWebhookVerifier;
@@ -166,6 +173,7 @@ final class MethodologyDriftGuardTest extends TestCase
         EntrepreneurMilestones::class => 'Milestone-award persistence workflow.',
         EntrepreneurPoints::class => 'Gamification reward allocation is operational engagement logic, not an advisor methodology disclosure.',
         EntrepreneurPromptRegistry::class => 'Prompt id registry, not a calculation method.',
+        EntrepreneurServiceOffer::class => 'Reads the current Service Rate for offer availability and display; pricing and GST calculations are owned elsewhere.',
         EntrepreneurStreak::class => 'Gamification streak persistence workflow.',
         ExecutiveSummaryContext::class => 'Builds an immutable plan-and-budget fingerprint for summary provenance; it does not calculate advisory guidance.',
         ExecutiveSummaryEligibility::class => 'Enforces the published summary eligibility policy; it does not calculate or disclose an advisory methodology.',
@@ -175,6 +183,8 @@ final class MethodologyDriftGuardTest extends TestCase
         FunderReadyBriefBuilder::class => 'Funder-ready lender brief renderer; it composes approved plan, executive-summary, and Budget Pack outputs without owning a calculation methodology.',
         FunderReadyBusinessPlanBuilder::class => 'Funder-ready plan renderer; it maps existing plan, summary, evidence, and Budget Pack outputs without owning a calculation methodology.',
         Guidance::class => 'AI guidance workflow; formula-like predictive score is not exposed by the methodology surface yet.',
+        IdeaValidationCancellation::class => 'Cancellation eligibility and Stripe refund orchestration; it does not calculate the advisor Idea Validation methodology.',
+        IdeaValidationCheckout::class => 'Account registration and Stripe checkout orchestration; it does not calculate the advisor Idea Validation methodology.',
         IdeaViabilityGate::class => 'Advisor approval gate over the IdeaValidationService methodology, not a separate methodology.',
         LivingPlan::class => 'Plan section workflow.',
         PlanAiContext::class => 'AI drafting-context assembler, not a calculation method.',
@@ -193,6 +203,8 @@ final class MethodologyDriftGuardTest extends TestCase
         ClientBillingCode::class => 'Billing-code formatter.',
         DefinitivePaymentDecline::class => 'Payment-decline exception type.',
         Gateway::class => 'Gateway adapter.',
+        IdeaValidationPaymentIntent::class => 'DTO returned by the payment gateway setup.',
+        IdeaValidationPaymentIntentRequest::class => 'DTO passed to the payment gateway setup.',
         InstallmentPaymentProcessor::class => 'Direct-debit payment processing workflow.',
         InstallmentScheduleBuilder::class => 'Installment persistence workflow.',
         PaymentAuthorityRequest::class => 'DTO.',
@@ -200,6 +212,8 @@ final class MethodologyDriftGuardTest extends TestCase
         PaymentChargeRequest::class => 'DTO.',
         PaymentChargeResult::class => 'DTO.',
         PaymentGatewayException::class => 'Exception class.',
+        PaymentRefundRequest::class => 'DTO passed to the payment gateway refund operation.',
+        PaymentRefundResult::class => 'DTO returned by the payment gateway refund operation.',
         PaymentSetupIntent::class => 'DTO returned by payment gateway setup.',
         PaymentWebhookReconciler::class => 'Webhook persistence and reconciliation workflow.',
         PaymentWebhookVerifier::class => 'Security verification, not methodology disclosure.',
