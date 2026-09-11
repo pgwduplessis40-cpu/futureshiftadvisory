@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 
 /**
@@ -173,7 +174,7 @@ final class RlsHarnessTest extends TestCase
         $context = app(RequestContext::class);
         $middleware = app(EnforceClientScope::class);
 
-        $middleware->handle(Request::create('/'), function () use ($context): \Symfony\Component\HttpFoundation\Response {
+        $middleware->handle(Request::create('/'), function () use ($context): Response {
             $context->apply(RequestContext::ROLE_SUPER_ADMIN, []);
 
             $this->assertSame(
