@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::edit
-* @see app/Http/Controllers/Settings/ProfileController.php:24
+* @see app/Http/Controllers/Settings/ProfileController.php:28
 * @route '/settings/profile'
 */
 export const edit = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ edit.definition = {
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::edit
-* @see app/Http/Controllers/Settings/ProfileController.php:24
+* @see app/Http/Controllers/Settings/ProfileController.php:28
 * @route '/settings/profile'
 */
 edit.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ edit.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::edit
-* @see app/Http/Controllers/Settings/ProfileController.php:24
+* @see app/Http/Controllers/Settings/ProfileController.php:28
 * @route '/settings/profile'
 */
 edit.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ edit.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::edit
-* @see app/Http/Controllers/Settings/ProfileController.php:24
+* @see app/Http/Controllers/Settings/ProfileController.php:28
 * @route '/settings/profile'
 */
 edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::edit
-* @see app/Http/Controllers/Settings/ProfileController.php:24
+* @see app/Http/Controllers/Settings/ProfileController.php:28
 * @route '/settings/profile'
 */
 const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::edit
-* @see app/Http/Controllers/Settings/ProfileController.php:24
+* @see app/Http/Controllers/Settings/ProfileController.php:28
 * @route '/settings/profile'
 */
 editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::edit
-* @see app/Http/Controllers/Settings/ProfileController.php:24
+* @see app/Http/Controllers/Settings/ProfileController.php:28
 * @route '/settings/profile'
 */
 editForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ edit.form = editForm
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::update
-* @see app/Http/Controllers/Settings/ProfileController.php:36
+* @see app/Http/Controllers/Settings/ProfileController.php:43
 * @route '/settings/profile'
 */
 export const update = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -97,7 +97,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::update
-* @see app/Http/Controllers/Settings/ProfileController.php:36
+* @see app/Http/Controllers/Settings/ProfileController.php:43
 * @route '/settings/profile'
 */
 update.url = (options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ update.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::update
-* @see app/Http/Controllers/Settings/ProfileController.php:36
+* @see app/Http/Controllers/Settings/ProfileController.php:43
 * @route '/settings/profile'
 */
 update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -116,7 +116,7 @@ update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::update
-* @see app/Http/Controllers/Settings/ProfileController.php:36
+* @see app/Http/Controllers/Settings/ProfileController.php:43
 * @route '/settings/profile'
 */
 const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -131,7 +131,7 @@ const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::update
-* @see app/Http/Controllers/Settings/ProfileController.php:36
+* @see app/Http/Controllers/Settings/ProfileController.php:43
 * @route '/settings/profile'
 */
 updateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -148,7 +148,7 @@ update.form = updateForm
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::requestDeactivation
-* @see app/Http/Controllers/Settings/ProfileController.php:59
+* @see app/Http/Controllers/Settings/ProfileController.php:66
 * @route '/settings/profile/deactivation-request'
 */
 export const requestDeactivation = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -163,7 +163,7 @@ requestDeactivation.definition = {
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::requestDeactivation
-* @see app/Http/Controllers/Settings/ProfileController.php:59
+* @see app/Http/Controllers/Settings/ProfileController.php:66
 * @route '/settings/profile/deactivation-request'
 */
 requestDeactivation.url = (options?: RouteQueryOptions) => {
@@ -172,7 +172,7 @@ requestDeactivation.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::requestDeactivation
-* @see app/Http/Controllers/Settings/ProfileController.php:59
+* @see app/Http/Controllers/Settings/ProfileController.php:66
 * @route '/settings/profile/deactivation-request'
 */
 requestDeactivation.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -182,7 +182,7 @@ requestDeactivation.post = (options?: RouteQueryOptions): RouteDefinition<'post'
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::requestDeactivation
-* @see app/Http/Controllers/Settings/ProfileController.php:59
+* @see app/Http/Controllers/Settings/ProfileController.php:66
 * @route '/settings/profile/deactivation-request'
 */
 const requestDeactivationForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -192,7 +192,7 @@ const requestDeactivationForm = (options?: RouteQueryOptions): RouteFormDefiniti
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::requestDeactivation
-* @see app/Http/Controllers/Settings/ProfileController.php:59
+* @see app/Http/Controllers/Settings/ProfileController.php:66
 * @route '/settings/profile/deactivation-request'
 */
 requestDeactivationForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -203,8 +203,64 @@ requestDeactivationForm.post = (options?: RouteQueryOptions): RouteFormDefinitio
 requestDeactivation.form = requestDeactivationForm
 
 /**
+* @see \App\Http\Controllers\Settings\ProfileController::cancelIdeaValidation
+* @see app/Http/Controllers/Settings/ProfileController.php:108
+* @route '/settings/profile/idea-validation/cancel'
+*/
+export const cancelIdeaValidation = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: cancelIdeaValidation.url(options),
+    method: 'post',
+})
+
+cancelIdeaValidation.definition = {
+    methods: ["post"],
+    url: '/settings/profile/idea-validation/cancel',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \App\Http\Controllers\Settings\ProfileController::cancelIdeaValidation
+* @see app/Http/Controllers/Settings/ProfileController.php:108
+* @route '/settings/profile/idea-validation/cancel'
+*/
+cancelIdeaValidation.url = (options?: RouteQueryOptions) => {
+    return cancelIdeaValidation.definition.url + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Settings\ProfileController::cancelIdeaValidation
+* @see app/Http/Controllers/Settings/ProfileController.php:108
+* @route '/settings/profile/idea-validation/cancel'
+*/
+cancelIdeaValidation.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: cancelIdeaValidation.url(options),
+    method: 'post',
+})
+
+/**
+* @see \App\Http\Controllers\Settings\ProfileController::cancelIdeaValidation
+* @see app/Http/Controllers/Settings/ProfileController.php:108
+* @route '/settings/profile/idea-validation/cancel'
+*/
+const cancelIdeaValidationForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: cancelIdeaValidation.url(options),
+    method: 'post',
+})
+
+/**
+* @see \App\Http\Controllers\Settings\ProfileController::cancelIdeaValidation
+* @see app/Http/Controllers/Settings/ProfileController.php:108
+* @route '/settings/profile/idea-validation/cancel'
+*/
+cancelIdeaValidationForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: cancelIdeaValidation.url(options),
+    method: 'post',
+})
+
+cancelIdeaValidation.form = cancelIdeaValidationForm
+
+/**
 * @see \App\Http\Controllers\Settings\ProfileController::destroy
-* @see app/Http/Controllers/Settings/ProfileController.php:54
+* @see app/Http/Controllers/Settings/ProfileController.php:61
 * @route '/settings/profile'
 */
 export const destroy = (options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -219,7 +275,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::destroy
-* @see app/Http/Controllers/Settings/ProfileController.php:54
+* @see app/Http/Controllers/Settings/ProfileController.php:61
 * @route '/settings/profile'
 */
 destroy.url = (options?: RouteQueryOptions) => {
@@ -228,7 +284,7 @@ destroy.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::destroy
-* @see app/Http/Controllers/Settings/ProfileController.php:54
+* @see app/Http/Controllers/Settings/ProfileController.php:61
 * @route '/settings/profile'
 */
 destroy.delete = (options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -238,7 +294,7 @@ destroy.delete = (options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::destroy
-* @see app/Http/Controllers/Settings/ProfileController.php:54
+* @see app/Http/Controllers/Settings/ProfileController.php:61
 * @route '/settings/profile'
 */
 const destroyForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -253,7 +309,7 @@ const destroyForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =
 
 /**
 * @see \App\Http\Controllers\Settings\ProfileController::destroy
-* @see app/Http/Controllers/Settings/ProfileController.php:54
+* @see app/Http/Controllers/Settings/ProfileController.php:61
 * @route '/settings/profile'
 */
 destroyForm.delete = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -268,6 +324,6 @@ destroyForm.delete = (options?: RouteQueryOptions): RouteFormDefinition<'post'> 
 
 destroy.form = destroyForm
 
-const ProfileController = { edit, update, requestDeactivation, destroy }
+const ProfileController = { edit, update, requestDeactivation, cancelIdeaValidation, destroy }
 
 export default ProfileController

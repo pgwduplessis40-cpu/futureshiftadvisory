@@ -28,7 +28,7 @@ final class TermsDocumentRenderer
     {
         return $this->downloadHtml($version, [
             'Future Shift Advisory',
-            'Terms and conditions review copy.',
+            'Terms and Privacy Policy review copy.',
             'Version '.$version->version.' generated for review on '.now()->toDateTimeString().'.',
         ]);
     }
@@ -37,7 +37,7 @@ final class TermsDocumentRenderer
     {
         return $this->downloadHtml($version, [
             'Future Shift Advisory',
-            'Terms and conditions download.',
+            'Terms and Privacy Policy download.',
             'Version '.$version->version.' downloaded by '.$user->email.' on '.now()->toDateTimeString().'.',
         ]);
     }
@@ -50,7 +50,7 @@ final class TermsDocumentRenderer
     ): string {
         return $this->downloadHtml($version, [
             'Future Shift Advisory',
-            'Signed terms and conditions acceptance record.',
+            'Signed Terms and Privacy Policy acceptance record.',
             'Accepted by: '.$user->name.' <'.$user->email.'>',
             'User ID: '.$user->getKey(),
             'Terms version: '.$version->version.' - '.$version->title,

@@ -83,7 +83,12 @@ export function breadcrumbLd(
 /** A single Service entity, for a dedicated service landing page. */
 export function serviceLd(
     base: string,
-    service: { name: string; description: string; path: string },
+    service: {
+        name: string;
+        description: string;
+        path: string;
+        offer?: { amount: number; currency: string };
+    },
 ): Json {
     const origin = clean(base);
 
@@ -96,6 +101,16 @@ export function serviceLd(
         url: `${origin}${service.path}`,
         areaServed: { '@type': 'Country', name: 'New Zealand' },
         provider: { '@id': `${origin}/${ORG_ID}` },
+        ...(service.offer
+            ? {
+                  offers: {
+                      '@type': 'Offer',
+                      price: service.offer.amount,
+                      priceCurrency: service.offer.currency,
+                      availability: 'https://schema.org/InStock',
+                  },
+              }
+            : {}),
     };
 }
 

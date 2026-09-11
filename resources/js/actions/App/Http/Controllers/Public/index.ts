@@ -1,5 +1,6 @@
 import HomeController from './HomeController'
 import ServicesController from './ServicesController'
+import EntrepreneurServiceController from './EntrepreneurServiceController'
 import AboutController from './AboutController'
 import FaqController from './FaqController'
 import ContactController from './ContactController'
@@ -9,6 +10,7 @@ import LlmsTxtController from './LlmsTxtController'
 const Public = {
     HomeController: Object.assign(HomeController, HomeController),
     ServicesController: Object.assign(ServicesController, ServicesController),
+    EntrepreneurServiceController: Object.assign(EntrepreneurServiceController, EntrepreneurServiceController),
     AboutController: Object.assign(AboutController, AboutController),
     FaqController: Object.assign(FaqController, FaqController),
     ContactController: Object.assign(ContactController, ContactController),

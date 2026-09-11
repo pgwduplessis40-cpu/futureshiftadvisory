@@ -4,20 +4,28 @@ declare(strict_types=1);
 
 namespace App\Services\Integration\Stripe\Contracts;
 
+use App\Services\Payments\IdeaValidationPaymentIntent;
+use App\Services\Payments\IdeaValidationPaymentIntentRequest;
 use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
+use App\Services\Payments\PaymentRefundRequest;
+use App\Services\Payments\PaymentRefundResult;
 use App\Services\Payments\PaymentSetupIntent;
 
 interface StripeClient
 {
+    public function createIdeaValidationPaymentIntent(IdeaValidationPaymentIntentRequest $request): IdeaValidationPaymentIntent;
+
     public function createSetupIntent(PaymentAuthorityRequest $request): PaymentSetupIntent;
 
     public function captureAuthority(PaymentAuthorityRequest $request): PaymentAuthorityToken;
 
     public function charge(PaymentChargeRequest $request): PaymentChargeResult;
+
+    public function refund(PaymentRefundRequest $request): PaymentRefundResult;
 
     public function findCharge(?string $gatewayRef, string $idempotencyKey, string $paymentId): PaymentChargeLookup;
 }

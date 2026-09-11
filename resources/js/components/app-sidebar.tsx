@@ -240,7 +240,7 @@ const ratingFrameworkNavItem: NavItem = {
 };
 
 const termsNavItem: NavItem = {
-    title: "T&C's",
+    title: 'Terms & Privacy',
     href: '/admin/terms',
     icon: FileText,
 };
@@ -281,10 +281,16 @@ const entrepreneurSurveysNavItem: NavItem = {
     icon: ClipboardCheck,
 };
 
-const entrepreneurBusinessPlanNavItem: NavItem = {
-    title: 'Business Plan',
+const entrepreneurIdeaValidationNavItem: NavItem = {
+    title: 'Idea Validation',
     href: '/portal/entrepreneur/plan',
     icon: BookOpen,
+};
+
+const entrepreneurPlanBudgetNavItem: NavItem = {
+    title: 'Business Plan & Budget',
+    href: '/portal/entrepreneur/plan-budget',
+    icon: FileSpreadsheet,
 };
 
 const welcomeMessageNavItem: NavItem = {
@@ -634,12 +640,15 @@ function navGroupsFor(
         return portalNavGroups({
             platformItems: [
                 entrepreneurDashboardNavItem,
-                entrepreneurBusinessPlanNavItem,
+                entrepreneurIdeaValidationNavItem,
                 ...secondaryWorkspaceNavItems,
                 portalInspirationNavItem,
                 entrepreneurSurveysNavItem,
             ],
-            serviceItems: [entrepreneurBuyingBusinessNavItem],
+            serviceItems: [
+                entrepreneurPlanBudgetNavItem,
+                entrepreneurBuyingBusinessNavItem,
+            ],
         });
     }
 
@@ -662,12 +671,15 @@ function navGroupsFor(
                         ...entrepreneurDashboardNavItem,
                         href: '/portal/entrepreneur',
                     },
-                    entrepreneurBusinessPlanNavItem,
+                    entrepreneurIdeaValidationNavItem,
                     ...secondaryWorkspaceNavItems,
                     portalInspirationNavItem,
                     portalSurveysNavItem,
                 ],
-                serviceItems: [entrepreneurBuyingBusinessNavItem],
+                serviceItems: [
+                    entrepreneurPlanBudgetNavItem,
+                    entrepreneurBuyingBusinessNavItem,
+                ],
             });
         }
 

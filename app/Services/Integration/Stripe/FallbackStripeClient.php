@@ -6,11 +6,15 @@ namespace App\Services\Integration\Stripe;
 
 use App\Services\Integration\Exceptions\IntegrationDisabledException;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
+use App\Services\Payments\IdeaValidationPaymentIntent;
+use App\Services\Payments\IdeaValidationPaymentIntentRequest;
 use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
+use App\Services\Payments\PaymentRefundRequest;
+use App\Services\Payments\PaymentRefundResult;
 use App\Services\Payments\PaymentSetupIntent;
 
 final class FallbackStripeClient implements StripeClient
@@ -19,6 +23,18 @@ final class FallbackStripeClient implements StripeClient
         private readonly LiveStripeClient $live,
         private readonly FakeStripeClient $fake,
     ) {}
+
+    public function createIdeaValidationPaymentIntent(IdeaValidationPaymentIntentRequest $request): IdeaValidationPaymentIntent
+    {
+        if ($this->usesFixtures()) {
+            return $this->fake->createIdeaValidationPaymentIntent($request);
+        }
+
+        // A public purchase must never fall back to a simulated payment in a
+        // live environment. If Stripe is unavailable, checkout must fail
+        // clearly instead of showing a test-only completion path.
+        return $this->live->createIdeaValidationPaymentIntent($request);
+    }
 
     public function createSetupIntent(PaymentAuthorityRequest $request): PaymentSetupIntent
     {
@@ -56,6 +72,19 @@ final class FallbackStripeClient implements StripeClient
             return $this->live->charge($request);
         } catch (IntegrationDisabledException) {
             return $this->fake->charge($request);
+        }
+    }
+
+    public function refund(PaymentRefundRequest $request): PaymentRefundResult
+    {
+        if ($this->usesFixtures()) {
+            return $this->fake->refund($request);
+        }
+
+        try {
+            return $this->live->refund($request);
+        } catch (IntegrationDisabledException) {
+            return $this->fake->refund($request);
         }
     }
 

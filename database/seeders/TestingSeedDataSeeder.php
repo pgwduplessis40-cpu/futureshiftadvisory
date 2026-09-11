@@ -157,6 +157,9 @@ final class TestingSeedDataSeeder extends Seeder
             'ddExperience' => ['Seed DD Experienced Buyer', 'seed.dd.experience@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
             'ideaValidationStart' => ['Seed Idea Validation Starter', 'seed.idea.start@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
             'ideaValidationReview' => ['Seed Idea Validation Review', 'seed.idea.review@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
+            'ideaValidationApproved' => ['Seed Idea Validation Approved', 'seed.idea.approved@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
+            'ideaValidationCancellation' => ['Seed Idea Validation Cancellation', 'seed.idea.cancel@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
+            'ideaValidationCheckout' => ['Seed Idea Validation Checkout', 'seed.idea.checkout@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
             'broker' => ['Seed Broker Partner', 'seed.broker@futureshiftadvisory.test', User::TYPE_BROKER, 20],
             'coach' => ['Seed Coach Partner', 'seed.coach@futureshiftadvisory.test', User::TYPE_COACH, 20],
             'mentor' => ['Seed Entrepreneur Mentor', 'seed.mentor@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR_MENTOR, 20],
@@ -861,6 +864,76 @@ XML);
             ],
         );
 
+        $this->clients['ideaValidationCancellation'] = Client::query()->updateOrCreate(
+            ['nzbn' => '9429000000171'],
+            [
+                'engagement_type' => EngagementType::ENTREPRENEUR_MODULE->value,
+                'status' => ClientStatus::ACTIVE->value,
+                'legal_name' => 'Seed Idea Validation Cancellation Limited',
+                'trading_name' => 'Seed Idea Validation Cancellation',
+                'entity_type' => 'NZ Limited Company',
+                'address' => [
+                    'line1' => '7 Seedling Lane',
+                    'city' => 'Auckland',
+                    'region' => 'Auckland',
+                    'country' => 'NZ',
+                ],
+                'gst_registered' => true,
+                'directors' => [
+                    ['name' => 'Seed Idea Validation Cancellation', 'role' => 'Founder'],
+                ],
+                'filing_status' => 'up_to_date',
+                'data_quality' => Client::DATA_QUALITY_MEDIUM,
+                'registry_sources' => [
+                    'nzbn' => 'seeded',
+                    'workspace_fixture' => 'idea_validation_cancellation',
+                ],
+                'created_by_user_id' => $this->users['advisor']->getKey(),
+                'primary_contact_user_id' => $this->users['ideaValidationCancellation']->getKey(),
+                'engagement_type_locked_at' => $this->now->copy()->subDays(3),
+                'onboarding_wizard_state' => [
+                    'completed_steps' => ['profile', 'payment'],
+                    'current_step' => 'idea_validation',
+                    'fixture' => 'idea_validation_cancellation',
+                ],
+            ],
+        );
+
+        $this->clients['ideaValidationCheckout'] = Client::query()->updateOrCreate(
+            ['nzbn' => '9429000000178'],
+            [
+                'engagement_type' => EngagementType::ENTREPRENEUR_MODULE->value,
+                'status' => ClientStatus::PAUSED->value,
+                'legal_name' => 'Seed Idea Validation Checkout Limited',
+                'trading_name' => 'Seed Idea Validation Checkout',
+                'entity_type' => 'NZ Limited Company',
+                'address' => [
+                    'line1' => '9 Seedling Lane',
+                    'city' => 'Auckland',
+                    'region' => 'Auckland',
+                    'country' => 'NZ',
+                ],
+                'gst_registered' => true,
+                'directors' => [
+                    ['name' => 'Seed Idea Validation Checkout', 'role' => 'Founder'],
+                ],
+                'filing_status' => 'up_to_date',
+                'data_quality' => Client::DATA_QUALITY_LOW,
+                'registry_sources' => [
+                    'nzbn' => 'seeded',
+                    'workspace_fixture' => 'idea_validation_checkout',
+                ],
+                'created_by_user_id' => $this->users['advisor']->getKey(),
+                'primary_contact_user_id' => $this->users['ideaValidationCheckout']->getKey(),
+                'engagement_type_locked_at' => null,
+                'onboarding_wizard_state' => [
+                    'completed_steps' => ['account', 'email_verification'],
+                    'current_step' => 'payment',
+                    'fixture' => 'idea_validation_checkout',
+                ],
+            ],
+        );
+
         $this->seedPvWaterfallClients();
         $this->seedClientTeam();
         $this->seedConflictDeclarations();
@@ -980,6 +1053,10 @@ XML);
             ['ddGuided', 'ddGuided', 'primary_contact', ['portal', 'documents', 'entrepreneur_module', 'dd']],
             ['ddExperience', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'entrepreneur_module', 'dd', 'reports']],
             ['ddExperience', 'ddExperience', 'primary_contact', ['portal', 'documents', 'entrepreneur_module', 'dd']],
+            ['ideaValidationCancellation', 'advisor', 'lead_advisor', ['dashboard', 'entrepreneur_module']],
+            ['ideaValidationCancellation', 'ideaValidationCancellation', 'primary_contact', ['portal', 'entrepreneur_module']],
+            ['ideaValidationCheckout', 'advisor', 'lead_advisor', ['dashboard', 'entrepreneur_module']],
+            ['ideaValidationCheckout', 'ideaValidationCheckout', 'primary_contact', ['portal', 'entrepreneur_module']],
             ['ddDepositPending', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'dd', 'reports']],
             ['ddDepositPending', 'ddDepositPending', 'primary_contact', ['portal', 'documents', 'dd']],
             ['dd', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'dd', 'reports']],
@@ -2732,6 +2809,106 @@ XML);
 
     private function seedIdeaValidationTestScenarios(): void
     {
+        $cancellationProfileId = $this->upsert('entrepreneur_profiles', [
+            'email' => $this->users['ideaValidationCancellation']->email,
+        ], [
+            'user_id' => $this->users['ideaValidationCancellation']->getKey(),
+            'client_id' => $this->clients['ideaValidationCancellation']->getKey(),
+            'assigned_advisor_id' => $this->users['advisor']->getKey(),
+            'invite_token_id' => null,
+            'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'intended_package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION,
+            'name' => 'Seed Idea Validation Cancellation',
+            'stage' => EntrepreneurStage::IDEA_VALIDATION->value,
+            'concept_summary' => 'A paid Idea Validation client who has not submitted and can test cancellation, refund, and account deactivation.',
+            'gamification_on' => true,
+        ]);
+        $this->ids['idea_validation_cancellation_profile'] = $cancellationProfileId;
+
+        $cancellationPackage = ServiceRatePackage::query()
+            ->where('service_type', ServiceRatePackage::SERVICE_ENTREPRENEUR)
+            ->where('package_scope', ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION)
+            ->first();
+        if ($cancellationPackage instanceof ServiceRatePackage) {
+            $this->ids['idea_validation_cancellation_activation'] = $this->upsert('service_activations', [
+                'client_id' => $this->clients['ideaValidationCancellation']->getKey(),
+                'service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+                'client_label' => 'Idea Validation',
+            ], [
+                'requested_by_user_id' => $this->users['ideaValidationCancellation']->getKey(),
+                'advisor_id' => $this->users['advisor']->getKey(),
+                'approved_by_user_id' => $this->users['advisor']->getKey(),
+                'service_rate_package_id' => $cancellationPackage->getKey(),
+                'status' => ServiceActivation::STATUS_ACTIVE,
+                'intake' => $this->json([
+                    'idea_name' => 'Seed cancellation test idea',
+                    'notes' => 'Paid before submission so the Settings cancellation flow is available.',
+                ]),
+                'selected_package_snapshot' => $this->json($cancellationPackage->snapshot()),
+                'payment_status' => ServiceActivation::PAYMENT_PAID,
+                'payment_completed_at' => $this->now->copy()->subHours(2),
+                'payment_completed_by_user_id' => $this->users['ideaValidationCancellation']->getKey(),
+                'payment_reference' => 'pi_seed_idea_validation_cancellation',
+                'deposit_paid_at' => $this->now->copy()->subHours(2),
+                'deposit_paid_by_user_id' => $this->users['ideaValidationCancellation']->getKey(),
+                'deposit_reference' => 'pi_seed_idea_validation_cancellation',
+                'balance_received_at' => null,
+                'balance_received_by_user_id' => null,
+                'balance_reference' => null,
+                'accepted_by_user_id' => $this->users['ideaValidationCancellation']->getKey(),
+                'accepted_at' => $this->now->copy()->subHours(2),
+                'acceptance_text' => 'Seeded accepted Idea Validation purchase for cancellation testing.',
+                'terms_reference' => $this->json([
+                    'fixture' => true,
+                    'purchase_terms_accepted' => true,
+                ]),
+                'related_entrepreneur_profile_id' => $cancellationProfileId,
+                'related_dd_engagement_id' => null,
+                'client_message_thread_id' => null,
+                'closed_at' => null,
+                'cancelled_at' => null,
+                'metadata' => $this->json([
+                    'fixture' => true,
+                    'fixture_key' => 'idea_validation_cancellation',
+                    'payment_mode' => 'test_environment_stripe_full_payment',
+                ]),
+            ]);
+
+            if (Schema::hasTable('idea_validation_purchases')) {
+                $termsVersionId = DB::table('terms_versions')
+                    ->orderByDesc('published_at')
+                    ->value('id');
+
+                if ($termsVersionId !== null) {
+                    $this->ids['idea_validation_checkout_purchase'] = $this->upsert('idea_validation_purchases', [
+                        'user_id' => $this->users['ideaValidationCheckout']->getKey(),
+                    ], [
+                        'client_id' => $this->clients['ideaValidationCheckout']->getKey(),
+                        'advisor_id' => $this->users['advisor']->getKey(),
+                        'terms_version_id' => $termsVersionId,
+                        'service_rate_package_id' => $cancellationPackage->getKey(),
+                        'payment_id' => null,
+                        'service_activation_id' => null,
+                        'status' => 'payment_pending',
+                        'email_verified_at' => $this->now->copy()->subMinutes(10),
+                        'amount_ex_gst' => null,
+                        'gst_amount' => null,
+                        'amount_including_gst' => null,
+                        'currency' => null,
+                        'package_snapshot' => null,
+                        'stripe_payment_intent_ref' => null,
+                        'payment_intent_created_at' => null,
+                        'paid_at' => null,
+                        'metadata' => $this->json([
+                            'fixture' => true,
+                            'fixture_key' => 'idea_validation_checkout',
+                            'next_action' => 'Open /validate-idea/purchase after signing in to exercise test checkout.',
+                        ]),
+                    ]);
+                }
+            }
+        }
+
         $startProfileId = $this->upsert('entrepreneur_profiles', [
             'email' => $this->users['ideaValidationStart']->email,
         ], [
@@ -2819,6 +2996,50 @@ XML);
             'advisor_gate_passed_at' => null,
             'advisor_gate_passed_by_user_id' => null,
             'advisor_gate_note' => null,
+            'recalled_at' => null,
+            'recalled_by_user_id' => null,
+        ]);
+
+        $approvedProfileId = $this->upsert('entrepreneur_profiles', [
+            'email' => $this->users['ideaValidationApproved']->email,
+        ], [
+            'user_id' => $this->users['ideaValidationApproved']->getKey(),
+            'client_id' => null,
+            'assigned_advisor_id' => $this->users['advisor']->getKey(),
+            'invite_token_id' => null,
+            'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'intended_package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION,
+            'name' => 'Seed Idea Validation Approved',
+            'stage' => EntrepreneurStage::BUILDING_PHASE_1->value,
+            'concept_summary' => 'An approved idea-validation client who can test the Business Plan & Budget next-step service.',
+            'gamification_on' => true,
+        ]);
+        $this->ids['idea_validation_approved_profile'] = $approvedProfileId;
+
+        $this->ids['idea_validation_approved'] = $this->upsert('idea_validations', [
+            'entrepreneur_profile_id' => $approvedProfileId,
+            'evaluated_at' => $this->stableTimestamp('2026-07-17 09:00:00'),
+        ], [
+            'revision_number' => 1,
+            'previous_validation_id' => null,
+            'problem' => 'Independent trades businesses lose profitable work because job estimates, follow-up, and customer reminders are spread across paper, text messages, and separate tools.',
+            'target_customer' => 'New Zealand owner-operated electrical and plumbing businesses with two to ten field staff.',
+            'solution' => 'A lightweight workflow that turns site visits into estimates, sends timed follow-ups, and gives owners a single view of jobs awaiting approval.',
+            'value_proposition' => 'Help small trades firms win more quoted work without forcing the owner to replace the accounting and job-management tools already in use.',
+            'demand_signal' => 'Five owners agreed to share their quote follow-up process and two have committed to a paid pilot if the workflow reduces unpaid admin time.',
+            'revenue_model' => 'Monthly subscription per business with a one-off onboarding and workflow setup fee.',
+            'ai_evaluation' => $this->json([
+                'summary' => 'The customer, problem, and early demand are clear enough to move into detailed business-plan and budget work.',
+                'model' => 'seeded-idea-approved',
+                'prompt_id' => 'entrepreneur.idea_validation',
+                'prompt_hash' => hash('sha256', 'seeded-idea-validation-approved'),
+                'metadata' => ['advisor_gate_status' => 'approved', 'fixture' => true],
+            ]),
+            'viability_alerts' => $this->json([]),
+            'evaluated_by_user_id' => $this->users['advisor']->getKey(),
+            'advisor_gate_passed_at' => $this->stableTimestamp('2026-07-17 11:00:00'),
+            'advisor_gate_passed_by_user_id' => $this->users['advisor']->getKey(),
+            'advisor_gate_note' => 'The idea is ready for Business Plan & Budget. Focus the next step on the first paid pilot, pricing, and cash requirements.',
             'recalled_at' => null,
             'recalled_by_user_id' => null,
         ]);

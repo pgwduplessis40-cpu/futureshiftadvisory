@@ -81,6 +81,14 @@ export function SiteFooter() {
                                     Contact
                                 </Link>
                             </li>
+                            <li>
+                                <Link
+                                    href="/terms-and-privacy"
+                                    className="text-[#E0D8CC] hover:text-white"
+                                >
+                                    Terms &amp; Privacy
+                                </Link>
+                            </li>
                         </ul>
                     </div>
 

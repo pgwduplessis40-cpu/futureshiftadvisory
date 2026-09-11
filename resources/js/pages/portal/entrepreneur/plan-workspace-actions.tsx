@@ -1,10 +1,8 @@
-import { Link, router } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import {
     Bot,
     ChevronDown,
     ChevronUp,
-    CheckCircle2,
-    Eye,
     Pencil,
     Trophy,
     Upload,
@@ -19,11 +17,9 @@ import { cn } from '@/lib/utils';
 import { ExecutiveSummaryNotice } from './executive-summary-notice';
 import { BudgetEditor, requirementId } from './plan-budget';
 import {
-    ActionPanel,
     IdeaValidationSnapshot,
     PlainLanguageGuide,
     formatDate,
-    formatLabel,
     ideaFields,
 } from './plan-dashboard-panels';
 import {
@@ -31,7 +27,10 @@ import {
     PLAN_SECTION_BODY_MAX_LENGTH,
 } from './plan-types';
 import {
-    PlanCompletionAction,
+    PlanWorkspacePriorityActions,
+    shouldShowPlanWorkspacePriorityActions,
+} from './plan-workspace-priority-actions';
+import {
     PlanWorkspaceHistory,
     planChangesAreLocked,
 } from './plan-workspace-submission';
@@ -43,11 +42,9 @@ export function PlanWorkspaceActions({
     workspace: PlanWorkspace;
 }) {
     const {
-        packageAccess,
         ideaValidation,
         ideaValidationVersions,
         plan,
-        advisoryRequest,
         gamification,
         ideaForm,
         ideaDraftState,
@@ -96,8 +93,6 @@ export function PlanWorkspaceActions({
         restoreIdeaVersion,
         rememberWorkspacePosition,
         startPlan,
-        submitPlan,
-        requestAdvisory,
         assistRequirement,
         saveSection,
         saveBudget,
@@ -106,126 +101,16 @@ export function PlanWorkspaceActions({
     } = workspace;
     const planChangesLocked = planChangesAreLocked(plan);
     const draft = { state: sectionDraftState, retry: retrySectionDraft };
+    const showPriorityActions = shouldShowPlanWorkspacePriorityActions(
+        includesIdeaValidation,
+        includesPlanBudget,
+    );
 
     return (
         <div className="space-y-6">
-            <section className="space-y-3">
-                <div>
-                    <h2 className="text-base font-semibold">
-                        Priority actions
-                    </h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        {packageAccess.package_scope_label}
-                    </p>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <ActionPanel
-                        icon={Bot}
-                        title="Idea validation"
-                        value={
-                            !includesIdeaValidation
-                                ? 'Not included'
-                                : ideaValidation
-                                  ? planBuilderUnlocked
-                                      ? 'Advisor approved'
-                                      : ideaChangesRequested
-                                        ? 'Changes requested'
-                                        : ideaValidationRecalled
-                                          ? 'Ready to revise'
-                                          : 'Awaiting advisor gate'
-                                  : 'Not submitted'
-                        }
-                        explanation="Idea validation captures the customer problem, solution, demand, and revenue logic before the plan builder opens."
-                    >
-                        {!includesIdeaValidation ? (
-                            <Badge variant="outline">Not in package</Badge>
-                        ) : !ideaValidation ? (
-                            <Button asChild size="sm">
-                                <a href="#idea-validation">
-                                    Start idea validation
-                                </a>
-                            </Button>
-                        ) : planBuilderUnlocked ? (
-                            <Badge variant="secondary">Builder unlocked</Badge>
-                        ) : ideaChangesRequested ? (
-                            <Badge variant="outline">Changes requested</Badge>
-                        ) : ideaValidationRecalled ? (
-                            <Badge variant="outline">Ready to revise</Badge>
-                        ) : (
-                            <Badge variant="outline">Advisor review</Badge>
-                        )}
-                    </ActionPanel>
-
-                    <PlanCompletionAction
-                        includesPlanBudget={includesPlanBudget}
-                        plan={plan}
-                        planBuilderUnlocked={planBuilderUnlocked}
-                        startPlan={startPlan}
-                        submitPlan={submitPlan}
-                    />
-
-                    <ActionPanel
-                        icon={Eye}
-                        title="Assessment"
-                        value={
-                            !includesPlanBudget
-                                ? 'Not included'
-                                : plan?.latest_assessment
-                                  ? `${formatLabel(plan.latest_assessment.overall_grade)}`
-                                  : 'Pending'
-                        }
-                        explanation="Assessment appears once your advisor scores the submitted plan and finalises feedback."
-                    >
-                        {!includesPlanBudget ? (
-                            <Badge variant="outline">Not in package</Badge>
-                        ) : plan?.latest_assessment ? (
-                            <Button asChild size="sm" variant="outline">
-                                <Link href={plan.latest_assessment.url}>
-                                    View assessment
-                                </Link>
-                            </Button>
-                        ) : (
-                            <Badge variant="outline">Advisor action</Badge>
-                        )}
-                    </ActionPanel>
-
-                    <ActionPanel
-                        icon={CheckCircle2}
-                        title="Advisory"
-                        value={
-                            !includesPlanBudget
-                                ? 'Not included'
-                                : advisoryRequest.requested
-                                  ? 'Requested'
-                                  : advisoryRequest.available
-                                    ? 'Available'
-                                    : 'Locked'
-                        }
-                        explanation="Request advisory once the plan has been assessed as advisory ready. This asks your advisor to convert the plan into a standard advisory engagement."
-                    >
-                        {!includesPlanBudget ? (
-                            <Badge variant="outline">Not in package</Badge>
-                        ) : advisoryRequest.requested &&
-                          advisoryRequest.thread_url ? (
-                            <Button asChild size="sm" variant="outline">
-                                <Link href={advisoryRequest.thread_url}>
-                                    Open request
-                                </Link>
-                            </Button>
-                        ) : (
-                            <Button
-                                type="button"
-                                size="sm"
-                                disabled={!advisoryRequest.available}
-                                onClick={requestAdvisory}
-                            >
-                                Request advisory
-                            </Button>
-                        )}
-                    </ActionPanel>
-                </div>
-            </section>
+            {showPriorityActions ? (
+                <PlanWorkspacePriorityActions workspace={workspace} />
+            ) : null}
 
             <section className="rounded-md border bg-background p-4">
                 <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr] lg:items-center">
@@ -580,6 +465,7 @@ export function PlanWorkspaceActions({
 
             <section
                 id="business-plan-requirements"
+                hidden={!includesPlanBudget}
                 className="space-y-4 rounded-md border bg-background p-4"
             >
                 <div className="flex flex-wrap items-start justify-between gap-3">

@@ -9,6 +9,7 @@ use App\Http\Responses\PasswordResetLinkRequestResponse;
 use App\Http\Responses\TwoFactorConfirmedResponse;
 use App\Http\Responses\TwoFactorLoginResponse;
 use App\Models\User;
+use App\Services\Entrepreneurs\IdeaValidationCancellation;
 use App\Services\Security\MfaChallenger;
 use App\Services\Security\TwoFactorStateSanitizer;
 use App\Support\RequestContext;
@@ -20,6 +21,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Laravel\Fortify\Contracts\FailedPasswordResetLinkRequestResponse as FailedPasswordResetLinkRequestResponseContract;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
@@ -72,6 +74,12 @@ class FortifyServiceProvider extends ServiceProvider
 
             if (! $user instanceof User || ! $provider->validateCredentials($user, ['password' => $request->password])) {
                 return null;
+            }
+
+            if ($user->suspended_reason === IdeaValidationCancellation::SUSPENSION_REASON) {
+                throw ValidationException::withMessages([
+                    Fortify::username() => 'This Idea Validation account was cancelled and deactivated. Please create a new account and purchase Idea Validation again if you wish to proceed.',
+                ]);
             }
 
             if (config('hashing.rehash_on_login', true) && method_exists($provider, 'rehashPasswordIfRequired')) {

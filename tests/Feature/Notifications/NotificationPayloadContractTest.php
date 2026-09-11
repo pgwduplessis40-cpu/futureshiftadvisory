@@ -7,6 +7,7 @@ namespace Tests\Feature\Notifications;
 use App\Enums\ClientStatus;
 use App\Models\Client;
 use App\Models\EntrepreneurProfile;
+use App\Models\IdeaValidationPurchase;
 use App\Models\IndustryBriefing;
 use App\Models\IndustryIntelligenceSignal;
 use App\Models\LearningUpdate;
@@ -23,6 +24,8 @@ use App\Notifications\ClientLifecycleNotification;
 use App\Notifications\CrossClientIntelligenceNotification;
 use App\Notifications\EntrepreneurDeactivationRequestedNotification;
 use App\Notifications\GovernanceReviewConversionNudgeNotification;
+use App\Notifications\IdeaValidationPurchaseAdvisorNotification;
+use App\Notifications\IdeaValidationPurchaseConfirmedNotification;
 use App\Notifications\IndustryBriefingNotification;
 use App\Notifications\OffboardingCompletedNotification;
 use App\Notifications\OperationalHealthAttentionNotification;
@@ -154,6 +157,37 @@ final class NotificationPayloadContractTest extends TestCase
         $this->assertSame('Engagement client', $reengagement->toArray($this->recipient())['client_name']);
         $this->assertMailSubject($governance->toMail($this->recipient()), 'Governance Review conversion follow-up due');
         $this->assertSame(60, $governance->toArray($this->recipient())['nudge_day']);
+    }
+
+    public function test_idea_validation_purchase_notifications_keep_buyer_and_advisor_context(): void
+    {
+        $buyer = new User(['id' => 101, 'name' => 'Idea Validation Buyer', 'email' => 'buyer@example.test']);
+        $advisor = new User(['id' => 102, 'name' => 'Idea Validation Advisor', 'email' => 'advisor@example.test']);
+        $client = $this->client('Idea Validation Limited');
+        $purchase = new IdeaValidationPurchase;
+        $purchase->forceFill([
+            'id' => 'idea-validation-purchase-1',
+            'user_id' => $buyer->getKey(),
+            'client_id' => $client->getKey(),
+            'service_activation_id' => 'idea-validation-activation-1',
+        ]);
+        $purchase->setRelation('client', $client);
+        $purchase->setRelation('user', $buyer);
+
+        $confirmed = new IdeaValidationPurchaseConfirmedNotification($purchase);
+        $purchaseReceived = new IdeaValidationPurchaseAdvisorNotification($purchase);
+
+        $this->assertSame('idea_validation.purchase_confirmed', $confirmed->databaseType());
+        $this->assertSame('urgent', $confirmed->urgency());
+        $this->assertMailSubject($confirmed->toMail($buyer), 'Your Idea Validation access is ready');
+        $this->assertSame('idea-validation-purchase-1', $confirmed->toArray($buyer)['idea_validation_purchase_id']);
+        $this->assertSame('idea-validation-activation-1', $confirmed->toArray($buyer)['service_activation_id']);
+
+        $this->assertSame('idea_validation.purchase_received', $purchaseReceived->databaseType());
+        $this->assertSame('urgent', $purchaseReceived->urgency());
+        $this->assertMailSubject($purchaseReceived->toMail($advisor), 'New paid Idea Validation client');
+        $this->assertSame('Idea Validation Limited', $purchaseReceived->toArray($advisor)['client_name']);
+        $this->assertStringContainsString('/advisor/clients/', (string) $purchaseReceived->toArray($advisor)['url']);
     }
 
     public function test_completed_offboarding_notifications_keep_the_client_context_without_exposing_internal_notes(): void

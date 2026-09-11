@@ -66,8 +66,27 @@ const AUDIENCE = [
     'Founders who have been told "great idea!" by everyone they know, and want someone to actually check',
 ];
 
-export default function EntrepreneurService() {
+type IdeaValidationOffer = {
+    available: boolean;
+    label: string;
+    amount_ex_gst: number | null;
+    currency: string | null;
+};
+
+export default function EntrepreneurService({
+    ideaValidationOffer,
+}: {
+    ideaValidationOffer: IdeaValidationOffer;
+}) {
     const base = usePage<SharedPageProps>().props.publicUrl ?? '';
+    const validationPrice =
+        ideaValidationOffer.available &&
+        ideaValidationOffer.amount_ex_gst !== null
+            ? `$${ideaValidationOffer.amount_ex_gst.toLocaleString('en-NZ', {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 2,
+              })} + GST`
+            : null;
 
     return (
         <>
@@ -80,6 +99,15 @@ export default function EntrepreneurService() {
                         description:
                             'Idea validation, business planning, and funding readiness for New Zealand founders - from first idea through to launch.',
                         path: '/services/entrepreneur',
+                        offer:
+                            ideaValidationOffer.available &&
+                            ideaValidationOffer.amount_ex_gst !== null &&
+                            ideaValidationOffer.currency
+                                ? {
+                                      amount: ideaValidationOffer.amount_ex_gst,
+                                      currency: ideaValidationOffer.currency,
+                                  }
+                                : undefined,
                     }),
                     breadcrumbLd(base, [
                         { name: 'Home', path: '/' },
@@ -112,10 +140,13 @@ export default function EntrepreneurService() {
                 </p>
                 <div className="mt-10 flex flex-wrap items-center gap-4">
                     <Link
-                        href="/contact?interest=entrepreneur_module"
+                        href="/validate-idea"
                         className="inline-flex items-center gap-2 rounded-md bg-[var(--fs-admiralty)] px-5 py-3 text-sm font-medium text-[var(--fs-parchment)] shadow-sm transition-colors hover:bg-[var(--fs-commodore)]"
                     >
-                        Book a discovery call <ArrowRight className="h-4 w-4" />
+                        {validationPrice
+                            ? `Validate your idea — ${validationPrice}`
+                            : 'Validate my idea'}{' '}
+                        <ArrowRight className="h-4 w-4" />
                     </Link>
                     <Link
                         href="/faq"
@@ -145,6 +176,20 @@ export default function EntrepreneurService() {
                         cheaper thing to hear now than two years and a mortgage
                         later.
                     </p>
+                    {validationPrice ? (
+                        <p className="mt-5 text-sm font-semibold text-[var(--fs-admiralty)]">
+                            Validate your idea — {validationPrice}.
+                        </p>
+                    ) : null}
+                    <Link
+                        href="/validate-idea"
+                        className="mt-6 inline-flex items-center gap-2 rounded-md bg-[var(--fs-admiralty)] px-5 py-3 text-sm font-medium text-[var(--fs-parchment)] shadow-sm transition-colors hover:bg-[var(--fs-commodore)]"
+                    >
+                        {validationPrice
+                            ? `Validate your idea — ${validationPrice}`
+                            : 'Validate my idea'}
+                        <ArrowRight className="h-4 w-4" />
+                    </Link>
 
                     <div className="mt-8 grid gap-4 sm:grid-cols-2">
                         {VALIDATION_CHECKS.map((check) => (
@@ -281,10 +326,12 @@ export default function EntrepreneurService() {
                         </div>
                         <div className="md:col-span-4 md:text-right">
                             <Link
-                                href="/contact?interest=entrepreneur_module"
+                                href="/validate-idea"
                                 className="inline-flex items-center gap-2 rounded-md bg-[var(--fs-warm-gold)] px-5 py-3 text-sm font-semibold text-[var(--fs-admiralty)] transition hover:bg-[var(--fs-champagne)]"
                             >
-                                Book a discovery call{' '}
+                                {validationPrice
+                                    ? `Validate your idea — ${validationPrice}`
+                                    : 'Validate my idea'}{' '}
                                 <ArrowRight className="h-4 w-4" />
                             </Link>
                         </div>

@@ -1,5 +1,6 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
+import CancelIdeaValidation from '@/components/cancel-idea-validation';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import RequestDeactivation from '@/components/request-deactivation';
@@ -14,10 +15,18 @@ export default function Profile({
     mustVerifyEmail,
     status,
     deactivationRequestedAt,
+    ideaValidationCancellation,
 }: {
     mustVerifyEmail: boolean;
     status?: string;
     deactivationRequestedAt?: string | null;
+    ideaValidationCancellation?: {
+        eligible: boolean;
+        reason: string | null;
+        refund_amount: string | null;
+        currency: string | null;
+        submitted_at: string | null;
+    } | null;
 }) {
     const { auth } = usePage<{ auth: Auth }>().props;
 
@@ -121,7 +130,11 @@ export default function Profile({
                 </Form>
             </div>
 
-            <RequestDeactivation requestedAt={deactivationRequestedAt} />
+            <CancelIdeaValidation details={ideaValidationCancellation} />
+
+            {!ideaValidationCancellation?.eligible ? (
+                <RequestDeactivation requestedAt={deactivationRequestedAt} />
+            ) : null}
         </>
     );
 }
