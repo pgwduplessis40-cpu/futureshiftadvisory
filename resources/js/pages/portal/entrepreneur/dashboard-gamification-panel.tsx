@@ -2,6 +2,7 @@ import { router } from '@inertiajs/react';
 import { Flame, Trophy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { formatNzDate } from '@/lib/formatters';
 import type { GamificationPayload } from './Dashboard';
 
 export function DashboardGamificationPanel({
@@ -180,7 +181,5 @@ function formatDate(value: string | null): string {
         return '-';
     }
 
-    return new Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-    }).format(new Date(value));
+    return formatNzDate(value);
 }
