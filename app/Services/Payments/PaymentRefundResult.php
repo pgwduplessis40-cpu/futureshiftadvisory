@@ -7,7 +7,7 @@ namespace App\Services\Payments;
 final readonly class PaymentRefundResult
 {
     /**
-     * @param  array<string, mixed>  $metadata
+     * @param  array<string, scalar|array<array-key, scalar|null>|null>  $metadata
      */
     public function __construct(
         public string $gateway,

@@ -177,7 +177,17 @@ final class IdeaValidationPurchaseController extends Controller
         return $user;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array{
+     *     id: int|string,
+     *     status: string,
+     *     email_verified_at: string|null,
+     *     amount_ex_gst: float|null,
+     *     gst_amount: float|null,
+     *     amount_including_gst: float|null,
+     *     currency: string|null
+     * }
+     */
     private function purchasePayload(IdeaValidationPurchase $purchase): array
     {
         return [

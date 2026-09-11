@@ -51,7 +51,14 @@ final class TermsAndPrivacyController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{
+     *     published: bool,
+     *     title: string,
+     *     version: string|null,
+     *     published_at: string|null,
+     *     source_preview_html: string|null,
+     *     clauses: list<array{id: int|string, clause_number: int, title: string, body: string}>
+     * }
      */
     private function payload(?TermsVersion $version): array
     {
