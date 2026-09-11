@@ -13,10 +13,13 @@ use Throwable;
 
 final class TermsAcceptanceGate
 {
-    public function latestPublishedVersion(bool $withClauses = false): ?TermsVersion
-    {
+    public function latestPublishedVersion(
+        bool $withClauses = false,
+        string $documentScope = TermsVersion::SCOPE_PROPOSAL,
+    ): ?TermsVersion {
         $query = TermsVersion::query()
             ->published()
+            ->forDocument($documentScope)
             ->orderByDesc('published_at')
             ->orderByDesc('created_at');
 
@@ -107,7 +110,9 @@ final class TermsAcceptanceGate
             ->where('user_id', $user->getKey())
             ->with('termsVersion')
             ->active()
-            ->whereHas('termsVersion', fn ($query) => $query->published())
+            ->whereHas('termsVersion', fn ($query) => $query
+                ->published()
+                ->forDocument(TermsVersion::SCOPE_PROPOSAL))
             ->latest('accepted_at')
             ->first();
     }

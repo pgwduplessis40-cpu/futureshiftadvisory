@@ -21,7 +21,7 @@ final class TermsPdfFallback
     {
         return $this->pdf->render($version->title, [
             'Future Shift Advisory',
-            'Terms and Privacy Policy review copy.',
+            $this->documentLabel($version).' review copy.',
             'Version '.$version->version.' generated for review on '.now()->toDateTimeString().'.',
             ...$this->documents->plainTextLines($version),
         ]);
@@ -31,7 +31,7 @@ final class TermsPdfFallback
     {
         return $this->pdf->render($version->title, [
             'Future Shift Advisory',
-            'Terms and Privacy Policy download.',
+            $this->documentLabel($version).' download.',
             'Version '.$version->version.' downloaded by '.$user->email.' on '.now()->toDateTimeString().'.',
             ...$this->documents->plainTextLines($version),
         ]);
@@ -45,7 +45,7 @@ final class TermsPdfFallback
     ): string {
         return $this->pdf->render('Signed terms acceptance', [
             'Future Shift Advisory',
-            'Signed Terms and Privacy Policy acceptance record.',
+            'Signed '.$this->documentLabel($version).' acceptance record.',
             'Accepted by: '.$user->name.' <'.$user->email.'>',
             'User ID: '.$user->getKey(),
             'Terms version: '.$version->version.' - '.$version->title,
@@ -54,5 +54,10 @@ final class TermsPdfFallback
             'User agent: '.((string) $request->userAgent()),
             ...$this->documents->plainTextLines($version),
         ]);
+    }
+
+    private function documentLabel(TermsVersion $version): string
+    {
+        return TermsVersion::documentLabel((string) $version->document_scope);
     }
 }

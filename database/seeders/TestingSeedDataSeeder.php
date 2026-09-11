@@ -97,6 +97,7 @@ final class TestingSeedDataSeeder extends Seeder
             PermissionSeeder::class,
             RoleSeeder::class,
             TermsVersionSeeder::class,
+            WebsiteTermsPrivacyPolicySeeder::class,
             StandardAdvisoryQuestionnaireSeeder::class,
             DdSpecificQuestionnaireSeeder::class,
             DdSpecificQuestionnaireV2Seeder::class,
@@ -212,6 +213,7 @@ final class TestingSeedDataSeeder extends Seeder
         }
 
         $termsVersionId = DB::table('terms_versions')
+            ->where('document_scope', 'proposal')
             ->whereNotNull('published_at')
             ->orderByDesc('published_at')
             ->value('id');
@@ -2876,6 +2878,8 @@ XML);
 
             if (Schema::hasTable('idea_validation_purchases')) {
                 $termsVersionId = DB::table('terms_versions')
+                    ->where('document_scope', 'website')
+                    ->whereNotNull('published_at')
                     ->orderByDesc('published_at')
                     ->value('id');
 

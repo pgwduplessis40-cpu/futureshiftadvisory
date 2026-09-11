@@ -2,16 +2,17 @@ import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Download, FileText, Pencil, Send } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { TermsVersion } from './types';
+import type { TermsVersion, TermsWorkspace } from './types';
 
 type Props = {
     version: TermsVersion;
+    workspace: TermsWorkspace;
 };
 
-export default function TermsPreview({ version }: Props) {
+export default function TermsPreview({ version, workspace }: Props) {
     return (
         <>
-            <Head title={`Preview terms ${version.version}`} />
+            <Head title={`Preview ${workspace.label} ${version.version}`} />
 
             <div className="space-y-6">
                 <div className="flex items-center justify-between gap-4">
@@ -42,7 +43,7 @@ export default function TermsPreview({ version }: Props) {
 
                     <div className="flex gap-2">
                         <Button asChild size="sm" variant="outline">
-                            <Link href="/admin/terms">
+                            <Link href={workspace.index_url}>
                                 <ArrowLeft
                                     className="size-4"
                                     aria-hidden="true"
@@ -62,7 +63,7 @@ export default function TermsPreview({ version }: Props) {
                             </Button>
                         )}
                         <Button asChild size="sm" variant="outline">
-                            <a href={`/admin/terms/${version.id}/download`}>
+                            <a href={version.urls.download}>
                                 <Download
                                     className="size-4"
                                     aria-hidden="true"
@@ -73,9 +74,7 @@ export default function TermsPreview({ version }: Props) {
                         {!version.published_at && (
                             <>
                                 <Button asChild size="sm" variant="outline">
-                                    <Link
-                                        href={`/admin/terms/${version.id}/edit`}
-                                    >
+                                    <Link href={version.urls.edit}>
                                         <Pencil
                                             className="size-4"
                                             aria-hidden="true"
@@ -84,9 +83,7 @@ export default function TermsPreview({ version }: Props) {
                                     </Link>
                                 </Button>
                                 <Button asChild size="sm">
-                                    <Link
-                                        href={`/admin/terms/${version.id}/publish`}
-                                    >
+                                    <Link href={version.urls.publish}>
                                         <Send
                                             className="size-4"
                                             aria-hidden="true"

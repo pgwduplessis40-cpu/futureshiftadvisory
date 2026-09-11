@@ -312,9 +312,7 @@ function Checkout({ purchase }: { purchase: Purchase }) {
                     },
                 );
                 const payload = (await response.json().catch(() => null)) as
-                    | StripeIntentPayload
-                    | ErrorPayload
-                    | null;
+                    StripeIntentPayload | ErrorPayload | null;
 
                 if (!response.ok || !payload || !('client_secret' in payload)) {
                     throw new Error(
@@ -444,9 +442,7 @@ function Checkout({ purchase }: { purchase: Purchase }) {
                 },
             );
             const payload = (await response.json().catch(() => null)) as
-                | { paid?: boolean; next_url?: string }
-                | ErrorPayload
-                | null;
+                { paid?: boolean; next_url?: string } | ErrorPayload | null;
 
             if (
                 !response.ok ||
@@ -604,9 +600,7 @@ async function confirmWithServer(
             },
         );
         const payload = (await response.json().catch(() => null)) as
-            | { paid?: boolean; next_url?: string }
-            | ErrorPayload
-            | null;
+            { paid?: boolean; next_url?: string } | ErrorPayload | null;
 
         if (response.status === 202) {
             setStatus('pending');
