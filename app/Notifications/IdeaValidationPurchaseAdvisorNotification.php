@@ -30,7 +30,7 @@ final class IdeaValidationPurchaseAdvisorNotification extends ChannelAwareNotifi
 
         return (new MailMessage)
             ->subject('New paid Idea Validation client')
-            ->line(($purchase->user?->name ?? 'A new client').' purchased Idea Validation.')
+            ->line(($purchase->user->name ?? 'A new client').' purchased Idea Validation.')
             ->line('They have been assigned to you and can now complete their validation questions.')
             ->action('Open client', route('advisor.clients.show', $purchase->client, absolute: true));
     }
@@ -42,7 +42,7 @@ final class IdeaValidationPurchaseAdvisorNotification extends ChannelAwareNotifi
 
         return [
             'title' => 'New paid Idea Validation client',
-            'message' => ($purchase->user?->name ?? 'A new client').' purchased Idea Validation and is assigned to you.',
+            'message' => ($purchase->user->name ?? 'A new client').' purchased Idea Validation and is assigned to you.',
             'url' => route('advisor.clients.show', $purchase->client, absolute: false),
             'idea_validation_purchase_id' => $purchase->getKey(),
             'client_id' => $purchase->client_id,

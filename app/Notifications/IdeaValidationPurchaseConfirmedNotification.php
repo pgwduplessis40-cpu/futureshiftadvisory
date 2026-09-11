@@ -26,9 +26,11 @@ final class IdeaValidationPurchaseConfirmedNotification extends ChannelAwareNoti
 
     public function toMail(object $notifiable): MailMessage
     {
+        $name = data_get($notifiable, 'name');
+
         return (new MailMessage)
             ->subject('Your Idea Validation access is ready')
-            ->greeting('Hello '.(is_object($notifiable) && isset($notifiable->name) ? $notifiable->name : 'there'))
+            ->greeting('Hello '.(is_string($name) && $name !== '' ? $name : 'there'))
             ->line('Your payment was confirmed. Stripe will also send the card receipt to the email address used at checkout.')
             ->line('Set up your authenticator app and recovery codes, then complete your Idea Validation questions for advisor review.')
             ->action('Set up account security', route('mfa.setup', absolute: true));

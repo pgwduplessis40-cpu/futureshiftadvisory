@@ -26,19 +26,19 @@ final class PaymentRefund extends Model
         'metadata' => 'array',
     ];
 
-    /** @return BelongsTo<Client, PaymentRefund> */
+    /** @return BelongsTo<Client, $this> */
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
     }
 
-    /** @return BelongsTo<ServiceActivation, PaymentRefund> */
+    /** @return BelongsTo<ServiceActivation, $this> */
     public function serviceActivation(): BelongsTo
     {
         return $this->belongsTo(ServiceActivation::class);
     }
 
-    /** @return BelongsTo<User, PaymentRefund> */
+    /** @return BelongsTo<User, $this> */
     public function requestedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'requested_by_user_id');

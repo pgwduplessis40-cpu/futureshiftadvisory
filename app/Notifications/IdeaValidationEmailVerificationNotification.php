@@ -26,7 +26,7 @@ final class IdeaValidationEmailVerificationNotification extends Notification
     {
         $purchase = $this->purchase->loadMissing('user');
         $user = $purchase->user;
-        $hash = sha1((string) ($user?->email ?? ''));
+        $hash = sha1((string) $user->email);
         $url = URL::temporarySignedRoute(
             'public.validate-idea.purchase.verify',
             now()->addMinutes(60),

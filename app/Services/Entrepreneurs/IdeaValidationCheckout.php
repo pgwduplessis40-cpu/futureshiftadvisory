@@ -47,7 +47,6 @@ use Spatie\Permission\Models\Role;
 final class IdeaValidationCheckout
 {
     public function __construct(
-        private readonly EntrepreneurServiceOffer $offers,
         private readonly TermsAcceptanceGate $terms,
         private readonly SignedAcceptancePdf $signedTerms,
         private readonly StripeClient $stripe,

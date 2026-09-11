@@ -88,7 +88,7 @@ final class Payment extends Model
     }
 
     /**
-     * @return HasOne<IdeaValidationPurchase>
+     * @return HasOne<IdeaValidationPurchase, $this>
      */
     public function ideaValidationPurchase(): HasOne
     {

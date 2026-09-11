@@ -41,43 +41,43 @@ final class IdeaValidationPurchase extends Model
         'metadata' => 'array',
     ];
 
-    /** @return BelongsTo<User, IdeaValidationPurchase> */
+    /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    /** @return BelongsTo<Client, IdeaValidationPurchase> */
+    /** @return BelongsTo<Client, $this> */
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
     }
 
-    /** @return BelongsTo<User, IdeaValidationPurchase> */
+    /** @return BelongsTo<User, $this> */
     public function advisor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'advisor_id');
     }
 
-    /** @return BelongsTo<TermsVersion, IdeaValidationPurchase> */
+    /** @return BelongsTo<TermsVersion, $this> */
     public function termsVersion(): BelongsTo
     {
         return $this->belongsTo(TermsVersion::class);
     }
 
-    /** @return BelongsTo<ServiceRatePackage, IdeaValidationPurchase> */
+    /** @return BelongsTo<ServiceRatePackage, $this> */
     public function package(): BelongsTo
     {
         return $this->belongsTo(ServiceRatePackage::class, 'service_rate_package_id');
     }
 
-    /** @return BelongsTo<Payment, IdeaValidationPurchase> */
+    /** @return BelongsTo<Payment, $this> */
     public function payment(): BelongsTo
     {
         return $this->belongsTo(Payment::class);
     }
 
-    /** @return BelongsTo<ServiceActivation, IdeaValidationPurchase> */
+    /** @return BelongsTo<ServiceActivation, $this> */
     public function serviceActivation(): BelongsTo
     {
         return $this->belongsTo(ServiceActivation::class);
