@@ -33,6 +33,33 @@ request() {
         "$production_url$path"
 }
 
+request_with_headers() {
+    local path="$1"
+    local headers="$2"
+
+    curl \
+        --fail \
+        --silent \
+        --show-error \
+        --location \
+        --connect-timeout 10 \
+        --max-time 20 \
+        --retry 2 \
+        --retry-delay 2 \
+        --dump-header "$headers" \
+        "$production_url$path"
+}
+
+assert_homepage_header() {
+    local pattern="$1"
+    local description="$2"
+
+    if ! grep -Eiq "$pattern" "$homepage_headers"; then
+        echo "ERROR: the public home page did not return ${description}." >&2
+        exit 1
+    fi
+}
+
 request_service_worker() {
     local headers="$1"
     local body="$2"
@@ -79,7 +106,8 @@ printf '%s' "$deployment" | "$node_binary" -e '
 ' "$expected_commit" "$expected_version"
 
 echo "Checking the public server-rendered home page."
-homepage="$(request '/')"
+homepage_headers="$(mktemp)"
+homepage="$(request_with_headers '/' "$homepage_headers")"
 if ! printf '%s' "$homepage" | "$node_binary" -e '
     const html = require("fs").readFileSync(0, "utf8");
     process.exit(html.includes("data-server-rendered") ? 0 : 1);
@@ -87,6 +115,14 @@ if ! printf '%s' "$homepage" | "$node_binary" -e '
     echo "ERROR: the public home page was reachable but was not server-rendered." >&2
     exit 1
 fi
+
+echo "Checking public security headers."
+assert_homepage_header '^strict-transport-security:[[:space:]]*max-age=31536000' 'Strict-Transport-Security'
+assert_homepage_header '^content-security-policy:.*frame-ancestors '\''none'\''' 'a framing content-security policy'
+assert_homepage_header '^x-content-type-options:[[:space:]]*nosniff' 'X-Content-Type-Options: nosniff'
+assert_homepage_header '^x-frame-options:[[:space:]]*DENY' 'X-Frame-Options: DENY'
+assert_homepage_header '^referrer-policy:[[:space:]]*strict-origin-when-cross-origin' 'Referrer-Policy'
+rm -f -- "$homepage_headers"
 
 echo "Checking the public service-worker contract."
 service_worker_headers="$(mktemp)"
