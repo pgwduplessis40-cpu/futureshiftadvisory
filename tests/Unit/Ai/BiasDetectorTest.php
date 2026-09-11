@@ -57,7 +57,7 @@ final class BiasDetectorTest extends TestCase
             ->once();
     }
 
-    public function test_repeated_open_bias_signal_rolls_up_existing_learning_candidate(): void
+    public function test_bias_learning_candidate_requires_a_calibrated_sample_then_rolls_up(): void
     {
         $detector = app(BiasDetector::class);
         $prompt = new PromptEnvelope(
@@ -67,9 +67,15 @@ final class BiasDetectorTest extends TestCase
             body: 'Score the entrepreneur plan.',
         );
         $response = $this->aiResponse($prompt, 'This is an exceptional plan.');
+        $cleanResponse = $this->aiResponse($prompt, 'The available evidence indicates a moderate risk profile.');
 
-        $detector->inspect($prompt, $response, ['business_plan_id' => 'plan-1']);
-        $detector->inspect($prompt, $response, ['business_plan_id' => 'plan-2']);
+        foreach (range(1, 7) as $index) {
+            $detector->inspect($prompt, $cleanResponse, ['business_plan_id' => 'clean-'.$index]);
+        }
+
+        foreach (range(1, 3) as $index) {
+            $detector->inspect($prompt, $response, ['business_plan_id' => 'plan-'.$index]);
+        }
 
         $this->assertSame(1, LearningUpdate::query()
             ->where('layer_id', BiasDetector::LAYER_ID)
@@ -78,10 +84,19 @@ final class BiasDetectorTest extends TestCase
 
         $candidate = LearningUpdate::query()->firstOrFail();
 
-        $this->assertSame(2, data_get($candidate->evidence, 'occurrences'));
+        $this->assertSame(3, data_get($candidate->evidence, 'occurrences'));
+        $this->assertSame(10, data_get($candidate->evidence, 'sample_size'));
+        $this->assertEqualsWithDelta(0.3, (float) data_get($candidate->evidence, 'flagged_rate'), 0.0001);
         $this->assertNotEmpty(data_get($candidate->source, 'signal_key'));
-        $this->assertSame('plan-2', data_get($candidate->source, 'latest_subject_metadata.business_plan_id'));
-        $this->assertSame('This is an exceptional plan.', data_get($candidate->evidence, 'latest_response_excerpt'));
+        $this->assertSame('plan-3', data_get($candidate->source, 'subject_metadata.business_plan_id'));
+        $this->assertSame('This is an exceptional plan.', data_get($candidate->evidence, 'response_excerpt'));
+
+        $detector->inspect($prompt, $response, ['business_plan_id' => 'plan-4']);
+
+        $candidate->refresh();
+        $this->assertSame(4, data_get($candidate->evidence, 'occurrences'));
+        $this->assertSame(11, data_get($candidate->evidence, 'sample_size'));
+        $this->assertSame('plan-4', data_get($candidate->source, 'latest_subject_metadata.business_plan_id'));
     }
 
     private function aiResponse(PromptEnvelope $prompt, string $text): AiResponse

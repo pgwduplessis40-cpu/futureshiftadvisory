@@ -135,6 +135,11 @@ final class LearningUpdateController extends Controller
         $validated = $request->validate([
             'status' => ['required', 'string', Rule::in(LearningRecommendation::deliveryStatuses())],
             'development_reference' => ['nullable', 'string', 'max:255'],
+            'delivery_owner' => ['nullable', 'string', 'max:160'],
+            'delivery_target' => ['nullable', 'string', 'max:255'],
+            'baseline_metrics' => ['nullable', 'array', 'max:20'],
+            'baseline_metrics.*' => ['string', 'max:1000'],
+            'rollback_plan' => ['nullable', 'string', 'max:4000'],
             'release_reference' => [
                 Rule::requiredIf(fn (): bool => $request->input('status') === LearningRecommendation::STATUS_RELEASED),
                 'nullable',
@@ -235,11 +240,16 @@ final class LearningUpdateController extends Controller
             'acceptance_criteria.*' => ['string', 'max:1000'],
             'regression_journeys' => ['nullable', 'array', 'max:20'],
             'regression_journeys.*' => ['string', 'max:255'],
+            'delivery_owner' => ['nullable', 'string', 'max:160'],
+            'delivery_target' => ['nullable', 'string', 'max:255'],
+            'baseline_metrics' => ['nullable', 'array', 'max:20'],
+            'baseline_metrics.*' => ['string', 'max:1000'],
+            'rollback_plan' => ['nullable', 'string', 'max:4000'],
         ];
     }
 
     /**
-     * @return array{id:string,learning_update_id:string,title:string,failure_shortfall:string,impact:string,impact_area:string,recommendation:string,recommendation_impact:string,acceptance_criteria:array<int,string>,regression_journeys:array<int,string>,status:string,approved_at:?string,development_reference:?string,release_reference:?string,released_at:?string,verified_at:?string,verification_notes:?string,review_due_at:?string,approve_url:string,delivery_url:string}
+     * @return array{id:string,learning_update_id:string,title:string,failure_shortfall:string,impact:string,impact_area:string,recommendation:string,recommendation_impact:string,acceptance_criteria:array<int,string>,regression_journeys:array<int,string>,delivery_owner:?string,delivery_target:?string,baseline_metrics:array<int,string>,rollback_plan:?string,status:string,approved_at:?string,development_reference:?string,release_reference:?string,released_at:?string,verified_at:?string,verification_notes:?string,review_due_at:?string,approve_url:string,delivery_url:string}
      */
     private function recommendationPayload(LearningRecommendation $recommendation): array
     {
@@ -254,6 +264,10 @@ final class LearningUpdateController extends Controller
             'recommendation_impact' => $recommendation->recommendation_impact,
             'acceptance_criteria' => $recommendation->acceptance_criteria ?? [],
             'regression_journeys' => $recommendation->regression_journeys ?? [],
+            'delivery_owner' => $recommendation->delivery_owner,
+            'delivery_target' => $recommendation->delivery_target,
+            'baseline_metrics' => $recommendation->baseline_metrics ?? [],
+            'rollback_plan' => $recommendation->rollback_plan,
             'status' => $recommendation->status,
             'approved_at' => $recommendation->approved_at?->toIso8601String(),
             'development_reference' => $recommendation->development_reference,

@@ -256,24 +256,30 @@ final class LearningUpdateApprovalTest extends TestCase
                 ->has('recommendations', 0));
     }
 
-    public function test_delivery_cards_expose_a_stable_rollup_for_related_recommendations(): void
+    public function test_delivery_cards_expose_aggregated_service_activation_funnel_recommendations(): void
     {
         $this->seed(RoleSeeder::class);
         $admin = $this->superAdmin();
-        $source = [
-            'type' => 'service_activation',
-            'rollup_key' => 'service_activation:review_service_activation_flow:client_portal_workspace_activation',
-            'rollup_label' => 'Client portal workspace activation',
+        $packageSelectionSource = [
+            'type' => 'service_activation_funnel',
+            'service_type' => 'due_diligence',
+            'stage' => 'package_selection',
+            'rollup_key' => 'service_activation:funnel:client_portal_workspace_activation',
+            'rollup_label' => 'Service activation funnel',
+        ];
+        $paymentCompletionSource = [
+            ...$packageSelectionSource,
+            'stage' => 'payment_completion',
         ];
         $first = $this->candidate([
-            'source' => $source,
-            'summary' => 'Review client portal workspace activation after request.',
+            'source' => $packageSelectionSource,
+            'summary' => 'Review the service activation funnel after a package-selection regression.',
             'status' => LearningUpdate::STATUS_APPROVED,
             'impact_scope' => ['surface' => 'client_portal_workspace_activation'],
         ]);
         $second = $this->candidate([
-            'source' => $source,
-            'summary' => 'Review client portal workspace activation after package selection.',
+            'source' => $paymentCompletionSource,
+            'summary' => 'Review the service activation funnel after a payment-completion regression.',
             'status' => LearningUpdate::STATUS_IMPLEMENTED,
             'impact_scope' => ['surface' => 'client_portal_workspace_activation'],
         ]);
@@ -293,8 +299,8 @@ final class LearningUpdateApprovalTest extends TestCase
                 ->where('cards', fn (Collection $cards): bool => $cards
                     ->pluck('delivery_rollup.key')
                     ->unique()
-                    ->all() === ['service_activation:review_service_activation_flow:client_portal_workspace_activation']
-                    && $cards->pluck('delivery_rollup.label')->unique()->all() === ['Client portal workspace activation']
+                    ->all() === ['service_activation:funnel:client_portal_workspace_activation']
+                    && $cards->pluck('delivery_rollup.label')->unique()->all() === ['Service activation funnel']
                     && $cards->contains(fn (array $card): bool => $card['status'] === LearningUpdate::STATUS_IMPLEMENTED
                         && $card['implementations'][0]['review_outcome'] === null)));
     }

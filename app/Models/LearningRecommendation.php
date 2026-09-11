@@ -42,6 +42,10 @@ final class LearningRecommendation extends Model
         'status',
         'approved_by_user_id',
         'approved_at',
+        'delivery_owner',
+        'delivery_target',
+        'baseline_metrics',
+        'rollback_plan',
         'development_reference',
         'release_reference',
         'released_at',
@@ -55,6 +59,7 @@ final class LearningRecommendation extends Model
     protected $casts = [
         'acceptance_criteria' => 'array',
         'regression_journeys' => 'array',
+        'baseline_metrics' => 'array',
         'evidence' => 'array',
         'approved_at' => 'datetime',
         'released_at' => 'datetime',

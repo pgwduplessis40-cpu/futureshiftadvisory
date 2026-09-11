@@ -15,6 +15,7 @@ final class LayerCadenceRunner
         private readonly LayerCadenceRegistry $registry,
         private readonly AuditWriter $audit,
         private readonly ApprovalFlow $approvalFlow,
+        private readonly ServiceActivationLearningAggregator $serviceActivationLearning,
     ) {}
 
     /**
@@ -58,11 +59,15 @@ final class LayerCadenceRunner
      */
     private function recordRun(array $definition, CarbonInterface $at): LearningLayerRun
     {
+        $candidatesCreated = $definition['id'] === LayerCadenceRegistry::LAYER_SERVICE_ACTIVATION
+            ? $this->serviceActivationLearning->run($at)
+            : 0;
+
         /** @var LearningLayerRun $run */
         $run = LearningLayerRun::query()->create([
             'layer_id' => $definition['id'],
             'ran_at' => $at,
-            'candidates_created' => 0,
+            'candidates_created' => $candidatesCreated,
             'window' => [
                 'window_start' => $at->copy()->subDays((int) $definition['window_days'])->toIso8601String(),
                 'window_end' => $at->toIso8601String(),
