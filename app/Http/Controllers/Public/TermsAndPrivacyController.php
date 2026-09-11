@@ -16,9 +16,9 @@ use Inertia\Response;
  * The public source of truth for the current FSA Terms and Privacy Policy.
  *
  * The website can link to the human-readable page or consume the deliberately
- * small JSON representation. Both are derived from the same published terms
- * version the app presents for acceptance, so legal wording cannot drift
- * between the website and the customer portal.
+ * small JSON representation. Both are derived from the dedicated website
+ * policy version the Idea Validation purchase flow presents for acceptance,
+ * so proposal terms can never be published on the public website by mistake.
  */
 final class TermsAndPrivacyController extends Controller
 {
@@ -29,7 +29,10 @@ final class TermsAndPrivacyController extends Controller
 
     public function show(): Response
     {
-        $version = $this->terms->latestPublishedVersion(withClauses: true);
+        $version = $this->terms->latestPublishedVersion(
+            withClauses: true,
+            documentScope: TermsVersion::SCOPE_WEBSITE,
+        );
 
         return Inertia::render('public/terms-and-privacy', [
             'document' => $this->payload($version),
@@ -38,7 +41,10 @@ final class TermsAndPrivacyController extends Controller
 
     public function json(): JsonResponse
     {
-        $version = $this->terms->latestPublishedVersion(withClauses: true);
+        $version = $this->terms->latestPublishedVersion(
+            withClauses: true,
+            documentScope: TermsVersion::SCOPE_WEBSITE,
+        );
 
         return response()->json([
             'document' => $this->payload($version),

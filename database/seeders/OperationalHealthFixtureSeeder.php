@@ -158,6 +158,7 @@ final class OperationalHealthFixtureSeeder extends Seeder
 
         $version = TermsVersion::query()
             ->published()
+            ->forDocument(TermsVersion::SCOPE_PROPOSAL)
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')
             ->first();

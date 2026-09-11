@@ -19,7 +19,10 @@ final class TermsVersionSeeder extends Seeder
     public function run(): void
     {
         $terms = TermsVersion::query()->updateOrCreate(
-            ['version' => '1'],
+            [
+                'document_scope' => TermsVersion::SCOPE_PROPOSAL,
+                'version' => '1',
+            ],
             [
                 'title' => 'Future Shift Advisory Terms and Conditions',
                 'material' => true,

@@ -39,37 +39,45 @@ final class TermsController extends Controller
         private readonly TermsPdfFallback $fallbackPdf,
     ) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
         Gate::authorize('viewAny', TermsVersion::class);
+        $scope = $this->documentScope($request);
 
         return Inertia::render('admin/terms/Index', [
             'versions' => TermsVersion::query()
+                ->forDocument($scope)
                 ->withCount([
                     'clauses',
                     'clauses as material_clauses_count' => fn ($query) => $query->where('material', true),
                 ])
                 ->latest('created_at')
                 ->get()
-                ->map(fn (TermsVersion $version): array => $this->versionPayload($version)),
-            'enforcement' => $this->enforcementPayload(),
+                ->map(fn (TermsVersion $version): array => $this->versionPayload($version, $scope)),
+            'workspace' => $this->workspacePayload($scope),
+            'enforcement' => $scope === TermsVersion::SCOPE_PROPOSAL
+                ? $this->enforcementPayload()
+                : null,
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         Gate::authorize('create', TermsVersion::class);
+        $scope = $this->documentScope($request);
 
-        $draft = DB::transaction(function () use ($request): TermsVersion {
+        $draft = DB::transaction(function () use ($request, $scope): TermsVersion {
             $source = TermsVersion::query()
+                ->forDocument($scope)
                 ->with('clauses')
                 ->orderByDesc('published_at')
                 ->orderByDesc('created_at')
                 ->first();
 
             $draft = TermsVersion::query()->create([
-                'version' => $this->nextVersion(),
-                'title' => $source?->title ?? 'Future Shift Advisory Terms and Privacy Policy',
+                'document_scope' => $scope,
+                'version' => $this->nextVersion($scope),
+                'title' => $source?->title ?? TermsVersion::defaultTitle($scope),
                 'material' => false,
                 'notice_period_days' => $source?->notice_period_days ?? 30,
                 'reviewer_reference' => $source?->reviewer_reference,
@@ -89,30 +97,44 @@ final class TermsController extends Controller
             return $draft;
         });
 
-        return to_route('admin.terms.edit', $draft);
+        return to_route($this->routeName($scope, 'edit'), $draft);
     }
 
-    public function edit(TermsVersion $termsVersion): Response
+    public function edit(Request $request, TermsVersion $termsVersion): Response
     {
         Gate::authorize('update', $termsVersion);
+        $scope = $this->documentScope($request);
+        $this->assertDocumentScope($termsVersion, $scope);
 
         return Inertia::render('admin/terms/Edit', [
-            'version' => $this->versionPayload($termsVersion->load('clauses')),
+            'version' => $this->versionPayload($termsVersion->load('clauses'), $scope),
+            'workspace' => $this->workspacePayload($scope),
         ]);
     }
 
     public function update(Request $request, TermsVersion $termsVersion): RedirectResponse
     {
         Gate::authorize('update', $termsVersion);
+        $scope = $this->documentScope($request);
+        $this->assertDocumentScope($termsVersion, $scope);
         abort_if($termsVersion->isPublished(), 422, 'Published terms versions are immutable.');
 
         $validated = $request->validate([
-            'version' => ['required', 'string', 'max:40', Rule::unique('terms_versions', 'version')->ignore($termsVersion->id)],
+            'version' => [
+                'required',
+                'string',
+                'max:40',
+                Rule::unique('terms_versions', 'version')
+                    ->where('document_scope', $scope)
+                    ->ignore($termsVersion->id),
+            ],
             'title' => ['required', 'string', 'max:255'],
             'material' => ['required', 'boolean'],
             'notice_period_days' => ['required', 'integer', 'min:0', 'max:365'],
             'reviewer_reference' => ['nullable', 'string', 'max:2000'],
-            'clauses' => ['required', 'array', 'size:14'],
+            'clauses' => $scope === TermsVersion::SCOPE_PROPOSAL
+                ? ['required', 'array', 'size:14']
+                : ['required', 'array'],
             'clauses.*.id' => ['nullable', 'uuid'],
             'clauses.*.clause_number' => ['required', 'integer', 'min:1', 'max:99', 'distinct'],
             'clauses.*.title' => ['required', 'string', 'max:255'],
@@ -147,21 +169,26 @@ final class TermsController extends Controller
                 ->delete();
         });
 
-        return to_route('admin.terms.edit', $termsVersion)->with('status', 'terms-updated');
+        return to_route($this->routeName($scope, 'edit'), $termsVersion)->with('status', 'terms-updated');
     }
 
-    public function preview(TermsVersion $termsVersion): Response
+    public function preview(Request $request, TermsVersion $termsVersion): Response
     {
         Gate::authorize('view', $termsVersion);
+        $scope = $this->documentScope($request);
+        $this->assertDocumentScope($termsVersion, $scope);
 
         return Inertia::render('admin/terms/Preview', [
-            'version' => $this->versionPayload($termsVersion->load('clauses'), includeSourcePreview: true),
+            'version' => $this->versionPayload($termsVersion->load('clauses'), $scope, includeSourcePreview: true),
+            'workspace' => $this->workspacePayload($scope),
         ]);
     }
 
     public function download(Request $request, TermsVersion $termsVersion, PdfRenderer $renderer): HttpResponse
     {
         Gate::authorize('view', $termsVersion);
+        $scope = $this->documentScope($request);
+        $this->assertDocumentScope($termsVersion, $scope);
 
         $termsVersion->load('clauses');
         $html = $this->documents->reviewDownloadHtml($termsVersion);
@@ -191,6 +218,7 @@ final class TermsController extends Controller
     public function uploadSourceFile(Request $request, TermsVersion $termsVersion, SecureFileWriter $files): RedirectResponse
     {
         Gate::authorize('update', $termsVersion);
+        $this->assertDocumentScope($termsVersion, $this->documentScope($request));
         abort_if($termsVersion->isPublished(), 422, 'Published terms versions are immutable.');
 
         $request->validate([
@@ -236,6 +264,7 @@ final class TermsController extends Controller
     public function downloadSourceFile(Request $request, TermsVersion $termsVersion): HttpResponse
     {
         Gate::authorize('view', $termsVersion);
+        $this->assertDocumentScope($termsVersion, $this->documentScope($request));
 
         $sourceFile = $this->sourceFile($termsVersion);
         abort_if($sourceFile === null, 404);
@@ -265,19 +294,31 @@ final class TermsController extends Controller
         ]);
     }
 
-    public function confirmPublish(TermsVersion $termsVersion): Response
+    public function confirmPublish(Request $request, TermsVersion $termsVersion): Response
     {
         Gate::authorize('publish', $termsVersion);
+        $scope = $this->documentScope($request);
+        $this->assertDocumentScope($termsVersion, $scope);
 
         return Inertia::render('admin/terms/Publish', [
-            'version' => $this->versionPayload($termsVersion->load('clauses')),
+            'version' => $this->versionPayload($termsVersion->load('clauses'), $scope),
+            'workspace' => $this->workspacePayload($scope),
         ]);
     }
 
     public function publish(Request $request, TermsVersion $termsVersion): RedirectResponse
     {
         Gate::authorize('publish', $termsVersion);
+        $scope = $this->documentScope($request);
+        $this->assertDocumentScope($termsVersion, $scope);
         abort_if($termsVersion->isPublished(), 422, 'This terms version has already been published.');
+        abort_if(
+            $scope === TermsVersion::SCOPE_WEBSITE
+                && $termsVersion->clauses()->doesntExist()
+                && ! $this->sourceFileIsClean($this->sourceFile($termsVersion)),
+            422,
+            'Add policy content or upload a clean source document before publishing.',
+        );
 
         $validated = $request->validate([
             'material' => ['required', 'boolean'],
@@ -285,10 +326,11 @@ final class TermsController extends Controller
             'reviewer_reference' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        DB::transaction(function () use ($request, $termsVersion, $validated): void {
+        DB::transaction(function () use ($request, $scope, $termsVersion, $validated): void {
             $publishedAt = now();
             $prior = TermsVersion::query()
                 ->published()
+                ->forDocument($scope)
                 ->whereKeyNot($termsVersion->getKey())
                 ->orderByDesc('published_at')
                 ->first();
@@ -302,7 +344,7 @@ final class TermsController extends Controller
             ])->save();
 
             $queued = 0;
-            if ($termsVersion->material && $prior instanceof TermsVersion) {
+            if ($scope === TermsVersion::SCOPE_PROPOSAL && $termsVersion->material && $prior instanceof TermsVersion) {
                 $expiresAt = $publishedAt->copy()->addDays($termsVersion->notice_period_days);
                 $queued = TermsAcceptance::query()
                     ->where('terms_version_id', $prior->getKey())
@@ -329,12 +371,13 @@ final class TermsController extends Controller
             ]);
         });
 
-        return to_route('admin.terms.preview', $termsVersion)->with('status', 'terms-published');
+        return to_route($this->routeName($scope, 'preview'), $termsVersion)->with('status', 'terms-published');
     }
 
     public function activateEnforcement(Request $request): RedirectResponse
     {
         Gate::authorize('publish', TermsVersion::class);
+        abort_unless($this->documentScope($request) === TermsVersion::SCOPE_PROPOSAL, 404);
 
         $latest = $this->gate->latestPublishedVersion();
         abort_unless($latest instanceof TermsVersion, 422, 'Publish a terms version before activating enforcement.');
@@ -362,8 +405,11 @@ final class TermsController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function versionPayload(TermsVersion $version, bool $includeSourcePreview = false): array
-    {
+    private function versionPayload(
+        TermsVersion $version,
+        string $scope,
+        bool $includeSourcePreview = false,
+    ): array {
         return [
             'id' => $version->id,
             'version' => $version->version,
@@ -376,8 +422,16 @@ final class TermsController extends Controller
             'source_file' => $this->sourceFilePayload($version),
             'source_download_url' => ! $this->sourceFileIsClean($this->sourceFile($version))
                 ? null
-                : route('admin.terms.source-file.download', $version, absolute: false),
+                : route($this->routeName($scope, 'source-file.download'), $version, absolute: false),
             'source_preview_html' => $includeSourcePreview ? $this->documents->sourcePreviewHtml($version) : null,
+            'urls' => [
+                'edit' => route($this->routeName($scope, 'edit'), $version, absolute: false),
+                'preview' => route($this->routeName($scope, 'preview'), $version, absolute: false),
+                'download' => route($this->routeName($scope, 'download'), $version, absolute: false),
+                'publish' => route($this->routeName($scope, 'publish.create'), $version, absolute: false),
+                'publish_submit' => route($this->routeName($scope, 'publish'), $version, absolute: false),
+                'source_file' => route($this->routeName($scope, 'source-file.store'), $version, absolute: false),
+            ],
             'clauses_count' => $version->clauses_count,
             'material_clauses_count' => $version->relationLoaded('clauses')
                 ? $version->clauses->where('material', true)->count()
@@ -418,14 +472,50 @@ final class TermsController extends Controller
         ];
     }
 
-    private function nextVersion(): string
+    /**
+     * @return array{label:string,index_url:string,store_url:string,enforcement_url:string|null}
+     */
+    private function workspacePayload(string $scope): array
     {
-        $versions = TermsVersion::query()->pluck('version');
+        return [
+            'label' => TermsVersion::documentLabel($scope),
+            'index_url' => route($this->routeName($scope, 'index'), absolute: false),
+            'store_url' => route($this->routeName($scope, 'store'), absolute: false),
+            'enforcement_url' => $scope === TermsVersion::SCOPE_PROPOSAL
+                ? route('admin.terms.enforcement.activate', absolute: false)
+                : null,
+        ];
+    }
+
+    private function nextVersion(string $scope): string
+    {
+        $versions = TermsVersion::query()->forDocument($scope)->pluck('version');
         $next = $versions
             ->map(fn (string $version): int => (int) preg_replace('/\D+/', '', $version))
             ->max() + 1;
 
         return (string) max(1, $next);
+    }
+
+    private function documentScope(Request $request): string
+    {
+        return str_starts_with((string) $request->route()?->getName(), 'admin.terms-and-privacy.')
+            ? TermsVersion::SCOPE_WEBSITE
+            : TermsVersion::SCOPE_PROPOSAL;
+    }
+
+    private function routeName(string $scope, string $suffix): string
+    {
+        $prefix = $scope === TermsVersion::SCOPE_WEBSITE
+            ? 'admin.terms-and-privacy'
+            : 'admin.terms';
+
+        return $prefix.'.'.$suffix;
+    }
+
+    private function assertDocumentScope(TermsVersion $termsVersion, string $scope): void
+    {
+        abort_unless($termsVersion->document_scope === $scope, 404);
     }
 
     /**

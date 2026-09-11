@@ -72,7 +72,10 @@ final class IdeaValidationCheckout
                     ]);
                 }
 
-                $terms = $this->terms->latestPublishedVersion(withClauses: true);
+                $terms = $this->terms->latestPublishedVersion(
+                    withClauses: true,
+                    documentScope: TermsVersion::SCOPE_WEBSITE,
+                );
                 if (! $terms instanceof TermsVersion || (string) $terms->getKey() !== $input['terms_version_id']) {
                     throw ValidationException::withMessages([
                         'terms_version_id' => 'The Terms and Privacy Policy has changed or is not published. Review the current policy before continuing.',

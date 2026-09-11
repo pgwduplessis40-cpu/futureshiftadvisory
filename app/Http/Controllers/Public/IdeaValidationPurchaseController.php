@@ -38,7 +38,10 @@ final class IdeaValidationPurchaseController extends Controller
             return redirect()->route('mfa.setup');
         }
 
-        $terms = $this->terms->latestPublishedVersion(withClauses: false);
+        $terms = $this->terms->latestPublishedVersion(
+            withClauses: false,
+            documentScope: TermsVersion::SCOPE_WEBSITE,
+        );
 
         return Inertia::render('public/idea-validation-purchase', [
             'state' => $purchase instanceof IdeaValidationPurchase
