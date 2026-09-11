@@ -64,21 +64,30 @@ export default function ValidateIdea({ offer }: { offer: Offer }) {
                 </div>
                 <div className="mt-10 rounded-lg border border-[var(--fs-sand)] bg-[var(--fs-linen)] p-6">
                     <h2 className="font-display text-xl text-[var(--fs-admiralty)]">
-                        Secure checkout is being connected
+                        Ready to validate your idea?
                     </h2>
                     <p className="mt-3 max-w-xl text-sm leading-relaxed text-[var(--fs-graphite)]">
-                        The page now shows the live Service Rates price and the
-                        exact account-to-validation journey. Card checkout is
-                        intentionally not simulated: it will only open once the
-                        Stripe purchase record and receipt flow are connected.
+                        Your card details are collected by Stripe. Future Shift
+                        Advisory stores the payment reference and receipt, not
+                        your card details.
                     </p>
-                    <Link
-                        href="/services/entrepreneur"
-                        className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-[var(--fs-admiralty)] hover:text-[var(--fs-pacific)]"
-                    >
-                        Back to founder services{' '}
-                        <ArrowRight className="h-4 w-4" />
-                    </Link>
+                    {price ? (
+                        <Link
+                            href="/validate-idea/purchase"
+                            className="mt-5 inline-flex items-center gap-2 rounded-md bg-[var(--fs-admiralty)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--fs-pacific)]"
+                        >
+                            Validate your idea — {price}
+                            <ArrowRight className="h-4 w-4" />
+                        </Link>
+                    ) : (
+                        <Link
+                            href="/services/entrepreneur"
+                            className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-[var(--fs-admiralty)] hover:text-[var(--fs-pacific)]"
+                        >
+                            Ask about Idea Validation{' '}
+                            <ArrowRight className="h-4 w-4" />
+                        </Link>
+                    )}
                 </div>
             </Section>
             <BackToTop />

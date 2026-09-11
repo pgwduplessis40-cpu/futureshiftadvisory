@@ -18,6 +18,17 @@ final class TwoFactorConfirmedResponse implements TwoFactorConfirmedResponseCont
             return new JsonResponse('', 200);
         }
 
+        if ($request->session()->pull('fsa.idea_validation_purchase_flow', false)) {
+            $user = $request->user();
+            $terms = app(TermsAcceptanceGate::class);
+
+            if ($user instanceof User && ($terms->requiresAcceptance($user) || $terms->hasDeclinedTermsSuspension($user))) {
+                return redirect()->route('terms.pending');
+            }
+
+            return redirect()->route('portal.entrepreneur.plan.show');
+        }
+
         if ($request->session()->pull('fsa.invite_flow', false)) {
             $user = $request->user();
             $terms = app(TermsAcceptanceGate::class);

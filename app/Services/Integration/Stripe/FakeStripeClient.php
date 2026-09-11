@@ -6,6 +6,8 @@ namespace App\Services\Integration\Stripe;
 
 use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Payments\DefinitivePaymentDecline;
+use App\Services\Payments\IdeaValidationPaymentIntent;
+use App\Services\Payments\IdeaValidationPaymentIntentRequest;
 use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeLookup;
@@ -21,6 +23,23 @@ final class FakeStripeClient implements StripeClient
 {
     /** @var array<string, PaymentChargeResult> */
     private array $charges = [];
+
+    public function createIdeaValidationPaymentIntent(IdeaValidationPaymentIntentRequest $request): IdeaValidationPaymentIntent
+    {
+        $hash = substr(hash('sha256', implode('|', [
+            $request->purchaseId,
+            $request->paymentId,
+            $request->amount,
+            $request->currency,
+        ])), 0, 16);
+
+        return new IdeaValidationPaymentIntent(
+            publishableKey: 'pk_test_fixture',
+            clientSecret: 'pi_fixture_'.$hash.'_secret_fixture',
+            paymentIntentRef: 'pi_fixture_'.$hash,
+            fixture: true,
+        );
+    }
 
     public function createSetupIntent(PaymentAuthorityRequest $request): PaymentSetupIntent
     {

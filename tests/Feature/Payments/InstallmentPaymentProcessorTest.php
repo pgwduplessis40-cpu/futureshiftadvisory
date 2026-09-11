@@ -21,6 +21,8 @@ use App\Models\User;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Payments\ClientBillingCode;
 use App\Services\Payments\Gateway;
+use App\Services\Payments\IdeaValidationPaymentIntent;
+use App\Services\Payments\IdeaValidationPaymentIntentRequest;
 use App\Services\Payments\InstallmentPaymentProcessor;
 use App\Services\Payments\InstallmentScheduleBuilder;
 use App\Services\Payments\PaymentAuthorityRequest;
@@ -28,6 +30,8 @@ use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
+use App\Services\Payments\PaymentRefundRequest;
+use App\Services\Payments\PaymentRefundResult;
 use App\Services\Payments\PaymentSetupIntent;
 use App\Services\Payments\PaymentWebhookReconciler;
 use App\Services\Pdf\PdfRenderer;
@@ -713,6 +717,11 @@ final class InstallmentPaymentProcessorTest extends TestCase
                 public PaymentChargeLookup $lookup,
             ) {}
 
+            public function createIdeaValidationPaymentIntent(IdeaValidationPaymentIntentRequest $request): IdeaValidationPaymentIntent
+            {
+                throw new \LogicException('Idea Validation checkout is not used by this payment processor fixture.');
+            }
+
             public function createSetupIntent(PaymentAuthorityRequest $request): PaymentSetupIntent
             {
                 return new PaymentSetupIntent(
@@ -734,6 +743,11 @@ final class InstallmentPaymentProcessorTest extends TestCase
             public function charge(PaymentChargeRequest $request): PaymentChargeResult
             {
                 return $this->charge;
+            }
+
+            public function refund(PaymentRefundRequest $request): PaymentRefundResult
+            {
+                throw new \LogicException('Refunds are not used by this payment processor fixture.');
             }
 
             public function findCharge(?string $gatewayRef, string $idempotencyKey, string $paymentId): PaymentChargeLookup

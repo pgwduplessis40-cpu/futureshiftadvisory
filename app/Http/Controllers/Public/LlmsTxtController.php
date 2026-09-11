@@ -64,6 +64,7 @@ class LlmsTxtController extends Controller
             ? ' Current price: $'.number_format($ideaOffer['amount_ex_gst'], 2).' + GST.'
             : '';
         $lines[] = "- [Validate your idea]({$base}/validate-idea): Idea Validation information, current rate, and advisor review within 24 hours.{$ideaPrice}";
+        $lines[] = "- [Terms and Privacy Policy]({$base}/terms-and-privacy): The current published customer policy, also available as structured JSON at {$base}/terms-and-privacy.json.";
         $lines[] = "- [About]({$base}/about): The practice's principles and the Principal Advisor's background.";
         $lines[] = "- [FAQ]({$base}/faq): Answers on engagements, fees, security, not-for-profits, and use of AI.";
         $lines[] = "- [Contact]({$base}/contact): Enquiry form to book a discovery call.";

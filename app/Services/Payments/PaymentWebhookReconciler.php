@@ -7,6 +7,7 @@ namespace App\Services\Payments;
 use App\Models\Payment;
 use App\Models\PaymentSchedule;
 use App\Models\PaymentWebhookEvent;
+use App\Services\Entrepreneurs\IdeaValidationCheckout;
 use App\Services\Audit\AuditWriter;
 use App\Support\RequestContext;
 use Illuminate\Support\Carbon;
@@ -20,6 +21,7 @@ final class PaymentWebhookReconciler
         private readonly AuditWriter $audit,
         private readonly RequestContext $context,
         private readonly InstallmentPaymentProcessor $installments,
+        private readonly IdeaValidationCheckout $ideaValidationCheckout,
     ) {}
 
     /**
@@ -158,7 +160,14 @@ final class PaymentWebhookReconciler
             $this->advanceSchedule($payment->paymentSchedule, $processedAt);
         }
 
-        $receipt = $this->receipts->create($payment->refresh());
+        $ideaValidationPurchase = $this->ideaValidationCheckout->settleFromWebhook(
+            $payment->refresh(),
+            $this->scalarString($intent['id'] ?? null) ?? (string) $payment->gateway_ref,
+            $processedAt,
+        );
+        $receipt = $ideaValidationPurchase instanceof \App\Models\IdeaValidationPurchase
+            ? $payment->refresh()->receipt()->firstOrFail()
+            : $this->receipts->create($payment->refresh());
 
         $this->audit->record('payment.webhook_reconciled', subject: $payment, after: [
             'gateway' => 'stripe',
@@ -166,6 +175,7 @@ final class PaymentWebhookReconciler
             'event_type' => $event->event_type,
             'status' => Payment::STATUS_SUCCEEDED,
             'receipt_id' => $receipt->getKey(),
+            'idea_validation_purchase_id' => $ideaValidationPurchase?->getKey(),
         ]);
 
         return $this->finish($event, PaymentWebhookEvent::STATUS_PROCESSED, $payment);

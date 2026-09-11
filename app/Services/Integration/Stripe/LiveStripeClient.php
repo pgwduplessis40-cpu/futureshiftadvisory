@@ -11,6 +11,8 @@ use App\Services\Integration\Resilience\ResilientHttp;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Payments\AmbiguousPaymentOutcome;
 use App\Services\Payments\DefinitivePaymentDecline;
+use App\Services\Payments\IdeaValidationPaymentIntent;
+use App\Services\Payments\IdeaValidationPaymentIntentRequest;
 use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeLookup;
@@ -29,6 +31,52 @@ final class LiveStripeClient implements StripeClient
         private readonly IntegrationActivationResolver $live,
         private readonly IntegrationCredentials $credentials,
     ) {}
+
+    public function createIdeaValidationPaymentIntent(IdeaValidationPaymentIntentRequest $request): IdeaValidationPaymentIntent
+    {
+        $secret = $this->secret();
+        $publishableKey = $this->publishableKey();
+
+        $result = $this->http->request(
+            method: 'POST',
+            service: 'stripe',
+            endpoint: $this->endpoint('/v1/payment_intents'),
+            options: [
+                'headers' => $this->headers($secret, $request->idempotencyKey),
+                'form_params' => $this->params([
+                    'amount' => (int) round(((float) $request->amount) * 100),
+                    'currency' => strtolower($request->currency),
+                    'description' => 'Future Shift Advisory Idea Validation',
+                    'receipt_email' => $request->customerEmail,
+                    'automatic_payment_methods' => [
+                        'enabled' => 'true',
+                    ],
+                    'metadata' => $this->metadata([
+                        'purchase_id' => $request->purchaseId,
+                        'payment_id' => $request->paymentId,
+                        'client_id' => $request->clientId,
+                        'purchase_type' => 'idea_validation',
+                    ], $request->metadata),
+                ]),
+            ],
+        );
+
+        if (! $result->successful() || $result->fromFallback || ! is_array($result->data)) {
+            throw new PaymentGatewayException($this->stripeFailureMessage($result->data, 'Stripe checkout could not be started.'));
+        }
+
+        $clientSecret = (string) data_get($result->data, 'client_secret', '');
+        $paymentIntentRef = (string) data_get($result->data, 'id', '');
+        if ($clientSecret === '' || $paymentIntentRef === '') {
+            throw new PaymentGatewayException('Stripe checkout did not return the details needed to collect payment.');
+        }
+
+        return new IdeaValidationPaymentIntent(
+            publishableKey: $publishableKey,
+            clientSecret: $clientSecret,
+            paymentIntentRef: $paymentIntentRef,
+        );
+    }
 
     public function createSetupIntent(PaymentAuthorityRequest $request): PaymentSetupIntent
     {

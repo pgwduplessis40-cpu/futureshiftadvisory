@@ -69,7 +69,7 @@ final class TermsController extends Controller
 
             $draft = TermsVersion::query()->create([
                 'version' => $this->nextVersion(),
-                'title' => $source?->title ?? 'Future Shift Advisory Terms and Conditions',
+                'title' => $source?->title ?? 'Future Shift Advisory Terms and Privacy Policy',
                 'material' => false,
                 'notice_period_days' => $source?->notice_period_days ?? 30,
                 'reviewer_reference' => $source?->reviewer_reference,

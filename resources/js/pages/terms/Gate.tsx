@@ -82,7 +82,7 @@ export default function TermsGate({
 
     return (
         <>
-            <Head title="Terms and conditions" />
+            <Head title="Terms and Privacy Policy" />
 
             <div className="mx-auto flex h-[calc(100vh-5rem)] w-full max-w-5xl flex-col gap-4 p-4 md:p-6">
                 <header className="flex flex-wrap items-start justify-between gap-4">

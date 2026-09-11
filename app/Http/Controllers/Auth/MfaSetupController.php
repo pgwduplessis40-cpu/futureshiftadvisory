@@ -38,9 +38,14 @@ final class MfaSetupController extends Controller
 
         if ($this->mfa->hasCompletedEnrolment($user)) {
             $inviteFlow = $request->session()->pull('fsa.invite_flow', false);
+            $ideaValidationPurchaseFlow = $request->session()->pull('fsa.idea_validation_purchase_flow', false);
 
             if ($inviteFlow && ($this->terms->requiresAcceptance($user) || $this->terms->hasDeclinedTermsSuspension($user))) {
                 return redirect()->route('terms.pending');
+            }
+
+            if ($ideaValidationPurchaseFlow) {
+                return redirect()->route('portal.entrepreneur.plan.show');
             }
 
             return redirect()->route('dashboard');

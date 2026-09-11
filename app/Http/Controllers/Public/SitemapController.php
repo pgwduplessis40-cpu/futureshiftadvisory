@@ -22,6 +22,7 @@ class SitemapController extends Controller
             '/services' => ['monthly', '0.9'],
             '/services/entrepreneur' => ['monthly', '0.8'],
             '/validate-idea' => ['monthly', '0.8'],
+            '/terms-and-privacy' => ['monthly', '0.4'],
             '/about' => ['monthly', '0.7'],
             '/faq' => ['monthly', '0.6'],
             '/contact' => ['yearly', '0.8'],

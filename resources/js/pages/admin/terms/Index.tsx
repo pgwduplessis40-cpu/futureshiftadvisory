@@ -26,7 +26,7 @@ type Props = {
 export default function TermsIndex({ versions, enforcement }: Props) {
     return (
         <>
-            <Head title="Terms versions" />
+            <Head title="Terms and Privacy Policy" />
 
             <div className="space-y-6">
                 <div className="flex items-center justify-between gap-4">
@@ -36,7 +36,7 @@ export default function TermsIndex({ versions, enforcement }: Props) {
                             Version history
                         </div>
                         <h1 className="mt-1 text-xl font-semibold">
-                            Terms versions
+                            Terms and Privacy Policy
                         </h1>
                     </div>
                     <Button
@@ -59,7 +59,7 @@ export default function TermsIndex({ versions, enforcement }: Props) {
                             <div>
                                 <div className="flex flex-wrap items-center gap-2">
                                     <h2 className="text-sm font-medium">
-                                        T&C enforcement
+                                        Terms acceptance enforcement
                                     </h2>
                                     <Badge
                                         variant={
@@ -77,8 +77,8 @@ export default function TermsIndex({ versions, enforcement }: Props) {
                                     {enforcement.active
                                         ? `Compulsory acceptance was activated${enforcement.activated_at ? ` on ${formatDate(enforcement.activated_at)}` : ''}. It cannot be deactivated.`
                                         : enforcement.latest_published_version
-                                          ? `Published terms are available, but customers can keep testing until enforcement is activated. Latest published version: ${enforcement.latest_published_version.version}.`
-                                          : 'Publish a terms version before activating compulsory acceptance.'}
+                                          ? `A published Terms and Privacy Policy is available, but customers can keep testing until enforcement is activated. Latest published version: ${enforcement.latest_published_version.version}.`
+                                          : 'Publish a Terms and Privacy Policy version before activating compulsory acceptance.'}
                                 </p>
                             </div>
                         </div>

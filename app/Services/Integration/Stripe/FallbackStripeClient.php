@@ -8,6 +8,8 @@ use App\Services\Integration\Exceptions\IntegrationDisabledException;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentAuthorityToken;
+use App\Services\Payments\IdeaValidationPaymentIntent;
+use App\Services\Payments\IdeaValidationPaymentIntentRequest;
 use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
@@ -21,6 +23,18 @@ final class FallbackStripeClient implements StripeClient
         private readonly LiveStripeClient $live,
         private readonly FakeStripeClient $fake,
     ) {}
+
+    public function createIdeaValidationPaymentIntent(IdeaValidationPaymentIntentRequest $request): IdeaValidationPaymentIntent
+    {
+        if ($this->usesFixtures()) {
+            return $this->fake->createIdeaValidationPaymentIntent($request);
+        }
+
+        // A public purchase must never fall back to a simulated payment in a
+        // live environment. If Stripe is unavailable, checkout must fail
+        // clearly instead of showing a test-only completion path.
+        return $this->live->createIdeaValidationPaymentIntent($request);
+    }
 
     public function createSetupIntent(PaymentAuthorityRequest $request): PaymentSetupIntent
     {

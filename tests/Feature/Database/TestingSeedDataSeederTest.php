@@ -86,6 +86,7 @@ final class TestingSeedDataSeederTest extends TestCase
             'bulk_communications',
             'entrepreneur_profiles',
             'idea_validations',
+            'idea_validation_purchases',
             'advisor_client_transfer_requests',
         ];
 
@@ -444,11 +445,22 @@ final class TestingSeedDataSeederTest extends TestCase
         $cancellation = DB::table('entrepreneur_profiles')
             ->where('email', 'seed.idea.cancel@futureshiftadvisory.test')
             ->first();
+        $checkout = DB::table('idea_validation_purchases')
+            ->join('users', 'users.id', '=', 'idea_validation_purchases.user_id')
+            ->where('users.email', 'seed.idea.checkout@futureshiftadvisory.test')
+            ->select('idea_validation_purchases.*')
+            ->first();
 
         $this->assertNotNull($starter);
         $this->assertNotNull($review);
         $this->assertNotNull($approved);
         $this->assertNotNull($cancellation);
+        $this->assertNotNull($checkout, sprintf(
+            'Expected one pending Idea Validation checkout fixture, found %d. Current Idea Validation service rates: %d. Published terms versions: %d.',
+            DB::table('idea_validation_purchases')->count(),
+            DB::table('service_rate_packages')->where('package_scope', ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION)->count(),
+            DB::table('terms_versions')->whereNotNull('published_at')->count(),
+        ));
         $this->assertSame('idea_validation', $starter->stage);
         $this->assertSame('idea_validation', $review->stage);
         $this->assertSame('building_phase1', $approved->stage);
@@ -456,6 +468,8 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertSame('idea_validation', $review->intended_package_scope);
         $this->assertSame('idea_validation', $approved->intended_package_scope);
         $this->assertSame('idea_validation', $cancellation->intended_package_scope);
+        $this->assertSame('payment_pending', $checkout->status);
+        $this->assertNull($checkout->payment_id);
         $this->assertDatabaseMissing('idea_validations', [
             'entrepreneur_profile_id' => $starter->id,
         ]);

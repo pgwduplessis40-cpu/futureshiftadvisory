@@ -240,7 +240,7 @@ const ratingFrameworkNavItem: NavItem = {
 };
 
 const termsNavItem: NavItem = {
-    title: "T&C's",
+    title: 'Terms & Privacy',
     href: '/admin/terms',
     icon: FileText,
 };
