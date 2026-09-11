@@ -28,7 +28,22 @@ final class IdeaValidationPurchase extends Model
 
     public const STATUS_PAYMENT_FAILED = 'payment_failed';
 
-    protected $guarded = [];
+    /**
+     * The only attributes accepted when a purchase record is registered.
+     *
+     * The checkout service owns every later payment, price, and activation
+     * transition via forceFill(), so browser input can never set them.
+     *
+     * @var list<string>
+     */
+    protected $fillable = [
+        'user_id',
+        'client_id',
+        'advisor_id',
+        'terms_version_id',
+        'status',
+        'metadata',
+    ];
 
     protected $casts = [
         'email_verified_at' => 'datetime',

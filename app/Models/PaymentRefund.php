@@ -18,7 +18,26 @@ final class PaymentRefund extends Model
 
     public const STATUS_FAILED = 'failed';
 
-    protected $guarded = [];
+    /**
+     * The cancellation service creates a refund request with these values.
+     *
+     * Gateway results and refund state changes are service-owned transitions
+     * and are applied with forceFill(), rather than accepting request input.
+     *
+     * @var list<string>
+     */
+    protected $fillable = [
+        'client_id',
+        'service_activation_id',
+        'requested_by_user_id',
+        'gateway',
+        'payment_reference',
+        'amount',
+        'currency',
+        'status',
+        'idempotency_key',
+        'metadata',
+    ];
 
     protected $casts = [
         'amount' => 'decimal:2',
