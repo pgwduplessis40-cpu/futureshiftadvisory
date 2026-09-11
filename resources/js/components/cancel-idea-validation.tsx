@@ -59,7 +59,7 @@ export default function CancelIdeaValidation({
 
     const amount = `${details.currency ?? 'NZD'} ${Number(
         details.refund_amount ?? 0,
-    ).toLocaleString(undefined, {
+    ).toLocaleString('en-NZ', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     })}`;
@@ -114,8 +114,12 @@ export default function CancelIdeaValidation({
                         >
                             {({ processing, errors }) => (
                                 <>
-                                    <label className="flex gap-3 rounded-md border bg-background p-3 text-sm">
+                                    <label
+                                        htmlFor="confirm-idea-validation-cancellation"
+                                        className="flex gap-3 rounded-md border bg-background p-3 text-sm"
+                                    >
                                         <input
+                                            id="confirm-idea-validation-cancellation"
                                             type="checkbox"
                                             name="confirm_cancellation"
                                             value="yes"

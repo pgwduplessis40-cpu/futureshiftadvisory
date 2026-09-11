@@ -184,8 +184,12 @@ function AccountForm({ terms }: { terms: Terms | null }) {
                                     className={inputClass}
                                 />
                             </Field>
-                            <label className="flex items-start gap-3 rounded-md border border-[var(--fs-sand)] bg-[var(--fs-linen)] p-4 text-sm leading-relaxed text-[var(--fs-graphite)]">
+                            <label
+                                htmlFor="idea-validation-terms-accepted"
+                                className="flex items-start gap-3 rounded-md border border-[var(--fs-sand)] bg-[var(--fs-linen)] p-4 text-sm leading-relaxed text-[var(--fs-graphite)]"
+                            >
                                 <input
+                                    id="idea-validation-terms-accepted"
                                     name="terms_accepted"
                                     type="checkbox"
                                     value="1"
