@@ -481,8 +481,8 @@ export function RecommendationDraft({
             <p className="mt-2 text-xs text-muted-foreground">
                 Approval creates a traceable development item. It cannot change
                 the live product automatically. A delivery owner, target,
-                baseline, and rollback plan are required before development
-                can start.
+                baseline, and rollback plan are required before development can
+                start.
             </p>
             <div className="mt-3 grid gap-2">
                 <InputField label="Title" value={title} onChange={setTitle} />
