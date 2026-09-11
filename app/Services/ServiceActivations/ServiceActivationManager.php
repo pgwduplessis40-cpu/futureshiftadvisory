@@ -14,7 +14,6 @@ use App\Models\ConflictDeclaration;
 use App\Models\DdEngagement;
 use App\Models\EntrepreneurProfile;
 use App\Models\IntegrationScope;
-use App\Models\LearningUpdate;
 use App\Models\Message;
 use App\Models\Payment;
 use App\Models\Proposal;
@@ -26,7 +25,6 @@ use App\Services\Audit\AuditWriter;
 use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\Dd\ClientCapability;
 use App\Services\Goals\GoalTracker;
-use App\Services\Learning\LayerCadenceRegistry;
 use App\Services\Messaging\MessageThreadService;
 use App\Services\Plans\PlanBuilder as SharedPlanBuilder;
 use App\Support\RequestContext;
@@ -174,11 +172,6 @@ final class ServiceActivationManager
 
         $this->notifyAdvisorOfRequest($activation, $advisor);
 
-        $this->queueLearningSafely($activation, 'requested', [
-            'status' => $activation->status,
-            'advisor_assigned' => $advisor instanceof User,
-        ]);
-
         return $activation;
     }
 
@@ -234,11 +227,6 @@ final class ServiceActivationManager
             'fixed_fee' => $snapshot['fixed_fee'] ?? null,
             'payment_split' => $snapshot['payment_split'] ?? null,
             'quote_context' => $snapshot['quote_context'] ?? null,
-            'billing_model' => $package->billing_model,
-        ]);
-
-        $this->queueLearningSafely($activation->refresh(), 'package_selected', [
-            'package_id' => $package->getKey(),
             'billing_model' => $package->billing_model,
         ]);
 
@@ -331,11 +319,6 @@ final class ServiceActivationManager
             'payment_split' => $split,
         ]);
 
-        $this->queueLearningSafely($activation->refresh(), 'payment_completed', [
-            'package_snapshot' => $activation->selected_package_snapshot,
-            'payment_reference' => $reference,
-        ]);
-
         if ($activation->service_type === ServiceActivation::SERVICE_INTEGRATION_SCOPING && ! $requiresBankTransfer) {
             return $this->activateScopingFromPackagePayment($activation->refresh(), $actor);
         }
@@ -390,11 +373,6 @@ final class ServiceActivationManager
             'balance_reference' => $reference,
             'payment_status' => ServiceActivation::PAYMENT_PAID,
             'payment_split' => $split,
-        ]);
-
-        $this->queueLearningSafely($activation->refresh(), 'balance_received', [
-            'package_snapshot' => $activation->selected_package_snapshot,
-            'balance_reference' => $reference,
         ]);
 
         if ($activation->service_type === ServiceActivation::SERVICE_INTEGRATION_SCOPING) {
@@ -577,12 +555,6 @@ final class ServiceActivationManager
 
             return $activation->refresh();
         });
-
-        $this->queueLearningSafely($activation, 'accepted', [
-            'package_snapshot' => $activation->selected_package_snapshot,
-            'workspace_created' => $activation->service_type !== ServiceActivation::SERVICE_DD_PLAN_BUDGET,
-            'plan_budget_entitlement_activated' => $activation->service_type === ServiceActivation::SERVICE_DD_PLAN_BUDGET,
-        ]);
 
         return $activation;
     }
@@ -1351,81 +1323,5 @@ final class ServiceActivationManager
             ServiceRatePackage::SERVICE_ENTREPRENEUR,
             (string) ($snapshot['package_scope'] ?? ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO),
         );
-    }
-
-    /**
-     * @param  array<string, mixed>  $evidence
-     */
-    private function queueLearningSafely(ServiceActivation $activation, string $event, array $evidence): void
-    {
-        try {
-            $this->context->withSystemContext(fn () => $this->queueLearning($activation, $event, $evidence));
-        } catch (Throwable $exception) {
-            report($exception);
-        }
-    }
-
-    /**
-     * @param  array<string, mixed>  $evidence
-     */
-    private function queueLearning(ServiceActivation $activation, string $event, array $evidence): void
-    {
-        $signalKey = hash('sha256', implode('|', [
-            'service_activation',
-            $activation->getKey(),
-            $event,
-            now()->toDateString(),
-        ]));
-
-        $exists = LearningUpdate::query()
-            ->where('layer_id', LayerCadenceRegistry::LAYER_SERVICE_ACTIVATION)
-            ->where('source->signal_key', $signalKey)
-            ->exists();
-
-        if ($exists) {
-            return;
-        }
-
-        LearningUpdate::query()->create([
-            'layer_id' => LayerCadenceRegistry::LAYER_SERVICE_ACTIVATION,
-            'source' => [
-                'type' => 'service_activation',
-                'signal_key' => $signalKey,
-                'service_activation_id' => $activation->getKey(),
-                'event' => $event,
-                'service_type' => $activation->service_type,
-                'rollup_key' => 'service_activation:review_service_activation_flow:client_portal_workspace_activation',
-                'rollup_label' => 'Client portal workspace activation',
-            ],
-            'summary' => 'Service activation learning signal captured for '.$activation->clientLabel().' at '.$event.'.',
-            'proposed_change' => [
-                'action' => 'review_service_activation_flow',
-                'automatic_application' => false,
-                'requires_approval' => true,
-                'candidate_surfaces' => [
-                    'service_start_cards',
-                    'advisor_package_selection',
-                    'client_fee_acceptance',
-                    'cross_service_opportunity_analytics',
-                ],
-            ],
-            'impact_scope' => [
-                'module' => 'service_activation',
-                'surface' => 'client_portal_workspace_activation',
-                'client_id' => $activation->client_id,
-                'governance_gate' => 'advisor_or_admin_review_required',
-                'direct_write_policy' => 'no_auto_pricing_scope_or_advice_changes',
-                'values_guardrail' => 'honest_accurate_truthful_unbiased',
-            ],
-            'clients_affected' => 1,
-            'magnitude' => $event === 'accepted' ? 'medium' : 'low',
-            'confidence' => 0.7,
-            'evidence' => [
-                ...$evidence,
-                'client_specific_evidence_requires_advisor_review' => true,
-                'client_pii_excluded_from_summary' => true,
-            ],
-            'status' => LearningUpdate::STATUS_DETECTED,
-        ]);
     }
 }

@@ -17,6 +17,10 @@ export type LearningRecommendation = RecommendationDefaults & {
     learning_update_id: string;
     acceptance_criteria: string[];
     regression_journeys: string[];
+    delivery_owner: string | null;
+    delivery_target: string | null;
+    baseline_metrics: string[];
+    rollback_plan: string | null;
     status: string;
     approved_at: string | null;
     development_reference: string | null;
@@ -147,7 +151,8 @@ export function RecommendationDeliveryPanel({
                     </h2>
                     <p className="text-xs text-muted-foreground">
                         An approved recommendation is only addressed after it
-                        has a development reference, a release reference, and
+                        has a delivery owner, target, baseline, rollback plan,
+                        development reference, release reference, and
                         verification evidence.
                     </p>
                 </div>
@@ -238,6 +243,18 @@ function RecommendationDeliveryItem({
     const [releaseReference, setReleaseReference] = useState(
         recommendation.release_reference ?? '',
     );
+    const [deliveryOwner, setDeliveryOwner] = useState(
+        recommendation.delivery_owner ?? '',
+    );
+    const [deliveryTarget, setDeliveryTarget] = useState(
+        recommendation.delivery_target ?? '',
+    );
+    const [baselineMetrics, setBaselineMetrics] = useState(
+        recommendation.baseline_metrics.join('\n'),
+    );
+    const [rollbackPlan, setRollbackPlan] = useState(
+        recommendation.rollback_plan ?? '',
+    );
     const [verificationNotes, setVerificationNotes] = useState(
         recommendation.verification_notes ?? '',
     );
@@ -246,6 +263,10 @@ function RecommendationDeliveryItem({
         router.patch(recommendation.delivery_url, {
             status,
             development_reference: developmentReference || null,
+            delivery_owner: deliveryOwner || null,
+            delivery_target: deliveryTarget || null,
+            baseline_metrics: lines(baselineMetrics),
+            rollback_plan: rollbackPlan || null,
             release_reference: releaseReference || null,
             verification_notes: verificationNotes || null,
             regression_journeys: recommendation.regression_journeys,
@@ -321,6 +342,50 @@ function RecommendationDeliveryItem({
                             }
                         />
                     </label>
+                    <label className="grid gap-1 text-xs text-muted-foreground">
+                        Delivery owner
+                        <input
+                            className="h-9 rounded-md border bg-background px-3 text-sm text-foreground"
+                            value={deliveryOwner}
+                            placeholder="Named accountable owner"
+                            onChange={(event) =>
+                                setDeliveryOwner(event.target.value)
+                            }
+                        />
+                    </label>
+                    <label className="grid gap-1 text-xs text-muted-foreground">
+                        Delivery target
+                        <input
+                            className="h-9 rounded-md border bg-background px-3 text-sm text-foreground"
+                            value={deliveryTarget}
+                            placeholder="Release, sprint, or target date"
+                            onChange={(event) =>
+                                setDeliveryTarget(event.target.value)
+                            }
+                        />
+                    </label>
+                    <label className="grid gap-1 text-xs text-muted-foreground sm:col-span-2">
+                        Baseline metrics (one per line)
+                        <textarea
+                            className="min-h-16 rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                            value={baselineMetrics}
+                            placeholder="Current completion rate: 63%"
+                            onChange={(event) =>
+                                setBaselineMetrics(event.target.value)
+                            }
+                        />
+                    </label>
+                    <label className="grid gap-1 text-xs text-muted-foreground sm:col-span-2">
+                        Rollback plan
+                        <textarea
+                            className="min-h-16 rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                            value={rollbackPlan}
+                            placeholder="How this change will be safely reverted if evidence regresses"
+                            onChange={(event) =>
+                                setRollbackPlan(event.target.value)
+                            }
+                        />
+                    </label>
                     {status === 'released' ||
                     recommendation.status === 'released' ? (
                         <label className="grid gap-1 text-xs text-muted-foreground">
@@ -383,6 +448,10 @@ export function RecommendationDraft({
     );
     const [acceptanceCriteria, setAcceptanceCriteria] = useState('');
     const [regressionJourneys, setRegressionJourneys] = useState('');
+    const [deliveryOwner, setDeliveryOwner] = useState('');
+    const [deliveryTarget, setDeliveryTarget] = useState('');
+    const [baselineMetrics, setBaselineMetrics] = useState('');
+    const [rollbackPlan, setRollbackPlan] = useState('');
 
     function submit() {
         router.post(
@@ -396,6 +465,10 @@ export function RecommendationDraft({
                 recommendation_impact: recommendationImpact,
                 acceptance_criteria: lines(acceptanceCriteria),
                 regression_journeys: lines(regressionJourneys),
+                delivery_owner: deliveryOwner || null,
+                delivery_target: deliveryTarget || null,
+                baseline_metrics: lines(baselineMetrics),
+                rollback_plan: rollbackPlan || null,
             },
         );
     }
@@ -407,7 +480,9 @@ export function RecommendationDraft({
             </summary>
             <p className="mt-2 text-xs text-muted-foreground">
                 Approval creates a traceable development item. It cannot change
-                the live product automatically.
+                the live product automatically. A delivery owner, target,
+                baseline, and rollback plan are required before development
+                can start.
             </p>
             <div className="mt-3 grid gap-2">
                 <InputField label="Title" value={title} onChange={setTitle} />
@@ -445,6 +520,26 @@ export function RecommendationDraft({
                     label="Regression journeys to verify (one per line)"
                     value={regressionJourneys}
                     onChange={setRegressionJourneys}
+                />
+                <InputField
+                    label="Delivery owner"
+                    value={deliveryOwner}
+                    onChange={setDeliveryOwner}
+                />
+                <InputField
+                    label="Delivery target"
+                    value={deliveryTarget}
+                    onChange={setDeliveryTarget}
+                />
+                <TextAreaField
+                    label="Baseline metrics (one per line)"
+                    value={baselineMetrics}
+                    onChange={setBaselineMetrics}
+                />
+                <TextAreaField
+                    label="Rollback plan"
+                    value={rollbackPlan}
+                    onChange={setRollbackPlan}
                 />
                 <Button type="button" size="sm" onClick={submit}>
                     Save recommendation for approval

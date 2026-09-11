@@ -12,6 +12,7 @@ use App\Services\Learning\ApprovalFlow;
 use App\Services\Learning\LearningRecommendationWorkflow;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -46,6 +47,10 @@ final class LearningRecommendationWorkflowTest extends TestCase
             'recommendation_impact' => 'Scores and advisor advice become more evidence-aligned without changing valid plan content.',
             'acceptance_criteria' => ['Criterion uses calibrated wording.', 'Bias detection regression test passes.'],
             'regression_journeys' => ['Entrepreneur plan assessment', 'Advisor scoring review'],
+            'delivery_owner' => 'Quality engineering',
+            'delivery_target' => 'Next scheduled release',
+            'baseline_metrics' => ['Flagged language rate: 30%', 'Assessment completion rate: 92%'],
+            'rollback_plan' => 'Revert the prompt version and restore the preceding approved scoring policy.',
         ]);
 
         $this->assertSame(LearningRecommendation::STATUS_DRAFT, $recommendation->status);
@@ -55,16 +60,40 @@ final class LearningRecommendationWorkflowTest extends TestCase
         $this->assertSame(LearningRecommendation::STATUS_APPROVED, $recommendation->refresh()->status);
         $this->assertSame(LearningUpdate::STATUS_APPROVED, $update->refresh()->status);
         $this->assertCount(0, app(ApprovalFlow::class)->implementDue(now(), $admin));
+        $recommendation->forceFill([
+            'delivery_owner' => null,
+            'delivery_target' => null,
+            'baseline_metrics' => [],
+            'rollback_plan' => null,
+        ])->save();
+
+        try {
+            $workflow->updateDelivery($recommendation, $admin, [
+                'status' => LearningRecommendation::STATUS_IN_DEVELOPMENT,
+                'development_reference' => 'PR #123',
+                'delivery_owner' => 'Quality engineering',
+            ]);
+            $this->fail('Starting development without a target, baseline, and rollback plan should be blocked.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('delivery_target', $exception->errors());
+        }
 
         $workflow->updateDelivery($recommendation, $admin, [
             'status' => LearningRecommendation::STATUS_IN_DEVELOPMENT,
             'development_reference' => 'PR #123',
+            'delivery_owner' => 'Quality engineering',
+            'delivery_target' => 'Next scheduled release',
+            'baseline_metrics' => ['Flagged language rate: 30%', 'Assessment completion rate: 92%'],
+            'rollback_plan' => 'Revert the prompt version and restore the preceding approved scoring policy.',
         ]);
         $workflow->updateDelivery($recommendation->refresh(), $admin, [
             'status' => LearningRecommendation::STATUS_RELEASED,
             'release_reference' => 'deploy-production 1.0.165',
         ]);
         $this->assertStringContainsString('Calibrate praise language', $workflow->developerBrief());
+        $this->assertStringContainsString('Quality engineering', $workflow->developerBrief());
+        $this->assertStringContainsString('Flagged language rate: 30%', $workflow->developerBrief());
+        $this->assertStringContainsString('Revert the prompt version', $workflow->developerBrief());
         $workflow->updateDelivery($recommendation->refresh(), $admin, [
             'status' => LearningRecommendation::STATUS_VERIFIED,
             'verification_notes' => 'Assessment and advisor review regression journeys passed after deployment.',
@@ -153,6 +182,10 @@ final class LearningRecommendationWorkflowTest extends TestCase
             'recommendation_impact' => 'The prompt remains evidence-based and reviewable.',
             'acceptance_criteria' => ['Evidence remains visible to reviewers.'],
             'regression_journeys' => ['Financial analysis review'],
+            'delivery_owner' => 'Product operations',
+            'delivery_target' => 'Next release train',
+            'baseline_metrics' => ['Evidence coverage: 85%'],
+            'rollback_plan' => 'Restore the previous approved prompt and test fixture.',
         ]);
     }
 }

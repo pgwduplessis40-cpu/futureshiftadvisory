@@ -23,7 +23,7 @@ final class LearningRecommendationWorkflow
     ) {}
 
     /**
-     * @param  array{title:string,failure_shortfall:string,impact:string,impact_area:string,recommendation:string,recommendation_impact:string,acceptance_criteria?:array<int,string>|null,regression_journeys?:array<int,string>|null}  $input
+     * @param  array{title:string,failure_shortfall:string,impact:string,impact_area:string,recommendation:string,recommendation_impact:string,acceptance_criteria?:array<int,string>|null,regression_journeys?:array<int,string>|null,delivery_owner?:?string,delivery_target?:?string,baseline_metrics?:array<int,string>|null,rollback_plan?:?string}  $input
      */
     public function draft(LearningUpdate $update, User $actor, array $input): LearningRecommendation
     {
@@ -51,6 +51,10 @@ final class LearningRecommendationWorkflow
                 'recommendation_impact' => $input['recommendation_impact'],
                 'acceptance_criteria' => $input['acceptance_criteria'] ?? [],
                 'regression_journeys' => $input['regression_journeys'] ?? [],
+                'delivery_owner' => $this->stringInput($input['delivery_owner'] ?? null),
+                'delivery_target' => $this->stringInput($input['delivery_target'] ?? null),
+                'baseline_metrics' => $input['baseline_metrics'] ?? [],
+                'rollback_plan' => $this->stringInput($input['rollback_plan'] ?? null),
                 'evidence' => $this->evidenceFor($locked),
                 'status' => LearningRecommendation::STATUS_DRAFT,
             ]);
@@ -129,7 +133,7 @@ final class LearningRecommendationWorkflow
     }
 
     /**
-     * @param  array{status:string,development_reference?:?string,release_reference?:?string,verification_notes?:?string,regression_journeys?:array<int,string>|null}  $input
+     * @param  array{status:string,development_reference?:?string,release_reference?:?string,verification_notes?:?string,regression_journeys?:array<int,string>|null,delivery_owner?:?string,delivery_target?:?string,baseline_metrics?:array<int,string>|null,rollback_plan?:?string}  $input
      */
     public function updateDelivery(LearningRecommendation $recommendation, User $actor, array $input): LearningRecommendation
     {
@@ -142,8 +146,24 @@ final class LearningRecommendationWorkflow
             $releaseReference = $this->stringInput($input['release_reference'] ?? $locked->release_reference);
             $verificationNotes = $this->stringInput($input['verification_notes'] ?? $locked->verification_notes);
             $regressionJourneys = $input['regression_journeys'] ?? $locked->regression_journeys ?? [];
+            $deliveryOwner = $this->stringInput($input['delivery_owner'] ?? $locked->delivery_owner);
+            $deliveryTarget = $this->stringInput($input['delivery_target'] ?? $locked->delivery_target);
+            $baselineMetrics = $input['baseline_metrics'] ?? $locked->baseline_metrics ?? [];
+            $rollbackPlan = $this->stringInput($input['rollback_plan'] ?? $locked->rollback_plan);
             if ($status === LearningRecommendation::STATUS_IN_DEVELOPMENT && $developmentReference === null) {
                 throw ValidationException::withMessages(['development_reference' => 'Record the development issue, pull request, or commit before marking this recommendation in development.']);
+            }
+            if ($status === LearningRecommendation::STATUS_IN_DEVELOPMENT && $deliveryOwner === null) {
+                throw ValidationException::withMessages(['delivery_owner' => 'Assign a delivery owner before starting development.']);
+            }
+            if ($status === LearningRecommendation::STATUS_IN_DEVELOPMENT && $deliveryTarget === null) {
+                throw ValidationException::withMessages(['delivery_target' => 'Record the intended delivery target before starting development.']);
+            }
+            if ($status === LearningRecommendation::STATUS_IN_DEVELOPMENT && ! $this->hasListItems($baselineMetrics)) {
+                throw ValidationException::withMessages(['baseline_metrics' => 'Record at least one baseline metric before starting development.']);
+            }
+            if ($status === LearningRecommendation::STATUS_IN_DEVELOPMENT && $rollbackPlan === null) {
+                throw ValidationException::withMessages(['rollback_plan' => 'Record a rollback plan before starting development.']);
             }
             if ($status === LearningRecommendation::STATUS_RELEASED && $releaseReference === null) {
                 throw ValidationException::withMessages(['release_reference' => 'Record the deployment or version evidence before marking this recommendation released.']);
@@ -162,6 +182,10 @@ final class LearningRecommendationWorkflow
                 'release_reference' => $releaseReference,
                 'regression_journeys' => $regressionJourneys,
                 'verification_notes' => $verificationNotes,
+                'delivery_owner' => $deliveryOwner,
+                'delivery_target' => $deliveryTarget,
+                'baseline_metrics' => $baselineMetrics,
+                'rollback_plan' => $rollbackPlan,
             ];
             if ($status === LearningRecommendation::STATUS_RELEASED) {
                 $updates['released_at'] = $now;
@@ -181,6 +205,8 @@ final class LearningRecommendationWorkflow
                 'status' => $status,
                 'development_reference' => $locked->development_reference,
                 'release_reference' => $locked->release_reference,
+                'delivery_owner' => $locked->delivery_owner,
+                'delivery_target' => $locked->delivery_target,
                 'review_due_at' => $locked->review_due_at?->toIso8601String(),
             ]);
 
@@ -211,10 +237,10 @@ final class LearningRecommendationWorkflow
         $generatedAt ??= now();
         $recommendations = $this->activeRecommendations();
         $lines = [
-            '# Future Shift Advisory learning recommendations',
+            '# Future Shift Advisory developer delivery brief',
             '',
             'Generated: '.$generatedAt->toIso8601String(),
-            'This briefing contains only recommendations explicitly approved for development or already in the delivery path. It does not authorise production changes without normal review, tests, release gates, and rollback evidence.',
+            'This briefing contains only recommendations explicitly approved for development or already in the delivery path. It does not authorise product changes without normal review, tests, release gates, verification, and rollback evidence.',
             '',
         ];
 
@@ -228,15 +254,27 @@ final class LearningRecommendationWorkflow
             $lines[] = '';
             $lines[] = '- Status: '.$item->status;
             $lines[] = '- Learning ID: '.$item->learning_update_id;
+            $lines[] = '- Delivery owner: '.($item->delivery_owner ?: 'To be assigned before development starts.');
+            $lines[] = '- Delivery target: '.($item->delivery_target ?: 'To be set before development starts.');
+            $lines[] = '';
+            $lines[] = '### Decision context';
+            $lines[] = '';
             $lines[] = '- Failure / shortfall: '.$item->failure_shortfall;
             $lines[] = '- Impact: '.$item->impact;
             $lines[] = '- Area of impact: '.$item->impact_area;
             $lines[] = '- Recommendation: '.$item->recommendation;
             $lines[] = '- Expected impact: '.$item->recommendation_impact;
+            $lines[] = '';
+            $lines[] = '### Delivery and assurance';
+            $lines[] = '';
+            $lines[] = '- Baseline metrics: '.($this->joined($item->baseline_metrics) ?: 'To be recorded before development starts.');
             $lines[] = '- Acceptance criteria: '.($this->joined($item->acceptance_criteria) ?: 'To be added before development starts.');
             $lines[] = '- Regression journeys: '.($this->joined($item->regression_journeys) ?: 'To be added before release.');
+            $lines[] = '- Rollback plan: '.($item->rollback_plan ?: 'To be recorded before development starts.');
             $lines[] = '- Development reference: '.($item->development_reference ?: 'Not started.');
             $lines[] = '- Release reference: '.($item->release_reference ?: 'Not released.');
+            $lines[] = '- Verification evidence: '.($item->verification_notes ?: 'Not yet verified.');
+            $lines[] = '- Review due: '.($item->review_due_at?->toDateString() ?: 'Set when released.');
             $lines[] = '';
         }
 
@@ -353,6 +391,12 @@ final class LearningRecommendationWorkflow
 
     private function hasRegressionJourneys(mixed $journeys): bool
     {
-        return is_array($journeys) && $journeys !== [];
+        return $this->hasListItems($journeys);
+    }
+
+    private function hasListItems(mixed $items): bool
+    {
+        return is_array($items)
+            && collect($items)->contains(fn (mixed $item): bool => is_string($item) && trim($item) !== '');
     }
 }

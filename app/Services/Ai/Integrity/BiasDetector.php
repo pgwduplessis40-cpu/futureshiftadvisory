@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Ai\Integrity;
 
+use App\Models\AuditEvent;
 use App\Models\LearningUpdate;
 use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
@@ -16,6 +17,14 @@ use Throwable;
 final class BiasDetector
 {
     public const LAYER_ID = 3;
+
+    private const CALIBRATION_WINDOW_DAYS = 30;
+
+    private const MINIMUM_SAMPLE_SIZE = 10;
+
+    private const MINIMUM_FLAGGED_OCCURRENCES = 3;
+
+    private const MINIMUM_FLAGGED_RATE = 0.20;
 
     private const PRAISE_TERMS = [
         'amazing',
@@ -123,11 +132,17 @@ final class BiasDetector
         }
 
         try {
-            $signalKey = $this->signalKey($prompt, $signals);
+            $signalKey = $this->signalKey($prompt);
+            $calibration = $this->calibrationSample($prompt);
+
+            if (! $this->thresholdReached($calibration)) {
+                return;
+            }
+
             $existing = $this->openLearningCandidate($prompt, $signalKey);
 
             if ($existing instanceof LearningUpdate) {
-                $this->recordAdditionalOccurrence($existing, $response, $signals, $subjectMetadata);
+                $this->recordAdditionalOccurrence($existing, $response, $signals, $subjectMetadata, $calibration);
 
                 return;
             }
@@ -141,22 +156,31 @@ final class BiasDetector
                     'signal_key' => $signalKey,
                     'subject_metadata' => $subjectMetadata,
                 ],
-                'summary' => 'Bias detector heuristic flagged AI output for governed review.',
+                'summary' => 'Bias detector calibration threshold reached for governed prompt review.',
                 'proposed_change' => [
-                    'action' => 'review_prompt_or_output_policy',
+                    'action' => 'calibrate_bias_prompt_or_output_policy',
                     'signals' => $signals,
+                    'requires_human_calibration' => true,
+                    'automatic_application' => false,
                 ],
                 'impact_scope' => [
                     'prompt_id' => $prompt->id,
                     'model' => $response->model,
+                    'surface' => 'ai_output_quality',
                 ],
                 'clients_affected' => 0,
                 'magnitude' => 'low',
-                'confidence' => 0.5,
+                'confidence' => min(0.9, 0.55 + ($calibration['flagged_rate'] / 2)),
                 'evidence' => [
                     'response_excerpt' => mb_substr($response->text, 0, 500),
                     'signals' => $signals,
-                    'occurrences' => 1,
+                    'occurrences' => $calibration['flagged_occurrences'],
+                    'sample_size' => $calibration['sample_size'],
+                    'flagged_rate' => $calibration['flagged_rate'],
+                    'calibration_window_days' => self::CALIBRATION_WINDOW_DAYS,
+                    'minimum_sample_size' => self::MINIMUM_SAMPLE_SIZE,
+                    'minimum_flagged_occurrences' => self::MINIMUM_FLAGGED_OCCURRENCES,
+                    'minimum_flagged_rate' => self::MINIMUM_FLAGGED_RATE,
                 ],
                 'status' => LearningUpdate::STATUS_DETECTED,
             ]);
@@ -193,15 +217,16 @@ final class BiasDetector
     /**
      * @param  array<int, array<string, mixed>>  $signals
      * @param  array<string, mixed>  $subjectMetadata
+     * @param  array{sample_size:int,flagged_occurrences:int,flagged_rate:float}  $calibration
      */
     private function recordAdditionalOccurrence(
         LearningUpdate $update,
         AiResponse $response,
         array $signals,
         array $subjectMetadata,
+        array $calibration,
     ): void {
         $evidence = $update->evidence ?? [];
-        $occurrences = max(1, (int) data_get($evidence, 'occurrences', 1)) + 1;
         $excerpt = mb_substr($response->text, 0, 500);
         $sampleExcerpts = collect(Arr::wrap(data_get($evidence, 'sample_excerpts', [])))
             ->push(data_get($evidence, 'response_excerpt'))
@@ -222,7 +247,9 @@ final class BiasDetector
             ]),
             'evidence' => array_merge($evidence, [
                 'signals' => $this->mergeSignals((array) data_get($evidence, 'signals', []), $signals),
-                'occurrences' => $occurrences,
+                'occurrences' => $calibration['flagged_occurrences'],
+                'sample_size' => $calibration['sample_size'],
+                'flagged_rate' => $calibration['flagged_rate'],
                 'latest_response_excerpt' => $excerpt,
                 'last_seen_at' => now()->toIso8601String(),
                 'sample_excerpts' => $sampleExcerpts,
@@ -249,26 +276,51 @@ final class BiasDetector
             ->all();
     }
 
-    /**
-     * @param  array<int, array<string, mixed>>  $signals
-     */
-    private function signalKey(PromptEnvelope $prompt, array $signals): string
+    private function signalKey(PromptEnvelope $prompt): string
     {
-        $signalFingerprint = collect($signals)
-            ->map(fn (array $signal): array => [
-                'type' => (string) ($signal['type'] ?? ''),
-                'term' => (string) ($signal['term'] ?? ''),
-                'severity' => (string) ($signal['severity'] ?? ''),
-            ])
-            ->sortBy(fn (array $signal): string => implode('|', $signal))
-            ->values()
-            ->all();
-
         return hash('sha256', json_encode([
             'bias_detector',
             $prompt->id,
             $prompt->hash(),
-            $signalFingerprint,
         ], JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * @return array{sample_size:int,flagged_occurrences:int,flagged_rate:float}
+     */
+    private function calibrationSample(PromptEnvelope $prompt): array
+    {
+        $events = AuditEvent::query()
+            ->where('action', 'ai.bias_assessed')
+            ->where('occurred_at', '>=', now()->subDays(self::CALIBRATION_WINDOW_DAYS))
+            ->orderByDesc('occurred_at')
+            ->get(['after']);
+
+        $forPrompt = $events->filter(function (AuditEvent $event) use ($prompt): bool {
+            $payload = $event->after ?? [];
+
+            return data_get($payload, 'prompt_id') === $prompt->id
+                && data_get($payload, 'prompt_hash') === $prompt->hash();
+        });
+        $sampleSize = $forPrompt->count();
+        $flagged = $forPrompt
+            ->filter(fn (AuditEvent $event): bool => is_array(data_get($event->after, 'signals')) && data_get($event->after, 'signals') !== [])
+            ->count();
+
+        return [
+            'sample_size' => $sampleSize,
+            'flagged_occurrences' => $flagged,
+            'flagged_rate' => $sampleSize === 0 ? 0.0 : round($flagged / $sampleSize, 4),
+        ];
+    }
+
+    /**
+     * @param  array{sample_size:int,flagged_occurrences:int,flagged_rate:float}  $calibration
+     */
+    private function thresholdReached(array $calibration): bool
+    {
+        return $calibration['sample_size'] >= self::MINIMUM_SAMPLE_SIZE
+            && $calibration['flagged_occurrences'] >= self::MINIMUM_FLAGGED_OCCURRENCES
+            && $calibration['flagged_rate'] >= self::MINIMUM_FLAGGED_RATE;
     }
 }
