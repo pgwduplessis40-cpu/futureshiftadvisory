@@ -22,6 +22,7 @@ use App\Models\StrategicBudgetAssessment;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\BudgetCalculator;
+use App\Services\Learning\StrategicPlanAlignmentLearning;
 use App\Services\Messaging\MessageThreadService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\QueryException;
@@ -65,6 +66,7 @@ final class StrategicBudgetService
         private readonly StrategicBudgetPlanBudgetCoherence $planBudgetCoherence,
         private readonly StrategicBudgetPlanBudgetReconciliation $planBudgetReconciliation,
         private readonly StrategicBudgetAssessmentScorer $assessmentScorer,
+        private readonly StrategicPlanAlignmentLearning $strategicPlanLearning,
     ) {}
 
     public function ensureForClient(Client $client, ?BusinessPlan $plan = null): StrategicBudget
@@ -317,7 +319,11 @@ final class StrategicBudgetService
             'version' => $assessment->round,
         ]);
 
-        return $budget->refresh();
+        $assessed = $budget->refresh();
+        $this->strategicPlanLearning->syncBudgetPlanCoherence($assessed);
+        $this->strategicPlanLearning->syncPlansForBudget($assessed);
+
+        return $assessed;
     }
 
     public function saveAssessmentFeedback(

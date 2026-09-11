@@ -408,12 +408,38 @@ export function StrategicPlanEditor({
     const form = useForm<StrategicPlanForm>({
         summary: plan.summary ?? '',
         sections: plan.sections,
+        evidence_bindings: plan.evidence_bindings.map((binding) => ({
+            source_key: binding.source_key,
+            target_key: binding.target_key,
+            disposition: binding.disposition,
+            rationale: binding.rationale,
+        })),
+        confirm_current_sources: false,
         milestones: plan.milestones.map((milestone) => ({
             ...milestone,
             description: milestone.description ?? '',
             advisor_notes: milestone.advisor_notes ?? '',
+            metric_label: milestone.metric_label ?? '',
+            measurement_unit: milestone.measurement_unit ?? '',
+            target_direction: milestone.target_direction ?? 'increase',
+            baseline_value: milestone.baseline_value ?? '',
+            target_value: milestone.target_value ?? '',
+            actual_value: milestone.actual_value ?? '',
         })),
     });
+
+    const evidenceTargets = [
+        ...form.data.sections.map((section) => ({
+            key: `section:${section.key}`,
+            label: section.title,
+        })),
+        ...form.data.milestones
+            .filter((milestone) => milestone.id !== '')
+            .map((milestone) => ({
+                key: `milestone:${milestone.id}`,
+                label: `Milestone: ${milestone.title}`,
+            })),
+    ];
 
     const save = () => {
         form.patch(plan.update_url, {
@@ -470,6 +496,70 @@ export function StrategicPlanEditor({
         );
     };
 
+    const updateEvidenceBinding = (
+        index: number,
+        field: keyof StrategicPlanForm['evidence_bindings'][number],
+        value: string,
+    ) => {
+        form.setData(
+            'evidence_bindings',
+            form.data.evidence_bindings.map((binding, current) =>
+                current === index ? { ...binding, [field]: value } : binding,
+            ),
+        );
+    };
+
+    const addEvidenceBinding = () => {
+        const source = plan.evidence_sources[0];
+        const target = evidenceTargets[0];
+        if (!source || !target) {
+            return;
+        }
+
+        form.setData('evidence_bindings', [
+            ...form.data.evidence_bindings,
+            {
+                source_key: source.key,
+                target_key: target.key,
+                disposition: 'supports',
+                rationale: '',
+            },
+        ]);
+    };
+
+    const removeEvidenceBinding = (index: number) => {
+        form.setData(
+            'evidence_bindings',
+            form.data.evidence_bindings.filter(
+                (_binding, current) => current !== index,
+            ),
+        );
+    };
+
+    const saveOutcome = (
+        milestone: StrategicPlanForm['milestones'][number],
+    ) => {
+        if (!milestone.outcome_update_url) {
+            return;
+        }
+
+        router.patch(
+            milestone.outcome_update_url,
+            {
+                metric_label: milestone.metric_label,
+                measurement_unit: milestone.measurement_unit,
+                target_direction: milestone.target_direction,
+                baseline_value: milestone.baseline_value,
+                target_value: milestone.target_value,
+                actual_value: milestone.actual_value,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => toast.success('Outcome measurement saved.'),
+            },
+        );
+    };
+
     const addMilestone = () => {
         form.setData('milestones', [
             ...form.data.milestones,
@@ -486,6 +576,13 @@ export function StrategicPlanEditor({
                 progress_percent: 0,
                 evidence_notes: '',
                 advisor_notes: '',
+                metric_label: '',
+                measurement_unit: '',
+                target_direction: 'increase',
+                baseline_value: '',
+                target_value: '',
+                actual_value: '',
+                measurement_updated_at: null,
             },
         ]);
     };
@@ -579,6 +676,218 @@ export function StrategicPlanEditor({
                     value={formatDate(plan.generated_at)}
                 />
                 <Metric label="Deployed" value={formatDate(plan.deployed_at)} />
+            </div>
+
+            <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h3 className="text-sm font-medium">
+                            Evidence alignment
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                            Explicitly connect each material client, Business
+                            Plan, Budget, or advisory source to this plan. Use
+                            out of scope only with a recorded rationale.
+                        </p>
+                    </div>
+                    {!deployed && (
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={
+                                plan.evidence_sources.length === 0 ||
+                                evidenceTargets.length === 0
+                            }
+                            onClick={addEvidenceBinding}
+                        >
+                            <PlusCircle className="size-4" aria-hidden="true" />
+                            Add evidence link
+                        </Button>
+                    )}
+                </div>
+
+                {plan.evidence_summary && (
+                    <div className="grid gap-2 text-sm md:grid-cols-4">
+                        <Metric
+                            label="Links"
+                            value={String(plan.evidence_summary.bindings)}
+                        />
+                        <Metric
+                            label="Needs linking"
+                            value={String(
+                                plan.evidence_summary.untraced_sources,
+                            )}
+                        />
+                        <Metric
+                            label="Changed sources"
+                            value={String(
+                                plan.evidence_summary.stale_source_signals,
+                            )}
+                        />
+                        <Metric
+                            label="Out of scope"
+                            value={String(
+                                plan.evidence_summary.intentional_exclusions,
+                            )}
+                        />
+                    </div>
+                )}
+
+                {form.data.evidence_bindings.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                        No evidence links have been confirmed yet.
+                    </p>
+                ) : (
+                    <div className="space-y-3">
+                        {form.data.evidence_bindings.map((binding, index) => (
+                            <div
+                                key={`${binding.source_key}-${binding.target_key}-${index}`}
+                                className="grid gap-2 rounded-md border bg-background p-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_150px_auto]"
+                            >
+                                <select
+                                    value={binding.source_key}
+                                    disabled={deployed}
+                                    onChange={(event) =>
+                                        updateEvidenceBinding(
+                                            index,
+                                            'source_key',
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-70"
+                                >
+                                    {plan.evidence_sources.map((source) => (
+                                        <option
+                                            key={source.key}
+                                            value={source.key}
+                                        >
+                                            {source.label} ({source.materiality}
+                                            )
+                                        </option>
+                                    ))}
+                                </select>
+                                <select
+                                    value={binding.target_key}
+                                    disabled={deployed}
+                                    onChange={(event) =>
+                                        updateEvidenceBinding(
+                                            index,
+                                            'target_key',
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-70"
+                                >
+                                    {binding.disposition === 'out_of_scope' && (
+                                        <option value="out_of_scope">
+                                            No plan item: out of scope
+                                        </option>
+                                    )}
+                                    {evidenceTargets.map((target) => (
+                                        <option
+                                            key={target.key}
+                                            value={target.key}
+                                        >
+                                            {target.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <select
+                                    value={binding.disposition}
+                                    disabled={deployed}
+                                    onChange={(event) => {
+                                        const disposition = event.target
+                                            .value as
+                                            'supports' | 'out_of_scope';
+                                        form.setData(
+                                            'evidence_bindings',
+                                            form.data.evidence_bindings.map(
+                                                (current, currentIndex) =>
+                                                    currentIndex === index
+                                                        ? {
+                                                              ...current,
+                                                              disposition,
+                                                              target_key:
+                                                                  disposition ===
+                                                                  'out_of_scope'
+                                                                      ? 'out_of_scope'
+                                                                      : current.target_key ===
+                                                                          'out_of_scope'
+                                                                        ? (evidenceTargets[0]
+                                                                              ?.key ??
+                                                                          '')
+                                                                        : current.target_key,
+                                                          }
+                                                        : current,
+                                            ),
+                                        );
+                                    }}
+                                    className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-70"
+                                >
+                                    <option value="supports">
+                                        Supports plan
+                                    </option>
+                                    <option value="out_of_scope">
+                                        Intentionally out of scope
+                                    </option>
+                                </select>
+                                {!deployed && (
+                                    <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="outline"
+                                        onClick={() =>
+                                            removeEvidenceBinding(index)
+                                        }
+                                    >
+                                        <Ban
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        <span className="sr-only">
+                                            Remove evidence link
+                                        </span>
+                                    </Button>
+                                )}
+                                <textarea
+                                    value={binding.rationale}
+                                    disabled={deployed}
+                                    onChange={(event) =>
+                                        updateEvidenceBinding(
+                                            index,
+                                            'rationale',
+                                            event.target.value,
+                                        )
+                                    }
+                                    rows={2}
+                                    placeholder="Why this source supports the selected item, or why it is intentionally out of scope"
+                                    className="min-h-18 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-70 lg:col-span-4"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {!deployed && (
+                    <label className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <input
+                            type="checkbox"
+                            checked={form.data.confirm_current_sources}
+                            onChange={(event) =>
+                                form.setData(
+                                    'confirm_current_sources',
+                                    event.target.checked,
+                                )
+                            }
+                            className="mt-1 size-4 rounded border-input"
+                        />
+                        <span>
+                            I reviewed the current source evidence. Refresh the
+                            plan’s source snapshot when this draft is saved.
+                        </span>
+                    </label>
+                )}
             </div>
 
             <div className="grid gap-2">
@@ -747,6 +1056,183 @@ export function StrategicPlanEditor({
                                 placeholder="Milestone description"
                                 className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-70"
                             />
+                            <div className="grid gap-2 rounded-md border bg-background p-3 md:grid-cols-3">
+                                <div className="grid gap-1 md:col-span-2">
+                                    <Label
+                                        htmlFor={`strategic_milestone_metric_${index}`}
+                                    >
+                                        Outcome measure
+                                    </Label>
+                                    <Input
+                                        id={`strategic_milestone_metric_${index}`}
+                                        value={milestone.metric_label}
+                                        disabled={
+                                            deployed &&
+                                            !milestone.outcome_update_url
+                                        }
+                                        placeholder="e.g. Active retainers"
+                                        onChange={(event) =>
+                                            updateMilestone(
+                                                index,
+                                                'metric_label',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                </div>
+                                <div className="grid gap-1">
+                                    <Label
+                                        htmlFor={`strategic_milestone_unit_${index}`}
+                                    >
+                                        Unit
+                                    </Label>
+                                    <Input
+                                        id={`strategic_milestone_unit_${index}`}
+                                        value={milestone.measurement_unit}
+                                        disabled={
+                                            deployed &&
+                                            !milestone.outcome_update_url
+                                        }
+                                        placeholder="customers"
+                                        onChange={(event) =>
+                                            updateMilestone(
+                                                index,
+                                                'measurement_unit',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                </div>
+                                <div className="grid gap-1">
+                                    <Label
+                                        htmlFor={`strategic_milestone_direction_${index}`}
+                                    >
+                                        Target direction
+                                    </Label>
+                                    <select
+                                        id={`strategic_milestone_direction_${index}`}
+                                        value={milestone.target_direction}
+                                        disabled={
+                                            deployed &&
+                                            !milestone.outcome_update_url
+                                        }
+                                        onChange={(event) =>
+                                            updateMilestone(
+                                                index,
+                                                'target_direction',
+                                                event.target.value,
+                                            )
+                                        }
+                                        className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-70"
+                                    >
+                                        <option value="increase">
+                                            Increase
+                                        </option>
+                                        <option value="decrease">
+                                            Decrease
+                                        </option>
+                                    </select>
+                                </div>
+                                <div className="grid gap-1">
+                                    <Label
+                                        htmlFor={`strategic_milestone_baseline_${index}`}
+                                    >
+                                        Baseline
+                                    </Label>
+                                    <Input
+                                        id={`strategic_milestone_baseline_${index}`}
+                                        type="number"
+                                        value={milestone.baseline_value}
+                                        disabled={
+                                            deployed &&
+                                            !milestone.outcome_update_url
+                                        }
+                                        onChange={(event) =>
+                                            updateMilestone(
+                                                index,
+                                                'baseline_value',
+                                                event.target.value === ''
+                                                    ? ''
+                                                    : Number(
+                                                          event.target.value,
+                                                      ),
+                                            )
+                                        }
+                                    />
+                                </div>
+                                <div className="grid gap-1">
+                                    <Label
+                                        htmlFor={`strategic_milestone_target_${index}`}
+                                    >
+                                        Target
+                                    </Label>
+                                    <Input
+                                        id={`strategic_milestone_target_${index}`}
+                                        type="number"
+                                        value={milestone.target_value}
+                                        disabled={
+                                            deployed &&
+                                            !milestone.outcome_update_url
+                                        }
+                                        onChange={(event) =>
+                                            updateMilestone(
+                                                index,
+                                                'target_value',
+                                                event.target.value === ''
+                                                    ? ''
+                                                    : Number(
+                                                          event.target.value,
+                                                      ),
+                                            )
+                                        }
+                                    />
+                                </div>
+                                <div className="grid gap-1">
+                                    <Label
+                                        htmlFor={`strategic_milestone_actual_${index}`}
+                                    >
+                                        Actual
+                                    </Label>
+                                    <Input
+                                        id={`strategic_milestone_actual_${index}`}
+                                        type="number"
+                                        value={milestone.actual_value}
+                                        disabled={
+                                            deployed &&
+                                            !milestone.outcome_update_url
+                                        }
+                                        onChange={(event) =>
+                                            updateMilestone(
+                                                index,
+                                                'actual_value',
+                                                event.target.value === ''
+                                                    ? ''
+                                                    : Number(
+                                                          event.target.value,
+                                                      ),
+                                            )
+                                        }
+                                    />
+                                </div>
+                                {deployed && milestone.outcome_update_url && (
+                                    <div className="flex items-end md:col-span-3">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() =>
+                                                saveOutcome(milestone)
+                                            }
+                                        >
+                                            <FileCheck2
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            Save outcome measurement
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
                             {deployed && (
                                 <div className="grid gap-2 text-sm md:grid-cols-4">
                                     <Metric

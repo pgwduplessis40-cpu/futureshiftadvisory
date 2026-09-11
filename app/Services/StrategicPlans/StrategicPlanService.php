@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Calendar\ClientAvailabilityCalendar;
 use App\Services\Calendar\PublicHolidayCalendar;
+use App\Services\Learning\StrategicPlanAlignmentLearning;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -37,6 +38,8 @@ final class StrategicPlanService
         private readonly PublicHolidayCalendar $publicHolidays,
         private readonly ClientAvailabilityCalendar $availability,
         private readonly StrategicPlanDurationPolicy $durations,
+        private readonly StrategicPlanEvidenceReview $evidenceReview,
+        private readonly StrategicPlanAlignmentLearning $strategicPlanLearning,
     ) {}
 
     public function generateForProposal(Proposal $proposal, User $actor): StrategicPlan
@@ -55,7 +58,7 @@ final class StrategicPlanService
         $budget = $this->budgetForProposal($proposal);
         $duration = $this->durations->forProposal($proposal);
 
-        return DB::transaction(function () use ($proposal, $client, $budget, $duration, $actor): StrategicPlan {
+        $plan = DB::transaction(function () use ($proposal, $client, $budget, $duration, $actor): StrategicPlan {
             $plan = StrategicPlan::query()->firstOrNew([
                 'proposal_id' => $proposal->getKey(),
             ]);
@@ -83,6 +86,10 @@ final class StrategicPlanService
                 $this->seedMilestones($plan->refresh(), $client, $proposal);
             }
 
+            $plan->forceFill([
+                'source_snapshots' => $this->evidenceReview->captureSourceSnapshots($plan->refresh()),
+            ])->save();
+
             $this->audit->record('strategic_plan.generated', subject: $plan, actor: $actor, after: [
                 'client_id' => $client->getKey(),
                 'proposal_id' => $proposal->getKey(),
@@ -92,6 +99,10 @@ final class StrategicPlanService
 
             return $plan->refresh()->load('milestones');
         });
+
+        $this->strategicPlanLearning->syncStrategicPlan($plan);
+
+        return $plan;
     }
 
     /**
@@ -103,10 +114,23 @@ final class StrategicPlanService
             throw new InvalidArgumentException('Deployed strategic plans cannot have their structure changed after deployment.');
         }
 
-        return DB::transaction(function () use ($plan, $input, $actor): StrategicPlan {
+        $updated = DB::transaction(function () use ($plan, $input, $actor): StrategicPlan {
+            $confirmCurrentSources = (bool) ($input['confirm_current_sources'] ?? false);
+            $evidenceBindings = array_key_exists('evidence_bindings', $input)
+                ? $this->evidenceReview->normaliseBindings(
+                    $plan,
+                    (array) $input['evidence_bindings'],
+                    $confirmCurrentSources,
+                )
+                : $plan->evidence_bindings;
+
             $plan->forceFill([
                 'summary' => trim((string) ($input['summary'] ?? $plan->summary ?? '')),
                 'sections' => $this->normaliseSections((array) ($input['sections'] ?? $plan->sections ?? [])),
+                'evidence_bindings' => $evidenceBindings,
+                'source_snapshots' => $confirmCurrentSources
+                    ? $this->evidenceReview->captureSourceSnapshots($plan)
+                    : $plan->source_snapshots,
             ])->save();
 
             $this->syncMilestones($plan->refresh(), (array) ($input['milestones'] ?? []));
@@ -118,11 +142,15 @@ final class StrategicPlanService
 
             return $plan->refresh()->load('milestones');
         });
+
+        $this->strategicPlanLearning->syncStrategicPlan($updated);
+
+        return $updated;
     }
 
     public function deploy(StrategicPlan $plan, User $actor): StrategicPlan
     {
-        return DB::transaction(function () use ($plan, $actor): StrategicPlan {
+        $deployed = DB::transaction(function () use ($plan, $actor): StrategicPlan {
             $deploymentDate = now();
             $plan->loadMissing('client');
             $client = $plan->client;
@@ -153,6 +181,10 @@ final class StrategicPlanService
 
             return $plan->refresh()->load('milestones');
         });
+
+        $this->strategicPlanLearning->syncStrategicPlan($deployed);
+
+        return $deployed;
     }
 
     /**
@@ -183,6 +215,44 @@ final class StrategicPlanService
             'status' => $milestone->status,
             'progress_percent' => $milestone->progress_percent,
         ]);
+
+        $updated = $milestone->refresh();
+        $this->strategicPlanLearning->syncStrategicPlan($plan->refresh()->load('milestones'));
+
+        return $updated;
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    public function updateAdvisorMilestoneOutcome(StrategicPlanMilestone $milestone, array $input, User $actor): StrategicPlanMilestone
+    {
+        $milestone->loadMissing('strategicPlan');
+        $plan = $milestone->strategicPlan;
+
+        if (! $plan instanceof StrategicPlan || $plan->status !== StrategicPlan::STATUS_DEPLOYED) {
+            throw new InvalidArgumentException('Outcome measurements can only be recorded against deployed strategic-plan milestones.');
+        }
+
+        $metricLabel = trim((string) ($input['metric_label'] ?? $milestone->metric_label ?? ''));
+        $targetDirection = (string) ($input['target_direction'] ?? $milestone->target_direction ?? 'increase');
+        $milestone->forceFill([
+            'metric_label' => $metricLabel !== '' ? $metricLabel : null,
+            'measurement_unit' => $this->nullableString($input['measurement_unit'] ?? $milestone->measurement_unit),
+            'target_direction' => in_array($targetDirection, ['increase', 'decrease'], true) ? $targetDirection : 'increase',
+            'baseline_value' => $this->nullableDecimal($input['baseline_value'] ?? $milestone->baseline_value),
+            'target_value' => $this->nullableDecimal($input['target_value'] ?? $milestone->target_value),
+            'actual_value' => $this->nullableDecimal($input['actual_value'] ?? $milestone->actual_value),
+            'measurement_updated_at' => now(),
+        ])->save();
+
+        $this->audit->record('strategic_plan_milestone.outcome_updated', subject: $milestone, actor: $actor, after: [
+            'strategic_plan_id' => $plan->getKey(),
+            'has_target' => $milestone->target_value !== null,
+            'has_actual' => $milestone->actual_value !== null,
+        ]);
+
+        $this->strategicPlanLearning->syncStrategicPlan($plan->refresh()->load('milestones'));
 
         return $milestone->refresh();
     }
@@ -236,6 +306,8 @@ final class StrategicPlanService
             : 0;
         $durationMonths = max(StrategicPlanDurationPolicy::MIN_MONTHS, (int) ($plan->duration_months ?: StrategicPlanDurationPolicy::MIN_MONTHS));
         $complexityBand = (string) ($plan->complexity_band ?: StrategicPlanDurationPolicy::BAND_STANDARD);
+        $evidenceSources = $advisor ? $this->evidenceReview->sourcesForAdvisor($plan) : [];
+        $evidenceSummary = $advisor ? $this->evidenceReview->advisorSummary($plan) : null;
 
         return [
             'id' => $plan->id,
@@ -249,6 +321,9 @@ final class StrategicPlanService
             'duration_rationale' => is_array($plan->duration_rationale) ? $plan->duration_rationale : [],
             'summary' => $plan->summary,
             'sections' => $plan->sections ?? [],
+            'evidence_bindings' => $advisor ? $plan->evidence_bindings ?? [] : [],
+            'evidence_sources' => $evidenceSources,
+            'evidence_summary' => $evidenceSummary,
             'generated_at' => $plan->generated_at?->toIso8601String(),
             'deployed_at' => $plan->deployed_at?->toIso8601String(),
             'progress_percent' => $averageProgress,
@@ -268,9 +343,18 @@ final class StrategicPlanService
                     'progress_percent' => $milestone->progress_percent,
                     'evidence_notes' => $milestone->evidence_notes,
                     'advisor_notes' => $milestone->advisor_notes,
+                    'metric_label' => $milestone->metric_label,
+                    'measurement_unit' => $milestone->measurement_unit,
+                    'target_direction' => $milestone->target_direction,
+                    'baseline_value' => $milestone->baseline_value === null ? null : (float) $milestone->baseline_value,
+                    'target_value' => $milestone->target_value === null ? null : (float) $milestone->target_value,
+                    'actual_value' => $milestone->actual_value === null ? null : (float) $milestone->actual_value,
+                    'measurement_updated_at' => $milestone->measurement_updated_at?->toIso8601String(),
                     ...(! $advisor ? [
                         'update_url' => route('portal.strategic-plan.milestones.update', $milestone, absolute: false),
-                    ] : []),
+                    ] : [
+                        'outcome_update_url' => route('advisor.strategic-plan-milestones.outcome.update', $milestone, absolute: false),
+                    ]),
                 ])
                 ->values()
                 ->all(),
@@ -479,6 +563,17 @@ final class StrategicPlanService
                 ], true) ? $status : StrategicPlanMilestone::STATUS_PENDING,
                 'progress_percent' => min(100, max(0, (int) ($input['progress_percent'] ?? 0))),
                 'advisor_notes' => trim((string) ($input['advisor_notes'] ?? '')),
+                'metric_label' => $this->nullableString($input['metric_label'] ?? $milestone->metric_label),
+                'measurement_unit' => $this->nullableString($input['measurement_unit'] ?? $milestone->measurement_unit),
+                'target_direction' => in_array((string) ($input['target_direction'] ?? $milestone->target_direction), ['increase', 'decrease'], true)
+                    ? (string) ($input['target_direction'] ?? $milestone->target_direction)
+                    : null,
+                'baseline_value' => $this->nullableDecimal($input['baseline_value'] ?? $milestone->baseline_value),
+                'target_value' => $this->nullableDecimal($input['target_value'] ?? $milestone->target_value),
+                'actual_value' => $this->nullableDecimal($input['actual_value'] ?? $milestone->actual_value),
+                'measurement_updated_at' => array_key_exists('actual_value', $input)
+                    ? now()
+                    : $milestone->measurement_updated_at,
             ])->save();
 
             $seen[] = $milestone->getKey();
@@ -552,6 +647,18 @@ final class StrategicPlanService
         return $months === StrategicPlanDurationPolicy::MIN_MONTHS
             ? 365
             : (int) ceil($months * 30.5);
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return $value !== '' ? $value : null;
+    }
+
+    private function nullableDecimal(mixed $value): ?float
+    {
+        return is_numeric($value) ? round((float) $value, 2) : null;
     }
 
     private function actionPrioritiesBody(string $budgetPriorities, string $proposalPriorities, string $websitePriorities = ''): string

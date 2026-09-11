@@ -224,6 +224,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('strategic-plans/{strategicPlan}', [StrategicPlanController::class, 'update'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('strategic-plans.update');
+        Route::patch('strategic-plan-milestones/{milestone}/outcome', [StrategicPlanController::class, 'updateMilestoneOutcome'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('strategic-plan-milestones.outcome.update');
         Route::patch('strategic-plans/{strategicPlan}/deploy', [StrategicPlanController::class, 'deploy'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('strategic-plans.deploy');
