@@ -15,6 +15,9 @@ return [
     'fresh_step_up_minutes' => (int) env('FRESH_STEP_UP_MINUTES', 5),
     'prospect_intake_secret' => env('PROSPECT_INTAKE_SECRET'),
     'prospect_intake_tolerance_seconds' => (int) env('PROSPECT_INTAKE_TOLERANCE_SECONDS', 300),
+    'webhook_rate_limit_per_minute' => (int) env('WEBHOOK_RATE_LIMIT_PER_MINUTE', 60),
+    'dd_guest_upload_rate_limit_per_minute' => (int) env('DD_GUEST_UPLOAD_RATE_LIMIT_PER_MINUTE', 8),
+    'public_contact_rate_limit_per_minute' => (int) env('PUBLIC_CONTACT_RATE_LIMIT_PER_MINUTE', 5),
     'session_timeouts' => [
         'default' => (int) env('SESSION_TIMEOUT_DEFAULT_MINUTES', 30),
         'super_admin' => (int) env('SESSION_TIMEOUT_SUPER_ADMIN_MINUTES', 15),

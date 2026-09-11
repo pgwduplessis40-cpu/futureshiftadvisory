@@ -25,6 +25,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -120,6 +121,49 @@ final class DdDataRoomTest extends TestCase
         $issued = app(DataRoom::class)->issueGuestLink($engagement, $advisor, 'financial');
 
         $this->getJson($issued['upload_url'])->assertStatus(405);
+    }
+
+    public function test_guest_upload_rate_limit_applies_before_each_invalid_token_is_audited(): void
+    {
+        Config::set('security.dd_guest_upload_rate_limit_per_minute', 1);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.61'])
+            ->withHeader('Accept', 'application/json')
+            ->post(route('dd.guest-uploads.store', ['token' => 'first-invalid-token']), [
+                'file' => UploadedFile::fake()->createWithContent('first.pdf', "%PDF-1.4\nFirst invalid upload."),
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('token');
+
+        $this->post(route('dd.guest-uploads.store', ['token' => 'second-invalid-token']), [
+            'file' => UploadedFile::fake()->createWithContent('second.pdf', "%PDF-1.4\nSecond invalid upload."),
+        ])->assertTooManyRequests();
+
+        $this->assertSame(1, DB::table('audit_events')
+            ->where('action', 'dd.guest_upload_rejected')
+            ->count());
+    }
+
+    public function test_guest_upload_restores_the_prior_database_context(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Request context restoration requires Postgres.');
+        }
+
+        $this->bindScanner(ScanResult::clean(['engine' => 'dd-test-scanner']));
+        [$advisor, $engagement] = $this->ddEngagement('context-dd-advisor@example.test');
+        $issued = app(DataRoom::class)->issueGuestLink($engagement, $advisor, 'financial');
+        $context = app(RequestContext::class);
+        $context->apply(RequestContext::ROLE_GUEST, []);
+
+        app(DataRoom::class)->uploadViaGuestToken(
+            token: $issued['token'],
+            file: UploadedFile::fake()->createWithContent('financial.pdf', "%PDF-1.4\nFinancial evidence."),
+        );
+
+        $role = DB::selectOne("SELECT current_setting('fsa.role', true) AS role");
+
+        $this->assertSame(RequestContext::ROLE_GUEST, $role?->role);
     }
 
     public function test_guest_link_requires_signed_due_diligence_fee_proposal(): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Public;
 
 use App\Mail\ProspectLeadReceived;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
@@ -87,5 +88,25 @@ final class LlmsTxtTest extends TestCase
             'email' => 'resilient@example.test',
             'source' => 'public_contact_form',
         ]);
+    }
+
+    public function test_public_contact_form_is_rate_limited_per_source_address(): void
+    {
+        Mail::fake();
+        Config::set('security.public_contact_rate_limit_per_minute', 1);
+        $payload = [
+            'name' => 'Rate Limited Prospect',
+            'email' => 'rate-limited@example.test',
+            'message' => 'Please contact me about an evidence-based business review.',
+        ];
+
+        $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.51'])
+            ->post(route('public.contact.store'), $payload)
+            ->assertRedirect(route('public.contact.thanks'));
+
+        $this->post(route('public.contact.store'), [
+            ...$payload,
+            'email' => 'rate-limited-second@example.test',
+        ])->assertTooManyRequests();
     }
 }

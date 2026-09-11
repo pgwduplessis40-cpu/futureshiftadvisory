@@ -215,21 +215,27 @@ class AppServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('webhooks', function (Request $request): Limit {
-            $signature = (string) (
-                $request->header('Stripe-Signature')
-                ?? $request->header('X-Windcave-Signature')
-                ?? $request->header('X-FSA-Signature')
-                ?? $request->header('X-FSA-Timestamp')
-                ?? ''
-            );
             $provider = (string) ($request->route()?->getName() ?? $request->path());
             $identity = hash('sha256', implode('|', [
                 $provider,
                 (string) $request->ip(),
-                $signature,
             ]));
 
             return Limit::perMinute(max(1, (int) config('security.webhook_rate_limit_per_minute', 60)))
+                ->by($identity);
+        });
+
+        RateLimiter::for('dd-guest-uploads', function (Request $request): Limit {
+            $identity = hash('sha256', 'dd-guest-uploads|'.(string) $request->ip());
+
+            return Limit::perMinute(max(1, (int) config('security.dd_guest_upload_rate_limit_per_minute', 8)))
+                ->by($identity);
+        });
+
+        RateLimiter::for('public-contact', function (Request $request): Limit {
+            $identity = hash('sha256', 'public-contact|'.(string) $request->ip());
+
+            return Limit::perMinute(max(1, (int) config('security.public_contact_rate_limit_per_minute', 5)))
                 ->by($identity);
         });
     }

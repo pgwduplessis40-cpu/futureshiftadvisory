@@ -34,7 +34,9 @@ Route::name('public.')->group(function (): void {
     Route::get('/faq', FaqController::class)->name('faq');
 
     Route::get('/contact', [ContactController::class, 'create'])->name('contact');
-    Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
+    Route::post('/contact', [ContactController::class, 'store'])
+        ->middleware('throttle:public-contact')
+        ->name('contact.store');
     Route::get('/contact/thanks', [ContactController::class, 'thanks'])->name('contact.thanks');
 });
 

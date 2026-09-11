@@ -95,19 +95,20 @@ final class ProspectIntakeTest extends TestCase
         ]);
     }
 
-    public function test_prospect_webhook_is_rate_limited_by_signature_source(): void
+    public function test_prospect_webhook_rate_limit_cannot_be_bypassed_by_changing_the_signature(): void
     {
         Config::set('security.webhook_rate_limit_per_minute', 1);
         $this->advisor();
         $payload = $this->payload(['dedupe_key' => 'rate-limit-event']);
-        $headers = $this->signatureHeaders($payload);
 
-        $this->withHeaders($headers)
+        $this->withHeaders($this->signatureHeaders($payload))
             ->postJson(route('webhooks.prospects.store'), $payload)
             ->assertCreated();
 
-        $this->withHeaders($headers)
-            ->postJson(route('webhooks.prospects.store'), $payload)
+        $secondPayload = $this->payload(['dedupe_key' => 'rate-limit-event-with-new-signature']);
+
+        $this->withHeaders($this->signatureHeaders($secondPayload))
+            ->postJson(route('webhooks.prospects.store'), $secondPayload)
             ->assertTooManyRequests();
     }
 
