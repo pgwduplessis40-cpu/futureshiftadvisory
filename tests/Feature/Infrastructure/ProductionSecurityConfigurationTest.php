@@ -18,13 +18,35 @@ final class ProductionSecurityConfigurationTest extends TestCase
             ->assertExitCode(Command::SUCCESS);
     }
 
-    public function test_production_configuration_gate_rejects_debug_mode(): void
+    public function test_production_configuration_gate_skips_non_production_environments(): void
+    {
+        config()->set('app.env', 'testing');
+
+        $this->artisan('fsa:assert-production-security-config')
+            ->expectsOutput('Skipping production security configuration checks outside production.')
+            ->assertExitCode(Command::SUCCESS);
+    }
+
+    public function test_production_configuration_gate_rejects_each_unsafe_setting(): void
     {
         $this->setSafeProductionConfiguration();
-        config()->set('app.debug', true);
+        config()->set([
+            'app.debug' => true,
+            'session.secure' => false,
+            'session.http_only' => false,
+            'session.same_site' => null,
+            'security.mfa_required' => false,
+            'virus-scanner.live' => true,
+            'virus-scanner.fail_open_on_error' => true,
+        ]);
 
         $this->artisan('fsa:assert-production-security-config')
             ->expectsOutput('APP_DEBUG must be false in production.')
+            ->expectsOutput('SESSION_SECURE_COOKIE must be true in production.')
+            ->expectsOutput('SESSION_HTTP_ONLY must be true in production.')
+            ->expectsOutput('SESSION_SAME_SITE must be lax or strict in production.')
+            ->expectsOutput('MFA must be required in production.')
+            ->expectsOutput('Virus scanning must be live and fail closed in production.')
             ->assertExitCode(Command::FAILURE);
     }
 
