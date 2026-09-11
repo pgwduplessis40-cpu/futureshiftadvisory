@@ -14,10 +14,19 @@ namespace App\Support\Public;
 final class FaqCatalog
 {
     /**
+     * @param  string|null  $ideaValidationPrice  Formatted ex-GST price (e.g. "$750"),
+     *                                            or null when the live rate is unavailable.
      * @return array<int, array{group:string, question:string, answer:string}>
      */
-    public static function all(): array
+    public static function all(?string $ideaValidationPrice = null): array
     {
+        // Price-dependent copy. When the live idea_validation rate resolves we
+        // lead with the figure; otherwise we drop the number and keep the copy
+        // reading naturally - never a hardcoded or stale price.
+        $validationCost = $ideaValidationPrice !== null
+            ? $ideaValidationPrice.' + GST, quoted as a fixed fee and payable online when you start - you know the number before you commit.'
+            : 'Idea validation is quoted as a fixed fee and is payable online when you start - you know the number before you commit.';
+
         return [
             [
                 'group' => 'About the work',
@@ -42,12 +51,12 @@ final class FaqCatalog
             [
                 'group' => 'How engagements start',
                 'question' => 'How do I become a client?',
-                'answer' => 'Send us a note through the contact form. We reply personally, set up a no-pressure conversation, and if it is a good fit we invite you in. We do not run open sign-ups - every client is invited and verified, which helps keep your information safe.',
+                'answer' => 'It depends what you need. Idea validation you can start yourself - sign up online, pay the fixed fee, and your workspace opens straight away. No call, no waiting for an invitation. For our advisory engagements - Standard Advisory, due diligence, post-acquisition, and not-for-profit work - send us a note through the contact form. We reply personally, set up a no-pressure conversation, and if it is a good fit we invite you in. Those accounts stay invited and verified, which helps keep sensitive business information safe.',
             ],
             [
                 'group' => 'How engagements start',
                 'question' => 'What will it cost?',
-                'answer' => 'It depends which engagement you need, and we are upfront about how each one is priced. Due Diligence and the Entrepreneur Module are quoted as fixed fees - you know the number before we start, and it does not move unless you ask for something outside the agreed scope. For Standard Advisory and not-for-profit work, the fee is set after we have properly looked at your organisation: we evaluate where things stand, analyse what we find, and shape a strategic plan - then the quote follows from that, sized to the work genuinely needed rather than guessed at upfront. Either way you will see the number, and how we arrived at it, before any work begins.',
+                'answer' => 'It depends which engagement you need, and we are upfront about how each one is priced. Due Diligence and the Entrepreneur Module are quoted as fixed fees - and idea validation is published on the site so you can start it yourself - you know the number before we start, and it does not move unless you ask for something outside the agreed scope. For Standard Advisory and not-for-profit work, the fee is set after we have properly looked at your organisation: we evaluate where things stand, analyse what we find, and shape a strategic plan - then the quote follows from that, sized to the work genuinely needed rather than guessed at upfront. Either way you will see the number, and how we arrived at it, before any work begins.',
             ],
             [
                 'group' => 'How engagements start',
@@ -62,7 +71,7 @@ final class FaqCatalog
             [
                 'group' => 'Starting a new business',
                 'question' => 'What does it cost to validate my business idea?',
-                'answer' => 'There is a cost, and we quote it as a fixed fee up front so you know exactly what you are committing to before you decide. It is worth weighing that against what is actually at risk. The expensive part of a business idea is rarely the checking - it is the borrowed money, the savings, and the year or two spent building something the evidence never supported. Validation is a small, known cost paid early to avoid a much larger, unknown one later. And if the idea does stack up, you are not just left with a yes: you come out with the plan and the numbers to take to a bank or an investor.',
+                'answer' => $validationCost.' It is worth weighing that against what is actually at risk. The expensive part of a business idea is rarely the checking - it is the borrowed money, the savings, and the year or two spent building something the evidence never supported. Validation is a small, known cost paid early to avoid a much larger, unknown one later. And if the idea does stack up, you are not just left with a yes: you come out with the plan and the numbers to take to a bank or an investor.',
             ],
             [
                 'group' => 'Starting a new business',

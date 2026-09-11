@@ -7,6 +7,7 @@ use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Public\EntrepreneurServiceController;
 use App\Http\Controllers\Public\FaqController;
 use App\Http\Controllers\Public\HomeController;
+use App\Http\Controllers\Public\IdeaValidationController;
 use App\Http\Controllers\Public\LlmsTxtController;
 use App\Http\Controllers\Public\ServicesController;
 use App\Http\Controllers\Public\SitemapController;
@@ -30,6 +31,8 @@ Route::name('public.')->group(function (): void {
     Route::get('/services', ServicesController::class)->name('services');
     Route::get('/services/entrepreneur', EntrepreneurServiceController::class)
         ->name('services.entrepreneur');
+    Route::get('/idea-validation', IdeaValidationController::class)
+        ->name('idea-validation');
     Route::get('/about', AboutController::class)->name('about');
     Route::get('/faq', FaqController::class)->name('faq');
 

@@ -83,11 +83,17 @@ export function breadcrumbLd(
 /** A single Service entity, for a dedicated service landing page. */
 export function serviceLd(
     base: string,
-    service: { name: string; description: string; path: string },
+    service: {
+        name: string;
+        description: string;
+        path: string;
+        /** Fixed price, ex-GST. Adds an Offer only when present. */
+        offer?: { price: number; currency: string };
+    },
 ): Json {
     const origin = clean(base);
 
-    return {
+    const ld: Json = {
         '@context': 'https://schema.org',
         '@type': 'Service',
         name: service.name,
@@ -97,6 +103,26 @@ export function serviceLd(
         areaServed: { '@type': 'Country', name: 'New Zealand' },
         provider: { '@id': `${origin}/${ORG_ID}` },
     };
+
+    // Only attach an Offer when the live rate resolved - never a guessed price.
+    // Price is ex-GST, so the priceSpecification marks tax as not included.
+    if (service.offer) {
+        ld.offers = {
+            '@type': 'Offer',
+            url: `${origin}${service.path}`,
+            priceCurrency: service.offer.currency,
+            price: service.offer.price,
+            priceSpecification: {
+                '@type': 'PriceSpecification',
+                price: service.offer.price,
+                priceCurrency: service.offer.currency,
+                valueAddedTaxIncluded: false,
+            },
+            availability: 'https://schema.org/InStock',
+        };
+    }
+
+    return ld;
 }
 
 /** ItemList of the services offered, each tied back to the organization. */

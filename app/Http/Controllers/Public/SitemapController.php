@@ -20,10 +20,12 @@ class SitemapController extends Controller
         $routes = [
             '/' => ['weekly', '1.0'],
             '/services' => ['monthly', '0.9'],
+            '/idea-validation' => ['weekly', '0.9'],
             '/services/entrepreneur' => ['monthly', '0.8'],
             '/about' => ['monthly', '0.7'],
             '/faq' => ['monthly', '0.6'],
             '/contact' => ['yearly', '0.8'],
+            '/terms-and-privacy' => ['yearly', '0.3'],
         ];
 
         $lastmod = now()->toAtomString();

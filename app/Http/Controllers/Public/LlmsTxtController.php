@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Support\Public\EngagementTypeCatalog;
 use App\Support\Public\FaqCatalog;
+use App\Support\Public\IdeaValidationOffer;
 use Illuminate\Http\Response;
 
 /**
@@ -19,6 +20,9 @@ class LlmsTxtController extends Controller
     public function __invoke(): Response
     {
         $base = rtrim((string) config('app.public_url'), '/');
+        $offer = IdeaValidationOffer::current();
+        $priceLabel = $offer['ex_gst_formatted'] ?? null;
+        $ideaValidationPrice = $priceLabel !== null ? $priceLabel.' + GST' : 'a fixed fee';
 
         $lines = [];
         $lines[] = '# Future Shift Advisory';
@@ -29,9 +33,12 @@ class LlmsTxtController extends Controller
         $lines[] = '';
         $lines[] = 'Future Shift Advisory is led by Pieter Du Plessis, Principal Advisor, a member '
             .'of the Institute of Advisors (IOA). The practice works remotely across New Zealand '
-            .'from Hamilton, Waikato. Engagements are invite-only and begin with a discovery call. '
-            .'Confidentiality is the baseline: multi-factor sign-in, encrypted documents, and '
-            .'access limited to the people working on the engagement.';
+            .'from Hamilton, Waikato. Idea validation can be purchased directly online at '
+            ."{$base}/idea-validation for {$ideaValidationPrice}, with no call required. Advisory "
+            .'engagements (Standard Advisory, Due Diligence, Post-acquisition, and not-for-profit '
+            .'work) are invite-only and begin with a discovery call. Confidentiality is the '
+            .'baseline: multi-factor sign-in, encrypted documents, and access limited to the '
+            .'people working on the engagement.';
         $lines[] = '';
 
         $lines[] = '## Services';
@@ -56,6 +63,7 @@ class LlmsTxtController extends Controller
         $lines[] = '';
         $lines[] = "- [Home]({$base}/): Overview of the practice and how we work.";
         $lines[] = "- [Services]({$base}/services): All engagement types, who each is for, and what you receive.";
+        $lines[] = "- [Idea Validation]({$base}/idea-validation): Fixed-fee idea validation for founders - {$ideaValidationPrice}, start online, no call needed.";
         $lines[] = "- [Entrepreneur Module]({$base}/services/entrepreneur): Idea validation, business plans, and funding readiness for founders.";
         $lines[] = "- [About]({$base}/about): The practice's principles and the Principal Advisor's background.";
         $lines[] = "- [FAQ]({$base}/faq): Answers on engagements, fees, security, not-for-profits, and use of AI.";
@@ -64,7 +72,7 @@ class LlmsTxtController extends Controller
 
         $lines[] = '## Frequently asked questions';
         $lines[] = '';
-        foreach (FaqCatalog::all() as $faq) {
+        foreach (FaqCatalog::all($priceLabel) as $faq) {
             $lines[] = sprintf('### %s', $faq['question']);
             $lines[] = '';
             $lines[] = $faq['answer'];

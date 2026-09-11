@@ -115,9 +115,17 @@ export function SiteFooter() {
                         &copy; {year} Future Shift Advisory. All rights
                         reserved.
                     </p>
-                    <p className="text-[11px] tracking-wider uppercase">
-                        futureshiftadvisory.nz
-                    </p>
+                    <div className="flex items-center gap-4">
+                        <Link
+                            href="/terms-and-privacy"
+                            className="hover:text-white"
+                        >
+                            Terms &amp; Privacy
+                        </Link>
+                        <span className="text-[11px] tracking-wider uppercase">
+                            futureshiftadvisory.nz
+                        </span>
+                    </div>
                 </div>
             </div>
         </footer>

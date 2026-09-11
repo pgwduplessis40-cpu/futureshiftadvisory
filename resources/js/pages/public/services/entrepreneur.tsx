@@ -112,17 +112,16 @@ export default function EntrepreneurService() {
                 </p>
                 <div className="mt-10 flex flex-wrap items-center gap-4">
                     <Link
-                        href="/contact?interest=entrepreneur_module"
+                        href="/idea-validation"
                         className="inline-flex items-center gap-2 rounded-md bg-[var(--fs-admiralty)] px-5 py-3 text-sm font-medium text-[var(--fs-parchment)] shadow-sm transition-colors hover:bg-[var(--fs-commodore)]"
                     >
-                        Book a discovery call <ArrowRight className="h-4 w-4" />
+                        Validate my idea <ArrowRight className="h-4 w-4" />
                     </Link>
                     <Link
-                        href="/faq"
+                        href="/contact?interest=entrepreneur_module"
                         className="inline-flex items-center gap-2 text-sm font-medium text-[var(--fs-admiralty)] hover:text-[var(--fs-pacific)]"
                     >
-                        Common questions from founders{' '}
-                        <ArrowRight className="h-4 w-4" />
+                        Rather talk it through first? Book a discovery call
                     </Link>
                 </div>
             </Section>
@@ -144,6 +143,15 @@ export default function EntrepreneurService() {
                         &ldquo;not in this form, and here is why&rdquo; - a far
                         cheaper thing to hear now than two years and a mortgage
                         later.
+                    </p>
+                    <p className="mt-4">
+                        <Link
+                            href="/idea-validation"
+                            className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--fs-admiralty)] hover:text-[var(--fs-pacific)]"
+                        >
+                            Ready to start? Validate your idea online{' '}
+                            <ArrowRight className="h-4 w-4" />
+                        </Link>
                     </p>
 
                     <div className="mt-8 grid gap-4 sm:grid-cols-2">
