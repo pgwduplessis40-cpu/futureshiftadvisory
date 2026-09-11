@@ -14,8 +14,8 @@ use App\Http\Controllers\Public\SitemapController;
 use App\Http\Controllers\Public\TermsAndPrivacyController;
 use App\Models\ServiceRatePackage;
 use App\Services\Entrepreneurs\EntrepreneurServiceOffer;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------

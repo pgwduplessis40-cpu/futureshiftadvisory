@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Settings;
 
-use App\Enums\EntrepreneurStage;
-use App\Enums\EngagementType;
 use App\Enums\ClientStatus;
+use App\Enums\EngagementType;
+use App\Enums\EntrepreneurStage;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\EntrepreneurProfile;

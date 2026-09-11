@@ -6,10 +6,10 @@ namespace App\Services\Integration\Stripe;
 
 use App\Services\Integration\Exceptions\IntegrationDisabledException;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
-use App\Services\Payments\PaymentAuthorityRequest;
-use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\IdeaValidationPaymentIntent;
 use App\Services\Payments\IdeaValidationPaymentIntentRequest;
+use App\Services\Payments\PaymentAuthorityRequest;
+use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;

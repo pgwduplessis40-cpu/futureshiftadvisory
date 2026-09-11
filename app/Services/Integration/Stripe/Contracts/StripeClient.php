@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Integration\Stripe\Contracts;
 
-use App\Services\Payments\PaymentAuthorityRequest;
-use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\IdeaValidationPaymentIntent;
 use App\Services\Payments\IdeaValidationPaymentIntentRequest;
+use App\Services\Payments\PaymentAuthorityRequest;
+use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;

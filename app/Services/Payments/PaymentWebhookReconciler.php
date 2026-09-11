@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Payments;
 
+use App\Models\IdeaValidationPurchase;
 use App\Models\Payment;
 use App\Models\PaymentSchedule;
 use App\Models\PaymentWebhookEvent;
-use App\Services\Entrepreneurs\IdeaValidationCheckout;
 use App\Services\Audit\AuditWriter;
+use App\Services\Entrepreneurs\IdeaValidationCheckout;
 use App\Support\RequestContext;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -165,7 +166,7 @@ final class PaymentWebhookReconciler
             $this->scalarString($intent['id'] ?? null) ?? (string) $payment->gateway_ref,
             $processedAt,
         );
-        $receipt = $ideaValidationPurchase instanceof \App\Models\IdeaValidationPurchase
+        $receipt = $ideaValidationPurchase instanceof IdeaValidationPurchase
             ? $payment->refresh()->receipt()->firstOrFail()
             : $this->receipts->create($payment->refresh());
 

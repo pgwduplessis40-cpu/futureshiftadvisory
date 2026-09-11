@@ -11,7 +11,6 @@ use App\Models\IdeaValidationPurchase;
 use App\Models\Payment;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
-use App\Models\TermsAcceptance;
 use App\Models\TermsVersion;
 use App\Models\User;
 use App\Notifications\IdeaValidationEmailVerificationNotification;
