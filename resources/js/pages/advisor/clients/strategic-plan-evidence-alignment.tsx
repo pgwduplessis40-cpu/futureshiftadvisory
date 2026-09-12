@@ -206,7 +206,8 @@ export function StrategicPlanEvidenceAlignment({
                                     updateDisposition(
                                         index,
                                         event.target.value as
-                                            'supports' | 'out_of_scope',
+                                            | 'supports'
+                                            | 'out_of_scope',
                                     )
                                 }
                                 className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-70"
@@ -262,6 +263,8 @@ export function StrategicPlanEvidenceAlignment({
                 <label className="flex items-start gap-2 text-sm text-muted-foreground">
                     <input
                         type="checkbox"
+                        name="confirm_current_sources"
+                        aria-label="Confirm the current source evidence was reviewed"
                         checked={confirmCurrentSources}
                         onChange={(event) =>
                             onConfirmCurrentSourcesChange(event.target.checked)
