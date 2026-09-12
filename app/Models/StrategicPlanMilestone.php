@@ -32,6 +32,10 @@ final class StrategicPlanMilestone extends Model
         'due_offset_days' => 'integer',
         'due_date' => 'date',
         'progress_percent' => 'integer',
+        'baseline_value' => 'decimal:2',
+        'target_value' => 'decimal:2',
+        'actual_value' => 'decimal:2',
+        'measurement_updated_at' => 'datetime',
         'completed_at' => 'datetime',
     ];
 

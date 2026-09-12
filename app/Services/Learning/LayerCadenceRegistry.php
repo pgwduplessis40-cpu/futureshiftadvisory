@@ -36,6 +36,8 @@ final class LayerCadenceRegistry
 
     public const LAYER_SERVICE_ACTIVATION = 40;
 
+    public const LAYER_STRATEGIC_PLAN_ALIGNMENT = 41;
+
     /**
      * @return Collection<int, array<string, mixed>>
      */
@@ -126,6 +128,17 @@ final class LayerCadenceRegistry
                 'feeds' => ['service_activations', 'service_rate_packages', 'client_acceptance_events'],
                 'governance_gate' => 'advisor_or_admin_review_required',
                 'direct_write_policy' => 'no_auto_pricing_scope_or_advice_changes',
+                'values_guardrail' => 'honest_accurate_truthful_unbiased',
+            ]),
+            $this->layer(self::LAYER_STRATEGIC_PLAN_ALIGNMENT, 'Strategic plan evidence alignment', self::CADENCE_WEEKLY, 90, null, [
+                'module' => 'strategic_planning',
+                'surface' => 'advisor_strategic_plan',
+                'feeds' => ['business_plan_sections', 'strategic_budgets', 'client_goals', 'advisor_goals', 'proposal_focus_areas'],
+                'evidence_binding_policy' => 'explicit_source_link_or_out_of_scope_rationale_required',
+                'source_snapshot_policy' => 'material_source_changes_require_advisor_reconfirmation',
+                'outcome_variance_threshold' => 0.2,
+                'governance_gate' => 'advisor_or_admin_review_required',
+                'direct_write_policy' => 'no_auto_plan_budget_or_advice_changes',
                 'values_guardrail' => 'honest_accurate_truthful_unbiased',
             ]),
         ]);

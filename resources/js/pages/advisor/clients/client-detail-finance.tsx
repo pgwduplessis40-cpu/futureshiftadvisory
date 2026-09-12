@@ -1,12 +1,10 @@
 import { Link, router, useForm } from '@inertiajs/react';
 import {
-    Ban,
     CreditCard,
     FileCheck2,
     FileText,
     ListChecks,
     Mail,
-    PlusCircle,
     PlugZap,
     RotateCcw,
     Send,
@@ -17,7 +15,6 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Metric,
@@ -35,6 +32,8 @@ import type {
     StrategicPlanSummary,
 } from './client-detail-types';
 import type { StrategicPlanDeploymentGuard } from './service-workspaces';
+import { StrategicPlanEvidenceAlignment } from './strategic-plan-evidence-alignment';
+import { StrategicPlanMilestoneTracker } from './strategic-plan-milestone-tracker';
 export function AccountingConnectionsPanel({
     client,
 }: {
@@ -408,10 +407,23 @@ export function StrategicPlanEditor({
     const form = useForm<StrategicPlanForm>({
         summary: plan.summary ?? '',
         sections: plan.sections,
+        evidence_bindings: plan.evidence_bindings.map((binding) => ({
+            source_key: binding.source_key,
+            target_key: binding.target_key,
+            disposition: binding.disposition,
+            rationale: binding.rationale,
+        })),
+        confirm_current_sources: false,
         milestones: plan.milestones.map((milestone) => ({
             ...milestone,
             description: milestone.description ?? '',
             advisor_notes: milestone.advisor_notes ?? '',
+            metric_label: milestone.metric_label ?? '',
+            measurement_unit: milestone.measurement_unit ?? '',
+            target_direction: milestone.target_direction ?? 'increase',
+            baseline_value: milestone.baseline_value ?? '',
+            target_value: milestone.target_value ?? '',
+            actual_value: milestone.actual_value ?? '',
         })),
     });
 
@@ -448,53 +460,6 @@ export function StrategicPlanEditor({
             'sections',
             form.data.sections.map((section, current) =>
                 current === index ? { ...section, [field]: value } : section,
-            ),
-        );
-    };
-
-    const updateMilestone = (
-        index: number,
-        field: keyof StrategicPlanForm['milestones'][number],
-        value: string | number,
-    ) => {
-        form.setData(
-            'milestones',
-            form.data.milestones.map((milestone, current) =>
-                current === index
-                    ? {
-                          ...milestone,
-                          [field]: value,
-                      }
-                    : milestone,
-            ),
-        );
-    };
-
-    const addMilestone = () => {
-        form.setData('milestones', [
-            ...form.data.milestones,
-            {
-                id: '',
-                title: '',
-                description: '',
-                owner: 'joint',
-                owner_label: 'Joint',
-                due_offset_days: 30,
-                due_date: null,
-                status: 'pending',
-                status_label: 'Pending',
-                progress_percent: 0,
-                evidence_notes: '',
-                advisor_notes: '',
-            },
-        ]);
-    };
-
-    const removeMilestone = (index: number) => {
-        form.setData(
-            'milestones',
-            form.data.milestones.filter(
-                (_milestone, current) => current !== index,
             ),
         );
     };
@@ -581,6 +546,21 @@ export function StrategicPlanEditor({
                 <Metric label="Deployed" value={formatDate(plan.deployed_at)} />
             </div>
 
+            <StrategicPlanEvidenceAlignment
+                plan={plan}
+                deployed={deployed}
+                sections={form.data.sections}
+                milestones={form.data.milestones}
+                evidenceBindings={form.data.evidence_bindings}
+                confirmCurrentSources={form.data.confirm_current_sources}
+                onEvidenceBindingsChange={(evidenceBindings) =>
+                    form.setData('evidence_bindings', evidenceBindings)
+                }
+                onConfirmCurrentSourcesChange={(confirmed) =>
+                    form.setData('confirm_current_sources', confirmed)
+                }
+            />
+
             <div className="grid gap-2">
                 <Label htmlFor="strategic_plan_summary">Summary</Label>
                 <textarea
@@ -620,157 +600,13 @@ export function StrategicPlanEditor({
                 ))}
             </div>
 
-            <div className="space-y-3 rounded-md border p-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <h3 className="text-sm font-medium">
-                            Milestone tracker
-                        </h3>
-                        <p className="text-xs text-muted-foreground">
-                            Due dates are set from the agreed start date.
-                        </p>
-                    </div>
-                    {!deployed && (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={addMilestone}
-                        >
-                            <PlusCircle className="size-4" aria-hidden="true" />
-                            Add milestone
-                        </Button>
-                    )}
-                </div>
-
-                <div className="space-y-3">
-                    {form.data.milestones.map((milestone, index) => (
-                        <div
-                            key={`${milestone.id}-${index}`}
-                            className="grid gap-3 rounded-md bg-muted/30 p-3"
-                        >
-                            <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_150px_150px_auto]">
-                                <div className="grid gap-1">
-                                    <Label
-                                        htmlFor={`strategic_milestone_title_${index}`}
-                                    >
-                                        Title
-                                    </Label>
-                                    <Input
-                                        id={`strategic_milestone_title_${index}`}
-                                        value={milestone.title}
-                                        disabled={deployed}
-                                        onChange={(event) =>
-                                            updateMilestone(
-                                                index,
-                                                'title',
-                                                event.target.value,
-                                            )
-                                        }
-                                    />
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label
-                                        htmlFor={`strategic_milestone_owner_${index}`}
-                                    >
-                                        Owner
-                                    </Label>
-                                    <select
-                                        id={`strategic_milestone_owner_${index}`}
-                                        value={milestone.owner}
-                                        disabled={deployed}
-                                        onChange={(event) =>
-                                            updateMilestone(
-                                                index,
-                                                'owner',
-                                                event.target.value,
-                                            )
-                                        }
-                                        className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-70"
-                                    >
-                                        <option value="client">Client</option>
-                                        <option value="advisor">Advisor</option>
-                                        <option value="joint">Joint</option>
-                                    </select>
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label
-                                        htmlFor={`strategic_milestone_due_${index}`}
-                                    >
-                                        Due after
-                                    </Label>
-                                    <Input
-                                        id={`strategic_milestone_due_${index}`}
-                                        type="number"
-                                        min={1}
-                                        max={365}
-                                        value={milestone.due_offset_days}
-                                        disabled={deployed}
-                                        onChange={(event) =>
-                                            updateMilestone(
-                                                index,
-                                                'due_offset_days',
-                                                Number(event.target.value),
-                                            )
-                                        }
-                                    />
-                                </div>
-                                {!deployed && (
-                                    <Button
-                                        type="button"
-                                        size="icon"
-                                        variant="outline"
-                                        className="self-end"
-                                        onClick={() => removeMilestone(index)}
-                                    >
-                                        <Ban
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        <span className="sr-only">
-                                            Remove milestone
-                                        </span>
-                                    </Button>
-                                )}
-                            </div>
-                            <textarea
-                                value={milestone.description}
-                                disabled={deployed}
-                                onChange={(event) =>
-                                    updateMilestone(
-                                        index,
-                                        'description',
-                                        event.target.value,
-                                    )
-                                }
-                                rows={3}
-                                placeholder="Milestone description"
-                                className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-70"
-                            />
-                            {deployed && (
-                                <div className="grid gap-2 text-sm md:grid-cols-4">
-                                    <Metric
-                                        label="Status"
-                                        value={milestone.status_label}
-                                    />
-                                    <Metric
-                                        label="Progress"
-                                        value={`${milestone.progress_percent}%`}
-                                    />
-                                    <Metric
-                                        label="Due"
-                                        value={formatDate(milestone.due_date)}
-                                    />
-                                    <Metric
-                                        label="Owner"
-                                        value={milestone.owner_label}
-                                    />
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </div>
+            <StrategicPlanMilestoneTracker
+                deployed={deployed}
+                milestones={form.data.milestones}
+                onMilestonesChange={(milestones) =>
+                    form.setData('milestones', milestones)
+                }
+            />
         </section>
     );
 }

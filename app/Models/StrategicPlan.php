@@ -24,6 +24,8 @@ final class StrategicPlan extends Model
         'duration_months' => 'integer',
         'duration_rationale' => 'array',
         'sections' => 'array',
+        'evidence_bindings' => 'array',
+        'source_snapshots' => 'array',
         'generated_at' => 'datetime',
         'deployed_at' => 'datetime',
     ];

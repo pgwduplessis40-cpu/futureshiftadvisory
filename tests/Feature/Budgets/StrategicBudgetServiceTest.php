@@ -13,6 +13,7 @@ use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentVerification;
 use App\Models\FinancialSnapshot;
+use App\Models\LearningUpdate;
 use App\Models\Questionnaire;
 use App\Models\QuestionnaireAnswer;
 use App\Models\QuestionnaireQuestion;
@@ -21,6 +22,7 @@ use App\Models\QuestionnaireSection;
 use App\Models\StrategicBudget;
 use App\Models\User;
 use App\Services\Budgets\StrategicBudgetService;
+use App\Services\Learning\StrategicPlanAlignmentLearning;
 use App\Support\RequestContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -182,6 +184,69 @@ final class StrategicBudgetServiceTest extends TestCase
         $this->assertNotNull($reconciliationCriterion);
         $this->assertSame('missing', $reconciliationCriterion['status']);
         $this->assertTrue($reconciliationCriterion['blocking']);
+    }
+
+    public function test_business_plan_and_budget_learning_review_returns_the_reviewed_budget(): void
+    {
+        $budget = StrategicBudget::query()->create([
+            'client_id' => $this->client()->getKey(),
+            'pathway' => StrategicBudget::PATHWAY_ADVISORY,
+            'label' => 'Business Plan & Budget',
+            'status' => StrategicBudget::STATUS_SUBMITTED_FOR_REVIEW,
+            'horizon_months' => 12,
+            'source_financials' => [],
+            'client_goals' => [],
+            'advisor_goals' => [],
+            'business_plan_sections' => array_map(
+                fn (string $key): array => [
+                    'key' => $key,
+                    'title' => str($key)->replace('_', ' ')->title()->toString(),
+                    'answer' => 'Assessment-ready planning evidence.',
+                    'financial_drivers' => $key === 'market_customers'
+                        ? [[
+                            'key' => 'driver_enterprise_sales',
+                            'category' => 'revenue_forecast',
+                            'label' => 'Enterprise sales',
+                            'amount' => 10_000,
+                            'quantity' => 2,
+                            'cadence' => 'monthly',
+                            'cadence_confirmed' => true,
+                            'growth_percent' => 5,
+                            'growth_cadence' => 'monthly',
+                            'growth_cadence_confirmed' => true,
+                            'monthly_capacity_units' => 2,
+                            'capacity_confirmed' => true,
+                        ]]
+                        : [],
+                ],
+                ['goals', 'current_position', 'market_customers', 'operations', 'risks', 'swot', 'action_priorities', 'evidence_documents'],
+            ),
+            'business_plan_source_drafts' => [],
+            'business_plan_prompts' => [],
+            'assumptions' => [],
+            'implementation_costs' => [],
+            'monthly_fixed_costs' => [],
+            'future_costs' => [],
+            'revenue_forecast' => [],
+            'funding_sources' => [],
+            'funding_scenarios' => [],
+            'computed' => [],
+            'flags' => [],
+            'confidence' => [],
+            'submitted_at' => now(),
+            'business_plan_submitted_at' => now(),
+        ]);
+
+        $reviewed = app(StrategicPlanAlignmentLearning::class)->syncBudgetAndPlans($budget);
+
+        $candidate = LearningUpdate::query()
+            ->where('source->type', 'strategic_budget_plan_budget_alignment')
+            ->first();
+
+        $this->assertNotNull($candidate);
+        $this->assertTrue($reviewed->is($budget));
+        $this->assertSame($budget->getKey(), data_get($candidate->impact_scope, 'strategic_budget_id'));
+        $this->assertFalse((bool) data_get($candidate->proposed_change, 'automatic_application'));
     }
 
     public function test_post_acquisition_source_drafts_gather_onboarding_questionnaire_and_evidence_for_plan_sections(): void

@@ -65,6 +65,12 @@ final class StrategicPlanController extends Controller
             'sections.*.key' => ['required_with:sections', 'string', 'max:80'],
             'sections.*.title' => ['nullable', 'string', 'max:160'],
             'sections.*.body' => ['nullable', 'string', 'max:8000'],
+            'evidence_bindings' => ['nullable', 'array', 'max:80'],
+            'evidence_bindings.*.source_key' => ['required_with:evidence_bindings', 'string', 'max:180'],
+            'evidence_bindings.*.target_key' => ['required_with:evidence_bindings', 'string', 'max:180'],
+            'evidence_bindings.*.disposition' => ['required_with:evidence_bindings', 'string', Rule::in(['supports', 'out_of_scope'])],
+            'evidence_bindings.*.rationale' => ['nullable', 'string', 'max:2000'],
+            'confirm_current_sources' => ['nullable', 'boolean'],
             'milestones' => ['array', 'max:20'],
             'milestones.*.id' => ['nullable', 'uuid'],
             'milestones.*.title' => ['nullable', 'string', 'max:180'],
@@ -74,6 +80,12 @@ final class StrategicPlanController extends Controller
             'milestones.*.status' => ['nullable', 'string', Rule::in(['pending', 'in_progress', 'completed', 'blocked'])],
             'milestones.*.progress_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'milestones.*.advisor_notes' => ['nullable', 'string', 'max:2000'],
+            'milestones.*.metric_label' => ['nullable', 'string', 'max:160'],
+            'milestones.*.measurement_unit' => ['nullable', 'string', 'max:80'],
+            'milestones.*.target_direction' => ['nullable', 'string', Rule::in(['increase', 'decrease'])],
+            'milestones.*.baseline_value' => ['nullable', 'numeric'],
+            'milestones.*.target_value' => ['nullable', 'numeric'],
+            'milestones.*.actual_value' => ['nullable', 'numeric'],
         ]);
 
         try {
@@ -85,6 +97,36 @@ final class StrategicPlanController extends Controller
 
         return to_route('advisor.clients.show', $strategicPlan->client)
             ->with('status', 'strategic-plan-saved');
+    }
+
+    public function updateMilestoneOutcome(Request $request, StrategicPlanMilestone $milestone): RedirectResponse
+    {
+        $milestone->loadMissing('strategicPlan.client');
+        $plan = $milestone->strategicPlan;
+        abort_unless($plan instanceof StrategicPlan && $plan->client instanceof Client, 404);
+        Gate::authorize('view', $plan->client);
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $validated = $request->validate([
+            'metric_label' => ['nullable', 'string', 'max:160'],
+            'measurement_unit' => ['nullable', 'string', 'max:80'],
+            'target_direction' => ['nullable', 'string', Rule::in(['increase', 'decrease'])],
+            'baseline_value' => ['nullable', 'numeric'],
+            'target_value' => ['nullable', 'numeric'],
+            'actual_value' => ['nullable', 'numeric'],
+        ]);
+
+        try {
+            $this->plans->updateAdvisorMilestoneOutcome($milestone, $validated, $user);
+        } catch (InvalidArgumentException $exception) {
+            return to_route('advisor.clients.show', $plan->client)
+                ->withErrors(['strategic_plan' => $exception->getMessage()]);
+        }
+
+        return to_route('advisor.clients.show', $plan->client)
+            ->with('status', 'strategic-plan-outcome-saved');
     }
 
     public function deploy(Request $request, StrategicPlan $strategicPlan): RedirectResponse

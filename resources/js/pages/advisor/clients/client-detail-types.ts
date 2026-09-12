@@ -9,6 +9,7 @@ import type {
     StrategicBudgetSummary,
     StrategicPlanDeploymentGuard,
 } from './service-workspaces';
+import type { StrategicPlanSummary } from './strategic-plan-types';
 import type { ClientSummary } from './types';
 export type ClientDetail = ClientSummary & {
     data_quality_summary: DataQualitySummary;
@@ -549,60 +550,15 @@ export type ProposalSummary = {
     strategic_plan_generate_url: string | null;
 };
 
-export type StrategicPlanSection = {
-    key: string;
-    title: string;
-    body: string;
-};
-
-export type StrategicPlanMilestone = {
-    id: string;
-    title: string;
-    description: string | null;
-    owner: 'client' | 'advisor' | 'joint';
-    owner_label: string;
-    due_offset_days: number;
-    due_date: string | null;
-    status: 'pending' | 'in_progress' | 'completed' | 'blocked';
-    status_label: string;
-    progress_percent: number;
-    evidence_notes: string | null;
-    advisor_notes: string | null;
-};
-
-export type StrategicPlanSummary = {
-    id: string;
-    title: string;
-    status: string;
-    status_label: string;
-    duration_months: number;
-    duration_label: string;
-    complexity_band: string;
-    complexity_label: string;
-    duration_rationale: string[];
-    summary: string | null;
-    sections: StrategicPlanSection[];
-    generated_at: string | null;
-    deployed_at: string | null;
-    progress_percent: number;
-    completed_milestones: number;
-    total_milestones: number;
-    milestones: StrategicPlanMilestone[];
-    pdf_url: string;
-    update_url: string;
-    deploy_url: string;
-};
-
-export type StrategicPlanForm = {
-    summary: string;
-    sections: StrategicPlanSection[];
-    milestones: Array<
-        StrategicPlanMilestone & {
-            description: string;
-            advisor_notes: string;
-        }
-    >;
-};
+export type {
+    StrategicPlanEvidenceBinding,
+    StrategicPlanEvidenceSource,
+    StrategicPlanEvidenceSummary,
+    StrategicPlanForm,
+    StrategicPlanMilestone,
+    StrategicPlanSection,
+    StrategicPlanSummary,
+} from './strategic-plan-types';
 
 export type FoundingRoadmapMilestone = {
     title: string;
