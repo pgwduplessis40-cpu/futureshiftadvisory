@@ -319,11 +319,7 @@ final class StrategicBudgetService
             'version' => $assessment->round,
         ]);
 
-        $assessed = $budget->refresh();
-        $this->strategicPlanLearning->syncBudgetPlanCoherence($assessed);
-        $this->strategicPlanLearning->syncPlansForBudget($assessed);
-
-        return $assessed;
+        return $this->strategicPlanLearning->syncBudgetAndPlans($budget->refresh());
     }
 
     public function saveAssessmentFeedback(

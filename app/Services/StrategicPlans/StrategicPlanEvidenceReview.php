@@ -22,6 +22,8 @@ use InvalidArgumentException;
  * @phpstan-type EvidenceSource array{key:string,category:string,label:string,advisor_label:string,materiality:'low'|'medium'|'high',hash:string}
  * @phpstan-type EvidenceBinding array{source_key:string,target_key:string,disposition:'supports'|'out_of_scope',rationale:string,source_hash:string,confirmed_at:string}
  * @phpstan-type Finding array{category:string,severity:'missing'|'review',message:string,next_action:string,materiality:'low'|'medium'|'high'}
+ * @phpstan-type EvidenceBindingInput array{source_key?: string, target_key?: string, disposition?: string, rationale?: string}
+ * @phpstan-type EvidencePayload array<array-key, mixed>
  */
 final class StrategicPlanEvidenceReview
 {
@@ -60,7 +62,7 @@ final class StrategicPlanEvidenceReview
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $input
+     * @param  list<EvidenceBindingInput>  $input
      * @return list<EvidenceBinding>
      */
     public function normaliseBindings(StrategicPlan $plan, array $input, bool $confirmCurrentSources): array
@@ -390,7 +392,7 @@ final class StrategicPlanEvidenceReview
     }
 
     /**
-     * @param  array<string, mixed>  $payload
+     * @param  EvidencePayload  $payload
      * @return EvidenceSource
      */
     private function source(string $key, string $category, string $label, string $materiality, array $payload, ?string $advisorLabel = null): array
@@ -405,7 +407,7 @@ final class StrategicPlanEvidenceReview
         ];
     }
 
-    /** @param array<string, mixed> $source */
+    /** @param EvidencePayload $source */
     private function sourceText(array $source): string
     {
         return trim(implode(' ', array_filter([

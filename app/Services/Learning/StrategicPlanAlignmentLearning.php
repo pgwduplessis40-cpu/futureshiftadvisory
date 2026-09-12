@@ -19,6 +19,10 @@ use App\Services\StrategicPlans\StrategicPlanEvidenceReview;
  * the shared learning queue.
  *
  * @phpstan-type Finding array{category:string,severity:'missing'|'review',message:string,next_action:string,materiality:'low'|'medium'|'high'}
+ * @phpstan-type CandidateAttributes array<array-key, mixed>
+ * @phpstan-type PlanningCheckItem array{severity?: string, message?: string, next_action?: string}
+ * @phpstan-type PlanningCheck array<array-key, mixed>
+ * @phpstan-type PlanningCheckSummary array{status:mixed,score:mixed,approval_available:bool,unresolved_count:int|float,evidence:array<array-key, mixed>}
  */
 final class StrategicPlanAlignmentLearning
 {
@@ -63,6 +67,14 @@ final class StrategicPlanAlignmentLearning
                 'plan_correlation' => $this->checkSummary($reconciliation),
             ],
         );
+    }
+
+    public function syncBudgetAndPlans(StrategicBudget $budget): StrategicBudget
+    {
+        $this->syncBudgetPlanCoherence($budget);
+        $this->syncPlansForBudget($budget);
+
+        return $budget;
     }
 
     public function syncStrategicPlan(StrategicPlan $plan): ?LearningUpdate
@@ -148,9 +160,9 @@ final class StrategicPlanAlignmentLearning
 
     /**
      * @param  list<Finding>  $findings
-     * @param  array<string, mixed>  $proposedChange
-     * @param  array<string, mixed>  $impactScope
-     * @param  array<string, mixed>  $evidence
+     * @param  CandidateAttributes  $proposedChange
+     * @param  CandidateAttributes  $impactScope
+     * @param  CandidateAttributes  $evidence
      */
     private function syncCandidate(
         string $sourceType,
@@ -320,7 +332,7 @@ final class StrategicPlanAlignmentLearning
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $items
+     * @param  list<PlanningCheckItem>  $items
      * @return list<Finding>
      */
     private function findings(string $category, array $items): array
@@ -350,8 +362,8 @@ final class StrategicPlanAlignmentLearning
     }
 
     /**
-     * @param  array<string, mixed>  $check
-     * @return array<string, mixed>
+     * @param  PlanningCheck  $check
+     * @return PlanningCheckSummary
      */
     private function checkSummary(array $check): array
     {
@@ -416,7 +428,7 @@ final class StrategicPlanAlignmentLearning
             ->first();
     }
 
-    /** @param array<string, mixed> $payload */
+    /** @param CandidateAttributes $payload */
     private function candidateChanged(LearningUpdate $update, array $payload): bool
     {
         return $update->summary !== $payload['summary']
@@ -429,8 +441,8 @@ final class StrategicPlanAlignmentLearning
     }
 
     /**
-     * @param  array<string, mixed>|null  $current
-     * @param  array<string, mixed>  $next
+     * @param  CandidateAttributes|null  $current
+     * @param  CandidateAttributes  $next
      */
     private function evidenceChanged(?array $current, array $next): bool
     {

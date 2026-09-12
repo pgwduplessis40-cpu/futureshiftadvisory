@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
+/** @phpstan-type StrategicPlanPayload array<array-key, mixed> */
 final class StrategicPlanService
 {
     private const SECTION_KEYS = [
@@ -106,7 +107,7 @@ final class StrategicPlanService
     }
 
     /**
-     * @param  array<string, mixed>  $input
+     * @param  StrategicPlanPayload  $input
      */
     public function update(StrategicPlan $plan, array $input, User $actor): StrategicPlan
     {
@@ -188,7 +189,7 @@ final class StrategicPlanService
     }
 
     /**
-     * @param  array<string, mixed>  $input
+     * @param  StrategicPlanPayload  $input
      */
     public function updateClientMilestone(StrategicPlanMilestone $milestone, array $input, User $actor): StrategicPlanMilestone
     {
@@ -223,7 +224,7 @@ final class StrategicPlanService
     }
 
     /**
-     * @param  array<string, mixed>  $input
+     * @param  StrategicPlanPayload  $input
      */
     public function updateAdvisorMilestoneOutcome(StrategicPlanMilestone $milestone, array $input, User $actor): StrategicPlanMilestone
     {
