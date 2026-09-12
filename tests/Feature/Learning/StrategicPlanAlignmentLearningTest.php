@@ -109,6 +109,28 @@ final class StrategicPlanAlignmentLearningTest extends TestCase
         $this->assertContains('business_plan_priority', $categories);
     }
 
+    public function test_strategic_plan_review_handles_a_budget_without_goal_arrays(): void
+    {
+        $client = $this->client();
+        $budget = $this->budget($client, [
+            'client_goals' => null,
+            'advisor_goals' => null,
+        ]);
+        $plan = $this->plan($client, $budget, [
+            $this->section('outcomes', 'Improve brand awareness.'),
+            $this->section('priorities', 'Refresh the website homepage.'),
+            $this->section('milestones', 'Review progress every month.'),
+            $this->section('budget', 'Use the current budget.'),
+            $this->section('governance', 'Advisor and client meet monthly.'),
+        ]);
+
+        $update = app(StrategicPlanAlignmentLearning::class)->syncStrategicPlan($plan);
+
+        $this->assertInstanceOf(LearningUpdate::class, $update);
+        $this->assertSame(0, data_get($update->evidence, 'client_goal_count'));
+        $this->assertSame(0, data_get($update->evidence, 'advisor_goal_count'));
+    }
+
     public function test_strategic_plan_updates_refresh_the_same_candidate_instead_of_adding_queue_noise(): void
     {
         $client = $this->client();

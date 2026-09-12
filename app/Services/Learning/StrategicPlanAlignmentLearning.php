@@ -93,8 +93,8 @@ final class StrategicPlanAlignmentLearning
                 'plan_correlation' => $this->checkSummary($this->planBudgetReconciliation->evaluate($budget)),
             ]
             : null;
-        $clientGoalCount = $budget !== null ? count($budget->client_goals) : 0;
-        $advisorGoalCount = $budget !== null ? count($budget->advisor_goals) : 0;
+        $clientGoalCount = $budget !== null ? count($budget->client_goals ?? []) : 0;
+        $advisorGoalCount = $budget !== null ? count($budget->advisor_goals ?? []) : 0;
 
         return $this->syncCandidate(
             sourceType: 'strategic_plan_evidence_alignment',
