@@ -10,6 +10,7 @@ use App\Models\TermsVersion;
 use App\Models\User;
 use App\Notifications\IdeaValidationEmailVerificationNotification;
 use App\Services\Entrepreneurs\IdeaValidationCheckout;
+use App\Services\Entrepreneurs\IdeaValidationRegistrationConflict;
 use App\Services\Terms\TermsAcceptanceGate;
 use App\Support\RequestContext;
 use Illuminate\Http\JsonResponse;
@@ -32,34 +33,33 @@ final class IdeaValidationPurchaseController extends Controller
     {
         $user = $request->user();
         $purchase = $user instanceof User ? $this->checkout->purchaseFor($user) : null;
+
+        if ($user instanceof User && ! $purchase instanceof IdeaValidationPurchase) {
+            return $this->renderPurchasePage($request, state: 'existing_session');
+        }
+
         if ($purchase instanceof IdeaValidationPurchase && $purchase->status === IdeaValidationPurchase::STATUS_PAID) {
             $request->session()->put('fsa.idea_validation_purchase_flow', true);
 
             return redirect()->route('mfa.setup');
         }
 
-        $terms = $this->terms->latestPublishedVersion(
-            withClauses: false,
-            documentScope: TermsVersion::SCOPE_WEBSITE,
-        );
-
-        return Inertia::render('public/idea-validation-purchase', [
-            'state' => $purchase instanceof IdeaValidationPurchase
+        return $this->renderPurchasePage(
+            $request,
+            state: $purchase instanceof IdeaValidationPurchase
                 ? ($purchase->email_verified_at === null ? 'verify_email' : 'checkout')
                 : 'register',
-            'purchase' => $purchase instanceof IdeaValidationPurchase ? $this->purchasePayload($purchase) : null,
-            'terms' => $terms instanceof TermsVersion ? [
-                'id' => $terms->getKey(),
-                'version' => $terms->version,
-                'title' => $terms->title,
-                'url' => route('public.terms-and-privacy', absolute: false),
-            ] : null,
-        ]);
+            purchase: $purchase,
+        );
     }
 
     public function register(Request $request): RedirectResponse
     {
-        abort_if($request->user() instanceof User, 403);
+        if ($request->user() instanceof User) {
+            return to_route('public.validate-idea.purchase')->withErrors([
+                'checkout' => 'A portal account is already signed in. For account safety, sign out or use a private browser window before creating an Idea Validation account.',
+            ]);
+        }
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -69,12 +69,17 @@ final class IdeaValidationPurchaseController extends Controller
             'terms_accepted' => ['accepted'],
         ]);
 
-        $purchase = $this->checkout->register($request, [
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => $validated['password'],
-            'terms_version_id' => $validated['terms_version_id'],
-        ]);
+        try {
+            $purchase = $this->checkout->register($request, [
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => $validated['password'],
+                'terms_version_id' => $validated['terms_version_id'],
+            ]);
+        } catch (IdeaValidationRegistrationConflict $conflict) {
+            return to_route('public.validate-idea.purchase')
+                ->with('idea_validation_account_conflict', $conflict->conflict);
+        }
         $user = $purchase->user;
         abort_unless($user instanceof User, 500);
 
@@ -104,6 +109,14 @@ final class IdeaValidationPurchaseController extends Controller
             ->with('user')
             ->whereKey($purchase)
             ->firstOrFail());
+        $user = $record->user;
+        abort_unless($user instanceof User, 500);
+
+        $currentUser = $request->user();
+        if ($currentUser instanceof User && $currentUser->getKey() !== $user->getKey()) {
+            return to_route('public.validate-idea.purchase')->with('status', 'idea-validation-verification-requires-private-session');
+        }
+
         $record = $this->checkout->markEmailVerified($record, $hash);
         $user = $record->user;
         abort_unless($user instanceof User, 500);
@@ -112,6 +125,36 @@ final class IdeaValidationPurchaseController extends Controller
         $request->session()->regenerate();
 
         return to_route('public.validate-idea.purchase')->with('status', 'idea-validation-email-verified');
+    }
+
+    private function renderPurchasePage(Request $request, string $state, ?IdeaValidationPurchase $purchase = null): Response
+    {
+        $terms = $this->terms->latestPublishedVersion(
+            withClauses: false,
+            documentScope: TermsVersion::SCOPE_WEBSITE,
+        );
+
+        return Inertia::render('public/idea-validation-purchase', [
+            'state' => $state,
+            'accountConflict' => $this->accountConflict($request),
+            'purchase' => $purchase instanceof IdeaValidationPurchase ? $this->purchasePayload($purchase) : null,
+            'terms' => $terms instanceof TermsVersion ? [
+                'id' => $terms->getKey(),
+                'version' => $terms->version,
+                'title' => $terms->title,
+                'url' => route('public.terms-and-privacy', absolute: false),
+            ] : null,
+        ]);
+    }
+
+    private function accountConflict(Request $request): ?string
+    {
+        $conflict = $request->session()->pull('idea_validation_account_conflict');
+
+        return is_string($conflict) && in_array($conflict, [
+            IdeaValidationRegistrationConflict::EXISTING_ACCOUNT,
+            IdeaValidationRegistrationConflict::EXISTING_PROFILE,
+        ], true) ? $conflict : null;
     }
 
     public function paymentIntent(Request $request): JsonResponse

@@ -17,8 +17,18 @@ import {
 } from '@/components/public/section';
 import { Seo } from '@/components/public/seo';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 
-type State = 'register' | 'verify_email' | 'checkout';
+type State = 'register' | 'verify_email' | 'checkout' | 'existing_session';
+type AccountConflict = 'existing_account' | 'existing_profile' | null;
 
 type Purchase = {
     id: string;
@@ -50,10 +60,12 @@ type StripeIntentPayload = {
 
 export default function IdeaValidationPurchase({
     state,
+    accountConflict,
     purchase,
     terms,
 }: {
     state: State;
+    accountConflict: AccountConflict;
     purchase: Purchase | null;
     terms: Terms | null;
 }) {
@@ -64,6 +76,10 @@ export default function IdeaValidationPurchase({
                 description="Create your Future Shift Advisory account, verify your email, and purchase Idea Validation securely."
             />
             <Head title="Purchase Idea Validation" />
+            <AccountConflictDialog
+                key={accountConflict ?? 'no-account-conflict'}
+                conflict={accountConflict}
+            />
             <Section className="py-20 lg:py-24">
                 <div className="mx-auto max-w-2xl">
                     <SectionEyebrow>Idea Validation</SectionEyebrow>
@@ -72,7 +88,9 @@ export default function IdeaValidationPurchase({
                             ? 'Start your Idea Validation'
                             : state === 'verify_email'
                               ? 'Verify your email'
-                              : 'Secure payment'}
+                              : state === 'existing_session'
+                                ? 'Use a separate browser session'
+                                : 'Secure payment'}
                     </SectionTitle>
                     <GoldRule className="mt-6" />
 
@@ -100,6 +118,9 @@ export default function IdeaValidationPurchase({
                         {state === 'register' ? (
                             <AccountForm terms={terms} />
                         ) : null}
+                        {state === 'existing_session' ? (
+                            <ExistingSession />
+                        ) : null}
                         {state === 'verify_email' ? <VerifyEmail /> : null}
                         {state === 'checkout' && purchase ? (
                             <Checkout purchase={purchase} />
@@ -113,6 +134,91 @@ export default function IdeaValidationPurchase({
                 </div>
             </Section>
         </>
+    );
+}
+
+function AccountConflictDialog({ conflict }: { conflict: AccountConflict }) {
+    const [open, setOpen] = useState(conflict !== null);
+
+    if (!conflict) {
+        return null;
+    }
+
+    const hasAccount = conflict === 'existing_account';
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent data-test="idea-validation-account-conflict-dialog">
+                <DialogHeader>
+                    <DialogTitle>
+                        {hasAccount
+                            ? 'It looks like you already have an account'
+                            : 'Your details are already on file'}
+                    </DialogTitle>
+                    <DialogDescription>
+                        {hasAccount
+                            ? 'We can’t create a second Future Shift Advisory account using this email address. Sign in to continue your Idea Validation purchase. If you can’t remember your password, reset it securely.'
+                            : 'To protect your information, we can’t create a second profile using this email address. Please contact us and we will help you access or update your profile.'}
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button type="button" variant="outline">
+                            Use a different email address
+                        </Button>
+                    </DialogClose>
+                    {hasAccount ? (
+                        <>
+                            <Button asChild type="button" variant="outline">
+                                <Link href="/forgot-password">
+                                    Forgot password
+                                </Link>
+                            </Button>
+                            <Button asChild type="button">
+                                <Link href="/login">Client Logon</Link>
+                            </Button>
+                        </>
+                    ) : (
+                        <Button asChild type="button">
+                            <Link href="/contact">Contact us</Link>
+                        </Button>
+                    )}
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function ExistingSession() {
+    return (
+        <div className="space-y-5">
+            <div className="flex gap-4">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--fs-linen)] text-[var(--fs-admiralty)]">
+                    <ShieldCheck className="size-5" />
+                </div>
+                <div>
+                    <h2 className="font-display text-2xl text-[var(--fs-admiralty)]">
+                        A portal account is already signed in
+                    </h2>
+                    <p className="mt-2 text-sm leading-relaxed text-[var(--fs-graphite)]">
+                        To protect the account already open in this browser, a
+                        new Idea Validation account cannot be created here.
+                    </p>
+                </div>
+            </div>
+            <div className="rounded-md border border-[var(--fs-sand)] bg-[var(--fs-linen)] p-4 text-sm leading-relaxed text-[var(--fs-graphite)]">
+                Sign out of the current portal account, then return to this
+                page, or open the checkout in a private browser window. No new
+                account, payment, or email-verification action will be created
+                or completed in this session.
+            </div>
+            <Link
+                href="/dashboard"
+                className="inline-flex text-sm font-semibold text-[var(--fs-admiralty)] underline"
+            >
+                Return to the signed-in portal
+            </Link>
+        </div>
     );
 }
 
@@ -198,13 +304,14 @@ function AccountForm({ terms }: { terms: Terms | null }) {
                                 />
                                 <span>
                                     I have read and agree to the{' '}
-                                    <Link
+                                    <a
                                         href={terms.url}
                                         target="_blank"
+                                        rel="noopener noreferrer"
                                         className="font-semibold text-[var(--fs-admiralty)] underline"
                                     >
                                         {terms.title} (version {terms.version})
-                                    </Link>
+                                    </a>
                                     .
                                 </span>
                             </label>

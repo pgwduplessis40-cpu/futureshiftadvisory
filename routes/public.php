@@ -38,7 +38,6 @@ Route::get('/validate-idea', function (EntrepreneurServiceOffer $offers) {
 Route::get('/validate-idea/purchase', [IdeaValidationPurchaseController::class, 'show'])
     ->name('public.validate-idea.purchase');
 Route::post('/validate-idea/purchase', [IdeaValidationPurchaseController::class, 'register'])
-    ->middleware('guest')
     ->name('public.validate-idea.purchase.register');
 Route::get('/validate-idea/purchase/{purchase}/verify/{hash}', [IdeaValidationPurchaseController::class, 'verify'])
     ->middleware('signed')
