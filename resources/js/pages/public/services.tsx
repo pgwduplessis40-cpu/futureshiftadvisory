@@ -37,7 +37,13 @@ const accentBar: Record<string, string> = {
     harbour: 'bg-[var(--fs-harbour)]',
 };
 
-function EngagementCard({ e, eyebrow }: { e: EngagementType; eyebrow: string }) {
+function EngagementCard({
+    e,
+    eyebrow,
+}: {
+    e: EngagementType;
+    eyebrow: string;
+}) {
     return (
         <article
             id={e.slug}
@@ -49,8 +55,7 @@ function EngagementCard({ e, eyebrow }: { e: EngagementType; eyebrow: string }) 
                         <span
                             className={[
                                 'inline-block h-2 w-10 rounded-full',
-                                accentBar[e.accent] ??
-                                    'bg-[var(--fs-pacific)]',
+                                accentBar[e.accent] ?? 'bg-[var(--fs-pacific)]',
                             ].join(' ')}
                         />
                         <span className="eyebrow">{eyebrow}</span>
@@ -226,9 +231,9 @@ export default function Services({
                         </h2>
                         <p className="mt-4 max-w-3xl text-base leading-relaxed text-[var(--fs-graphite)]">
                             Once a business is trading - or when you are buying
-                            one, or leading a not-for-profit - these are the ways
-                            we help. Same honest, evidence-based approach; a
-                            different shape to suit where you are.
+                            one, or leading a not-for-profit - these are the
+                            ways we help. Same honest, evidence-based approach;
+                            a different shape to suit where you are.
                         </p>
                         <div className="mt-12 space-y-16">
                             {additional.map((e, idx) => (
@@ -252,17 +257,18 @@ export default function Services({
                     </h2>
                     <p className="mt-5 max-w-3xl text-base leading-relaxed text-[var(--fs-graphite)]">
                         Every so often, while we are inside your business, we
-                        spot a job that a small piece of software could do better
-                        than a spreadsheet or a manual routine - an approval that
-                        keeps stalling, a report that eats half a day, the same
-                        data typed into two systems. When that happens we will
-                        say so, show you the numbers, and - if it genuinely pays
-                        off - quote and build a custom tool to take the work off
-                        your plate. And if what you need turns out to be bigger
-                        than a small tool, the approach does not change - we scope
-                        it carefully, quote it honestly, and build it in stages
-                        you can see working. It is not a separate pitch; it is
-                        part of helping your business run better.
+                        spot a job that a small piece of software could do
+                        better than a spreadsheet or a manual routine - an
+                        approval that keeps stalling, a report that eats half a
+                        day, the same data typed into two systems. When that
+                        happens we will say so, show you the numbers, and - if
+                        it genuinely pays off - quote and build a custom tool to
+                        take the work off your plate. And if what you need turns
+                        out to be bigger than a small tool, the approach does
+                        not change - we scope it carefully, quote it honestly,
+                        and build it in stages you can see working. It is not a
+                        separate pitch; it is part of helping your business run
+                        better.
                     </p>
                 </Section>
             </div>
@@ -278,9 +284,10 @@ export default function Services({
                                 Not sure which one fits?
                             </h2>
                             <p className="font-accent mt-3 max-w-xl text-lg text-[#E0D8CC] italic">
-                                Start with a discovery call. We will listen, ask,
-                                and tell you honestly which path makes sense - or
-                                if another provider would serve you better.
+                                Start with a discovery call. We will listen,
+                                ask, and tell you honestly which path makes
+                                sense - or if another provider would serve you
+                                better.
                             </p>
                         </div>
                         <div className="md:col-span-4 md:text-right">

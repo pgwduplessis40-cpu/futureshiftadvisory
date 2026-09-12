@@ -63,19 +63,21 @@ export default function Home({
                         </SectionTitle>
                         <GoldRule className="mt-6" />
                         <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--fs-graphite)]">
-                            We help New&nbsp;Zealand founders find out - honestly,
-                            and early - whether an idea holds up, then build the
-                            business plan and the numbers to back it. And once you
-                            are trading, we stay in your corner: advisory reviews,
-                            due diligence, and support for not-for-profits, all
-                            with the same straight, evidence-based advice.
+                            We help New&nbsp;Zealand founders find out -
+                            honestly, and early - whether an idea holds up, then
+                            build the business plan and the numbers to back it.
+                            And once you are trading, we stay in your corner:
+                            advisory reviews, due diligence, and support for
+                            not-for-profits, all with the same straight,
+                            evidence-based advice.
                         </p>
                         <div className="mt-10 flex flex-wrap items-center gap-4">
                             <a
                                 href="/validate-idea/purchase"
                                 className="inline-flex items-center gap-2 rounded-md bg-[var(--fs-admiralty)] px-5 py-3 text-sm font-medium text-[var(--fs-parchment)] shadow-sm transition-colors hover:bg-[var(--fs-commodore)]"
                             >
-                                Validate my idea <ArrowRight className="h-4 w-4" />
+                                Validate my idea{' '}
+                                <ArrowRight className="h-4 w-4" />
                             </a>
                             <Link
                                 href="/contact"
@@ -136,11 +138,11 @@ export default function Home({
                         Ways to work together.
                     </SectionTitle>
                     <SectionLead>
-                        Helping founders start and build good businesses is where
-                        we focus. From there, we also run Standard Advisory
-                        reviews for established SMEs, due diligence on a purchase,
-                        support after an acquisition, and health checks for
-                        not-for-profits.
+                        Helping founders start and build good businesses is
+                        where we focus. From there, we also run Standard
+                        Advisory reviews for established SMEs, due diligence on
+                        a purchase, support after an acquisition, and health
+                        checks for not-for-profits.
                     </SectionLead>
 
                     <div className="mt-12 grid gap-6 md:grid-cols-2">
