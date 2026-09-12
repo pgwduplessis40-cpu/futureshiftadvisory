@@ -59,6 +59,14 @@ export function SiteFooter() {
                             </li>
                             <li>
                                 <Link
+                                    href="/validate-idea"
+                                    className="text-[#E0D8CC] hover:text-white"
+                                >
+                                    Idea Validation
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
                                     href="/about"
                                     className="text-[#E0D8CC] hover:text-white"
                                 >
