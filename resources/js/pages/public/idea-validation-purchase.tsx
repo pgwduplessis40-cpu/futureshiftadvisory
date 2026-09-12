@@ -6,7 +6,7 @@ import type {
     StripePaymentElement,
 } from '@stripe/stripe-js';
 import { CreditCard, Loader2, Mail, ShieldCheck } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import InputError from '@/components/input-error';
 import {
