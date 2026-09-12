@@ -198,13 +198,14 @@ function AccountForm({ terms }: { terms: Terms | null }) {
                                 />
                                 <span>
                                     I have read and agree to the{' '}
-                                    <Link
+                                    <a
                                         href={terms.url}
                                         target="_blank"
+                                        rel="noopener noreferrer"
                                         className="font-semibold text-[var(--fs-admiralty)] underline"
                                     >
                                         {terms.title} (version {terms.version})
-                                    </Link>
+                                    </a>
                                     .
                                 </span>
                             </label>
