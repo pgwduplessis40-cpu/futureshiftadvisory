@@ -58,6 +58,7 @@ use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
 use App\Services\Entrepreneurs\Guidance;
 use App\Services\Entrepreneurs\IdeaValidationCancellation;
 use App\Services\Entrepreneurs\IdeaValidationCheckout;
+use App\Services\Entrepreneurs\IdeaValidationRegistrationConflict;
 use App\Services\Entrepreneurs\IdeaViabilityGate;
 use App\Services\Entrepreneurs\LivingPlan;
 use App\Services\Entrepreneurs\PlanAiContext;
@@ -185,6 +186,7 @@ final class MethodologyDriftGuardTest extends TestCase
         Guidance::class => 'AI guidance workflow; formula-like predictive score is not exposed by the methodology surface yet.',
         IdeaValidationCancellation::class => 'Cancellation eligibility and Stripe refund orchestration; it does not calculate the advisor Idea Validation methodology.',
         IdeaValidationCheckout::class => 'Account registration and Stripe checkout orchestration; it does not calculate the advisor Idea Validation methodology.',
+        IdeaValidationRegistrationConflict::class => 'Duplicate registration exception; it does not calculate the advisor Idea Validation methodology.',
         IdeaViabilityGate::class => 'Advisor approval gate over the IdeaValidationService methodology, not a separate methodology.',
         LivingPlan::class => 'Plan section workflow.',
         PlanAiContext::class => 'AI drafting-context assembler, not a calculation method.',
