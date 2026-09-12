@@ -816,7 +816,7 @@ function deliveryReferenceGroups(
     });
 }
 
-function recommendationNeedsDeliverySetup(
+export function recommendationNeedsDeliverySetup(
     recommendation: LearningRecommendation,
 ): boolean {
     return (

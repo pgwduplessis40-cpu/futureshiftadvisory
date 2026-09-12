@@ -22,6 +22,7 @@ import {
     RecommendationDeliveryPanel,
     RecommendationDeliveryRegister,
     RecommendationDraft,
+    recommendationNeedsDeliverySetup,
 } from './Recommendations';
 import type {
     LearningRecommendation,
@@ -197,24 +198,14 @@ export default function LearningUpdatesIndex({
     const draftRecommendations = recommendations.filter(
         (recommendation) => recommendation.status === 'draft',
     );
-    const deliveryRecommendations = recommendations.filter(
+    const delivery = recommendations.filter(
         (recommendation) => recommendation.status !== 'draft',
     );
-    const deliveryGaps = deliveryRecommendations.filter(
-        (recommendation) =>
-            recommendation.delivery_owner === null ||
-            recommendation.delivery_target === null ||
-            recommendation.development_reference === null ||
-            recommendation.baseline_metrics.length === 0 ||
-            recommendation.rollback_plan === null,
-    );
-    const awaitingDecisionCount =
-        pendingCards.length + draftRecommendations.length;
+    const deliveryGaps = delivery.filter(recommendationNeedsDeliverySetup);
 
     return (
         <>
             <Head title="Learning update queue" />
-
             <div className="space-y-6">
                 <PageHeader
                     eyebrow="Human approval"
@@ -235,7 +226,9 @@ export default function LearningUpdatesIndex({
                                 Run due layers
                             </Button>
                             <Badge variant="secondary">
-                                {awaitingDecisionCount} awaiting decision
+                                {pendingCards.length +
+                                    draftRecommendations.length}{' '}
+                                awaiting decision
                             </Badge>
                             <Button asChild size="sm" variant="outline">
                                 <a href={developer_brief_url}>
@@ -271,7 +264,7 @@ export default function LearningUpdatesIndex({
                             />
                             <Metric
                                 label="In delivery"
-                                value={String(deliveryRecommendations.length)}
+                                value={String(delivery.length)}
                                 explanation="Approved recommendations currently being prepared, developed, released, or verified."
                             />
                         </div>
@@ -288,11 +281,11 @@ export default function LearningUpdatesIndex({
                         />
 
                         <RecommendationDeliveryPanel
-                            recommendations={deliveryRecommendations}
+                            recommendations={delivery}
                         />
 
                         <RecommendationDeliveryRegister
-                            recommendations={deliveryRecommendations}
+                            recommendations={delivery}
                         />
                     </section>
                 ) : activeTab === 'impact_reviews' ? (
