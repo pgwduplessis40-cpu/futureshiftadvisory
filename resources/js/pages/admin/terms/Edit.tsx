@@ -67,7 +67,7 @@ export default function TermsEdit({ version, workspace }: Props) {
                 className="space-y-6"
                 onSubmit={(event) => {
                     event.preventDefault();
-                    form.put(version.urls.edit);
+                    form.put(version.urls.update);
                 }}
             >
                 <div className="flex items-center justify-between gap-4">

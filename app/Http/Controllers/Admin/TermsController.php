@@ -426,6 +426,7 @@ final class TermsController extends Controller
             'source_preview_html' => $includeSourcePreview ? $this->documents->sourcePreviewHtml($version) : null,
             'urls' => [
                 'edit' => route($this->routeName($scope, 'edit'), $version, absolute: false),
+                'update' => route($this->routeName($scope, 'update'), $version, absolute: false),
                 'preview' => route($this->routeName($scope, 'preview'), $version, absolute: false),
                 'download' => route($this->routeName($scope, 'download'), $version, absolute: false),
                 'publish' => route($this->routeName($scope, 'publish.create'), $version, absolute: false),

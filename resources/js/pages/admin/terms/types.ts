@@ -27,6 +27,7 @@ export type TermsVersion = {
     source_preview_html: string | null;
     urls: {
         edit: string;
+        update: string;
         preview: string;
         download: string;
         publish: string;
