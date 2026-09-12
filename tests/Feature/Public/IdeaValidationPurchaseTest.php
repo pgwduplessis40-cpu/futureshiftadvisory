@@ -98,6 +98,88 @@ final class IdeaValidationPurchaseTest extends TestCase
             ->assertJsonPath('document.version', null);
     }
 
+    public function test_an_authenticated_user_without_an_idea_validation_purchase_sees_a_safe_stop(): void
+    {
+        $administrator = $this->advisor();
+
+        $this->actingAs($administrator)
+            ->get(route('public.validate-idea.purchase'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('public/idea-validation-purchase')
+                ->where('state', 'existing_session')
+                ->where('purchase', null));
+    }
+
+    public function test_an_authenticated_user_cannot_submit_a_new_idea_validation_registration(): void
+    {
+        Notification::fake();
+        $terms = $this->publishedTerms();
+        $administrator = $this->advisor();
+
+        $this->actingAs($administrator)
+            ->post(route('public.validate-idea.purchase.register'), [
+                'name' => 'Blocked Buyer',
+                'email' => 'blocked-buyer@example.com',
+                'password' => 'IdeaValidation1!',
+                'password_confirmation' => 'IdeaValidation1!',
+                'terms_version_id' => $terms->getKey(),
+                'terms_accepted' => '1',
+            ])
+            ->assertRedirect(route('public.validate-idea.purchase'))
+            ->assertSessionHasErrors('checkout');
+
+        $this->assertAuthenticatedAs($administrator);
+        $this->assertDatabaseCount('idea_validation_purchases', 0);
+        $this->assertDatabaseCount('clients', 0);
+        $this->assertDatabaseCount('terms_acceptances', 0);
+        $this->assertDatabaseMissing('users', ['email' => 'blocked-buyer@example.com']);
+        Notification::assertNothingSent();
+    }
+
+    public function test_a_verification_link_cannot_switch_or_change_an_existing_different_session(): void
+    {
+        Notification::fake();
+        $terms = $this->publishedTerms();
+        $advisor = $this->advisor();
+        $this->ideaValidationRate();
+
+        $this->post(route('public.validate-idea.purchase.register'), [
+            'name' => 'Idea Validation Buyer',
+            'email' => 'idea-validation-buyer@example.com',
+            'password' => 'IdeaValidation1!',
+            'password_confirmation' => 'IdeaValidation1!',
+            'terms_version_id' => $terms->getKey(),
+            'terms_accepted' => '1',
+        ])->assertSessionHasNoErrors();
+
+        $buyer = User::query()->where('email', 'idea-validation-buyer@example.com')->firstOrFail();
+        $purchase = IdeaValidationPurchase::query()->where('user_id', $buyer->getKey())->firstOrFail();
+        $verificationUrl = null;
+        Notification::assertSentTo(
+            $buyer,
+            IdeaValidationEmailVerificationNotification::class,
+            function (IdeaValidationEmailVerificationNotification $notification, array $channels) use (&$verificationUrl, $buyer): bool {
+                $verificationUrl = $notification->toMail($buyer)->actionUrl;
+
+                return $channels === ['mail'];
+            },
+        );
+
+        $this->assertIsString($verificationUrl);
+        $this->actingAs($advisor)
+            ->get($verificationUrl)
+            ->assertRedirect(route('public.validate-idea.purchase'))
+            ->assertSessionHas('status', 'idea-validation-verification-requires-private-session');
+
+        $this->assertAuthenticatedAs($advisor);
+        $buyer->refresh();
+        $purchase->refresh();
+        $this->assertNull($buyer->email_verified_at);
+        $this->assertNull($purchase->email_verified_at);
+        $this->assertSame(IdeaValidationPurchase::STATUS_EMAIL_VERIFICATION_PENDING, $purchase->status);
+    }
+
     public function test_verified_buyer_can_complete_fixture_checkout_and_is_activated_with_a_receipt(): void
     {
         Notification::fake();
