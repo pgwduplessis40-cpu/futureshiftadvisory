@@ -10,6 +10,7 @@ use App\Models\TermsVersion;
 use App\Models\User;
 use App\Notifications\IdeaValidationEmailVerificationNotification;
 use App\Services\Entrepreneurs\IdeaValidationCheckout;
+use App\Services\Entrepreneurs\IdeaValidationRegistrationConflict;
 use App\Services\Terms\TermsAcceptanceGate;
 use App\Support\RequestContext;
 use Illuminate\Http\JsonResponse;
@@ -34,7 +35,7 @@ final class IdeaValidationPurchaseController extends Controller
         $purchase = $user instanceof User ? $this->checkout->purchaseFor($user) : null;
 
         if ($user instanceof User && ! $purchase instanceof IdeaValidationPurchase) {
-            return $this->renderPurchasePage(state: 'existing_session');
+            return $this->renderPurchasePage($request, state: 'existing_session');
         }
 
         if ($purchase instanceof IdeaValidationPurchase && $purchase->status === IdeaValidationPurchase::STATUS_PAID) {
@@ -44,6 +45,7 @@ final class IdeaValidationPurchaseController extends Controller
         }
 
         return $this->renderPurchasePage(
+            $request,
             state: $purchase instanceof IdeaValidationPurchase
                 ? ($purchase->email_verified_at === null ? 'verify_email' : 'checkout')
                 : 'register',
@@ -67,12 +69,17 @@ final class IdeaValidationPurchaseController extends Controller
             'terms_accepted' => ['accepted'],
         ]);
 
-        $purchase = $this->checkout->register($request, [
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => $validated['password'],
-            'terms_version_id' => $validated['terms_version_id'],
-        ]);
+        try {
+            $purchase = $this->checkout->register($request, [
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => $validated['password'],
+                'terms_version_id' => $validated['terms_version_id'],
+            ]);
+        } catch (IdeaValidationRegistrationConflict $conflict) {
+            return to_route('public.validate-idea.purchase')
+                ->with('idea_validation_account_conflict', $conflict->conflict);
+        }
         $user = $purchase->user;
         abort_unless($user instanceof User, 500);
 
@@ -118,7 +125,7 @@ final class IdeaValidationPurchaseController extends Controller
         return to_route('public.validate-idea.purchase')->with('status', 'idea-validation-email-verified');
     }
 
-    private function renderPurchasePage(string $state, ?IdeaValidationPurchase $purchase = null): Response
+    private function renderPurchasePage(Request $request, string $state, ?IdeaValidationPurchase $purchase = null): Response
     {
         $terms = $this->terms->latestPublishedVersion(
             withClauses: false,
@@ -127,6 +134,7 @@ final class IdeaValidationPurchaseController extends Controller
 
         return Inertia::render('public/idea-validation-purchase', [
             'state' => $state,
+            'accountConflict' => $this->accountConflict($request),
             'purchase' => $purchase instanceof IdeaValidationPurchase ? $this->purchasePayload($purchase) : null,
             'terms' => $terms instanceof TermsVersion ? [
                 'id' => $terms->getKey(),
@@ -135,6 +143,16 @@ final class IdeaValidationPurchaseController extends Controller
                 'url' => route('public.terms-and-privacy', absolute: false),
             ] : null,
         ]);
+    }
+
+    private function accountConflict(Request $request): ?string
+    {
+        $conflict = $request->session()->pull('idea_validation_account_conflict');
+
+        return is_string($conflict) && in_array($conflict, [
+            IdeaValidationRegistrationConflict::EXISTING_ACCOUNT,
+            IdeaValidationRegistrationConflict::EXISTING_PROFILE,
+        ], true) ? $conflict : null;
     }
 
     public function paymentIntent(Request $request): JsonResponse

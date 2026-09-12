@@ -67,9 +67,15 @@ final class IdeaValidationCheckout
                 $email = Str::lower(trim($input['email']));
                 $existing = User::query()->whereRaw('lower(trim(email)) = ?', [$email])->lockForUpdate()->first();
                 if ($existing instanceof User) {
-                    throw ValidationException::withMessages([
-                        'email' => 'An account already exists for this email address. Sign in to continue your Idea Validation purchase.',
-                    ]);
+                    throw new IdeaValidationRegistrationConflict(IdeaValidationRegistrationConflict::EXISTING_ACCOUNT);
+                }
+
+                $profile = EntrepreneurProfile::query()
+                    ->whereRaw('lower(trim(email)) = ?', [$email])
+                    ->lockForUpdate()
+                    ->first();
+                if ($profile instanceof EntrepreneurProfile) {
+                    throw new IdeaValidationRegistrationConflict(IdeaValidationRegistrationConflict::EXISTING_PROFILE);
                 }
 
                 $terms = $this->terms->latestPublishedVersion(

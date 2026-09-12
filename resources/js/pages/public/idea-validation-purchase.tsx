@@ -16,9 +16,19 @@ import {
     SectionTitle,
 } from '@/components/public/section';
 import { Seo } from '@/components/public/seo';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
 type State = 'register' | 'verify_email' | 'checkout' | 'existing_session';
+type AccountConflict = 'existing_account' | 'existing_profile' | null;
 
 type Purchase = {
     id: string;
@@ -50,10 +60,12 @@ type StripeIntentPayload = {
 
 export default function IdeaValidationPurchase({
     state,
+    accountConflict,
     purchase,
     terms,
 }: {
     state: State;
+    accountConflict: AccountConflict;
     purchase: Purchase | null;
     terms: Terms | null;
 }) {
@@ -64,6 +76,7 @@ export default function IdeaValidationPurchase({
                 description="Create your Future Shift Advisory account, verify your email, and purchase Idea Validation securely."
             />
             <Head title="Purchase Idea Validation" />
+            <AccountConflictDialog conflict={accountConflict} />
             <Section className="py-20 lg:py-24">
                 <div className="mx-auto max-w-2xl">
                     <SectionEyebrow>Idea Validation</SectionEyebrow>
@@ -118,6 +131,60 @@ export default function IdeaValidationPurchase({
                 </div>
             </Section>
         </>
+    );
+}
+
+function AccountConflictDialog({ conflict }: { conflict: AccountConflict }) {
+    const [open, setOpen] = useState(conflict !== null);
+
+    useEffect(() => setOpen(conflict !== null), [conflict]);
+
+    if (!conflict) {
+        return null;
+    }
+
+    const hasAccount = conflict === 'existing_account';
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent data-test="idea-validation-account-conflict-dialog">
+                <DialogHeader>
+                    <DialogTitle>
+                        {hasAccount
+                            ? 'It looks like you already have an account'
+                            : 'Your details are already on file'}
+                    </DialogTitle>
+                    <DialogDescription>
+                        {hasAccount
+                            ? 'We can’t create a second Future Shift Advisory account using this email address. Sign in to continue your Idea Validation purchase. If you can’t remember your password, reset it securely.'
+                            : 'To protect your information, we can’t create a second profile using this email address. Please contact us and we will help you access or update your profile.'}
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button type="button" variant="outline">
+                            Use a different email address
+                        </Button>
+                    </DialogClose>
+                    {hasAccount ? (
+                        <>
+                            <Button asChild type="button" variant="outline">
+                                <Link href="/forgot-password">
+                                    Forgot password
+                                </Link>
+                            </Button>
+                            <Button asChild type="button">
+                                <Link href="/login">Client Logon</Link>
+                            </Button>
+                        </>
+                    ) : (
+                        <Button asChild type="button">
+                            <Link href="/contact">Contact us</Link>
+                        </Button>
+                    )}
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 

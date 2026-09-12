@@ -137,6 +137,71 @@ final class IdeaValidationPurchaseTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    public function test_an_existing_account_is_directed_to_logon_or_password_recovery_without_creating_a_duplicate(): void
+    {
+        Notification::fake();
+        $terms = $this->publishedTerms();
+        $this->advisor();
+        User::factory()->create(['email' => 'existing-account@example.com']);
+
+        $this->post(route('public.validate-idea.purchase.register'), [
+            'name' => 'Existing Account',
+            'email' => 'Existing-Account@example.com',
+            'password' => 'IdeaValidation1!',
+            'password_confirmation' => 'IdeaValidation1!',
+            'terms_version_id' => $terms->getKey(),
+            'terms_accepted' => '1',
+        ])
+            ->assertRedirect(route('public.validate-idea.purchase'))
+            ->assertSessionHas('idea_validation_account_conflict', 'existing_account');
+
+        $this->get(route('public.validate-idea.purchase'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('state', 'register')
+                ->where('accountConflict', 'existing_account'));
+
+        $this->assertDatabaseCount('idea_validation_purchases', 0);
+        $this->assertDatabaseCount('clients', 0);
+        $this->assertDatabaseCount('terms_acceptances', 0);
+        Notification::assertNothingSent();
+    }
+
+    public function test_an_existing_profile_without_a_login_is_directed_to_contact_support_without_creating_a_duplicate(): void
+    {
+        Notification::fake();
+        $terms = $this->publishedTerms();
+        $advisor = $this->advisor();
+        EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => 'Existing Profile',
+            'email' => 'existing-profile@example.com',
+            'concept_summary' => 'A profile created before account access was set up.',
+        ]);
+
+        $this->post(route('public.validate-idea.purchase.register'), [
+            'name' => 'Existing Profile',
+            'email' => 'Existing-Profile@example.com',
+            'password' => 'IdeaValidation1!',
+            'password_confirmation' => 'IdeaValidation1!',
+            'terms_version_id' => $terms->getKey(),
+            'terms_accepted' => '1',
+        ])
+            ->assertRedirect(route('public.validate-idea.purchase'))
+            ->assertSessionHas('idea_validation_account_conflict', 'existing_profile');
+
+        $this->get(route('public.validate-idea.purchase'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('state', 'register')
+                ->where('accountConflict', 'existing_profile'));
+
+        $this->assertDatabaseCount('idea_validation_purchases', 0);
+        $this->assertDatabaseCount('clients', 0);
+        $this->assertDatabaseCount('terms_acceptances', 0);
+        Notification::assertNothingSent();
+    }
+
     public function test_a_verification_link_cannot_switch_or_change_an_existing_different_session(): void
     {
         Notification::fake();
