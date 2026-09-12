@@ -4,7 +4,9 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { PlainEnglishSummaryBlock } from './LearningDisplay';
 import {
+    DraftRecommendationApprovalPanel,
     RecommendationDeliveryPanel,
+    RecommendationDeliveryRegister,
     RecommendationDraft,
 } from './Recommendations';
 import type { LearningRecommendation } from './Recommendations';
@@ -44,6 +46,16 @@ function renderDelivery(status: string): string {
     );
 }
 
+function renderDraftApproval(): string {
+    return renderToStaticMarkup(
+        createElement(DraftRecommendationApprovalPanel, {
+            recommendations: [recommendation],
+            approveSelectedUrl:
+                '/admin/learning-recommendations/approve-selected',
+        }),
+    );
+}
+
 test('an empty recommendation queue adds no delivery panel', () => {
     assert.equal(
         renderToStaticMarkup(
@@ -56,12 +68,41 @@ test('an empty recommendation queue adds no delivery panel', () => {
 });
 
 test('draft recommendations retain the admin approval action and evidence context', () => {
-    const html = renderDelivery('draft');
-    assert.match(html, /Approve for development review/);
+    const html = renderDraftApproval();
+    assert.match(html, /Approve for development/);
     assert.match(html, /Praise exceeds the supporting evidence/);
     assert.match(html, /Improve accuracy without changing client content/);
     assert.match(html, /Entrepreneur assessment/);
     assert.doesNotMatch(html, /Update delivery/);
+});
+
+test('the delivery register groups approved work by development reference', () => {
+    const html = renderToStaticMarkup(
+        createElement(RecommendationDeliveryRegister, {
+            recommendations: [
+                {
+                    ...recommendation,
+                    id: 'recommendation-2',
+                    status: 'in_development',
+                    development_reference: 'PR #62',
+                    delivery_owner: 'FutureShift IT',
+                    delivery_target: 'Release 1.0.186',
+                    baseline_metrics: ['Completion rate: 63%'],
+                    rollback_plan: 'Revert the release.',
+                },
+                {
+                    ...recommendation,
+                    id: 'recommendation-3',
+                    status: 'approved',
+                },
+            ],
+        }),
+    );
+
+    assert.match(html, /PR #62/);
+    assert.match(html, /No development reference/);
+    assert.match(html, /FutureShift IT/);
+    assert.match(html, /Delivery details/);
 });
 
 test('approved recommendations start development without exposing release or verification controls', () => {

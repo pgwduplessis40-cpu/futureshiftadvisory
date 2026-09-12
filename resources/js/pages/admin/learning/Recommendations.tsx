@@ -52,7 +52,20 @@ export function DraftRecommendationApprovalPanel({
         recommendations.length > 0 && selectedCount === recommendations.length;
 
     if (recommendations.length === 0) {
-        return null;
+        return (
+            <section className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-background p-4">
+                <div>
+                    <h2 className="text-sm font-medium">
+                        Development recommendations awaiting approval
+                    </h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        No recommendations are waiting for approval to enter the
+                        development queue.
+                    </p>
+                </div>
+                <Badge variant="secondary">0 awaiting approval</Badge>
+            </section>
+        );
     }
 
     function toggleRecommendation(recommendationId: string) {
@@ -138,7 +151,9 @@ export function RecommendationDeliveryPanel({
 }: {
     recommendations: LearningRecommendation[];
 }) {
-    if (recommendations.length === 0) {
+    const gaps = recommendations.filter(recommendationNeedsDeliverySetup);
+
+    if (gaps.length === 0) {
         return null;
     }
 
@@ -147,25 +162,200 @@ export function RecommendationDeliveryPanel({
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h2 className="text-sm font-medium">
-                        Approved recommendations in delivery
+                        Delivery details to complete
                     </h2>
                     <p className="text-xs text-muted-foreground">
-                        An approved recommendation is only addressed after it
-                        has a delivery owner, target, baseline, rollback plan,
-                        development reference, release reference, and
-                        verification evidence.
+                        These approved recommendations cannot start development
+                        until their owner, target, baseline, rollback plan, and
+                        development reference are recorded.
                     </p>
                 </div>
-                <Badge variant="secondary">{recommendations.length}</Badge>
+                <Badge variant="secondary">{gaps.length} to complete</Badge>
             </div>
             <div className="grid gap-3">
-                {recommendations.map((recommendation) => (
+                {gaps.map((recommendation) => (
                     <RecommendationDeliveryItem
                         key={recommendation.id}
                         recommendation={recommendation}
                     />
                 ))}
             </div>
+        </section>
+    );
+}
+
+export function RecommendationDeliveryRegister({
+    recommendations,
+}: {
+    recommendations: LearningRecommendation[];
+}) {
+    const groups = deliveryReferenceGroups(recommendations);
+
+    return (
+        <section className="space-y-3 rounded-md border bg-background p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 className="text-sm font-medium">Delivery register</h2>
+                    <p className="text-xs text-muted-foreground">
+                        Approved work is grouped by pull request, issue, commit,
+                        or other development reference. The unlinked group needs
+                        delivery details before development can start.
+                    </p>
+                </div>
+                <Badge variant="secondary">
+                    {recommendations.length} approved learnings
+                </Badge>
+            </div>
+
+            {groups.length === 0 ? (
+                <p className="rounded-md border px-3 py-8 text-sm text-muted-foreground">
+                    No approved recommendations are in delivery.
+                </p>
+            ) : (
+                <div className="space-y-3">
+                    {groups.map((group) => (
+                        <section
+                            key={group.key}
+                            className="overflow-hidden rounded-md border"
+                        >
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-3 py-2">
+                                <div>
+                                    <h3 className="text-sm font-medium">
+                                        {group.label}
+                                    </h3>
+                                    <p className="text-xs text-muted-foreground">
+                                        {group.key === 'unlinked'
+                                            ? 'Add a development reference before starting work.'
+                                            : 'Recommendations sharing this delivery reference.'}
+                                    </p>
+                                </div>
+                                <Badge
+                                    variant={
+                                        group.key === 'unlinked'
+                                            ? 'outline'
+                                            : 'secondary'
+                                    }
+                                >
+                                    {group.recommendations.length}{' '}
+                                    recommendation
+                                    {group.recommendations.length === 1
+                                        ? ''
+                                        : 's'}
+                                </Badge>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="fsa-responsive-table min-w-[70rem] table-fixed md:table-auto">
+                                    <thead className="bg-muted/60 text-left">
+                                        <tr>
+                                            <th className="w-[28%] px-3 py-2 font-medium">
+                                                Learning
+                                            </th>
+                                            <th className="px-3 py-2 font-medium">
+                                                Status
+                                            </th>
+                                            <th className="px-3 py-2 font-medium">
+                                                Approved
+                                            </th>
+                                            <th className="px-3 py-2 font-medium">
+                                                Owner and target
+                                            </th>
+                                            <th className="px-3 py-2 font-medium">
+                                                Release and verification
+                                            </th>
+                                            <th className="px-3 py-2 font-medium">
+                                                Delivery details
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {group.recommendations.map(
+                                            (recommendation) => (
+                                                <tr
+                                                    key={recommendation.id}
+                                                    className="border-t align-top"
+                                                >
+                                                    <td
+                                                        className="px-3 py-3"
+                                                        data-label="Learning"
+                                                    >
+                                                        <div className="font-medium">
+                                                            {
+                                                                recommendation.title
+                                                            }
+                                                        </div>
+                                                        <p className="mt-1 text-xs text-muted-foreground">
+                                                            {
+                                                                recommendation.impact_area
+                                                            }
+                                                        </p>
+                                                    </td>
+                                                    <td
+                                                        className="px-3 py-3"
+                                                        data-label="Status"
+                                                    >
+                                                        <Badge variant="outline">
+                                                            {formatLabel(
+                                                                recommendation.status,
+                                                            )}
+                                                        </Badge>
+                                                    </td>
+                                                    <td
+                                                        className="px-3 py-3 text-sm"
+                                                        data-label="Approved"
+                                                    >
+                                                        {formatDate(
+                                                            recommendation.approved_at,
+                                                        )}
+                                                    </td>
+                                                    <td
+                                                        className="px-3 py-3 text-sm"
+                                                        data-label="Owner and target"
+                                                    >
+                                                        <div>
+                                                            {recommendation.delivery_owner ??
+                                                                'Unassigned'}
+                                                        </div>
+                                                        <p className="mt-1 text-xs text-muted-foreground">
+                                                            {recommendation.delivery_target ??
+                                                                'No target recorded'}
+                                                        </p>
+                                                    </td>
+                                                    <td
+                                                        className="px-3 py-3 text-sm"
+                                                        data-label="Release and verification"
+                                                    >
+                                                        <div>
+                                                            {recommendation.release_reference ??
+                                                                'Not released'}
+                                                        </div>
+                                                        <p className="mt-1 text-xs text-muted-foreground">
+                                                            {recommendation.verified_at
+                                                                ? `Verified ${formatDate(recommendation.verified_at)}`
+                                                                : recommendation.review_due_at
+                                                                  ? `Review due ${formatDate(recommendation.review_due_at)}`
+                                                                  : 'Verification not due'}
+                                                        </p>
+                                                    </td>
+                                                    <td
+                                                        className="px-3 py-3"
+                                                        data-label="Delivery details"
+                                                    >
+                                                        <RecommendationDeliveryItem
+                                                            recommendation={
+                                                                recommendation
+                                                            }
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            ),
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    ))}
+                </div>
+            )}
         </section>
     );
 }
@@ -274,46 +464,43 @@ function RecommendationDeliveryItem({
     }
 
     return (
-        <article className="rounded-md border p-3">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                    <h3 className="text-sm font-medium">
-                        {recommendation.title}
-                    </h3>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        {recommendation.impact_area} · {recommendation.status}
-                    </p>
+        <details className="rounded-md border p-3">
+            <summary className="cursor-pointer text-sm font-medium text-primary">
+                Update delivery
+            </summary>
+            <div className="mt-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                        <h3 className="text-sm font-medium">
+                            {recommendation.title}
+                        </h3>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            {recommendation.impact_area} ·{' '}
+                            {recommendation.status}
+                        </p>
+                    </div>
+                    <Badge variant="outline">{recommendation.status}</Badge>
                 </div>
-                <Badge variant="outline">{recommendation.status}</Badge>
-            </div>
-            <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-                <div>
-                    <dt className="text-muted-foreground">
-                        Failure / shortfall
-                    </dt>
-                    <dd>{recommendation.failure_shortfall}</dd>
-                </div>
-                <div>
-                    <dt className="text-muted-foreground">Expected impact</dt>
-                    <dd>{recommendation.recommendation_impact}</dd>
-                </div>
-            </dl>
-            <p className="mt-3 text-sm">{recommendation.recommendation}</p>
-            <p className="mt-2 text-xs text-muted-foreground">
-                Regression journeys:{' '}
-                {recommendation.regression_journeys.join(', ') ||
-                    'must be recorded before release'}
-            </p>
-            {recommendation.status === 'draft' ? (
-                <Button
-                    className="mt-3"
-                    type="button"
-                    size="sm"
-                    onClick={() => router.post(recommendation.approve_url)}
-                >
-                    Approve for development review
-                </Button>
-            ) : (
+                <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                    <div>
+                        <dt className="text-muted-foreground">
+                            Failure / shortfall
+                        </dt>
+                        <dd>{recommendation.failure_shortfall}</dd>
+                    </div>
+                    <div>
+                        <dt className="text-muted-foreground">
+                            Expected impact
+                        </dt>
+                        <dd>{recommendation.recommendation_impact}</dd>
+                    </div>
+                </dl>
+                <p className="mt-3 text-sm">{recommendation.recommendation}</p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                    Regression journeys:{' '}
+                    {recommendation.regression_journeys.join(', ') ||
+                        'must be recorded before release'}
+                </p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                     <label className="grid gap-1 text-xs text-muted-foreground">
                         Delivery status
@@ -422,8 +609,8 @@ function RecommendationDeliveryItem({
                         </Button>
                     </div>
                 </div>
-            )}
-        </article>
+            </div>
+        </details>
     );
 }
 
@@ -474,7 +661,7 @@ export function RecommendationDraft({
     }
 
     return (
-        <details className="rounded-md border p-3" open>
+        <details className="rounded-md border p-3">
             <summary className="cursor-pointer text-sm font-medium">
                 Create development recommendation
             </summary>
@@ -589,6 +776,68 @@ function TextAreaField({
             />
         </label>
     );
+}
+
+type DeliveryReferenceGroup = {
+    key: string;
+    label: string;
+    recommendations: LearningRecommendation[];
+};
+
+function deliveryReferenceGroups(
+    recommendations: LearningRecommendation[],
+): DeliveryReferenceGroup[] {
+    const groups = recommendations.reduce((carry, recommendation) => {
+        const reference = recommendation.development_reference?.trim();
+        const key = reference ? `reference:${reference}` : 'unlinked';
+        const label = reference || 'No development reference';
+        const current = carry.get(key) ?? {
+            key,
+            label,
+            recommendations: [],
+        };
+
+        current.recommendations.push(recommendation);
+        carry.set(key, current);
+
+        return carry;
+    }, new Map<string, DeliveryReferenceGroup>());
+
+    return Array.from(groups.values()).sort((left, right) => {
+        if (left.key === 'unlinked') {
+            return -1;
+        }
+
+        if (right.key === 'unlinked') {
+            return 1;
+        }
+
+        return left.label.localeCompare(right.label);
+    });
+}
+
+function recommendationNeedsDeliverySetup(
+    recommendation: LearningRecommendation,
+): boolean {
+    return (
+        recommendation.delivery_owner === null ||
+        recommendation.delivery_target === null ||
+        recommendation.development_reference === null ||
+        recommendation.baseline_metrics.length === 0 ||
+        recommendation.rollback_plan === null
+    );
+}
+
+function formatDate(value: string | null): string {
+    if (!value) {
+        return 'Not recorded';
+    }
+
+    return new Intl.DateTimeFormat('en-NZ', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+    }).format(new Date(value));
 }
 
 function lines(value: string): string[] {

@@ -20,6 +20,7 @@ import type { PlainEnglishSummary } from './LearningDisplay';
 import {
     DraftRecommendationApprovalPanel,
     RecommendationDeliveryPanel,
+    RecommendationDeliveryRegister,
     RecommendationDraft,
 } from './Recommendations';
 import type {
@@ -199,6 +200,14 @@ export default function LearningUpdatesIndex({
     const deliveryRecommendations = recommendations.filter(
         (recommendation) => recommendation.status !== 'draft',
     );
+    const deliveryGaps = deliveryRecommendations.filter(
+        (recommendation) =>
+            recommendation.delivery_owner === null ||
+            recommendation.delivery_target === null ||
+            recommendation.development_reference === null ||
+            recommendation.baseline_metrics.length === 0 ||
+            recommendation.rollback_plan === null,
+    );
     const awaitingDecisionCount =
         pendingCards.length + draftRecommendations.length;
 
@@ -246,55 +255,53 @@ export default function LearningUpdatesIndex({
                     <section className="space-y-4">
                         <div className="grid gap-2 sm:grid-cols-4">
                             <Metric
-                                label="Queued"
-                                value={String(
-                                    monitor.summary.queued_candidates,
-                                )}
-                                explanation="Governed learning changes waiting for a human approval decision."
+                                label="Needs development approval"
+                                value={String(draftRecommendations.length)}
+                                explanation="Recommendations ready for a human approval decision before development tracking starts."
                             />
                             <Metric
-                                label="Approved"
-                                value={String(
-                                    monitor.summary.approved_candidates,
-                                )}
-                                explanation="Learning changes approved for implementation or implementation tracking."
+                                label="Delivery details missing"
+                                value={String(deliveryGaps.length)}
+                                explanation="Approved recommendations that cannot start development until their delivery record is complete."
                             />
                             <Metric
-                                label="Layers"
-                                value={String(
-                                    monitor.summary.registered_layers,
-                                )}
-                                explanation="Configured learning layers that can surface governed update candidates."
+                                label="Impact reviews due"
+                                value={String(impact_reviews.length)}
+                                explanation="Implemented learning changes that need a recorded outcome review."
                             />
                             <Metric
-                                label="Recent runs"
-                                value={String(monitor.summary.recent_runs)}
-                                explanation="Recent learning monitor executions included in this review window."
+                                label="In delivery"
+                                value={String(deliveryRecommendations.length)}
+                                explanation="Approved recommendations currently being prepared, developed, released, or verified."
                             />
                         </div>
-
-                        {impact_reviews.length > 0 && (
-                            <ImpactReviewPanel reviews={impact_reviews} />
-                        )}
 
                         <DraftRecommendationApprovalPanel
                             recommendations={draftRecommendations}
                             approveSelectedUrl={recommendation_bulk_approve_url}
                         />
 
+                        <PendingLearningTable
+                            cards={pendingCards}
+                            decisions={decisions}
+                            recommendationDefaults={recommendation_defaults}
+                        />
+
                         <RecommendationDeliveryPanel
                             recommendations={deliveryRecommendations}
                         />
 
-                        <LearningQueueTables
-                            pendingCards={pendingCards}
-                            approvedCards={approvedCards}
-                            decisions={decisions}
-                            recommendationDefaults={recommendation_defaults}
+                        <RecommendationDeliveryRegister
+                            recommendations={deliveryRecommendations}
                         />
                     </section>
+                ) : activeTab === 'impact_reviews' ? (
+                    <ImpactReviewPanel reviews={impact_reviews} />
                 ) : (
-                    <MonitorPanel monitor={monitor} />
+                    <section className="space-y-6">
+                        <MonitorPanel monitor={monitor} />
+                        <ApprovedLearningTable cards={approvedCards} />
+                    </section>
                 )}
             </div>
         </>
@@ -349,191 +356,214 @@ function ImpactReviewCardItem({ review }: { review: ImpactReviewCard }) {
     const canSave = outcome.trim().length > 0;
 
     return (
-        <article className="grid gap-3 rounded-md border p-3 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.7fr)]">
-            <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                    {review.layer_id !== null && (
-                        <Badge variant="outline">Layer {review.layer_id}</Badge>
-                    )}
-                    <Badge variant="secondary">
-                        Due {formatDate(review.review_due)}
-                    </Badge>
-                </div>
-                <div>
-                    <h3 className="text-sm font-medium">{review.summary}</h3>
-                    <p className="text-xs text-muted-foreground">
-                        Confirm the implemented change is still acceptable
-                        before leaving it active.
-                    </p>
-                </div>
-                <div className="grid gap-2 text-sm sm:grid-cols-2">
-                    <TableStat
-                        label="Implemented"
-                        value={formatDate(review.implemented_at)}
-                    />
-                    <TableStat
-                        label="Target"
-                        value={implementationTargetLabel(review)}
-                    />
-                </div>
-                {review.capability_profile && (
-                    <CapabilityStrip
-                        profile={review.capability_profile}
-                        compact
-                    />
-                )}
-                {review.plain_english && (
-                    <PlainEnglishSummaryBlock summary={review.plain_english} />
-                )}
-                <LearningEvidenceSummary
-                    context={{
-                        source: review.source,
-                        proposed_change: review.proposed_change,
-                        impact_scope: review.impact_scope,
-                        evidence: review.evidence,
-                    }}
-                />
-                <details>
-                    <summary className="cursor-pointer text-xs font-medium text-primary">
-                        Full implementation evidence
-                    </summary>
-                    <div className="mt-3 grid gap-3 xl:grid-cols-2">
-                        <JsonPanel title="Source" value={review.source} />
-                        <JsonPanel
-                            title="Proposed change"
-                            value={review.proposed_change}
+        <details className="rounded-md border bg-background p-3">
+            <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-3 text-sm font-medium">
+                <span className="min-w-0">
+                    <span className="block truncate">{review.summary}</span>
+                    <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                        Due {formatDate(review.review_due)} ·{' '}
+                        {implementationTargetLabel(review)}
+                    </span>
+                </span>
+                <span className="text-primary">Review impact</span>
+            </summary>
+            <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.7fr)]">
+                <div className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        {review.layer_id !== null && (
+                            <Badge variant="outline">
+                                Layer {review.layer_id}
+                            </Badge>
+                        )}
+                        <Badge variant="secondary">
+                            Due {formatDate(review.review_due)}
+                        </Badge>
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-medium">
+                            {review.summary}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                            Confirm the implemented change is still acceptable
+                            before leaving it active.
+                        </p>
+                    </div>
+                    <div className="grid gap-2 text-sm sm:grid-cols-2">
+                        <TableStat
+                            label="Implemented"
+                            value={formatDate(review.implemented_at)}
                         />
-                        <JsonPanel title="Evidence" value={review.evidence} />
-                        <JsonPanel
-                            title="Before state"
-                            value={review.before_state}
-                        />
-                        <JsonPanel
-                            title="After state"
-                            value={review.after_state}
+                        <TableStat
+                            label="Target"
+                            value={implementationTargetLabel(review)}
                         />
                     </div>
-                </details>
-            </div>
-            <div className="grid gap-2">
-                <div className="grid gap-2 sm:grid-cols-2">
-                    <label className="grid gap-1 text-xs text-muted-foreground">
-                        Impact
-                        <select
-                            className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
-                            value={impactOutcome}
-                            onChange={(event) =>
-                                setImpactOutcome(
-                                    event.target.value as ImpactOutcome,
-                                )
-                            }
-                        >
-                            <option value="improved">Improved</option>
-                            <option value="neutral">Neutral</option>
-                            <option value="regressed">Regressed</option>
-                            <option value="inconclusive">Inconclusive</option>
-                        </select>
-                    </label>
-                    <label className="grid gap-1 text-xs text-muted-foreground">
-                        Surface
-                        <input
-                            className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
-                            value={affectedSurface}
-                            onChange={(event) =>
-                                setAffectedSurface(event.target.value)
-                            }
+                    {review.capability_profile && (
+                        <CapabilityStrip
+                            profile={review.capability_profile}
+                            compact
                         />
-                    </label>
-                    <label className="grid gap-1 text-xs text-muted-foreground">
-                        Metric
-                        <input
-                            className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
-                            value={metricName}
-                            onChange={(event) =>
-                                setMetricName(event.target.value)
-                            }
+                    )}
+                    {review.plain_english && (
+                        <PlainEnglishSummaryBlock
+                            summary={review.plain_english}
                         />
-                    </label>
-                    <label className="grid gap-1 text-xs text-muted-foreground">
-                        Sample
-                        <input
-                            className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
-                            inputMode="numeric"
-                            value={sampleSize}
-                            onChange={(event) =>
-                                setSampleSize(event.target.value)
-                            }
-                        />
-                    </label>
-                    <label className="grid gap-1 text-xs text-muted-foreground">
-                        Before
-                        <input
-                            className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
-                            inputMode="decimal"
-                            value={beforeMetric}
-                            onChange={(event) =>
-                                setBeforeMetric(event.target.value)
-                            }
-                        />
-                    </label>
-                    <label className="grid gap-1 text-xs text-muted-foreground">
-                        After
-                        <input
-                            className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
-                            inputMode="decimal"
-                            value={afterMetric}
-                            onChange={(event) =>
-                                setAfterMetric(event.target.value)
-                            }
-                        />
-                    </label>
-                </div>
-                <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <input
-                        type="checkbox"
-                        checked={rollbackRequired}
-                        onChange={(event) =>
-                            setRollbackRequired(event.target.checked)
-                        }
+                    )}
+                    <LearningEvidenceSummary
+                        context={{
+                            source: review.source,
+                            proposed_change: review.proposed_change,
+                            impact_scope: review.impact_scope,
+                            evidence: review.evidence,
+                        }}
                     />
-                    Rollback required
-                </label>
-                <textarea
-                    className="min-h-20 rounded-md border bg-background px-3 py-2 text-sm"
-                    value={outcome}
-                    onChange={(event) => setOutcome(event.target.value)}
-                    placeholder="Record observed impact, exceptions, or rollback decision."
-                />
-                <p className="text-xs text-muted-foreground">
-                    Add what you checked and what happened after the change. The
-                    review cannot be saved from an empty note.
-                </p>
-                <Button
-                    type="button"
-                    size="sm"
-                    disabled={!canSave}
-                    onClick={() => {
-                        if (!canSave) {
-                            return;
-                        }
+                    <details>
+                        <summary className="cursor-pointer text-xs font-medium text-primary">
+                            Full implementation evidence
+                        </summary>
+                        <div className="mt-3 grid gap-3 xl:grid-cols-2">
+                            <JsonPanel title="Source" value={review.source} />
+                            <JsonPanel
+                                title="Proposed change"
+                                value={review.proposed_change}
+                            />
+                            <JsonPanel
+                                title="Evidence"
+                                value={review.evidence}
+                            />
+                            <JsonPanel
+                                title="Before state"
+                                value={review.before_state}
+                            />
+                            <JsonPanel
+                                title="After state"
+                                value={review.after_state}
+                            />
+                        </div>
+                    </details>
+                </div>
+                <div className="grid gap-2">
+                    <div className="grid gap-2 sm:grid-cols-2">
+                        <label className="grid gap-1 text-xs text-muted-foreground">
+                            Impact
+                            <select
+                                className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                                value={impactOutcome}
+                                onChange={(event) =>
+                                    setImpactOutcome(
+                                        event.target.value as ImpactOutcome,
+                                    )
+                                }
+                            >
+                                <option value="improved">Improved</option>
+                                <option value="neutral">Neutral</option>
+                                <option value="regressed">Regressed</option>
+                                <option value="inconclusive">
+                                    Inconclusive
+                                </option>
+                            </select>
+                        </label>
+                        <label className="grid gap-1 text-xs text-muted-foreground">
+                            Surface
+                            <input
+                                className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                                value={affectedSurface}
+                                onChange={(event) =>
+                                    setAffectedSurface(event.target.value)
+                                }
+                            />
+                        </label>
+                        <label className="grid gap-1 text-xs text-muted-foreground">
+                            Metric
+                            <input
+                                className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                                value={metricName}
+                                onChange={(event) =>
+                                    setMetricName(event.target.value)
+                                }
+                            />
+                        </label>
+                        <label className="grid gap-1 text-xs text-muted-foreground">
+                            Sample
+                            <input
+                                className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                                inputMode="numeric"
+                                value={sampleSize}
+                                onChange={(event) =>
+                                    setSampleSize(event.target.value)
+                                }
+                            />
+                        </label>
+                        <label className="grid gap-1 text-xs text-muted-foreground">
+                            Before
+                            <input
+                                className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                                inputMode="decimal"
+                                value={beforeMetric}
+                                onChange={(event) =>
+                                    setBeforeMetric(event.target.value)
+                                }
+                            />
+                        </label>
+                        <label className="grid gap-1 text-xs text-muted-foreground">
+                            After
+                            <input
+                                className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                                inputMode="decimal"
+                                value={afterMetric}
+                                onChange={(event) =>
+                                    setAfterMetric(event.target.value)
+                                }
+                            />
+                        </label>
+                    </div>
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <input
+                            type="checkbox"
+                            checked={rollbackRequired}
+                            onChange={(event) =>
+                                setRollbackRequired(event.target.checked)
+                            }
+                        />
+                        Rollback required
+                    </label>
+                    <textarea
+                        className="min-h-20 rounded-md border bg-background px-3 py-2 text-sm"
+                        value={outcome}
+                        onChange={(event) => setOutcome(event.target.value)}
+                        placeholder="Record observed impact, exceptions, or rollback decision."
+                    />
+                    <p className="text-xs text-muted-foreground">
+                        Add what you checked and what happened after the change.
+                        The review cannot be saved from an empty note.
+                    </p>
+                    <Button
+                        type="button"
+                        size="sm"
+                        disabled={!canSave}
+                        onClick={() => {
+                            if (!canSave) {
+                                return;
+                            }
 
-                        router.patch(review.review_url, {
-                            review_outcome: outcome.trim(),
-                            impact_outcome: impactOutcome,
-                            affected_surface: affectedSurface || null,
-                            metric_name: metricName || null,
-                            before_metric: numericMetric(beforeMetric),
-                            after_metric: numericMetric(afterMetric),
-                            sample_size: integerMetric(sampleSize),
-                            rollback_required: rollbackRequired,
-                        });
-                    }}
-                >
-                    <CheckCircle2 className="size-4" aria-hidden="true" />
-                    Save impact review
-                </Button>
+                            router.patch(review.review_url, {
+                                review_outcome: outcome.trim(),
+                                impact_outcome: impactOutcome,
+                                affected_surface: affectedSurface || null,
+                                metric_name: metricName || null,
+                                before_metric: numericMetric(beforeMetric),
+                                after_metric: numericMetric(afterMetric),
+                                sample_size: integerMetric(sampleSize),
+                                rollback_required: rollbackRequired,
+                            });
+                        }}
+                    >
+                        <CheckCircle2 className="size-4" aria-hidden="true" />
+                        Save impact review
+                    </Button>
+                </div>
             </div>
-        </article>
+        </details>
     );
 }
 
@@ -684,29 +714,6 @@ function MonitorPanel({ monitor }: { monitor: LearningMonitor }) {
                 </div>
             </div>
         </section>
-    );
-}
-
-function LearningQueueTables({
-    pendingCards,
-    approvedCards,
-    decisions,
-    recommendationDefaults,
-}: {
-    pendingCards: LearningUpdateCard[];
-    approvedCards: LearningUpdateCard[];
-    decisions: Decision[];
-    recommendationDefaults: Record<string, RecommendationDefaults>;
-}) {
-    return (
-        <div className="space-y-6">
-            <PendingLearningTable
-                cards={pendingCards}
-                decisions={decisions}
-                recommendationDefaults={recommendationDefaults}
-            />
-            <ApprovedLearningTable cards={approvedCards} />
-        </div>
     );
 }
 
