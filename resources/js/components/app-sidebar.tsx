@@ -240,8 +240,14 @@ const ratingFrameworkNavItem: NavItem = {
 };
 
 const termsNavItem: NavItem = {
-    title: 'Terms & Privacy',
+    title: 'Terms & Conditions',
     href: '/admin/terms',
+    icon: FileText,
+};
+
+const termsAndPrivacyNavItem: NavItem = {
+    title: 'Terms and Privacy Policy',
+    href: '/admin/terms-and-privacy',
     icon: FileText,
 };
 
@@ -393,6 +399,7 @@ const superAdminAdministrationNavItems: NavItem[] = [
     pilotFeeWaiversNavItem,
     ratingFrameworkNavItem,
     termsNavItem,
+    termsAndPrivacyNavItem,
     partnerAgreementNavItem,
     auditTrailNavItem,
     referenceDataNavItem,

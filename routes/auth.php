@@ -119,6 +119,17 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::post('terms/{termsVersion}/publish', [TermsController::class, 'publish'])->name('terms.publish');
             Route::post('terms/enforcement/activate', [TermsController::class, 'activateEnforcement'])->name('terms.enforcement.activate');
 
+            Route::get('terms-and-privacy', [TermsController::class, 'index'])->name('terms-and-privacy.index');
+            Route::post('terms-and-privacy', [TermsController::class, 'store'])->name('terms-and-privacy.store');
+            Route::get('terms-and-privacy/{termsVersion}/edit', [TermsController::class, 'edit'])->name('terms-and-privacy.edit');
+            Route::put('terms-and-privacy/{termsVersion}', [TermsController::class, 'update'])->name('terms-and-privacy.update');
+            Route::get('terms-and-privacy/{termsVersion}/preview', [TermsController::class, 'preview'])->name('terms-and-privacy.preview');
+            Route::get('terms-and-privacy/{termsVersion}/download', [TermsController::class, 'download'])->name('terms-and-privacy.download');
+            Route::post('terms-and-privacy/{termsVersion}/source-file', [TermsController::class, 'uploadSourceFile'])->name('terms-and-privacy.source-file.store');
+            Route::get('terms-and-privacy/{termsVersion}/source-file/download', [TermsController::class, 'downloadSourceFile'])->name('terms-and-privacy.source-file.download');
+            Route::get('terms-and-privacy/{termsVersion}/publish', [TermsController::class, 'confirmPublish'])->name('terms-and-privacy.publish.create');
+            Route::post('terms-and-privacy/{termsVersion}/publish', [TermsController::class, 'publish'])->name('terms-and-privacy.publish');
+
             Route::get('partner-agreement', [PartnerAgreementController::class, 'index'])->name('partner-agreement.index');
             Route::patch('partner-agreement', [PartnerAgreementController::class, 'update'])
                 ->middleware('require.fresh-step-up')

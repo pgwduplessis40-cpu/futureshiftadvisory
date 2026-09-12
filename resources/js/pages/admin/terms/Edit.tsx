@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { TermsClause, TermsVersion } from './types';
+import type { TermsClause, TermsVersion, TermsWorkspace } from './types';
 
 type Props = {
     version: TermsVersion;
+    workspace: TermsWorkspace;
 };
 
 type TermsForm = {
@@ -21,7 +22,7 @@ type TermsForm = {
     clauses: TermsClause[];
 };
 
-export default function TermsEdit({ version }: Props) {
+export default function TermsEdit({ version, workspace }: Props) {
     const form = useForm<TermsForm>({
         version: version.version,
         title: version.title,
@@ -51,7 +52,7 @@ export default function TermsEdit({ version }: Props) {
             return;
         }
 
-        sourceForm.post(`/admin/terms/${version.id}/source-file`, {
+        sourceForm.post(version.urls.source_file, {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => sourceForm.reset('file'),
@@ -60,22 +61,22 @@ export default function TermsEdit({ version }: Props) {
 
     return (
         <>
-            <Head title={`Edit terms ${version.version}`} />
+            <Head title={`Edit ${workspace.label} ${version.version}`} />
 
             <form
                 className="space-y-6"
                 onSubmit={(event) => {
                     event.preventDefault();
-                    form.put(`/admin/terms/${version.id}`);
+                    form.put(version.urls.edit);
                 }}
             >
                 <div className="flex items-center justify-between gap-4">
                     <h1 className="text-xl font-semibold">
-                        Terms {version.version}
+                        {workspace.label} {version.version}
                     </h1>
                     <div className="flex gap-2">
                         <Button asChild size="sm" variant="outline">
-                            <Link href={`/admin/terms/${version.id}/preview`}>
+                            <Link href={version.urls.preview}>
                                 <Eye className="size-4" aria-hidden="true" />
                                 Preview
                             </Link>

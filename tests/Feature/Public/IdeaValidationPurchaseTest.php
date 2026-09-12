@@ -69,6 +69,35 @@ final class IdeaValidationPurchaseTest extends TestCase
             ->assertJsonPath('document.clauses.0.title', 'Acceptance');
     }
 
+    public function test_public_policy_page_never_uses_published_proposal_terms(): void
+    {
+        $proposal = TermsVersion::query()->create([
+            'document_scope' => TermsVersion::SCOPE_PROPOSAL,
+            'version' => 'proposal-v1',
+            'title' => 'Proposal terms',
+            'material' => true,
+            'published_at' => now()->subMinute(),
+            'notice_period_days' => 30,
+        ]);
+        $proposal->clauses()->create([
+            'clause_number' => 1,
+            'title' => 'Proposal-only clause',
+            'body' => 'This content must not be exposed as the website policy.',
+            'material' => true,
+        ]);
+
+        $this->get(route('public.terms-and-privacy'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('document.published', false)
+                ->where('document.version', null));
+
+        $this->getJson(route('public.terms-and-privacy.json'))
+            ->assertOk()
+            ->assertJsonPath('document.published', false)
+            ->assertJsonPath('document.version', null);
+    }
+
     public function test_verified_buyer_can_complete_fixture_checkout_and_is_activated_with_a_receipt(): void
     {
         Notification::fake();
@@ -232,6 +261,7 @@ final class IdeaValidationPurchaseTest extends TestCase
     private function publishedTerms(): TermsVersion
     {
         $terms = TermsVersion::query()->create([
+            'document_scope' => TermsVersion::SCOPE_WEBSITE,
             'version' => 'idea-validation-terms-v1',
             'title' => 'Future Shift Advisory Terms and Privacy Policy',
             'material' => true,

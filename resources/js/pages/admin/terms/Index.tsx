@@ -16,17 +16,26 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import type { TermsEnforcementState, TermsVersion } from './types';
+import type {
+    TermsEnforcementState,
+    TermsVersion,
+    TermsWorkspace,
+} from './types';
 
 type Props = {
     versions: TermsVersion[];
-    enforcement: TermsEnforcementState;
+    enforcement: TermsEnforcementState | null;
+    workspace: TermsWorkspace;
 };
 
-export default function TermsIndex({ versions, enforcement }: Props) {
+export default function TermsIndex({
+    versions,
+    enforcement,
+    workspace,
+}: Props) {
     return (
         <>
-            <Head title="Terms and Privacy Policy" />
+            <Head title={workspace.label} />
 
             <div className="space-y-6">
                 <div className="flex items-center justify-between gap-4">
@@ -36,73 +45,77 @@ export default function TermsIndex({ versions, enforcement }: Props) {
                             Version history
                         </div>
                         <h1 className="mt-1 text-xl font-semibold">
-                            Terms and Privacy Policy
+                            {workspace.label}
                         </h1>
                     </div>
                     <Button
                         size="sm"
                         type="button"
-                        onClick={() => router.post('/admin/terms')}
+                        onClick={() => router.post(workspace.store_url)}
                     >
                         <FilePlus className="size-4" aria-hidden="true" />
                         Draft
                     </Button>
                 </div>
 
-                <section className="rounded-md border bg-background p-4">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div className="flex gap-3">
-                            <LockKeyhole
-                                className="mt-0.5 size-4 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                            <div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <h2 className="text-sm font-medium">
-                                        Terms acceptance enforcement
-                                    </h2>
-                                    <Badge
-                                        variant={
-                                            enforcement.active
-                                                ? 'default'
-                                                : 'secondary'
-                                        }
-                                    >
-                                        {enforcement.active
-                                            ? 'active'
-                                            : 'inactive'}
-                                    </Badge>
-                                </div>
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                    {enforcement.active
-                                        ? `Compulsory acceptance was activated${enforcement.activated_at ? ` on ${formatDate(enforcement.activated_at)}` : ''}. It cannot be deactivated.`
-                                        : enforcement.latest_published_version
-                                          ? `A published Terms and Privacy Policy is available, but customers can keep testing until enforcement is activated. Latest published version: ${enforcement.latest_published_version.version}.`
-                                          : 'Publish a Terms and Privacy Policy version before activating compulsory acceptance.'}
-                                </p>
-                            </div>
-                        </div>
-
-                        {!enforcement.active ? (
-                            <Button
-                                size="sm"
-                                type="button"
-                                disabled={!enforcement.can_activate}
-                                onClick={() =>
-                                    router.post(
-                                        '/admin/terms/enforcement/activate',
-                                    )
-                                }
-                            >
+                {enforcement && workspace.enforcement_url ? (
+                    <section className="rounded-md border bg-background p-4">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                            <div className="flex gap-3">
                                 <LockKeyhole
-                                    className="size-4"
+                                    className="mt-0.5 size-4 text-muted-foreground"
                                     aria-hidden="true"
                                 />
-                                Activate
-                            </Button>
-                        ) : null}
-                    </div>
-                </section>
+                                <div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <h2 className="text-sm font-medium">
+                                            Terms acceptance enforcement
+                                        </h2>
+                                        <Badge
+                                            variant={
+                                                enforcement.active
+                                                    ? 'default'
+                                                    : 'secondary'
+                                            }
+                                        >
+                                            {enforcement.active
+                                                ? 'active'
+                                                : 'inactive'}
+                                        </Badge>
+                                    </div>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        {enforcement.active
+                                            ? `Compulsory acceptance was activated${enforcement.activated_at ? ` on ${formatDate(enforcement.activated_at)}` : ''}. It cannot be deactivated.`
+                                            : enforcement.latest_published_version
+                                              ? `A published Terms & Conditions version is available, but customers can keep testing until enforcement is activated. Latest published version: ${enforcement.latest_published_version.version}.`
+                                              : 'Publish a Terms & Conditions version before activating compulsory acceptance.'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {!enforcement.active ? (
+                                <Button
+                                    size="sm"
+                                    type="button"
+                                    disabled={!enforcement.can_activate}
+                                    onClick={() => {
+                                        if (workspace.enforcement_url) {
+                                            router.post(
+                                                workspace.enforcement_url,
+                                            );
+                                        }
+                                    }}
+                                >
+                                    <LockKeyhole
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Activate
+                                </Button>
+                            ) : null}
+                        </div>
+                    </section>
+                ) : null}
 
                 <div className="overflow-hidden rounded-md border">
                     <table className="fsa-responsive-table">
@@ -186,7 +199,9 @@ export default function TermsIndex({ versions, enforcement }: Props) {
                                                     variant="outline"
                                                 >
                                                     <Link
-                                                        href={`/admin/terms/${version.id}/preview`}
+                                                        href={
+                                                            version.urls.preview
+                                                        }
                                                         aria-label={`Preview version ${version.version}`}
                                                     >
                                                         <Eye
@@ -205,7 +220,10 @@ export default function TermsIndex({ versions, enforcement }: Props) {
                                                     variant="outline"
                                                 >
                                                     <a
-                                                        href={`/admin/terms/${version.id}/download`}
+                                                        href={
+                                                            version.urls
+                                                                .download
+                                                        }
                                                         aria-label={`Download version ${version.version}`}
                                                     >
                                                         <Download
@@ -226,7 +244,10 @@ export default function TermsIndex({ versions, enforcement }: Props) {
                                                             variant="outline"
                                                         >
                                                             <Link
-                                                                href={`/admin/terms/${version.id}/edit`}
+                                                                href={
+                                                                    version.urls
+                                                                        .edit
+                                                                }
                                                                 aria-label={`Edit version ${version.version}`}
                                                             >
                                                                 <Pencil
@@ -245,7 +266,10 @@ export default function TermsIndex({ versions, enforcement }: Props) {
                                                             variant="outline"
                                                         >
                                                             <Link
-                                                                href={`/admin/terms/${version.id}/publish`}
+                                                                href={
+                                                                    version.urls
+                                                                        .publish
+                                                                }
                                                                 aria-label={`Publish version ${version.version}`}
                                                             >
                                                                 <Send
@@ -270,7 +294,7 @@ export default function TermsIndex({ versions, enforcement }: Props) {
 }
 
 function formatDate(value: string): string {
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat('en-NZ', {
         dateStyle: 'medium',
         timeStyle: 'short',
     }).format(new Date(value));

@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { TermsVersion } from './types';
+import type { TermsVersion, TermsWorkspace } from './types';
 
 type Props = {
     version: TermsVersion;
+    workspace: TermsWorkspace;
 };
 
-export default function TermsPublish({ version }: Props) {
+export default function TermsPublish({ version, workspace }: Props) {
     const form = useForm({
         material: version.material,
         notice_period_days: version.notice_period_days,
@@ -21,19 +22,19 @@ export default function TermsPublish({ version }: Props) {
 
     return (
         <>
-            <Head title={`Publish terms ${version.version}`} />
+            <Head title={`Publish ${workspace.label} ${version.version}`} />
 
             <form
                 className="max-w-xl space-y-6"
                 onSubmit={(event) => {
                     event.preventDefault();
-                    form.post(`/admin/terms/${version.id}/publish`);
+                    form.post(version.urls.publish_submit);
                 }}
             >
                 <div className="flex items-center justify-between gap-4">
                     <div className="space-y-1">
                         <h1 className="text-xl font-semibold">
-                            Publish {version.version}
+                            Publish {workspace.label} {version.version}
                         </h1>
                         <Badge variant="secondary">
                             {version.clauses.length} clauses
@@ -44,7 +45,7 @@ export default function TermsPublish({ version }: Props) {
                         </Badge>
                     </div>
                     <Button asChild size="sm" variant="outline">
-                        <Link href={`/admin/terms/${version.id}/preview`}>
+                        <Link href={version.urls.preview}>
                             <ArrowLeft className="size-4" aria-hidden="true" />
                             Preview
                         </Link>

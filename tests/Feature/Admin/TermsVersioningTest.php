@@ -89,6 +89,57 @@ final class TermsVersioningTest extends TestCase
         $this->assertTrue((bool) $draft->clauses()->where('clause_number', 2)->firstOrFail()->material);
     }
 
+    public function test_website_policy_workspace_is_separate_from_proposal_terms(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+        $proposal = $this->termsVersion('1', published: true);
+        $policy = TermsVersion::query()->create([
+            'document_scope' => TermsVersion::SCOPE_WEBSITE,
+            'version' => '1',
+            'title' => 'Website policy',
+            'material' => true,
+            'published_at' => now()->subMinute(),
+            'notice_period_days' => 0,
+        ]);
+        $policy->clauses()->create([
+            'clause_number' => 1,
+            'title' => 'Privacy',
+            'body' => 'Website policy body.',
+            'material' => true,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.terms.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('workspace.label', 'Terms & Conditions')
+                ->has('versions', 1)
+                ->where('versions.0.id', $proposal->id));
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.terms-and-privacy.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('workspace.label', 'Terms and Privacy Policy')
+                ->where('enforcement', null)
+                ->has('versions', 1)
+                ->where('versions.0.id', $policy->id));
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.terms-and-privacy.edit', $proposal))
+            ->assertNotFound();
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.terms-and-privacy.store'))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('terms_versions', [
+            'document_scope' => TermsVersion::SCOPE_WEBSITE,
+            'version' => '2',
+        ]);
+    }
+
     public function test_terms_history_surfaces_document_and_clause_classification(): void
     {
         $this->seed(RoleSeeder::class);

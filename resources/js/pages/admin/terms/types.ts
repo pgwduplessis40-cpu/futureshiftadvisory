@@ -25,9 +25,24 @@ export type TermsVersion = {
     } | null;
     source_download_url: string | null;
     source_preview_html: string | null;
+    urls: {
+        edit: string;
+        preview: string;
+        download: string;
+        publish: string;
+        publish_submit: string;
+        source_file: string;
+    };
     clauses_count?: number;
     material_clauses_count?: number;
     clauses: TermsClause[];
+};
+
+export type TermsWorkspace = {
+    label: string;
+    index_url: string;
+    store_url: string;
+    enforcement_url: string | null;
 };
 
 export type TermsEnforcementState = {
