@@ -57,6 +57,7 @@ export function StrategicPlanEvidenceAlignment({
     const addBinding = () => {
         const source = plan.evidence_sources[0];
         const target = evidenceTargets[0];
+
         if (!source || !target) {
             return;
         }
