@@ -1,7 +1,7 @@
-import { Info, ListChecks } from 'lucide-react';
+import { ClipboardCheck, Info, ListChecks } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type LearningTab = 'actions' | 'information';
+export type LearningTab = 'actions' | 'impact_reviews' | 'information';
 
 export function LearningTabList({
     activeTab,
@@ -22,6 +22,12 @@ export function LearningTabList({
                 'Approve, defer, reject, or roll back learning updates.',
         },
         {
+            key: 'impact_reviews',
+            label: 'Impact reviews',
+            description:
+                'Confirm the observed outcome of implemented learning changes.',
+        },
+        {
             key: 'information',
             label: 'Information',
             description: 'Review monitor layers, cadence, and run history.',
@@ -30,7 +36,7 @@ export function LearningTabList({
 
     return (
         <div
-            className="inline-flex w-full max-w-md rounded-md border bg-muted/30 p-1"
+            className="inline-flex w-full max-w-xl rounded-md border bg-muted/30 p-1"
             role="tablist"
             aria-label="Learning update sections"
         >
@@ -51,6 +57,8 @@ export function LearningTabList({
                 >
                     {tab.key === 'actions' ? (
                         <ListChecks className="size-4" aria-hidden="true" />
+                    ) : tab.key === 'impact_reviews' ? (
+                        <ClipboardCheck className="size-4" aria-hidden="true" />
                     ) : (
                         <Info className="size-4" aria-hidden="true" />
                     )}
