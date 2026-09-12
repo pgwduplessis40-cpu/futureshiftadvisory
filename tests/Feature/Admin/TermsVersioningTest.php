@@ -219,7 +219,30 @@ final class TermsVersioningTest extends TestCase
                 ->component('admin/terms/Edit')
                 ->where('version.material', false)
                 ->where('version.material_clauses_count', 6)
+                ->where('version.urls.update', route('admin.terms.update', $draft, absolute: false))
                 ->where('version.clauses.3.material', true),
+            );
+
+        $websitePolicy = TermsVersion::query()->create([
+            'document_scope' => TermsVersion::SCOPE_WEBSITE,
+            'version' => '1',
+            'title' => 'Website policy',
+            'material' => false,
+            'notice_period_days' => 0,
+        ]);
+        $websitePolicy->clauses()->create([
+            'clause_number' => 1,
+            'title' => 'Privacy',
+            'body' => 'Website policy body.',
+            'material' => true,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.terms-and-privacy.edit', $websitePolicy))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/terms/Edit')
+                ->where('version.urls.update', route('admin.terms-and-privacy.update', $websitePolicy, absolute: false)),
             );
     }
 
