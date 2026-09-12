@@ -6,7 +6,7 @@ import type {
     StripePaymentElement,
 } from '@stripe/stripe-js';
 import { CreditCard, Loader2, Mail, ShieldCheck } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import InputError from '@/components/input-error';
 import {
@@ -16,6 +16,7 @@ import {
     SectionTitle,
 } from '@/components/public/section';
 import { Seo } from '@/components/public/seo';
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogClose,
@@ -25,7 +26,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 
 type State = 'register' | 'verify_email' | 'checkout' | 'existing_session';
 type AccountConflict = 'existing_account' | 'existing_profile' | null;
@@ -76,7 +76,10 @@ export default function IdeaValidationPurchase({
                 description="Create your Future Shift Advisory account, verify your email, and purchase Idea Validation securely."
             />
             <Head title="Purchase Idea Validation" />
-            <AccountConflictDialog conflict={accountConflict} />
+            <AccountConflictDialog
+                key={accountConflict ?? 'no-account-conflict'}
+                conflict={accountConflict}
+            />
             <Section className="py-20 lg:py-24">
                 <div className="mx-auto max-w-2xl">
                     <SectionEyebrow>Idea Validation</SectionEyebrow>
@@ -136,8 +139,6 @@ export default function IdeaValidationPurchase({
 
 function AccountConflictDialog({ conflict }: { conflict: AccountConflict }) {
     const [open, setOpen] = useState(conflict !== null);
-
-    useEffect(() => setOpen(conflict !== null), [conflict]);
 
     if (!conflict) {
         return null;

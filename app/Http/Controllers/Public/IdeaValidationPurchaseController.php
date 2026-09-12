@@ -113,11 +113,13 @@ final class IdeaValidationPurchaseController extends Controller
         abort_unless($user instanceof User, 500);
 
         $currentUser = $request->user();
-        if ($currentUser instanceof User && ! $currentUser->is($user)) {
+        if ($currentUser instanceof User && $currentUser->getKey() !== $user->getKey()) {
             return to_route('public.validate-idea.purchase')->with('status', 'idea-validation-verification-requires-private-session');
         }
 
         $record = $this->checkout->markEmailVerified($record, $hash);
+        $user = $record->user;
+        abort_unless($user instanceof User, 500);
 
         Auth::login($user);
         $request->session()->regenerate();
