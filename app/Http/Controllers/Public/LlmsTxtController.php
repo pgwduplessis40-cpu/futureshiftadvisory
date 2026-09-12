@@ -58,7 +58,7 @@ class LlmsTxtController extends Controller
         $lines[] = '';
         $lines[] = "- [Home]({$base}/): Overview of the practice and how we work.";
         $lines[] = "- [Services]({$base}/services): All engagement types, who each is for, and what you receive.";
-        $lines[] = "- [Entrepreneur Module]({$base}/services/entrepreneur): Idea validation, business plans, and funding readiness for founders.";
+        $lines[] = "- [Entrepreneurs]({$base}/services/entrepreneur): Idea validation, business plans, and funding readiness for founders.";
         $ideaOffer = $offers->forScope(ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION);
         $ideaPrice = $ideaOffer['available'] && $ideaOffer['amount_ex_gst'] !== null
             ? ' Current price: $'.number_format($ideaOffer['amount_ex_gst'], 2).' + GST.'

@@ -47,7 +47,7 @@ final class FaqCatalog
             [
                 'group' => 'How engagements start',
                 'question' => 'What will it cost?',
-                'answer' => 'It depends which engagement you need, and we are upfront about how each one is priced. Due Diligence and the Entrepreneur Module are quoted as fixed fees - you know the number before we start, and it does not move unless you ask for something outside the agreed scope. For Standard Advisory and not-for-profit work, the fee is set after we have properly looked at your organisation: we evaluate where things stand, analyse what we find, and shape a strategic plan - then the quote follows from that, sized to the work genuinely needed rather than guessed at upfront. Either way you will see the number, and how we arrived at it, before any work begins.',
+                'answer' => 'It depends which engagement you need, and we are upfront about how each one is priced. Due Diligence and our entrepreneur work are quoted as fixed fees - you know the number before we start, and it does not move unless you ask for something outside the agreed scope. For Standard Advisory and not-for-profit work, the fee is set after we have properly looked at your organisation: we evaluate where things stand, analyse what we find, and shape a strategic plan - then the quote follows from that, sized to the work genuinely needed rather than guessed at upfront. Either way you will see the number, and how we arrived at it, before any work begins.',
             ],
             [
                 'group' => 'How engagements start',

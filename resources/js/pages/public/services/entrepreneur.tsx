@@ -95,7 +95,7 @@ export default function EntrepreneurService({
                 description="Honest idea validation, a business plan with real numbers, and funding readiness for New Zealand founders. We tell you if the idea does not stack up."
                 jsonLd={[
                     serviceLd(base, {
-                        name: 'Entrepreneur Module',
+                        name: 'Entrepreneurs',
                         description:
                             'Idea validation, business planning, and funding readiness for New Zealand founders - from first idea through to launch.',
                         path: '/services/entrepreneur',
@@ -113,7 +113,7 @@ export default function EntrepreneurService({
                         { name: 'Home', path: '/' },
                         { name: 'Services', path: '/services' },
                         {
-                            name: 'Entrepreneur Module',
+                            name: 'Entrepreneurs',
                             path: '/services/entrepreneur',
                         },
                     ]),
@@ -122,7 +122,7 @@ export default function EntrepreneurService({
 
             {/* ── HERO ─────────────────────────────────────────── */}
             <Section className="pt-20 pb-16 lg:pt-24">
-                <SectionEyebrow>Entrepreneur Module</SectionEyebrow>
+                <SectionEyebrow>Entrepreneurs</SectionEyebrow>
                 <SectionTitle as="h1" className="mt-4">
                     Is your business idea{' '}
                     <span className="font-accent text-[var(--fs-cognac)] italic">
@@ -140,7 +140,7 @@ export default function EntrepreneurService({
                 </p>
                 <div className="mt-10 flex flex-wrap items-center gap-4">
                     <Link
-                        href="/validate-idea"
+                        href="/validate-idea/purchase"
                         className="inline-flex items-center gap-2 rounded-md bg-[var(--fs-admiralty)] px-5 py-3 text-sm font-medium text-[var(--fs-parchment)] shadow-sm transition-colors hover:bg-[var(--fs-commodore)]"
                     >
                         {validationPrice
@@ -182,7 +182,7 @@ export default function EntrepreneurService({
                         </p>
                     ) : null}
                     <Link
-                        href="/validate-idea"
+                        href="/validate-idea/purchase"
                         className="mt-6 inline-flex items-center gap-2 rounded-md bg-[var(--fs-admiralty)] px-5 py-3 text-sm font-medium text-[var(--fs-parchment)] shadow-sm transition-colors hover:bg-[var(--fs-commodore)]"
                     >
                         {validationPrice
@@ -326,7 +326,7 @@ export default function EntrepreneurService({
                         </div>
                         <div className="md:col-span-4 md:text-right">
                             <Link
-                                href="/validate-idea"
+                                href="/validate-idea/purchase"
                                 className="inline-flex items-center gap-2 rounded-md bg-[var(--fs-warm-gold)] px-5 py-3 text-sm font-semibold text-[var(--fs-admiralty)] transition hover:bg-[var(--fs-champagne)]"
                             >
                                 {validationPrice

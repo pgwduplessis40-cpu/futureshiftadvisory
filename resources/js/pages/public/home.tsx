@@ -24,6 +24,7 @@ type EngagementSummary = {
     tagline: string;
     summary: string;
     accent: string;
+    detail_path?: string;
 };
 
 const accentClass: Record<string, string> = {
@@ -44,8 +45,8 @@ export default function Home({
     return (
         <>
             <Seo
-                title="Honest business advisory for New Zealand SMEs"
-                description="A Hamilton-based advisory practice for New Zealand SMEs, founders, buyers, and not-for-profits. Clear, kind, evidence-based advice you can act on."
+                title="Idea validation & honest advisory for New Zealand founders"
+                description="We help New Zealand founders validate an idea, build a business plan with real numbers, and know if it is ready to launch - plus advisory, due diligence, and not-for-profit support once you are trading."
                 jsonLd={[organizationLd(base), webSiteLd(base)]}
             />
 
@@ -55,31 +56,34 @@ export default function Home({
                     <div className="lg:col-span-7">
                         <SectionEyebrow>Future Shift Advisory</SectionEyebrow>
                         <SectionTitle as="h1" className="mt-4">
-                            Your business, shifted{' '}
+                            From first idea to a business that{' '}
                             <span className="font-accent text-[var(--fs-cognac)] italic">
-                                forward.
+                                works.
                             </span>
                         </SectionTitle>
                         <GoldRule className="mt-6" />
                         <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--fs-graphite)]">
-                            Clear, honest advice for New&nbsp;Zealand SMEs,
-                            founders, and not-for-profits. We tell you what we
-                            see - kindly, and with the reasoning behind it - so
-                            you can move forward with confidence.
+                            We help New&nbsp;Zealand founders find out -
+                            honestly, and early - whether an idea holds up, then
+                            build the business plan and the numbers to back it.
+                            And once you are trading, we stay in your corner:
+                            advisory reviews, due diligence, and support for
+                            not-for-profits, all with the same straight,
+                            evidence-based advice.
                         </p>
                         <div className="mt-10 flex flex-wrap items-center gap-4">
-                            <Link
-                                href="/contact"
+                            <a
+                                href="/validate-idea/purchase"
                                 className="inline-flex items-center gap-2 rounded-md bg-[var(--fs-admiralty)] px-5 py-3 text-sm font-medium text-[var(--fs-parchment)] shadow-sm transition-colors hover:bg-[var(--fs-commodore)]"
                             >
-                                Book a discovery call{' '}
+                                Validate my idea{' '}
                                 <ArrowRight className="h-4 w-4" />
-                            </Link>
+                            </a>
                             <Link
-                                href="/services"
+                                href="/contact"
                                 className="inline-flex items-center gap-2 text-sm font-medium text-[var(--fs-admiralty)] hover:text-[var(--fs-pacific)]"
                             >
-                                See how we can help{' '}
+                                Or talk it through - book a discovery call{' '}
                                 <ArrowRight className="h-4 w-4" />
                             </Link>
                         </div>
@@ -134,18 +138,18 @@ export default function Home({
                         Ways to work together.
                     </SectionTitle>
                     <SectionLead>
-                        Most people start with a Standard Advisory review.
-                        Others come to us for due diligence on a purchase,
-                        support after an acquisition, a hand getting a new
-                        venture off the ground, or a health check for their
-                        not-for-profit.
+                        Helping founders start and build good businesses is
+                        where we focus. From there, we also run Standard
+                        Advisory reviews for established SMEs, due diligence on
+                        a purchase, support after an acquisition, and health
+                        checks for not-for-profits.
                     </SectionLead>
 
                     <div className="mt-12 grid gap-6 md:grid-cols-2">
                         {engagementTypes.map((e) => (
                             <Link
                                 key={e.slug}
-                                href={`/services#${e.slug}`}
+                                href={e.detail_path ?? `/services#${e.slug}`}
                                 className={[
                                     'group rounded-lg border border-l-4 border-[var(--fs-sand)] bg-white p-6 shadow-[0_1px_2px_rgba(28,43,69,0.03)] transition hover:shadow-[0_8px_24px_rgba(28,43,69,0.08)]',
                                     accentClass[e.accent] ??
