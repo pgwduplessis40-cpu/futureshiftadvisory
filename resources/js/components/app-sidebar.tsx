@@ -215,6 +215,12 @@ const pilotFeeWaiversNavItem: NavItem = {
     icon: BadgeDollarSign,
 };
 
+const paymentReconciliationsNavItem: NavItem = {
+    title: 'Payment reconciliations',
+    href: '/admin/payment-reconciliations',
+    icon: BadgeDollarSign,
+};
+
 const staffNavItem: NavItem = {
     title: 'Staff',
     href: '/admin/staff',
@@ -397,6 +403,7 @@ const superAdminAdministrationNavItems: NavItem[] = [
     principlesRolesNavItem,
     serviceRatesNavItem,
     pilotFeeWaiversNavItem,
+    paymentReconciliationsNavItem,
     ratingFrameworkNavItem,
     termsNavItem,
     termsAndPrivacyNavItem,

@@ -23,6 +23,7 @@ use App\Services\Audit\AuditWriter;
 use App\Services\Clients\LifecycleManager;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Payments\GstCalculator;
+use App\Services\Payments\IdeaValidationHistoricalQuote;
 use App\Services\Payments\IdeaValidationPaymentIntent;
 use App\Services\Payments\IdeaValidationPaymentIntentRequest;
 use App\Services\Payments\PaymentChargeResult;
@@ -420,10 +421,42 @@ final class IdeaValidationCheckout
             : null;
     }
 
-    private function settlePayment(Payment $payment, PaymentChargeResult $charge, \DateTimeInterface $processedAt): IdeaValidationPurchase
+    public function purchasePaymentQuoteMismatchReason(IdeaValidationPurchase $purchase): ?string
     {
-        $result = $this->context->withSystemContext(function () use ($payment, $charge, $processedAt): array {
-            return DB::transaction(function () use ($payment, $charge, $processedAt): array {
+        $payment = $purchase->payment;
+
+        return $payment instanceof Payment
+            ? $this->quoteMismatchReason($purchase, $payment)
+            : null;
+    }
+
+    public function settleReconciledStripePayment(
+        Payment $payment,
+        PaymentChargeResult $charge,
+        IdeaValidationHistoricalQuote $quote,
+        User $actor,
+        string $reason,
+    ): IdeaValidationPurchase {
+        return $this->settlePayment(
+            payment: $payment,
+            charge: $charge,
+            processedAt: now(),
+            historicalQuote: $quote,
+            reconciledBy: $actor,
+            reconciliationReason: $reason,
+        );
+    }
+
+    private function settlePayment(
+        Payment $payment,
+        PaymentChargeResult $charge,
+        \DateTimeInterface $processedAt,
+        ?IdeaValidationHistoricalQuote $historicalQuote = null,
+        ?User $reconciledBy = null,
+        ?string $reconciliationReason = null,
+    ): IdeaValidationPurchase {
+        $result = $this->context->withSystemContext(function () use ($payment, $charge, $processedAt, $historicalQuote, $reconciledBy, $reconciliationReason): array {
+            return DB::transaction(function () use ($payment, $charge, $processedAt, $historicalQuote, $reconciledBy, $reconciliationReason): array {
                 $payment = Payment::query()->whereKey($payment->getKey())->lockForUpdate()->firstOrFail();
                 $purchase = IdeaValidationPurchase::query()
                     ->with(['user', 'client', 'termsVersion', 'advisor'])
@@ -431,12 +464,47 @@ final class IdeaValidationCheckout
                     ->lockForUpdate()
                     ->firstOrFail();
 
+                $wasPaid = $purchase->paid_at !== null || $purchase->status === IdeaValidationPurchase::STATUS_PAID;
+                if ($historicalQuote instanceof IdeaValidationHistoricalQuote && ! $wasPaid) {
+                    if (! $reconciledBy instanceof User || blank($reconciliationReason)) {
+                        throw new \LogicException('A historical quote may only be restored through an audited reconciliation.');
+                    }
+                    if ($this->quoteMismatchReason($purchase, $payment) === null) {
+                        throw new \LogicException('The Idea Validation purchase has no quote discrepancy to reconcile.');
+                    }
+
+                    $before = $this->quoteAuditPayload($purchase);
+                    $snapshot = [
+                        ...(array) ($purchase->package_snapshot ?? []),
+                        'fixed_fee' => $historicalQuote->amountExGst,
+                    ];
+                    $purchase->forceFill([
+                        'amount_ex_gst' => $historicalQuote->amountExGst,
+                        'gst_amount' => $historicalQuote->gstAmount,
+                        'amount_including_gst' => $historicalQuote->amountIncludingGst,
+                        'currency' => $historicalQuote->currency,
+                        'package_snapshot' => $snapshot,
+                        'metadata' => [
+                            ...(array) ($purchase->metadata ?? []),
+                            'payment_reconciliation' => [
+                                'method' => 'verified_stripe_payment',
+                                'reconciled_at' => now()->toIso8601String(),
+                                'payment_reference' => $charge->gatewayRef,
+                            ],
+                        ],
+                    ])->save();
+                    $this->audit->record('idea_validation.payment_reconciled', subject: $purchase, actor: $reconciledBy, before: $before, after: [
+                        ...$this->quoteAuditPayload($purchase),
+                        'payment_reference' => $charge->gatewayRef,
+                        'reason' => $reconciliationReason,
+                    ]);
+                }
+
                 if ($this->quoteMismatchReason($purchase, $payment) !== null) {
                     throw new \LogicException('The Idea Validation purchase quote does not match its payment record.');
                 }
 
                 $this->assertChargeMatches($payment, $purchase, $charge);
-                $wasPaid = $purchase->paid_at !== null || $purchase->status === IdeaValidationPurchase::STATUS_PAID;
 
                 $payment->forceFill([
                     'gateway' => 'stripe',
@@ -619,6 +687,18 @@ final class IdeaValidationCheckout
             || number_format((float) $charge->amount, 2, '.', '') !== number_format((float) $payment->amount, 2, '.', '')) {
             throw new \LogicException('Stripe payment confirmation does not match the Idea Validation purchase.');
         }
+    }
+
+    /** @return array{amount_ex_gst:mixed, gst_amount:mixed, amount_including_gst:mixed, currency:mixed, fixed_fee:mixed} */
+    private function quoteAuditPayload(IdeaValidationPurchase $purchase): array
+    {
+        return [
+            'amount_ex_gst' => $purchase->amount_ex_gst,
+            'gst_amount' => $purchase->gst_amount,
+            'amount_including_gst' => $purchase->amount_including_gst,
+            'currency' => $purchase->currency,
+            'fixed_fee' => data_get($purchase->package_snapshot, 'fixed_fee'),
+        ];
     }
 
     private function quoteMismatchReason(IdeaValidationPurchase $purchase, Payment $payment): ?string

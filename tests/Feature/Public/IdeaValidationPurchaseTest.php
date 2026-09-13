@@ -539,6 +539,12 @@ final class IdeaValidationPurchaseTest extends TestCase
             ],
         ])->save();
 
+        $this->get(route('public.validate-idea.purchase'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('public/idea-validation-purchase')
+                ->where('purchase.payment_review_required', true));
+
         $this->mock(StripeClient::class, function (MockInterface $stripe): void {
             $stripe->shouldNotReceive('createIdeaValidationPaymentIntent');
         });

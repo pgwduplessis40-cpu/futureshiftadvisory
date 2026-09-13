@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\MicrosoftGraphMailOAuthController;
 use App\Http\Controllers\Admin\OperationalHealthController;
 use App\Http\Controllers\Admin\PanelMemberController;
 use App\Http\Controllers\Admin\PartnerAgreementController;
+use App\Http\Controllers\Admin\PaymentReconciliationController;
 use App\Http\Controllers\Admin\PilotFeeWaiverController;
 use App\Http\Controllers\Admin\PracticeAccountingConnectionController;
 use App\Http\Controllers\Admin\PrinciplesRolesController;
@@ -86,6 +87,11 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::patch('pilot-fee-waivers/entrepreneurs/{entrepreneurProfile}', [PilotFeeWaiverController::class, 'updateEntrepreneur'])
                 ->middleware('require.fresh-step-up')
                 ->name('pilot-fee-waivers.entrepreneurs.update');
+            Route::get('payment-reconciliations', [PaymentReconciliationController::class, 'index'])
+                ->name('payment-reconciliations.index');
+            Route::post('payment-reconciliations/{purchase}', [PaymentReconciliationController::class, 'reconcile'])
+                ->middleware('require.fresh-step-up')
+                ->name('payment-reconciliations.reconcile');
 
             Route::get('questionnaires', [QuestionnaireController::class, 'index'])->name('questionnaires.index');
             Route::post('questionnaires', [QuestionnaireController::class, 'store'])->name('questionnaires.store');
