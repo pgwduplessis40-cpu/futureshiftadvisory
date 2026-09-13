@@ -78,8 +78,10 @@ use App\Services\Payments\BillingAdjustmentAllocator;
 use App\Services\Payments\ClientBillingCode;
 use App\Services\Payments\DefinitivePaymentDecline;
 use App\Services\Payments\Gateway;
+use App\Services\Payments\IdeaValidationHistoricalQuote;
 use App\Services\Payments\IdeaValidationPaymentIntent;
 use App\Services\Payments\IdeaValidationPaymentIntentRequest;
+use App\Services\Payments\IdeaValidationPaymentReconciliationService;
 use App\Services\Payments\InstallmentPaymentProcessor;
 use App\Services\Payments\InstallmentScheduleBuilder;
 use App\Services\Payments\PaymentAuthorityRequest;
@@ -205,6 +207,7 @@ final class MethodologyDriftGuardTest extends TestCase
         ClientBillingCode::class => 'Billing-code formatter.',
         DefinitivePaymentDecline::class => 'Payment-decline exception type.',
         Gateway::class => 'Gateway adapter.',
+        IdeaValidationHistoricalQuote::class => 'Historical payment-quote DTO supplied as evidence during reconciliation.',
         IdeaValidationPaymentIntent::class => 'DTO returned by the payment gateway setup.',
         IdeaValidationPaymentIntentRequest::class => 'DTO passed to the payment gateway setup.',
         InstallmentPaymentProcessor::class => 'Direct-debit payment processing workflow.',
@@ -214,6 +217,7 @@ final class MethodologyDriftGuardTest extends TestCase
         PaymentChargeRequest::class => 'DTO.',
         PaymentChargeResult::class => 'DTO.',
         PaymentGatewayException::class => 'Exception class.',
+        IdeaValidationPaymentReconciliationService::class => 'Super-admin payment recovery workflow; it verifies recorded Stripe evidence and delegates settlement without owning an advisory calculation methodology.',
         PaymentRefundRequest::class => 'DTO passed to the payment gateway refund operation.',
         PaymentRefundResult::class => 'DTO returned by the payment gateway refund operation.',
         PaymentSetupIntent::class => 'DTO returned by payment gateway setup.',
