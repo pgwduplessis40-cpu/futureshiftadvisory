@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Public;
 
 use App\Enums\ClientStatus;
+use App\Models\AuditEvent;
 use App\Models\Client;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidationPurchase;
@@ -322,7 +323,7 @@ final class IdeaValidationPurchaseTest extends TestCase
                 ->andThrow(new RuntimeException('Stripe connection failed.'));
         });
 
-        $this->postJson(route('public.validate-idea.purchase.payment-intent'))
+        $response = $this->postJson(route('public.validate-idea.purchase.payment-intent'))
             ->assertStatus(503)
             ->assertJsonPath('code', 'payment_setup_unavailable')
             ->assertJsonPath('message', fn (string $message): bool => str_contains($message, 'no payment has been taken'))
@@ -334,6 +335,15 @@ final class IdeaValidationPurchaseTest extends TestCase
             'id' => $purchase->payment_id,
             'status' => Payment::STATUS_PENDING,
         ]);
+        $audit = AuditEvent::query()
+            ->where('action', 'idea_validation.purchase_payment_setup_failed')
+            ->firstOrFail();
+        $this->assertSame((string) $purchase->getKey(), $audit->subject_id);
+        $this->assertSame((string) $buyer->getKey(), $audit->actor_user_key);
+        $this->assertSame('stripe', data_get($audit->after, 'gateway'));
+        $this->assertSame($response->json('support_reference'), data_get($audit->after, 'support_reference'));
+        $this->assertSame(IdeaValidationPurchase::STATUS_PAYMENT_PENDING, data_get($audit->after, 'status'));
+        $this->assertFalse(data_get($audit->after, 'payment_taken'));
     }
 
     public function test_verified_buyer_can_complete_fixture_checkout_and_is_activated_with_a_receipt(): void
