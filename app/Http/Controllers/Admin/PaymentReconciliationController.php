@@ -56,7 +56,23 @@ final class PaymentReconciliationController extends Controller
             ->with('status', 'idea-validation-payment-reconciled');
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array{
+     *     id: string,
+     *     customer_name: string|null,
+     *     customer_email: string|null,
+     *     created_at: string|null,
+     *     currency: string,
+     *     recorded_payment_amount: float,
+     *     current_quote: array{
+     *         amount_ex_gst: float|null,
+     *         gst_amount: float|null,
+     *         amount_including_gst: float|null
+     *     },
+     *     stripe_payment_intent_ref: string|null,
+     *     reconcile_url: string
+     * }
+     */
     private function candidatePayload(IdeaValidationPurchase $purchase): array
     {
         $payment = $purchase->payment;
