@@ -277,11 +277,14 @@ final class IdeaValidationPurchaseController extends Controller
      *     amount_ex_gst: float|null,
      *     gst_amount: float|null,
      *     amount_including_gst: float|null,
-     *     currency: string|null
+     *     currency: string|null,
+     *     payment_review_required: bool
      * }
      */
     private function purchasePayload(IdeaValidationPurchase $purchase): array
     {
+        $purchase->loadMissing('payment');
+
         return [
             'id' => $purchase->getKey(),
             'status' => $purchase->status,
@@ -290,6 +293,7 @@ final class IdeaValidationPurchaseController extends Controller
             'gst_amount' => $purchase->gst_amount !== null ? (float) $purchase->gst_amount : null,
             'amount_including_gst' => $purchase->amount_including_gst !== null ? (float) $purchase->amount_including_gst : null,
             'currency' => $purchase->currency,
+            'payment_review_required' => $this->checkout->purchasePaymentQuoteMismatchReason($purchase) !== null,
         ];
     }
 }

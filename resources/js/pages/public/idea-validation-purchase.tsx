@@ -38,6 +38,7 @@ type Purchase = {
     gst_amount: number | null;
     amount_including_gst: number | null;
     currency: string | null;
+    payment_review_required: boolean;
 };
 
 type Terms = {
@@ -587,6 +588,28 @@ function Checkout({ purchase }: { purchase: Purchase }) {
     const gst = intent?.gst_amount ?? purchase.gst_amount;
     const gross = intent?.amount_including_gst ?? purchase.amount_including_gst;
     const currency = intent?.currency ?? purchase.currency ?? 'NZD';
+
+    if (purchase.payment_review_required) {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="font-display text-2xl text-[var(--fs-admiralty)]">
+                        Payment review in progress
+                    </h2>
+                    <p className="mt-2 text-sm leading-relaxed text-[var(--fs-graphite)]">
+                        We have received a payment confirmation that needs to
+                        be matched to your original quote before we activate
+                        Idea Validation.
+                    </p>
+                </div>
+                <div className="rounded-md border border-[var(--fs-sand)] bg-[var(--fs-linen)] p-4 text-sm leading-relaxed text-[var(--fs-graphite)]">
+                    Please do not submit another payment. Future Shift
+                    Advisory will complete the review and email you once your
+                    access is activated.
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
