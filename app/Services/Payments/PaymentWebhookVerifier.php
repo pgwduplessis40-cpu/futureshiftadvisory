@@ -24,17 +24,25 @@ final class PaymentWebhookVerifier
             return [false, 'secret_not_configured'];
         }
 
-        $header = (string) $request->header('Stripe-Signature', '');
-        $parts = collect(explode(',', $header))
-            ->mapWithKeys(function (string $part): array {
-                [$key, $value] = array_pad(explode('=', trim($part), 2), 2, '');
+        $timestamp = null;
+        $signatures = [];
 
-                return [$key => $value];
-            });
-        $timestamp = (string) $parts->get('t', '');
-        $signature = (string) $parts->get('v1', '');
+        foreach (explode(',', (string) $request->header('Stripe-Signature', '')) as $part) {
+            [$key, $value] = array_pad(explode('=', trim($part), 2), 2, '');
 
-        if ($timestamp === '' || ! ctype_digit($timestamp) || $signature === '') {
+            if ($key === 't' && $timestamp === null) {
+                $timestamp = $value;
+            }
+
+            // Stripe includes one v1 signature for each active endpoint secret
+            // while a signing secret is being rotated. Accept the one generated
+            // with the secret configured for this application.
+            if ($key === 'v1' && $value !== '') {
+                $signatures[] = $value;
+            }
+        }
+
+        if (! is_string($timestamp) || ! ctype_digit($timestamp) || $signatures === []) {
             return [false, 'signature_missing'];
         }
 
@@ -44,9 +52,13 @@ final class PaymentWebhookVerifier
 
         $expected = hash_hmac('sha256', $timestamp.'.'.$request->getContent(), $secret);
 
-        return hash_equals($expected, $signature)
-            ? [true, null]
-            : [false, 'signature_mismatch'];
+        foreach ($signatures as $signature) {
+            if (hash_equals($expected, $signature)) {
+                return [true, null];
+            }
+        }
+
+        return [false, 'signature_mismatch'];
     }
 
     /**

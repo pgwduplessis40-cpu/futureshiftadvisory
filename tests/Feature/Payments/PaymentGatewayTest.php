@@ -276,6 +276,23 @@ final class PaymentGatewayTest extends TestCase
         ], $body)));
     }
 
+    public function test_payment_webhook_verifier_accepts_a_matching_stripe_signature_during_secret_rotation(): void
+    {
+        $credentials = app(IntegrationCredentials::class);
+        $credentials->set('stripe', 'webhook_secret', 'stripe-current-secret', $this->superAdmin());
+        $verifier = app(PaymentWebhookVerifier::class);
+        $body = '{"id":"evt_signature_rotation"}';
+        $timestamp = (string) now()->getTimestamp();
+        $currentSignature = hash_hmac('sha256', $timestamp.'.'.$body, 'stripe-current-secret');
+        $retiredSignature = hash_hmac('sha256', $timestamp.'.'.$body, 'stripe-retired-secret');
+
+        $this->assertSame([true, null], $verifier->verifyStripe(HttpRequest::create('/webhooks/payments/stripe', 'POST', [], [], [], [
+            // Stripe can send a v1 signature for each currently active secret.
+            // The matching value is deliberately not last in this header.
+            'HTTP_STRIPE_SIGNATURE' => 't='.$timestamp.',v1='.$currentSignature.',v1='.$retiredSignature,
+        ], $body)));
+    }
+
     public function test_authority_capture_rejects_unsupported_and_raw_card_inputs_before_gateway_calls(): void
     {
         [$authority, $advisor] = $this->authority('authority-capture-validation@example.test');

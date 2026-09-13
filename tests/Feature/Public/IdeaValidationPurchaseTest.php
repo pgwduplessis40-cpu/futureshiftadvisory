@@ -10,6 +10,7 @@ use App\Models\Client;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidationPurchase;
 use App\Models\Payment;
+use App\Models\PaymentWebhookEvent;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\TermsVersion;
@@ -352,6 +353,39 @@ final class IdeaValidationPurchaseTest extends TestCase
         $this->assertFalse(data_get($audit->after, 'payment_taken'));
     }
 
+    public function test_pending_checkout_keeps_its_original_quote_when_the_service_rate_changes(): void
+    {
+        Notification::fake();
+        [, $buyer] = $this->registerAndVerifyBuyer();
+
+        $firstIntent = $this->postJson(route('public.validate-idea.purchase.payment-intent'))
+            ->assertOk()
+            ->assertJsonPath('amount_ex_gst', 1650)
+            ->assertJsonPath('gst_amount', 247.5)
+            ->assertJsonPath('amount_including_gst', 1897.5)
+            ->json();
+
+        $rate = ServiceRatePackage::query()
+            ->where('package_scope', ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION)
+            ->firstOrFail();
+        $rate->forceFill(['fixed_fee' => 10])->save();
+
+        $secondIntent = $this->postJson(route('public.validate-idea.purchase.payment-intent'))
+            ->assertOk()
+            ->assertJsonPath('amount_ex_gst', 1650)
+            ->assertJsonPath('gst_amount', 247.5)
+            ->assertJsonPath('amount_including_gst', 1897.5)
+            ->json();
+
+        $purchase = IdeaValidationPurchase::query()->where('user_id', $buyer->getKey())->firstOrFail();
+        $payment = Payment::query()->findOrFail($purchase->payment_id);
+
+        $this->assertSame($firstIntent['payment_intent_id'], $secondIntent['payment_intent_id']);
+        $this->assertSame('1897.50', $purchase->amount_including_gst);
+        $this->assertSame('1897.50', $payment->amount);
+        $this->assertSame(1650.0, (float) data_get($purchase->package_snapshot, 'fixed_fee'));
+    }
+
     public function test_verified_buyer_can_start_live_checkout_with_vaulted_stripe_credentials(): void
     {
         Notification::fake();
@@ -483,6 +517,61 @@ final class IdeaValidationPurchaseTest extends TestCase
         $this->assertNotNull($purchase->service_activation_id);
         $this->assertDatabaseHas('receipts', ['payment_id' => $payment->getKey()]);
         Notification::assertSentTo($buyer, IdeaValidationPurchaseConfirmedNotification::class);
+    }
+
+    public function test_stripe_webhook_holds_a_purchase_for_review_when_its_quote_differs_from_the_payment(): void
+    {
+        Notification::fake();
+        [, $buyer] = $this->registerAndVerifyBuyer();
+
+        $intent = $this->postJson(route('public.validate-idea.purchase.payment-intent'))
+            ->assertOk()
+            ->json();
+        $purchase = IdeaValidationPurchase::query()->where('user_id', $buyer->getKey())->firstOrFail();
+        $payment = Payment::query()->findOrFail($purchase->payment_id);
+        $purchase->forceFill([
+            'amount_ex_gst' => 10,
+            'gst_amount' => 1.5,
+            'amount_including_gst' => 11.5,
+            'package_snapshot' => [
+                ...(array) $purchase->package_snapshot,
+                'fixed_fee' => '10.00',
+            ],
+        ])->save();
+
+        $this->mock(StripeClient::class, function (MockInterface $stripe): void {
+            $stripe->shouldNotReceive('createIdeaValidationPaymentIntent');
+        });
+
+        $this->postJson(route('public.validate-idea.purchase.payment-intent'))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.checkout.0', 'This payment has a pricing discrepancy and requires support review. No further payment will be taken.');
+
+        $event = app(PaymentWebhookReconciler::class)->handleStripe([
+            'id' => 'evt_idea_validation_quote_mismatch',
+            'type' => 'payment_intent.succeeded',
+            'created' => now()->getTimestamp(),
+            'data' => [
+                'object' => [
+                    'id' => $intent['payment_intent_id'],
+                    'currency' => 'nzd',
+                    'amount_received' => 189750,
+                    'metadata' => ['payment_id' => $payment->getKey()],
+                ],
+            ],
+        ]);
+
+        $purchase->refresh();
+        $payment->refresh();
+
+        $this->assertSame(PaymentWebhookEvent::STATUS_FAILED, $event->status);
+        $this->assertSame('idea_validation_quote_amount_mismatch', $event->failure_reason);
+        $this->assertSame(IdeaValidationPurchase::STATUS_PAYMENT_PROCESSING, $purchase->status);
+        $this->assertNull($purchase->service_activation_id);
+        $this->assertSame(Payment::STATUS_PENDING, $payment->status);
+        $this->assertDatabaseMissing('receipts', ['payment_id' => $payment->getKey()]);
+        Notification::assertNotSentTo($buyer, IdeaValidationPurchaseConfirmedNotification::class);
+        Notification::assertNotSentTo($purchase->advisor, IdeaValidationPurchaseAdvisorNotification::class);
     }
 
     /** @return array{0: TermsVersion, 1: User} */

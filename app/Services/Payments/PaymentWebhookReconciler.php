@@ -129,6 +129,14 @@ final class PaymentWebhookReconciler
             return $this->fail($event, $payment, $mismatch);
         }
 
+        // A Stripe charge can be valid for its Payment record while the
+        // public checkout's persisted quote is not. Do not activate a buyer
+        // against a different amount from the one displayed to them.
+        $quoteMismatch = $this->ideaValidationCheckout->paymentQuoteMismatchReason($payment);
+        if ($quoteMismatch !== null) {
+            return $this->fail($event, $payment, $quoteMismatch);
+        }
+
         $processedAt = $this->eventTimestamp($payload);
         $installmentOutcome = $this->installments->settleFromWebhook(
             $payment,
