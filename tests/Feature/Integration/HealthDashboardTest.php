@@ -10,6 +10,8 @@ use App\Models\IntegrationCall;
 use App\Models\IntegrationHealthSample;
 use App\Models\User;
 use App\Services\Ai\AdvisorAiNotice;
+use App\Services\Integration\IntegrationActivationResolver;
+use App\Services\Integration\IntegrationCredentials;
 use Carbon\CarbonInterface;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -139,6 +141,28 @@ final class HealthDashboardTest extends TestCase
         Http::assertSent(fn ($request): bool => $request->hasHeader('anthropic-version', '2023-06-01')
             && $request->hasHeader('x-api-key', 'sk-ant-admin01-test')
             && str_starts_with((string) $request->url(), 'https://api.anthropic.com/v1/organizations/cost_report'));
+    }
+
+    public function test_super_admin_sees_stripe_readiness_and_latest_sanitized_failure(): void
+    {
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'stripe-health-admin@example.test');
+        $credentials = app(IntegrationCredentials::class);
+        $credentials->set('stripe', 'secret', 'sk_live_stripe_fixture', $admin);
+        $credentials->set('stripe', 'webhook_secret', 'whsec_stripe_fixture', $admin);
+        app(IntegrationActivationResolver::class)->activate('stripe', $admin);
+        $this->recordCall('stripe', IntegrationCall::STATUS_FAILURE, 110, now()->subMinute(), [
+            'body' => '{"error":{"message":"Stripe rejected the request body."}}',
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.integration-health.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('admin/integration-health/Index')
+                ->where('stripe.ready', true)
+                ->where('stripe.live', true)
+                ->where('stripe.last_attempt.status', IntegrationCall::STATUS_FAILURE)
+                ->where('stripe.last_attempt.error', 'Stripe rejected the request body.'));
     }
 
     public function test_provider_error_is_suppressed_after_later_anthropic_success(): void
