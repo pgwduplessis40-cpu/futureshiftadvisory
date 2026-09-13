@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { FileText } from 'lucide-react';
 import { BackToTop } from '@/components/public/back-to-top';
 import {
@@ -27,8 +27,10 @@ type LegalDocument = {
 
 export default function TermsAndPrivacy({
     document,
+    returnToIdeaValidation,
 }: {
     document: LegalDocument;
+    returnToIdeaValidation: boolean;
 }) {
     return (
         <>
@@ -44,6 +46,14 @@ export default function TermsAndPrivacy({
                 />
             </Head>
             <Section className="py-20 lg:py-24">
+                {returnToIdeaValidation ? (
+                    <Link
+                        href="/validate-idea/purchase"
+                        className="inline-flex items-center text-sm font-semibold text-[var(--fs-admiralty)] underline underline-offset-4 hover:text-[var(--fs-pacific)]"
+                    >
+                        ← Back to Idea Validation account setup
+                    </Link>
+                ) : null}
                 <SectionEyebrow>Legal</SectionEyebrow>
                 <SectionTitle as="h1" className="mt-4">
                     Terms and Privacy Policy

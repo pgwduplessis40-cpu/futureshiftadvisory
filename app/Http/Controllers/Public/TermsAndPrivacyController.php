@@ -9,6 +9,7 @@ use App\Models\TermsVersion;
 use App\Services\Terms\TermsAcceptanceGate;
 use App\Services\Terms\TermsDocumentRenderer;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -27,7 +28,7 @@ final class TermsAndPrivacyController extends Controller
         private readonly TermsDocumentRenderer $documents,
     ) {}
 
-    public function show(): Response
+    public function show(Request $request): Response
     {
         $version = $this->terms->latestPublishedVersion(
             withClauses: true,
@@ -36,6 +37,9 @@ final class TermsAndPrivacyController extends Controller
 
         return Inertia::render('public/terms-and-privacy', [
             'document' => $this->payload($version),
+            // Do not reflect arbitrary URLs from a public legal page. The
+            // checkout can opt into this one, known-safe return destination.
+            'returnToIdeaValidation' => $request->query('return_to') === 'idea-validation',
         ]);
     }
 

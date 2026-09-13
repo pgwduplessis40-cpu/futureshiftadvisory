@@ -16,6 +16,8 @@ use App\Models\User;
 use App\Notifications\IdeaValidationEmailVerificationNotification;
 use App\Notifications\IdeaValidationPurchaseAdvisorNotification;
 use App\Notifications\IdeaValidationPurchaseConfirmedNotification;
+use App\Services\Entrepreneurs\IdeaValidationCheckout;
+use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Payments\PaymentWebhookReconciler;
 use App\Services\Pdf\PdfRenderer;
 use App\Support\RequestContext;
@@ -24,6 +26,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
+use Mockery\MockInterface;
+use RuntimeException;
 use Tests\TestCase;
 
 final class IdeaValidationPurchaseTest extends TestCase
@@ -67,6 +71,16 @@ final class IdeaValidationPurchaseTest extends TestCase
             ->assertJsonPath('document.published', true)
             ->assertJsonPath('document.title', $terms->title)
             ->assertJsonPath('document.clauses.0.title', 'Acceptance');
+
+        $this->get(route('public.terms-and-privacy', ['return_to' => 'idea-validation']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('returnToIdeaValidation', true));
+
+        $this->get(route('public.terms-and-privacy', ['return_to' => 'https://untrusted.example']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('returnToIdeaValidation', false));
     }
 
     public function test_public_policy_page_never_uses_published_proposal_terms(): void
@@ -202,7 +216,7 @@ final class IdeaValidationPurchaseTest extends TestCase
         Notification::assertNothingSent();
     }
 
-    public function test_a_verification_link_cannot_switch_or_change_an_existing_different_session(): void
+    public function test_a_verification_link_confirms_the_email_without_switching_an_existing_session(): void
     {
         Notification::fake();
         $terms = $this->publishedTerms();
@@ -234,15 +248,92 @@ final class IdeaValidationPurchaseTest extends TestCase
         $this->assertIsString($verificationUrl);
         $this->actingAs($advisor)
             ->get($verificationUrl)
-            ->assertRedirect(route('public.validate-idea.purchase'))
-            ->assertSessionHas('status', 'idea-validation-verification-requires-private-session');
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('public/idea-validation-email-verified'));
 
         $this->assertAuthenticatedAs($advisor);
         $buyer->refresh();
         $purchase->refresh();
-        $this->assertNull($buyer->email_verified_at);
-        $this->assertNull($purchase->email_verified_at);
-        $this->assertSame(IdeaValidationPurchase::STATUS_EMAIL_VERIFICATION_PENDING, $purchase->status);
+        $this->assertNotNull($buyer->email_verified_at);
+        $this->assertNotNull($purchase->email_verified_at);
+        $this->assertSame(IdeaValidationPurchase::STATUS_PAYMENT_PENDING, $purchase->status);
+    }
+
+    public function test_checkout_session_detects_email_verification_without_a_portal_login(): void
+    {
+        Notification::fake();
+        $terms = $this->publishedTerms();
+        $this->advisor();
+        $this->ideaValidationRate();
+
+        $this->post(route('public.validate-idea.purchase.register'), [
+            'name' => 'Checkout-only buyer',
+            'email' => 'checkout-only@example.com',
+            'password' => 'IdeaValidation1!',
+            'password_confirmation' => 'IdeaValidation1!',
+            'terms_version_id' => $terms->getKey(),
+            'terms_accepted' => '1',
+        ])->assertRedirect(route('public.validate-idea.purchase'));
+
+        $this->assertGuest();
+        $this->get(route('public.validate-idea.purchase'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('state', 'verify_email'));
+
+        $buyer = User::query()->where('email', 'checkout-only@example.com')->firstOrFail();
+        $purchase = IdeaValidationPurchase::query()->where('user_id', $buyer->getKey())->firstOrFail();
+        app(IdeaValidationCheckout::class)->markEmailVerified($purchase, sha1($buyer->email));
+
+        $this->get(route('public.validate-idea.purchase'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('state', 'checkout')
+                ->where('purchase.email_verified_at', fn (?string $value): bool => $value !== null));
+        $this->assertGuest();
+    }
+
+    public function test_a_historical_unpaid_buyer_session_is_logged_out_and_restored_to_checkout(): void
+    {
+        Notification::fake();
+        [, $buyer] = $this->registerAndVerifyBuyer();
+
+        $this->actingAs($buyer)
+            ->get(route('dashboard'))
+            ->assertRedirect(route('public.validate-idea.purchase'));
+
+        $this->assertGuest();
+        $this->get(route('public.validate-idea.purchase'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('state', 'checkout'));
+    }
+
+    public function test_payment_setup_failure_is_safe_for_the_buyer_and_retryable(): void
+    {
+        Notification::fake();
+        [, $buyer] = $this->registerAndVerifyBuyer();
+        $purchase = IdeaValidationPurchase::query()->where('user_id', $buyer->getKey())->firstOrFail();
+
+        $this->mock(StripeClient::class, function (MockInterface $stripe): void {
+            $stripe->shouldReceive('createIdeaValidationPaymentIntent')
+                ->once()
+                ->andThrow(new RuntimeException('Stripe connection failed.'));
+        });
+
+        $this->postJson(route('public.validate-idea.purchase.payment-intent'))
+            ->assertStatus(503)
+            ->assertJsonPath('code', 'payment_setup_unavailable')
+            ->assertJsonPath('message', fn (string $message): bool => str_contains($message, 'no payment has been taken'))
+            ->assertJsonPath('support_reference', fn (string $reference): bool => str_starts_with($reference, 'IV-'));
+
+        $purchase->refresh();
+        $this->assertSame(IdeaValidationPurchase::STATUS_PAYMENT_PENDING, $purchase->status);
+        $this->assertDatabaseHas('payments', [
+            'id' => $purchase->payment_id,
+            'status' => Payment::STATUS_PENDING,
+        ]);
     }
 
     public function test_verified_buyer_can_complete_fixture_checkout_and_is_activated_with_a_receipt(): void
@@ -363,7 +454,9 @@ final class IdeaValidationPurchaseTest extends TestCase
 
         $this->assertIsString($verificationUrl);
         $this->get($verificationUrl)
-            ->assertRedirect(route('public.validate-idea.purchase'));
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('public/idea-validation-email-verified'));
 
         $buyer->refresh();
         $purchase->refresh();

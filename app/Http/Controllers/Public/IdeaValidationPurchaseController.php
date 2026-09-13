@@ -11,18 +11,23 @@ use App\Models\User;
 use App\Notifications\IdeaValidationEmailVerificationNotification;
 use App\Services\Entrepreneurs\IdeaValidationCheckout;
 use App\Services\Entrepreneurs\IdeaValidationRegistrationConflict;
+use App\Services\Payments\PaymentGatewayException;
 use App\Services\Terms\TermsAcceptanceGate;
 use App\Support\RequestContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 
 final class IdeaValidationPurchaseController extends Controller
 {
+    private const CHECKOUT_PURCHASE_SESSION_KEY = 'fsa.idea_validation_checkout_purchase_id';
+
     public function __construct(
         private readonly IdeaValidationCheckout $checkout,
         private readonly TermsAcceptanceGate $terms,
@@ -32,16 +37,21 @@ final class IdeaValidationPurchaseController extends Controller
     public function show(Request $request): Response|RedirectResponse
     {
         $user = $request->user();
-        $purchase = $user instanceof User ? $this->checkout->purchaseFor($user) : null;
+        if ($user instanceof User) {
+            $purchase = $this->checkout->purchaseFor($user);
+            if ($purchase instanceof IdeaValidationPurchase && $purchase->status === IdeaValidationPurchase::STATUS_PAID) {
+                $request->session()->put('fsa.idea_validation_purchase_flow', true);
 
-        if ($user instanceof User && ! $purchase instanceof IdeaValidationPurchase) {
+                return redirect()->route('mfa.setup');
+            }
+
             return $this->renderPurchasePage($request, state: 'existing_session');
         }
 
-        if ($purchase instanceof IdeaValidationPurchase && $purchase->status === IdeaValidationPurchase::STATUS_PAID) {
-            $request->session()->put('fsa.idea_validation_purchase_flow', true);
+        $purchase = $this->checkoutPurchase($request);
 
-            return redirect()->route('mfa.setup');
+        if ($purchase instanceof IdeaValidationPurchase && $purchase->status === IdeaValidationPurchase::STATUS_PAID) {
+            return redirect()->route('login')->with('status', 'Your Idea Validation payment is complete. Sign in to continue.');
         }
 
         return $this->renderPurchasePage(
@@ -83,8 +93,8 @@ final class IdeaValidationPurchaseController extends Controller
         $user = $purchase->user;
         abort_unless($user instanceof User, 500);
 
-        Auth::login($user);
         $request->session()->regenerate();
+        $request->session()->put(self::CHECKOUT_PURCHASE_SESSION_KEY, $purchase->getKey());
         $user->notify(new IdeaValidationEmailVerificationNotification($purchase));
 
         return to_route('public.validate-idea.purchase')->with('status', 'idea-validation-verification-sent');
@@ -92,9 +102,9 @@ final class IdeaValidationPurchaseController extends Controller
 
     public function resendVerification(Request $request): RedirectResponse
     {
-        $user = $this->currentUser($request);
-        $purchase = $this->checkout->purchaseFor($user);
-        abort_unless($purchase instanceof IdeaValidationPurchase, 404);
+        $purchase = $this->checkoutPurchase($request);
+        abort_unless($purchase instanceof IdeaValidationPurchase, 403);
+        $user = $this->purchaseUser($purchase);
 
         if ($purchase->email_verified_at === null) {
             $user->notify(new IdeaValidationEmailVerificationNotification($purchase));
@@ -103,7 +113,7 @@ final class IdeaValidationPurchaseController extends Controller
         return to_route('public.validate-idea.purchase')->with('status', 'idea-validation-verification-resent');
     }
 
-    public function verify(Request $request, string $purchase, string $hash): RedirectResponse
+    public function verify(string $purchase, string $hash): Response
     {
         $record = $this->context->withSystemContext(fn (): IdeaValidationPurchase => IdeaValidationPurchase::query()
             ->with('user')
@@ -112,19 +122,9 @@ final class IdeaValidationPurchaseController extends Controller
         $user = $record->user;
         abort_unless($user instanceof User, 500);
 
-        $currentUser = $request->user();
-        if ($currentUser instanceof User && $currentUser->getKey() !== $user->getKey()) {
-            return to_route('public.validate-idea.purchase')->with('status', 'idea-validation-verification-requires-private-session');
-        }
-
         $record = $this->checkout->markEmailVerified($record, $hash);
-        $user = $record->user;
-        abort_unless($user instanceof User, 500);
 
-        Auth::login($user);
-        $request->session()->regenerate();
-
-        return to_route('public.validate-idea.purchase')->with('status', 'idea-validation-email-verified');
+        return Inertia::render('public/idea-validation-email-verified');
     }
 
     private function renderPurchasePage(Request $request, string $state, ?IdeaValidationPurchase $purchase = null): Response
@@ -142,7 +142,7 @@ final class IdeaValidationPurchaseController extends Controller
                 'id' => $terms->getKey(),
                 'version' => $terms->version,
                 'title' => $terms->title,
-                'url' => route('public.terms-and-privacy', absolute: false),
+                'url' => route('public.terms-and-privacy', ['return_to' => 'idea-validation'], absolute: false),
             ] : null,
         ]);
     }
@@ -159,13 +159,31 @@ final class IdeaValidationPurchaseController extends Controller
 
     public function paymentIntent(Request $request): JsonResponse
     {
-        $user = $this->currentUser($request);
-        $purchase = $this->checkout->purchaseFor($user);
-        abort_unless($purchase instanceof IdeaValidationPurchase, 404);
+        $purchase = $this->checkoutPurchase($request);
+        abort_unless($purchase instanceof IdeaValidationPurchase, 403);
+        $user = $this->purchaseUser($purchase);
 
-        $intent = $this->checkout->beginPayment($user, $purchase);
-        $purchase = $this->checkout->purchaseFor($user);
-        abort_unless($purchase instanceof IdeaValidationPurchase, 404);
+        try {
+            $intent = $this->checkout->beginPayment($user, $purchase);
+        } catch (PaymentGatewayException $exception) {
+            $reference = 'IV-'.Str::upper(Str::random(8));
+            Log::warning('Idea Validation secure payment setup failed', [
+                'reference' => $reference,
+                'purchase_id' => $purchase->getKey(),
+                'user_id' => $user->getKey(),
+                'exception' => $exception::class,
+                'cause' => $exception->getPrevious()?->getMessage() ?? $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'code' => 'payment_setup_unavailable',
+                'message' => 'We could not start secure payment right now. Your email is verified and no payment has been taken. Please try again shortly, or contact Future Shift Advisory and quote reference '.$reference.'.',
+                'support_reference' => $reference,
+            ], 503);
+        }
+
+        $purchase = $this->checkoutPurchase($request);
+        abort_unless($purchase instanceof IdeaValidationPurchase, 403);
 
         return response()->json([
             'publishable_key' => $intent->publishableKey,
@@ -184,13 +202,16 @@ final class IdeaValidationPurchaseController extends Controller
         $validated = $request->validate([
             'payment_intent_id' => ['required', 'string', 'max:191', 'regex:/^pi_/'],
         ]);
-        $user = $this->currentUser($request);
-        $purchase = $this->checkout->purchaseFor($user);
-        abort_unless($purchase instanceof IdeaValidationPurchase, 404);
+        $purchase = $this->checkoutPurchase($request);
+        abort_unless($purchase instanceof IdeaValidationPurchase, 403);
+        $user = $this->purchaseUser($purchase);
 
         $settled = $this->checkout->confirmPayment($user, $purchase, $validated['payment_intent_id']);
         if ($settled instanceof IdeaValidationPurchase) {
+            Auth::login($user);
+            $request->session()->regenerate();
             $request->session()->put('fsa.idea_validation_purchase_flow', true);
+            $request->session()->forget(self::CHECKOUT_PURCHASE_SESSION_KEY);
         }
 
         return response()->json([
@@ -201,12 +222,15 @@ final class IdeaValidationPurchaseController extends Controller
 
     public function confirmFixturePayment(Request $request): JsonResponse
     {
-        $user = $this->currentUser($request);
-        $purchase = $this->checkout->purchaseFor($user);
-        abort_unless($purchase instanceof IdeaValidationPurchase, 404);
+        $purchase = $this->checkoutPurchase($request);
+        abort_unless($purchase instanceof IdeaValidationPurchase, 403);
+        $user = $this->purchaseUser($purchase);
 
         $purchase = $this->checkout->confirmFixturePayment($user, $purchase);
+        Auth::login($user);
+        $request->session()->regenerate();
         $request->session()->put('fsa.idea_validation_purchase_flow', true);
+        $request->session()->forget(self::CHECKOUT_PURCHASE_SESSION_KEY);
 
         return response()->json([
             'paid' => true,
@@ -215,10 +239,23 @@ final class IdeaValidationPurchaseController extends Controller
         ]);
     }
 
-    private function currentUser(Request $request): User
+    private function checkoutPurchase(Request $request): ?IdeaValidationPurchase
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 403);
+        $purchaseId = $request->session()->get(self::CHECKOUT_PURCHASE_SESSION_KEY);
+        if (! is_string($purchaseId) || ! Str::isUuid($purchaseId)) {
+            return null;
+        }
+
+        return $this->context->withSystemContext(fn (): ?IdeaValidationPurchase => IdeaValidationPurchase::query()
+            ->with('user')
+            ->whereKey($purchaseId)
+            ->first());
+    }
+
+    private function purchaseUser(IdeaValidationPurchase $purchase): User
+    {
+        $user = $purchase->user;
+        abort_unless($user instanceof User, 500);
 
         return $user;
     }

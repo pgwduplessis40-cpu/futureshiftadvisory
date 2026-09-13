@@ -43,7 +43,7 @@ Route::get('/validate-idea/purchase/{purchase}/verify/{hash}', [IdeaValidationPu
     ->middleware('signed')
     ->whereUuid('purchase')
     ->name('public.validate-idea.purchase.verify');
-Route::middleware(['auth', 'throttle:6,1'])->group(function (): void {
+Route::middleware('throttle:6,1')->group(function (): void {
     Route::post('/validate-idea/purchase/resend-verification', [IdeaValidationPurchaseController::class, 'resendVerification'])
         ->name('public.validate-idea.purchase.resend-verification');
     Route::post('/validate-idea/purchase/payment-intent', [IdeaValidationPurchaseController::class, 'paymentIntent'])

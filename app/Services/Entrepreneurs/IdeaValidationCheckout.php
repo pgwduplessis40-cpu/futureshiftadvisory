@@ -36,6 +36,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
+use Throwable;
 
 /**
  * Owns the anonymous-to-paid Idea Validation journey.
@@ -271,8 +272,13 @@ final class IdeaValidationCheckout
                 currency: $payment->currency,
                 idempotencyKey: (string) $payment->idempotency_key,
             ));
-        } catch (PaymentGatewayException $exception) {
-            throw ValidationException::withMessages(['checkout' => $exception->getMessage()]);
+        } catch (Throwable $exception) {
+            $this->restorePaymentPendingAfterSetupFailure($purchase, $payment);
+
+            throw new PaymentGatewayException(
+                'Secure payment is temporarily unavailable.',
+                previous: $exception,
+            );
         }
 
         $this->context->withSystemContext(function () use ($purchase, $payment, $intent): void {
@@ -296,6 +302,34 @@ final class IdeaValidationCheckout
         });
 
         return $intent;
+    }
+
+    private function restorePaymentPendingAfterSetupFailure(IdeaValidationPurchase $purchase, Payment $payment): void
+    {
+        $this->context->withSystemContext(function () use ($purchase, $payment): void {
+            DB::transaction(function () use ($purchase, $payment): void {
+                $lockedPurchase = IdeaValidationPurchase::query()
+                    ->whereKey($purchase->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                $lockedPayment = Payment::query()
+                    ->whereKey($payment->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($lockedPurchase->stripe_payment_intent_ref === null) {
+                    $lockedPurchase->forceFill([
+                        'status' => IdeaValidationPurchase::STATUS_PAYMENT_PENDING,
+                    ])->save();
+                }
+
+                if ($lockedPayment->status !== Payment::STATUS_PENDING) {
+                    $lockedPayment->forceFill([
+                        'status' => Payment::STATUS_PENDING,
+                    ])->save();
+                }
+            });
+        });
     }
 
     /**
@@ -501,7 +535,7 @@ final class IdeaValidationCheckout
             if ($purchase->advisor instanceof User) {
                 $purchase->advisor->notify(new IdeaValidationPurchaseAdvisorNotification($purchase));
             }
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             report($exception);
         }
     }

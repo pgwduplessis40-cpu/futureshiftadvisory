@@ -55,6 +55,7 @@ use App\Http\Middleware\PreventEntrepreneurTwoFactorDisable;
 use App\Http\Middleware\RequireAcceptedTerms;
 use App\Http\Middleware\RequireFreshStepUp;
 use App\Http\Middleware\RequireMfa;
+use App\Http\Middleware\RedirectUnpaidIdeaValidationBuyer;
 use App\Jobs\DispatchDailyDigest;
 use App\Jobs\DispatchWeeklyDigest;
 use App\Services\OperationalHealth\OperationalHealthSchedule;
@@ -92,6 +93,7 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
             PreventEntrepreneurTwoFactorDisable::class,
             EnforceClientScope::class,
+            RedirectUnpaidIdeaValidationBuyer::class,
             EnforceSessionSecurity::class,
             RequireAcceptedTerms::class,
         ]);

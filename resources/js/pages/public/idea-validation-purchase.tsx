@@ -1,4 +1,4 @@
-import { Form, Head, Link } from '@inertiajs/react';
+import { Form, Head, Link, router } from '@inertiajs/react';
 import { loadStripe } from '@stripe/stripe-js';
 import type {
     Stripe,
@@ -349,6 +349,16 @@ function AccountForm({ terms }: { terms: Terms | null }) {
 }
 
 function VerifyEmail() {
+    const refreshVerification = () => {
+        router.reload({ only: ['state', 'purchase'] });
+    };
+
+    useEffect(() => {
+        const interval = window.setInterval(refreshVerification, 5000);
+
+        return () => window.clearInterval(interval);
+    }, []);
+
     return (
         <div className="space-y-5">
             <div className="flex gap-4">
@@ -360,11 +370,19 @@ function VerifyEmail() {
                         Check your inbox
                     </h2>
                     <p className="mt-2 text-sm leading-relaxed text-[var(--fs-graphite)]">
-                        We have sent a verification link. Open it to continue to
-                        secure payment. The link expires after 60 minutes.
+                        We have sent a verification link. You can open it on any
+                        device, then return here to continue securely. The link
+                        expires after 60 minutes.
                     </p>
                 </div>
             </div>
+            <Button
+                type="button"
+                variant="outline"
+                onClick={refreshVerification}
+            >
+                I have verified my email — continue
+            </Button>
             <Form
                 method="post"
                 action="/validate-idea/purchase/resend-verification"
@@ -395,101 +413,86 @@ function Checkout({ purchase }: { purchase: Purchase }) {
     const paymentElementRef = useRef<StripePaymentElement | null>(null);
     const [intent, setIntent] = useState<StripeIntentPayload | null>(null);
     const [status, setStatus] = useState<
-        'loading' | 'ready' | 'error' | 'confirming' | 'pending'
-    >('loading');
+        'idle' | 'loading' | 'ready' | 'error' | 'confirming' | 'pending'
+    >('idle');
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        let cancelled = false;
-
-        const setup = async () => {
-            try {
-                setStatus('loading');
-                setError(null);
-
-                const response = await fetch(
-                    '/validate-idea/purchase/payment-intent',
-                    {
-                        method: 'POST',
-                        headers: {
-                            Accept: 'application/json',
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': csrfToken(),
-                        },
-                    },
-                );
-                const payload = (await response.json().catch(() => null)) as
-                    | StripeIntentPayload
-                    | ErrorPayload
-                    | null;
-
-                if (!response.ok || !payload || !('client_secret' in payload)) {
-                    throw new Error(
-                        errorMessage(
-                            payload,
-                            'Secure checkout could not be started.',
-                        ),
-                    );
-                }
-
-                if (cancelled) {
-                    return;
-                }
-
-                setIntent(payload);
-
-                if (payload.fixture) {
-                    setStatus('ready');
-
-                    return;
-                }
-
-                const stripe = await loadStripe(payload.publishable_key);
-
-                if (!stripe) {
-                    throw new Error(
-                        'Stripe could not be loaded in this browser.',
-                    );
-                }
-
-                const elements = stripe.elements({
-                    clientSecret: payload.client_secret,
-                });
-                const paymentElement = elements.create('payment', {
-                    layout: 'tabs',
-                });
-
-                if (cancelled || !elementRef.current) {
-                    paymentElement.unmount();
-
-                    return;
-                }
-
-                paymentElement.mount(elementRef.current);
-                stripeRef.current = stripe;
-                elementsRef.current = elements;
-                paymentElementRef.current = paymentElement;
-                setStatus('ready');
-            } catch (reason) {
-                if (!cancelled) {
-                    setError(
-                        reason instanceof Error
-                            ? reason.message
-                            : 'Secure checkout could not be started.',
-                    );
-                    setStatus('error');
-                }
-            }
-        };
-
-        void setup();
-
-        return () => {
-            cancelled = true;
+    const startCheckout = async () => {
+        try {
+            setStatus('loading');
+            setError(null);
             paymentElementRef.current?.unmount();
             paymentElementRef.current = null;
-        };
-    }, []);
+
+            const response = await fetch(
+                '/validate-idea/purchase/payment-intent',
+                {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken(),
+                    },
+                },
+            );
+            const payload = (await response.json().catch(() => null)) as
+                | StripeIntentPayload
+                | ErrorPayload
+                | null;
+
+            if (!response.ok || !payload || !('client_secret' in payload)) {
+                throw new Error(
+                    errorMessage(
+                        payload,
+                        'Secure checkout could not be started.',
+                    ),
+                );
+            }
+
+            setIntent(payload);
+
+            if (payload.fixture) {
+                setStatus('ready');
+
+                return;
+            }
+
+            const stripe = await loadStripe(payload.publishable_key);
+
+            if (!stripe) {
+                throw new Error('Stripe could not be loaded in this browser.');
+            }
+
+            const elements = stripe.elements({
+                clientSecret: payload.client_secret,
+            });
+            const paymentElement = elements.create('payment', {
+                layout: 'tabs',
+            });
+
+            if (!elementRef.current) {
+                paymentElement.unmount();
+
+                throw new Error(
+                    'Secure checkout could not be displayed in this browser.',
+                );
+            }
+
+            paymentElement.mount(elementRef.current);
+            stripeRef.current = stripe;
+            elementsRef.current = elements;
+            paymentElementRef.current = paymentElement;
+            setStatus('ready');
+        } catch (reason) {
+            setIntent(null);
+            setError(
+                reason instanceof Error
+                    ? reason.message
+                    : 'Secure checkout could not be started.',
+            );
+            setStatus('error');
+        }
+    };
 
     const confirm = async (event: FormEvent) => {
         event.preventDefault();
@@ -602,7 +605,7 @@ function Checkout({ purchase }: { purchase: Purchase }) {
                     <span>Idea Validation</span>
                     <span className="font-semibold">
                         {net === null
-                            ? 'Loading current price…'
+                            ? 'Shown before card details'
                             : money(net, currency)}
                     </span>
                 </div>
@@ -612,9 +615,7 @@ function Checkout({ purchase }: { purchase: Purchase }) {
                 </div>
                 <div className="mt-3 flex justify-between gap-4 border-t border-[var(--fs-sand)] pt-3 font-semibold text-[var(--fs-admiralty)]">
                     <span>Total</span>
-                    <span>
-                        {gross === null ? 'Loading…' : money(gross, currency)}
-                    </span>
+                    <span>{gross === null ? '—' : money(gross, currency)}</span>
                 </div>
             </div>
 
@@ -629,8 +630,32 @@ function Checkout({ purchase }: { purchase: Purchase }) {
                     and email you once it is confirmed.
                 </div>
             ) : null}
+            <div
+                ref={elementRef}
+                className={
+                    intent !== null && !intent.fixture
+                        ? status === 'loading'
+                            ? 'min-h-24 opacity-50'
+                            : ''
+                        : 'hidden'
+                }
+            />
 
-            {intent?.fixture ? (
+            {intent === null ? (
+                <Button
+                    type="button"
+                    onClick={() => void startCheckout()}
+                    disabled={status === 'loading'}
+                    className="w-full bg-[var(--fs-admiralty)] hover:bg-[var(--fs-pacific)]"
+                >
+                    {status === 'loading' ? (
+                        <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                        <CreditCard className="size-4" />
+                    )}
+                    Continue to secure payment
+                </Button>
+            ) : intent.fixture ? (
                 <div className="space-y-4">
                     <div className="rounded-md border border-dashed border-[var(--fs-sand)] p-4 text-sm text-[var(--fs-graphite)]">
                         Test environment: no card details are collected. Use
@@ -653,12 +678,6 @@ function Checkout({ purchase }: { purchase: Purchase }) {
                 </div>
             ) : (
                 <form onSubmit={confirm} className="space-y-5">
-                    <div
-                        ref={elementRef}
-                        className={
-                            status === 'loading' ? 'min-h-24 opacity-50' : ''
-                        }
-                    />
                     {status === 'loading' ? (
                         <p className="text-sm text-[var(--fs-graphite)]">
                             Loading secure Stripe payment fields…
