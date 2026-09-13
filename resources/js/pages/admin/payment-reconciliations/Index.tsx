@@ -238,8 +238,13 @@ function ReconciliationCard({ candidate }: { candidate: Candidate }) {
                     />
                     <InputError message={form.errors.reason} />
                 </div>
-                <label className="flex items-start gap-2 text-sm">
+                <label
+                    className="flex items-start gap-2 text-sm"
+                    htmlFor={`payment-confirmation-${candidate.id}`}
+                >
                     <input
+                        id={`payment-confirmation-${candidate.id}`}
+                        name="confirmation"
                         type="checkbox"
                         checked={form.data.confirmation}
                         onChange={(event) =>
