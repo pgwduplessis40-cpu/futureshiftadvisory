@@ -52,12 +52,12 @@ export default function PaymentReconciliationsIndex({ candidates }: Props) {
                                 Controlled recovery only
                             </p>
                             <p>
-                                Before access can be activated, the server
-                                reads the stored Stripe PaymentIntent and
-                                checks its succeeded amount and currency
-                                against the internal payment. Enter the
-                                original net amount and GST only when the
-                                supporting evidence is available.
+                                Before access can be activated, the server reads
+                                the stored Stripe PaymentIntent and checks its
+                                succeeded amount and currency against the
+                                internal payment. Enter the original net amount
+                                and GST only when the supporting evidence is
+                                available.
                             </p>
                         </div>
                     </div>
@@ -154,7 +154,7 @@ function ReconciliationCard({ candidate }: { candidate: Candidate }) {
                 <dt className="font-medium text-muted-foreground">
                     Stored PaymentIntent
                 </dt>
-                <dd className="break-all font-mono">
+                <dd className="font-mono break-all">
                     {candidate.stripe_payment_intent_ref ?? 'Missing'}
                 </dd>
             </dl>
@@ -204,7 +204,9 @@ function ReconciliationCard({ candidate }: { candidate: Candidate }) {
                                 )
                             }
                         />
-                        <InputError message={form.errors.historical_gst_amount} />
+                        <InputError
+                            message={form.errors.historical_gst_amount}
+                        />
                     </div>
                 </div>
                 <p className="rounded-md bg-muted px-3 py-2 text-sm">

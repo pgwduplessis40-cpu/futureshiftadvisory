@@ -597,15 +597,15 @@ function Checkout({ purchase }: { purchase: Purchase }) {
                         Payment review in progress
                     </h2>
                     <p className="mt-2 text-sm leading-relaxed text-[var(--fs-graphite)]">
-                        We have received a payment confirmation that needs to
-                        be matched to your original quote before we activate
-                        Idea Validation.
+                        We have received a payment confirmation that needs to be
+                        matched to your original quote before we activate Idea
+                        Validation.
                     </p>
                 </div>
                 <div className="rounded-md border border-[var(--fs-sand)] bg-[var(--fs-linen)] p-4 text-sm leading-relaxed text-[var(--fs-graphite)]">
-                    Please do not submit another payment. Future Shift
-                    Advisory will complete the review and email you once your
-                    access is activated.
+                    Please do not submit another payment. Future Shift Advisory
+                    will complete the review and email you once your access is
+                    activated.
                 </div>
             </div>
         );
