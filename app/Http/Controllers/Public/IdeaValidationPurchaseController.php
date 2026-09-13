@@ -9,6 +9,7 @@ use App\Models\IdeaValidationPurchase;
 use App\Models\TermsVersion;
 use App\Models\User;
 use App\Notifications\IdeaValidationEmailVerificationNotification;
+use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\IdeaValidationCheckout;
 use App\Services\Entrepreneurs\IdeaValidationRegistrationConflict;
 use App\Services\Payments\PaymentGatewayException;
@@ -32,6 +33,7 @@ final class IdeaValidationPurchaseController extends Controller
         private readonly IdeaValidationCheckout $checkout,
         private readonly TermsAcceptanceGate $terms,
         private readonly RequestContext $context,
+        private readonly AuditWriter $audit,
     ) {}
 
     public function show(Request $request): Response|RedirectResponse
@@ -167,6 +169,13 @@ final class IdeaValidationPurchaseController extends Controller
             $intent = $this->checkout->beginPayment($user, $purchase);
         } catch (PaymentGatewayException $exception) {
             $reference = 'IV-'.Str::upper(Str::random(8));
+            $auditablePurchase = $this->checkout->purchaseFor($user) ?? $purchase;
+            $this->audit->record('idea_validation.purchase_payment_setup_failed', subject: $auditablePurchase, actor: $user, after: [
+                'gateway' => 'stripe',
+                'support_reference' => $reference,
+                'status' => $auditablePurchase->status,
+                'payment_taken' => false,
+            ]);
             Log::warning('Idea Validation secure payment setup failed', [
                 'reference' => $reference,
                 'purchase_id' => $purchase->getKey(),
