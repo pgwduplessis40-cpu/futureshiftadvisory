@@ -11,6 +11,7 @@ use App\Models\IntegrationCall;
 use App\Models\IntegrationHealthAlert;
 use App\Models\IntegrationHealthSample;
 use App\Services\Ai\AdvisorAiNotice;
+use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\IntegrationRegistry;
 use App\Services\Integration\Resilience\HealthRecorder;
@@ -28,6 +29,7 @@ use Throwable;
 final class IntegrationHealthController extends Controller
 {
     public function __construct(
+        private readonly IntegrationActivationResolver $activations,
         private readonly IntegrationCredentials $credentials,
         private readonly IntegrationRegistry $registry,
         private readonly AdvisorAiNotice $aiNotice,
@@ -60,6 +62,7 @@ final class IntegrationHealthController extends Controller
                     'notified_at' => $alert->notified_at?->toIso8601String(),
                 ])
                 ->values(),
+            'stripe' => $this->stripePayload(),
             'aiUsage' => $this->aiUsagePayload(),
             'governanceNotices' => $this->governanceNotices(),
             'generatedAt' => now()->toIso8601String(),
@@ -117,6 +120,59 @@ final class IntegrationHealthController extends Controller
             'lag_seconds' => $lagSeconds,
             'fresh' => ! $this->isStale($sample),
         ];
+    }
+
+    /**
+     * @return array{
+     *     ready: bool,
+     *     live: bool,
+     *     last_attempt: array{status: string, occurred_at: string|null, error: string|null}|null
+     * }
+     */
+    private function stripePayload(): array
+    {
+        $attempt = IntegrationCall::query()
+            ->where('service', 'stripe')
+            ->latest('occurred_at')
+            ->first();
+
+        return [
+            'ready' => $this->activations->readiness('stripe'),
+            'live' => $this->activations->isLive('stripe'),
+            'last_attempt' => $attempt instanceof IntegrationCall
+                ? [
+                    'status' => $attempt->status,
+                    'occurred_at' => $attempt->occurred_at?->toIso8601String(),
+                    'error' => $this->attemptError($attempt),
+                ]
+                : null,
+        ];
+    }
+
+    private function attemptError(IntegrationCall $attempt): ?string
+    {
+        $payload = $attempt->error_payload;
+        if (! is_array($payload)) {
+            return null;
+        }
+
+        $body = $payload['body'] ?? null;
+        if (is_string($body) && trim($body) !== '') {
+            $decoded = json_decode($body, true);
+            $message = is_array($decoded)
+                ? data_get($decoded, 'error.message', data_get($decoded, 'message'))
+                : $body;
+
+            if (is_string($message) && trim($message) !== '') {
+                return Str::limit(trim($message), 280);
+            }
+        }
+
+        $message = $payload['message'] ?? null;
+
+        return is_string($message) && trim($message) !== ''
+            ? Str::limit(trim($message), 280)
+            : null;
     }
 
     private function isStale(IntegrationHealthSample $sample): bool

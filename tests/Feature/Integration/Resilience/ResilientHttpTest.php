@@ -151,6 +151,38 @@ final class ResilientHttpTest extends TestCase
         $this->assertSame(4, $capturedOptions['connect_timeout'] ?? null);
     }
 
+    public function test_request_uses_form_encoding_when_form_parameters_are_supplied(): void
+    {
+        Config::set('integrations.retry.attempts', 1);
+        app()->forgetInstance(RetryPolicy::class);
+        app()->forgetInstance(ResilientHttp::class);
+
+        Http::fake(fn () => Http::response(['id' => 'pi_form_encoded'], 200));
+
+        $result = app(ResilientHttp::class)->request(
+            method: 'POST',
+            service: 'stripe',
+            endpoint: 'https://api.stripe.com/v1/payment_intents',
+            options: [
+                'headers' => [
+                    'Authorization' => 'Bearer sk_live_fixture',
+                ],
+                'form_params' => [
+                    'amount' => 11_500,
+                    'currency' => 'nzd',
+                    'automatic_payment_methods' => ['enabled' => 'true'],
+                ],
+            ],
+            fallback: null,
+        );
+
+        $this->assertTrue($result->successful());
+        Http::assertSent(function (Request $request): bool {
+            return $request->hasHeader('Content-Type', 'application/x-www-form-urlencoded')
+                && $request->body() === 'amount=11500&currency=nzd&automatic_payment_methods%5Benabled%5D=true';
+        });
+    }
+
     public function test_failure_result_includes_provider_error_payload_for_callers(): void
     {
         Config::set('integrations.retry.attempts', 1);

@@ -6,6 +6,7 @@ namespace App\Services\Integration\Resilience;
 
 use App\Models\IntegrationCall;
 use App\Services\Audit\Redactor;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
@@ -157,7 +158,11 @@ final class ResilientHttp
             $started = microtime(true);
 
             try {
-                $response = Http::send(strtoupper($method), $endpoint, $options);
+                $response = $this->pendingRequestFor(array_key_exists('form_params', $options))->send(
+                    strtoupper($method),
+                    $endpoint,
+                    $options,
+                );
                 $latencyMs = $this->latencyMs($started);
 
                 if ($response->successful() || in_array($response->status(), $acceptableStatusCodes, true)) {
@@ -252,6 +257,15 @@ final class ResilientHttp
             reason: 'exhausted',
             attempt: $attemptLimit,
         );
+    }
+
+    // Laravel's HTTP client defaults to JSON. Providers such as Stripe and
+    // OAuth token endpoints require URL-encoded form bodies instead.
+    private function pendingRequestFor(bool $usesFormEncoding): PendingRequest
+    {
+        return $usesFormEncoding
+            ? Http::asForm()
+            : Http::asJson();
     }
 
     /**

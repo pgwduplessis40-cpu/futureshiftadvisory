@@ -48,6 +48,16 @@ type GovernanceNotice = {
     note: string;
 };
 
+type StripeHealth = {
+    ready: boolean;
+    live: boolean;
+    last_attempt: {
+        status: string;
+        occurred_at: string | null;
+        error: string | null;
+    } | null;
+};
+
 type AiUsagePeriod = {
     requests: number;
     input_tokens: number;
@@ -124,6 +134,7 @@ type Props = {
     };
     services: ServiceHealth[];
     recentAlerts: HealthAlert[];
+    stripe: StripeHealth;
     aiUsage: AiUsage;
     governanceNotices: GovernanceNotice[];
     generatedAt: string;
@@ -133,6 +144,7 @@ export default function IntegrationHealthIndex({
     summary,
     services,
     recentAlerts,
+    stripe,
     aiUsage,
     governanceNotices,
     generatedAt,
@@ -237,6 +249,87 @@ export default function IntegrationHealthIndex({
                         ))}
                     </section>
                 ) : null}
+
+                <section className="space-y-3 rounded-md border bg-background p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <CircleDollarSign
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <h2 className="text-sm font-medium">
+                                    Stripe payment gateway
+                                </h2>
+                            </div>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Checkout readiness and the latest recorded
+                                Stripe request.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <Badge
+                                variant={
+                                    stripe.ready ? 'secondary' : 'destructive'
+                                }
+                            >
+                                {stripe.ready
+                                    ? 'Credentials ready'
+                                    : 'Credentials missing'}
+                            </Badge>
+                            <Badge
+                                variant={
+                                    stripe.live ? 'secondary' : 'destructive'
+                                }
+                            >
+                                {stripe.live ? 'Live' : 'Off'}
+                            </Badge>
+                        </div>
+                    </div>
+
+                    {stripe.last_attempt ? (
+                        <div className="rounded-md border p-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <p className="text-sm font-medium">
+                                        Latest recorded request
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {formatDate(
+                                            stripe.last_attempt.occurred_at,
+                                        )}
+                                    </p>
+                                </div>
+                                <Badge
+                                    variant={
+                                        stripe.last_attempt.status === 'success'
+                                            ? 'secondary'
+                                            : 'destructive'
+                                    }
+                                >
+                                    {stripe.last_attempt.status}
+                                </Badge>
+                            </div>
+                            {stripe.last_attempt.error ? (
+                                <p className="mt-3 text-sm text-destructive">
+                                    Latest Stripe failure:{' '}
+                                    {stripe.last_attempt.error}
+                                </p>
+                            ) : null}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            No Stripe requests have been recorded yet.
+                        </p>
+                    )}
+
+                    {!stripe.live ? (
+                        <p className="text-sm text-muted-foreground">
+                            Stripe is off, so checkout cannot be started until
+                            it is activated.
+                        </p>
+                    ) : null}
+                </section>
 
                 <section className="space-y-4 rounded-md border bg-background p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
