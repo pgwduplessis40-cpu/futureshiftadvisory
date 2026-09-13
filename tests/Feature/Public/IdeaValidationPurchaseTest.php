@@ -18,12 +18,18 @@ use App\Notifications\IdeaValidationEmailVerificationNotification;
 use App\Notifications\IdeaValidationPurchaseAdvisorNotification;
 use App\Notifications\IdeaValidationPurchaseConfirmedNotification;
 use App\Services\Entrepreneurs\IdeaValidationCheckout;
+use App\Services\Integration\IntegrationActivationResolver;
+use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
+use App\Services\Integration\Stripe\LiveStripeClient;
 use App\Services\Payments\PaymentWebhookReconciler;
 use App\Services\Pdf\PdfRenderer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -344,6 +350,52 @@ final class IdeaValidationPurchaseTest extends TestCase
         $this->assertSame($response->json('support_reference'), data_get($audit->after, 'support_reference'));
         $this->assertSame(IdeaValidationPurchase::STATUS_PAYMENT_PENDING, data_get($audit->after, 'status'));
         $this->assertFalse(data_get($audit->after, 'payment_taken'));
+    }
+
+    public function test_verified_buyer_can_start_live_checkout_with_vaulted_stripe_credentials(): void
+    {
+        Notification::fake();
+        [, $buyer] = $this->registerAndVerifyBuyer();
+        $context = app(RequestContext::class);
+
+        $context->withSystemContext(function (): void {
+            $administrator = User::factory()->superAdmin()->create();
+            $credentials = app(IntegrationCredentials::class);
+
+            $credentials->set('stripe', 'secret', 'sk_live_checkout', $administrator);
+            $credentials->set('stripe', 'publishable_key', 'pk_live_checkout', $administrator);
+            $credentials->set('stripe', 'webhook_secret', 'whsec_live_checkout', $administrator);
+            app(IntegrationActivationResolver::class)->activate('stripe', $administrator);
+        });
+
+        Config::set('integrations.payments.stripe.live', false);
+        Config::set('integrations.payments.stripe.secret', null);
+        Config::set('integrations.payments.stripe.publishable_key', null);
+        Config::set('integrations.payments.stripe.webhook_secret', null);
+        Config::set('integrations.retry.attempts', 1);
+        $this->app->bind(StripeClient::class, LiveStripeClient::class);
+        $this->app->forgetInstance(StripeClient::class);
+        $this->app->forgetInstance(LiveStripeClient::class);
+
+        Http::fake([
+            'https://api.stripe.com/v1/payment_intents' => Http::response([
+                'id' => 'pi_live_idea_validation',
+                'client_secret' => 'pi_live_idea_validation_secret',
+            ]),
+        ]);
+
+        $context->apply(RequestContext::ROLE_GUEST, []);
+
+        $this->postJson(route('public.validate-idea.purchase.payment-intent'))
+            ->assertOk()
+            ->assertJsonPath('fixture', false)
+            ->assertJsonPath('publishable_key', 'pk_live_checkout')
+            ->assertJsonPath('payment_intent_id', 'pi_live_idea_validation');
+
+        Http::assertSent(function (Request $request): bool {
+            return $request->url() === 'https://api.stripe.com/v1/payment_intents'
+                && $request->hasHeader('Authorization', 'Bearer sk_live_checkout');
+        });
     }
 
     public function test_verified_buyer_can_complete_fixture_checkout_and_is_activated_with_a_receipt(): void
