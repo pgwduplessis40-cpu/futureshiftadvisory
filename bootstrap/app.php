@@ -52,6 +52,7 @@ use App\Http\Middleware\LogFailedRequest;
 use App\Http\Middleware\MeasureDashboardLaunch;
 use App\Http\Middleware\NormalizePortalOfflineSyncResponse;
 use App\Http\Middleware\PreventEntrepreneurTwoFactorDisable;
+use App\Http\Middleware\RedirectUnpaidIdeaValidationBuyer;
 use App\Http\Middleware\RequireAcceptedTerms;
 use App\Http\Middleware\RequireFreshStepUp;
 use App\Http\Middleware\RequireMfa;
@@ -92,6 +93,7 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
             PreventEntrepreneurTwoFactorDisable::class,
             EnforceClientScope::class,
+            RedirectUnpaidIdeaValidationBuyer::class,
             EnforceSessionSecurity::class,
             RequireAcceptedTerms::class,
         ]);
