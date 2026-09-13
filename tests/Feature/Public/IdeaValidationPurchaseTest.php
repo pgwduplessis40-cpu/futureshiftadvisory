@@ -383,7 +383,7 @@ final class IdeaValidationPurchaseTest extends TestCase
         $this->assertSame($firstIntent['payment_intent_id'], $secondIntent['payment_intent_id']);
         $this->assertSame('1897.50', $purchase->amount_including_gst);
         $this->assertSame('1897.50', $payment->amount);
-        $this->assertSame('1650.00', data_get($purchase->package_snapshot, 'fixed_fee'));
+        $this->assertSame(1650.0, (float) data_get($purchase->package_snapshot, 'fixed_fee'));
     }
 
     public function test_verified_buyer_can_start_live_checkout_with_vaulted_stripe_credentials(): void
