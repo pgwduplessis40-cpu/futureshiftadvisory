@@ -28,6 +28,15 @@ type Props = {
     candidates: Candidate[];
 };
 
+type ReconciliationForm = {
+    historical_amount_ex_gst: string;
+    historical_gst_amount: string;
+    reason: string;
+    confirmation: boolean;
+    /** Server-only validation error key; never included in the POST body. */
+    payment?: never;
+};
+
 export default function PaymentReconciliationsIndex({ candidates }: Props) {
     return (
         <>
@@ -93,7 +102,7 @@ export default function PaymentReconciliationsIndex({ candidates }: Props) {
 }
 
 function ReconciliationCard({ candidate }: { candidate: Candidate }) {
-    const form = useForm({
+    const form = useForm<ReconciliationForm>({
         historical_amount_ex_gst: '',
         historical_gst_amount: '',
         reason: '',
