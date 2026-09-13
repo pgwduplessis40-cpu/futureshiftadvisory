@@ -261,6 +261,9 @@ final class ResilientHttp
 
     // Laravel's HTTP client defaults to JSON. Providers such as Stripe and
     // OAuth token endpoints require URL-encoded form bodies instead.
+    /**
+     * @param  array<string, mixed>  $options
+     */
     private function pendingRequestFor(array $options): PendingRequest
     {
         return array_key_exists('form_params', $options)
