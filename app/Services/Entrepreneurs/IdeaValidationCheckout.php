@@ -215,6 +215,24 @@ final class IdeaValidationCheckout
                     throw ValidationException::withMessages(['checkout' => 'Verify your email address before opening secure checkout.']);
                 }
 
+                $payment = $purchase->payment_id !== null
+                    ? Payment::query()->whereKey($purchase->payment_id)->lockForUpdate()->first()
+                    : null;
+
+                if ($payment instanceof Payment) {
+                    if ($this->quoteMismatchReason($purchase, $payment) !== null) {
+                        throw ValidationException::withMessages([
+                            'checkout' => 'This payment has a pricing discrepancy and requires support review. No further payment will be taken.',
+                        ]);
+                    }
+
+                    $purchase->forceFill([
+                        'status' => IdeaValidationPurchase::STATUS_PAYMENT_PROCESSING,
+                    ])->save();
+
+                    return [$purchase->refresh(), $payment->refresh()];
+                }
+
                 $package = $this->ideaValidationPackage();
                 $snapshot = $package->snapshot();
                 $split = $package->paymentSplit();
@@ -228,23 +246,16 @@ final class IdeaValidationCheckout
                 $gst = $this->gst->gstFromExclusive($exclusive);
                 $gross = $this->gst->grossFromExclusive($exclusive);
                 $currency = strtoupper((string) ($package->currency ?: 'NZD'));
-
-                $payment = $purchase->payment_id !== null
-                    ? Payment::query()->whereKey($purchase->payment_id)->lockForUpdate()->first()
-                    : null;
-
-                if (! $payment instanceof Payment) {
-                    $payment = Payment::query()->create([
-                        'client_id' => $purchase->client_id,
-                        'payment_schedule_id' => null,
-                        'amount' => $gross,
-                        'currency' => $currency,
-                        'gateway' => 'stripe',
-                        'idempotency_key' => 'idea-validation-'.$purchase->getKey(),
-                        'status' => Payment::STATUS_PENDING,
-                        'attempt' => 1,
-                    ]);
-                }
+                $payment = Payment::query()->create([
+                    'client_id' => $purchase->client_id,
+                    'payment_schedule_id' => null,
+                    'amount' => $gross,
+                    'currency' => $currency,
+                    'gateway' => 'stripe',
+                    'idempotency_key' => 'idea-validation-'.$purchase->getKey(),
+                    'status' => Payment::STATUS_PENDING,
+                    'attempt' => 1,
+                ]);
 
                 $purchase->forceFill([
                     'service_rate_package_id' => $package->getKey(),
@@ -398,6 +409,17 @@ final class IdeaValidationCheckout
         ), $processedAt);
     }
 
+    public function paymentQuoteMismatchReason(Payment $payment): ?string
+    {
+        $purchase = $this->context->withSystemContext(fn (): ?IdeaValidationPurchase => IdeaValidationPurchase::query()
+            ->where('payment_id', $payment->getKey())
+            ->first());
+
+        return $purchase instanceof IdeaValidationPurchase
+            ? $this->quoteMismatchReason($purchase, $payment)
+            : null;
+    }
+
     private function settlePayment(Payment $payment, PaymentChargeResult $charge, \DateTimeInterface $processedAt): IdeaValidationPurchase
     {
         $result = $this->context->withSystemContext(function () use ($payment, $charge, $processedAt): array {
@@ -408,6 +430,10 @@ final class IdeaValidationCheckout
                     ->where('payment_id', $payment->getKey())
                     ->lockForUpdate()
                     ->firstOrFail();
+
+                if ($this->quoteMismatchReason($purchase, $payment) !== null) {
+                    throw new \LogicException('The Idea Validation purchase quote does not match its payment record.');
+                }
 
                 $this->assertChargeMatches($payment, $purchase, $charge);
                 $wasPaid = $purchase->paid_at !== null || $purchase->status === IdeaValidationPurchase::STATUS_PAID;
@@ -593,5 +619,26 @@ final class IdeaValidationCheckout
             || number_format((float) $charge->amount, 2, '.', '') !== number_format((float) $payment->amount, 2, '.', '')) {
             throw new \LogicException('Stripe payment confirmation does not match the Idea Validation purchase.');
         }
+    }
+
+    private function quoteMismatchReason(IdeaValidationPurchase $purchase, Payment $payment): ?string
+    {
+        $quotedAmount = $purchase->getAttribute('amount_including_gst');
+        $quotedCurrency = $purchase->getAttribute('currency');
+
+        if ($quotedAmount === null || ! is_string($quotedCurrency) || blank($quotedCurrency)) {
+            return 'idea_validation_quote_missing';
+        }
+
+        if (number_format((float) $quotedAmount, 2, '.', '')
+            !== number_format((float) $payment->amount, 2, '.', '')) {
+            return 'idea_validation_quote_amount_mismatch';
+        }
+
+        if (strtoupper($quotedCurrency) !== strtoupper($payment->currency)) {
+            return 'idea_validation_quote_currency_mismatch';
+        }
+
+        return null;
     }
 }
