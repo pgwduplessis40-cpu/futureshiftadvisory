@@ -6,6 +6,7 @@ namespace App\Services\Entrepreneurs;
 
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurProfile;
+use App\Models\IdeaValidation;
 use App\Models\PlanSection;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
@@ -31,12 +32,12 @@ final class PlanBuilder
         }
 
         return DB::transaction(function () use ($profile, $actor): BusinessPlan {
-            $latestValidation = \App\Models\IdeaValidation::query()
+            $latestValidation = IdeaValidation::query()
                 ->where('entrepreneur_profile_id', $profile->getKey())
                 ->whereNotNull('advisor_gate_passed_at')
                 ->latest('advisor_gate_passed_at')
                 ->first();
-            if (! $latestValidation instanceof \App\Models\IdeaValidation) {
+            if (! $latestValidation instanceof IdeaValidation) {
                 throw new InvalidArgumentException('The entrepreneur plan builder is locked until an advisor passes the idea-validation gate.');
             }
 
