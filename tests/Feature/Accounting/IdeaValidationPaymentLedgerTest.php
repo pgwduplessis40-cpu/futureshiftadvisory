@@ -268,7 +268,7 @@ final class IdeaValidationPaymentLedgerTest extends TestCase
             'status' => PracticeAccountingConnection::STATUS_CONNECTED,
             'token_envelope' => $envelope,
             'token_envelope_meta' => app(KeyEnvelope::class)->inspect($envelope),
-            'scopes' => ['accounting.transactions', 'accounting.invoices', 'accounting.contacts', 'offline_access'],
+            'scopes' => ['accounting.contacts', 'accounting.invoices', 'accounting.payments', 'offline_access'],
             'connected_by_user_id' => $actor->getKey(),
             'connected_at' => now(),
         ]);
