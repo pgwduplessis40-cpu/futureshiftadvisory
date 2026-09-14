@@ -37,7 +37,7 @@ return [
         'app/Http/Controllers/StaffDashboardController.php' => [
             'ceiling' => 2862,
             'production_limit' => 3000,
-            'contract_tests' => ['tests/Feature/Integration/EconomicIndicatorsTest.php'],
+            'contract_tests' => ['tests/Feature/Integration/EconomicIndicatorsTest.php', 'tests/Feature/Admin/PaymentReconciliationTest.php'],
         ],
         'resources/js/pages/advisor/clients/Show.tsx' => [
             'ceiling' => 7780,
@@ -47,7 +47,7 @@ return [
         'resources/js/pages/advisor/Dashboard.tsx' => [
             'ceiling' => 376,
             'production_limit' => 1000,
-            'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Advisor/DashboardTest.php'],
+            'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Advisor/DashboardTest.php', 'tests/Feature/Admin/PaymentReconciliationTest.php'],
         ],
         'resources/js/pages/advisor/dashboard/SignalPanels.tsx' => [
             'ceiling' => 1051,

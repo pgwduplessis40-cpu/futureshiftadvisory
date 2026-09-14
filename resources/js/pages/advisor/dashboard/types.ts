@@ -486,6 +486,13 @@ export type PaymentStatusPayload = {
     }>;
 };
 
+export type PaymentReconciliationQueuePayload = {
+    available: boolean;
+    total: number;
+    action_url: string | null;
+    action_label: string;
+};
+
 export type ScenarioPlanningPayload = {
     summary: {
         scenarios: number;

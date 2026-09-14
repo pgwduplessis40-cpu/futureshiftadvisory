@@ -43,10 +43,10 @@ use App\Models\TermsVersion;
 use App\Models\User;
 use App\Services\Ai\AdvisorAiNotice;
 use App\Services\Analytics\FunnelTracker;
+use App\Services\Dashboards\AdvisorPaymentDashboardPayload;
 use App\Services\Dashboards\CashFlowStatusMonitor;
 use App\Services\Dashboards\ClientEngagementScorer;
 use App\Services\Dashboards\EconomicExposureMapper;
-use App\Services\Dashboards\PaymentStatusReport;
 use App\Services\EconomicData\EconomicIndicatorRefresher;
 use App\Services\Entrepreneurs\CanonicalEntrepreneurWorkspace;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
@@ -84,7 +84,7 @@ final class StaffDashboardController extends Controller
         ClientEngagementScorer $engagementScorer,
         CashFlowStatusMonitor $cashFlowStatus,
         EconomicExposureMapper $economicExposure,
-        PaymentStatusReport $paymentStatus,
+        AdvisorPaymentDashboardPayload $paymentDashboard,
         PvWaterfallBuilder $pvWaterfalls,
         FunnelTracker $funnels,
         PracticeHealthReport $practiceHealth,
@@ -120,7 +120,7 @@ final class StaffDashboardController extends Controller
         }
 
         if ($user instanceof User && $this->usesAdvisorDashboard($user)) {
-            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $cashFlowStatus, $economicExposure, $paymentStatus, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals, $npoConversion, $npoFunders, $referenceDataFreshness, $serviceRates, $entrepreneurWorkspaces, $aiNotice));
+            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $cashFlowStatus, $economicExposure, $paymentDashboard, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals, $npoConversion, $npoFunders, $referenceDataFreshness, $serviceRates, $entrepreneurWorkspaces, $aiNotice));
         }
 
         if ($user instanceof User && $user->user_type === User::TYPE_BROKER) {
@@ -680,7 +680,7 @@ final class StaffDashboardController extends Controller
         ClientEngagementScorer $engagementScorer,
         CashFlowStatusMonitor $cashFlowStatus,
         EconomicExposureMapper $economicExposure,
-        PaymentStatusReport $paymentStatus,
+        AdvisorPaymentDashboardPayload $paymentDashboard,
         PvWaterfallBuilder $pvWaterfalls,
         FunnelTracker $funnels,
         PracticeHealthReport $practiceHealth,
@@ -721,7 +721,7 @@ final class StaffDashboardController extends Controller
             'aiOperationalAlert' => $this->aiOperationalAlert($user, $aiNotice),
             'integrationHealth' => Inertia::defer(fn (): array => $this->integrationHealth($user), 'advisor-signals'),
             'economicIndicators' => Inertia::defer(fn (): array => $this->economicIndicators($clientIds, $economicExposure), 'advisor-signals'),
-            'paymentStatus' => $paymentStatus->forClientIds($clientIds),
+            ...$paymentDashboard->for($user, $clientIds),
             'feeStatus' => $this->feeStatus($user, $serviceRates),
             'pvWaterfall' => Inertia::defer(fn (): array => [
                 ...$pvWaterfalls->forClients($clientIds),
