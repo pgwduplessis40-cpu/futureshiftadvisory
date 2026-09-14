@@ -16,6 +16,7 @@ use App\Models\FeeCalculation;
 use App\Models\PracticeAccountingConnection;
 use App\Models\Proposal;
 use App\Models\User;
+use App\Services\Accounting\PracticeAccountingConnector;
 use App\Services\Accounting\ProposalInvoiceScheduler;
 use App\Services\Payments\ClientBillingCode;
 use App\Services\Storage\KeyEnvelope;
@@ -95,6 +96,23 @@ final class ProposalInvoiceSchedulerTest extends TestCase
             return $request->url() === 'https://api.xero.com/api.xro/2.0/Invoices'
                 && str_starts_with((string) data_get($request->data(), 'Invoices.0.Reference'), $clientCode.' Proposal v1');
         });
+    }
+
+    public function test_xero_reconnection_requests_the_granular_scope_set_needed_for_sales_and_refunds(): void
+    {
+        $advisor = User::factory()->create([
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+
+        $url = app(PracticeAccountingConnector::class)->authorizeUrl($advisor, AccountingConnection::PROVIDER_XERO);
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+
+        $this->assertSame(
+            'accounting.contacts accounting.invoices accounting.payments offline_access',
+            $query['scope'] ?? null,
+        );
+        $this->assertStringNotContainsString('accounting.transactions', (string) ($query['scope'] ?? ''));
     }
 
     public function test_fee_inactive_signed_proposal_does_not_create_a_zero_value_xero_invoice(): void
@@ -312,7 +330,7 @@ final class ProposalInvoiceSchedulerTest extends TestCase
             'status' => PracticeAccountingConnection::STATUS_CONNECTED,
             'token_envelope' => $envelope,
             'token_envelope_meta' => app(KeyEnvelope::class)->inspect($envelope),
-            'scopes' => ['accounting.invoices', 'accounting.contacts', 'offline_access'],
+            'scopes' => ['accounting.contacts', 'accounting.invoices', 'accounting.payments', 'offline_access'],
             'connected_by_user_id' => $advisor->getKey(),
             'connected_at' => now(),
         ]);
