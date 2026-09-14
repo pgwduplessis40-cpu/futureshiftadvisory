@@ -20,7 +20,7 @@ final class AdvisorPaymentDashboardPayload
 
     /**
      * @param  array<int, string>|null  $clientIds
-     * @return array{paymentStatus:array<string,mixed>,paymentReconciliationQueue:array{available:bool,total:int,action_url:string|null,action_label:string}}
+     * @return array{paymentStatus:array{summary:array{failed:int,retrying:int,retryable:int},items:list<array{id:string,client_id:string,client_name:string|null,client_url:string,status:string,amount:float,currency:string,processed_at:string|null,failed_reason:string|null,attempt:int,automatic_next_retry_at:string|null,manual_retry_available:bool,retry_url:string,drill_url:string,contact_url:string}>},paymentReconciliationQueue:array{available:bool,total:int,action_url:string|null,action_label:string}}
      */
     public function for(User $user, ?array $clientIds): array
     {
