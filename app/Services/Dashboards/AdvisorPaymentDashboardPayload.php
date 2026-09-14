@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Dashboards;
 
 use App\Models\User;
+use App\Services\Accounting\IdeaValidationPaymentLedger;
 use App\Services\Payments\IdeaValidationPaymentReconciliationService;
 
 /**
@@ -16,6 +17,7 @@ final class AdvisorPaymentDashboardPayload
     public function __construct(
         private readonly PaymentStatusReport $paymentStatus,
         private readonly IdeaValidationPaymentReconciliationService $paymentReconciliations,
+        private readonly IdeaValidationPaymentLedger $accountingLedger,
     ) {}
 
     /**
@@ -46,7 +48,10 @@ final class AdvisorPaymentDashboardPayload
 
         return [
             'available' => true,
-            'total' => $this->paymentReconciliations->candidates()->count(),
+            'total' => $this->paymentReconciliations->candidates()->count()
+                + $this->accountingLedger->backfillCandidates()->count()
+                + $this->accountingLedger->outstanding()->count()
+                + $this->accountingLedger->refundExceptions()->count(),
             'action_url' => route('admin.payment-reconciliations.index', absolute: false),
             'action_label' => 'Review payments',
         ];

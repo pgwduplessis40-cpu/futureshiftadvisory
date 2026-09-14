@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 final class PaymentRefund extends Model
 {
@@ -61,5 +62,11 @@ final class PaymentRefund extends Model
     public function requestedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'requested_by_user_id');
+    }
+
+    /** @return HasOne<PaymentAccountingSync, $this> */
+    public function accountingSync(): HasOne
+    {
+        return $this->hasOne(PaymentAccountingSync::class);
     }
 }

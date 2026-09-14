@@ -94,4 +94,12 @@ final class Payment extends Model
     {
         return $this->hasOne(IdeaValidationPurchase::class);
     }
+
+    /**
+     * @return HasOne<PaymentAccountingSync, $this>
+     */
+    public function accountingSync(): HasOne
+    {
+        return $this->hasOne(PaymentAccountingSync::class);
+    }
 }

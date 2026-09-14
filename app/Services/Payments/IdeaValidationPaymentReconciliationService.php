@@ -7,6 +7,7 @@ namespace App\Services\Payments;
 use App\Models\IdeaValidationPurchase;
 use App\Models\Payment;
 use App\Models\User;
+use App\Services\Accounting\IdeaValidationPaymentLedger;
 use App\Services\Entrepreneurs\IdeaValidationCheckout;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Support\RequestContext;
@@ -27,6 +28,7 @@ final class IdeaValidationPaymentReconciliationService
     public function __construct(
         private readonly StripeClient $stripe,
         private readonly IdeaValidationCheckout $checkout,
+        private readonly IdeaValidationPaymentLedger $accountingLedger,
         private readonly RequestContext $context,
     ) {}
 
@@ -113,13 +115,17 @@ final class IdeaValidationPaymentReconciliationService
         $this->assertVerifiedChargeMatchesPayment($payment, $charge);
         $this->assertHistoricalQuoteMatchesPayment($quote, $payment);
 
-        return $this->checkout->settleReconciledStripePayment(
+        $settled = $this->checkout->settleReconciledStripePayment(
             payment: $payment,
             charge: $charge,
             quote: $quote,
             actor: $actor,
             reason: $reason,
         );
+
+        $this->accountingLedger->recordSucceededPayment($payment, $actor);
+
+        return $settled;
     }
 
     private function assertVerifiedChargeMatchesPayment(Payment $payment, PaymentChargeResult $charge): void

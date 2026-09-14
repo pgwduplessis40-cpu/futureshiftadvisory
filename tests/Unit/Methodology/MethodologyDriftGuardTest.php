@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Methodology;
 
+use App\Services\Accounting\IdeaValidationPaymentLedger;
 use App\Services\Analysis\AnalysisRunner;
 use App\Services\Dashboards\AdvisorPaymentDashboardPayload;
 use App\Services\Dashboards\BusinessHealthRadarBuilder;
@@ -207,6 +208,7 @@ final class MethodologyDriftGuardTest extends TestCase
         ApplyProposalPaymentOutcome::class => 'Payment application outcome DTO.',
         BillingAdjustmentAllocator::class => 'Ledger-credit allocation workflow, not an advisor methodology disclosure.',
         ClientBillingCode::class => 'Billing-code formatter.',
+        IdeaValidationPaymentLedger::class => 'Accounting workflow that records settled payment and refund evidence in Xero; it does not calculate an advisory methodology.',
         DefinitivePaymentDecline::class => 'Payment-decline exception type.',
         Gateway::class => 'Gateway adapter.',
         IdeaValidationHistoricalQuote::class => 'Historical payment-quote DTO supplied as evidence during reconciliation.',

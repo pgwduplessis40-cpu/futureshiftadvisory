@@ -129,6 +129,7 @@ return [
         'App\\Models\\ServiceRatePackage' => 'app/Models/ServiceRatePackage.php',
         'App\\Models\\IdeaValidationPurchase' => 'app/Models/IdeaValidationPurchase.php',
         'App\\Models\\Payment' => 'app/Models/Payment.php',
+        'App\\Models\\PaymentAccountingSync' => 'app/Models/PaymentAccountingSync.php',
         'App\\Models\\PaymentRefund' => 'app/Models/PaymentRefund.php',
         'App\\Models\\PaymentAuthority' => 'app/Models/PaymentAuthority.php',
         'App\\Models\\PaymentInstallment' => 'app/Models/PaymentInstallment.php',
