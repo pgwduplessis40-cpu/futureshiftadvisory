@@ -294,7 +294,10 @@ final class IdeaValidationPaymentLedger
 
             $sync = $sync->refresh();
 
-            return $sync->refund_status === PaymentAccountingSync::REFUND_PENDING
+            return in_array($sync->refund_status, [
+                PaymentAccountingSync::REFUND_PENDING,
+                PaymentAccountingSync::REFUND_FAILED,
+            ], true)
                 ? $this->synchroniseRefund($sync, $token, $tenantId, $actor)
                 : $sync;
         } catch (Throwable $exception) {
@@ -416,11 +419,7 @@ final class IdeaValidationPaymentLedger
                 ])->save();
             }
 
-            $this->xero->allocateCreditNote($token, $tenantId, $creditNoteId, [[
-                'Invoice' => ['InvoiceID' => $invoiceId],
-                'Amount' => (float) $sync->amount_including_gst,
-                'Date' => ($refund->processed_at ?? now())->toDateString(),
-            ]], 'fsa-credit-allocation-'.$sync->getKey());
+            $this->refundCreditNote($sync, $refund, $creditNoteId, $token, $tenantId);
 
             $sync->forceFill([
                 'refund_status' => PaymentAccountingSync::REFUND_SYNCED,
@@ -492,6 +491,33 @@ final class IdeaValidationPaymentLedger
                 'TaxType' => (string) Config::get('integrations.accounting.xero.sales_tax_type', 'OUTPUT2'),
             ]],
         ];
+    }
+
+    /** @param array{access_token:string} $token */
+    private function refundCreditNote(PaymentAccountingSync $sync, PaymentRefund $refund, string $creditNoteId, array $token, string $tenantId): void
+    {
+        if (is_string($sync->external_credit_note_payment_id) && $sync->external_credit_note_payment_id !== '') {
+            return;
+        }
+
+        $clearingAccountCode = trim((string) Config::get('integrations.accounting.xero.stripe_clearing_account_code', ''));
+        if ($clearingAccountCode === '') {
+            throw new \InvalidArgumentException('Xero Stripe clearing account code is not configured. Set XERO_STRIPE_CLEARING_ACCOUNT_CODE before exporting refunds.');
+        }
+
+        $payment = $this->firstRow($this->xero->createPayment($token, $tenantId, [
+            'CreditNote' => ['CreditNoteID' => $creditNoteId],
+            'Account' => ['Code' => $clearingAccountCode],
+            'Date' => ($refund->processed_at ?? now())->toDateString(),
+            'Amount' => (float) $sync->amount_including_gst,
+            'Reference' => 'Stripe refund '.Str::limit((string) $refund->gateway_ref, 120, ''),
+        ], 'fsa-credit-refund-'.$sync->getKey()), 'Payments');
+        $paymentId = trim((string) ($payment['PaymentID'] ?? ''));
+        if ($paymentId === '') {
+            throw new \InvalidArgumentException('Xero did not return a payment id for the Stripe refund.');
+        }
+
+        $sync->forceFill(['external_credit_note_payment_id' => $paymentId])->save();
     }
 
     /**

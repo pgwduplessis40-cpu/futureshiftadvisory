@@ -98,11 +98,11 @@ final class IdeaValidationPaymentLedgerTest extends TestCase
         Http::assertSentCount(3);
     }
 
-    public function test_accepted_stripe_refund_creates_one_linked_xero_credit_note_and_allocation(): void
+    public function test_accepted_stripe_refund_creates_one_linked_xero_credit_note_and_refund_payment(): void
     {
         [$actor, $payment, $client, $buyer] = $this->settledPayment();
         $this->practiceXeroConnection($actor);
-        $this->fakeSaleResponses();
+        $this->fakeSaleResponses(withRefund: true);
         app(IdeaValidationPaymentLedger::class)->recordSucceededPayment($payment, $actor);
 
         $activation = ServiceActivation::query()->create([
@@ -127,33 +127,73 @@ final class IdeaValidationPaymentLedgerTest extends TestCase
             'processed_at' => now(),
             'metadata' => ['provider_status' => 'succeeded'],
         ]);
-        Http::fake([
-            'https://api.xero.com/api.xro/2.0/CreditNotes' => Http::response([
-                'CreditNotes' => [[
-                    'CreditNoteID' => 'xero-credit-idea',
-                    'CreditNoteNumber' => 'CN-0001',
-                ]],
-            ], 200),
-            'https://api.xero.com/api.xro/2.0/CreditNotes/xero-credit-idea/Allocations' => Http::response([
-                'Allocations' => [['AllocationID' => 'xero-allocation-idea']],
-            ], 200),
-        ]);
-
         $sync = app(IdeaValidationPaymentLedger::class)->recordAcceptedRefund($refund, $actor);
 
         $this->assertInstanceOf(PaymentAccountingSync::class, $sync);
         $this->assertSame(PaymentAccountingSync::REFUND_SYNCED, $sync->refund_status);
         $this->assertSame('xero-credit-idea', $sync->external_credit_note_id);
+        $this->assertSame('xero-credit-refund-payment-idea', $sync->external_credit_note_payment_id);
         Http::assertSent(function (Request $request): bool {
             return $request->url() === 'https://api.xero.com/api.xro/2.0/CreditNotes'
                 && data_get($request->data(), 'CreditNotes.0.Type') === 'ACCRECCREDIT'
                 && (float) data_get($request->data(), 'CreditNotes.0.LineItems.0.UnitAmount') === 100.0;
         });
         Http::assertSent(function (Request $request): bool {
-            return $request->url() === 'https://api.xero.com/api.xro/2.0/CreditNotes/xero-credit-idea/Allocations'
-                && data_get($request->data(), 'Allocations.0.Invoice.InvoiceID') === 'xero-invoice-idea'
-                && (float) data_get($request->data(), 'Allocations.0.Amount') === 115.0;
+            return $request->url() === 'https://api.xero.com/api.xro/2.0/Payments'
+                && data_get($request->data(), 'Payments.0.CreditNote.CreditNoteID') === 'xero-credit-idea'
+                && data_get($request->data(), 'Payments.0.Account.Code') === '090'
+                && (float) data_get($request->data(), 'Payments.0.Amount') === 115.0;
         });
+    }
+
+    public function test_retry_refunds_an_existing_xero_credit_note_without_recreating_the_paid_invoice(): void
+    {
+        [$actor, $payment, $client, $buyer] = $this->settledPayment();
+        $this->practiceXeroConnection($actor);
+        $this->fakeSaleResponses(withRefund: true);
+        $sync = app(IdeaValidationPaymentLedger::class)->recordSucceededPayment($payment, $actor);
+
+        $activation = ServiceActivation::query()->create([
+            'client_id' => $client->getKey(),
+            'requested_by_user_id' => $buyer->getKey(),
+            'advisor_id' => $actor->getKey(),
+            'service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'client_label' => 'Idea Validation',
+            'status' => ServiceActivation::STATUS_CANCELLED,
+            'cancelled_at' => now(),
+        ]);
+        $refund = PaymentRefund::query()->create([
+            'client_id' => $client->getKey(),
+            'service_activation_id' => $activation->getKey(),
+            'requested_by_user_id' => $buyer->getKey(),
+            'gateway' => 'stripe',
+            'payment_reference' => $payment->gateway_ref,
+            'gateway_ref' => 're_idea_existing_credit_note',
+            'amount' => '115.00',
+            'currency' => 'NZD',
+            'status' => PaymentRefund::STATUS_ACCEPTED,
+            'idempotency_key' => 'idea-ledger-existing-credit-note-'.$payment->getKey(),
+            'processed_at' => now(),
+            'metadata' => ['provider_status' => 'succeeded'],
+        ]);
+        $sync->forceFill([
+            'payment_refund_id' => $refund->getKey(),
+            'refund_status' => PaymentAccountingSync::REFUND_FAILED,
+            'refund_error_message' => 'Xero credit-note allocation failed.',
+            'external_credit_note_id' => 'xero-existing-credit-note',
+            'external_credit_note_number' => 'CN-EXISTING',
+        ])->save();
+        $retried = app(IdeaValidationPaymentLedger::class)->retry($sync, $actor);
+
+        $this->assertSame(PaymentAccountingSync::STATUS_SYNCED, $retried->status);
+        $this->assertSame(PaymentAccountingSync::REFUND_SYNCED, $retried->refund_status);
+        $this->assertSame('xero-credit-refund-payment-idea', $retried->external_credit_note_payment_id);
+        Http::assertSent(function (Request $request): bool {
+            return $request->url() === 'https://api.xero.com/api.xro/2.0/Payments'
+                && data_get($request->data(), 'Payments.0.CreditNote.CreditNoteID') === 'xero-existing-credit-note'
+                && data_get($request->data(), 'Payments.0.Account.Code') === '090';
+        });
+        Http::assertSentCount(4);
     }
 
     public function test_historical_backfill_links_a_preexisting_accepted_refund_to_the_same_xero_reversal(): void
@@ -287,9 +327,13 @@ final class IdeaValidationPaymentLedgerTest extends TestCase
                     'Status' => 'AUTHORISED',
                 ]],
             ], 200),
-            'https://api.xero.com/api.xro/2.0/Payments' => Http::response([
-                'Payments' => [['PaymentID' => 'xero-payment-idea']],
-            ], 200),
+            'https://api.xero.com/api.xro/2.0/Payments' => $withRefund
+                ? Http::sequence()
+                    ->push(['Payments' => [['PaymentID' => 'xero-payment-idea']]], 200)
+                    ->push(['Payments' => [['PaymentID' => 'xero-credit-refund-payment-idea']]], 200)
+                : Http::response([
+                    'Payments' => [['PaymentID' => 'xero-payment-idea']],
+                ], 200),
         ];
         if ($withRefund) {
             $responses['https://api.xero.com/api.xro/2.0/CreditNotes'] = Http::response([
@@ -297,9 +341,6 @@ final class IdeaValidationPaymentLedgerTest extends TestCase
                     'CreditNoteID' => 'xero-credit-idea',
                     'CreditNoteNumber' => 'CN-0001',
                 ]],
-            ], 200);
-            $responses['https://api.xero.com/api.xro/2.0/CreditNotes/xero-credit-idea/Allocations'] = Http::response([
-                'Allocations' => [['AllocationID' => 'xero-allocation-idea']],
             ], 200);
         }
 

@@ -247,7 +247,7 @@ final class LiveXeroClient implements XeroClient
 
     /**
      * @param  array{access_token:string}  $token
-     * @param  array{Invoice:array{InvoiceID:string},Account:array{Code:string},Date:string,Amount:float,Reference:string}  $payment
+     * @param  array{Invoice?:array{InvoiceID:string},CreditNote?:array{CreditNoteID:string},Account:array{Code:string},Date:string,Amount:float,Reference:string}  $payment
      * @return array{Payments:array<int, array{PaymentID?:string,Status?:string}>}
      */
     public function createPayment(array $token, string $tenantId, array $payment, string $idempotencyKey): array
