@@ -280,7 +280,7 @@ final class IdeaValidationPaymentLedger
                 'payment.entrepreneurPlanBudgetPurchase.client.primaryContact',
             ]);
             $payment = $sync->payment;
-            $purchase = $payment?->ideaValidationPurchase ?? $payment?->entrepreneurPlanBudgetPurchase;
+            $purchase = $payment->ideaValidationPurchase ?? $payment->entrepreneurPlanBudgetPurchase;
             $client = $purchase?->client;
             if (! $payment instanceof Payment
                 || (! $purchase instanceof IdeaValidationPurchase && ! $purchase instanceof EntrepreneurPlanBudgetPurchase)

@@ -60,7 +60,7 @@ final class ApprovedIdeaPlanStarter
                     metadata: [
                         'idea_validation_id' => $validation->getKey(),
                         'idea_validation_revision_number' => $validation->revision_number,
-                        'advisor_gate_passed_at' => $validation->advisor_gate_passed_at?->toIso8601String(),
+                        'advisor_gate_passed_at' => $validation->advisor_gate_passed_at->toIso8601String(),
                         'advisor_gate_note' => $validation->advisor_gate_note,
                         'viability_alerts' => $validation->viability_alerts ?? [],
                         'seeded_as_immutable_source' => true,
