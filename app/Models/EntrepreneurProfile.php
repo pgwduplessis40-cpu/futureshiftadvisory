@@ -21,6 +21,7 @@ final class EntrepreneurProfile extends Model
 
     protected $casts = [
         'stage' => EntrepreneurStage::class,
+        'suspended_from_stage' => EntrepreneurStage::class,
         'gamification_on' => 'boolean',
         'current_streak' => 'integer',
         'last_active_at' => 'datetime',

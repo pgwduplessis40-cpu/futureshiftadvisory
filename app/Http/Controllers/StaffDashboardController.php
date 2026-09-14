@@ -1004,6 +1004,20 @@ final class StaffDashboardController extends Controller
      */
     private function visibleEntrepreneurQuery(Builder $query, User $user): Builder
     {
+        $query
+            ->whereNotIn('stage', [
+                EntrepreneurStage::CANCELLED->value,
+                EntrepreneurStage::SUSPENDED->value,
+            ])
+            ->where(function (Builder $query): void {
+                $query
+                    ->whereNull('client_id')
+                    ->orWhereHas('client', fn (Builder $clientQuery): Builder => $clientQuery->whereNotIn('status', [
+                        ClientStatus::SUSPENDED->value,
+                        ClientStatus::OFFBOARDED->value,
+                    ]));
+            });
+
         if ($user->fsaRole() === User::TYPE_SUPER_ADMIN) {
             return $query;
         }
@@ -1700,18 +1714,30 @@ final class StaffDashboardController extends Controller
         ], true);
     }
 
-    /**
-     * A null client id list means "all clients" for super-admins.
-     *
-     * @return array<int, string>|null
-     */
-    private function visibleClientIds(User $user): ?array
+    /** @return array<int, string> */
+    private function visibleClientIds(User $user): array
     {
-        if ($user->user_type === User::TYPE_SUPER_ADMIN) {
-            return null;
+        $query = Client::query()
+            ->withoutOperationalHealthFixtures()
+            ->whereNotIn('status', [
+                ClientStatus::SUSPENDED->value,
+                ClientStatus::OFFBOARDED->value,
+            ]);
+
+        if ($user->user_type !== User::TYPE_SUPER_ADMIN) {
+            $clientIds = $user->accessibleClientIds();
+
+            if ($clientIds === []) {
+                return [];
+            }
+
+            $query->whereIn('id', $clientIds);
         }
 
-        return $user->accessibleClientIds();
+        /** @var array<int, string> $clientIds */
+        $clientIds = $query->pluck('id')->all();
+
+        return $clientIds;
     }
 
     /**
@@ -1992,7 +2018,12 @@ final class StaffDashboardController extends Controller
      */
     private function scopedClientQuery(?array $clientIds): Builder
     {
-        $query = Client::query()->withoutOperationalHealthFixtures();
+        $query = Client::query()
+            ->withoutOperationalHealthFixtures()
+            ->whereNotIn('status', [
+                ClientStatus::SUSPENDED->value,
+                ClientStatus::OFFBOARDED->value,
+            ]);
 
         if (is_array($clientIds)) {
             if ($clientIds === []) {

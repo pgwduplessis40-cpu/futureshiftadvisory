@@ -266,6 +266,10 @@ final class AdvisorEntrepreneurWorkspacePayload
 
     private function profileStageLabel(EntrepreneurProfile $profile, EntrepreneurStage $stage): string
     {
+        if (in_array($stage, [EntrepreneurStage::CANCELLED, EntrepreneurStage::SUSPENDED], true)) {
+            return $stage->label();
+        }
+
         $latestPlan = $profile->relationLoaded('businessPlans')
             ? $profile->businessPlans->where('source_type', BusinessPlan::SOURCE_ENTREPRENEUR)->sortByDesc('updated_at')->first()
             : null;

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Clients;
 
 use App\Enums\ClientStatus;
+use App\Enums\EntrepreneurStage;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\EntrepreneurProfile;
 use App\Models\User;
 use App\Notifications\ClientLifecycleNotification;
 use App\Services\Audit\AuditWriter;
@@ -59,17 +61,20 @@ final class LifecycleManager
         $client->refresh();
         $client->loadMissing(['primaryContact', 'teamMembers.user']);
         $previousStatus = $this->statusOf($client);
+        $entrepreneurStage = $this->entrepreneurStageFor($targetStatus);
 
         if ($previousStatus === $targetStatus) {
             return $client;
         }
 
-        DB::transaction(function () use ($client, $targetStatus, $actor, $reason, $previousStatus): void {
+        DB::transaction(function () use ($client, $targetStatus, $actor, $reason, $previousStatus, $entrepreneurStage): void {
             $this->withAllowedStatusMutation(function () use ($client, $targetStatus): void {
                 $client->forceFill([
                     'status' => $targetStatus->value,
                 ])->save();
             });
+
+            $this->syncEntrepreneurStage($client, $targetStatus);
 
             $this->auditWriter->record('client.lifecycle.transitioned', subject: $client, actor: $actor, before: [
                 'status' => $previousStatus->value,
@@ -77,6 +82,7 @@ final class LifecycleManager
                 'status' => $targetStatus->value,
                 'reason' => $reason,
                 'portal_access_revoked' => $targetStatus === ClientStatus::SUSPENDED,
+                'entrepreneur_stage' => $entrepreneurStage?->value,
             ]);
         });
 
@@ -94,6 +100,53 @@ final class LifecycleManager
         return $client->status instanceof ClientStatus
             ? $client->status
             : ClientStatus::from((string) ($client->status ?? ClientStatus::ACTIVE->value));
+    }
+
+    private function entrepreneurStageFor(ClientStatus $status): ?EntrepreneurStage
+    {
+        return match ($status) {
+            ClientStatus::SUSPENDED => EntrepreneurStage::SUSPENDED,
+            ClientStatus::OFFBOARDED => EntrepreneurStage::CANCELLED,
+            default => null,
+        };
+    }
+
+    private function syncEntrepreneurStage(Client $client, ClientStatus $status): void
+    {
+        $profiles = EntrepreneurProfile::query()->where('client_id', $client->getKey());
+
+        if ($status === ClientStatus::SUSPENDED) {
+            $profiles
+                ->where('stage', '!=', EntrepreneurStage::CANCELLED->value)
+                ->update([
+                    'suspended_from_stage' => DB::raw('stage'),
+                    'stage' => EntrepreneurStage::SUSPENDED->value,
+                    'updated_at' => now(),
+                ]);
+
+            return;
+        }
+
+        if ($status === ClientStatus::ACTIVE) {
+            $profiles
+                ->where('stage', EntrepreneurStage::SUSPENDED->value)
+                ->whereNotNull('suspended_from_stage')
+                ->update([
+                    'stage' => DB::raw('suspended_from_stage'),
+                    'suspended_from_stage' => null,
+                    'updated_at' => now(),
+                ]);
+
+            return;
+        }
+
+        if ($status === ClientStatus::OFFBOARDED) {
+            $profiles->update([
+                'stage' => EntrepreneurStage::CANCELLED->value,
+                'suspended_from_stage' => null,
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     private function withAllowedStatusMutation(callable $callback): mixed

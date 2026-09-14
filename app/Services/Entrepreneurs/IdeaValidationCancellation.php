@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Entrepreneurs;
 
 use App\Enums\ClientStatus;
+use App\Enums\EntrepreneurStage;
 use App\Models\Client;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
@@ -160,7 +161,7 @@ final class IdeaValidationCancellation
             ]);
         }
 
-        $refund = DB::transaction(function () use ($refund, $activation, $user, $result): PaymentRefund {
+        $refund = DB::transaction(function () use ($refund, $activation, $profile, $user, $result): PaymentRefund {
             $refund = PaymentRefund::query()->whereKey($refund->getKey())->lockForUpdate()->firstOrFail();
             $activation = ServiceActivation::query()->whereKey($activation->getKey())->lockForUpdate()->firstOrFail();
 
@@ -191,6 +192,11 @@ final class IdeaValidationCancellation
                 ],
             ])->save();
 
+            $profile->forceFill([
+                'stage' => EntrepreneurStage::CANCELLED,
+                'suspended_from_stage' => null,
+            ])->save();
+
             $user->forceFill([
                 'suspended_at' => now(),
                 'suspended_reason' => self::SUSPENSION_REASON,
@@ -203,6 +209,7 @@ final class IdeaValidationCancellation
                 'currency' => $refund->currency,
                 'refund_reference' => $refund->gateway_ref,
                 'account_deactivated' => true,
+                'entrepreneur_stage' => EntrepreneurStage::CANCELLED->value,
             ]);
 
             return $refund->refresh();

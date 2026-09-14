@@ -8,6 +8,7 @@ enum EntrepreneurStage: string
 {
     case INVITED = 'invited';
     case CANCELLED = 'cancelled';
+    case SUSPENDED = 'suspended';
     case ONBOARDING = 'onboarding';
     case READINESS = 'readiness';
     case IDEA_VALIDATION = 'idea_validation';
@@ -27,6 +28,7 @@ enum EntrepreneurStage: string
         return match ($this) {
             self::INVITED => 'Invited',
             self::CANCELLED => 'Cancelled',
+            self::SUSPENDED => 'Suspended',
             self::ONBOARDING => 'Onboarding',
             self::READINESS => 'Readiness',
             self::IDEA_VALIDATION => 'Idea validation',
