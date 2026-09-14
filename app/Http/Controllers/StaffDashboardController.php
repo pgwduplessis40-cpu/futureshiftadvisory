@@ -54,6 +54,7 @@ use App\Services\Fees\ServiceRateManager;
 use App\Services\Npo\GovernanceReviewConversion;
 use App\Services\Npo\NpoFunderMonitor;
 use App\Services\Panels\Coach\SignalDetector;
+use App\Services\Payments\IdeaValidationPaymentReconciliationService;
 use App\Services\Proposals\ProposalBrief;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Questionnaires\QuestionnaireOptimisationLayer;
@@ -85,6 +86,7 @@ final class StaffDashboardController extends Controller
         CashFlowStatusMonitor $cashFlowStatus,
         EconomicExposureMapper $economicExposure,
         PaymentStatusReport $paymentStatus,
+        IdeaValidationPaymentReconciliationService $paymentReconciliations,
         PvWaterfallBuilder $pvWaterfalls,
         FunnelTracker $funnels,
         PracticeHealthReport $practiceHealth,
@@ -120,7 +122,7 @@ final class StaffDashboardController extends Controller
         }
 
         if ($user instanceof User && $this->usesAdvisorDashboard($user)) {
-            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $cashFlowStatus, $economicExposure, $paymentStatus, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals, $npoConversion, $npoFunders, $referenceDataFreshness, $serviceRates, $entrepreneurWorkspaces, $aiNotice));
+            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $cashFlowStatus, $economicExposure, $paymentStatus, $paymentReconciliations, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals, $npoConversion, $npoFunders, $referenceDataFreshness, $serviceRates, $entrepreneurWorkspaces, $aiNotice));
         }
 
         if ($user instanceof User && $user->user_type === User::TYPE_BROKER) {
@@ -681,6 +683,7 @@ final class StaffDashboardController extends Controller
         CashFlowStatusMonitor $cashFlowStatus,
         EconomicExposureMapper $economicExposure,
         PaymentStatusReport $paymentStatus,
+        IdeaValidationPaymentReconciliationService $paymentReconciliations,
         PvWaterfallBuilder $pvWaterfalls,
         FunnelTracker $funnels,
         PracticeHealthReport $practiceHealth,
@@ -722,6 +725,7 @@ final class StaffDashboardController extends Controller
             'integrationHealth' => Inertia::defer(fn (): array => $this->integrationHealth($user), 'advisor-signals'),
             'economicIndicators' => Inertia::defer(fn (): array => $this->economicIndicators($clientIds, $economicExposure), 'advisor-signals'),
             'paymentStatus' => $paymentStatus->forClientIds($clientIds),
+            'paymentReconciliationQueue' => $this->paymentReconciliationQueue($user, $paymentReconciliations),
             'feeStatus' => $this->feeStatus($user, $serviceRates),
             'pvWaterfall' => Inertia::defer(fn (): array => [
                 ...$pvWaterfalls->forClients($clientIds),
@@ -747,6 +751,30 @@ final class StaffDashboardController extends Controller
                 'methodology_id' => 'funnel.drop_off',
             ], 'advisor-signals'),
             'panelOperations' => $this->panelOperations($user, $clientIds),
+        ];
+    }
+
+    /**
+     * @return array{available:bool,total:int,action_url:string|null,action_label:string}
+     */
+    private function paymentReconciliationQueue(
+        User $user,
+        IdeaValidationPaymentReconciliationService $paymentReconciliations,
+    ): array {
+        if ($user->user_type !== User::TYPE_SUPER_ADMIN) {
+            return [
+                'available' => false,
+                'total' => 0,
+                'action_url' => null,
+                'action_label' => 'Payment reconciliations',
+            ];
+        }
+
+        return [
+            'available' => true,
+            'total' => $paymentReconciliations->candidates()->count(),
+            'action_url' => route('admin.payment-reconciliations.index', absolute: false),
+            'action_label' => 'Review payments',
         ];
     }
 

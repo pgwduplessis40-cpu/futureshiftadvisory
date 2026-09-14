@@ -70,6 +70,22 @@ final class PaymentReconciliationTest extends TestCase
                 ->where('candidates.0.recorded_payment_amount', 115));
     }
 
+    public function test_super_admin_dashboard_announces_payment_reconciliation_candidates(): void
+    {
+        $this->mismatchedPurchase();
+        $admin = $this->superAdmin();
+
+        $this->actingAsMfa($admin)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('advisor/Dashboard')
+                ->where('paymentReconciliationQueue.available', true)
+                ->where('paymentReconciliationQueue.total', 1)
+                ->where('paymentReconciliationQueue.action_url', route('admin.payment-reconciliations.index', absolute: false))
+                ->where('paymentReconciliationQueue.action_label', 'Review payments'));
+    }
+
     public function test_a_super_admin_reconciles_a_verified_historical_quote_once_without_charging_or_refunding(): void
     {
         Notification::fake();

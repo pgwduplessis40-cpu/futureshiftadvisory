@@ -216,6 +216,7 @@ type ActionSummaryInput = Pick<
     | 'strategicPlanDeployments'
     | 'pendingTermsReacceptance'
     | 'proposalStatus'
+    | 'paymentReconciliationQueue'
     | 'paymentStatus'
     | 'feeStatus'
     | 'operationalHealth'
@@ -240,6 +241,7 @@ export function buildActionSummaryItems({
     strategicPlanDeployments,
     pendingTermsReacceptance,
     proposalStatus,
+    paymentReconciliationQueue,
     paymentStatus,
     feeStatus,
     operationalHealth,
@@ -364,6 +366,29 @@ export function buildActionSummaryItems({
                   ),
               }
             : null;
+    const paymentReconciliationAction =
+        paymentReconciliationQueue.available &&
+        paymentReconciliationQueue.action_url
+            ? {
+                  key: 'payment-reconciliations',
+                  label: 'Stripe payment reviews',
+                  value: paymentReconciliationQueue.total,
+                  statusLabel:
+                      paymentReconciliationQueue.total > 0 ? 'Review' : 'Clear',
+                  href: paymentReconciliationQueue.action_url,
+                  targetId: 'advisor-command-centre',
+                  tab: 'priorities' as const,
+                  priority:
+                      paymentReconciliationQueue.total > 0
+                          ? ('warning' as const)
+                          : ('neutral' as const),
+                  explanation:
+                      'Stripe payment reviews are succeeded payments whose stored historical quote does not match the recorded amount.',
+                  nextStep:
+                      'Open Payment reconciliations, verify the existing Stripe evidence and original quote, then approve the audited recovery without creating another charge.',
+                  icon: <CreditCard className="size-4" aria-hidden="true" />,
+              }
+            : null;
     const redFlagAction =
         redFlags.summary.open > 0
             ? {
@@ -410,6 +435,7 @@ export function buildActionSummaryItems({
         },
         ...(redFlagAction ? [redFlagAction] : []),
         ...(clientTransferAction ? [clientTransferAction] : []),
+        ...(paymentReconciliationAction ? [paymentReconciliationAction] : []),
         {
             key: 'documents',
             label: 'Document review',

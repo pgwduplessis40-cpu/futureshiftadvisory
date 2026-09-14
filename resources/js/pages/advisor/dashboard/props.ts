@@ -15,6 +15,7 @@ import type {
     NpoPendingConversionsPayload,
     OperationalHealthPayload,
     PanelOperationsPayload,
+    PaymentReconciliationQueuePayload,
     PaymentStatusPayload,
     PracticeHealthPayload,
     ProposalStatusPayload,
@@ -50,6 +51,7 @@ export type DashboardProps = {
     practiceHealth?: PracticeHealthPayload;
     proposalStatus: ProposalStatusPayload;
     paymentStatus: PaymentStatusPayload;
+    paymentReconciliationQueue: PaymentReconciliationQueuePayload;
     feeStatus: FeeStatusPayload;
     questionnaireOptimisation?: QuestionnaireOptimisationPayload;
     wellbeingAnalytics?: WellbeingAnalyticsPayload;
