@@ -150,9 +150,9 @@ final class PracticeAccountingConnector
         $this->assertProvider($provider);
 
         return [
-            'accounting.transactions',
-            'accounting.invoices',
             'accounting.contacts',
+            'accounting.invoices',
+            'accounting.payments',
             'offline_access',
         ];
     }
