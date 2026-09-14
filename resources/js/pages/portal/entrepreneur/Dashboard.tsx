@@ -239,6 +239,7 @@ type Props = {
     inspirationBoard: InspirationPost | null;
     messagesUrl: string;
     planWorkspaceUrl: string;
+    planBudgetUrl: string;
     isIdeaValidationOnly: boolean;
     ideaValidationSubmitted: boolean;
     ideaValidationApproved: boolean;
@@ -258,6 +259,7 @@ export default function EntrepreneurDashboard({
     inspirationBoard,
     messagesUrl,
     planWorkspaceUrl,
+    planBudgetUrl,
     isIdeaValidationOnly,
     ideaValidationSubmitted,
     ideaValidationApproved,
@@ -461,6 +463,26 @@ export default function EntrepreneurDashboard({
                                         </Link>
                                     </Button>
                                 </ActionPanel>
+
+                                {isIdeaValidationOnly &&
+                                ideaValidationApproved ? (
+                                    <ActionPanel
+                                        icon={ClipboardCheck}
+                                        title="Business Plan & Budget"
+                                        value="Available"
+                                        explanation="Your advisor-approved Idea Validation is ready to carry into the Business Plan & Budget workspace after secure checkout."
+                                    >
+                                        <Button
+                                            asChild
+                                            size="sm"
+                                            variant="outline"
+                                        >
+                                            <Link href={planBudgetUrl}>
+                                                View BP&amp;B options
+                                            </Link>
+                                        </Button>
+                                    </ActionPanel>
+                                ) : null}
 
                                 <ActionPanel
                                     hidden={isIdeaValidationOnly}

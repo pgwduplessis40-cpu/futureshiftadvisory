@@ -49,7 +49,7 @@ final class LiveStripeClient implements StripeClient
                     'form_params' => $this->params([
                         'amount' => (int) round(((float) $request->amount) * 100),
                         'currency' => strtolower($request->currency),
-                        'description' => 'Future Shift Advisory Idea Validation',
+                        'description' => $request->description,
                         'receipt_email' => $request->customerEmail,
                         'automatic_payment_methods' => [
                             'enabled' => 'true',
@@ -58,7 +58,7 @@ final class LiveStripeClient implements StripeClient
                             'purchase_id' => $request->purchaseId,
                             'payment_id' => $request->paymentId,
                             'client_id' => $request->clientId,
-                            'purchase_type' => 'idea_validation',
+                            'purchase_type' => $request->purchaseType,
                         ], $request->metadata),
                     ]),
                 ],

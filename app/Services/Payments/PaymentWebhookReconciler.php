@@ -11,6 +11,7 @@ use App\Models\PaymentWebhookEvent;
 use App\Services\Accounting\IdeaValidationPaymentLedger;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\IdeaValidationCheckout;
+use App\Services\Entrepreneurs\EntrepreneurPlanBudgetCheckout;
 use App\Support\RequestContext;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,7 @@ final class PaymentWebhookReconciler
         private readonly RequestContext $context,
         private readonly InstallmentPaymentProcessor $installments,
         private readonly IdeaValidationCheckout $ideaValidationCheckout,
+        private readonly EntrepreneurPlanBudgetCheckout $planBudgetCheckout,
         private readonly IdeaValidationPaymentLedger $accountingLedger,
     ) {}
 
@@ -148,7 +150,8 @@ final class PaymentWebhookReconciler
         // A Stripe charge can be valid for its Payment record while the
         // public checkout's persisted quote is not. Do not activate a buyer
         // against a different amount from the one displayed to them.
-        $quoteMismatch = $this->ideaValidationCheckout->paymentQuoteMismatchReason($payment);
+        $quoteMismatch = $this->ideaValidationCheckout->paymentQuoteMismatchReason($payment)
+            ?? $this->planBudgetCheckout->paymentQuoteMismatchReason($payment);
         if ($quoteMismatch !== null) {
             return $this->fail($event, $payment, $quoteMismatch);
         }
@@ -190,7 +193,12 @@ final class PaymentWebhookReconciler
             $this->scalarString($intent['id'] ?? null) ?? (string) $payment->gateway_ref,
             $processedAt,
         );
-        $receipt = $ideaValidationPurchase instanceof IdeaValidationPurchase
+        $planBudgetPurchase = $this->planBudgetCheckout->settleFromWebhook(
+            $payment->refresh(),
+            $this->scalarString($intent['id'] ?? null) ?? (string) $payment->gateway_ref,
+            $processedAt,
+        );
+        $receipt = $ideaValidationPurchase instanceof IdeaValidationPurchase || $planBudgetPurchase !== null
             ? $payment->refresh()->receipt()->firstOrFail()
             : $this->receipts->create($payment->refresh());
 
@@ -201,6 +209,7 @@ final class PaymentWebhookReconciler
             'status' => Payment::STATUS_SUCCEEDED,
             'receipt_id' => $receipt->getKey(),
             'idea_validation_purchase_id' => $ideaValidationPurchase?->getKey(),
+            'entrepreneur_plan_budget_purchase_id' => $planBudgetPurchase?->getKey(),
         ]);
 
         return $this->finish($event, PaymentWebhookEvent::STATUS_PROCESSED, $payment);

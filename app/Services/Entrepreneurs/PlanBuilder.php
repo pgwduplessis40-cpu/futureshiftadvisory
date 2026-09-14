@@ -6,7 +6,6 @@ namespace App\Services\Entrepreneurs;
 
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurProfile;
-use App\Models\IdeaValidation;
 use App\Models\PlanSection;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
@@ -18,6 +17,7 @@ final class PlanBuilder
 {
     public function __construct(
         private readonly SharedPlanBuilder $plans,
+        private readonly ApprovedIdeaPlanStarter $approvedIdeaPlans,
         private readonly IdeaValidationService $ideaValidations,
         private readonly AuditWriter $audit,
         private readonly EntrepreneurMilestones $milestones,
@@ -31,37 +31,16 @@ final class PlanBuilder
         }
 
         return DB::transaction(function () use ($profile, $actor): BusinessPlan {
-            $latestValidation = IdeaValidation::query()
+            $latestValidation = \App\Models\IdeaValidation::query()
                 ->where('entrepreneur_profile_id', $profile->getKey())
                 ->whereNotNull('advisor_gate_passed_at')
                 ->latest('advisor_gate_passed_at')
                 ->first();
-            $plan = $this->plans->createOrUpdateForEntrepreneur($profile, [
-                'title' => 'Business plan: '.$profile->name,
-                'status' => BusinessPlan::STATUS_BUILDING,
-                'current_phase' => 1,
-            ], $actor);
-
-            if ($latestValidation instanceof IdeaValidation) {
-                $this->plans->upsertSection(
-                    plan: $plan,
-                    phaseKey: 'foundation',
-                    key: 'idea-validation-summary',
-                    title: 'Validated concept foundation',
-                    body: sprintf(
-                        "Problem: %s\nTarget customer: %s\nSolution: %s\nValue proposition: %s",
-                        $latestValidation->problem,
-                        $latestValidation->target_customer,
-                        $latestValidation->solution,
-                        $latestValidation->value_proposition,
-                    ),
-                    sourceType: BusinessPlan::SOURCE_ENTREPRENEUR,
-                    metadata: [
-                        'idea_validation_id' => $latestValidation->getKey(),
-                        'viability_alerts' => $latestValidation->viability_alerts ?? [],
-                    ],
-                );
+            if (! $latestValidation instanceof \App\Models\IdeaValidation) {
+                throw new InvalidArgumentException('The entrepreneur plan builder is locked until an advisor passes the idea-validation gate.');
             }
+
+            $plan = $this->approvedIdeaPlans->start($profile, $latestValidation, $actor);
 
             $this->audit->record('entrepreneur.plan_started', subject: $plan, actor: $actor, after: [
                 'entrepreneur_profile_id' => $profile->getKey(),

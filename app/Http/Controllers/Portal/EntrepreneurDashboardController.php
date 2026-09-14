@@ -144,6 +144,7 @@ final class EntrepreneurDashboardController extends Controller
             'inspirationBoard' => $this->inspirationBoardPayload(),
             'messagesUrl' => route('portal.messages.index', absolute: false),
             'planWorkspaceUrl' => route('portal.entrepreneur.plan.show', absolute: false),
+            'planBudgetUrl' => route('portal.entrepreneur.plan-budget.show', absolute: false),
             'isIdeaValidationOnly' => $packageAccess !== null
                 && $packageAccess['includes_idea_validation']
                 && ! $packageAccess['includes_plan_budget'],
