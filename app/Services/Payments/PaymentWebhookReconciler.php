@@ -8,6 +8,7 @@ use App\Models\IdeaValidationPurchase;
 use App\Models\Payment;
 use App\Models\PaymentSchedule;
 use App\Models\PaymentWebhookEvent;
+use App\Services\Accounting\IdeaValidationPaymentLedger;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\IdeaValidationCheckout;
 use App\Support\RequestContext;
@@ -23,6 +24,7 @@ final class PaymentWebhookReconciler
         private readonly RequestContext $context,
         private readonly InstallmentPaymentProcessor $installments,
         private readonly IdeaValidationCheckout $ideaValidationCheckout,
+        private readonly IdeaValidationPaymentLedger $accountingLedger,
     ) {}
 
     /**
@@ -30,12 +32,26 @@ final class PaymentWebhookReconciler
      */
     public function handleStripe(array $payload): PaymentWebhookEvent
     {
-        return $this->context->withSystemContext(function () use ($payload): PaymentWebhookEvent {
+        $event = $this->context->withSystemContext(function () use ($payload): PaymentWebhookEvent {
             return DB::transaction(fn (): PaymentWebhookEvent => $this->recordAndProcess(
                 gateway: 'stripe',
                 payload: $payload,
             ));
         });
+
+        if ($event->event_type === 'payment_intent.succeeded' && $event->payment_id !== null) {
+            try {
+                $this->accountingLedger->recordSucceededPaymentById((string) $event->payment_id);
+            } catch (\Throwable $exception) {
+                $this->audit->record('payment_accounting_sync.unexpected_failure', after: [
+                    'event_id' => $event->event_id,
+                    'payment_id' => $event->payment_id,
+                    'message' => Str::limit($exception->getMessage(), 1000, ''),
+                ]);
+            }
+        }
+
+        return $event;
     }
 
     /**

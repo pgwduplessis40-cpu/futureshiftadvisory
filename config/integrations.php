@@ -209,6 +209,7 @@ return [
             'invoice_status' => env('XERO_INVOICE_STATUS', 'DRAFT'),
             'sales_account_code' => env('XERO_SALES_ACCOUNT_CODE', '200'),
             'sales_tax_type' => env('XERO_SALES_TAX_TYPE', 'OUTPUT2'),
+            'stripe_clearing_account_code' => env('XERO_STRIPE_CLEARING_ACCOUNT_CODE'),
             'invoice_due_days' => env('XERO_INVOICE_DUE_DAYS', 0),
             'client_id' => env('XERO_CLIENT_ID'),
             'client_secret' => env('XERO_CLIENT_SECRET'),

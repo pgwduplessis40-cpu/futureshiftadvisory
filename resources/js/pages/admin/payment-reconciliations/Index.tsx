@@ -26,6 +26,47 @@ type Candidate = {
 
 type Props = {
     candidates: Candidate[];
+    accounting: {
+        backfill_candidates: AccountingBackfillCandidate[];
+        sync_candidates: AccountingSyncCandidate[];
+        refund_exceptions: RefundException[];
+    };
+};
+
+type AccountingBackfillCandidate = {
+    id: string;
+    customer_name: string | null;
+    customer_email: string | null;
+    currency: string;
+    amount: number;
+    payment_reference: string | null;
+    backfill_url: string;
+};
+
+type AccountingSyncCandidate = {
+    id: string;
+    customer_name: string | null;
+    customer_email: string | null;
+    currency: string;
+    amount: number;
+    status: string;
+    refund_status: string;
+    error_message: string | null;
+    refund_error_message: string | null;
+    payment_reference: string | null;
+    retry_url: string;
+};
+
+type RefundException = {
+    id: string;
+    customer_name: string | null;
+    customer_email: string | null;
+    currency: string;
+    amount: number;
+    status: string;
+    failure_reason: string | null;
+    payment_reference: string;
+    refund_reference: string | null;
 };
 
 type ReconciliationForm = {
@@ -37,7 +78,15 @@ type ReconciliationForm = {
     payment?: never;
 };
 
-export default function PaymentReconciliationsIndex({ candidates }: Props) {
+type AccountingForm = {
+    reason: string;
+    confirmation: boolean;
+};
+
+export default function PaymentReconciliationsIndex({
+    candidates,
+    accounting,
+}: Props) {
     return (
         <>
             <Head title="Payment reconciliations" />
@@ -47,7 +96,7 @@ export default function PaymentReconciliationsIndex({ candidates }: Props) {
                     eyebrow="Administration"
                     icon={ShieldCheck}
                     title="Payment reconciliations"
-                    description="Recover only exceptional Stripe-confirmed payments whose stored historical quote no longer matches the recorded payment. This does not create a new charge or alter Stripe."
+                    description="Review exceptional Stripe payments, controlled Xero backfills, and any accounting export that needs attention. This never creates another customer charge."
                 />
 
                 <section className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
@@ -96,8 +145,271 @@ export default function PaymentReconciliationsIndex({ candidates }: Props) {
                         ))}
                     </div>
                 )}
+
+                <AccountingLedger
+                    backfillCandidates={accounting.backfill_candidates}
+                    syncCandidates={accounting.sync_candidates}
+                    refundExceptions={accounting.refund_exceptions}
+                />
             </div>
         </>
+    );
+}
+
+function AccountingLedger({
+    backfillCandidates,
+    syncCandidates,
+    refundExceptions,
+}: {
+    backfillCandidates: AccountingBackfillCandidate[];
+    syncCandidates: AccountingSyncCandidate[];
+    refundExceptions: RefundException[];
+}) {
+    return (
+        <section className="space-y-5 rounded-lg border p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h2 className="text-lg font-semibold">
+                        Stripe to Xero ledger
+                    </h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        A controlled backfill creates the customer, GST-correct
+                        sales invoice, and settled Stripe receipt in Xero. A
+                        confirmed refund then creates its linked credit note.
+                    </p>
+                </div>
+                <Badge variant="outline">
+                    {backfillCandidates.length +
+                        syncCandidates.length +
+                        refundExceptions.length}{' '}
+                    review
+                    {backfillCandidates.length +
+                        syncCandidates.length +
+                        refundExceptions.length ===
+                    1
+                        ? ''
+                        : 's'}
+                </Badge>
+            </div>
+
+            {backfillCandidates.length === 0 &&
+            syncCandidates.length === 0 &&
+            refundExceptions.length === 0 ? (
+                <p className="rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">
+                    No Stripe payments or refunds are waiting for a Xero
+                    accounting action.
+                </p>
+            ) : (
+                <div className="space-y-4">
+                    {backfillCandidates.map((candidate) => (
+                        <AccountingBackfillCard
+                            key={candidate.id}
+                            candidate={candidate}
+                        />
+                    ))}
+                    {syncCandidates.map((candidate) => (
+                        <AccountingSyncCard
+                            key={candidate.id}
+                            candidate={candidate}
+                        />
+                    ))}
+                    {refundExceptions.map((refund) => (
+                        <RefundExceptionCard key={refund.id} refund={refund} />
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function RefundExceptionCard({ refund }: { refund: RefundException }) {
+    return (
+        <article className="space-y-3 rounded-md border border-destructive/30 bg-destructive/5 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h3 className="font-medium">
+                        {refund.customer_name ?? 'Idea Validation customer'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                        {refund.customer_email ?? 'No customer email'}
+                    </p>
+                </div>
+                <Badge variant="outline">Stripe refund {refund.status}</Badge>
+            </div>
+            <p className="text-sm">
+                {money(refund.amount, refund.currency)} · original payment{' '}
+                <span className="font-mono break-all">
+                    {refund.payment_reference}
+                </span>
+            </p>
+            {refund.refund_reference && (
+                <p className="text-sm">
+                    Stripe refund reference:{' '}
+                    <span className="font-mono break-all">
+                        {refund.refund_reference}
+                    </span>
+                </p>
+            )}
+            <p className="rounded-md bg-background/80 p-3 text-sm">
+                {refund.failure_reason ??
+                    'Stripe has accepted the refund, but it has not yet been linked to a completed Xero ledger reversal.'}
+            </p>
+        </article>
+    );
+}
+
+function AccountingBackfillCard({
+    candidate,
+}: {
+    candidate: AccountingBackfillCandidate;
+}) {
+    const form = useForm<AccountingForm>({ reason: '', confirmation: false });
+
+    function submit(event: FormEvent) {
+        event.preventDefault();
+        form.post(candidate.backfill_url, { preserveScroll: true });
+    }
+
+    return (
+        <article className="space-y-4 rounded-md border border-amber-300 bg-amber-50/50 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h3 className="font-medium">
+                        {candidate.customer_name ?? 'Idea Validation customer'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                        {candidate.customer_email ?? 'No customer email'}
+                    </p>
+                </div>
+                <Badge variant="outline">Backfill approval required</Badge>
+            </div>
+            <p className="text-sm">
+                Settled in Stripe:{' '}
+                <strong>{money(candidate.amount, candidate.currency)}</strong>
+                {candidate.payment_reference
+                    ? ` · ${candidate.payment_reference}`
+                    : ''}
+            </p>
+            <form
+                onSubmit={submit}
+                className="space-y-3 border-t border-amber-200 pt-4"
+            >
+                <div className="grid gap-1.5">
+                    <Label htmlFor={`accounting-reason-${candidate.id}`}>
+                        Evidence for this Xero backfill
+                    </Label>
+                    <textarea
+                        id={`accounting-reason-${candidate.id}`}
+                        rows={2}
+                        maxLength={1000}
+                        value={form.data.reason}
+                        onChange={(event) =>
+                            form.setData('reason', event.target.value)
+                        }
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        placeholder="For example: Stripe payment and original GST quote have been verified."
+                    />
+                    <InputError message={form.errors.reason} />
+                </div>
+                <label
+                    className="flex items-start gap-2 text-sm"
+                    htmlFor={`accounting-confirmation-${candidate.id}`}
+                >
+                    <input
+                        id={`accounting-confirmation-${candidate.id}`}
+                        name="confirmation"
+                        type="checkbox"
+                        checked={form.data.confirmation}
+                        onChange={(event) =>
+                            form.setData('confirmation', event.target.checked)
+                        }
+                        className="mt-1 size-4"
+                    />
+                    <span>
+                        I have verified the Stripe amount and historical GST
+                        quote. Create the corresponding Xero ledger entries.
+                    </span>
+                </label>
+                <InputError message={form.errors.confirmation} />
+                <Button type="submit" disabled={form.processing}>
+                    {form.processing
+                        ? 'Creating Xero entries…'
+                        : 'Approve Xero backfill'}
+                </Button>
+            </form>
+        </article>
+    );
+}
+
+function AccountingSyncCard({
+    candidate,
+}: {
+    candidate: AccountingSyncCandidate;
+}) {
+    const form = useForm<Pick<AccountingForm, 'confirmation'>>({
+        confirmation: false,
+    });
+
+    function submit(event: FormEvent) {
+        event.preventDefault();
+        form.post(candidate.retry_url, { preserveScroll: true });
+    }
+
+    return (
+        <article className="space-y-4 rounded-md border p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h3 className="font-medium">
+                        {candidate.customer_name ?? 'Idea Validation customer'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                        {candidate.customer_email ?? 'No customer email'}
+                    </p>
+                </div>
+                <Badge variant="outline">
+                    Xero {candidate.status} · refund {candidate.refund_status}
+                </Badge>
+            </div>
+            <p className="text-sm">
+                {money(candidate.amount, candidate.currency)}
+                {candidate.payment_reference
+                    ? ` · ${candidate.payment_reference}`
+                    : ''}
+            </p>
+            {(candidate.error_message || candidate.refund_error_message) && (
+                <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                    {candidate.refund_error_message ?? candidate.error_message}
+                </p>
+            )}
+            <form onSubmit={submit} className="space-y-3 border-t pt-4">
+                <label
+                    className="flex items-start gap-2 text-sm"
+                    htmlFor={`accounting-retry-${candidate.id}`}
+                >
+                    <input
+                        id={`accounting-retry-${candidate.id}`}
+                        name="confirmation"
+                        type="checkbox"
+                        checked={form.data.confirmation}
+                        onChange={(event) =>
+                            form.setData('confirmation', event.target.checked)
+                        }
+                        className="mt-1 size-4"
+                    />
+                    <span>
+                        Retry the stored Xero export. The same ledger reference
+                        will be used, so this will not create a second Stripe
+                        charge.
+                    </span>
+                </label>
+                <InputError message={form.errors.confirmation} />
+                <Button type="submit" disabled={form.processing}>
+                    {form.processing
+                        ? 'Retrying Xero export…'
+                        : 'Retry Xero export'}
+                </Button>
+            </form>
+        </article>
     );
 }
 

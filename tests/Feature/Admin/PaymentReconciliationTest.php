@@ -11,6 +11,7 @@ use App\Models\Client;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidationPurchase;
 use App\Models\Payment;
+use App\Models\PaymentAccountingSync;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\TermsVersion;
@@ -84,6 +85,64 @@ final class PaymentReconciliationTest extends TestCase
                 ->where('paymentReconciliationQueue.total', 1)
                 ->where('paymentReconciliationQueue.action_url', route('admin.payment-reconciliations.index', absolute: false))
                 ->where('paymentReconciliationQueue.action_label', 'Review payments'));
+    }
+
+    public function test_a_settled_matching_payment_is_visible_for_explicit_xero_backfill_and_never_exports_without_approval(): void
+    {
+        [$purchase, $buyer, $payment] = $this->mismatchedPurchase();
+        $payment->forceFill([
+            'status' => Payment::STATUS_SUCCEEDED,
+            'processed_at' => now(),
+        ])->save();
+        $purchase->forceFill([
+            'status' => IdeaValidationPurchase::STATUS_PAID,
+            'paid_at' => now(),
+            'amount_ex_gst' => '100.00',
+            'gst_amount' => '15.00',
+            'amount_including_gst' => '115.00',
+            'package_snapshot' => [
+                ...(array) $purchase->package_snapshot,
+                'fixed_fee' => '100.00',
+            ],
+        ])->save();
+        $admin = $this->superAdmin();
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.payment-reconciliations.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('accounting.backfill_candidates', 1)
+                ->where('accounting.backfill_candidates.0.customer_email', $buyer->email)
+                ->where('accounting.backfill_candidates.0.amount', 115)
+                ->where('accounting.backfill_candidates.0.backfill_url', route('admin.payment-accounting.backfill', $payment, absolute: false)));
+
+        $this->assertDatabaseCount('payment_accounting_syncs', 0);
+
+        $this->actingAsMfa($admin)
+            ->from(route('admin.payment-reconciliations.index'))
+            ->post(route('admin.payment-accounting.backfill', $payment), [
+                'reason' => 'Export the settled historical Stripe payment to the practice Xero ledger.',
+            ])
+            ->assertRedirect(route('admin.payment-reconciliations.index'))
+            ->assertSessionHasErrors('confirmation');
+
+        $this->assertDatabaseCount('payment_accounting_syncs', 0);
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.payment-accounting.backfill', $payment), [
+                'reason' => 'Export the settled historical Stripe payment to the practice Xero ledger.',
+                'confirmation' => '1',
+            ])
+            ->assertRedirect(route('admin.payment-reconciliations.index'));
+
+        $this->assertDatabaseHas('payment_accounting_syncs', [
+            'payment_id' => $payment->getKey(),
+            'status' => PaymentAccountingSync::STATUS_FAILED,
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'payment_accounting_sync.backfill_approved',
+            'subject_type' => PaymentAccountingSync::class,
+        ]);
     }
 
     public function test_a_super_admin_reconciles_a_verified_historical_quote_once_without_charging_or_refunding(): void

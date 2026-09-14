@@ -196,11 +196,11 @@ final class LiveXeroClient implements XeroClient
      * @param  array<string, mixed>  $contact
      * @return array<string, mixed>
      */
-    public function createContact(array $token, string $tenantId, array $contact): array
+    public function createContact(array $token, string $tenantId, array $contact, ?string $idempotencyKey = null): array
     {
         $this->ensureLive();
 
-        $headers = $this->xeroHeaders($this->accessToken($token), $tenantId);
+        $headers = $this->xeroHeaders($this->accessToken($token), $tenantId, $idempotencyKey);
         $result = $this->http->request(
             method: 'POST',
             service: $this->provider(),
@@ -223,11 +223,11 @@ final class LiveXeroClient implements XeroClient
      * @param  array<string, mixed>  $invoice
      * @return array<string, mixed>
      */
-    public function createInvoice(array $token, string $tenantId, array $invoice): array
+    public function createInvoice(array $token, string $tenantId, array $invoice, ?string $idempotencyKey = null): array
     {
         $this->ensureLive();
 
-        $headers = $this->xeroHeaders($this->accessToken($token), $tenantId);
+        $headers = $this->xeroHeaders($this->accessToken($token), $tenantId, $idempotencyKey);
         $result = $this->http->request(
             method: 'POST',
             service: $this->provider(),
@@ -243,6 +243,81 @@ final class LiveXeroClient implements XeroClient
         );
 
         return $this->payload($result, 'Xero invoice creation failed.');
+    }
+
+    /**
+     * @param  array{access_token:string}  $token
+     * @param  array{Invoice:array{InvoiceID:string},Account:array{Code:string},Date:string,Amount:float,Reference:string}  $payment
+     * @return array{Payments:array<int, array{PaymentID?:string,Status?:string}>}
+     */
+    public function createPayment(array $token, string $tenantId, array $payment, string $idempotencyKey): array
+    {
+        $this->ensureLive();
+
+        $headers = $this->xeroHeaders($this->accessToken($token), $tenantId, $idempotencyKey);
+        $result = $this->http->request(
+            method: 'POST',
+            service: $this->provider(),
+            endpoint: $this->accountingEndpoint('Payments'),
+            options: [
+                'headers' => $headers,
+                'json' => ['Payments' => [$payment]],
+            ],
+            cacheKey: null,
+            fallback: null,
+        );
+
+        return $this->payload($result, 'Xero payment creation failed.');
+    }
+
+    /**
+     * @param  array{access_token:string}  $token
+     * @param  array{Type:'ACCRECCREDIT',Contact:array{ContactID:string},Date:string,Status:'AUTHORISED',LineAmountTypes:'Exclusive',Reference:string,LineItems:array<int, array{Description:string,Quantity:int,UnitAmount:float,AccountCode:string,TaxType:string}>}  $creditNote
+     * @return array{CreditNotes:array<int, array{CreditNoteID?:string,CreditNoteNumber?:string,Status?:string}>}
+     */
+    public function createCreditNote(array $token, string $tenantId, array $creditNote, string $idempotencyKey): array
+    {
+        $this->ensureLive();
+
+        $headers = $this->xeroHeaders($this->accessToken($token), $tenantId, $idempotencyKey);
+        $result = $this->http->request(
+            method: 'POST',
+            service: $this->provider(),
+            endpoint: $this->accountingEndpoint('CreditNotes'),
+            options: [
+                'headers' => $headers,
+                'json' => ['CreditNotes' => [$creditNote]],
+            ],
+            cacheKey: null,
+            fallback: null,
+        );
+
+        return $this->payload($result, 'Xero credit note creation failed.');
+    }
+
+    /**
+     * @param  array{access_token:string}  $token
+     * @param  array<int, array{Invoice:array{InvoiceID:string},Amount:float,Date:string}>  $allocations
+     * @return array{Allocations:array<int, array{AllocationID?:string}>}
+     */
+    public function allocateCreditNote(array $token, string $tenantId, string $creditNoteId, array $allocations, string $idempotencyKey): array
+    {
+        $this->ensureLive();
+
+        $headers = $this->xeroHeaders($this->accessToken($token), $tenantId, $idempotencyKey);
+        $result = $this->http->request(
+            method: 'POST',
+            service: $this->provider(),
+            endpoint: $this->accountingEndpoint("CreditNotes/{$creditNoteId}/Allocations"),
+            options: [
+                'headers' => $headers,
+                'json' => ['Allocations' => $allocations],
+            ],
+            cacheKey: null,
+            fallback: null,
+        );
+
+        return $this->payload($result, 'Xero credit-note allocation failed.');
     }
 
     public function revoke(AccountingConnection $connection, array $token): void
@@ -406,13 +481,19 @@ final class LiveXeroClient implements XeroClient
     /**
      * @return array<string, string>
      */
-    private function xeroHeaders(string $accessToken, string $tenantId): array
+    private function xeroHeaders(string $accessToken, string $tenantId, ?string $idempotencyKey = null): array
     {
-        return [
+        $headers = [
             'Accept' => 'application/json',
             'Authorization' => 'Bearer '.$accessToken,
             'xero-tenant-id' => $tenantId,
         ];
+
+        if ($idempotencyKey !== null && $idempotencyKey !== '') {
+            $headers['Idempotency-Key'] = $idempotencyKey;
+        }
+
+        return $headers;
     }
 
     /**

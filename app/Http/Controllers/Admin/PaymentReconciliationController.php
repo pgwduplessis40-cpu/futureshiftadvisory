@@ -7,7 +7,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\IdeaValidationPurchase;
 use App\Models\Payment;
+use App\Models\PaymentAccountingSync;
+use App\Models\PaymentRefund;
 use App\Models\User;
+use App\Services\Accounting\IdeaValidationPaymentLedger;
+use App\Services\Audit\AuditWriter;
 use App\Services\Payments\IdeaValidationHistoricalQuote;
 use App\Services\Payments\IdeaValidationPaymentReconciliationService;
 use Illuminate\Http\RedirectResponse;
@@ -17,7 +21,11 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class PaymentReconciliationController extends Controller
 {
-    public function __construct(private readonly IdeaValidationPaymentReconciliationService $reconciliations) {}
+    public function __construct(
+        private readonly IdeaValidationPaymentReconciliationService $reconciliations,
+        private readonly IdeaValidationPaymentLedger $accountingLedger,
+        private readonly AuditWriter $audit,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -26,6 +34,20 @@ final class PaymentReconciliationController extends Controller
                 ->candidates()
                 ->map(fn (IdeaValidationPurchase $purchase): array => $this->candidatePayload($purchase))
                 ->all(),
+            'accounting' => [
+                'backfill_candidates' => $this->accountingLedger
+                    ->backfillCandidates()
+                    ->map(fn (Payment $payment): array => $this->backfillPayload($payment))
+                    ->all(),
+                'sync_candidates' => $this->accountingLedger
+                    ->outstanding()
+                    ->map(fn (PaymentAccountingSync $sync): array => $this->syncPayload($sync))
+                    ->all(),
+                'refund_exceptions' => $this->accountingLedger
+                    ->refundExceptions()
+                    ->map(fn (PaymentRefund $refund): array => $this->refundPayload($refund))
+                    ->all(),
+            ],
         ])->toResponse($request);
         $response->headers->set('Cache-Control', 'private, no-store, max-age=0');
 
@@ -54,6 +76,36 @@ final class PaymentReconciliationController extends Controller
 
         return to_route('admin.payment-reconciliations.index')
             ->with('status', 'idea-validation-payment-reconciled');
+    }
+
+    public function backfill(Request $request, Payment $payment): RedirectResponse
+    {
+        $actor = $this->superAdmin($request);
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:1000'],
+            'confirmation' => ['accepted'],
+        ]);
+
+        $sync = $this->accountingLedger->backfill($payment, $actor);
+        $this->audit->record('payment_accounting_sync.backfill_approved', subject: $sync, actor: $actor, after: [
+            'payment_id' => $payment->getKey(),
+            'reason' => trim($validated['reason']),
+            'status' => $sync->status,
+        ]);
+
+        return to_route('admin.payment-reconciliations.index')
+            ->with('status', 'payment-accounting-backfill-started');
+    }
+
+    public function retry(Request $request, PaymentAccountingSync $sync): RedirectResponse
+    {
+        $actor = $this->superAdmin($request);
+        $request->validate(['confirmation' => ['accepted']]);
+
+        $this->accountingLedger->retry($sync, $actor);
+
+        return to_route('admin.payment-reconciliations.index')
+            ->with('status', 'payment-accounting-sync-retried');
     }
 
     /**
@@ -94,6 +146,62 @@ final class PaymentReconciliationController extends Controller
             ],
             'stripe_payment_intent_ref' => $payment->gateway_ref,
             'reconcile_url' => route('admin.payment-reconciliations.reconcile', $purchase, absolute: false),
+        ];
+    }
+
+    /**
+     * @return array{id:string,customer_name:string|null,customer_email:string|null,currency:string,amount:float,payment_reference:string|null,backfill_url:string}
+     */
+    private function backfillPayload(Payment $payment): array
+    {
+        return [
+            'id' => $payment->getKey(),
+            'customer_name' => $payment->ideaValidationPurchase?->user?->name,
+            'customer_email' => $payment->ideaValidationPurchase?->user?->email,
+            'currency' => strtoupper((string) $payment->currency),
+            'amount' => (float) $payment->amount,
+            'payment_reference' => $payment->gateway_ref,
+            'backfill_url' => route('admin.payment-accounting.backfill', $payment, absolute: false),
+        ];
+    }
+
+    /**
+     * @return array{id:string,customer_name:string|null,customer_email:string|null,currency:string,amount:float,status:string,refund_status:string,error_message:string|null,refund_error_message:string|null,payment_reference:string|null,retry_url:string}
+     */
+    private function syncPayload(PaymentAccountingSync $sync): array
+    {
+        $payment = $sync->payment;
+
+        return [
+            'id' => $sync->getKey(),
+            'customer_name' => $payment?->ideaValidationPurchase?->user?->name,
+            'customer_email' => $payment?->ideaValidationPurchase?->user?->email,
+            'currency' => strtoupper((string) $sync->currency),
+            'amount' => (float) $sync->amount_including_gst,
+            'status' => $sync->status,
+            'refund_status' => $sync->refund_status,
+            'error_message' => $sync->error_message,
+            'refund_error_message' => $sync->refund_error_message,
+            'payment_reference' => $payment?->gateway_ref,
+            'retry_url' => route('admin.payment-accounting.retry', $sync, absolute: false),
+        ];
+    }
+
+    /**
+     * @return array{id:string,customer_name:string|null,customer_email:string|null,currency:string,amount:float,status:string,failure_reason:string|null,payment_reference:string,refund_reference:string|null}
+     */
+    private function refundPayload(PaymentRefund $refund): array
+    {
+        return [
+            'id' => $refund->getKey(),
+            'customer_name' => $refund->requestedBy?->name,
+            'customer_email' => $refund->requestedBy?->email,
+            'currency' => strtoupper((string) $refund->currency),
+            'amount' => (float) $refund->amount,
+            'status' => $refund->status,
+            'failure_reason' => $refund->failure_reason,
+            'payment_reference' => $refund->payment_reference,
+            'refund_reference' => $refund->gateway_ref,
         ];
     }
 

@@ -92,6 +92,12 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::post('payment-reconciliations/{purchase}', [PaymentReconciliationController::class, 'reconcile'])
                 ->middleware('require.fresh-step-up')
                 ->name('payment-reconciliations.reconcile');
+            Route::post('payment-accounting/{payment}/backfill', [PaymentReconciliationController::class, 'backfill'])
+                ->middleware('require.fresh-step-up')
+                ->name('payment-accounting.backfill');
+            Route::post('payment-accounting/{sync}/retry', [PaymentReconciliationController::class, 'retry'])
+                ->middleware('require.fresh-step-up')
+                ->name('payment-accounting.retry');
 
             Route::get('questionnaires', [QuestionnaireController::class, 'index'])->name('questionnaires.index');
             Route::post('questionnaires', [QuestionnaireController::class, 'store'])->name('questionnaires.store');

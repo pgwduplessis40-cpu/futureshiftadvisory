@@ -371,7 +371,7 @@ export function buildActionSummaryItems({
         paymentReconciliationQueue.action_url
             ? {
                   key: 'payment-reconciliations',
-                  label: 'Stripe payment reviews',
+                  label: 'Payment & Xero reviews',
                   value: paymentReconciliationQueue.total,
                   statusLabel:
                       paymentReconciliationQueue.total > 0 ? 'Review' : 'Clear',
@@ -383,9 +383,9 @@ export function buildActionSummaryItems({
                           ? ('warning' as const)
                           : ('neutral' as const),
                   explanation:
-                      'Stripe payment reviews are succeeded payments whose stored historical quote does not match the recorded amount.',
+                      'Payment and Xero reviews include historical quote mismatches plus settled Stripe payments or refunds that still need an accounting export.',
                   nextStep:
-                      'Open Payment reconciliations, verify the existing Stripe evidence and original quote, then approve the audited recovery without creating another charge.',
+                      'Open Payment reconciliations, verify the Stripe evidence and historical price, then approve a controlled Xero backfill or retry without creating another charge.',
                   icon: <CreditCard className="size-4" aria-hidden="true" />,
               }
             : null;

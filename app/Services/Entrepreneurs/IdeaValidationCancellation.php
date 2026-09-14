@@ -12,6 +12,7 @@ use App\Models\PaymentRefund;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\User;
+use App\Services\Accounting\IdeaValidationPaymentLedger;
 use App\Services\Audit\AuditWriter;
 use App\Services\Clients\LifecycleManager;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
@@ -31,6 +32,7 @@ final class IdeaValidationCancellation
         private readonly GstCalculator $gst,
         private readonly LifecycleManager $lifecycle,
         private readonly AuditWriter $audit,
+        private readonly IdeaValidationPaymentLedger $accountingLedger,
     ) {}
 
     /**
@@ -210,6 +212,8 @@ final class IdeaValidationCancellation
         if ($client instanceof Client && $client->status !== ClientStatus::SUSPENDED) {
             $this->lifecycle->suspend($client, $user, 'Idea Validation cancelled by the client after Stripe accepted the refund.');
         }
+
+        $this->accountingLedger->recordAcceptedRefund($refund, $user);
 
         return $refund;
     }
