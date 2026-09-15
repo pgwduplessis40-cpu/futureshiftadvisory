@@ -179,6 +179,38 @@ final class OnboardingWizardTest extends TestCase
                 ->where('workspaces.items.1.label', 'Integration scoping'));
     }
 
+    public function test_standard_advisory_journey_routes_to_the_missing_questionnaire_not_a_submitted_review_step(): void
+    {
+        $this->seed(RoleSeeder::class);
+        [$user, $client] = $this->clientUserWithClient(EngagementType::STANDARD_ADVISORY);
+        $client->forceFill([
+            'onboarding_wizard_state' => [
+                'journey_version' => 4,
+                'current_step' => 6,
+                'completed_steps' => [
+                    OnboardingWizard::STEP_WELCOME,
+                    OnboardingWizard::STEP_GOALS,
+                    OnboardingWizard::STEP_WEBSITE,
+                    OnboardingWizard::STEP_QUESTIONNAIRE,
+                    OnboardingWizard::STEP_DOCUMENTS,
+                    OnboardingWizard::STEP_REVIEW,
+                ],
+                'submitted_at' => now()->toIso8601String(),
+            ],
+        ])->save();
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('portal/Dashboard')
+                ->where('serviceJourney.primary.status_label', 'Waiting for questionnaire')
+                ->where('serviceJourney.primary.action_url', route('portal.onboarding.step', [
+                    'step' => OnboardingWizard::STEP_QUESTIONNAIRE,
+                ]))
+                ->where('serviceJourney.primary.action_label', 'Continue'));
+    }
+
     public function test_post_acquisition_dashboard_shows_included_business_plan_budget_workspace(): void
     {
         $this->seed(RoleSeeder::class);
