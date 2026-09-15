@@ -478,9 +478,10 @@ final class DashboardController extends Controller
     ): array {
         if (is_array($standardAdvisory)) {
             $nextMomentum = collect((array) data_get($standardAdvisory, 'momentum.items', []))
-                ->first(fn (array $item): bool => !in_array((string) ($item['status'] ?? ''), ['complete', 'not_required'], true));
+                ->first(fn (array $item): bool => ! in_array((string) ($item['status'] ?? ''), ['complete', 'not_required'], true));
             $owner = data_get($nextMomentum, 'owner') === 'advisor' ? 'fsa' : 'client';
             $reportUrl = data_get($standardAdvisory, 'client_report.view_url');
+
             return $this->journeyPrimary(
                 serviceType: EngagementType::STANDARD_ADVISORY->value,
                 serviceLabel: 'Standard Advisory',
@@ -498,7 +499,6 @@ final class DashboardController extends Controller
                 timeframe: $owner === 'client' ? 'Actionable now' : 'With FSA',
             );
         }
-
         if (is_array($postAcquisition)) {
             $gapSubmitted = (bool) data_get($postAcquisition, 'gap_questionnaire.submitted', false);
             $proposalUrl = data_get($postAcquisition, 'proposal.signoff_url');
