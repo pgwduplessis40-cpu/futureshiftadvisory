@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { ArrowRight, CheckCircle2, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatNzdCurrency } from '@/lib/formatters';
+import { PlanBudgetCheckout } from './plan-budget-checkout';
 
 type Offer = {
     available: boolean;
@@ -14,11 +15,25 @@ export default function PlanBudgetAccess({
     hasPlanBudgetAccess,
     ideaValidationApproved,
     offer,
+    purchase,
+    checkoutUrls,
     workspaceUrl,
 }: {
     hasPlanBudgetAccess: boolean;
     ideaValidationApproved: boolean;
     offer: Offer;
+    purchase: {
+        status: string;
+        amount_ex_gst: number | null;
+        gst_amount: number | null;
+        amount_including_gst: number | null;
+        currency: string | null;
+    } | null;
+    checkoutUrls: {
+        paymentIntent: string;
+        confirmPayment: string;
+        confirmFixturePayment: string;
+    };
     workspaceUrl: string;
 }) {
     const price =
@@ -99,11 +114,19 @@ export default function PlanBudgetAccess({
                                     Business Plan &amp; Budget is ready for your
                                     next step{price ? ` — ${price}.` : '.'}
                                 </p>
-                                <p className="mt-3 text-sm text-muted-foreground">
-                                    Secure self-service checkout is the next
-                                    release step; an advisor remains assigned to
-                                    you once it is purchased.
-                                </p>
+                                {offer.available ? (
+                                    <PlanBudgetCheckout
+                                        offer={offer}
+                                        purchase={purchase}
+                                        urls={checkoutUrls}
+                                    />
+                                ) : (
+                                    <p className="mt-3 text-sm text-muted-foreground">
+                                        Checkout is temporarily unavailable
+                                        while the current Service Rate is being
+                                        confirmed.
+                                    </p>
+                                )}
                             </div>
                         </div>
                     </section>

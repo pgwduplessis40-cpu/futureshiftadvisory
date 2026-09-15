@@ -96,6 +96,14 @@ final class Payment extends Model
     }
 
     /**
+     * @return HasOne<EntrepreneurPlanBudgetPurchase, $this>
+     */
+    public function entrepreneurPlanBudgetPurchase(): HasOne
+    {
+        return $this->hasOne(EntrepreneurPlanBudgetPurchase::class);
+    }
+
+    /**
      * @return HasOne<PaymentAccountingSync, $this>
      */
     public function accountingSync(): HasOne

@@ -418,7 +418,7 @@ final class IdeaValidationService implements ProvidesMethodology
             ]);
         }
 
-        return DB::transaction(function () use ($validation, $advisor, $gate, $note): IdeaValidation {
+        $approved = DB::transaction(function () use ($validation, $advisor, $gate, $note): IdeaValidation {
             $evaluation = $validation->ai_evaluation ?? [];
             data_set($evaluation, 'metadata.advisor_gate_status', 'approved');
             data_set($evaluation, 'metadata.advisor_gate_approved_at', now()->toIso8601String());
@@ -444,6 +444,16 @@ final class IdeaValidationService implements ProvidesMethodology
 
             return $validation->refresh();
         });
+
+        // A client may have purchased the BP&B add-on before their advisor
+        // passed the gate. Provisioning is idempotent and also runs after a
+        // post-approval purchase, so the two events are order-independent.
+        app(EntrepreneurPlanBudgetProvisioner::class)->provision(
+            $approved->entrepreneurProfile()->firstOrFail(),
+            $advisor,
+        );
+
+        return $approved->refresh();
     }
 
     public function requestChanges(IdeaValidation $validation, User $advisor, string $feedback): IdeaValidation

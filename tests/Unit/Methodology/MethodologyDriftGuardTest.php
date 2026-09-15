@@ -29,6 +29,7 @@ use App\Services\Dd\Workstreams\DdWorkstreamModule;
 use App\Services\Dd\Workstreams\DdWorkstreamRunner;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
 use App\Services\Entrepreneurs\AdvisoryConversion;
+use App\Services\Entrepreneurs\ApprovedIdeaPlanStarter;
 use App\Services\Entrepreneurs\AssessmentEvidenceScopeCorrection;
 use App\Services\Entrepreneurs\AssessmentFeedback;
 use App\Services\Entrepreneurs\AssessmentScoring;
@@ -46,6 +47,8 @@ use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\Entrepreneurs\EntrepreneurInviteOffer;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
+use App\Services\Entrepreneurs\EntrepreneurPlanBudgetCheckout;
+use App\Services\Entrepreneurs\EntrepreneurPlanBudgetProvisioner;
 use App\Services\Entrepreneurs\EntrepreneurPoints;
 use App\Services\Entrepreneurs\EntrepreneurPromptRegistry;
 use App\Services\Entrepreneurs\EntrepreneurServiceOffer;
@@ -159,6 +162,7 @@ final class MethodologyDriftGuardTest extends TestCase
         DdWorkstreamModule::class => 'Analysis module adapter.',
         DdWorkstreamRunner::class => 'Workstream runner/orchestrator.',
         AdvisorEntrepreneurCapacity::class => 'Capacity gate, not a methodology surface in this track.',
+        ApprovedIdeaPlanStarter::class => 'Approved Idea Validation snapshot-to-plan seeding workflow; it does not calculate advisor methodology.',
         AdvisoryConversion::class => 'Conversion workflow from entrepreneur to advisory client.',
         AssessmentEvidenceScopeCorrection::class => 'Assessment evidence-map comparison helper; the scoring methodology is owned by Assessment.',
         AssessmentFeedback::class => 'Advisor and founder assessment-feedback drafting workflow, not a methodology calculation.',
@@ -177,6 +181,8 @@ final class MethodologyDriftGuardTest extends TestCase
         EntrepreneurInviteOffer::class => 'Snapshots admin-set package terms and records invitation consent; pricing and waiver policy are delegated, not an advisory calculation methodology.',
         EntrepreneurInviteReconciler::class => 'Invite reconciliation workflow.',
         EntrepreneurMilestones::class => 'Milestone-award persistence workflow.',
+        EntrepreneurPlanBudgetCheckout::class => 'Authenticated Stripe checkout orchestration for the BP&B add-on; it does not calculate advisor methodology.',
+        EntrepreneurPlanBudgetProvisioner::class => 'Paid BP&B activation workflow that waits for advisor approval; it does not calculate advisor methodology.',
         EntrepreneurPoints::class => 'Gamification reward allocation is operational engagement logic, not an advisor methodology disclosure.',
         EntrepreneurPromptRegistry::class => 'Prompt id registry, not a calculation method.',
         EntrepreneurServiceOffer::class => 'Reads the current Service Rate for offer availability and display; pricing and GST calculations are owned elsewhere.',

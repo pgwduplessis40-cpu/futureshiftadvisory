@@ -6,8 +6,11 @@ namespace Tests\Feature\Accounting;
 
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
+use App\Enums\EntrepreneurStage;
 use App\Models\AccountingConnection;
 use App\Models\Client;
+use App\Models\EntrepreneurPlanBudgetPurchase;
+use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidationPurchase;
 use App\Models\Payment;
 use App\Models\PaymentAccountingSync;
@@ -75,6 +78,29 @@ final class IdeaValidationPaymentLedgerTest extends TestCase
 
         $this->assertSame(1, PaymentAccountingSync::query()->count());
         Http::assertSentCount(3);
+    }
+
+    public function test_settled_bpb_direct_checkout_creates_a_distinct_gst_correct_xero_invoice_and_payment(): void
+    {
+        [$actor, $payment] = $this->settledPlanBudgetPayment();
+        $this->practiceXeroConnection($actor);
+        $this->fakeSaleResponses();
+
+        $sync = app(IdeaValidationPaymentLedger::class)->recordSucceededPayment($payment, $actor);
+
+        $this->assertInstanceOf(PaymentAccountingSync::class, $sync);
+        $this->assertSame('entrepreneur_plan_budget', $sync->source);
+        $this->assertSame(PaymentAccountingSync::STATUS_SYNCED, $sync->status);
+        Http::assertSent(function (Request $request): bool {
+            return $request->url() === 'https://api.xero.com/api.xro/2.0/Invoices'
+                && data_get($request->data(), 'Invoices.0.LineItems.0.Description') === 'Future Shift Advisory Business Plan & Budget'
+                && (float) data_get($request->data(), 'Invoices.0.LineItems.0.UnitAmount') === 100.0;
+        });
+        Http::assertSent(function (Request $request): bool {
+            return $request->url() === 'https://api.xero.com/api.xro/2.0/Payments'
+                && (float) data_get($request->data(), 'Payments.0.Amount') === 115.0
+                && data_get($request->data(), 'Payments.0.Account.Code') === '090';
+        });
     }
 
     public function test_missing_xero_connection_remains_visible_and_can_be_retried_without_duplicate_payment(): void
@@ -294,6 +320,69 @@ final class IdeaValidationPaymentLedgerTest extends TestCase
         ])->save();
 
         return [$advisor, $payment, $client, $buyer];
+    }
+
+    /** @return array{0:User,1:Payment} */
+    private function settledPlanBudgetPayment(): array
+    {
+        $advisor = User::factory()->create([
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $buyer = User::factory()->create([
+            'name' => 'BP&B Customer',
+            'email' => 'bpb@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $buyer->assignRole(User::TYPE_ENTREPRENEUR);
+        $client = Client::query()->create([
+            'engagement_type' => EngagementType::ENTREPRENEUR_MODULE,
+            'status' => ClientStatus::ACTIVE,
+            'legal_name' => $buyer->name,
+            'data_quality' => Client::DATA_QUALITY_LOW,
+            'registry_sources' => ['source' => 'bpb-payment-ledger-test'],
+            'created_by_user_id' => $advisor->getKey(),
+            'primary_contact_user_id' => $buyer->getKey(),
+        ]);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $buyer->getKey(),
+            'client_id' => $client->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => $buyer->name,
+            'email' => $buyer->email,
+            'stage' => EntrepreneurStage::BUILDING_PHASE_1,
+        ]);
+        $payment = Payment::query()->create([
+            'client_id' => $client->getKey(),
+            'payment_schedule_id' => null,
+            'amount' => '115.00',
+            'currency' => 'NZD',
+            'gateway' => 'stripe',
+            'gateway_ref' => 'pi_bpb_payment_ledger',
+            'idempotency_key' => 'bpb-payment-ledger-'.$buyer->getKey(),
+            'status' => Payment::STATUS_SUCCEEDED,
+            'attempt' => 1,
+            'processed_at' => now(),
+        ]);
+        $purchase = new EntrepreneurPlanBudgetPurchase;
+        $purchase->forceFill([
+            'user_id' => $buyer->getKey(),
+            'client_id' => $client->getKey(),
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'advisor_id' => $advisor->getKey(),
+            'payment_id' => $payment->getKey(),
+            'status' => EntrepreneurPlanBudgetPurchase::STATUS_PAID,
+            'amount_ex_gst' => '100.00',
+            'gst_amount' => '15.00',
+            'amount_including_gst' => '115.00',
+            'currency' => 'NZD',
+            'stripe_payment_intent_ref' => $payment->gateway_ref,
+            'paid_at' => now(),
+            'activated_at' => now(),
+        ])->save();
+
+        return [$advisor, $payment];
     }
 
     private function practiceXeroConnection(User $actor): void

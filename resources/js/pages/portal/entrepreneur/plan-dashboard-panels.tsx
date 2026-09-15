@@ -189,17 +189,22 @@ export function ActionPanel({
     value,
     explanation,
     children,
+    hidden,
 }: {
     icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
     title: string;
     value: ReactNode;
     explanation: string;
     children: ReactNode;
+    hidden?: boolean;
 }) {
     return (
         <Tooltip>
             <TooltipTrigger asChild>
-                <section className="space-y-4 rounded-md border bg-background p-4">
+                <section
+                    className="space-y-4 rounded-md border bg-background p-4"
+                    hidden={hidden}
+                >
                     <div className="flex items-start justify-between gap-3">
                         <div>
                             <div className="flex items-center gap-2 text-sm font-medium">

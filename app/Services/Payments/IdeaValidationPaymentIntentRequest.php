@@ -19,5 +19,7 @@ final readonly class IdeaValidationPaymentIntentRequest
         public string $currency,
         public string $idempotencyKey,
         public array $metadata = [],
+        public string $purchaseType = 'idea_validation',
+        public string $description = 'Future Shift Advisory Idea Validation',
     ) {}
 }

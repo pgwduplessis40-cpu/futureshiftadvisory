@@ -6,6 +6,7 @@ namespace App\Services\Accounting;
 
 use App\Models\AccountingConnection;
 use App\Models\Client;
+use App\Models\EntrepreneurPlanBudgetPurchase;
 use App\Models\IdeaValidationPurchase;
 use App\Models\Payment;
 use App\Models\PaymentAccountingSync;
@@ -25,10 +26,13 @@ use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
- * Writes an auditable Xero sales ledger for settled Idea Validation payments.
+ * Writes an auditable Xero sales ledger for settled direct-checkout payments.
  *
  * Historical price snapshots are always copied from the purchase; this service
  * never derives an accounting value from the current service-rate settings.
+ *
+ * The class name is retained for existing reconciliation routes. It also
+ * handles the authenticated Business Plan & Budget add-on checkout.
  */
 final class IdeaValidationPaymentLedger
 {
@@ -44,15 +48,20 @@ final class IdeaValidationPaymentLedger
     {
         return $this->context->withSystemContext(function () use ($payment, $actor): ?PaymentAccountingSync {
             $payment = Payment::query()
-                ->with(['ideaValidationPurchase.user', 'ideaValidationPurchase.client.primaryContact'])
+                ->with([
+                    'ideaValidationPurchase.user',
+                    'ideaValidationPurchase.client.primaryContact',
+                    'entrepreneurPlanBudgetPurchase.user',
+                    'entrepreneurPlanBudgetPurchase.client.primaryContact',
+                ])
                 ->whereKey($payment->getKey())
                 ->first();
             if (! $payment instanceof Payment || $payment->status !== Payment::STATUS_SUCCEEDED) {
                 return null;
             }
 
-            $purchase = $payment->ideaValidationPurchase;
-            if (! $purchase instanceof IdeaValidationPurchase || $purchase->paid_at === null) {
+            $purchase = $payment->ideaValidationPurchase ?? $payment->entrepreneurPlanBudgetPurchase;
+            if ((! $purchase instanceof IdeaValidationPurchase && ! $purchase instanceof EntrepreneurPlanBudgetPurchase) || $purchase->paid_at === null) {
                 return null;
             }
 
@@ -118,7 +127,7 @@ final class IdeaValidationPaymentLedger
     public function outstanding(): Collection
     {
         return $this->context->withSystemContext(fn (): Collection => PaymentAccountingSync::query()
-            ->with(['payment.ideaValidationPurchase.user', 'paymentRefund'])
+            ->with(['payment.ideaValidationPurchase.user', 'payment.entrepreneurPlanBudgetPurchase.user', 'paymentRefund'])
             ->where(function ($query): void {
                 $query->whereIn('status', [PaymentAccountingSync::STATUS_PENDING, PaymentAccountingSync::STATUS_FAILED])
                     ->orWhereIn('refund_status', [PaymentAccountingSync::REFUND_PENDING, PaymentAccountingSync::REFUND_FAILED]);
@@ -131,15 +140,22 @@ final class IdeaValidationPaymentLedger
     public function backfillCandidates(): Collection
     {
         return $this->context->withSystemContext(fn (): Collection => Payment::query()
-            ->with(['ideaValidationPurchase.user'])
+            ->with(['ideaValidationPurchase.user', 'entrepreneurPlanBudgetPurchase.user'])
             ->where('status', Payment::STATUS_SUCCEEDED)
             ->where('gateway', 'stripe')
-            ->whereHas('ideaValidationPurchase', fn ($query) => $query->whereNotNull('paid_at'))
+            ->where(function ($query): void {
+                $query->whereHas('ideaValidationPurchase', fn ($purchase) => $purchase->whereNotNull('paid_at'))
+                    ->orWhereHas('entrepreneurPlanBudgetPurchase', fn ($purchase) => $purchase->whereNotNull('paid_at'));
+            })
             ->whereDoesntHave('accountingSync')
             ->orderBy('processed_at')
             ->get()
-            ->filter(fn (Payment $payment): bool => $payment->ideaValidationPurchase instanceof IdeaValidationPurchase
-                && $this->quoteMatchesPayment($payment->ideaValidationPurchase, $payment))
+            ->filter(function (Payment $payment): bool {
+                $purchase = $payment->ideaValidationPurchase ?? $payment->entrepreneurPlanBudgetPurchase;
+
+                return ($purchase instanceof IdeaValidationPurchase || $purchase instanceof EntrepreneurPlanBudgetPurchase)
+                    && $this->quoteMatchesPayment($purchase, $payment);
+            })
             ->values());
     }
 
@@ -165,7 +181,7 @@ final class IdeaValidationPaymentLedger
         $sync = $this->recordSucceededPayment($payment, $actor);
         if (! $sync instanceof PaymentAccountingSync) {
             throw ValidationException::withMessages([
-                'payment' => 'This payment is not a settled Idea Validation payment that can be exported to Xero.',
+                'payment' => 'This payment is not a settled direct-checkout payment that can be exported to Xero.',
             ]);
         }
 
@@ -181,7 +197,7 @@ final class IdeaValidationPaymentLedger
         });
     }
 
-    private function syncRecord(Payment $payment, IdeaValidationPurchase $purchase): PaymentAccountingSync
+    private function syncRecord(Payment $payment, IdeaValidationPurchase|EntrepreneurPlanBudgetPurchase $purchase): PaymentAccountingSync
     {
         return DB::transaction(function () use ($payment, $purchase): PaymentAccountingSync {
             $sync = PaymentAccountingSync::query()
@@ -192,11 +208,15 @@ final class IdeaValidationPaymentLedger
                 return $sync;
             }
 
+            $purchaseKey = $purchase instanceof EntrepreneurPlanBudgetPurchase
+                ? 'entrepreneur_plan_budget_purchase_id'
+                : 'idea_validation_purchase_id';
+
             return PaymentAccountingSync::query()->create([
                 'client_id' => $payment->client_id,
                 'payment_id' => $payment->getKey(),
                 'provider' => AccountingConnection::PROVIDER_XERO,
-                'source' => 'idea_validation',
+                'source' => $purchase instanceof EntrepreneurPlanBudgetPurchase ? 'entrepreneur_plan_budget' : 'idea_validation',
                 'amount_ex_gst' => $purchase->amount_ex_gst,
                 'gst_amount' => $purchase->gst_amount,
                 'amount_including_gst' => $purchase->amount_including_gst,
@@ -205,7 +225,7 @@ final class IdeaValidationPaymentLedger
                 'refund_status' => PaymentAccountingSync::REFUND_NOT_REQUESTED,
                 'metadata' => [
                     'payment_reference' => $payment->gateway_ref,
-                    'idea_validation_purchase_id' => $purchase->getKey(),
+                    $purchaseKey => $purchase->getKey(),
                 ],
             ]);
         });
@@ -253,12 +273,19 @@ final class IdeaValidationPaymentLedger
                 return $this->markPaymentFailure($sync, 'Xero Stripe clearing account code is not configured. Set XERO_STRIPE_CLEARING_ACCOUNT_CODE before exporting payments.');
             }
 
-            $sync->loadMissing(['payment.ideaValidationPurchase.user', 'payment.ideaValidationPurchase.client.primaryContact']);
+            $sync->loadMissing([
+                'payment.ideaValidationPurchase.user',
+                'payment.ideaValidationPurchase.client.primaryContact',
+                'payment.entrepreneurPlanBudgetPurchase.user',
+                'payment.entrepreneurPlanBudgetPurchase.client.primaryContact',
+            ]);
             $payment = $sync->payment;
-            $purchase = $payment?->ideaValidationPurchase;
+            $purchase = $payment->ideaValidationPurchase ?? $payment->entrepreneurPlanBudgetPurchase;
             $client = $purchase?->client;
-            if (! $payment instanceof Payment || ! $purchase instanceof IdeaValidationPurchase || ! $client instanceof Client) {
-                return $this->markPaymentFailure($sync, 'The payment no longer has the Idea Validation purchase and client required for a Xero export.');
+            if (! $payment instanceof Payment
+                || (! $purchase instanceof IdeaValidationPurchase && ! $purchase instanceof EntrepreneurPlanBudgetPurchase)
+                || ! $client instanceof Client) {
+                return $this->markPaymentFailure($sync, 'The payment no longer has the direct-checkout purchase and client required for a Xero export.');
             }
 
             if (! $this->quoteMatchesPayment($purchase, $payment)) {
@@ -306,7 +333,7 @@ final class IdeaValidationPaymentLedger
     }
 
     /** @param array{access_token:string} $token */
-    private function contactId(PaymentAccountingSync $sync, Client $client, IdeaValidationPurchase $purchase, array $token, string $tenantId): string
+    private function contactId(PaymentAccountingSync $sync, Client $client, IdeaValidationPurchase|EntrepreneurPlanBudgetPurchase $purchase, array $token, string $tenantId): string
     {
         if (is_string($sync->external_contact_id) && $sync->external_contact_id !== '') {
             return $sync->external_contact_id;
@@ -438,7 +465,7 @@ final class IdeaValidationPaymentLedger
     }
 
     /** @return array{Name:string,ContactNumber:string,EmailAddress?:string} */
-    private function contactPayload(Client $client, IdeaValidationPurchase $purchase): array
+    private function contactPayload(Client $client, IdeaValidationPurchase|EntrepreneurPlanBudgetPurchase $purchase): array
     {
         $payload = [
             'Name' => mb_substr($client->legal_name ?: $client->trading_name ?: 'Future Shift customer', 0, 255),
@@ -460,11 +487,11 @@ final class IdeaValidationPaymentLedger
             'Contact' => ['ContactID' => $contactId],
             'Date' => $sync->payment?->processed_at?->toDateString() ?? now()->toDateString(),
             'DueDate' => $sync->payment?->processed_at?->toDateString() ?? now()->toDateString(),
-            'Reference' => sprintf('%s Idea Validation %s', $this->billingCodes->shortCode($client), substr((string) $sync->payment_id, 0, 8)),
+            'Reference' => sprintf('%s %s %s', $this->billingCodes->shortCode($client), $this->serviceLabel($sync), substr((string) $sync->payment_id, 0, 8)),
             'Status' => 'AUTHORISED',
             'LineAmountTypes' => 'Exclusive',
             'LineItems' => [[
-                'Description' => 'Future Shift Advisory Idea Validation',
+                'Description' => 'Future Shift Advisory '.$this->serviceLabel($sync),
                 'Quantity' => 1,
                 'UnitAmount' => (float) $sync->amount_ex_gst,
                 'AccountCode' => (string) Config::get('integrations.accounting.xero.sales_account_code', '200'),
@@ -484,7 +511,7 @@ final class IdeaValidationPaymentLedger
             'Status' => 'AUTHORISED',
             'LineAmountTypes' => 'Exclusive',
             'LineItems' => [[
-                'Description' => 'Refund: Future Shift Advisory Idea Validation',
+                'Description' => 'Refund: Future Shift Advisory '.$this->serviceLabel($sync),
                 'Quantity' => 1,
                 'UnitAmount' => (float) $sync->amount_ex_gst,
                 'AccountCode' => (string) Config::get('integrations.accounting.xero.sales_account_code', '200'),
@@ -535,7 +562,7 @@ final class IdeaValidationPaymentLedger
         return $row;
     }
 
-    private function quoteMatchesPayment(IdeaValidationPurchase $purchase, Payment $payment): bool
+    private function quoteMatchesPayment(IdeaValidationPurchase|EntrepreneurPlanBudgetPurchase $purchase, Payment $payment): bool
     {
         if (! is_numeric($purchase->amount_ex_gst)
             || ! is_numeric($purchase->gst_amount)
@@ -560,6 +587,13 @@ final class IdeaValidationPaymentLedger
         [$whole, $fraction] = array_pad(explode('.', $amount, 2), 2, '');
 
         return ((int) $whole * 100) + (int) str_pad($fraction, 2, '0');
+    }
+
+    private function serviceLabel(PaymentAccountingSync $sync): string
+    {
+        return $sync->source === 'entrepreneur_plan_budget'
+            ? 'Business Plan & Budget'
+            : 'Idea Validation';
     }
 
     private function markPaymentFailure(PaymentAccountingSync $sync, string $message): PaymentAccountingSync

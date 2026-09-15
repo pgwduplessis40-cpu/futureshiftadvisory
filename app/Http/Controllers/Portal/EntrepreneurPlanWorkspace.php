@@ -8,6 +8,7 @@ use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
 use App\Models\BusinessPlan;
 use App\Models\Client;
+use App\Models\EntrepreneurPlanBudgetPurchase;
 use App\Models\EntrepreneurProfile;
 use App\Models\InviteToken;
 use App\Models\ServiceActivation;
@@ -102,6 +103,14 @@ final class EntrepreneurPlanWorkspace
                 'includes_idea_validation' => false,
                 'includes_plan_budget' => false,
             ];
+        }
+
+        if (EntrepreneurPlanBudgetPurchase::query()
+            ->where('entrepreneur_profile_id', $profile->getKey())
+            ->where('status', EntrepreneurPlanBudgetPurchase::STATUS_PAID)
+            ->whereNotNull('activated_at')
+            ->exists()) {
+            $access['includes_plan_budget'] = true;
         }
 
         return [

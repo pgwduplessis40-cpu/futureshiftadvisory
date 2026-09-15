@@ -27,6 +27,8 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { DashboardGamificationPanel } from './dashboard-gamification-panel';
+import { IdeaValidationPlanBudgetAction } from './dashboard-plan-budget-action';
+import { ActionPanel } from './plan-dashboard-panels';
 
 type UploadedDocument = {
     id: string;
@@ -461,6 +463,8 @@ export default function EntrepreneurDashboard({
                                         </Link>
                                     </Button>
                                 </ActionPanel>
+
+                                <IdeaValidationPlanBudgetAction />
 
                                 <ActionPanel
                                     hidden={isIdeaValidationOnly}
@@ -1432,49 +1436,6 @@ function displayStageLabel(
     }
 
     return label ?? '-';
-}
-
-function ActionPanel({
-    icon: Icon,
-    title,
-    value,
-    explanation,
-    children,
-    hidden,
-}: {
-    icon: typeof MessageSquare;
-    title: string;
-    value: ReactNode;
-    explanation: string;
-    children: ReactNode;
-    hidden?: boolean;
-}) {
-    return (
-        <Tooltip>
-            <TooltipTrigger asChild>
-                <section
-                    className="space-y-4 rounded-md border bg-background p-4"
-                    hidden={hidden}
-                >
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
-                            <div className="flex items-center gap-2 text-sm font-medium">
-                                <Icon className="size-4" aria-hidden="true" />
-                                {title}
-                            </div>
-                            <div className="mt-2 text-sm text-muted-foreground">
-                                {value}
-                            </div>
-                        </div>
-                    </div>
-                    {children}
-                </section>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-xs">
-                {explanation}
-            </TooltipContent>
-        </Tooltip>
-    );
 }
 
 function Detail({

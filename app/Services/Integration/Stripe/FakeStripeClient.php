@@ -31,6 +31,7 @@ final class FakeStripeClient implements StripeClient
             $request->paymentId,
             $request->amount,
             $request->currency,
+            $request->purchaseType,
         ])), 0, 16);
 
         return new IdeaValidationPaymentIntent(
