@@ -478,7 +478,7 @@ final class DashboardController extends Controller
     ): array {
         if (is_array($standardAdvisory)) {
             $nextMomentum = collect((array) data_get($standardAdvisory, 'momentum.items', []))
-                ->first(fn (array $item): bool => ! in_array((string) ($item['status'] ?? ''), ['complete', 'not_required'], true));
+                ->first(fn (array $item): bool => !in_array((string) ($item['status'] ?? ''), ['complete', 'not_required'], true));
             $owner = data_get($nextMomentum, 'owner') === 'advisor' ? 'fsa' : 'client';
             $reportUrl = data_get($standardAdvisory, 'client_report.view_url');
             return $this->journeyPrimary(
