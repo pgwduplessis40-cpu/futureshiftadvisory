@@ -47,6 +47,7 @@ use App\Services\Npo\NpoImpactMetricRecorder;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
 use App\Services\Portal\ServiceWorkspaces;
+use App\Services\Portal\StandardAdvisoryOnboardingNavigation;
 use App\Services\Portal\Welcome\WelcomeMessageRenderer;
 use App\Services\Proposals\ProposalBrief;
 use App\Services\ScreenShare\ClientPortalContextTokens;
@@ -480,18 +481,13 @@ final class DashboardController extends Controller
                 ->first(fn (array $item): bool => ! in_array((string) ($item['status'] ?? ''), ['complete', 'not_required'], true));
             $owner = data_get($nextMomentum, 'owner') === 'advisor' ? 'fsa' : 'client';
             $reportUrl = data_get($standardAdvisory, 'client_report.view_url');
-            $clientActionUrl = $this->standardAdvisoryClientActionUrl(
-                (string) data_get($nextMomentum, 'key'),
-                $onboardingUrl,
-            );
-
             return $this->journeyPrimary(
                 serviceType: EngagementType::STANDARD_ADVISORY->value,
                 serviceLabel: 'Standard Advisory',
                 statusLabel: (string) ($standardAdvisory['status_label'] ?? 'In progress'),
                 owner: $owner,
                 nextAction: (string) ($standardAdvisory['next_action'] ?? data_get($nextMomentum, 'description', 'Continue the advisory journey.')),
-                actionUrl: is_string($reportUrl) && $reportUrl !== '' ? $reportUrl : ($owner === 'client' ? $clientActionUrl : '#section-reports'),
+                actionUrl: is_string($reportUrl) && $reportUrl !== '' ? $reportUrl : ($owner === 'client' ? StandardAdvisoryOnboardingNavigation::urlFor((string) data_get($nextMomentum, 'key'), $onboardingUrl) : '#section-reports'),
                 actionLabel: is_string($reportUrl) && $reportUrl !== '' ? 'View report' : ($owner === 'client' ? 'Continue' : 'View outputs'),
                 clientNext: $owner === 'client'
                     ? 'Complete the next requested input so FSA can continue the advisory review.'
@@ -577,22 +573,6 @@ final class DashboardController extends Controller
             fsaNext: 'Review the submitted context and confirm the service pathway.',
             timeframe: 'Actionable now',
         );
-    }
-
-    private function standardAdvisoryClientActionUrl(string $momentumKey, string $fallback): string
-    {
-        $step = match ($momentumKey) {
-            'goals' => OnboardingWizard::STEP_GOALS,
-            'website' => OnboardingWizard::STEP_WEBSITE,
-            'questionnaire' => OnboardingWizard::STEP_QUESTIONNAIRE,
-            'evidence' => OnboardingWizard::STEP_DOCUMENTS,
-            'onboarding' => OnboardingWizard::STEP_REVIEW,
-            default => null,
-        };
-
-        return $step === null
-            ? $fallback
-            : route('portal.onboarding.step', ['step' => $step]);
     }
 
     /**

@@ -30,7 +30,8 @@ type ExplicitActionSurface = {
 };
 
 export type ClientDraftAutosaveSurface =
-    DraftProtectedSurface | ExplicitActionSurface;
+    | DraftProtectedSurface
+    | ExplicitActionSurface;
 
 export const CLIENT_DRAFT_AUTOSAVE_SURFACES: readonly ClientDraftAutosaveSurface[] =
     [

@@ -8,9 +8,11 @@ use App\Enums\EngagementType;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\User;
+use App\Services\Portal\OnboardingWizard;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 final class PortalWorkspaceDraftTest extends TestCase
@@ -131,6 +133,37 @@ final class PortalWorkspaceDraftTest extends TestCase
                 'payload' => ['accepted' => true],
             ])
             ->assertNotFound();
+    }
+
+    public function test_standard_advisory_dashboard_continue_routes_to_the_missing_questionnaire(): void
+    {
+        [$user, $client] = $this->clientUser('Riley');
+        $client->forceFill([
+            'onboarding_wizard_state' => [
+                'journey_version' => 4,
+                'current_step' => 6,
+                'completed_steps' => [
+                    OnboardingWizard::STEP_WELCOME,
+                    OnboardingWizard::STEP_GOALS,
+                    OnboardingWizard::STEP_WEBSITE,
+                    OnboardingWizard::STEP_QUESTIONNAIRE,
+                    OnboardingWizard::STEP_DOCUMENTS,
+                    OnboardingWizard::STEP_REVIEW,
+                ],
+                'submitted_at' => now()->toIso8601String(),
+            ],
+        ])->save();
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('portal/Dashboard')
+                ->where('serviceJourney.primary.status_label', 'Waiting for questionnaire')
+                ->where('serviceJourney.primary.action_url', route('portal.onboarding.step', [
+                    'step' => OnboardingWizard::STEP_QUESTIONNAIRE,
+                ]))
+                ->where('serviceJourney.primary.action_label', 'Continue'));
     }
 
     /**
