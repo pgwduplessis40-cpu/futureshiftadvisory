@@ -269,7 +269,7 @@ final class AdvisorEntrepreneurWorkspacePayload
         $latestPlan = $profile->relationLoaded('businessPlans')
             ? $profile->businessPlans->where('source_type', BusinessPlan::SOURCE_ENTREPRENEUR)->sortByDesc('updated_at')->first()
             : null;
-        if ($latestPlan instanceof BusinessPlan && $latestPlan->status === BusinessPlan::STATUS_REVISING) {
+        if (! in_array($stage, [EntrepreneurStage::CANCELLED, EntrepreneurStage::SUSPENDED], true) && $latestPlan instanceof BusinessPlan && $latestPlan->status === BusinessPlan::STATUS_REVISING) {
             return 'Revision requested - awaiting resubmission';
         }
         if ($stage === EntrepreneurStage::INVITED && $profile->inviteToken?->isAccepted()) {

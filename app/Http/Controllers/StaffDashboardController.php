@@ -43,6 +43,7 @@ use App\Models\TermsVersion;
 use App\Models\User;
 use App\Services\Ai\AdvisorAiNotice;
 use App\Services\Analytics\FunnelTracker;
+use App\Services\Dashboards\AdvisorDashboardClientScope;
 use App\Services\Dashboards\AdvisorPaymentDashboardPayload;
 use App\Services\Dashboards\CashFlowStatusMonitor;
 use App\Services\Dashboards\ClientEngagementScorer;
@@ -76,6 +77,7 @@ final class StaffDashboardController extends Controller
     public function __construct(
         private readonly ProposalBrief $proposalBriefs,
         private readonly DatabaseSchema $schema,
+        private readonly AdvisorDashboardClientScope $dashboardClients,
     ) {}
 
     public function __invoke(
@@ -694,14 +696,14 @@ final class StaffDashboardController extends Controller
         CanonicalEntrepreneurWorkspace $entrepreneurWorkspaces,
         AdvisorAiNotice $aiNotice,
     ): array {
-        $clientIds = $this->visibleClientIds($user);
+        $clientIds = $this->dashboardClients->visibleClientIds($user);
         $cashFlowStatusPayload = $cashFlowStatus->forClientIds($clientIds);
 
         return [
             'clientsHealth' => $this->clientsHealth(
                 $clientIds,
                 $engagementScorer,
-                $this->visibleEntrepreneurQuery(EntrepreneurProfile::query(), $user)
+                $this->dashboardClients->visibleEntrepreneurQuery(EntrepreneurProfile::query(), $user)
                     ->whereIn('stage', EntrepreneurStage::activeCapacityValues())
                     ->count(),
                 $cashFlowStatusPayload['by_client'] ?? [],
@@ -942,7 +944,7 @@ final class StaffDashboardController extends Controller
             ->whereNull('recalled_at')
             ->whereHas(
                 'entrepreneurProfile',
-                fn (Builder $query): Builder => $this->visibleEntrepreneurQuery($query, $user),
+                fn (Builder $query): Builder => $this->dashboardClients->visibleEntrepreneurQuery($query, $user),
             );
         $planQuery = BusinessPlan::query()
             ->with([
@@ -958,7 +960,7 @@ final class StaffDashboardController extends Controller
             ])
             ->whereHas(
                 'entrepreneurProfile',
-                fn (Builder $query): Builder => $this->visibleEntrepreneurQuery($query, $user),
+                fn (Builder $query): Builder => $this->dashboardClients->visibleEntrepreneurQuery($query, $user),
             );
         $planRecords = (clone $planQuery)->get();
         $actionablePlanCount = $planRecords
@@ -997,18 +999,6 @@ final class StaffDashboardController extends Controller
                 ...$planItems,
             ],
         ];
-    }
-
-    /**
-     * @return Builder<EntrepreneurProfile>
-     */
-    private function visibleEntrepreneurQuery(Builder $query, User $user): Builder
-    {
-        if ($user->fsaRole() === User::TYPE_SUPER_ADMIN) {
-            return $query;
-        }
-
-        return $query->where('assigned_advisor_id', $user->getKey());
     }
 
     /**
@@ -1701,20 +1691,6 @@ final class StaffDashboardController extends Controller
     }
 
     /**
-     * A null client id list means "all clients" for super-admins.
-     *
-     * @return array<int, string>|null
-     */
-    private function visibleClientIds(User $user): ?array
-    {
-        if ($user->user_type === User::TYPE_SUPER_ADMIN) {
-            return null;
-        }
-
-        return $user->accessibleClientIds();
-    }
-
-    /**
      * @param  array<int, string>|null  $clientIds
      * @return array<string, mixed>
      */
@@ -1925,7 +1901,7 @@ final class StaffDashboardController extends Controller
         array $cashFlowByClient,
         CanonicalEntrepreneurWorkspace $canonicalWorkspaces,
     ): array {
-        $query = $this->scopedClientQuery($clientIds);
+        $query = $this->dashboardClients->visibleClientQuery($clientIds);
         $totalClientWorkspaces = (clone $query)->count();
         $clients = $query
             ->orderBy('legal_name')
@@ -1984,25 +1960,6 @@ final class StaffDashboardController extends Controller
                 ->values()
                 ->all(),
         ];
-    }
-
-    /**
-     * @param  array<int, string>|null  $clientIds
-     * @return Builder<Client>
-     */
-    private function scopedClientQuery(?array $clientIds): Builder
-    {
-        $query = Client::query()->withoutOperationalHealthFixtures();
-
-        if (is_array($clientIds)) {
-            if ($clientIds === []) {
-                return $query->whereRaw('1 = 0');
-            }
-
-            $query->whereIn('id', $clientIds);
-        }
-
-        return $query;
     }
 
     /**

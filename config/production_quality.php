@@ -37,7 +37,7 @@ return [
         'app/Http/Controllers/StaffDashboardController.php' => [
             'ceiling' => 2862,
             'production_limit' => 3000,
-            'contract_tests' => ['tests/Feature/Integration/EconomicIndicatorsTest.php', 'tests/Feature/Admin/PaymentReconciliationTest.php'],
+            'contract_tests' => ['tests/Feature/Advisor/DashboardTest.php', 'tests/Feature/Integration/EconomicIndicatorsTest.php', 'tests/Feature/Admin/PaymentReconciliationTest.php'],
         ],
         'resources/js/pages/advisor/clients/Show.tsx' => [
             'ceiling' => 7780,

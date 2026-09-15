@@ -6,6 +6,7 @@ namespace Tests\Unit\Methodology;
 
 use App\Services\Accounting\IdeaValidationPaymentLedger;
 use App\Services\Analysis\AnalysisRunner;
+use App\Services\Dashboards\AdvisorDashboardClientScope;
 use App\Services\Dashboards\AdvisorPaymentDashboardPayload;
 use App\Services\Dashboards\BusinessHealthRadarBuilder;
 use App\Services\Dashboards\BusinessHealthSnapshotWriter;
@@ -142,6 +143,7 @@ final class MethodologyDriftGuardTest extends TestCase
 
     private const EXCLUDED_CLASSES = [
         BusinessHealthSnapshotWriter::class => 'Delegates radar row construction and only persists snapshots.',
+        AdvisorDashboardClientScope::class => 'Scopes visible dashboard clients and entrepreneur workflow records; it does not calculate an advisory methodology.',
         AdvisorPaymentDashboardPayload::class => 'Dashboard payload composer for payment status and reconciliation work; it does not calculate an advisory methodology.',
         PaymentStatusReport::class => 'Summarises payment lifecycle state, not a formula owner.',
         DataQualityInsufficientException::class => 'Exception class.',

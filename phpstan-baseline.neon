@@ -8455,12 +8455,6 @@ parameters:
 			path: app/Http/Controllers/StaffDashboardController.php
 
 		-
-			message: '#^Method App\\Http\\Controllers\\StaffDashboardController\:\:visibleEntrepreneurQuery\(\) has parameter \$query with generic class Illuminate\\Database\\Eloquent\\Builder but does not specify its types\: TModel$#'
-			identifier: missingType.generics
-			count: 1
-			path: app/Http/Controllers/StaffDashboardController.php
-
-		-
 			message: '#^Method App\\Models\\QuoteSourceExtraction\:\:scopeable\(\) return type with generic class Illuminate\\Database\\Eloquent\\Relations\\MorphTo does not specify its types\: TRelatedModel, TDeclaringModel$#'
 			identifier: missingType.generics
 			count: 1

@@ -27,6 +27,7 @@ use App\Models\TermsEnforcement;
 use App\Models\TermsVersion;
 use App\Models\User;
 use App\Services\Ai\AdvisorAiNotice;
+use App\Services\Clients\LifecycleManager;
 use App\Support\RequestContext;
 use Database\Seeders\RatingFrameworkSeeder;
 use Database\Seeders\RoleSeeder;
@@ -530,6 +531,49 @@ final class DashboardTest extends TestCase
                 ->where('entrepreneurReviews.items.0.status', 'Changes requested')
                 ->where('entrepreneurReviews.items.0.action_label', 'Await resubmission')
                 ->has('entrepreneurReviews.items', 1));
+    }
+
+    public function test_advisor_dashboard_excludes_suspended_entrepreneurs_from_reviews_and_portfolio_decisions(): void
+    {
+        $advisor = $this->advisor('suspended-entrepreneur-dashboard@example.test');
+        $client = $this->clientFor($advisor, 'Suspended Entrepreneur Limited');
+        $profile = $this->entrepreneurProfileFor($advisor, 'Rodney & Janya', 'rodney-janya@example.test');
+        $profile->forceFill(['client_id' => $client->getKey()])->save();
+
+        IdeaValidation::query()->create([
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'evaluated_by_user_id' => $profile->user_id,
+            'problem' => 'A clear customer problem.',
+            'target_customer' => 'Early-stage service founders.',
+            'solution' => 'A guided planning workspace.',
+            'value_proposition' => 'Less overwhelm and clearer advisor review.',
+            'demand_signal' => 'Founder requested guided help.',
+            'revenue_model' => 'Subscription and advisory conversion.',
+            'ai_evaluation' => [
+                'summary' => 'Changes requested.',
+                'metadata' => ['advisor_gate_status' => 'changes_requested'],
+            ],
+            'viability_alerts' => [],
+            'evaluated_at' => now()->subHour(),
+        ]);
+
+        app(LifecycleManager::class)->suspend($client, $advisor, 'Account suspended.', false);
+
+        $this->assertSame(EntrepreneurStage::SUSPENDED, $profile->refresh()->stage);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/Dashboard')
+                ->where('entrepreneurReviews.summary.total', 0)
+                ->where('entrepreneurReviews.summary.idea_validations', 0)
+                ->where('entrepreneurReviews.summary.business_plans', 0)
+                ->has('entrepreneurReviews.items', 0)
+                ->where('clientsHealth.summary.total', 0)
+                ->where('clientsHealth.summary.advisory_clients', 0)
+                ->where('clientsHealth.summary.entrepreneurs', 0)
+                ->has('clientsHealth.clients', 0));
     }
 
     public function test_client_primary_user_still_redirects_to_portal_dashboard(): void

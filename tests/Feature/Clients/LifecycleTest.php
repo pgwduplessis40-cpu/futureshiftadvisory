@@ -6,8 +6,10 @@ namespace Tests\Feature\Clients;
 
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
+use App\Enums\EntrepreneurStage;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\EntrepreneurProfile;
 use App\Models\User;
 use App\Notifications\ClientLifecycleNotification;
 use App\Services\Clients\LifecycleManager;
@@ -50,6 +52,14 @@ final class LifecycleTest extends TestCase
     {
         Notification::fake();
         [$advisor, $client, $clientUser] = $this->clientWithTeam();
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $clientUser->getKey(),
+            'client_id' => $client->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => 'Client Owner',
+            'email' => $clientUser->email,
+            'stage' => EntrepreneurStage::IDEA_VALIDATION,
+        ]);
 
         $this->assertSame([$client->id], $clientUser->accessibleClientIds());
 
@@ -61,6 +71,8 @@ final class LifecycleTest extends TestCase
             ->assertRedirect(route('advisor.clients.show', $client, absolute: false));
 
         $this->assertSame(ClientStatus::SUSPENDED, $client->refresh()->status);
+        $this->assertSame(EntrepreneurStage::SUSPENDED, $profile->refresh()->stage);
+        $this->assertSame(EntrepreneurStage::IDEA_VALIDATION, $profile->suspended_from_stage);
         $this->assertSame([], $clientUser->refresh()->accessibleClientIds());
         $this->assertDatabaseHas('client_team', [
             'client_id' => $client->id,
@@ -86,6 +98,8 @@ final class LifecycleTest extends TestCase
             ->assertRedirect(route('advisor.clients.show', $client, absolute: false));
 
         $this->assertSame(ClientStatus::ACTIVE, $client->refresh()->status);
+        $this->assertSame(EntrepreneurStage::IDEA_VALIDATION, $profile->refresh()->stage);
+        $this->assertNull($profile->suspended_from_stage);
         $this->assertSame([$client->id], $clientUser->refresh()->accessibleClientIds());
 
         $this->actingAsMfa($clientUser)

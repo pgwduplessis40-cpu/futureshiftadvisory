@@ -330,6 +330,10 @@ class ProfileUpdateTest extends TestCase
         $this->assertSame(ClientStatus::SUSPENDED, $client->refresh()->status);
         $this->assertSame(ServiceActivation::STATUS_CANCELLED, $activation->refresh()->status);
         $this->assertNotNull($activation->cancelled_at);
+        $this->assertSame(
+            EntrepreneurStage::CANCELLED,
+            EntrepreneurProfile::query()->where('user_id', $user->getKey())->firstOrFail()->stage,
+        );
         $this->assertDatabaseHas('payment_refunds', [
             'service_activation_id' => $activation->getKey(),
             'status' => PaymentRefund::STATUS_ACCEPTED,
