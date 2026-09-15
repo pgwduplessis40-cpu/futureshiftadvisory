@@ -30,8 +30,7 @@ type ExplicitActionSurface = {
 };
 
 export type ClientDraftAutosaveSurface =
-    | DraftProtectedSurface
-    | ExplicitActionSurface;
+    DraftProtectedSurface | ExplicitActionSurface;
 
 export const CLIENT_DRAFT_AUTOSAVE_SURFACES: readonly ClientDraftAutosaveSurface[] =
     [
@@ -144,6 +143,14 @@ export const CLIENT_DRAFT_AUTOSAVE_SURFACES: readonly ClientDraftAutosaveSurface
                 'This small panel only records intentional acknowledgement and preference actions.',
             explicitAction:
                 'Acknowledging guidance or changing a gamification preference',
+        },
+        {
+            source: 'resources/js/pages/portal/entrepreneur/plan-budget-checkout.tsx',
+            mode: 'explicit',
+            summary:
+                'This payment surface only starts or confirms a Business Plan & Budget payment.',
+            explicitAction:
+                'Starting or confirming a Business Plan & Budget payment',
         },
         {
             source: 'resources/js/pages/portal/entrepreneur/plan-workspace-actions.tsx',
