@@ -118,7 +118,9 @@ final class TestingSeedDataSeeder extends Seeder
             $this->seedSurveys();
             $this->seedProposalTemplate();
             $this->seedProspectIntake();
-            $this->seedClients();
+            Client::withoutEvents(function (): void {
+                $this->seedClients();
+            });
             $this->cleanupSeedBoundaryDrift();
             $this->seedPilotFeeWaiverProgram();
             $this->seedClientAllocationTestData();
@@ -936,6 +938,58 @@ XML);
             ],
         );
 
+        $this->clients['advisoryReviewReady'] = Client::query()->updateOrCreate(
+            ['nzbn' => '9429000000172'],
+            [
+                'engagement_type' => EngagementType::STANDARD_ADVISORY->value,
+                'status' => ClientStatus::ACTIVE->value,
+                'legal_name' => 'Advisory Review Ready Limited',
+                'trading_name' => 'Advisory Review Ready',
+                'entity_type' => 'NZ Limited Company',
+                'address' => [
+                    'line1' => '88 Victoria Street',
+                    'city' => 'Wellington',
+                    'region' => 'Wellington',
+                    'country' => 'NZ',
+                ],
+                'gst_registered' => true,
+                'directors' => [
+                    ['name' => 'Seed Client Principal', 'role' => 'Managing Director'],
+                ],
+                'filing_status' => 'up_to_date',
+                'data_quality' => Client::DATA_QUALITY_HIGH,
+                'registry_sources' => [
+                    'nzbn' => 'seeded',
+                    'fixture' => 'standard_advisory_review_ready',
+                ],
+                'created_by_user_id' => $this->users['advisor']->getKey(),
+                'primary_contact_user_id' => $this->users['primary']->getKey(),
+                'engagement_type_locked_at' => $this->now->copy()->subDays(6),
+                'onboarding_wizard_state' => [
+                    'journey_version' => 4,
+                    'completed_steps' => ['welcome', 'goals', 'website', 'questionnaire', 'documents', 'review-submit'],
+                    'current_step' => 6,
+                    'steps' => [
+                        'welcome' => ['acknowledged' => true],
+                        'goals' => [
+                            'primary_goal' => 'Improve gross margin without reducing service quality.',
+                            'success_measure' => 'Increase gross margin from 34% to 40% within two quarters.',
+                        ],
+                        'website' => [
+                            'website_url' => null,
+                            'website_status' => 'not_listed',
+                            'website_skipped' => true,
+                        ],
+                        'questionnaire' => ['questionnaire_set_acknowledged' => true],
+                        'documents' => ['documents_acknowledged' => true],
+                        'review-submit' => ['review_confirmed' => true],
+                    ],
+                    'submitted_at' => $this->now->copy()->subDays(4)->toIso8601String(),
+                    'fixture' => 'standard_advisory_review_ready',
+                ],
+            ],
+        );
+
         $this->seedPvWaterfallClients();
         $this->seedClientTeam();
         $this->seedConflictDeclarations();
@@ -1049,6 +1103,8 @@ XML);
             ['advisory', 'junior', 'advisor', ['dashboard', 'documents', 'questionnaire']],
             ['advisory', 'primary', 'primary_contact', ['portal', 'documents', 'questionnaire', 'payments']],
             ['advisory', 'team', 'finance_contact', ['documents', 'payments', 'reports']],
+            ['advisoryReviewReady', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'questionnaire', 'reports']],
+            ['advisoryReviewReady', 'primary', 'primary_contact', ['portal', 'documents', 'questionnaire', 'reports']],
             ['websiteAudit', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'questionnaire', 'reports']],
             ['websiteAudit', 'primary', 'primary_contact', ['portal', 'documents', 'questionnaire', 'reports']],
             ['ddGuided', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'entrepreneur_module', 'dd', 'reports']],
@@ -1372,6 +1428,16 @@ XML);
             expiresAt: $this->now->copy()->addDays(60),
             size: 280_000,
         );
+        $this->ids['doc_advisory_review_ready_financials'] = $this->document(
+            key: 'advisory-review-ready-financial-statements',
+            client: $this->clients['advisoryReviewReady'],
+            category: 'financial_statement',
+            filename: 'advisory-review-ready-financial-statements.pdf',
+            uploader: $this->users['primary'],
+            scannerResult: 'clean',
+            expiresAt: $this->now->copy()->addDays(45),
+            size: 380_000,
+        );
         $this->ids['doc_contract'] = $this->document(
             key: 'advisory-key-supplier-contract',
             client: $this->clients['advisory'],
@@ -1433,6 +1499,14 @@ XML);
         );
         $this->ids['advisory_response'] = $standard['response_id'];
 
+        $advisoryReviewReady = $this->seedQuestionnaireResponse(
+            client: $this->clients['advisoryReviewReady'],
+            set: QuestionnaireSet::STANDARD_ADVISORY,
+            submittedBy: $this->users['primary'],
+            attachedDocumentId: (string) $this->ids['doc_advisory_review_ready_financials'],
+        );
+        $this->ids['advisory_review_ready_response'] = $advisoryReviewReady['response_id'];
+
         $websiteAudit = $this->seedQuestionnaireResponse(
             client: $this->clients['websiteAudit'],
             set: QuestionnaireSet::STANDARD_ADVISORY,
@@ -1463,6 +1537,18 @@ XML);
             questionnaireAnswerId: $standard['file_answer_id'],
             questionnaireQuestionId: $standard['file_question_id'],
             questionPrompt: $standard['file_question_prompt'],
+        );
+        $this->ids['verification_advisory_review_ready_financials'] = $this->verification(
+            documentId: (string) $this->ids['doc_advisory_review_ready_financials'],
+            context: 'advisory-review-ready-financials-questionnaire',
+            client: $this->clients['advisoryReviewReady'],
+            claim: 'The submitted financial statements support the Standard Advisory review.',
+            outcome: 'verified',
+            confidence: 0.96,
+            questionnaireResponseId: (string) $advisoryReviewReady['response_id'],
+            questionnaireAnswerId: $advisoryReviewReady['file_answer_id'],
+            questionnaireQuestionId: $advisoryReviewReady['file_question_id'],
+            questionPrompt: $advisoryReviewReady['file_question_prompt'],
         );
         $this->ids['verification_insurance'] = $this->verification(
             documentId: (string) $this->ids['doc_insurance_expired'],

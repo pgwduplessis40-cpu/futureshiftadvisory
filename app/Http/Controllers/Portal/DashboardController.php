@@ -47,6 +47,7 @@ use App\Services\Npo\NpoImpactMetricRecorder;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
 use App\Services\Portal\ServiceWorkspaces;
+use App\Services\Portal\StandardAdvisoryOnboardingNavigation;
 use App\Services\Portal\Welcome\WelcomeMessageRenderer;
 use App\Services\Proposals\ProposalBrief;
 use App\Services\ScreenShare\ClientPortalContextTokens;
@@ -487,7 +488,7 @@ final class DashboardController extends Controller
                 statusLabel: (string) ($standardAdvisory['status_label'] ?? 'In progress'),
                 owner: $owner,
                 nextAction: (string) ($standardAdvisory['next_action'] ?? data_get($nextMomentum, 'description', 'Continue the advisory journey.')),
-                actionUrl: is_string($reportUrl) && $reportUrl !== '' ? $reportUrl : ($owner === 'client' ? $onboardingUrl : '#section-reports'),
+                actionUrl: is_string($reportUrl) && $reportUrl !== '' ? $reportUrl : ($owner === 'client' ? StandardAdvisoryOnboardingNavigation::urlFor((string) data_get($nextMomentum, 'key'), $onboardingUrl) : '#section-reports'),
                 actionLabel: is_string($reportUrl) && $reportUrl !== '' ? 'View report' : ($owner === 'client' ? 'Continue' : 'View outputs'),
                 clientNext: $owner === 'client'
                     ? 'Complete the next requested input so FSA can continue the advisory review.'
@@ -498,7 +499,6 @@ final class DashboardController extends Controller
                 timeframe: $owner === 'client' ? 'Actionable now' : 'With FSA',
             );
         }
-
         if (is_array($postAcquisition)) {
             $gapSubmitted = (bool) data_get($postAcquisition, 'gap_questionnaire.submitted', false);
             $proposalUrl = data_get($postAcquisition, 'proposal.signoff_url');

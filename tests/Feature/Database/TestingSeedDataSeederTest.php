@@ -30,6 +30,7 @@ use App\Models\User;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Portal\OnboardingWizard;
 use App\Services\Pv\PvWaterfallBuilder;
+use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
 use App\Services\Storage\KeyEnvelope;
 use Database\Seeders\TestingSeedDataSeeder;
 use Illuminate\Database\Eloquent\Model;
@@ -179,6 +180,7 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertSeededProposalTemplate();
         $this->assertSeededProposalSignoffFlow();
         $this->assertWebsiteAuditDemoFixture();
+        $this->assertStandardAdvisoryReviewReadyFixture();
 
         $this->assertDatabaseHas('entrepreneur_profiles', [
             'email' => 'seed.entrepreneur@futureshiftadvisory.test',
@@ -324,6 +326,29 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->seed(TestingSeedDataSeeder::class);
 
         $this->assertSeedClientPersonasStayScoped();
+    }
+
+    public function test_testing_seed_data_reconciles_fixture_statuses_despite_lifecycle_guard(): void
+    {
+        $this->seed(TestingSeedDataSeeder::class);
+
+        DB::table('clients')
+            ->where('nzbn', '9429000000172')
+            ->update(['status' => 'paused']);
+
+        $this->seed(TestingSeedDataSeeder::class);
+
+        $this->assertDatabaseHas('clients', [
+            'nzbn' => '9429000000172',
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_testing_seed_data_includes_a_standard_advisory_client_ready_for_review(): void
+    {
+        $this->seed(TestingSeedDataSeeder::class);
+
+        $this->assertStandardAdvisoryReviewReadyFixture();
     }
 
     public function test_seed_buyer_portal_resolves_to_southern_lights_and_rejects_post_acquisition_client(): void
@@ -874,6 +899,29 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertNotNull($schedule);
         $this->assertSame(PaymentSchedule::CADENCE_MONTHLY_RETAINER, $schedule->cadence);
         $this->assertSame(1, (int) $schedule->collection_day);
+    }
+
+    private function assertStandardAdvisoryReviewReadyFixture(): void
+    {
+        $client = Client::query()
+            ->where('nzbn', '9429000000172')
+            ->first();
+
+        $this->assertNotNull($client, 'Expected the advisor-review-ready Standard Advisory client.');
+        $this->assertSame(EngagementType::STANDARD_ADVISORY, $client->engagement_type);
+
+        $wizard = app(OnboardingWizard::class);
+        $state = $wizard->state($client);
+        $this->assertSame(100, $wizard->progress($client)['percentage']);
+        $this->assertNotNull($state['submitted_at']);
+
+        $readiness = app(StandardAdvisoryWorkflow::class)->readiness($client);
+        $this->assertTrue($readiness['questionnaire_submitted']);
+        $this->assertSame(1, $readiness['document_count']);
+        $this->assertSame(0, $readiness['blocking_verification_count']);
+        $this->assertTrue($readiness['can_run_analysis']);
+        $this->assertSame('green', $readiness['analysis_readiness']['level']);
+        $this->assertSame('ready_for_analysis', $readiness['status']);
     }
 
     private function assertWebsiteAuditDemoFixture(): void
