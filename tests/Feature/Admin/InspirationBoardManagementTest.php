@@ -12,6 +12,7 @@ use App\Services\Board\InspirationBoard;
 use App\Services\Integration\VirusScanner\Contracts\FileScanner;
 use App\Services\Integration\VirusScanner\ScanResult;
 use App\Support\RequestContext;
+use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,6 +33,13 @@ final class InspirationBoardManagementTest extends TestCase
         app(RequestContext::class)->apply('system', []);
         Storage::fake('secure_local');
         Config::set('filesystems.disks.secure_local.root', storage_path('framework/testing/board-secure'));
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     public function test_super_admin_can_create_publish_and_pin(): void
@@ -115,6 +123,10 @@ final class InspirationBoardManagementTest extends TestCase
 
     public function test_super_admin_can_schedule_selected_published_quotes_with_custom_day_cadence(): void
     {
+        Carbon::setTestNow(
+            CarbonImmutable::parse('2026-09-25 09:30:00', InspirationBoard::ROTATION_TIMEZONE),
+        );
+
         $admin = $this->superAdmin();
         $startAt = now(InspirationBoard::ROTATION_TIMEZONE)->addDay()->setSecond(0)->setMicrosecond(0);
 
@@ -169,6 +181,7 @@ final class InspirationBoardManagementTest extends TestCase
         $this->assertSame(2, $schedule->posts()->count());
         $firstReleaseAt = CarbonImmutable::parse((string) $schedule->starts_at, 'UTC');
         $secondReleaseAt = CarbonImmutable::parse((string) $schedule->ends_at, 'UTC');
+        $this->assertTrue($secondReleaseAt->equalTo($startAt->copy()->addDays(10)));
         $this->assertDatabaseHas('audit_events', [
             'action' => 'inspiration_rotation.created',
         ]);
