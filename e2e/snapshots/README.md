@@ -13,6 +13,12 @@ run `#172` for commit `b76f9552` and reviewed and approved on 2026-09-04. Their
 source artifact digest is
 `sha256:4e94bcadb64096ef3afb4ff61f9a006e7ef4758203a26c3d48a5f441ee50fb8d`.
 
+The Client Screen desktop and mobile baselines were updated for the approved
+Actions-first client workflow from browser-e2e run `#349` for commit
+`9f0d9324`. They were visually reviewed and approved on 2026-09-16. Their
+source artifact digest is
+`sha256:cc6a4650474ca413cf1cddbef8cfb43e743f70e0e985374c61c2fb3bd3960587`.
+
 Each flow has a desktop (1440px) and mobile (390px) capture. Do not replace a
 baseline merely to make CI pass: review the resulting image and record an
 explicit approval with the change.
