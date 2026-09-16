@@ -717,7 +717,9 @@ async function assertKeyboardFocus(
         // after its tablist. Move back to the Actions tab, then forward again
         // to prove that the selected Information tab is keyboard reachable and
         // exposes a visible focus indicator.
-        await page.keyboard.press('Shift+Tab');
+        await page.keyboard.down('Shift');
+        await page.keyboard.press('Tab');
+        await page.keyboard.up('Shift');
     }
 
     await page.keyboard.press('Tab');
