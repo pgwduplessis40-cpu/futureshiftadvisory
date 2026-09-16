@@ -118,17 +118,17 @@ export const clientSectionTabs: Record<string, ClientDetailTab> = {
     'section-strategic-budget': 'actions',
     'section-strategic-budget-assessment': 'actions',
     'section-strategic-plan': 'actions',
-    'section-accounting': 'information',
+    'section-accounting': 'actions',
     'section-engagement': 'information',
-    'section-knowledge': 'information',
-    'section-meetings': 'information',
-    'section-npo-funding': 'information',
-    'section-npo-health': 'information',
-    'section-npo-social-enterprise': 'information',
-    'section-npo-value': 'information',
+    'section-knowledge': 'actions',
+    'section-meetings': 'actions',
+    'section-npo-funding': 'actions',
+    'section-npo-health': 'actions',
+    'section-npo-social-enterprise': 'actions',
+    'section-npo-value': 'actions',
     'section-registry': 'information',
-    'section-reports': 'information',
-    'section-wellbeing': 'information',
+    'section-reports': 'actions',
+    'section-wellbeing': 'actions',
 };
 
 export const clientSectionServiceTabs: Partial<
@@ -859,10 +859,7 @@ export type StandardAdvisorySummary = {
             label: string;
             description: string;
             status:
-                | 'complete'
-                | 'in_progress'
-                | 'waiting_advisor'
-                | 'not_required';
+                'complete' | 'in_progress' | 'waiting_advisor' | 'not_required';
             owner: 'client' | 'advisor';
         }>;
     };

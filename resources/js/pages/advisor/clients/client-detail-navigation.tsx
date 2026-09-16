@@ -19,21 +19,26 @@ export function ClientDetailSection({
     description,
     collapsible = false,
     defaultOpen = false,
+    headerAction,
     children,
 }: {
     title: string;
     description: string;
     collapsible?: boolean;
     defaultOpen?: boolean;
+    headerAction?: ReactNode;
     children: ReactNode;
 }) {
     const heading = (
-        <>
-            <h2 className="text-base font-semibold">{title}</h2>
-            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-                {description}
-            </p>
-        </>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <h2 className="text-base font-semibold">{title}</h2>
+                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                    {description}
+                </p>
+            </div>
+            {headerAction}
+        </div>
     );
 
     if (collapsible) {
