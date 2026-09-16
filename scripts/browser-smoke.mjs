@@ -366,7 +366,9 @@ async function runFlowViewport(browserInstance, flow, viewport) {
         if (flow.informationTab) {
             await assertClientInformationTab(page, flow, viewport.name);
             await assertAccessibility(page, flow, viewport.name);
-            await assertKeyboardFocus(page, flow, viewport.name);
+            await assertKeyboardFocus(page, flow, viewport.name, {
+                reenterCurrentFocus: true,
+            });
         }
 
         if (flow.screenshot !== false) {
@@ -704,7 +706,20 @@ async function assertAccessibility(page, flow, viewport) {
     }
 }
 
-async function assertKeyboardFocus(page, flow, viewport) {
+async function assertKeyboardFocus(
+    page,
+    flow,
+    viewport,
+    { reenterCurrentFocus = false } = {},
+) {
+    if (reenterCurrentFocus) {
+        // The read-only Information view intentionally has no mutation control
+        // after its tablist. Move back to the Actions tab, then forward again
+        // to prove that the selected Information tab is keyboard reachable and
+        // exposes a visible focus indicator.
+        await page.keyboard.press('Shift+Tab');
+    }
+
     await page.keyboard.press('Tab');
     const focused = await page.evaluate(() => {
         const element = document.activeElement;
