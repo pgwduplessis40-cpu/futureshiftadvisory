@@ -12,6 +12,7 @@ use App\Services\Board\InspirationBoard;
 use App\Services\Integration\VirusScanner\Contracts\FileScanner;
 use App\Services\Integration\VirusScanner\ScanResult;
 use App\Support\RequestContext;
+use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -166,15 +167,17 @@ final class InspirationBoardManagementTest extends TestCase
         $schedule = InspirationRotationSchedule::query()->firstOrFail();
         $this->assertSame('Founder series', $schedule->name);
         $this->assertSame(2, $schedule->posts()->count());
+        $firstReleaseAt = CarbonImmutable::parse((string) $schedule->starts_at, 'UTC');
+        $secondReleaseAt = CarbonImmutable::parse((string) $schedule->ends_at, 'UTC');
         $this->assertDatabaseHas('audit_events', [
             'action' => 'inspiration_rotation.created',
         ]);
 
-        $this->assertSame(1, app(InspirationBoard::class)->releaseDueRotations($startAt));
-        $this->assertTrue($second->refresh()->featured_at?->equalTo($startAt));
+        $this->assertSame(1, app(InspirationBoard::class)->releaseDueRotations($firstReleaseAt));
+        $this->assertTrue($second->refresh()->featured_at?->equalTo($firstReleaseAt));
         $this->assertSame(BoardPost::FEATURE_SOURCE_ROTATION, $second->featured_source);
-        $this->assertSame(1, app(InspirationBoard::class)->releaseDueRotations($startAt->copy()->addDays(10)));
-        $this->assertTrue($first->refresh()->featured_at?->equalTo($startAt->copy()->addDays(10)));
+        $this->assertSame(1, app(InspirationBoard::class)->releaseDueRotations($secondReleaseAt));
+        $this->assertTrue($first->refresh()->featured_at?->equalTo($secondReleaseAt));
 
         $this->actingAsMfa($admin)
             ->post(route('admin.inspiration-board.schedule-rotation'), [

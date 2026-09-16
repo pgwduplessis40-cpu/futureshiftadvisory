@@ -340,7 +340,7 @@ final class InspirationBoard
             $featured = 0;
             foreach ($schedules as $schedule) {
                 foreach ($schedule->posts as $post) {
-                    $scheduledAt = CarbonImmutable::parse((string) $post->pivot->scheduled_at);
+                    $scheduledAt = CarbonImmutable::parse((string) $post->pivot->scheduled_at, 'UTC');
 
                     $schedule->posts()->updateExistingPivot($post->getKey(), [
                         'featured_at' => $at,

@@ -13,6 +13,7 @@ use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
+use App\Services\Payments\PaymentGatewayException;
 use App\Services\Payments\PaymentRefundRequest;
 use App\Services\Payments\PaymentRefundResult;
 use App\Services\Payments\PaymentSetupIntent;
@@ -77,14 +78,13 @@ final class FallbackStripeClient implements StripeClient
 
     public function refund(PaymentRefundRequest $request): PaymentRefundResult
     {
-        if ($this->usesFixtures()) {
-            return $this->fake->refund($request);
-        }
-
         try {
             return $this->live->refund($request);
-        } catch (IntegrationDisabledException) {
-            return $this->fake->refund($request);
+        } catch (IntegrationDisabledException $exception) {
+            throw new PaymentGatewayException(
+                'Stripe refunds are unavailable because the live Stripe integration is not active. No refund has been issued.',
+                previous: $exception,
+            );
         }
     }
 
