@@ -15,9 +15,12 @@ use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Notifications\EntrepreneurDeactivationRequestedNotification;
 use App\Services\Entrepreneurs\IdeaValidationCancellation;
+use App\Services\Integration\Stripe\Contracts\StripeClient;
+use App\Services\Payments\PaymentRefundResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 class ProfileUpdateTest extends TestCase
@@ -298,6 +301,17 @@ class ProfileUpdateTest extends TestCase
         Notification::fake();
         [$user, $client, $activation] = $this->paidIdeaValidationClient();
 
+        $this->mock(StripeClient::class, function (MockInterface $stripe): void {
+            $stripe->shouldReceive('refund')->once()->andReturn(new PaymentRefundResult(
+                gateway: 'stripe',
+                gatewayRef: 're_live_idea_validation_cancellation',
+                status: 'succeeded',
+                amount: '1897.50',
+                currency: 'NZD',
+                metadata: ['live' => true],
+            ));
+        });
+
         $this
             ->actingAsMfa($user)
             ->get(route('profile.edit'))
@@ -341,6 +355,75 @@ class ProfileUpdateTest extends TestCase
             'amount' => '1897.50',
         ]);
         $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.idea_validation_cancelled',
+            'subject_id' => (string) $activation->getKey(),
+        ]);
+    }
+
+    public function test_idea_validation_cancellation_fails_closed_when_live_stripe_is_unavailable(): void
+    {
+        [$user, $client, $activation] = $this->paidIdeaValidationClient();
+        $clientStatus = $client->refresh()->status;
+
+        $this
+            ->actingAsMfa($user)
+            ->from(route('profile.edit'))
+            ->post(route('profile.idea-validation.cancel'), [
+                'confirm_cancellation' => 'yes',
+            ])
+            ->assertSessionHasErrors('cancellation')
+            ->assertRedirect(route('profile.edit'));
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertNull($user->refresh()->suspended_at);
+        $this->assertSame($clientStatus, $client->refresh()->status);
+        $this->assertSame(ServiceActivation::STATUS_ACTIVE, $activation->refresh()->status);
+        $this->assertNull($activation->cancelled_at);
+        $this->assertDatabaseHas('payment_refunds', [
+            'service_activation_id' => $activation->getKey(),
+            'status' => PaymentRefund::STATUS_FAILED,
+        ]);
+        $this->assertDatabaseMissing('audit_events', [
+            'action' => 'entrepreneur.idea_validation_cancelled',
+            'subject_id' => (string) $activation->getKey(),
+        ]);
+    }
+
+    public function test_a_simulated_refund_result_never_cancels_an_idea_validation_account(): void
+    {
+        [$user, $client, $activation] = $this->paidIdeaValidationClient();
+        $clientStatus = $client->refresh()->status;
+
+        $this->mock(StripeClient::class, function (MockInterface $stripe): void {
+            $stripe->shouldReceive('refund')->once()->andReturn(new PaymentRefundResult(
+                gateway: 'stripe',
+                gatewayRef: 're_stripe_simulated_refund',
+                status: 'succeeded',
+                amount: '1897.50',
+                currency: 'NZD',
+                metadata: ['fixture' => true],
+            ));
+        });
+
+        $this
+            ->actingAsMfa($user)
+            ->from(route('profile.edit'))
+            ->post(route('profile.idea-validation.cancel'), [
+                'confirm_cancellation' => 'yes',
+            ])
+            ->assertSessionHasErrors('cancellation')
+            ->assertRedirect(route('profile.edit'));
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertNull($user->refresh()->suspended_at);
+        $this->assertSame($clientStatus, $client->refresh()->status);
+        $this->assertSame(ServiceActivation::STATUS_ACTIVE, $activation->refresh()->status);
+        $this->assertNull($activation->cancelled_at);
+        $this->assertDatabaseHas('payment_refunds', [
+            'service_activation_id' => $activation->getKey(),
+            'status' => PaymentRefund::STATUS_FAILED,
+        ]);
+        $this->assertDatabaseMissing('audit_events', [
             'action' => 'entrepreneur.idea_validation_cancelled',
             'subject_id' => (string) $activation->getKey(),
         ]);

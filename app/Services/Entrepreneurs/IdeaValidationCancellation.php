@@ -20,6 +20,7 @@ use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Payments\GstCalculator;
 use App\Services\Payments\PaymentGatewayException;
 use App\Services\Payments\PaymentRefundRequest;
+use App\Services\Payments\PaymentRefundResult;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -138,6 +139,7 @@ final class IdeaValidationCancellation
                     'entrepreneur_profile_id' => $profile->getKey(),
                 ],
             ));
+            $this->rejectSimulatedRefund($result);
         } catch (PaymentGatewayException $exception) {
             DB::transaction(function () use ($refund, $activation, $exception): void {
                 $refund->forceFill([
@@ -223,6 +225,14 @@ final class IdeaValidationCancellation
         $this->accountingLedger->recordAcceptedRefund($refund, $user);
 
         return $refund;
+    }
+
+    private function rejectSimulatedRefund(PaymentRefundResult $result): void
+    {
+        if ((bool) data_get($result->metadata, 'fixture', false)
+            || str_starts_with($result->gatewayRef, 're_stripe_')) {
+            throw new PaymentGatewayException('A simulated Stripe refund cannot cancel this account. No refund has been issued.');
+        }
     }
 
     private function profileFor(User $user): ?EntrepreneurProfile
