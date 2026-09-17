@@ -215,6 +215,9 @@ final class InspirationBoard
         array $postIds,
         User $actor,
     ): InspirationRotationSchedule {
+        $localStartAt = CarbonImmutable::instance($startAt)
+            ->setTimezone(self::ROTATION_TIMEZONE);
+        $startsAt = $localStartAt->utc();
         $postIds = array_values(array_unique(array_filter($postIds, 'is_string')));
         if ($postIds === []) {
             throw new RuntimeException('Select at least one published quote for the rotation.');
@@ -224,15 +227,15 @@ final class InspirationBoard
             throw new RuntimeException('A rotation schedule must start now or in the future.');
         }
 
-        $endsAt = $startAt->copy()->addDays($cadenceDays * (count($postIds) - 1));
-        $name = $this->trimToNull($name) ?? 'Rotation starting '.$startAt->format('j M Y');
+        $endsAt = $localStartAt->addDays($cadenceDays * (count($postIds) - 1));
+        $name = $this->trimToNull($name) ?? 'Rotation starting '.$localStartAt->format('j M Y');
 
         try {
-            return DB::transaction(function () use ($cadenceDays, $actor, $endsAt, $name, $postIds, $startAt): InspirationRotationSchedule {
+            return DB::transaction(function () use ($cadenceDays, $actor, $endsAt, $localStartAt, $name, $postIds, $startsAt): InspirationRotationSchedule {
                 $overlapExists = InspirationRotationSchedule::query()
                     ->where('status', InspirationRotationSchedule::STATUS_SCHEDULED)
-                    ->where('starts_at', '<=', $endsAt)
-                    ->where('ends_at', '>=', $startAt)
+                    ->where('starts_at', '<=', $endsAt->utc())
+                    ->where('ends_at', '>=', $startsAt)
                     ->lockForUpdate()
                     ->exists();
 
@@ -256,8 +259,8 @@ final class InspirationBoard
                 $schedule = InspirationRotationSchedule::query()->create([
                     'name' => $name,
                     'status' => InspirationRotationSchedule::STATUS_SCHEDULED,
-                    'starts_at' => $startAt,
-                    'ends_at' => $endsAt,
+                    'starts_at' => $startsAt,
+                    'ends_at' => $endsAt->utc(),
                     'cadence_days' => $cadenceDays,
                     'created_by_user_id' => $actor->getAuthIdentifier(),
                 ]);
@@ -265,7 +268,7 @@ final class InspirationBoard
                 foreach ($postIds as $index => $postId) {
                     /** @var BoardPost $post */
                     $post = $availablePosts->get($postId);
-                    $scheduledAt = $startAt->copy()->addDays($cadenceDays * $index);
+                    $scheduledAt = $localStartAt->addDays($cadenceDays * $index)->utc();
 
                     $schedule->posts()->attach($post->getKey(), [
                         'position' => $index + 1,

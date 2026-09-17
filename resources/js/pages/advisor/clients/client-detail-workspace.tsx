@@ -43,8 +43,8 @@ export function AdvisorServiceWorkspace({
     if (activeTab === 'due_diligence' && client.due_diligence) {
         return (
             <ClientDetailSection
-                title="Due Diligence workspace"
-                description="Keep the DD target, evidence, data room, assessment, and report actions together."
+                title="Due Diligence actions"
+                description="Actions for this client's active Due Diligence service: target, evidence, assessment, and report work."
             >
                 <DueDiligenceTargetPanel
                     payload={client.due_diligence}
@@ -57,8 +57,8 @@ export function AdvisorServiceWorkspace({
     if (activeTab === 'business_plan_budget') {
         return (
             <ClientDetailSection
-                title="Business Plan & Budget workspace"
-                description="Assess the DD-sourced plan, budget confidence, financial evidence, funding assumptions, and advisor approval in one place."
+                title="Business Plan & Budget actions"
+                description="Actions for this client's active Business Plan & Budget service: assessment, evidence, and advisor approval."
             >
                 <BusinessPlanBudgetActionPanel
                     budget={client.strategic_budget}
@@ -75,8 +75,8 @@ export function AdvisorServiceWorkspace({
     ) {
         return (
             <ClientDetailSection
-                title="Advisory access workspace"
-                description="After DD and Business Plan & Budget are approved, manage whether the client requests advisory service access."
+                title="Advisory access actions"
+                description="Actions for this client after their Due Diligence and Business Plan & Budget approvals."
             >
                 <AdvisoryServiceAccessPanel
                     client={client}
@@ -90,8 +90,8 @@ export function AdvisorServiceWorkspace({
     if (activeTab === 'standard_advisory' && client.standard_advisory) {
         return (
             <ClientDetailSection
-                title="Standard Advisory workspace"
-                description="Review questionnaire evidence, analysis modules, advisory pack readiness, and report release."
+                title="Standard Advisory actions"
+                description="Actions for this client's Standard Advisory engagement: analysis, report pack, and client report release."
             >
                 <StandardAdvisoryPanel
                     summary={client.standard_advisory}
@@ -106,8 +106,8 @@ export function AdvisorServiceWorkspace({
     if (activeTab === 'founding_advisory' && client.founding_advisory) {
         return (
             <ClientDetailSection
-                title="Founding Advisory workspace"
-                description="Review founder roadmap state, replanning, and transition-readiness actions."
+                title="Founding Advisory actions"
+                description="Actions for this client's founder roadmap, replanning, and transition readiness."
             >
                 <FoundingAdvisoryPanel summary={client.founding_advisory} />
             </ClientDetailSection>
@@ -127,8 +127,8 @@ export function AdvisorServiceWorkspace({
 
         return (
             <ClientDetailSection
-                title="NPO workspace"
-                description="Keep NPO conversion, governance, funding, value, and social-enterprise decisions together."
+                title="NPO actions"
+                description="Actions for this client's NPO conversion, governance, funding, value, and social-enterprise work."
             >
                 {client.npo_conversion && (
                     <NpoConversionPanel conversion={client.npo_conversion} />
@@ -178,8 +178,8 @@ export function AdvisorServiceWorkspace({
     if (activeTab === 'strategic_plan' && !isDueDiligenceClient(client)) {
         return (
             <ClientDetailSection
-                title="Strategic Plan workspace"
-                description="Use this only for clients whose accepted advisory proposal unlocks strategic-plan work."
+                title="Strategic Plan actions"
+                description="Actions available after this client's advisory proposal has been accepted."
             >
                 <StrategicPlanPanel
                     plan={client.strategic_plan}

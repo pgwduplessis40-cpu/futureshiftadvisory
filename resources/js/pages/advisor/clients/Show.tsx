@@ -14,6 +14,7 @@ import type { MouseEvent } from 'react';
 import { toast } from 'sonner';
 import { useDrillFocus } from '@/hooks/use-drill-focus';
 import { ClientDetailLayout } from './client-detail-layout';
+import { hasActiveBusinessPlanBudgetWorkspace } from './client-detail-service-visibility';
 import type {
     AnalysisFindingFilter,
     ClientDetail,
@@ -34,7 +35,6 @@ import type {
 export default function ClientsShow({
     client,
     serviceWorkspaces,
-    conflictDeclaration,
     screenShare,
     coBrowse,
 }: Props) {
@@ -43,7 +43,9 @@ export default function ClientsShow({
         initialClientDetailTab(),
     );
     const [activeServiceTab, setActiveServiceTab] =
-        useState<AdvisorServiceTabKey>(() => initialAdvisorServiceTab(client));
+        useState<AdvisorServiceTabKey>(() =>
+            initialAdvisorServiceTab(client, serviceWorkspaces),
+        );
     const [generatingPack, setGeneratingPack] = useState(false);
     const [analysisFindingFilter, setAnalysisFindingFilter] =
         useState<AnalysisFindingFilter>('needs_review');
@@ -154,7 +156,10 @@ export default function ClientsShow({
         event?.preventDefault();
         const serviceTab = clientSectionServiceTabs[sectionId];
 
-        if (serviceTab && advisorServiceTabAvailable(client, serviceTab)) {
+        if (
+            serviceTab &&
+            advisorServiceTabAvailable(client, serviceTab, serviceWorkspaces)
+        ) {
             setActiveServiceTab(serviceTab);
         }
 
@@ -255,6 +260,8 @@ export default function ClientsShow({
         Boolean(client.strategic_plan || signedProposal);
     const showStrategicPlanServiceTab =
         !isDueDiligenceClient && Boolean(client.strategic_plan);
+    const hasBusinessPlanBudgetWorkspace =
+        hasActiveBusinessPlanBudgetWorkspace(serviceWorkspaces);
     const advisorServiceTabs: AdvisorServiceTab[] = [
         {
             key: 'overview',
@@ -275,14 +282,18 @@ export default function ClientsShow({
                   },
               ]
             : []),
-        {
-            key: 'business_plan_budget',
-            label: 'Business Plan & Budget',
-            description:
-                'Plan assessment, budget confidence, financial evidence, and advisor approval.',
-            status: strategicBudgetPriorityValue,
-            icon: FileSpreadsheet,
-        },
+        ...(hasBusinessPlanBudgetWorkspace
+            ? [
+                  {
+                      key: 'business_plan_budget' as const,
+                      label: 'Business Plan & Budget',
+                      description:
+                          'Plan assessment, budget confidence, financial evidence, and advisor approval.',
+                      status: strategicBudgetPriorityValue,
+                      icon: FileSpreadsheet,
+                  },
+              ]
+            : []),
         ...(isDueDiligenceClient && client.due_diligence
             ? [
                   {
@@ -356,19 +367,11 @@ export default function ClientsShow({
     )
         ? activeServiceTab
         : 'overview';
-    const selectAdvisorServiceTab = (tab: AdvisorServiceTabKey) => {
-        setActiveServiceTab(tab);
-
-        if (tab !== 'overview') {
-            setActiveTab('actions');
-        }
-    };
 
     return (
         <ClientDetailLayout
             client={client}
             serviceWorkspaces={serviceWorkspaces}
-            conflictDeclaration={conflictDeclaration}
             screenShare={screenShare}
             coBrowse={coBrowse}
             activeTab={activeTab}
@@ -382,7 +385,6 @@ export default function ClientsShow({
                       ? 'dd_plan_budget'
                       : serviceWorkspaces.active_key
             }
-            selectAdvisorServiceTab={selectAdvisorServiceTab}
             generatingPack={generatingPack}
             analysisFindingFilter={analysisFindingFilter}
             setAnalysisFindingFilter={setAnalysisFindingFilter}
@@ -421,14 +423,18 @@ function initialClientDetailTab(): ClientDetailTab {
     return clientSectionTabs[window.location.hash.slice(1)] ?? 'actions';
 }
 
-function initialAdvisorServiceTab(client: ClientDetail): AdvisorServiceTabKey {
+function initialAdvisorServiceTab(
+    client: ClientDetail,
+    serviceWorkspaces: Props['serviceWorkspaces'],
+): AdvisorServiceTabKey {
     if (typeof window === 'undefined') {
         return 'overview';
     }
 
     const serviceTab = clientSectionServiceTabs[window.location.hash.slice(1)];
 
-    return serviceTab && advisorServiceTabAvailable(client, serviceTab)
+    return serviceTab &&
+        advisorServiceTabAvailable(client, serviceTab, serviceWorkspaces)
         ? serviceTab
         : 'overview';
 }
@@ -436,6 +442,7 @@ function initialAdvisorServiceTab(client: ClientDetail): AdvisorServiceTabKey {
 function advisorServiceTabAvailable(
     client: ClientDetail,
     tab: AdvisorServiceTabKey,
+    serviceWorkspaces: Props['serviceWorkspaces'],
 ): boolean {
     if (tab === 'overview') {
         return true;
@@ -446,7 +453,7 @@ function advisorServiceTabAvailable(
     }
 
     if (tab === 'business_plan_budget') {
-        return Boolean(client.strategic_budget);
+        return hasActiveBusinessPlanBudgetWorkspace(serviceWorkspaces);
     }
 
     if (tab === 'advisory_access') {

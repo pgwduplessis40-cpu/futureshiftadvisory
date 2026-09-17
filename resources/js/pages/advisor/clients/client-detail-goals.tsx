@@ -149,7 +149,9 @@ export function GoalsPanel({ client }: { client: ClientDetail }) {
                     <InputError message={form.errors.target_date} />
                 </div>
                 <div className="grid gap-2">
-                    <Label htmlFor="goal_growth_percent">Growth %</Label>
+                    <Label htmlFor="goal_growth_percent">
+                        Target business-value growth %
+                    </Label>
                     <input
                         id="goal_growth_percent"
                         type="number"
@@ -165,6 +167,10 @@ export function GoalsPanel({ client }: { client: ClientDetail }) {
                         className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                     />
                     <InputError message={form.errors.target_growth_percent} />
+                    <p className="text-xs text-muted-foreground">
+                        Used to calculate the target from the baseline business
+                        valuation. This is not gross profit, EBITDA, or NPAT.
+                    </p>
                 </div>
                 <div className="flex items-end">
                     <Button
