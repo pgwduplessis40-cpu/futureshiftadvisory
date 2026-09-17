@@ -138,6 +138,13 @@ export default function EntrepreneurService({
                     with real numbers behind it, and a straight read on whether
                     you are ready to launch.
                 </p>
+                <p className="mt-4 max-w-2xl text-lg leading-relaxed text-[var(--fs-admiralty)]">
+                    And you do not have to quit your job to find out. Idea
+                    validation and your business plan and budget are self-paced
+                    and done online - work through them in your own time,
+                    alongside the job you already have, and make the leap only
+                    once the evidence says it is worth it.
+                </p>
                 <div className="mt-10 flex flex-wrap items-center gap-4">
                     <Link
                         href="/validate-idea/purchase"

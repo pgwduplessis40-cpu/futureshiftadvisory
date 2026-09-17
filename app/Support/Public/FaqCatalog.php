@@ -85,6 +85,11 @@ final class FaqCatalog
                 'answer' => 'Not at all - that is often the best time. The earliest conversations are the cheapest ones to have, because nothing has been built yet and every option is still open. Bring the idea in whatever shape it is in.',
             ],
             [
+                'group' => 'Starting a new business',
+                'question' => 'Do I have to quit my job to validate an idea or build a business plan?',
+                'answer' => 'No - and you should not. Idea validation and your business plan and budget are self-paced and done online, so you can work through them in your own time, alongside the job you already have. The whole point is to test the idea properly before you decide whether to leave, not after. You make the leap when the evidence says it is worth it, not before.',
+            ],
+            [
                 'group' => 'Working with not-for-profits',
                 'question' => 'Do you work with charities and not-for-profits?',
                 'answer' => 'We do. We have a dedicated lane for charities, incorporated societies, community organisations, and social enterprises. We look at the health of the whole organisation and frame everything around your mission and the difference you make - not commercial profit.',
