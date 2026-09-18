@@ -2,6 +2,7 @@ import { router } from '@inertiajs/react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { formatNzdCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { EntrepreneurDetail } from './types';
 
@@ -109,7 +110,7 @@ export function FixedCostCalculationAudit({ trace, repairUrl }: Props) {
                                     ) : null}
                                 </td>
                                 <td className="px-3 py-3 tabular-nums">
-                                    {formatCurrency(row.rate)}
+                                    {formatNzdCurrency(row.rate)}
                                 </td>
                                 <td className="px-3 py-3 tabular-nums">
                                     {row.quantity}
@@ -123,7 +124,7 @@ export function FixedCostCalculationAudit({ trace, repairUrl }: Props) {
                                     ) : null}
                                 </td>
                                 <td className="px-3 py-3 font-medium tabular-nums">
-                                    {formatCurrency(row.monthly_equivalent)}
+                                    {formatNzdCurrency(row.monthly_equivalent)}
                                 </td>
                                 <td className="px-3 py-3">
                                     {row.duplicate_cadence_quantity &&
@@ -161,12 +162,4 @@ export function FixedCostCalculationAudit({ trace, repairUrl }: Props) {
             ) : null}
         </section>
     );
-}
-
-function formatCurrency(value: number): string {
-    return new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency: 'NZD',
-        maximumFractionDigits: 0,
-    }).format(value);
 }
