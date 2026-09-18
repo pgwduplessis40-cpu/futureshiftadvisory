@@ -60,11 +60,53 @@ final class EntrepreneurBudgetCorrectionTest extends TestCase
         $this->assertSame(52.0, data_get($payload, 'entrepreneur.latest_plan.budget.fixed_cost_trace.0.quantity'));
         $this->assertSame('weekly', data_get($payload, 'entrepreneur.latest_plan.budget.fixed_cost_trace.0.cadence'));
         $this->assertSame(197166.67, data_get($payload, 'entrepreneur.latest_plan.budget.fixed_cost_trace.0.monthly_equivalent'));
+        $this->assertSame(3791.67, data_get($payload, 'entrepreneur.latest_plan.budget.fixed_cost_trace.0.corrected_monthly_equivalent'));
         $this->assertTrue(data_get($payload, 'entrepreneur.latest_plan.budget.fixed_cost_trace.0.duplicate_cadence_quantity'));
         $this->assertSame(route('advisor.entrepreneurs.plans.budget.fixed-cost-cadence.repair', [
             $profile,
             $plan,
         ], absolute: false), data_get($payload, 'entrepreneur.latest_plan.budget.fixed_cost_cadence_repair_url'));
+        $this->assertSame(route('advisor.entrepreneurs.plans.budget.fixed-cost-cadence.repair-all', [
+            $profile,
+            $plan,
+        ], absolute: false), data_get($payload, 'entrepreneur.latest_plan.budget.fixed_cost_cadence_repair_all_url'));
+    }
+
+    public function test_advisor_can_repair_all_duplicate_cadence_quantities_before_one_reassessment(): void
+    {
+        Queue::fake();
+        [$advisor, $profile, $plan, $budget] = $this->budgetWithDuplicatedWeeklyQuantity();
+        $budget->update([
+            'monthly_fixed_costs' => [
+                ...$budget->monthly_fixed_costs,
+                [
+                    'label' => 'Adobe creative suite',
+                    'amount' => 76,
+                    'quantity' => 12,
+                    'cadence' => 'monthly',
+                    'cadence_confirmed' => false,
+                    'confidence' => 'known',
+                ],
+            ],
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->patch(route('advisor.entrepreneurs.plans.budget.fixed-cost-cadence.repair-all', [$profile, $plan]))
+            ->assertRedirect(route('advisor.entrepreneurs.show', $profile));
+
+        $budget->refresh();
+        $audit = AuditEvent::query()
+            ->where('action', 'entrepreneur.budget_fixed_cost_cadences_repaired')
+            ->first();
+
+        $this->assertSame(1.0, (float) $budget->monthly_fixed_costs[0]['quantity']);
+        $this->assertSame(1.0, (float) $budget->monthly_fixed_costs[1]['quantity']);
+        $this->assertSame(2, $budget->revision);
+        $this->assertInstanceOf(AuditEvent::class, $audit);
+        $this->assertSame(2, data_get($audit->after, 'fixed_cost_row_count'));
+        $this->assertSame(52.0, (float) data_get($audit->after, 'before.fixed_costs.0.fixed_cost.quantity'));
+        $this->assertSame(1.0, (float) data_get($audit->after, 'after.fixed_costs.1.fixed_cost.quantity'));
+        Queue::assertPushed(RunEntrepreneurPlanAssessment::class, 1);
     }
 
     /** @return array{User, EntrepreneurProfile, BusinessPlan, EntrepreneurBudget} */

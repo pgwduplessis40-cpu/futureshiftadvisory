@@ -13,10 +13,16 @@ type FixedCostTrace = NonNullable<
 type Props = {
     trace: FixedCostTrace;
     repairUrl: string | null;
+    repairAllUrl: string | null;
 };
 
-export function FixedCostCalculationAudit({ trace, repairUrl }: Props) {
+export function FixedCostCalculationAudit({
+    trace,
+    repairUrl,
+    repairAllUrl,
+}: Props) {
     const [repairIndex, setRepairIndex] = useState<number | null>(null);
+    const [repairingAll, setRepairingAll] = useState(false);
     const [repairError, setRepairError] = useState<string | null>(null);
     const duplicateCount = trace.filter(
         (row) => row.duplicate_cadence_quantity,
@@ -27,7 +33,7 @@ export function FixedCostCalculationAudit({ trace, repairUrl }: Props) {
     }
 
     const repairDuplicateCadenceQuantity = (rowIndex: number) => {
-        if (!repairUrl || repairIndex !== null) {
+        if (!repairUrl || repairIndex !== null || repairingAll) {
             return;
         }
 
@@ -53,6 +59,33 @@ export function FixedCostCalculationAudit({ trace, repairUrl }: Props) {
         );
     };
 
+    const repairAllDuplicateCadenceQuantities = () => {
+        if (!repairAllUrl || repairIndex !== null || repairingAll) {
+            return;
+        }
+
+        router.patch(
+            repairAllUrl,
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => {
+                    setRepairingAll(true);
+                    setRepairError(null);
+                },
+                onError: (errors) => {
+                    const error = errors.fixed_costs;
+                    setRepairError(
+                        typeof error === 'string'
+                            ? error
+                            : 'The stored fixed-cost rows could not be corrected. Refresh the audit and try again.',
+                    );
+                },
+                onFinish: () => setRepairingAll(false),
+            },
+        );
+    };
+
     return (
         <section className="rounded-md border">
             <div className="flex flex-wrap items-start justify-between gap-3 border-b p-4">
@@ -73,6 +106,18 @@ export function FixedCostCalculationAudit({ trace, repairUrl }: Props) {
                     {duplicateCount} duplicate cadence count
                     {duplicateCount === 1 ? '' : 's'}
                 </Badge>
+                {duplicateCount > 1 && repairAllUrl ? (
+                    <Button
+                        type="button"
+                        size="sm"
+                        disabled={repairIndex !== null || repairingAll}
+                        onClick={repairAllDuplicateCadenceQuantities}
+                    >
+                        {repairingAll
+                            ? 'Repairing and queueing assessment'
+                            : `Repair all ${duplicateCount} and reassess`}
+                    </Button>
+                ) : null}
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full min-w-[860px] text-sm">
@@ -85,7 +130,10 @@ export function FixedCostCalculationAudit({ trace, repairUrl }: Props) {
                             <th className="px-3 py-2 font-medium">Qty</th>
                             <th className="px-3 py-2 font-medium">Cadence</th>
                             <th className="px-3 py-2 font-medium">
-                                Monthly equivalent
+                                Stored model output
+                            </th>
+                            <th className="px-3 py-2 font-medium">
+                                After correction
                             </th>
                             <th className="px-3 py-2 font-medium">Action</th>
                         </tr>
@@ -126,14 +174,25 @@ export function FixedCostCalculationAudit({ trace, repairUrl }: Props) {
                                 <td className="px-3 py-3 font-medium tabular-nums">
                                     {formatNzdCurrency(row.monthly_equivalent)}
                                 </td>
+                                <td className="px-3 py-3 font-medium tabular-nums">
+                                    {row.corrected_monthly_equivalent === null
+                                        ? '-'
+                                        : formatNzdCurrency(
+                                              row.corrected_monthly_equivalent,
+                                          )}
+                                </td>
                                 <td className="px-3 py-3">
                                     {row.duplicate_cadence_quantity &&
-                                    repairUrl ? (
+                                    repairUrl &&
+                                    duplicateCount === 1 ? (
                                         <Button
                                             type="button"
                                             size="sm"
                                             variant="outline"
-                                            disabled={repairIndex !== null}
+                                            disabled={
+                                                repairIndex !== null ||
+                                                repairingAll
+                                            }
                                             onClick={() =>
                                                 repairDuplicateCadenceQuantity(
                                                     row.index,
@@ -144,6 +203,10 @@ export function FixedCostCalculationAudit({ trace, repairUrl }: Props) {
                                                 ? 'Correcting and queueing assessment'
                                                 : 'Set Qty to 1 and reassess'}
                                         </Button>
+                                    ) : row.duplicate_cadence_quantity ? (
+                                        <span className="text-xs text-muted-foreground">
+                                            Included in the batch repair
+                                        </span>
                                     ) : (
                                         <span className="text-xs text-muted-foreground">
                                             No cadence repair required
