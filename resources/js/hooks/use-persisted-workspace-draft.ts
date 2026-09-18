@@ -295,9 +295,13 @@ export function resolvePersistedWorkspaceDraft<T extends object>({
     recoveryPayload: Partial<T> | null;
     recoveryIsNewer: boolean;
 }): PersistedWorkspaceDraftResolution<T> {
-    const serverData = { ...initialData, ...serverPayload } as T;
+    const serverData = mergePersistedWorkspaceDraft(
+        initialData,
+        serverPayload,
+        initialData,
+    );
     const recoveredData = recoveryIsNewer
-        ? ({ ...serverData, ...recoveryPayload } as T)
+        ? mergePersistedWorkspaceDraft(serverData, recoveryPayload, initialData)
         : serverData;
     const currentChanges = Object.keys(currentData).reduce<Partial<T>>(
         (changes, key) => {
@@ -319,6 +323,33 @@ export function resolvePersistedWorkspaceDraft<T extends object>({
         data: { ...recoveredData, ...currentChanges } as T,
         serverSignature: JSON.stringify(serverData),
     };
+}
+
+function mergePersistedWorkspaceDraft<T extends object>(
+    base: T,
+    incoming: Partial<T> | null,
+    initialData: T,
+): T {
+    if (incoming === null) {
+        return base;
+    }
+
+    return Object.entries(incoming).reduce<T>(
+        (draft, [key, value]) => {
+            const field = key as keyof T;
+
+            // Older persisted drafts can contain nulls for text inputs. Retain the
+            // string default so a malformed/legacy draft cannot crash rendering.
+            if (value === null && typeof initialData[field] === 'string') {
+                return draft;
+            }
+
+            draft[field] = value as T[keyof T];
+
+            return draft;
+        },
+        { ...base },
+    );
 }
 
 function csrfToken(): string {
