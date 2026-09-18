@@ -163,6 +163,11 @@ final class BudgetFundingReadiness
             $warnings->push('Confirm the billing cadence for every fixed cost before external issue: '.implode(', ', $unconfirmedCadences).'.');
         }
 
+        $cadenceQuantityConflicts = array_values((array) ($quality['fixed_cost_cadence_quantity_conflicts'] ?? []));
+        if ($cadenceQuantityConflicts !== []) {
+            $warnings->push('Correct fixed-cost quantities that duplicate billing periods before external issue. Qty is the number of parallel subscriptions, people, or licences, not payments in a year: '.implode(', ', $cadenceQuantityConflicts).'.');
+        }
+
         $unconfirmedGrowth = array_values((array) ($quality['unconfirmed_revenue_growth'] ?? []));
         if ($unconfirmedGrowth !== []) {
             $warnings->push('Confirm whether revenue growth is monthly or annual before external issue: '.implode(', ', $unconfirmedGrowth).'.');

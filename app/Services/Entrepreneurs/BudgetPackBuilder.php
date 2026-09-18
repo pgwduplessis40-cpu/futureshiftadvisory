@@ -141,9 +141,10 @@ final class BudgetPackBuilder
             ->implode('');
         $fixedCostRows = collect((array) ($payload['fixed_costs'] ?? []))
             ->map(fn (array $row): string => sprintf(
-                '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+                '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
                 $this->escape($row['label'] ?? ''),
-                $this->money($row['entered_amount'] ?? 0),
+                $this->money($row['rate_amount'] ?? 0),
+                $this->escape($this->unitCount($row['quantity'] ?? null)),
                 $this->escape($row['cadence_label'] ?? ''),
                 $this->money($row['monthly_amount'] ?? 0),
                 $this->escape($row['start_month_label'] ?? ''),
@@ -233,11 +234,11 @@ HTML,
             $useOfFundsRows === '' ? '<tr><td colspan="3">No funding inputs saved.</td></tr>' : $useOfFundsRows,
         );
         $fixedCostsSection = sprintf(
-            '<article class="report-section"><h2>Monthly fixed-cost trace</h2><p class="section-intro">Each row shows the entered amount, billing cadence, and monthly equivalent used by the model. The converted rows total %s per month; the model base is %s per month.</p>%s<table class="decision-table"><thead><tr><th>Cost item</th><th>Entered amount</th><th>Cadence</th><th>Monthly equivalent</th><th>Starts</th><th>Review note</th></tr></thead><tbody>%s</tbody></table></article>',
+            '<article class="report-section"><h2>Monthly fixed-cost trace</h2><p class="section-intro">Each row separately shows the saved rate, number of billed units, billing cadence, and monthly equivalent used by the model. Units count parallel subscriptions, people, or licences; they are not payments in a year. The converted rows total %s per month; the model base is %s per month.</p>%s<table class="decision-table"><thead><tr><th>Cost item</th><th>Rate</th><th>Units</th><th>Cadence</th><th>Monthly equivalent</th><th>Starts</th><th>Review note</th></tr></thead><tbody>%s</tbody></table></article>',
             $this->money($fixedCostReconciliation['listed_total'] ?? 0),
             $this->money($fixedCostReconciliation['model_base'] ?? ($decision['monthly_fixed_costs'] ?? 0)),
             $fixedCostReconciliationNote,
-            $fixedCostRows === '' ? '<tr><td colspan="6">No monthly fixed costs saved.</td></tr>' : $fixedCostRows,
+            $fixedCostRows === '' ? '<tr><td colspan="7">No monthly fixed costs saved.</td></tr>' : $fixedCostRows,
         );
         $capacitySection = sprintf(
             '<article class="report-section"><h2>Revenue capacity and delivery resourcing</h2><p class="section-intro">Revenue is capped at the saved monthly capacity. Where total capacity exceeds founder capacity, the forecast includes the saved contractor delivery cost for the extra units.</p><table class="decision-table"><thead><tr><th>Revenue line</th><th>Unit</th><th>Founder capacity</th><th>Total capacity</th><th>Contractor cost / unit</th><th>Review note</th></tr></thead><tbody>%s</tbody></table></article>',
@@ -633,7 +634,7 @@ HTML,
     }
 
     /**
-     * @return array<int, array{label:string,entered_amount:float,cadence_label:string,monthly_amount:float,start_month_label:string,confidence:string,review_note:string}>
+     * @return array<int, array{label:string,rate_amount:float,quantity:float,cadence_label:string,monthly_amount:float,start_month_label:string,confidence:string,review_note:string}>
      */
     private function fixedCosts(EntrepreneurBudget $budget): array
     {
@@ -644,7 +645,8 @@ HTML,
 
                 return [
                     'label' => $this->fixedCostDisplayLabel($label),
-                    'entered_amount' => round((float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1), 2),
+                    'rate_amount' => round((float) ($row['amount'] ?? 0), 2),
+                    'quantity' => round((float) ($row['quantity'] ?? 1), 2),
                     'cadence_label' => $this->cadenceLabel((string) ($row['cadence'] ?? 'monthly'), (bool) ($row['cadence_confirmed'] ?? false)),
                     'monthly_amount' => round($this->monthlyEquivalent($row), 2),
                     'start_month_label' => 'Month '.$month,
@@ -719,10 +721,15 @@ HTML,
     }
 
     /**
-     * @param  array<string, mixed>  $row
+     * @param  array{quantity?: float|int|string, cadence?: string}  $row
      */
     private function fixedCostReviewNote(string $label, array $row): string
     {
+        $cadenceQuantityWarning = $this->cadenceQuantityWarning($row);
+        if ($cadenceQuantityWarning !== null) {
+            return $cadenceQuantityWarning;
+        }
+
         if ($this->isAmbiguousOwnerCompensation($label)) {
             return 'Clarify whether the saved amount is weekly, monthly, or annual before external issue.';
         }
@@ -741,6 +748,28 @@ HTML,
         }
 
         return 'Source: '.trim((string) ($row['source_reference'] ?? '')).'.';
+    }
+
+    /**
+     * @param  array{quantity?: float|int|string, cadence?: string}  $row
+     */
+    private function cadenceQuantityWarning(array $row): ?string
+    {
+        $cadence = (string) ($row['cadence'] ?? 'monthly');
+        $paymentsPerYear = match ($cadence) {
+            'weekly' => 52,
+            'fortnightly' => 26,
+            'monthly' => 12,
+            'quarterly' => 4,
+            default => null,
+        };
+        $quantity = (float) ($row['quantity'] ?? 1);
+
+        if ($paymentsPerYear === null || abs($quantity - $paymentsPerYear) >= 0.005) {
+            return null;
+        }
+
+        return 'Qty '.$this->unitCount($quantity).' matches the number of '.$cadence.' payments in a year. Qty must be the number of parallel billed units; enter 1 for one billed item.';
     }
 
     private function fixedCostDisplayLabel(string $label): string

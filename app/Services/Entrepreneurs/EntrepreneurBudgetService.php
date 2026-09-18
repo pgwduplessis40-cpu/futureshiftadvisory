@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Learning\LayerCadenceRegistry;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 final class EntrepreneurBudgetService
 {
@@ -44,11 +45,22 @@ final class EntrepreneurBudgetService
     public function update(BusinessPlan $plan, array $input, User $actor): EntrepreneurBudget
     {
         return DB::transaction(function () use ($plan, $input, $actor): EntrepreneurBudget {
-            $budget = $plan->budgetRunway()->firstOrNew();
+            $budget = $plan->budgetRunway()->lockForUpdate()->first();
+            $this->assertExpectedRevision($budget, $input);
+
+            if (! $budget instanceof EntrepreneurBudget) {
+                $budget = new EntrepreneurBudget([
+                    'business_plan_id' => $plan->getKey(),
+                    'revision' => 1,
+                ]);
+            }
+
             $existingFlags = (array) ($budget->flags ?? []);
             $beforeFingerprint = $budget->exists ? $this->changeFingerprint($budget) : null;
+            $beforeAudit = $budget->exists ? $this->inputAuditSnapshot($budget) : null;
             $launchCosts = $this->calculator->normaliseRows((array) ($input['launch_costs'] ?? []));
             $monthlyFixedCosts = $this->calculator->normaliseRows((array) ($input['monthly_fixed_costs'] ?? []));
+            $this->assertFixedCostQuantitiesAreUnitCounts($monthlyFixedCosts);
             $revenueForecast = $this->calculator->normaliseRows((array) ($input['revenue_forecast'] ?? []));
             $fundingSources = $this->calculator->normaliseRows((array) ($input['funding_sources'] ?? []));
             $futureCosts = $this->calculator->normaliseFutureCosts((array) ($input['future_costs'] ?? []));
@@ -116,9 +128,11 @@ final class EntrepreneurBudgetService
             $changed = $beforeFingerprint !== $this->changeFingerprint($budget);
 
             if ($changed) {
+                $budget->revision = $budget->exists ? ((int) $budget->revision) + 1 : 1;
                 $budget->save();
 
-                $this->audit->record('entrepreneur.budget_updated', subject: $budget, actor: $actor, after: [
+                $this->audit->record('entrepreneur.budget_updated', subject: $budget, actor: $actor, before: $beforeAudit, after: [
+                    ...$this->inputAuditSnapshot($budget),
                     'business_plan_id' => $plan->getKey(),
                     'status' => $budget->status,
                     'runway_months' => data_get($computed, 'runway_months'),
@@ -487,6 +501,77 @@ final class EntrepreneurBudgetService
     private function money(float $amount): string
     {
         return '$'.number_format($amount, 0, '.', ',');
+    }
+
+    /**
+     * @param  array{revision?: int|string|null}  $input
+     */
+    private function assertExpectedRevision(?EntrepreneurBudget $budget, array $input): void
+    {
+        if (! array_key_exists('revision', $input)) {
+            return;
+        }
+
+        $expectedRevision = (int) $input['revision'];
+        $actualRevision = $budget instanceof EntrepreneurBudget ? (int) $budget->revision : 0;
+
+        if ($expectedRevision === $actualRevision) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'revision' => 'This budget changed in another browser session. Refresh the budget before saving so newer figures are not overwritten.',
+        ]);
+    }
+
+    /**
+     * @param  array<int, array{label?: string, quantity?: float|int|string, cadence?: string}>  $monthlyFixedCosts
+     */
+    private function assertFixedCostQuantitiesAreUnitCounts(array $monthlyFixedCosts): void
+    {
+        $errors = [];
+
+        foreach ((new FixedCostCadenceQuantityGuard)->conflicts($monthlyFixedCosts) as $conflict) {
+            $errors['monthly_fixed_costs.'.$conflict['index'].'.quantity'] = sprintf(
+                'Qty is the number of parallel subscriptions, people, or licences. %s matches the number of %s payments in a year; use Qty 1 for one billed item.',
+                number_format($conflict['quantity'], 2, '.', ''),
+                $conflict['cadence'],
+            );
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /**
+     * @return array{
+     *     revision: int,
+     *     expected_runway_months: int|null,
+     *     forecast_years: int|null,
+     *     assumptions: array,
+     *     launch_costs: array,
+     *     monthly_fixed_costs: array,
+     *     future_costs: array,
+     *     revenue_forecast: array,
+     *     funding_sources: array,
+     *     funding_scenarios: array
+     * }
+     */
+    private function inputAuditSnapshot(EntrepreneurBudget $budget): array
+    {
+        return [
+            'revision' => (int) $budget->revision,
+            'expected_runway_months' => $budget->expected_runway_months,
+            'forecast_years' => $budget->forecast_years,
+            'assumptions' => (array) ($budget->assumptions ?? []),
+            'launch_costs' => (array) ($budget->launch_costs ?? []),
+            'monthly_fixed_costs' => (array) ($budget->monthly_fixed_costs ?? []),
+            'future_costs' => (array) ($budget->future_costs ?? []),
+            'revenue_forecast' => (array) ($budget->revenue_forecast ?? []),
+            'funding_sources' => (array) ($budget->funding_sources ?? []),
+            'funding_scenarios' => (array) ($budget->funding_scenarios ?? []),
+        ];
     }
 
     private function changeFingerprint(EntrepreneurBudget $budget): string

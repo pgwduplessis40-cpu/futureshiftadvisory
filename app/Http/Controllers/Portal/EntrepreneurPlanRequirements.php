@@ -96,6 +96,7 @@ final class EntrepreneurPlanRequirements
 
         return [
             'id' => $budget?->id,
+            'revision' => $budget instanceof EntrepreneurBudget ? $budget->revision : 0,
             'expected_runway_months' => $budget?->expected_runway_months,
             'forecast_years' => $budget instanceof EntrepreneurBudget ? $budget->forecast_years : 3,
             'status' => $budget instanceof EntrepreneurBudget

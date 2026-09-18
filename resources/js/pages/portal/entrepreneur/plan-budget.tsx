@@ -961,7 +961,9 @@ export function BudgetRowsEditor({
                             }
                         />
                         <BudgetInput
-                            label="Amount"
+                            label={
+                                fixedCost ? 'Rate / billing period' : 'Amount'
+                            }
                             type="number"
                             value={row.amount}
                             onChange={(value) =>
@@ -971,7 +973,7 @@ export function BudgetRowsEditor({
                             }
                         />
                         <BudgetInput
-                            label="Qty"
+                            label={fixedCost ? 'Units' : 'Qty'}
                             type="number"
                             value={row.quantity ?? 1}
                             onChange={(value) =>
@@ -1012,7 +1014,7 @@ export function BudgetRowsEditor({
                                                 {
                                                     cadence: event.target
                                                         .value as BudgetRow['cadence'],
-                                                    cadence_confirmed: true,
+                                                    cadence_confirmed: false,
                                                 },
                                             )
                                         }
@@ -1028,6 +1030,29 @@ export function BudgetRowsEditor({
                                         </option>
                                         <option value="annual">Annual</option>
                                     </select>
+                                    <span className="flex items-center gap-2 text-[11px] leading-snug text-muted-foreground">
+                                        <input
+                                            type="checkbox"
+                                            name="cadence_confirmed"
+                                            aria-label="Confirm billing cadence"
+                                            checked={Boolean(
+                                                row.cadence_confirmed,
+                                            )}
+                                            onChange={(event) =>
+                                                updateBudgetRow(
+                                                    onFormChange,
+                                                    group,
+                                                    index,
+                                                    {
+                                                        cadence_confirmed:
+                                                            event.target
+                                                                .checked,
+                                                    },
+                                                )
+                                            }
+                                        />
+                                        Cadence checked
+                                    </span>
                                 </label>
                                 <BudgetEvidenceInputs
                                     row={row}
@@ -1226,6 +1251,11 @@ export function BudgetRowsEditor({
                                     }
                                 />
                             </>
+                        ) : null}
+                        {fixedCost && fixedCostQuantityWarning(row) ? (
+                            <p className="text-xs leading-snug text-destructive">
+                                {fixedCostQuantityWarning(row)}
+                            </p>
                         ) : null}
                         <BudgetConfidenceSelect
                             value={row.confidence ?? 'estimate'}
@@ -2605,6 +2635,7 @@ export function budgetToForm(
     budget: BudgetPayload | undefined,
 ): BudgetFormState {
     return {
+        revision: budget?.revision ?? 0,
         expected_runway_months:
             budget?.expected_runway_months === null ||
             budget?.expected_runway_months === undefined
@@ -2736,6 +2767,7 @@ export function blankFundingScenario(): FundingScenarioRow {
 
 export function cleanBudgetForm(form: BudgetFormState) {
     return {
+        revision: form.revision,
         expected_runway_months:
             form.expected_runway_months === ''
                 ? null
@@ -2802,6 +2834,29 @@ export function cleanBudgetForm(form: BudgetFormState) {
         funding_sources: cleanBudgetRows(form.funding_sources),
         funding_scenarios: cleanFundingScenarios(form.funding_scenarios),
     };
+}
+
+export function fixedCostQuantityWarning(row: BudgetRow): string | null {
+    const paymentsPerYear = {
+        weekly: 52,
+        fortnightly: 26,
+        monthly: 12,
+        quarterly: 4,
+    } as const;
+    const cadence = row.cadence ?? 'monthly';
+    const expectedQuantity =
+        cadence === 'annual' ? undefined : paymentsPerYear[cadence];
+    const quantity = Number(row.quantity ?? 1);
+
+    if (
+        expectedQuantity === undefined ||
+        !Number.isFinite(quantity) ||
+        Math.abs(quantity - expectedQuantity) >= 0.005
+    ) {
+        return null;
+    }
+
+    return `Units ${quantity} looks like the number of ${cadence} payments in a year. Units means parallel subscriptions, people, or licences; use 1 for one billed item.`;
 }
 
 export function cleanBudgetRows(

@@ -52,6 +52,7 @@ final class EntrepreneurPlanBudgetController extends Controller
 
         $validated = $request->validate([
             '_autosave' => ['sometimes', 'boolean'],
+            'revision' => ['nullable', 'integer', 'min:0'],
             'expected_runway_months' => ['nullable', 'integer', 'min:0', 'max:60'],
             'forecast_years' => ['nullable', 'integer', Rule::in([1, 2, 3, 5])],
             'assumptions' => ['array'],
@@ -135,13 +136,14 @@ final class EntrepreneurPlanBudgetController extends Controller
             'funding_scenarios.*.confidence' => ['nullable', 'string', Rule::in(['known', 'estimate', 'guess'])],
         ]);
 
-        $this->budgets->update($plan, $validated, $user);
+        $budget = $this->budgets->update($plan, $validated, $user);
 
         if ($request->expectsJson()) {
             return response()->json([
                 'status' => $request->boolean('_autosave')
                     ? 'entrepreneur-budget-autosaved'
                     : 'entrepreneur-budget-saved',
+                'revision' => $budget->revision,
             ]);
         }
 

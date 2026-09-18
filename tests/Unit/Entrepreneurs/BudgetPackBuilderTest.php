@@ -114,7 +114,8 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringContainsString('Signed delivery agreement', $html);
         $this->assertStringContainsString('Not applicable (self-funded)', $html);
         $this->assertStringContainsString('Self-funded position', $html);
-        $this->assertStringContainsString('Each row shows the entered amount, billing cadence, and monthly equivalent used by the model.', $html);
+        $this->assertStringContainsString('Each row separately shows the saved rate, number of billed units, billing cadence, and monthly equivalent used by the model.', $html);
+        $this->assertStringContainsString('<th>Rate</th><th>Units</th><th>Cadence</th>', $html);
         $this->assertStringContainsString('Confirm the saved billing cadence before external issue.', $html);
         $this->assertStringContainsString('Year 2 revenue bridge', $html);
         $this->assertStringContainsString('Month 13 carries forward the Year 1 exit run-rate.', $html);
@@ -158,7 +159,7 @@ final class BudgetPackBuilderTest extends TestCase
             ],
             'monthly_fixed_costs' => [
                 ['label' => 'Software subscriptions', 'amount' => 8_400, 'quantity' => 1, 'month' => 1, 'confidence' => 'known'],
-                ['label' => 'Owners Compensation- current $550 wk $45,500', 'amount' => 0, 'quantity' => 1, 'month' => 1, 'confidence' => 'estimate'],
+                ['label' => 'Owner compensation', 'amount' => 875, 'quantity' => 52, 'cadence' => 'weekly', 'cadence_confirmed' => true, 'month' => 1, 'confidence' => 'estimate'],
             ],
             'flags' => [],
         ]);
@@ -170,8 +171,9 @@ final class BudgetPackBuilderTest extends TestCase
 
         $this->assertStringContainsString('Fixed-cost reconciliation warning', $html);
         $this->assertStringContainsString('Add the missing rows or correct a cost cadence', $html);
-        $this->assertStringContainsString('Owner compensation - current', $html);
-        $this->assertStringContainsString('Clarify whether the saved amount is weekly, monthly, or annual', $html);
+        $this->assertStringContainsString('Owner compensation', $html);
+        $this->assertStringContainsString('<td>$875</td><td>52.00</td><td>Weekly</td>', $html);
+        $this->assertStringContainsString('Qty 52.00 matches the number of weekly payments in a year.', $html);
     }
 
     public function test_budget_pack_fallback_pdf_is_structured_without_browser_renderer(): void

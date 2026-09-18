@@ -64,12 +64,18 @@ final class EntrepreneurPlanDocumentController extends Controller
         ]);
     }
 
-    public function budgetPackPdf(Request $request): SymfonyResponse
+    public function budgetPackPdf(Request $request): SymfonyResponse|RedirectResponse
     {
         $profile = $this->profileFor($request);
         abort_unless($this->workspace->includesPlanBudget($profile), 403);
         $plan = $this->workspace->latestPlan($profile);
-        abort_unless($plan instanceof BusinessPlan && $this->requirements->budgetUnlocked($plan), 404);
+        abort_unless($plan instanceof BusinessPlan, 404);
+
+        if (! $this->requirements->budgetUnlocked($plan)) {
+            return to_route('portal.entrepreneur.plan.show')
+                ->with('status', 'entrepreneur-budget-locked')
+                ->with('entrepreneur_plan_error', 'Complete Foundation: Business type, location, and operating model, plus Financial: Financial assumptions before viewing the budget PDF.');
+        }
 
         try {
             $pdf = $this->pdf->render($this->budgetPack->html($profile, $plan));

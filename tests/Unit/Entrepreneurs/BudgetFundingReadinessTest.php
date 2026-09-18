@@ -59,6 +59,7 @@ final class BudgetFundingReadinessTest extends TestCase
                 ],
                 'input_quality' => [
                     'unconfirmed_fixed_cost_cadences' => ['Annual registry fee'],
+                    'fixed_cost_cadence_quantity_conflicts' => ['Owner pay (Qty 52 with weekly cadence)'],
                     'unconfirmed_revenue_growth' => ['Advisory intensives'],
                     'revenue_without_capacity' => ['Advisory intensives'],
                     'missing_assumptions' => ['forecast_start_month'],
@@ -72,6 +73,7 @@ final class BudgetFundingReadinessTest extends TestCase
 
         $this->assertFalse($decision['external_issue_ready']);
         $this->assertStringContainsString('billing cadence', $warnings);
+        $this->assertStringContainsString('duplicate billing periods', $warnings);
         $this->assertStringContainsString('monthly or annual', $warnings);
         $this->assertStringContainsString('monthly capacity', $warnings);
         $this->assertStringContainsString('forecast start month', $warnings);

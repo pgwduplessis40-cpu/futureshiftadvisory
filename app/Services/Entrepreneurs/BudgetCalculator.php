@@ -119,7 +119,7 @@ final class BudgetCalculator implements ProvidesMethodology
             'input_count' => array_sum($populatedInputs),
             'explanations' => $this->metricExplanations(),
             'missing_assumptions' => $normalisedAssumptions['missing_fields'],
-            'input_quality' => $this->inputQuality($fixedRows, $revenueRows, $normalisedAssumptions),
+            'input_quality' => (new FixedCostCadenceQuantityGuard)->addInputQualityConflicts($this->inputQuality($fixedRows, $revenueRows, $normalisedAssumptions), $fixedRows),
         ];
     }
 
