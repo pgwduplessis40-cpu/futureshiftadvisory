@@ -146,6 +146,17 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
                 message: string;
                 severity: string;
             }[];
+            fixed_cost_trace: {
+                index: number;
+                label: string;
+                rate: number;
+                quantity: number;
+                cadence: string;
+                cadence_confirmed: boolean;
+                monthly_equivalent: number;
+                duplicate_cadence_quantity: boolean;
+            }[];
+            fixed_cost_cadence_repair_url: string | null;
         };
         preview_pdf_url: string;
         budget_pdf_url: string | null;

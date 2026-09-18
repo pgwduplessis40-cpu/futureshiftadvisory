@@ -383,7 +383,8 @@ HTML,
         $fixedCosts = collect((array) ($payload['fixed_costs'] ?? []))
             ->map(fn (array $row): array => [
                 (string) ($row['label'] ?? ''),
-                $this->money($row['entered_amount'] ?? 0),
+                $this->money($row['rate_amount'] ?? 0),
+                $this->unitCount($row['quantity'] ?? null),
                 (string) ($row['cadence_label'] ?? ''),
                 $this->money($row['monthly_amount'] ?? 0),
                 (string) ($row['start_month_label'] ?? ''),
@@ -408,9 +409,9 @@ HTML,
             ? ['type' => 'paragraph', 'text' => 'No monthly fixed costs have been saved yet.']
             : [
                 'type' => 'table',
-                'headers' => ['Cost item', 'Entered', 'Cadence', 'Monthly equivalent', 'Starts', 'Review note'],
+                'headers' => ['Cost item', 'Rate', 'Units', 'Cadence', 'Monthly equivalent', 'Starts', 'Review note'],
                 'rows' => $fixedCosts,
-                'widths' => [1.15, 0.7, 0.75, 0.85, 0.55, 1.25],
+                'widths' => [1.1, 0.65, 0.45, 0.7, 0.8, 0.5, 1.1],
             ];
 
         $revenueCapacity = collect((array) ($payload['revenue_capacity'] ?? []))
@@ -644,7 +645,8 @@ HTML,
 
                 return [
                     'label' => $this->fixedCostDisplayLabel($label),
-                    'rate_amount' => round((float) ($row['amount'] ?? 0), 2), 'quantity' => round((float) ($row['quantity'] ?? 1), 2),
+                    'rate_amount' => round((float) ($row['amount'] ?? 0), 2),
+                    'quantity' => round((float) ($row['quantity'] ?? 1), 2),
                     'cadence_label' => $this->cadenceLabel((string) ($row['cadence'] ?? 'monthly'), (bool) ($row['cadence_confirmed'] ?? false)),
                     'monthly_amount' => round($this->monthlyEquivalent($row), 2),
                     'start_month_label' => 'Month '.$month,
