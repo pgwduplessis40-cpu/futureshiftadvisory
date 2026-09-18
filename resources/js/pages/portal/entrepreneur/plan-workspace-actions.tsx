@@ -353,8 +353,7 @@ export function PlanWorkspaceActions({
                                             <span className="font-medium text-foreground">
                                                 Include:{' '}
                                             </span>
-                                            {field.guidance} Aim for at least{' '}
-                                            {field.minimum} characters.
+                                            {field.guidance}
                                         </p>
                                         <FormattedTextarea
                                             id={fieldId}
