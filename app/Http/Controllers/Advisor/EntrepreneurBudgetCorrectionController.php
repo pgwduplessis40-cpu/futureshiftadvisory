@@ -20,6 +20,30 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
+/**
+ * @phpstan-type FixedCostInput array{
+ *     label?: string,
+ *     amount?: float|int|string,
+ *     quantity?: float|int|string,
+ *     cadence?: string,
+ *     cadence_confirmed?: bool,
+ *     confidence?: string,
+ *     month?: float|int|string,
+ *     source?: string
+ * }
+ * @phpstan-type BudgetInput array{
+ *     revision: int,
+ *     expected_runway_months: float|int|null,
+ *     forecast_years: float|int|null,
+ *     assumptions: array<array-key, mixed>,
+ *     launch_costs: array<array-key, mixed>,
+ *     monthly_fixed_costs: list<FixedCostInput>,
+ *     future_costs: array<array-key, mixed>,
+ *     revenue_forecast: array<array-key, mixed>,
+ *     funding_sources: array<array-key, mixed>,
+ *     funding_scenarios: array<array-key, mixed>
+ * }
+ */
 final class EntrepreneurBudgetCorrectionController extends Controller
 {
     public function __construct(
@@ -102,8 +126,8 @@ final class EntrepreneurBudgetCorrectionController extends Controller
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $monthlyFixedCosts
-     * @return array<string, mixed>
+     * @param  list<FixedCostInput>  $monthlyFixedCosts
+     * @return BudgetInput
      */
     private function budgetInput(EntrepreneurBudget $budget, array $monthlyFixedCosts): array
     {
