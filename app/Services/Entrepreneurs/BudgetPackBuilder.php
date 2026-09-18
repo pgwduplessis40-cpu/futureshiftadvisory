@@ -645,8 +645,7 @@ HTML,
 
                 return [
                     'label' => $this->fixedCostDisplayLabel($label),
-                    'rate_amount' => round((float) ($row['amount'] ?? 0), 2),
-                    'quantity' => round((float) ($row['quantity'] ?? 1), 2),
+                    'rate_amount' => round((float) ($row['amount'] ?? 0), 2), 'quantity' => round((float) ($row['quantity'] ?? 1), 2),
                     'cadence_label' => $this->cadenceLabel((string) ($row['cadence'] ?? 'monthly'), (bool) ($row['cadence_confirmed'] ?? false)),
                     'monthly_amount' => round($this->monthlyEquivalent($row), 2),
                     'start_month_label' => 'Month '.$month,
