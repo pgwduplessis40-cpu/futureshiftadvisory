@@ -48,12 +48,14 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { AssessmentProgressList } from './assessment-progress-list';
+import { FixedCostCalculationAudit } from './fixed-cost-calculation-audit';
 import {
     AdvisoryConversionAction,
     FounderReadyBriefAction,
     FounderReadyBriefBadge,
     PlanBudgetFinaliseReportAction,
 } from './founder-ready-brief-controls';
+import { shouldOpenIdeaValidation } from './idea-validation-utils';
 import type {
     EntrepreneurDetail,
     EntrepreneurDocument,
@@ -87,23 +89,6 @@ type InviteDetailsForm = {
     intended_package_scope: string;
     concept_summary: string;
 };
-
-function shouldOpenIdeaValidation(
-    ideaValidation: EntrepreneurDetail['idea_validation'],
-): boolean {
-    if (!ideaValidation) {
-        return true;
-    }
-
-    if (
-        ideaValidation.advisor_gate_status === 'changes_requested' ||
-        ideaValidation.advisor_gate_status === 'recalled'
-    ) {
-        return true;
-    }
-
-    return ideaValidation.viability_gate.status !== 'green';
-}
 
 export default function EntrepreneursShow({
     entrepreneur,
@@ -2396,6 +2381,17 @@ export default function EntrepreneursShow({
                                 historicalMessage="This historical round predates the coherence gate. Run a reassessment before using it to finalise or issue lender-facing material."
                             />
                         ) : null}
+
+                        <FixedCostCalculationAudit
+                            trace={
+                                entrepreneur.latest_plan?.budget
+                                    .fixed_cost_trace ?? []
+                            }
+                            repairUrl={
+                                entrepreneur.latest_plan?.budget
+                                    .fixed_cost_cadence_repair_url ?? null
+                            }
+                        />
 
                         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                             <ActionMetric

@@ -214,6 +214,15 @@ final class BudgetPackBuilderTest extends TestCase
                 'explanations' => [],
             ],
             'flags' => [],
+            'monthly_fixed_costs' => [[
+                'label' => 'Owner compensation',
+                'amount' => 875,
+                'quantity' => 1,
+                'cadence' => 'weekly',
+                'cadence_confirmed' => true,
+                'month' => 1,
+                'confidence' => 'known',
+            ]],
         ]);
 
         $plan->setRelation('budgetRunway', $budget);
@@ -231,6 +240,11 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringContainsString('Scenario comparison', $pdf);
         $this->assertStringContainsString('Cash and revenue trend', $pdf);
         $this->assertStringContainsString('Annual forecast profile', $pdf);
+        $this->assertStringContainsString('Monthly fixed-cost trace', $pdf);
+        $this->assertStringContainsString('Rate', $pdf);
+        $this->assertStringContainsString('Units', $pdf);
+        $this->assertStringContainsString('$875', $pdf);
+        $this->assertStringContainsString('1.00', $pdf);
         $this->assertStringNotContainsString('FALLBACK PDF', $pdf);
         $this->assertStringNotContainsString('Fallback rendering', $pdf);
         $this->assertStringContainsString('INTERNAL DRAFT - NOT FOR EXTERNAL ISSUE', $pdf);

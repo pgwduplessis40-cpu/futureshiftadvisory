@@ -13,12 +13,14 @@ use App\Models\PlanRevision;
 use App\Services\Entrepreneurs\AssessmentScoring;
 use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
+use App\Services\Entrepreneurs\FixedCostCadenceQuantityGuard;
 use App\Services\Entrepreneurs\FunderReadyBriefBuilder;
 use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
 
 /**
  * @phpstan-type AssessmentHistoryEntry array{id:string, round:int, status:string, overall_grade:string|null, weighted_score:float|null, automated_score_available:bool, score_delta:float|null, score_source_summary:string, created_at:string|null, submitted_at:string|null, snapshot_available:bool, snapshot_captured_at:mixed, snapshot_note:string, assessment_url:string, plan_snapshot_url:string|null}
- * @phpstan-type BudgetSummary array{status:string, expected_runway_months:float|int|null, calculated_runway_months:mixed, runway_open_ended:bool, break_even_month:mixed, available_after_launch:mixed, active_flags:list<mixed>}
+ * @phpstan-type FixedCostTraceRow array{index:int,label:string,rate:float,quantity:float,cadence:string,cadence_confirmed:bool,monthly_equivalent:float,duplicate_cadence_quantity:bool}
+ * @phpstan-type BudgetSummary array{status:string, expected_runway_months:float|int|null, calculated_runway_months:mixed, runway_open_ended:bool, break_even_month:mixed, available_after_launch:mixed, active_flags:list<mixed>,fixed_cost_trace:list<FixedCostTraceRow>,fixed_cost_cadence_repair_url:string|null}
  * @phpstan-type AssessmentScopePayload array{is_full_reassessment:bool,has_scope_correction:bool,scope_correction_criterion_numbers:list<int>}
  * @phpstan-type AssessmentCriterionPayload array{criterion_number:int,name:string,score:float|int}
  * @phpstan-type PlanBudgetCoherenceFindingPayload array{category:string,severity:string,message:string,next_action:string}
@@ -337,6 +339,11 @@ final class AdvisorEntrepreneurPlanPayload
     private function budgetSummary(?EntrepreneurBudget $budget): array
     {
         $computed = $budget instanceof EntrepreneurBudget ? (array) $budget->computed : [];
+        $fixedCostTrace = $this->fixedCostTrace($budget);
+        if ($budget instanceof EntrepreneurBudget) {
+            $budget->loadMissing('businessPlan.entrepreneurProfile');
+        }
+        $plan = $budget?->businessPlan;
         $activeFlags = collect($budget instanceof EntrepreneurBudget ? (array) $budget->flags : [])
             ->filter(fn (array $flag): bool => empty($flag['acknowledged_at']))
             ->values()
@@ -350,6 +357,58 @@ final class AdvisorEntrepreneurPlanPayload
             'break_even_month' => data_get($computed, 'break_even_month'),
             'available_after_launch' => data_get($computed, 'available_after_launch'),
             'active_flags' => $activeFlags,
+            'fixed_cost_trace' => $fixedCostTrace,
+            'fixed_cost_cadence_repair_url' => $plan instanceof BusinessPlan && $plan->entrepreneurProfile instanceof EntrepreneurProfile
+                ? route('advisor.entrepreneurs.plans.budget.fixed-cost-cadence.repair', [$plan->entrepreneurProfile, $plan], absolute: false)
+                : null,
         ];
+    }
+
+    /** @return list<FixedCostTraceRow> */
+    private function fixedCostTrace(?EntrepreneurBudget $budget): array
+    {
+        if (! $budget instanceof EntrepreneurBudget) {
+            return [];
+        }
+
+        $rows = array_values((array) $budget->monthly_fixed_costs);
+        $conflictIndexes = collect((new FixedCostCadenceQuantityGuard)->conflicts($rows))
+            ->pluck('index')
+            ->map(fn (mixed $index): int => (int) $index)
+            ->all();
+
+        return collect($rows)
+            ->map(function (array $row, int $index) use ($conflictIndexes): array {
+                $rate = (float) ($row['amount'] ?? 0);
+                $quantity = (float) ($row['quantity'] ?? 1);
+                $cadence = (string) ($row['cadence'] ?? 'monthly');
+
+                return [
+                    'index' => $index,
+                    'label' => trim((string) ($row['label'] ?? 'Unlabelled cost')) ?: 'Unlabelled cost',
+                    'rate' => round($rate, 2),
+                    'quantity' => round($quantity, 2),
+                    'cadence' => $cadence,
+                    'cadence_confirmed' => (bool) ($row['cadence_confirmed'] ?? false),
+                    'monthly_equivalent' => round($this->monthlyFixedCostEquivalent($rate, $quantity, $cadence), 2),
+                    'duplicate_cadence_quantity' => in_array($index, $conflictIndexes, true),
+                ];
+            })
+            ->sortByDesc('monthly_equivalent')
+            ->values()
+            ->all();
+    }
+
+    private function monthlyFixedCostEquivalent(float $rate, float $quantity, string $cadence): float
+    {
+        $amount = $rate * $quantity;
+
+        return match ($cadence) {
+            'weekly' => $amount * (52 / 12),
+            'fortnightly' => $amount * (26 / 12),
+            'quarterly' => $amount / 3,
+            'annual' => $amount / 12,
+            default => $amount,
+        };
     }
 }

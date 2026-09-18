@@ -20,6 +20,7 @@ use App\Http\Controllers\Advisor\ClientTransferRequestController;
 use App\Http\Controllers\Advisor\DocumentVerificationController;
 use App\Http\Controllers\Advisor\EntrepreneurActionController;
 use App\Http\Controllers\Advisor\EntrepreneurAssessmentController;
+use App\Http\Controllers\Advisor\EntrepreneurBudgetCorrectionController;
 use App\Http\Controllers\Advisor\EntrepreneurController;
 use App\Http\Controllers\Advisor\EntrepreneurDocumentController;
 use App\Http\Controllers\Advisor\EntrepreneurMessageController;
@@ -494,6 +495,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/assessments', [EntrepreneurActionController::class, 'assess'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.plans.assessments.store');
+        Route::patch('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget/fixed-cost-cadence', [EntrepreneurBudgetCorrectionController::class, 'repairDuplicateCadenceQuantity'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.plans.budget.fixed-cost-cadence.repair');
         Route::patch('entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/feedback', [EntrepreneurActionController::class, 'updateAssessmentFeedback'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.assessments.feedback.update');
