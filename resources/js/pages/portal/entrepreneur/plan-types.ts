@@ -403,6 +403,7 @@ export type Props = {
         budgetAdvisorNudgeDismiss: string;
         assistRequirement: string;
         preview: string;
+        previewDownload: string;
         submit: string;
         documentUpload: string;
         messages: string;

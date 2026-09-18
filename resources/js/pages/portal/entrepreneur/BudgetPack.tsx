@@ -139,6 +139,7 @@ type Props = {
     urls: {
         plan: string;
         pdf: string;
+        pdf_download: string;
     };
 };
 
@@ -195,7 +196,7 @@ export default function BudgetPack({ pack, urls }: Props) {
                             </Badge>
                         ) : null}
                         <Button asChild size="sm">
-                            <a href={urls.pdf} target="_blank" rel="noreferrer">
+                            <a href={urls.pdf_download} download>
                                 <Download
                                     className="size-4"
                                     aria-hidden="true"

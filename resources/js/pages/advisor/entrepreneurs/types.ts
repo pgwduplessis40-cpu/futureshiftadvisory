@@ -75,12 +75,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         assessment_action_label: string;
         assessment_run: {
             status:
-                | 'queued'
-                | 'running'
-                | 'completed'
-                | 'failed'
-                | string
-                | null;
+                'queued' | 'running' | 'completed' | 'failed' | string | null;
             requested_at: string | null;
             started_at: string | null;
             total_criteria: number | null;
@@ -161,7 +156,9 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             fixed_cost_cadence_repair_all_url: string | null;
         };
         preview_pdf_url: string;
+        preview_pdf_download_url: string;
         budget_pdf_url: string | null;
+        budget_pdf_download_url: string | null;
         funder_ready: {
             ready: boolean;
             label: string;

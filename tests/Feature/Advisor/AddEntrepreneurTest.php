@@ -897,7 +897,9 @@ final class AddEntrepreneurTest extends TestCase
                 ->component('advisor/entrepreneurs/Show')
                 ->where('entrepreneur.messages.url', route('advisor.entrepreneurs.messages.index', $profile, absolute: false))
                 ->where('entrepreneur.latest_plan.preview_pdf_url', route('advisor.entrepreneurs.plans.latest.preview', $profile, absolute: false))
+                ->where('entrepreneur.latest_plan.preview_pdf_download_url', route('advisor.entrepreneurs.plans.latest.preview', [$profile, 'download' => 1], absolute: false))
                 ->where('entrepreneur.latest_plan.budget_pdf_url', null)
+                ->where('entrepreneur.latest_plan.budget_pdf_download_url', null)
                 ->where('entrepreneur.latest_plan.latest_assessment.url', route('advisor.entrepreneurs.assessments.show', [$profile, $assessment], absolute: false))
                 ->where('entrepreneur.latest_plan.latest_assessment.weighted_score', 86.3)
                 ->where('entrepreneur.latest_plan.latest_assessment.threshold', 75)
@@ -1159,7 +1161,9 @@ final class AddEntrepreneurTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('entrepreneur.latest_plan.preview_pdf_url', route('advisor.entrepreneurs.plans.latest.preview', $profile, absolute: false))
-                ->where('entrepreneur.latest_plan.budget_pdf_url', route('advisor.entrepreneurs.plans.latest.budget-pack.pdf', $profile, absolute: false)));
+                ->where('entrepreneur.latest_plan.preview_pdf_download_url', route('advisor.entrepreneurs.plans.latest.preview', [$profile, 'download' => 1], absolute: false))
+                ->where('entrepreneur.latest_plan.budget_pdf_url', route('advisor.entrepreneurs.plans.latest.budget-pack.pdf', $profile, absolute: false))
+                ->where('entrepreneur.latest_plan.budget_pdf_download_url', route('advisor.entrepreneurs.plans.latest.budget-pack.pdf', [$profile, 'download' => 1], absolute: false)));
 
         $response = $this->actingAsMfa($advisor)
             ->get(route('advisor.entrepreneurs.plans.latest.budget-pack.pdf', $profile))
@@ -1170,6 +1174,13 @@ final class AddEntrepreneurTest extends TestCase
         self::assertStringContainsString('Budget Pack', $response->getContent());
         self::assertStringContainsString('Founder - Budget Founder', $response->getContent());
         self::assertStringContainsString('Funding position', $response->getContent());
+
+        $download = $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.plans.latest.budget-pack.pdf', [$profile, 'download' => 1]))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+
+        self::assertStringStartsWith('attachment;', (string) $download->headers->get('Content-Disposition'));
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.entrepreneurs.plans.budget-pack.pdf', [$profile, $plan]))

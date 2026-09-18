@@ -82,7 +82,9 @@ final class DocumentController extends Controller
         }
 
         $disposition = (new ResponseHeaderBag)->makeDisposition(
-            ResponseHeaderBag::DISPOSITION_INLINE,
+            $request->boolean('download')
+                ? ResponseHeaderBag::DISPOSITION_ATTACHMENT
+                : ResponseHeaderBag::DISPOSITION_INLINE,
             $document->original_filename,
             Str::ascii($document->original_filename) ?: 'document',
         );
