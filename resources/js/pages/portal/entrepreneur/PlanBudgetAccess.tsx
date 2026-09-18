@@ -91,12 +91,7 @@ export default function PlanBudgetAccess({
                                 <p className="mt-1 text-sm text-muted-foreground">
                                     {planBudgetApprovalMessage(price)}
                                 </p>
-                                <Button
-                                    asChild
-                                    className="mt-4"
-                                    size="sm"
-                                    variant="outline"
-                                >
+                                <Button asChild className="mt-4" size="sm">
                                     <Link href={workspaceUrl}>
                                         Return to Idea Validation
                                     </Link>
