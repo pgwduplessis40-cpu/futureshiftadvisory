@@ -152,6 +152,7 @@ final class PlanBuilderTest extends TestCase
                 ->has('planTemplate')
                 ->has('urls')
                 ->where('urls.ideaValidationDraft', route('portal.drafts.show', ['draftKey' => 'entrepreneur-idea:'.$profile->getKey()], absolute: false))
+                ->where('urls.previewDownload', route('portal.entrepreneur.plan.preview', ['download' => 1], absolute: false))
                 ->has('portalScreenShare.portal_context_token')
                 ->where('portalScreenShare.connection_url', route('portal.entrepreneur-screen-share.connections.store', absolute: false))
                 ->where('planTemplate.3.title', 'Legal & Operations')
@@ -359,6 +360,13 @@ final class PlanBuilderTest extends TestCase
         $this->assertStringStartsWith('%PDF-1.4', $response->getContent());
         $this->assertStringContainsString('Business Plan', $response->getContent());
         $this->assertStringContainsString('Founder - Plan Founder', $response->getContent());
+
+        $download = $this->actingAsMfa($profile->user()->firstOrFail())
+            ->get(route('portal.entrepreneur.plan.preview', ['download' => 1]))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+
+        $this->assertStringStartsWith('attachment;', (string) $download->headers->get('Content-Disposition'));
         $this->assertStringContainsString('Business type, location, and operating model', $response->getContent());
         $this->assertStringNotContainsString('Section readout', $response->getContent());
         $this->assertStringNotContainsString('Browser-formatted PDF generation', $response->getContent());

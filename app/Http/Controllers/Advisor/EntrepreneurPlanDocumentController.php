@@ -12,6 +12,7 @@ use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
 use App\Services\Entrepreneurs\FunderReadyBriefBuilder;
 use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
 use App\Services\Pdf\PdfRenderer;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
@@ -27,25 +28,25 @@ final class EntrepreneurPlanDocumentController extends Controller
         private readonly PdfRenderer $pdf,
     ) {}
 
-    public function latestPlanPreview(EntrepreneurProfile $entrepreneurProfile): Response
+    public function latestPlanPreview(Request $request, EntrepreneurProfile $entrepreneurProfile): Response
     {
         Gate::authorize('view', $entrepreneurProfile);
 
         $businessPlan = $this->latestEntrepreneurPlan($entrepreneurProfile);
         abort_unless($businessPlan instanceof BusinessPlan, 404);
 
-        return $this->planPreviewResponse($entrepreneurProfile, $businessPlan);
+        return $this->planPreviewResponse($entrepreneurProfile, $businessPlan, $request->boolean('download'));
     }
 
-    public function planPreview(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): Response
+    public function planPreview(Request $request, EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): Response
     {
         Gate::authorize('view', $entrepreneurProfile);
         $this->assertPlanBelongsToProfile($businessPlan, $entrepreneurProfile);
 
-        return $this->planPreviewResponse($entrepreneurProfile, $businessPlan);
+        return $this->planPreviewResponse($entrepreneurProfile, $businessPlan, $request->boolean('download'));
     }
 
-    public function latestBudgetPackPdf(EntrepreneurProfile $entrepreneurProfile): Response
+    public function latestBudgetPackPdf(Request $request, EntrepreneurProfile $entrepreneurProfile): Response
     {
         Gate::authorize('view', $entrepreneurProfile);
 
@@ -53,16 +54,16 @@ final class EntrepreneurPlanDocumentController extends Controller
         abort_unless($businessPlan instanceof BusinessPlan, 404);
         abort_unless($this->planPreview->budgetUnlocked($businessPlan), 404);
 
-        return $this->budgetPackPdfResponse($entrepreneurProfile, $businessPlan);
+        return $this->budgetPackPdfResponse($entrepreneurProfile, $businessPlan, $request->boolean('download'));
     }
 
-    public function budgetPackPdf(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): Response
+    public function budgetPackPdf(Request $request, EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): Response
     {
         Gate::authorize('view', $entrepreneurProfile);
         $this->assertPlanBelongsToProfile($businessPlan, $entrepreneurProfile);
         abort_unless($this->planPreview->budgetUnlocked($businessPlan), 404);
 
-        return $this->budgetPackPdfResponse($entrepreneurProfile, $businessPlan);
+        return $this->budgetPackPdfResponse($entrepreneurProfile, $businessPlan, $request->boolean('download'));
     }
 
     public function funderReadyPlanPdf(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): Response
@@ -92,18 +93,18 @@ final class EntrepreneurPlanDocumentController extends Controller
         ]);
     }
 
-    private function planPreviewResponse(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): Response
+    private function planPreviewResponse(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan, bool $download): Response
     {
         $pdf = $this->planPreview->pdf($entrepreneurProfile, $businessPlan);
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$this->planPreview->filename($entrepreneurProfile).'"',
+            'Content-Disposition' => $this->pdfDisposition($this->planPreview->filename($entrepreneurProfile), $download),
             'Cache-Control' => 'no-store, max-age=0',
         ]);
     }
 
-    private function budgetPackPdfResponse(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): Response
+    private function budgetPackPdfResponse(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan, bool $download): Response
     {
         try {
             $pdf = $this->pdf->render($this->budgetPack->html($entrepreneurProfile, $businessPlan));
@@ -115,9 +116,14 @@ final class EntrepreneurPlanDocumentController extends Controller
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Content-Disposition' => $this->pdfDisposition($filename, $download),
             'Cache-Control' => 'no-store, max-age=0',
         ]);
+    }
+
+    private function pdfDisposition(string $filename, bool $download): string
+    {
+        return ($download ? 'attachment' : 'inline').'; filename="'.$filename.'"';
     }
 
     private function assertPlanBelongsToProfile(BusinessPlan $businessPlan, EntrepreneurProfile $entrepreneurProfile): void

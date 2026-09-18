@@ -129,7 +129,9 @@ final class ThreadedMessagingTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('selectedThread.messages.0.attachments.0.document_id', $document->id)
                 ->where('selectedThread.messages.0.attachments.0.filename', 'cashflow.pdf')
-                ->where('selectedThread.messages.0.attachments.0.url', route('advisor.clients.documents.show', [$client, $document], absolute: false)));
+                ->where('selectedThread.messages.0.attachments.0.availability', 'available')
+                ->where('selectedThread.messages.0.attachments.0.url', route('advisor.clients.documents.show', [$client, $document], absolute: false))
+                ->where('selectedThread.messages.0.attachments.0.download_url', route('advisor.clients.documents.show', [$client, $document, 'download' => 1], absolute: false)));
     }
 
     public function test_client_replies_from_portal_and_advisor_receives_notification(): void
@@ -250,7 +252,7 @@ final class ThreadedMessagingTest extends TestCase
                 ->has('selectedThread.messages', 1));
     }
 
-    public function test_entrepreneur_message_image_attachment_reaches_advisor_thread(): void
+    public function test_entrepreneur_message_image_attachment_reaches_advisor_thread_and_can_be_downloaded(): void
     {
         $advisor = $this->advisor();
         $entrepreneur = $this->entrepreneurUser();
@@ -294,7 +296,27 @@ final class ThreadedMessagingTest extends TestCase
                 ->where('selectedThread.messages.0.attachments.0.document_id', $document->id)
                 ->where('selectedThread.messages.0.attachments.0.filename', 'budget-layout.jpg')
                 ->where('selectedThread.messages.0.attachments.0.mime_type', 'image/jpeg')
-                ->where('selectedThread.messages.0.attachments.0.url', route('advisor.entrepreneurs.documents.show', [$profile, $document], absolute: false)));
+                ->where('selectedThread.messages.0.attachments.0.availability', 'available')
+                ->where('selectedThread.messages.0.attachments.0.url', route('advisor.entrepreneurs.documents.show', [$profile, $document], absolute: false))
+                ->where('selectedThread.messages.0.attachments.0.download_url', route('advisor.entrepreneurs.documents.show', [$profile, $document, 'download' => 1], absolute: false)));
+
+        $download = $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.documents.show', [$profile, $document, 'download' => 1]))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/jpeg');
+
+        self::assertStringStartsWith('attachment;', (string) $download->headers->get('Content-Disposition'));
+
+        $document->forceFill(['scanner_result' => Document::SCANNER_PENDING])->save();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.messages.show', [$profile, $thread]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('selectedThread.messages.0.attachments.0.availability', 'scanning')
+                ->where('selectedThread.messages.0.attachments.0.url', null)
+                ->where('selectedThread.messages.0.attachments.0.download_url', null)
+                ->where('selectedThread.messages.0.attachments.0.availability_message', 'This attachment is being security checked. It will be available once the scan completes.'));
     }
 
     public function test_advisor_starts_entrepreneur_thread_from_advisor_portal(): void

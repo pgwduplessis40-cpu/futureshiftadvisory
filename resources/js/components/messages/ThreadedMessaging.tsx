@@ -4,6 +4,7 @@ import {
     ArrowLeft,
     Ban,
     CheckCircle2,
+    Download,
     Inbox,
     Mail,
     MessageSquare,
@@ -86,6 +87,9 @@ export type ThreadMessage = {
         filename?: string | null;
         mime_type?: string | null;
         url?: string | null;
+        download_url?: string | null;
+        availability: 'available' | 'scanning' | 'blocked' | 'unavailable';
+        availability_message: string;
     }>;
     sent_at: string | null;
 };
@@ -546,41 +550,60 @@ function MessageBubble({ message }: { message: ThreadMessage }) {
             </p>
 
             {message.attachments.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
+                <ul className="mt-3 flex flex-wrap gap-2">
                     {message.attachments.map((attachment) => {
                         const label = attachmentLabel(attachment);
 
-                        return attachment.url ? (
-                            <a
+                        return (
+                            <li
                                 key={attachment.document_id}
-                                href={attachment.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex max-w-full items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:ring-[2px] focus-visible:ring-ring focus-visible:outline-none"
+                                className="flex max-w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs"
                                 title={label}
                             >
                                 <Paperclip
                                     className="size-3 shrink-0"
                                     aria-hidden="true"
                                 />
-                                <span className="truncate">{label}</span>
-                            </a>
-                        ) : (
-                            <Badge
-                                key={attachment.document_id}
-                                variant="outline"
-                                className="max-w-full gap-1"
-                                title={label}
-                            >
-                                <Paperclip
-                                    className="size-3 shrink-0"
-                                    aria-hidden="true"
-                                />
-                                <span className="truncate">{label}</span>
-                            </Badge>
+                                <span className="max-w-48 truncate font-medium">
+                                    {label}
+                                </span>
+                                {attachment.url ? (
+                                    <span className="flex shrink-0 items-center gap-2">
+                                        <a
+                                            href={attachment.url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-primary underline-offset-4 hover:underline focus-visible:ring-[2px] focus-visible:ring-ring focus-visible:outline-none"
+                                        >
+                                            Open
+                                        </a>
+                                        <a
+                                            href={
+                                                attachment.download_url ??
+                                                attachment.url
+                                            }
+                                            download
+                                            className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline focus-visible:ring-[2px] focus-visible:ring-ring focus-visible:outline-none"
+                                        >
+                                            <Download
+                                                className="size-3"
+                                                aria-hidden="true"
+                                            />
+                                            Download
+                                        </a>
+                                    </span>
+                                ) : (
+                                    <Badge
+                                        variant="outline"
+                                        className="max-w-56"
+                                    >
+                                        {attachment.availability_message}
+                                    </Badge>
+                                )}
+                            </li>
                         );
                     })}
-                </div>
+                </ul>
             )}
         </article>
     );

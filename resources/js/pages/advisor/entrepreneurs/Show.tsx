@@ -56,6 +56,7 @@ import {
     PlanBudgetFinaliseReportAction,
 } from './founder-ready-brief-controls';
 import { shouldOpenIdeaValidation } from './idea-validation-utils';
+import { PlanDocumentActions } from './plan-document-actions';
 import type {
     EntrepreneurDetail,
     EntrepreneurDocument,
@@ -2289,40 +2290,22 @@ export default function EntrepreneursShow({
                                 <FounderReadyBriefBadge
                                     lenderBrief={lenderBrief}
                                 />
-                                <Button asChild size="sm" variant="outline">
-                                    <a
-                                        href={
-                                            entrepreneur.latest_plan
-                                                .preview_pdf_url
-                                        }
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        <FileText
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        Business plan PDF
-                                    </a>
-                                </Button>
-                                {entrepreneur.latest_plan.budget_pdf_url ? (
-                                    <Button asChild size="sm" variant="outline">
-                                        <a
-                                            href={
-                                                entrepreneur.latest_plan
-                                                    .budget_pdf_url
-                                            }
-                                            target="_blank"
-                                            rel="noreferrer"
-                                        >
-                                            <Banknote
-                                                className="size-4"
-                                                aria-hidden="true"
-                                            />
-                                            Budget PDF
-                                        </a>
-                                    </Button>
-                                ) : null}
+                                <PlanDocumentActions
+                                    previewUrl={
+                                        entrepreneur.latest_plan.preview_pdf_url
+                                    }
+                                    previewDownloadUrl={
+                                        entrepreneur.latest_plan
+                                            .preview_pdf_download_url
+                                    }
+                                    budgetUrl={
+                                        entrepreneur.latest_plan.budget_pdf_url
+                                    }
+                                    budgetDownloadUrl={
+                                        entrepreneur.latest_plan
+                                            .budget_pdf_download_url
+                                    }
+                                />
                                 {latestAssessment ? (
                                     <Button asChild size="sm" variant="outline">
                                         <Link href={latestAssessment.url}>

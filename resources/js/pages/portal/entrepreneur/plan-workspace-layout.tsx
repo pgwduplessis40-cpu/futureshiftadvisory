@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Eye, MessageSquare, Trophy } from 'lucide-react';
+import { Download, Eye, MessageSquare, Trophy } from 'lucide-react';
 import { DraftSaveStatus } from '@/components/portal/draft-save-status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -85,19 +85,30 @@ export function PlanWorkspaceLayout(workspace: PlanWorkspace) {
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {!isIdeaValidationOnly ? (
-                            <Button asChild size="sm" variant="outline">
-                                <a
-                                    href={urls.preview}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                >
-                                    <Eye
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    Preview business plan
-                                </a>
-                            </Button>
+                            <>
+                                <Button asChild size="sm" variant="outline">
+                                    <a
+                                        href={urls.preview}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        <Eye
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Preview business plan
+                                    </a>
+                                </Button>
+                                <Button asChild size="sm" variant="outline">
+                                    <a href={urls.previewDownload} download>
+                                        <Download
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Download plan PDF
+                                    </a>
+                                </Button>
+                            </>
                         ) : null}
                         <Button asChild size="sm" variant="outline">
                             <Link href={urls.messages}>

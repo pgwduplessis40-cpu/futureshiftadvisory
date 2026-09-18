@@ -37,7 +37,7 @@ final class EntrepreneurPlanDocumentController extends Controller
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$this->planPreview->filename($profile).'"',
+            'Content-Disposition' => $this->pdfDisposition($this->planPreview->filename($profile), $request->boolean('download')),
             'Cache-Control' => 'no-store, max-age=0',
         ]);
     }
@@ -60,6 +60,7 @@ final class EntrepreneurPlanDocumentController extends Controller
             'urls' => [
                 'plan' => route('portal.entrepreneur.plan.show', absolute: false),
                 'pdf' => route('portal.entrepreneur.plan.budget-pack.pdf', absolute: false),
+                'pdf_download' => route('portal.entrepreneur.plan.budget-pack.pdf', ['download' => 1], absolute: false),
             ],
         ]);
     }
@@ -87,7 +88,7 @@ final class EntrepreneurPlanDocumentController extends Controller
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Content-Disposition' => $this->pdfDisposition($filename, $request->boolean('download')),
             'Cache-Control' => 'no-store, max-age=0',
         ]);
     }
@@ -95,5 +96,10 @@ final class EntrepreneurPlanDocumentController extends Controller
     private function profileFor(Request $request): EntrepreneurProfile
     {
         return $this->workspace->profileFor($this->workspace->user($request));
+    }
+
+    private function pdfDisposition(string $filename, bool $download): string
+    {
+        return ($download ? 'attachment' : 'inline').'; filename="'.$filename.'"';
     }
 }

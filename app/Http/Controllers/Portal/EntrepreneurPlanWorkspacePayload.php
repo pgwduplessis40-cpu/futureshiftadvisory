@@ -86,6 +86,7 @@ final class EntrepreneurPlanWorkspacePayload
                 'budgetAdvisorNudgeDismiss' => route('portal.entrepreneur.plan.budget.advisor-nudge.dismiss', absolute: false),
                 'assistRequirement' => route('portal.entrepreneur.plan.requirements.assist', absolute: false),
                 'preview' => route('portal.entrepreneur.plan.preview', absolute: false),
+                'previewDownload' => route('portal.entrepreneur.plan.preview', ['download' => 1], absolute: false),
                 'submit' => route('portal.entrepreneur.plan.submit', absolute: false),
                 'documentUpload' => route('portal.documents.store', absolute: false),
                 'messages' => route('portal.messages.index', absolute: false),

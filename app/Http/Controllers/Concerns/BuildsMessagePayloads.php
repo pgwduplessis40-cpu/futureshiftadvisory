@@ -134,7 +134,7 @@ trait BuildsMessagePayloads
 
     /**
      * @param  Collection<string, Document>  $documents
-     * @return array{document_id: string, type?: string, filename?: string|null, mime_type?: string|null, url?: string|null}|null
+     * @return array{document_id: string, type?: string, filename?: string|null, mime_type?: string|null, availability:string, availability_message:string, url?: string|null, download_url?: string|null}|null
      */
     private function attachmentPayload(mixed $attachment, User $viewer, Collection $documents): ?array
     {
@@ -159,10 +159,63 @@ trait BuildsMessagePayloads
         if ($document instanceof Document) {
             $payload['filename'] = $document->original_filename;
             $payload['mime_type'] = $document->mime_type;
-            $payload['url'] = $this->attachmentUrl($document, $viewer);
+            $availability = $this->attachmentAvailability($document, $viewer);
+            $payload['availability'] = $availability['status'];
+            $payload['availability_message'] = $availability['message'];
+            $payload['url'] = $availability['url'];
+            $payload['download_url'] = $availability['url'] === null
+                ? null
+                : $availability['url'].'?download=1';
+        } else {
+            $payload['availability'] = 'unavailable';
+            $payload['availability_message'] = 'This older attachment no longer has a downloadable file.';
         }
 
         return $payload;
+    }
+
+    /**
+     * @return array{status: 'available'|'scanning'|'blocked'|'unavailable', message: string, url: string|null}
+     */
+    private function attachmentAvailability(Document $document, User $viewer): array
+    {
+        if ($document->scanner_result === Document::SCANNER_PENDING) {
+            return [
+                'status' => 'scanning',
+                'message' => 'This attachment is being security checked. It will be available once the scan completes.',
+                'url' => null,
+            ];
+        }
+
+        if ($document->scanner_result === Document::SCANNER_INFECTED) {
+            return [
+                'status' => 'blocked',
+                'message' => 'This attachment was blocked by the security scan.',
+                'url' => null,
+            ];
+        }
+
+        if ($document->scanner_result !== Document::SCANNER_CLEAN) {
+            return [
+                'status' => 'unavailable',
+                'message' => 'This attachment cannot be opened until its security scan is resolved.',
+                'url' => null,
+            ];
+        }
+
+        $url = $this->attachmentUrl($document, $viewer);
+
+        return $url === null
+            ? [
+                'status' => 'unavailable',
+                'message' => 'This attachment is not available to your account.',
+                'url' => null,
+            ]
+            : [
+                'status' => 'available',
+                'message' => 'Open or download this attachment.',
+                'url' => $url,
+            ];
     }
 
     private function attachmentDocumentId(mixed $attachment): ?string
@@ -184,10 +237,6 @@ trait BuildsMessagePayloads
 
     private function attachmentUrl(Document $document, User $viewer): ?string
     {
-        if ($document->scanner_result !== Document::SCANNER_CLEAN) {
-            return null;
-        }
-
         if ($document->entrepreneur_profile_id !== null) {
             if ($viewer->user_type === User::TYPE_ENTREPRENEUR) {
                 return route('portal.documents.show', $document, absolute: false);
