@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Entrepreneurs;
 
 use App\Services\Entrepreneurs\BudgetCalculator;
+use App\Services\Entrepreneurs\FixedCostCadenceQuantityGuard;
 use PHPUnit\Framework\TestCase;
 
 final class BudgetCalculatorTest extends TestCase
@@ -167,6 +168,20 @@ final class BudgetCalculatorTest extends TestCase
         $this->assertSame(100.0, $computed['monthly_detail'][0]['fixed_costs']);
         $this->assertSame(100.0, $computed['monthly_fixed_costs']);
         $this->assertSame(100.0, $computed['base_scenario']['summary']['year_one_monthly_fixed_costs']);
+    }
+
+    public function test_fixed_cost_quantities_that_repeat_billing_periods_are_identified(): void
+    {
+        $conflicts = (new FixedCostCadenceQuantityGuard)->conflicts([
+            ['label' => 'Owner pay', 'amount' => 850, 'quantity' => 52, 'cadence' => 'weekly'],
+            ['label' => 'Software', 'amount' => 50, 'quantity' => 12, 'cadence' => 'monthly'],
+            ['label' => 'Three licences', 'amount' => 50, 'quantity' => 3, 'cadence' => 'monthly'],
+        ]);
+
+        $this->assertSame([
+            ['index' => 0, 'label' => 'Owner pay', 'quantity' => 52.0, 'cadence' => 'weekly', 'payments_per_year' => 52],
+            ['index' => 1, 'label' => 'Software', 'quantity' => 12.0, 'cadence' => 'monthly', 'payments_per_year' => 12],
+        ], $conflicts);
     }
 
     public function test_revenue_capacity_caps_a_monthly_growth_forecast(): void

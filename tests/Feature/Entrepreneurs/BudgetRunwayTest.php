@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Entrepreneurs;
 
 use App\Enums\EntrepreneurStage;
+use App\Models\AuditEvent;
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
@@ -16,6 +17,7 @@ use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 final class BudgetRunwayTest extends TestCase
@@ -108,6 +110,72 @@ final class BudgetRunwayTest extends TestCase
                 ->where('action', 'entrepreneur.budget_updated')
                 ->count(),
         );
+    }
+
+    public function test_budget_rejects_period_counts_as_fixed_cost_quantities(): void
+    {
+        [$actor, $plan] = $this->plan();
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Qty is the number of parallel subscriptions');
+
+        app(EntrepreneurBudgetService::class)->update($plan, [
+            'monthly_fixed_costs' => [
+                ['label' => 'Owner pay', 'amount' => 850, 'quantity' => 52, 'cadence' => 'weekly'],
+            ],
+        ], $actor);
+    }
+
+    public function test_budget_revision_prevents_stale_overwrites_and_audits_raw_input_rows(): void
+    {
+        [$actor, $plan] = $this->plan();
+        $service = app(EntrepreneurBudgetService::class);
+
+        $created = $service->update($plan, [
+            'monthly_fixed_costs' => [
+                ['label' => 'Owner pay', 'amount' => 850, 'quantity' => 1, 'cadence' => 'weekly'],
+            ],
+        ], $actor);
+        $updated = $service->update($plan, [
+            'revision' => $created->revision,
+            'monthly_fixed_costs' => [
+                ['label' => 'Owner pay', 'amount' => 875, 'quantity' => 1, 'cadence' => 'weekly'],
+            ],
+        ], $actor);
+
+        $audit = AuditEvent::query()
+            ->where('action', 'entrepreneur.budget_updated')
+            ->get()
+            ->first(fn (AuditEvent $event): bool => data_get($event->after, 'revision') === 2);
+
+        $this->assertSame(1, $created->revision);
+        $this->assertSame(2, $updated->revision);
+        $this->assertInstanceOf(AuditEvent::class, $audit);
+        $this->assertSame(1, data_get($audit->before, 'revision'));
+        $this->assertEquals(850.0, data_get($audit->before, 'monthly_fixed_costs.0.amount'));
+        $this->assertSame(2, data_get($audit->after, 'revision'));
+        $this->assertEquals(875.0, data_get($audit->after, 'monthly_fixed_costs.0.amount'));
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('changed in another browser session');
+
+        $service->update($plan, [
+            'revision' => 1,
+            'monthly_fixed_costs' => [
+                ['label' => 'Owner pay', 'amount' => 900, 'quantity' => 1, 'cadence' => 'weekly'],
+            ],
+        ], $actor);
+    }
+
+    public function test_locked_budget_pdf_redirects_with_a_clear_explanation(): void
+    {
+        [$actor] = $this->plan();
+
+        $this->actingAs($actor)
+            ->get(route('portal.entrepreneur.plan.budget-pack.pdf'))
+            ->assertRedirect(route('portal.entrepreneur.plan.show'))
+            ->assertSessionHas('status', 'entrepreneur-budget-locked')
+            ->assertSessionHas('entrepreneur_plan_error', 'Complete Foundation: Business type, location, and operating model, plus Financial: Financial assumptions before viewing the budget PDF.');
     }
 
     public function test_missing_financial_assumptions_keep_budget_partial_and_flagged(): void

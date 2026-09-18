@@ -57,6 +57,7 @@ use App\Services\Entrepreneurs\EntrepreneurStreak;
 use App\Services\Entrepreneurs\ExecutiveSummaryContext;
 use App\Services\Entrepreneurs\ExecutiveSummaryEligibility;
 use App\Services\Entrepreneurs\ExternalIssueReview;
+use App\Services\Entrepreneurs\FixedCostCadenceQuantityGuard;
 use App\Services\Entrepreneurs\FounderChangeRequestMessage;
 use App\Services\Entrepreneurs\FoundingAdvisoryService;
 use App\Services\Entrepreneurs\FunderReadyBriefBuilder;
@@ -192,6 +193,7 @@ final class MethodologyDriftGuardTest extends TestCase
         ExecutiveSummaryContext::class => 'Builds an immutable plan-and-budget fingerprint for summary provenance; it does not calculate advisory guidance.',
         ExecutiveSummaryEligibility::class => 'Enforces the published summary eligibility policy; it does not calculate or disclose an advisory methodology.',
         ExternalIssueReview::class => 'External-issue document-quality gate; plan and budget methodologies are owned elsewhere.',
+        FixedCostCadenceQuantityGuard::class => 'Input-quality guard that detects a likely duplicated billing-period count; the forecast methodology is owned by BudgetCalculator.',
         FoundingAdvisoryService::class => 'Founding engagement and rolling-roadmap orchestration; it applies the finalised plan baseline and does not own a separate calculation methodology.',
         FounderChangeRequestMessage::class => 'Founder change-request message workflow.',
         FunderReadyBriefBuilder::class => 'Funder-ready lender brief renderer; it composes approved plan, executive-summary, and Budget Pack outputs without owning a calculation methodology.',

@@ -23,6 +23,10 @@ import {
 } from '@/components/ui/tooltip';
 import { formatNzdCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import {
+    FixedCostCadenceControl,
+    fixedCostQuantityWarning,
+} from './fixed-cost-cadence';
 import { formatLabel } from './plan-dashboard-panels';
 import type {
     BudgetAssumptions,
@@ -961,7 +965,9 @@ export function BudgetRowsEditor({
                             }
                         />
                         <BudgetInput
-                            label="Amount"
+                            label={
+                                fixedCost ? 'Rate / billing period' : 'Amount'
+                            }
                             type="number"
                             value={row.amount}
                             onChange={(value) =>
@@ -971,7 +977,7 @@ export function BudgetRowsEditor({
                             }
                         />
                         <BudgetInput
-                            label="Qty"
+                            label={fixedCost ? 'Units' : 'Qty'}
                             type="number"
                             value={row.quantity ?? 1}
                             onChange={(value) =>
@@ -998,37 +1004,18 @@ export function BudgetRowsEditor({
                         ) : null}
                         {fixedCost ? (
                             <>
-                                <label className="grid gap-1 text-xs">
-                                    <span className="text-muted-foreground">
-                                        Billing cadence
-                                    </span>
-                                    <select
-                                        value={row.cadence ?? 'monthly'}
-                                        onChange={(event) =>
-                                            updateBudgetRow(
-                                                onFormChange,
-                                                group,
-                                                index,
-                                                {
-                                                    cadence: event.target
-                                                        .value as BudgetRow['cadence'],
-                                                    cadence_confirmed: true,
-                                                },
-                                            )
-                                        }
-                                        className="h-9 rounded-md border bg-background px-2 text-sm"
-                                    >
-                                        <option value="weekly">Weekly</option>
-                                        <option value="fortnightly">
-                                            Fortnightly
-                                        </option>
-                                        <option value="monthly">Monthly</option>
-                                        <option value="quarterly">
-                                            Quarterly
-                                        </option>
-                                        <option value="annual">Annual</option>
-                                    </select>
-                                </label>
+                                <FixedCostCadenceControl
+                                    cadence={row.cadence}
+                                    confirmed={Boolean(row.cadence_confirmed)}
+                                    onChange={(changes) =>
+                                        updateBudgetRow(
+                                            onFormChange,
+                                            group,
+                                            index,
+                                            changes,
+                                        )
+                                    }
+                                />
                                 <BudgetEvidenceInputs
                                     row={row}
                                     onChange={(changes) =>
@@ -1226,6 +1213,11 @@ export function BudgetRowsEditor({
                                     }
                                 />
                             </>
+                        ) : null}
+                        {fixedCost && fixedCostQuantityWarning(row) ? (
+                            <p className="text-xs leading-snug text-destructive">
+                                {fixedCostQuantityWarning(row)}
+                            </p>
                         ) : null}
                         <BudgetConfidenceSelect
                             value={row.confidence ?? 'estimate'}
@@ -2605,6 +2597,7 @@ export function budgetToForm(
     budget: BudgetPayload | undefined,
 ): BudgetFormState {
     return {
+        revision: budget?.revision ?? 0,
         expected_runway_months:
             budget?.expected_runway_months === null ||
             budget?.expected_runway_months === undefined
@@ -2736,6 +2729,7 @@ export function blankFundingScenario(): FundingScenarioRow {
 
 export function cleanBudgetForm(form: BudgetFormState) {
     return {
+        revision: form.revision,
         expected_runway_months:
             form.expected_runway_months === ''
                 ? null

@@ -316,11 +316,17 @@ export function usePlanWorkspace({
     }, [selectedRequirement, plan, workspaceKey]);
 
     useEffect(() => {
-        // Keep the editable budget form aligned with Inertia refreshes after save.
+        // A cached draft is only safe when it was based on this exact server revision.
+        // Otherwise it could overwrite a save from another tab or browser session.
+        const serverForm = budgetToForm(plan?.budget);
+        const localForm =
+            readPlanWorkspaceDraft<BudgetFormState>(workspaceKey)?.budgetForm;
+
         /* eslint-disable-next-line react-hooks/set-state-in-effect */
         setBudgetForm(
-            readPlanWorkspaceDraft<BudgetFormState>(workspaceKey)?.budgetForm ??
-                budgetToForm(plan?.budget),
+            localForm?.revision === serverForm.revision
+                ? localForm
+                : serverForm,
         );
     }, [plan?.budget, workspaceKey]);
 
@@ -475,12 +481,21 @@ export function usePlanWorkspace({
         setBudgetAutosaveState('saving');
 
         try {
-            const saved = await postBudgetAutosave(
+            const result = await postBudgetAutosave(
                 urls.budgetUpdate,
                 cleanBudgetForm(budgetForm),
             );
 
-            setBudgetAutosaveState(saved ? 'saved' : 'error');
+            if (result.revision !== null) {
+                setBudgetForm((current) =>
+                    result.revision !== null &&
+                    result.revision > current.revision
+                        ? { ...current, revision: result.revision }
+                        : current,
+                );
+            }
+
+            setBudgetAutosaveState(result.saved ? 'saved' : 'error');
         } catch {
             setBudgetAutosaveState('error');
         }

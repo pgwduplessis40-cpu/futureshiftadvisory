@@ -26,6 +26,7 @@ final class EntrepreneurBudget extends Model
         'expected_runway_months',
         'forecast_years',
         'status',
+        'revision',
         'assumptions',
         'launch_costs',
         'monthly_fixed_costs',
@@ -41,6 +42,7 @@ final class EntrepreneurBudget extends Model
     protected $casts = [
         'expected_runway_months' => 'integer',
         'forecast_years' => 'integer',
+        'revision' => 'integer',
         'assumptions' => 'array',
         'launch_costs' => 'array',
         'monthly_fixed_costs' => 'array',

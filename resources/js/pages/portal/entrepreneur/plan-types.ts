@@ -196,6 +196,7 @@ export type FundingScenarioRow = {
 
 export type BudgetPayload = {
     id: string | null;
+    revision: number;
     expected_runway_months: number | null;
     forecast_years: number;
     status: string;
@@ -267,6 +268,7 @@ export type BudgetFlag = {
 };
 
 export type BudgetFormState = {
+    revision: number;
     expected_runway_months: string;
     forecast_years: string;
     assumptions: BudgetAssumptions;

@@ -154,7 +154,7 @@ export async function postSectionAutosave(
 export async function postBudgetAutosave(
     url: string,
     payload: object,
-): Promise<boolean> {
+): Promise<{ saved: boolean; revision: number | null }> {
     const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -168,5 +168,18 @@ export async function postBudgetAutosave(
         }),
     });
 
-    return response.ok;
+    if (!response.ok) {
+        return { saved: false, revision: null };
+    }
+
+    const body: unknown = await response.json();
+    const revision =
+        typeof body === 'object' &&
+        body !== null &&
+        'revision' in body &&
+        typeof body.revision === 'number'
+            ? body.revision
+            : null;
+
+    return { saved: true, revision };
 }
