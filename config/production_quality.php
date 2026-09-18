@@ -44,6 +44,11 @@ return [
             'production_limit' => 1000,
             'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Advisor'],
         ],
+        'resources/js/pages/advisor/entrepreneurs/Show.tsx' => [
+            'ceiling' => 3332,
+            'production_limit' => 3500,
+            'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Advisor', 'tests/Feature/Entrepreneurs'],
+        ],
         'resources/js/pages/advisor/Dashboard.tsx' => [
             'ceiling' => 376,
             'production_limit' => 1000,

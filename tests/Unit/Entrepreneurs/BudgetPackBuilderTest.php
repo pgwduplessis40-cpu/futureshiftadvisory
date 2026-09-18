@@ -175,6 +175,33 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringContainsString('<td>$875</td><td>52.00</td><td>Weekly</td>', $html);
     }
 
+    public function test_budget_pack_converts_an_875_weekly_owner_cost_once_after_quantity_is_repaired(): void
+    {
+        $profile = new EntrepreneurProfile(['name' => 'Budget Founder']);
+        $plan = new BusinessPlan(['title' => 'Budget runway plan']);
+        $budget = new EntrepreneurBudget([
+            'status' => EntrepreneurBudget::STATUS_COMPLETE,
+            'forecast_years' => 1,
+            'computed' => ['monthly_fixed_costs' => 3791.67, 'monthly_detail' => [], 'scenarios' => [], 'annual_totals' => []],
+            'monthly_fixed_costs' => [[
+                'label' => 'Owner compensation',
+                'amount' => 875,
+                'quantity' => 1,
+                'cadence' => 'weekly',
+                'cadence_confirmed' => true,
+                'confidence' => 'known',
+            ]],
+            'flags' => [],
+        ]);
+        $plan->setRelation('budgetRunway', $budget);
+        $plan->setRelation('sections', new EloquentCollection);
+
+        $html = app(BudgetPackBuilder::class)->html($profile, $plan);
+
+        $this->assertStringContainsString('<td>$875</td><td>1.00</td><td>Weekly</td><td>$3,792</td>', $html);
+        $this->assertStringNotContainsString('$197,167', $html);
+    }
+
     public function test_budget_pack_fallback_pdf_is_structured_without_browser_renderer(): void
     {
         $profile = new EntrepreneurProfile(['name' => 'Budget Founder']);

@@ -2391,6 +2391,10 @@ export default function EntrepreneursShow({
                                 entrepreneur.latest_plan?.budget
                                     .fixed_cost_cadence_repair_url ?? null
                             }
+                            repairAllUrl={
+                                entrepreneur.latest_plan?.budget
+                                    .fixed_cost_cadence_repair_all_url ?? null
+                            }
                         />
 
                         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">

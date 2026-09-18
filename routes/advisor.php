@@ -495,6 +495,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/assessments', [EntrepreneurActionController::class, 'assess'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.plans.assessments.store');
+        Route::patch('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget/fixed-cost-cadence/repair-all', [EntrepreneurBudgetCorrectionController::class, 'repairAllDuplicateCadenceQuantities'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.plans.budget.fixed-cost-cadence.repair-all');
         Route::patch('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/budget/fixed-cost-cadence', [EntrepreneurBudgetCorrectionController::class, 'repairDuplicateCadenceQuantity'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.plans.budget.fixed-cost-cadence.repair');

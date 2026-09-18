@@ -19,8 +19,8 @@ use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
 
 /**
  * @phpstan-type AssessmentHistoryEntry array{id:string, round:int, status:string, overall_grade:string|null, weighted_score:float|null, automated_score_available:bool, score_delta:float|null, score_source_summary:string, created_at:string|null, submitted_at:string|null, snapshot_available:bool, snapshot_captured_at:mixed, snapshot_note:string, assessment_url:string, plan_snapshot_url:string|null}
- * @phpstan-type FixedCostTraceRow array{index:int,label:string,rate:float,quantity:float,cadence:string,cadence_confirmed:bool,monthly_equivalent:float,duplicate_cadence_quantity:bool}
- * @phpstan-type BudgetSummary array{status:string, expected_runway_months:float|int|null, calculated_runway_months:mixed, runway_open_ended:bool, break_even_month:mixed, available_after_launch:mixed, active_flags:list<mixed>,fixed_cost_trace:list<FixedCostTraceRow>,fixed_cost_cadence_repair_url:string|null}
+ * @phpstan-type FixedCostTraceRow array{index:int,label:string,rate:float,quantity:float,cadence:string,cadence_confirmed:bool,monthly_equivalent:float,corrected_monthly_equivalent:float|null,duplicate_cadence_quantity:bool}
+ * @phpstan-type BudgetSummary array{status:string, expected_runway_months:float|int|null, calculated_runway_months:mixed, runway_open_ended:bool, break_even_month:mixed, available_after_launch:mixed, active_flags:list<mixed>,fixed_cost_trace:list<FixedCostTraceRow>,fixed_cost_cadence_repair_url:string|null,fixed_cost_cadence_repair_all_url:string|null}
  * @phpstan-type AssessmentScopePayload array{is_full_reassessment:bool,has_scope_correction:bool,scope_correction_criterion_numbers:list<int>}
  * @phpstan-type AssessmentCriterionPayload array{criterion_number:int,name:string,score:float|int}
  * @phpstan-type PlanBudgetCoherenceFindingPayload array{category:string,severity:string,message:string,next_action:string}
@@ -361,6 +361,9 @@ final class AdvisorEntrepreneurPlanPayload
             'fixed_cost_cadence_repair_url' => $plan instanceof BusinessPlan && $plan->entrepreneurProfile instanceof EntrepreneurProfile
                 ? route('advisor.entrepreneurs.plans.budget.fixed-cost-cadence.repair', [$plan->entrepreneurProfile, $plan], absolute: false)
                 : null,
+            'fixed_cost_cadence_repair_all_url' => $plan instanceof BusinessPlan && $plan->entrepreneurProfile instanceof EntrepreneurProfile
+                ? route('advisor.entrepreneurs.plans.budget.fixed-cost-cadence.repair-all', [$plan->entrepreneurProfile, $plan], absolute: false)
+                : null,
         ];
     }
 
@@ -383,6 +386,8 @@ final class AdvisorEntrepreneurPlanPayload
                 $quantity = (float) ($row['quantity'] ?? 1);
                 $cadence = (string) ($row['cadence'] ?? 'monthly');
 
+                $duplicateCadenceQuantity = in_array($index, $conflictIndexes, true);
+
                 return [
                     'index' => $index,
                     'label' => trim((string) ($row['label'] ?? 'Unlabelled cost')) ?: 'Unlabelled cost',
@@ -391,7 +396,10 @@ final class AdvisorEntrepreneurPlanPayload
                     'cadence' => $cadence,
                     'cadence_confirmed' => (bool) ($row['cadence_confirmed'] ?? false),
                     'monthly_equivalent' => round($this->monthlyFixedCostEquivalent($rate, $quantity, $cadence), 2),
-                    'duplicate_cadence_quantity' => in_array($index, $conflictIndexes, true),
+                    'corrected_monthly_equivalent' => $duplicateCadenceQuantity
+                        ? round($this->monthlyFixedCostEquivalent($rate, 1, $cadence), 2)
+                        : null,
+                    'duplicate_cadence_quantity' => $duplicateCadenceQuantity,
                 ];
             })
             ->sortByDesc('monthly_equivalent')
