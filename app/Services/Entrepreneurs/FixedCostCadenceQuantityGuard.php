@@ -62,6 +62,32 @@ final class FixedCostCadenceQuantityGuard
         );
     }
 
+    /**
+     * @param  array{
+     *     unconfirmed_fixed_cost_cadences: array<int, mixed>,
+     *     unconfirmed_revenue_growth: array<int, mixed>,
+     *     revenue_without_capacity: array<int, mixed>,
+     *     revenue_with_unpriced_contractors: array<int, mixed>,
+     *     unverified_fixed_cost_sources: array<int, mixed>,
+     *     unverified_revenue_sources: array<int, mixed>,
+     *     unverified_cash_timing: array<int, string>,
+     *     funding_position_unconfirmed: bool,
+     *     missing_assumptions: array<int, mixed>
+     * }  $quality
+     * @param  array<int, array{label?: string, quantity?: float|int|string, cadence?: string}>  $rows
+     * @return array{
+     *     unconfirmed_fixed_cost_cadences: array<int, mixed>,
+     *     fixed_cost_cadence_quantity_conflicts: array<int, string>,
+     *     unconfirmed_revenue_growth: array<int, mixed>,
+     *     revenue_without_capacity: array<int, mixed>,
+     *     revenue_with_unpriced_contractors: array<int, mixed>,
+     *     unverified_fixed_cost_sources: array<int, mixed>,
+     *     unverified_revenue_sources: array<int, mixed>,
+     *     unverified_cash_timing: array<int, string>,
+     *     funding_position_unconfirmed: bool,
+     *     missing_assumptions: array<int, mixed>
+     * }
+     */
     public function addInputQualityConflicts(array $quality, array $rows): array
     {
         $quality['fixed_cost_cadence_quantity_conflicts'] = $this->descriptions($rows);

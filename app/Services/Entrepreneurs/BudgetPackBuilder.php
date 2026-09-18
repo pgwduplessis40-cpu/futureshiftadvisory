@@ -143,8 +143,7 @@ final class BudgetPackBuilder
             ->map(fn (array $row): string => sprintf(
                 '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
                 $this->escape($row['label'] ?? ''),
-                $this->money($row['rate_amount'] ?? 0),
-                $this->escape($this->unitCount($row['quantity'] ?? null)),
+                $this->money($row['rate_amount'] ?? 0), $this->escape($this->unitCount($row['quantity'] ?? null)),
                 $this->escape($row['cadence_label'] ?? ''),
                 $this->money($row['monthly_amount'] ?? 0),
                 $this->escape($row['start_month_label'] ?? ''),
@@ -645,8 +644,7 @@ HTML,
 
                 return [
                     'label' => $this->fixedCostDisplayLabel($label),
-                    'rate_amount' => round((float) ($row['amount'] ?? 0), 2),
-                    'quantity' => round((float) ($row['quantity'] ?? 1), 2),
+                    'rate_amount' => round((float) ($row['amount'] ?? 0), 2), 'quantity' => round((float) ($row['quantity'] ?? 1), 2),
                     'cadence_label' => $this->cadenceLabel((string) ($row['cadence'] ?? 'monthly'), (bool) ($row['cadence_confirmed'] ?? false)),
                     'monthly_amount' => round($this->monthlyEquivalent($row), 2),
                     'start_month_label' => 'Month '.$month,
@@ -721,15 +719,10 @@ HTML,
     }
 
     /**
-     * @param  array{quantity?: float|int|string, cadence?: string}  $row
+     * @param  array<string, mixed>  $row
      */
     private function fixedCostReviewNote(string $label, array $row): string
     {
-        $cadenceQuantityWarning = $this->cadenceQuantityWarning($row);
-        if ($cadenceQuantityWarning !== null) {
-            return $cadenceQuantityWarning;
-        }
-
         if ($this->isAmbiguousOwnerCompensation($label)) {
             return 'Clarify whether the saved amount is weekly, monthly, or annual before external issue.';
         }
@@ -748,28 +741,6 @@ HTML,
         }
 
         return 'Source: '.trim((string) ($row['source_reference'] ?? '')).'.';
-    }
-
-    /**
-     * @param  array{quantity?: float|int|string, cadence?: string}  $row
-     */
-    private function cadenceQuantityWarning(array $row): ?string
-    {
-        $cadence = (string) ($row['cadence'] ?? 'monthly');
-        $paymentsPerYear = match ($cadence) {
-            'weekly' => 52,
-            'fortnightly' => 26,
-            'monthly' => 12,
-            'quarterly' => 4,
-            default => null,
-        };
-        $quantity = (float) ($row['quantity'] ?? 1);
-
-        if ($paymentsPerYear === null || abs($quantity - $paymentsPerYear) >= 0.005) {
-            return null;
-        }
-
-        return 'Qty '.$this->unitCount($quantity).' matches the number of '.$cadence.' payments in a year. Qty must be the number of parallel billed units; enter 1 for one billed item.';
     }
 
     private function fixedCostDisplayLabel(string $label): string

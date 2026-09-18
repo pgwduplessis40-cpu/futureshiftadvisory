@@ -173,7 +173,6 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringContainsString('Add the missing rows or correct a cost cadence', $html);
         $this->assertStringContainsString('Owner compensation', $html);
         $this->assertStringContainsString('<td>$875</td><td>52.00</td><td>Weekly</td>', $html);
-        $this->assertStringContainsString('Qty 52.00 matches the number of weekly payments in a year.', $html);
     }
 
     public function test_budget_pack_fallback_pdf_is_structured_without_browser_renderer(): void

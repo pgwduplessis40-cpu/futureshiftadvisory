@@ -549,13 +549,13 @@ final class EntrepreneurBudgetService
      *     revision: int,
      *     expected_runway_months: int|null,
      *     forecast_years: int|null,
-     *     assumptions: array,
-     *     launch_costs: array,
-     *     monthly_fixed_costs: array,
-     *     future_costs: array,
-     *     revenue_forecast: array,
-     *     funding_sources: array,
-     *     funding_scenarios: array
+     *     assumptions: array<array-key, mixed>,
+     *     launch_costs: array<array-key, mixed>,
+     *     monthly_fixed_costs: array<array-key, mixed>,
+     *     future_costs: array<array-key, mixed>,
+     *     revenue_forecast: array<array-key, mixed>,
+     *     funding_sources: array<array-key, mixed>,
+     *     funding_scenarios: array<array-key, mixed>
      * }
      */
     private function inputAuditSnapshot(EntrepreneurBudget $budget): array

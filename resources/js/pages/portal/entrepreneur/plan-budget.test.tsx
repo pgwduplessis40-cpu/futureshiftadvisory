@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { fixedCostQuantityWarning } from './plan-budget';
+import { fixedCostQuantityWarning } from './fixed-cost-cadence';
 
 test('fixed-cost quantity warnings distinguish units from billing periods', () => {
     assert.match(
