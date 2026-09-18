@@ -113,8 +113,10 @@ export function usePersistedWorkspaceDraft<T extends object>({
         }
 
         let cancelled = false;
-        initialSignature.current = signatureRef.current;
-        savedSignature.current = signatureRef.current;
+        const initialData = dataRef.current;
+        const initialDataSignature = JSON.stringify(initialData);
+        initialSignature.current = initialDataSignature;
+        savedSignature.current = initialDataSignature;
         const recoveryDraft = readRecoveryDraft<T>(url);
 
         void fetch(url, { headers: { Accept: 'application/json' } })
@@ -135,26 +137,28 @@ export function usePersistedWorkspaceDraft<T extends object>({
 
                 const payload = draft.payload ?? {};
                 const savedAt = draft.saved_at ?? null;
-                const serverDraft = { ...dataRef.current, ...payload };
                 const recoveryIsNewer =
                     recoveryDraft !== null &&
                     isRecoveryNewer(recoveryDraft.saved_at, savedAt);
-                const next = recoveryIsNewer
-                    ? { ...dataRef.current, ...recoveryDraft.payload }
-                    : serverDraft;
-                savedSignature.current = JSON.stringify(
-                    recoveryIsNewer ? serverDraft : next,
-                );
+                const resolved = resolvePersistedWorkspaceDraft({
+                    initialData,
+                    currentData: dataRef.current,
+                    serverPayload: payload,
+                    recoveryPayload: recoveryDraft?.payload ?? null,
+                    recoveryIsNewer,
+                });
+                savedSignature.current = resolved.serverSignature;
+                const hasUnsavedChanges =
+                    JSON.stringify(resolved.data) !== resolved.serverSignature;
 
-                if (
-                    signatureRef.current === initialSignature.current &&
-                    Object.keys(next).length > 0
-                ) {
-                    hydrate(next);
-                }
+                hydrate(resolved.data);
 
                 setDraftState(
-                    recoveryIsNewer ? 'idle' : savedAt ? 'saved' : 'idle',
+                    recoveryIsNewer || hasUnsavedChanges
+                        ? 'idle'
+                        : savedAt
+                          ? 'saved'
+                          : 'idle',
                 );
             })
             .catch(() => {
@@ -266,6 +270,55 @@ export function usePersistedWorkspaceDraft<T extends object>({
     }, [enabled, retry, url]);
 
     return { state, hasRecovery: true, retry, discardRecovery };
+}
+
+type PersistedWorkspaceDraftResolution<T extends object> = {
+    data: T;
+    serverSignature: string;
+};
+
+/**
+ * Reconciles the server/recovery draft with edits made before the initial GET
+ * finishes. Those early edits must remain dirty so the next autosave persists
+ * them; treating the live form as the loaded server payload loses the change.
+ */
+export function resolvePersistedWorkspaceDraft<T extends object>({
+    initialData,
+    currentData,
+    serverPayload,
+    recoveryPayload,
+    recoveryIsNewer,
+}: {
+    initialData: T;
+    currentData: T;
+    serverPayload: Partial<T>;
+    recoveryPayload: Partial<T> | null;
+    recoveryIsNewer: boolean;
+}): PersistedWorkspaceDraftResolution<T> {
+    const serverData = { ...initialData, ...serverPayload } as T;
+    const recoveredData = recoveryIsNewer
+        ? ({ ...serverData, ...recoveryPayload } as T)
+        : serverData;
+    const currentChanges = Object.keys(currentData).reduce<Partial<T>>(
+        (changes, key) => {
+            const field = key as keyof T;
+
+            if (
+                JSON.stringify(currentData[field]) !==
+                JSON.stringify(initialData[field])
+            ) {
+                changes[field] = currentData[field];
+            }
+
+            return changes;
+        },
+        {},
+    );
+
+    return {
+        data: { ...recoveredData, ...currentChanges } as T,
+        serverSignature: JSON.stringify(serverData),
+    };
 }
 
 function csrfToken(): string {

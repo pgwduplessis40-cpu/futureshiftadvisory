@@ -18,7 +18,6 @@ import { ExecutiveSummaryNotice } from './executive-summary-notice';
 import { BudgetEditor, requirementId } from './plan-budget';
 import {
     IdeaValidationSnapshot,
-    PlainLanguageGuide,
     formatDate,
     ideaFields,
 } from './plan-dashboard-panels';
@@ -137,24 +136,6 @@ export function PlanWorkspaceActions({
                             advisor still reviews the evidence and agrees the
                             next step with you.
                         </p>
-                        {nextSmallWin.action === 'Start idea validation' ? (
-                            <div className="mt-3">
-                                <Button asChild size="sm">
-                                    <a href="#idea-validation">
-                                        Start idea validation
-                                    </a>
-                                </Button>
-                            </div>
-                        ) : null}
-                        {nextSmallWin.action === 'Revise idea validation' ? (
-                            <div className="mt-3">
-                                <Button asChild size="sm">
-                                    <a href="#idea-validation">
-                                        Revise idea validation
-                                    </a>
-                                </Button>
-                            </div>
-                        ) : null}
                         {nextSmallWin.action === 'Start plan' ? (
                             <div className="mt-3">
                                 <Button
@@ -205,8 +186,6 @@ export function PlanWorkspaceActions({
                     </div>
                 </div>
             </section>
-
-            <PlainLanguageGuide />
 
             {includesIdeaValidation ? (
                 <section
@@ -367,9 +346,16 @@ export function PlanWorkspaceActions({
                                                 }
                                             </span>
                                         </span>
-                                        <span className="text-xs text-muted-foreground">
+                                        <p className="text-xs text-muted-foreground">
                                             {field.plain}
-                                        </span>
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            <span className="font-medium text-foreground">
+                                                Include:{' '}
+                                            </span>
+                                            {field.guidance} Aim for at least{' '}
+                                            {field.minimum} characters.
+                                        </p>
                                         <FormattedTextarea
                                             id={fieldId}
                                             value={fieldValue}
@@ -887,7 +873,7 @@ export function PlanWorkspaceActions({
                                           ? 'Your advisor requested changes to the idea validation. Update and resubmit it before these sections open.'
                                           : hasIdeaValidation
                                             ? 'Your idea validation has been submitted. Your advisor needs to approve it before these sections open.'
-                                            : 'Complete idea validation first so your advisor can confirm the concept before detailed plan work starts.'}
+                                            : 'Complete the Idea Validation form above so your advisor can confirm the concept before detailed plan work starts.'}
                                 </p>
                             </div>
                             {planBuilderUnlocked ? (
@@ -897,17 +883,6 @@ export function PlanWorkspaceActions({
                                     onClick={startPlan}
                                 >
                                     Start plan
-                                </Button>
-                            ) : !hasIdeaValidation ||
-                              ideaChangesRequested ||
-                              ideaValidationRecalled ? (
-                                <Button asChild size="sm">
-                                    <a href="#idea-validation">
-                                        {ideaChangesRequested ||
-                                        ideaValidationRecalled
-                                            ? 'Revise idea validation'
-                                            : 'Start idea validation'}
-                                    </a>
                                 </Button>
                             ) : null}
                         </div>

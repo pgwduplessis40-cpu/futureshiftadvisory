@@ -225,6 +225,19 @@ final class EntrepreneurNavigationTest extends TestCase
             'stage' => EntrepreneurStage::ONBOARDING,
             'concept_summary' => 'Advisor selected the Business Idea invite path.',
         ]);
+        ServiceRatePackage::query()->create([
+            'service_type' => ServiceRatePackage::SERVICE_ENTREPRENEUR,
+            'package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET,
+            'package_name' => 'Business Plan & Budget',
+            'client_label' => 'Business Plan & Budget',
+            'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+            'fixed_fee' => '3450.00',
+            'deposit_percent' => 100,
+            'currency' => 'NZD',
+            'scope_description' => 'Business plan and budget following Idea Validation approval.',
+            'is_active' => true,
+            'effective_from' => now()->subMinute(),
+        ]);
 
         $this->actingAsMfa($entrepreneur)
             ->get(route('portal.entrepreneur.plan.show'))
@@ -248,7 +261,10 @@ final class EntrepreneurNavigationTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('portal/entrepreneur/PlanBudgetAccess')
                 ->where('hasPlanBudgetAccess', false)
-                ->where('ideaValidationApproved', false));
+                ->where('ideaValidationApproved', false)
+                ->where('offer.available', true)
+                ->where('offer.amount_ex_gst', 3450)
+                ->where('offer.currency', 'NZD'));
 
         $this->actingAsMfa($entrepreneur)
             ->post(route('portal.entrepreneur.plan.start'))

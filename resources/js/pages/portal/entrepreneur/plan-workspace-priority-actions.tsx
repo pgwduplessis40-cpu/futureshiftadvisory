@@ -80,9 +80,7 @@ export function PlanWorkspacePriorityActions({
                     {!includesIdeaValidation ? (
                         <Badge variant="outline">Not in package</Badge>
                     ) : !ideaValidation ? (
-                        <Button asChild size="sm">
-                            <a href="#idea-validation">Start idea validation</a>
-                        </Button>
+                        <Badge variant="outline">Complete the form below</Badge>
                     ) : planBuilderUnlocked ? (
                         <Badge variant="secondary">Builder unlocked</Badge>
                     ) : ideaChangesRequested ? (

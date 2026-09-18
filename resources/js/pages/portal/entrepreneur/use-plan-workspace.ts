@@ -184,22 +184,22 @@ export function usePlanWorkspace({
             ? {
                   badge: 'Step 1',
                   title: 'Complete idea validation',
-                  body: 'Answer the idea validation questions first. Your advisor reviews this before the plan sections open.',
-                  action: 'Start idea validation',
+                  body: 'Complete the idea validation form below. Your advisor reviews it before the plan sections open.',
+                  action: null,
               }
             : includesIdeaValidation && ideaChangesRequested
               ? {
                     badge: 'Step 1',
                     title: 'Revise idea validation',
                     body: 'Your advisor has requested changes. Update the idea validation and resubmit it for review.',
-                    action: 'Revise idea validation',
+                    action: null,
                 }
               : includesIdeaValidation && ideaValidationRecalled
                 ? {
                       badge: 'Step 1',
                       title: 'Revise idea validation',
                       body: 'Your validation has been recalled from advisor review. Update it, then resubmit it for review.',
-                      action: 'Revise idea validation',
+                      action: null,
                   }
                 : includesIdeaValidation && !planBuilderUnlocked
                   ? {
@@ -235,10 +235,8 @@ export function usePlanWorkspace({
                                 : 'Complete idea validation',
                             body: hasIdeaValidation
                                 ? 'Your advisor can review the validation and provide gate feedback for this package.'
-                                : 'Answer the idea validation questions to test the concept before investing in detailed plan work.',
-                            action: hasIdeaValidation
-                                ? null
-                                : 'Start idea validation',
+                                : 'Complete the idea validation form below to test the concept before investing in detailed plan work.',
+                            action: null,
                         };
     const [sectionTitle, setSectionTitle] = useState('');
     const [sectionBody, setSectionBody] = useState('');
