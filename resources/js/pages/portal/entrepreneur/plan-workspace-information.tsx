@@ -16,49 +16,53 @@ export function PlanWorkspaceInformation({
     const { profile, plan, reports, advisoryRequest } = workspace;
 
     return (
-        <div className="grid gap-6 lg:grid-cols-2">
-            <section className="space-y-4 rounded-md border bg-background p-4">
-                <div className="flex items-center justify-between gap-3">
-                    <h2 className="text-sm font-medium">Assessment reports</h2>
-                    <Badge variant="outline">{reports.length}</Badge>
-                </div>
-                {reports.length > 0 ? (
-                    <div className="divide-y rounded-md border">
-                        {reports.map((report) => (
-                            <article
-                                key={report.id}
-                                className="flex flex-wrap items-center justify-between gap-3 p-3"
-                            >
-                                <div>
-                                    <div className="text-sm font-medium">
-                                        {report.title}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        {formatDate(report.generated_at)}
-                                    </div>
-                                </div>
-                                <Button asChild size="sm" variant="outline">
-                                    <a
-                                        href={
-                                            report.view_url ??
-                                            report.download_url
-                                        }
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        View
-                                    </a>
-                                </Button>
-                            </article>
-                        ))}
+        <div className={plan ? 'grid gap-6 lg:grid-cols-2' : 'grid gap-6'}>
+            {plan ? (
+                <section className="space-y-4 rounded-md border bg-background p-4">
+                    <div className="flex items-center justify-between gap-3">
+                        <h2 className="text-sm font-medium">
+                            Assessment reports
+                        </h2>
+                        <Badge variant="outline">{reports.length}</Badge>
                     </div>
-                ) : (
-                    <p className="text-sm text-muted-foreground">
-                        Reports appear after your advisor finalises an
-                        assessment.
-                    </p>
-                )}
-            </section>
+                    {reports.length > 0 ? (
+                        <div className="divide-y rounded-md border">
+                            {reports.map((report) => (
+                                <article
+                                    key={report.id}
+                                    className="flex flex-wrap items-center justify-between gap-3 p-3"
+                                >
+                                    <div>
+                                        <div className="text-sm font-medium">
+                                            {report.title}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {formatDate(report.generated_at)}
+                                        </div>
+                                    </div>
+                                    <Button asChild size="sm" variant="outline">
+                                        <a
+                                            href={
+                                                report.view_url ??
+                                                report.download_url
+                                            }
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            View
+                                        </a>
+                                    </Button>
+                                </article>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            Reports appear after your advisor finalises an
+                            assessment.
+                        </p>
+                    )}
+                </section>
+            ) : null}
 
             <section className="space-y-4 rounded-md border bg-background p-4">
                 <h2 className="text-sm font-medium">Current profile</h2>

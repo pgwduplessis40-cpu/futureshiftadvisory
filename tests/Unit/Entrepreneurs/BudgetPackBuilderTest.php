@@ -130,6 +130,7 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringContainsString('class="report-section annual-forecast page"', $html);
         $this->assertStringContainsString('class="report-section assumption-quality page"', $html);
         $this->assertStringContainsString('.funding-build-up { break-before: page; }', $html);
+        $this->assertStringContainsString('.report-footer { background: #fff; bottom: 6mm;', $html);
     }
 
     public function test_budget_pack_html_flags_fixed_cost_mismatch_and_owner_compensation_rows(): void

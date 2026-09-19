@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Portal;
 use App\Enums\ReportType;
 use App\Models\AdvisoryReadinessSignal;
 use App\Models\BusinessPlan;
+use App\Models\Document;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
 use App\Models\MessageThread;
@@ -18,6 +19,7 @@ use App\Models\Report;
 use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
+use App\Services\Entrepreneurs\EntrepreneurJourney;
 use App\Services\Entrepreneurs\PlanRequirements;
 
 /**
@@ -46,6 +48,7 @@ final class EntrepreneurPlanWorkspacePayload
         private readonly EntrepreneurPlanRequirements $requirements,
         private readonly BusinessPlanExecutiveSummary $executiveSummaries,
         private readonly EntrepreneurGamification $gamification,
+        private readonly EntrepreneurJourney $journey,
         private readonly AdvisoryReadiness $advisoryReadiness,
     ) {}
 
@@ -58,6 +61,7 @@ final class EntrepreneurPlanWorkspacePayload
         return [
             'profile' => $this->profile($profile),
             'packageAccess' => $packageAccess,
+            'journey' => $this->journey->payload($profile, $packageAccess, $plan),
             'readiness' => $this->readiness($profile),
             'readinessFields' => collect(self::READINESS_FIELDS)
                 ->map(fn (string $label, string $key): array => ['key' => $key, 'label' => $label])
@@ -72,6 +76,7 @@ final class EntrepreneurPlanWorkspacePayload
             'gamification' => $this->gamification($profile, $plan),
             'urls' => [
                 'dashboard' => route('portal.entrepreneur.dashboard', absolute: false),
+                'planBudgetAccess' => route('portal.entrepreneur.plan-budget.show', absolute: false),
                 'readiness' => route('portal.entrepreneur.readiness.store', absolute: false),
                 'ideaValidation' => route('portal.entrepreneur.idea-validation.store', absolute: false),
                 'ideaValidationDraft' => route('portal.drafts.show', ['draftKey' => 'entrepreneur-idea:'.$profile->getKey()], absolute: false),
@@ -197,6 +202,20 @@ final class EntrepreneurPlanWorkspacePayload
     {
         $plan->loadMissing('phases.sections', 'assessments.ratingFramework.criteria', 'budgetRunway');
         $phasesByKey = $plan->phases->keyBy('key');
+        $attachedDocuments = Document::query()
+            ->where('entrepreneur_profile_id', $plan->entrepreneur_profile_id)
+            ->whereIn(
+                'id',
+                $plan->phases
+                    ->flatMap(fn (PlanPhase $phase) => $phase->sections)
+                    ->flatMap(fn (PlanSection $section): array => $section->attached_document_ids ?? [])
+                    ->filter(fn (mixed $id): bool => is_string($id) && $id !== '')
+                    ->unique()
+                    ->values()
+                    ->all(),
+            )
+            ->get()
+            ->keyBy('id');
         $requirements = $this->requirements->payload($plan);
         $completion = $this->requirements->completion($plan, $requirements);
         $latestAssessment = $plan->assessments->sortByDesc('round')->first();
@@ -221,7 +240,7 @@ final class EntrepreneurPlanWorkspacePayload
             ] : null,
             'history' => $this->submittedPlanHistory($plan),
             'phases' => collect(PlanRequirements::definitions())
-                ->map(function (array $definition, string $phaseKey) use ($phasesByKey, $requirements): array {
+                ->map(function (array $definition, string $phaseKey) use ($attachedDocuments, $phasesByKey, $requirements): array {
                     $phase = $phasesByKey->get($phaseKey);
 
                     return [
@@ -239,6 +258,12 @@ final class EntrepreneurPlanWorkspacePayload
                                 'source_type' => $section->source_type,
                                 'completeness_status' => $section->completeness_status,
                                 'attached_document_ids' => $section->attached_document_ids ?? [],
+                                'attached_documents' => collect($section->attached_document_ids ?? [])
+                                    ->map(fn (string $documentId): ?Document => $attachedDocuments->get($documentId))
+                                    ->filter()
+                                    ->map(fn (Document $document): array => $this->attachedDocumentPayload($document))
+                                    ->values()
+                                    ->all(),
                                 'predictive_score' => $section->predictive_score,
                                 'guidance' => data_get($section->metadata, 'ai_guidance'),
                                 'requirement_key' => data_get($section->metadata, 'requirement_key'),
@@ -251,6 +276,19 @@ final class EntrepreneurPlanWorkspacePayload
                 })
                 ->values()
                 ->all(),
+        ];
+    }
+
+    /** @return array<string, int|string|null> */
+    private function attachedDocumentPayload(Document $document): array
+    {
+        return [
+            'id' => $document->id,
+            'original_filename' => $document->original_filename,
+            'byte_size' => $document->byte_size,
+            'scanner_result' => $document->scanner_result,
+            'uploaded_at' => $document->created_at?->toIso8601String(),
+            'url' => route('portal.documents.show', $document, absolute: false),
         ];
     }
 

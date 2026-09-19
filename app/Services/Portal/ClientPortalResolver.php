@@ -38,6 +38,10 @@ final class ClientPortalResolver
             return $this->resolveForNpoBoardMember($user);
         }
 
+        if ($user->user_type === User::TYPE_ENTREPRENEUR) {
+            return $this->resolveEntrepreneurWorkspaceClient($user);
+        }
+
         abort_unless(in_array($user->user_type, [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM], true), 403);
 
         $clientIds = $user->accessibleClientIds();
@@ -151,11 +155,38 @@ final class ClientPortalResolver
 
     private function attachEntrepreneurServiceTeam(Client $client, EntrepreneurProfile $profile, User $user): void
     {
-        $modules = [
+        $this->attachTeamMember(
+            client: $client,
+            user: $user,
+            fallbackRole: 'primary_contact',
+        );
+
+        $advisor = $profile->assignedAdvisor;
+        if ($advisor instanceof User && in_array($advisor->user_type, [User::TYPE_ADVISOR, User::TYPE_SUPER_ADMIN], true)) {
+            $this->attachTeamMember(
+                client: $client,
+                user: $advisor,
+                fallbackRole: 'lead_advisor',
+            );
+        }
+    }
+
+    private function attachTeamMember(Client $client, User $user, string $fallbackRole): void
+    {
+        $existing = ClientTeamMember::query()
+            ->where('client_id', $client->getKey())
+            ->where('user_id', $user->getKey())
+            ->first();
+        $engagementModule = $client->engagement_type instanceof EngagementType
+            ? $client->engagement_type->value
+            : (string) $client->engagement_type;
+        $modules = array_values(array_unique(array_filter([
+            ...($existing?->granted_modules ?? []),
             'portal',
             EngagementType::ENTREPRENEUR_MODULE->value,
             EngagementType::DUE_DILIGENCE->value,
-        ];
+            $engagementModule,
+        ], static fn (mixed $module): bool => is_string($module) && $module !== '')));
 
         ClientTeamMember::query()->updateOrCreate(
             [
@@ -163,23 +194,9 @@ final class ClientPortalResolver
                 'user_id' => $user->getKey(),
             ],
             [
-                'role' => 'primary_contact',
+                'role' => $existing?->role ?? $fallbackRole,
                 'granted_modules' => $modules,
             ],
         );
-
-        $advisor = $profile->assignedAdvisor;
-        if ($advisor instanceof User && in_array($advisor->user_type, [User::TYPE_ADVISOR, User::TYPE_SUPER_ADMIN], true)) {
-            ClientTeamMember::query()->updateOrCreate(
-                [
-                    'client_id' => $client->getKey(),
-                    'user_id' => $advisor->getKey(),
-                ],
-                [
-                    'role' => 'lead_advisor',
-                    'granted_modules' => $modules,
-                ],
-            );
-        }
     }
 }

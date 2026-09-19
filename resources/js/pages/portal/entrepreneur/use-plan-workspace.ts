@@ -16,7 +16,12 @@ import {
 } from './plan-budget';
 import { ideaFields } from './plan-dashboard-panels';
 import type { IdeaValidationVersion, Tab } from './plan-dashboard-panels';
-import type { BudgetFormState, IdeaValidationForm, Props } from './plan-types';
+import type {
+    BudgetFormState,
+    IdeaValidationForm,
+    PlanSectionPayload,
+    Props,
+} from './plan-types';
 import {
     csrfToken,
     currentSectionTextareaPosition,
@@ -27,7 +32,12 @@ import {
     restoreSectionTextareaPosition,
     updatePlanWorkspaceDraft,
 } from './plan-workspace-draft';
-import type { AutosaveState, PlanWorkspaceDraft } from './plan-workspace-draft';
+import type {
+    AutosaveState,
+    PlanWorkspaceDraft,
+    SectionAutosaveResult,
+} from './plan-workspace-draft';
+import { syncPlanSupportingDocuments } from './plan-workspace-supporting-documents';
 
 export function usePlanWorkspace({
     profile,
@@ -39,6 +49,7 @@ export function usePlanWorkspace({
     reports,
     advisoryRequest,
     gamification,
+    journey,
     urls,
 }: Props) {
     const [activeTab, setActiveTab] = useState<Tab>('actions');
@@ -81,17 +92,11 @@ export function usePlanWorkspace({
         requirements.find((requirement) => !requirement.complete) ??
         requirements[0] ??
         null;
-    const [selectedKey, setSelectedKey] = useState<string | null>(() =>
-        initialWorkspaceDraft?.selectedKey &&
-        requirements.some(
-            (requirement) =>
-                requirementId(requirement) ===
-                initialWorkspaceDraft.selectedKey,
-        )
-            ? initialWorkspaceDraft.selectedKey
-            : firstMissingRequirement
-              ? requirementId(firstMissingRequirement)
-              : null,
+    // A local selected requirement describes where a browser last happened to
+    // be, not the next journey step. Always begin at the first real gap so a
+    // new BP&B workspace cannot appear to start at an unrelated risk register.
+    const [selectedKey, setSelectedKey] = useState<string | null>(
+        firstMissingRequirement ? requirementId(firstMissingRequirement) : null,
     );
     const selectedRequirement =
         requirements.find(
@@ -179,6 +184,10 @@ export function usePlanWorkspace({
         value: ideaValidation?.[field.key as keyof IdeaValidationForm] ?? '-',
     }));
     const hasPlan = Boolean(plan);
+    const planIsComplete =
+        includesPlanBudget &&
+        planCompletion.total > 0 &&
+        planCompletion.completed === planCompletion.total;
     const nextSmallWin =
         includesIdeaValidation && !hasIdeaValidation
             ? {
@@ -208,47 +217,90 @@ export function usePlanWorkspace({
                         body: 'Idea validation is submitted. Your advisor needs to approve it before the plan sections open.',
                         action: null,
                     }
-                  : includesPlanBudget && !hasPlan
+                  : includesIdeaValidation &&
+                      ideaValidationApproved &&
+                      !includesPlanBudget
                     ? {
-                          badge: includesIdeaValidation ? 'Step 3' : 'Step 1',
-                          title: 'Start the business plan',
-                          body: includesIdeaValidation
-                              ? 'Idea validation is approved. Start the plan to unlock section-by-section guidance and AI assist.'
-                              : 'Your package opens the business plan and budget workspace directly.',
-                          action: 'Start plan',
+                          badge: 'Step 2',
+                          title: 'Business Plan & Budget',
+                          body: 'Your idea validation is complete. Continue to Business Plan & Budget when you are ready to turn the validated idea into a practical plan and financial forecast.',
+                          action: null,
                       }
-                    : includesPlanBudget
+                    : includesPlanBudget && !hasPlan
                       ? {
-                            badge: `${planCompletion.completed}/${planCompletion.total} sections`,
-                            title: 'Next plan section',
-                            body: selectedRequirement
-                                ? selectedRequirement.complete
-                                    ? 'This section is already complete. Choose the next needed section when you are ready.'
-                                    : `Focus on "${selectedRequirement.title}" first, then save it to move the plan to ${selectedCompletionPercent}%.`
-                                : 'Select one requirement and complete that section first.',
-                            action: null,
+                            badge: includesIdeaValidation ? 'Step 3' : 'Step 1',
+                            title: 'Start the business plan',
+                            body: includesIdeaValidation
+                                ? 'Idea validation is approved. Start the plan to unlock section-by-section guidance and AI assist.'
+                                : 'Your package opens the business plan and budget workspace directly.',
+                            action: 'Start plan',
                         }
-                      : {
-                            badge: packageAccess.package_scope_label,
-                            title: hasIdeaValidation
-                                ? 'Idea validation submitted'
-                                : 'Complete idea validation',
-                            body: hasIdeaValidation
-                                ? 'Your advisor can review the validation and provide gate feedback for this package.'
-                                : 'Complete the idea validation form below to test the concept before investing in detailed plan work.',
-                            action: null,
-                        };
+                      : planIsComplete
+                        ? {
+                              badge: journey.assessment.finalised
+                                  ? 'Assessment ready'
+                                  : journey.assessment.exists
+                                    ? 'Advisor review'
+                                    : 'Plan complete',
+                              title: journey.assessment.finalised
+                                  ? 'Review Business Plan & Budget'
+                                  : journey.assessment.exists
+                                    ? 'Business Plan & Budget is with your advisor'
+                                    : 'Review Business Plan & Budget',
+                              body: journey.assessment.finalised
+                                  ? advisoryRequest.available
+                                      ? 'Your assessment is complete. Review the feedback and Budget Pack, then request advisory support when you are ready.'
+                                      : 'Your assessment is complete. Review the feedback and Budget Pack with your advisor to agree the next step.'
+                                  : journey.assessment.exists
+                                    ? 'All plan sections are complete and your submitted plan is with your advisor for assessment.'
+                                    : 'All plan sections are complete. Submit the plan for advisor review to receive feedback and agree the next step.',
+                              action: null,
+                          }
+                        : includesPlanBudget
+                          ? {
+                                badge: `${planCompletion.completed}/${planCompletion.total} sections`,
+                                title:
+                                    planCompletion.completed === 0
+                                        ? 'Build your business foundation'
+                                        : 'Next plan section',
+                                body: selectedRequirement
+                                    ? selectedRequirement.complete
+                                        ? 'This section is already complete. Choose the next needed section when you are ready.'
+                                        : planCompletion.completed === 0
+                                          ? `Your validated idea is available in the Idea Validation tab. Expand it with the operating detail for "${selectedRequirement.title}". Changes save automatically as you work.`
+                                          : `Focus on "${selectedRequirement.title}" next. Changes save automatically and the progress indicator updates when the section is complete.`
+                                    : 'Select one requirement and complete that section first.',
+                                action: null,
+                            }
+                          : {
+                                badge: packageAccess.package_scope_label,
+                                title: hasIdeaValidation
+                                    ? 'Idea validation submitted'
+                                    : 'Complete idea validation',
+                                body: hasIdeaValidation
+                                    ? 'Your advisor can review the validation and provide gate feedback for this package.'
+                                    : 'Complete the idea validation form below to test the concept before investing in detailed plan work.',
+                                action: null,
+                            };
     const [sectionTitle, setSectionTitle] = useState('');
     const [sectionBody, setSectionBody] = useState('');
     const [supportingFile, setSupportingFile] = useState<File | null>(null);
     const [supportingDocumentIds, setSupportingDocumentIds] = useState<
         string[]
     >([]);
+    const [supportingDocuments, setSupportingDocuments] = useState<
+        PlanSectionPayload['attached_documents']
+    >([]);
+    const [supportingDocumentNotice, setSupportingDocumentNotice] = useState<
+        string | null
+    >(null);
+    const [pendingSupportingDocument, setPendingSupportingDocument] = useState<
+        PlanSectionPayload['attached_documents'][number] | null
+    >(null);
     const [uploadingSupportingDocument, setUploadingSupportingDocument] =
         useState(false);
     const [supportingKey, setSupportingKey] = useState(0);
     const [sectionError, setSectionError] = useState<string | null>(null);
-    const [savingSection, setSavingSection] = useState(false);
     const [assistingSection, setAssistingSection] = useState(false);
     const [assistantNotice, setAssistantNotice] = useState<string | null>(null);
     const [budgetForm, setBudgetForm] = useState<BudgetFormState>(
@@ -302,6 +354,9 @@ export function usePlanWorkspace({
         setSectionBody(useLocalDraft ? draft.body : (section?.body ?? ''));
         setSupportingFile(null);
         setSupportingDocumentIds(section?.attached_document_ids ?? []);
+        setSupportingDocuments(section?.attached_documents ?? []);
+        setSupportingDocumentNotice(null);
+        setPendingSupportingDocument(null);
         setUploadingSupportingDocument(false);
         setSupportingKey((key) => key + 1);
         setSectionError(null);
@@ -406,6 +461,21 @@ export function usePlanWorkspace({
         return () => window.clearTimeout(timeout);
     }, [sectionBody, sectionTitle, selectedRequirement, workspaceKey]);
 
+    const refreshJourneyForSectionStatusChange = useCallback(
+        (saved: SectionAutosaveResult | null) => {
+            if (
+                saved &&
+                (saved.section.completeness_status === 'complete') !==
+                    (selectedSection?.completeness_status === 'complete')
+            ) {
+                router.reload({
+                    only: ['plan', 'gamification', 'journey'],
+                });
+            }
+        },
+        [selectedSection?.completeness_status],
+    );
+
     const saveSectionDraft = useCallback(async () => {
         if (!selectedRequirement || selectedRequirement.type === 'budget') {
             return;
@@ -435,6 +505,7 @@ export function usePlanWorkspace({
             });
 
             setSectionAutosaveState(saved ? 'saved' : 'error');
+            refreshJourneyForSectionStatusChange(saved);
         } catch {
             setSectionAutosaveState('error');
         }
@@ -446,6 +517,7 @@ export function usePlanWorkspace({
         selectedRequirement,
         selectedSection,
         urls.sectionStore,
+        refreshJourneyForSectionStatusChange,
     ]);
 
     useEffect(() => {
@@ -700,7 +772,7 @@ export function usePlanWorkspace({
                 .map((item) => `- ${item}`);
             const gamificationHint =
                 gamification.enabled && selectedRequirement
-                    ? `Save this one section to move plan progress to ${selectedCompletionPercent}% and keep the journey moving.`
+                    ? `Keep developing this section; changes save automatically and progress updates when the requirement is complete.`
                     : null;
             setAssistantNotice(
                 [payload.summary, ...checklist, gamificationHint]
@@ -714,6 +786,69 @@ export function usePlanWorkspace({
         } finally {
             setAssistingSection(false);
         }
+    };
+
+    const syncSupportingDocuments = async (
+        documentIds: string[],
+        documents: PlanSectionPayload['attached_documents'],
+        successNotice: string,
+        failureNotice: string,
+        pendingDocument:
+            | PlanSectionPayload['attached_documents'][number]
+            | null,
+    ): Promise<boolean> =>
+        syncPlanSupportingDocuments({
+            selectedRequirement,
+            url: urls.sectionStore,
+            title: sectionTitle,
+            body: sectionBody,
+            documentIds,
+            documents,
+            successNotice,
+            failureNotice,
+            pendingDocument,
+            onAutosaveState: setSectionAutosaveState,
+            onDocumentIds: setSupportingDocumentIds,
+            onDocuments: setSupportingDocuments,
+            onPendingDocument: setPendingSupportingDocument,
+            onNotice: setSupportingDocumentNotice,
+            onError: setSectionError,
+            onStatusChange: refreshJourneyForSectionStatusChange,
+        });
+
+    const attachSupportingDocument = (
+        document: PlanSectionPayload['attached_documents'][number],
+    ): Promise<boolean> => {
+        const documentIds = [
+            ...new Set([...supportingDocumentIds, document.id]),
+        ];
+
+        return syncSupportingDocuments(
+            documentIds,
+            [
+                ...supportingDocuments.filter(({ id }) => id !== document.id),
+                document,
+            ],
+            `“${document.original_filename}” uploaded and attached to ${selectedRequirement?.title}.`,
+            `“${document.original_filename}” was uploaded, but could not yet be attached to this plan section. Retry attaching it.`,
+            document,
+        );
+    };
+
+    const removeSupportingDocument = (
+        document: PlanSectionPayload['attached_documents'][number],
+    ): Promise<boolean> => {
+        const documentIds = supportingDocumentIds.filter(
+            (documentId) => documentId !== document.id,
+        );
+
+        return syncSupportingDocuments(
+            documentIds,
+            supportingDocuments.filter(({ id }) => id !== document.id),
+            `“${document.original_filename}” removed. You can now attach the correct document.`,
+            `“${document.original_filename}” could not be removed. Try Remove again.`,
+            null,
+        );
     };
 
     const uploadSupportingDocument = async (
@@ -749,11 +884,11 @@ export function usePlanWorkspace({
             }
 
             const payload = (await response.json()) as {
-                document?: { id?: string };
+                document?: PlanSectionPayload['attached_documents'][number];
             };
-            const documentId = payload.document?.id;
+            const document = payload.document;
 
-            if (!documentId) {
+            if (!document?.id) {
                 setSectionError(
                     'The uploaded supporting document could not be linked.',
                 );
@@ -761,29 +896,9 @@ export function usePlanWorkspace({
                 return;
             }
 
-            const attachedDocumentIds = [
-                ...new Set([...supportingDocumentIds, documentId]),
-            ];
-            setSupportingDocumentIds(attachedDocumentIds);
             setSupportingFile(null);
             setSupportingKey((key) => key + 1);
-            setSectionAutosaveState('saving');
-
-            const attached = await postSectionAutosave(urls.sectionStore, {
-                phase_key: selectedRequirement.phase_key,
-                requirement_key: selectedRequirement.key,
-                title: sectionTitle,
-                body: sectionBody,
-                attached_document_ids: attachedDocumentIds,
-            });
-
-            setSectionAutosaveState(attached ? 'saved' : 'error');
-
-            if (!attached) {
-                setSectionError(
-                    'Document uploaded, but could not yet be linked to this plan section. Retry the upload.',
-                );
-            }
+            await attachSupportingDocument(document);
         } catch {
             setSectionError(
                 'Supporting document upload could not reach the server.',
@@ -793,61 +908,13 @@ export function usePlanWorkspace({
         }
     };
 
-    const saveSection = async () => {
-        if (!selectedRequirement) {
+    const retrySupportingDocumentAttachment = async () => {
+        if (!pendingSupportingDocument) {
             return;
         }
 
-        setSavingSection(true);
         setSectionError(null);
-        const attachedIds = [...supportingDocumentIds];
-
-        if (supportingFile) {
-            const formData = new FormData();
-            formData.append('file', supportingFile);
-            formData.append('category', 'plan_attachment');
-            formData.append('claim_value', sectionBody);
-            formData.append('question_prompt', selectedRequirement.title);
-
-            const response = await fetch(urls.documentUpload, {
-                method: 'POST',
-                headers: {
-                    Accept: 'application/json',
-                    'X-CSRF-TOKEN': csrfToken(),
-                },
-                body: formData,
-            });
-
-            if (!response.ok) {
-                setSavingSection(false);
-                setSectionError('Supporting document upload failed.');
-
-                return;
-            }
-
-            const payload = (await response.json()) as {
-                document?: { id?: string };
-            };
-
-            if (payload.document?.id) {
-                attachedIds.push(payload.document.id);
-            }
-        }
-
-        router.post(
-            urls.sectionStore,
-            {
-                phase_key: selectedRequirement.phase_key,
-                requirement_key: selectedRequirement.key,
-                title: sectionTitle,
-                body: sectionBody,
-                attached_document_ids: attachedIds,
-            },
-            {
-                preserveScroll: true,
-                onFinish: () => setSavingSection(false),
-            },
-        );
+        await attachSupportingDocument(pendingSupportingDocument);
     };
 
     const saveBudget = () => {
@@ -888,6 +955,7 @@ export function usePlanWorkspace({
         reports,
         advisoryRequest,
         gamification,
+        journey,
         urls,
         activeTab,
         setActiveTab,
@@ -929,11 +997,15 @@ export function usePlanWorkspace({
         setSectionBody,
         supportingFile,
         setSupportingFile,
+        supportingDocuments,
+        supportingDocumentNotice,
+        pendingSupportingDocument,
         uploadingSupportingDocument,
         uploadSupportingDocument,
+        retrySupportingDocumentAttachment,
+        removeSupportingDocument,
         supportingKey,
         sectionError,
-        savingSection,
         assistingSection,
         assistantNotice,
         budgetForm,
@@ -952,7 +1024,6 @@ export function usePlanWorkspace({
         requestAdvisory,
         requestGamificationDisablement,
         assistRequirement,
-        saveSection,
         saveBudget,
         acknowledgeBudgetFlag,
         dismissBudgetAdvisorNudge,

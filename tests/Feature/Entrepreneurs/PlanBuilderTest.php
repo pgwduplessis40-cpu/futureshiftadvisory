@@ -6,10 +6,12 @@ namespace Tests\Feature\Entrepreneurs;
 
 use App\Enums\EntrepreneurStage;
 use App\Http\Controllers\Portal\EntrepreneurAdvisoryRequestController;
+use App\Http\Controllers\Portal\EntrepreneurAdvisoryServicesController;
 use App\Http\Controllers\Portal\EntrepreneurPlanBudgetController;
 use App\Http\Controllers\Portal\EntrepreneurPlanDocumentController;
 use App\Http\Controllers\Portal\EntrepreneurPlanWorkspaceController;
 use App\Models\BusinessPlan;
+use App\Models\Document;
 use App\Models\EntrepreneurProfile;
 use App\Models\PlanSection;
 use App\Models\User;
@@ -80,6 +82,7 @@ final class PlanBuilderTest extends TestCase
             'portal.entrepreneur.plan.budget-pack.show' => EntrepreneurPlanDocumentController::class.'@budgetPack',
             'portal.entrepreneur.plan.budget-pack.pdf' => EntrepreneurPlanDocumentController::class.'@budgetPackPdf',
             'portal.entrepreneur.plan.budget.update' => EntrepreneurPlanBudgetController::class.'@budget',
+            'portal.entrepreneur.advisory-services.show' => EntrepreneurAdvisoryServicesController::class,
             'portal.entrepreneur.advisory-request.store' => EntrepreneurAdvisoryRequestController::class.'@requestAdvisory',
         ];
 
@@ -220,7 +223,7 @@ final class PlanBuilderTest extends TestCase
         $this->assertSame(5, $plan->refresh()->current_phase);
     }
 
-    public function test_plan_section_autosave_stores_short_text_as_draft(): void
+    public function test_plan_section_autosave_updates_completion_from_saved_content(): void
     {
         [$advisor, $profile] = $this->profile('autosave-plan-founder@example.test');
         $this->openIdeaGate($profile, $advisor);
@@ -248,15 +251,79 @@ final class PlanBuilderTest extends TestCase
         $this->assertSame(PlanSection::STATUS_DRAFT, $section->completeness_status);
 
         $this->actingAsMfa($entrepreneur)
-            ->post(route('portal.entrepreneur.plan.sections.store'), [
+            ->postJson(route('portal.entrepreneur.plan.sections.store'), [
+                '_autosave' => true,
                 'phase_key' => 'market',
                 'requirement_key' => 'industry-context',
                 'title' => 'Industry and customer demand',
                 'body' => str_repeat('Customer demand evidence, tested pricing, competitors, and local market context are described clearly. ', 2),
             ])
-            ->assertRedirect(route('portal.entrepreneur.plan.show'));
+            ->assertOk()
+            ->assertJsonPath('status', 'entrepreneur-plan-section-autosaved')
+            ->assertJsonPath('section.completeness_status', PlanSection::STATUS_COMPLETE);
 
         $this->assertSame(PlanSection::STATUS_COMPLETE, $section->refresh()->completeness_status);
+    }
+
+    public function test_plan_workspace_returns_and_can_detach_named_documents_attached_to_a_section(): void
+    {
+        [$advisor, $profile] = $this->profile('plan-attachment-founder@example.test');
+        $this->openIdeaGate($profile, $advisor);
+        $plan = app(PlanBuilder::class)->start($profile, $advisor);
+        $entrepreneur = $profile->user()->firstOrFail();
+        $document = Document::query()->create([
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'category' => Document::CATEGORY_PLAN_ATTACHMENT,
+            'original_filename' => 'customer-interviews.pdf',
+            'stored_path' => 'entrepreneur-plan/customer-interviews.pdf',
+            'byte_size' => 1234,
+            'mime_type' => 'application/pdf',
+            'sha256' => hash('sha256', 'customer-interviews.pdf'),
+            'uploaded_by_user_id' => $entrepreneur->getKey(),
+            'scanner_result' => Document::SCANNER_CLEAN,
+        ]);
+
+        $this->actingAsMfa($entrepreneur)
+            ->postJson(route('portal.entrepreneur.plan.sections.store'), [
+                '_autosave' => true,
+                'phase_key' => 'foundation',
+                'requirement_key' => 'business-type-location',
+                'title' => 'Business type, location, and operating model',
+                'body' => 'A client-facing service business operating online from Hamilton.',
+                'attached_document_ids' => [$document->getKey()],
+            ])
+            ->assertOk();
+
+        $section = PlanSection::query()
+            ->where('business_plan_id', $plan->getKey())
+            ->where('key', 'founder-foundation-business-type-location')
+            ->firstOrFail();
+        $this->assertSame([$document->getKey()], $section->attached_document_ids);
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.plan.show'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('plan.id', $plan->getKey())
+                ->where('plan.phases.0.sections.1.attached_documents.0.id', $document->getKey())
+                ->where('plan.phases.0.sections.1.attached_documents.0.original_filename', 'customer-interviews.pdf')
+                ->where('plan.phases.0.sections.1.attached_documents.0.scanner_result', Document::SCANNER_CLEAN)
+                ->where('plan.phases.0.sections.1.attached_documents.0.url', route('portal.documents.show', $document, absolute: false))
+            );
+
+        $this->actingAsMfa($entrepreneur)
+            ->postJson(route('portal.entrepreneur.plan.sections.store'), [
+                '_autosave' => true,
+                'phase_key' => 'foundation',
+                'requirement_key' => 'business-type-location',
+                'title' => 'Business type, location, and operating model',
+                'body' => 'A client-facing service business operating online from Hamilton.',
+                'attached_document_ids' => [],
+            ])
+            ->assertOk();
+
+        $this->assertSame([], $section->refresh()->attached_document_ids);
+        $this->assertDatabaseHas('documents', ['id' => $document->getKey()]);
     }
 
     public function test_entrepreneur_cannot_manually_generate_an_executive_summary_before_assessment(): void

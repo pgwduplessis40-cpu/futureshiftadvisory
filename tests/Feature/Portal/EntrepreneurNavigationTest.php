@@ -245,7 +245,10 @@ final class EntrepreneurNavigationTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->where('packageAccess.package_scope', ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION)
                 ->where('packageAccess.includes_idea_validation', true)
-                ->where('packageAccess.includes_plan_budget', false));
+                ->where('packageAccess.includes_plan_budget', false)
+                ->where('journey.active_service', 'Idea Validation')
+                ->where('journey.next.label', 'Start Idea Validation')
+                ->where('urls.planBudgetAccess', route('portal.entrepreneur.plan-budget.show', absolute: false)));
 
         $this->actingAsMfa($entrepreneur)
             ->get(route('portal.entrepreneur.dashboard'))
@@ -253,7 +256,9 @@ final class EntrepreneurNavigationTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->where('isIdeaValidationOnly', true)
                 ->where('ideaValidationSubmitted', false)
-                ->where('ideaValidationApproved', false));
+                ->where('ideaValidationApproved', false)
+                ->where('journey.active_service', 'Idea Validation')
+                ->where('journey.next.label', 'Start Idea Validation'));
 
         $this->actingAsMfa($entrepreneur)
             ->get(route('portal.entrepreneur.plan-budget.show'))
@@ -377,7 +382,10 @@ final class EntrepreneurNavigationTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->where('isIdeaValidationOnly', true)
                 ->where('ideaValidationSubmitted', true)
-                ->where('ideaValidationApproved', false));
+                ->where('ideaValidationApproved', false)
+                ->where('journey.state', 'idea_validation_review')
+                ->where('journey.active_service', 'Idea Validation')
+                ->where('journey.next.label', 'Review Idea Validation'));
 
         $this->actingAsMfa($advisor)
             ->get(route('dashboard'))
@@ -859,6 +867,7 @@ final class EntrepreneurNavigationTest extends TestCase
             route('portal.entrepreneur.dashboard', absolute: false),
             route('portal.entrepreneur.plan.show', absolute: false),
             route('portal.entrepreneur.plan-budget.show', absolute: false),
+            route('portal.entrepreneur.advisory-services.show', absolute: false),
             route('portal.calendar.index', absolute: false),
             route('portal.inspiration-board.index', absolute: false),
             route('portal.entrepreneur.surveys.index', absolute: false),

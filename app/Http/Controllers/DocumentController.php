@@ -338,6 +338,7 @@ final class DocumentController extends Controller
         return [
             'id' => $document->id,
             'original_filename' => $document->original_filename,
+            'byte_size' => $document->byte_size,
             'category' => $document->category,
             'scanner_result' => $document->scanner_result,
             'uploaded_at' => $document->created_at?->toIso8601String(),

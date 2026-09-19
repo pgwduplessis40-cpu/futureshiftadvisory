@@ -23,8 +23,12 @@ use App\Models\ClientFunderAlert;
 use App\Models\Consent;
 use App\Models\Document;
 use App\Models\EconomicIndicator;
+use App\Models\EntrepreneurPlanBudgetPurchase;
+use App\Models\EntrepreneurProfile;
 use App\Models\FeeCalculation;
+use App\Models\FoundingAdvisoryEngagement;
 use App\Models\Funder;
+use App\Models\IdeaValidation;
 use App\Models\IntegrationFeeBand;
 use App\Models\IntegrationScope;
 use App\Models\LearningUpdate;
@@ -33,6 +37,7 @@ use App\Models\NpoDimensionScore;
 use App\Models\NpoTensionAnalysis;
 use App\Models\NpoValueCalculation;
 use App\Models\OutcomeFollowUp;
+use App\Models\Payment;
 use App\Models\PaymentAuthority;
 use App\Models\PaymentSchedule;
 use App\Models\PilotFeeWaiverProgram;
@@ -49,11 +54,17 @@ use App\Models\StrategicPlanMilestone;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\Budgets\StrategicBudgetService;
+use App\Services\Entrepreneurs\AdvisoryConversion;
+use App\Services\Entrepreneurs\ApprovedIdeaPlanStarter;
+use App\Services\Entrepreneurs\BusinessPlanSnapshot;
 use App\Services\Entrepreneurs\EntrepreneurBudgetService;
+use App\Services\Entrepreneurs\FoundingAdvisoryService;
+use App\Services\Entrepreneurs\PlanRequirements;
 use App\Services\Fees\FeeCalculator;
 use App\Services\Fees\ProposalPricingTerms;
 use App\Services\Integrations\IntegrationScopeService;
 use App\Services\Learning\LayerCadenceRegistry;
+use App\Services\Plans\PlanBuilder;
 use App\Services\Proposals\ProposalBuilder;
 use App\Services\Proposals\SignedProposalEvidenceRenderer;
 use App\Services\Storage\KeyEnvelope;
@@ -130,7 +141,9 @@ final class TestingSeedDataSeeder extends Seeder
             $this->seedIntegrationEfficiencyService();
             $this->seedEntrepreneurJourney();
             $this->seedIdeaValidationTestScenarios();
+            $this->seedPaidPlanBudgetTestScenarios();
             $this->seedGoalsProposalsAndPayments();
+            $this->seedAdvisoryServiceTestScenarios();
             $this->seedNpoModuleData();
             $this->seedEngagementTouchpoints();
             $this->seedPanelAndReferralData();
@@ -163,6 +176,12 @@ final class TestingSeedDataSeeder extends Seeder
             'ideaValidationApproved' => ['Seed Idea Validation Approved', 'seed.idea.approved@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
             'ideaValidationCancellation' => ['Seed Idea Validation Cancellation', 'seed.idea.cancel@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
             'ideaValidationCheckout' => ['Seed Idea Validation Checkout', 'seed.idea.checkout@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
+            'planBudgetStart' => ['Seed BP&B Starter', 'seed.plan-budget.start@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
+            'planBudgetFinancials' => ['Seed BP&B Financials', 'seed.plan-budget.financials@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
+            'planBudgetReview' => ['Seed BP&B Review', 'seed.plan-budget.review@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
+            'planBudgetApproved' => ['Seed BP&B Approved', 'seed.plan-budget.approved@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
+            'ideaAdvisoryStart' => ['Seed Advisory Request Ready', 'seed.idea-advisory.start@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
+            'ideaAdvisoryProposal' => ['Seed Advisory Proposal Ready', 'seed.idea-advisory.proposal@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
             'broker' => ['Seed Broker Partner', 'seed.broker@futureshiftadvisory.test', User::TYPE_BROKER, 20],
             'coach' => ['Seed Coach Partner', 'seed.coach@futureshiftadvisory.test', User::TYPE_COACH, 20],
             'mentor' => ['Seed Entrepreneur Mentor', 'seed.mentor@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR_MENTOR, 20],
@@ -990,9 +1009,98 @@ XML);
             ],
         );
 
+        $this->seedPlanBudgetFixtureClients();
         $this->seedPvWaterfallClients();
         $this->seedClientTeam();
         $this->seedConflictDeclarations();
+    }
+
+    private function seedPlanBudgetFixtureClients(): void
+    {
+        $fixtures = [
+            'planBudgetStart' => [
+                'nzbn' => '9429000000185',
+                'legal_name' => 'Seed BP&B Starter Limited',
+                'trading_name' => 'Seed BP&B Starter',
+                'user_key' => 'planBudgetStart',
+                'fixture' => 'entrepreneur_plan_budget_start',
+            ],
+            'planBudgetFinancials' => [
+                'nzbn' => '9429000000215',
+                'legal_name' => 'Seed BP&B Financials Limited',
+                'trading_name' => 'Seed BP&B Financials',
+                'user_key' => 'planBudgetFinancials',
+                'fixture' => 'entrepreneur_plan_budget_financials',
+            ],
+            'planBudgetReview' => [
+                'nzbn' => '9429000000192',
+                'legal_name' => 'Seed BP&B Review Limited',
+                'trading_name' => 'Seed BP&B Review',
+                'user_key' => 'planBudgetReview',
+                'fixture' => 'entrepreneur_plan_budget_review',
+            ],
+            'planBudgetApproved' => [
+                'nzbn' => '9429000000208',
+                'legal_name' => 'Seed BP&B Approved Limited',
+                'trading_name' => 'Seed BP&B Approved',
+                'user_key' => 'planBudgetApproved',
+                'fixture' => 'entrepreneur_plan_budget_approved',
+            ],
+            'ideaAdvisoryStart' => [
+                'nzbn' => '9429000000222',
+                'legal_name' => 'Seed Advisory Request Ready Limited',
+                'trading_name' => 'Seed Advisory Request Ready',
+                'user_key' => 'ideaAdvisoryStart',
+                'fixture' => 'entrepreneur_advisory_request_ready',
+            ],
+            'ideaAdvisoryProposal' => [
+                'nzbn' => '9429000000239',
+                'legal_name' => 'Seed Advisory Proposal Ready Limited',
+                'trading_name' => 'Seed Advisory Proposal Ready',
+                'user_key' => 'ideaAdvisoryProposal',
+                'fixture' => 'entrepreneur_advisory_proposal_ready',
+            ],
+        ];
+
+        foreach ($fixtures as $key => $fixture) {
+            $user = $this->users[$fixture['user_key']];
+
+            $this->clients[$key] = Client::query()->updateOrCreate(
+                ['nzbn' => $fixture['nzbn']],
+                [
+                    'engagement_type' => EngagementType::ENTREPRENEUR_MODULE->value,
+                    'status' => ClientStatus::ACTIVE->value,
+                    'legal_name' => $fixture['legal_name'],
+                    'trading_name' => $fixture['trading_name'],
+                    'entity_type' => 'NZ Limited Company',
+                    'address' => [
+                        'line1' => '12 Validation Lane',
+                        'city' => 'Auckland',
+                        'region' => 'Auckland',
+                        'country' => 'NZ',
+                    ],
+                    'gst_registered' => true,
+                    'directors' => [[
+                        'name' => $user->name,
+                        'role' => 'Founder',
+                    ]],
+                    'filing_status' => 'up_to_date',
+                    'data_quality' => Client::DATA_QUALITY_HIGH,
+                    'registry_sources' => [
+                        'nzbn' => 'seeded',
+                        'workspace_fixture' => $fixture['fixture'],
+                    ],
+                    'created_by_user_id' => $this->users['advisor']->getKey(),
+                    'primary_contact_user_id' => $user->getKey(),
+                    'engagement_type_locked_at' => $this->now->copy()->subDays(5),
+                    'onboarding_wizard_state' => [
+                        'completed_steps' => ['idea_validation', 'payment'],
+                        'current_step' => 'business_plan_budget',
+                        'fixture' => $fixture['fixture'],
+                    ],
+                ],
+            );
+        }
     }
 
     private function cleanupSeedBoundaryDrift(): void
@@ -1115,6 +1223,18 @@ XML);
             ['ideaValidationCancellation', 'ideaValidationCancellation', 'primary_contact', ['portal', 'entrepreneur_module']],
             ['ideaValidationCheckout', 'advisor', 'lead_advisor', ['dashboard', 'entrepreneur_module']],
             ['ideaValidationCheckout', 'ideaValidationCheckout', 'primary_contact', ['portal', 'entrepreneur_module']],
+            ['planBudgetStart', 'advisor', 'lead_advisor', ['dashboard', 'entrepreneur_module']],
+            ['planBudgetStart', 'planBudgetStart', 'primary_contact', ['portal', 'entrepreneur_module']],
+            ['planBudgetFinancials', 'advisor', 'lead_advisor', ['dashboard', 'entrepreneur_module']],
+            ['planBudgetFinancials', 'planBudgetFinancials', 'primary_contact', ['portal', 'entrepreneur_module']],
+            ['planBudgetReview', 'advisor', 'lead_advisor', ['dashboard', 'entrepreneur_module']],
+            ['planBudgetReview', 'planBudgetReview', 'primary_contact', ['portal', 'entrepreneur_module']],
+            ['planBudgetApproved', 'advisor', 'lead_advisor', ['dashboard', 'entrepreneur_module']],
+            ['planBudgetApproved', 'planBudgetApproved', 'primary_contact', ['portal', 'entrepreneur_module']],
+            ['ideaAdvisoryStart', 'advisor', 'lead_advisor', ['dashboard', 'entrepreneur_module', 'founding_advisory', 'proposals']],
+            ['ideaAdvisoryStart', 'ideaAdvisoryStart', 'primary_contact', ['portal', 'entrepreneur_module', 'founding_advisory', 'proposals']],
+            ['ideaAdvisoryProposal', 'advisor', 'lead_advisor', ['dashboard', 'entrepreneur_module', 'founding_advisory', 'proposals']],
+            ['ideaAdvisoryProposal', 'ideaAdvisoryProposal', 'primary_contact', ['portal', 'entrepreneur_module', 'founding_advisory', 'proposals']],
             ['ddDepositPending', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'dd', 'reports']],
             ['ddDepositPending', 'ddDepositPending', 'primary_contact', ['portal', 'documents', 'dd']],
             ['dd', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'dd', 'reports']],
@@ -2650,8 +2770,11 @@ XML);
 
         $this->ids['idea_validation'] = $this->upsert('idea_validations', [
             'entrepreneur_profile_id' => $profileId,
-            'evaluated_at' => $this->stableTimestamp('2026-05-15 10:00:00'),
+            'revision_number' => 1,
         ], [
+            'revision_number' => 1,
+            'previous_validation_id' => null,
+            'evaluated_at' => $this->stableTimestamp('2026-05-15 10:00:00'),
             'problem' => 'Exporters lack a practical way to connect demand forecasting with currency risk.',
             'target_customer' => 'Small and mid-market New Zealand exporters selling into Australia and the US.',
             'solution' => 'A lightweight dashboard that blends sales pipeline, shipment dates, and FX exposure.',
@@ -3033,10 +3156,11 @@ XML);
 
         $this->ids['idea_validation_review'] = $this->upsert('idea_validations', [
             'entrepreneur_profile_id' => $reviewProfileId,
-            'evaluated_at' => $this->stableTimestamp('2026-07-16 10:30:00'),
+            'revision_number' => 1,
         ], [
             'revision_number' => 1,
             'previous_validation_id' => null,
+            'evaluated_at' => $this->stableTimestamp('2026-07-16 10:30:00'),
             'problem' => 'Independent clinics lose appointments because patients cannot quickly see availability, join a cancellation list, or receive timely reminders.',
             'target_customer' => 'Owner-managed New Zealand allied-health clinics with three to fifteen practitioners and recurring appointment demand.',
             'solution' => 'A clinic app that fills cancelled appointment slots through an opt-in patient waitlist, automated reminders, and a simple staff dashboard.',
@@ -3108,10 +3232,11 @@ XML);
 
         $this->ids['idea_validation_approved'] = $this->upsert('idea_validations', [
             'entrepreneur_profile_id' => $approvedProfileId,
-            'evaluated_at' => $this->stableTimestamp('2026-07-17 09:00:00'),
+            'revision_number' => 1,
         ], [
             'revision_number' => 1,
             'previous_validation_id' => null,
+            'evaluated_at' => $this->stableTimestamp('2026-07-17 09:00:00'),
             'problem' => 'Independent trades businesses lose profitable work because job estimates, follow-up, and customer reminders are spread across paper, text messages, and separate tools.',
             'target_customer' => 'New Zealand owner-operated electrical and plumbing businesses with two to ten field staff.',
             'solution' => 'A lightweight workflow that turns site visits into estimates, sends timed follow-ups, and gives owners a single view of jobs awaiting approval.',
@@ -3132,6 +3257,610 @@ XML);
             'advisor_gate_note' => 'The idea is ready for Business Plan & Budget. Focus the next step on the first paid pilot, pricing, and cash requirements.',
             'recalled_at' => null,
             'recalled_by_user_id' => null,
+        ]);
+    }
+
+    /**
+     * Seed the paid BP&B journey after an advisor has explicitly approved the
+     * idea. These are deliberately separate from the Idea Validation-only
+     * fixtures so a manual tester can verify entitlement and lifecycle states
+     * without changing another scenario.
+     */
+    private function seedPaidPlanBudgetTestScenarios(): void
+    {
+        if (! Schema::hasTable('entrepreneur_plan_budget_purchases')) {
+            return;
+        }
+
+        $package = ServiceRatePackage::query()
+            ->where('service_type', ServiceRatePackage::SERVICE_ENTREPRENEUR)
+            ->where('package_scope', ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET)
+            ->where('is_active', true)
+            ->orderByDesc('effective_from')
+            ->first();
+
+        if (! $package instanceof ServiceRatePackage) {
+            throw new \LogicException('The paid BP&B seed scenarios require an active entrepreneur Business Plan & Budget Service Rate.');
+        }
+
+        $definitions = [
+            'planBudgetStart' => [
+                'name' => 'Seed BP&B Starter',
+                'stage' => EntrepreneurStage::BUILDING_PHASE_1,
+                'state' => 'start',
+                'evaluated_at' => '2026-07-20 09:00:00',
+                'approved_at' => '2026-07-20 10:00:00',
+                'paid_at' => '2026-07-20 10:15:00',
+                'description' => 'A paid BP&B client with an advisor-approved idea and an untouched plan workspace.',
+            ],
+            'planBudgetFinancials' => [
+                'name' => 'Seed BP&B Financials',
+                'stage' => EntrepreneurStage::BUILDING_PHASE_5,
+                'state' => 'financials',
+                'evaluated_at' => '2026-07-20 11:00:00',
+                'approved_at' => '2026-07-20 12:00:00',
+                'paid_at' => '2026-07-20 12:15:00',
+                'description' => 'A paid BP&B client with all narrative plan sections complete and an editable Financial budget awaiting its funding source.',
+            ],
+            'planBudgetReview' => [
+                'name' => 'Seed BP&B Review',
+                'stage' => EntrepreneurStage::SUBMITTED,
+                'state' => 'review',
+                'evaluated_at' => '2026-07-21 09:00:00',
+                'approved_at' => '2026-07-21 10:00:00',
+                'paid_at' => '2026-07-21 10:15:00',
+                'description' => 'A paid BP&B client with a submitted plan and budget awaiting advisor review.',
+            ],
+            'planBudgetApproved' => [
+                'name' => 'Seed BP&B Approved',
+                'stage' => EntrepreneurStage::ADVISORY_READY,
+                'state' => 'approved',
+                'evaluated_at' => '2026-07-22 09:00:00',
+                'approved_at' => '2026-07-22 10:00:00',
+                'paid_at' => '2026-07-22 10:15:00',
+                'description' => 'A paid BP&B client with a completed, advisor-approved plan and budget assessment.',
+            ],
+            'ideaAdvisoryStart' => [
+                'name' => 'Seed Advisory Request Ready',
+                'stage' => EntrepreneurStage::ADVISORY_READY,
+                'state' => 'advisory_start',
+                'evaluated_at' => '2026-07-23 09:00:00',
+                'approved_at' => '2026-07-23 10:00:00',
+                'paid_at' => '2026-07-23 10:15:00',
+                'description' => 'A paid BP&B client whose completed plan and advisor-approved assessment make Advisory Services ready to request.',
+            ],
+            'ideaAdvisoryProposal' => [
+                'name' => 'Seed Advisory Proposal Ready',
+                'stage' => EntrepreneurStage::ADVISORY_READY,
+                'state' => 'advisory_proposal',
+                'evaluated_at' => '2026-07-24 09:00:00',
+                'approved_at' => '2026-07-24 10:00:00',
+                'paid_at' => '2026-07-24 10:15:00',
+                'description' => 'A paid BP&B client with a completed assessment whose Founding Advisory proposal has been released for review.',
+            ],
+        ];
+
+        foreach ($definitions as $key => $definition) {
+            $this->seedPaidPlanBudgetTestScenario($key, $package, $definition);
+        }
+    }
+
+    /**
+     * @param  array{name:string,stage:EntrepreneurStage,state:'start'|'financials'|'review'|'approved'|'advisory_start'|'advisory_proposal',evaluated_at:string,approved_at:string,paid_at:string,description:string}  $definition
+     */
+    private function seedPaidPlanBudgetTestScenario(string $key, ServiceRatePackage $package, array $definition): void
+    {
+        $user = $this->users[$key];
+        $client = $this->clients[$key];
+        $advisor = $this->users['advisor'];
+        $profileId = $this->upsert('entrepreneur_profiles', ['email' => $user->email], [
+            'user_id' => $user->getKey(),
+            'client_id' => $client->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'invite_token_id' => null,
+            'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'intended_package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET,
+            'name' => $definition['name'],
+            'stage' => $definition['stage']->value,
+            'concept_summary' => $definition['description'],
+            'gamification_on' => true,
+        ]);
+
+        $validationId = $this->upsert('idea_validations', [
+            'entrepreneur_profile_id' => $profileId,
+            'revision_number' => 1,
+        ], [
+            'revision_number' => 1,
+            'previous_validation_id' => null,
+            'evaluated_at' => $this->stableTimestamp($definition['evaluated_at']),
+            'problem' => 'Owner-led service businesses lose revenue when enquiries, estimates, and customer follow-up are managed in disconnected tools.',
+            'target_customer' => 'New Zealand owner-managed professional-service businesses with two to twelve staff and recurring client enquiries.',
+            'solution' => 'A practical customer follow-up workspace that turns enquiries into tracked estimates, scheduled follow-ups, and a visible weekly sales pipeline.',
+            'value_proposition' => 'Give owners a reliable way to protect sales opportunities without replacing their accounting or customer-management system.',
+            'demand_signal' => 'Six owners have shared their current follow-up process and three have agreed to a paid pilot if it reduces manual administration.',
+            'revenue_model' => 'A monthly subscription per business, with a one-off onboarding and workflow configuration fee.',
+            'ai_evaluation' => $this->json([
+                'summary' => 'The customer problem and early demand support moving into the Business Plan & Budget workspace.',
+                'model' => 'seeded-paid-plan-budget',
+                'prompt_id' => 'entrepreneur.idea_validation',
+                'prompt_hash' => hash('sha256', 'seeded-paid-plan-budget-'.$key),
+                'metadata' => [
+                    'advisor_gate_status' => 'approved',
+                    'fixture' => true,
+                    'fixture_key' => 'entrepreneur_plan_budget_'.$definition['state'],
+                ],
+            ]),
+            'viability_alerts' => $this->json([]),
+            'evaluated_by_user_id' => $advisor->getKey(),
+            'advisor_gate_passed_at' => $this->stableTimestamp($definition['approved_at']),
+            'advisor_gate_passed_by_user_id' => $advisor->getKey(),
+            'advisor_gate_note' => 'The idea has passed advisor review and the paid Business Plan & Budget workspace is available.',
+            'recalled_at' => null,
+            'recalled_by_user_id' => null,
+        ]);
+
+        $amountExGst = number_format((float) $package->fixed_fee, 2, '.', '');
+        $gstAmount = number_format((float) $amountExGst * 0.15, 2, '.', '');
+        $amountIncludingGst = number_format((float) $amountExGst + (float) $gstAmount, 2, '.', '');
+        $paidAt = $this->stableTimestamp($definition['paid_at']);
+        $paymentId = $this->upsert('payments', [
+            'idempotency_key' => 'seed-entrepreneur-plan-budget-'.$definition['state'],
+        ], [
+            'client_id' => $client->getKey(),
+            'payment_schedule_id' => null,
+            'payment_authority_id' => null,
+            'payment_installment_id' => null,
+            'amount' => $amountIncludingGst,
+            'currency' => strtoupper((string) ($package->currency ?: 'NZD')),
+            'gateway' => 'stripe',
+            'gateway_ref' => 'pi_seed_entrepreneur_plan_budget_'.$definition['state'],
+            'status' => Payment::STATUS_SUCCEEDED,
+            'attempt' => 1,
+            'failover_from' => null,
+            'failed_reason' => null,
+            'processed_at' => $paidAt,
+        ]);
+
+        $this->ids['entrepreneur_plan_budget_purchase_'.$definition['state']] = $this->upsert('entrepreneur_plan_budget_purchases', [
+            'entrepreneur_profile_id' => $profileId,
+        ], [
+            'user_id' => $user->getKey(),
+            'client_id' => $client->getKey(),
+            'advisor_id' => $advisor->getKey(),
+            'service_rate_package_id' => $package->getKey(),
+            'payment_id' => $paymentId,
+            'approved_idea_validation_id' => $validationId,
+            'status' => EntrepreneurPlanBudgetPurchase::STATUS_PAID,
+            'amount_ex_gst' => $amountExGst,
+            'gst_amount' => $gstAmount,
+            'amount_including_gst' => $amountIncludingGst,
+            'currency' => strtoupper((string) ($package->currency ?: 'NZD')),
+            'package_snapshot' => $this->json($package->snapshot()),
+            'stripe_payment_intent_ref' => 'pi_seed_entrepreneur_plan_budget_'.$definition['state'],
+            'payment_intent_created_at' => $paidAt,
+            'paid_at' => $paidAt,
+            'activated_at' => $paidAt->copy()->addMinute(),
+            'metadata' => $this->json([
+                'fixture' => true,
+                'fixture_key' => 'entrepreneur_plan_budget_'.$definition['state'],
+                'paid_in_test_environment' => true,
+                'payment_status' => Payment::STATUS_SUCCEEDED,
+            ]),
+        ]);
+
+        /** @var EntrepreneurProfile $profile */
+        $profile = EntrepreneurProfile::query()->findOrFail($profileId);
+        /** @var IdeaValidation $validation */
+        $validation = IdeaValidation::query()->findOrFail($validationId);
+        /** @var BusinessPlan $plan */
+        $plan = app(ApprovedIdeaPlanStarter::class)->start($profile, $validation, $user);
+
+        if ($definition['state'] === 'start') {
+            $plan->forceFill([
+                'status' => BusinessPlan::STATUS_BUILDING,
+                'current_phase' => 1,
+                'submitted_at' => null,
+                'completed_at' => null,
+            ])->save();
+
+            return;
+        }
+
+        $this->completePlanBudgetFixture($plan, $user);
+
+        if ($definition['state'] === 'financials') {
+            $this->seedPlanBudgetFinancialsFixture($plan, $user);
+
+            $plan->forceFill([
+                'status' => BusinessPlan::STATUS_BUILDING,
+                'current_phase' => 5,
+                'submitted_at' => null,
+                'completed_at' => null,
+                'assessment_run_status' => null,
+                'assessment_run_total_criteria' => null,
+                'assessment_run_completed_criteria' => null,
+                'assessment_run_current_criterion' => null,
+                'assessment_run_completed_at' => null,
+                'assessment_run_failed_at' => null,
+                'assessment_run_failure' => null,
+            ])->save();
+
+            return;
+        }
+
+        $submittedAt = $paidAt->copy()->addDays(2);
+        $plan->forceFill([
+            'status' => BusinessPlan::STATUS_SUBMITTED,
+            'current_phase' => 5,
+            'submitted_at' => $submittedAt,
+            'completed_at' => null,
+            'assessment_run_status' => null,
+            'assessment_run_total_criteria' => null,
+            'assessment_run_completed_criteria' => null,
+            'assessment_run_current_criterion' => null,
+            'assessment_run_completed_at' => null,
+            'assessment_run_failed_at' => null,
+            'assessment_run_failure' => null,
+        ])->save();
+
+        $this->upsert('plan_revisions', [
+            'business_plan_id' => $plan->getKey(),
+            'round' => 1,
+        ], [
+            'submitted_at' => $submittedAt,
+            'progress_comparison' => $this->json([
+                'fixture' => true,
+                'assessment_status' => $definition['state'] === 'approved' ? 'finalised' : 'awaiting_advisor_action',
+            ]),
+            'submitted_by_user_id' => $user->getKey(),
+        ]);
+
+        if ($definition['state'] === 'review') {
+            return;
+        }
+
+        $finalisedAt = $submittedAt->copy()->addDay();
+        $plan->forceFill([
+            'status' => BusinessPlan::STATUS_FINALISED,
+            'completed_at' => $finalisedAt,
+            'assessment_run_status' => 'completed',
+            'assessment_run_completed_at' => $finalisedAt,
+        ])->save();
+
+        $assessmentId = $this->seedApprovedPlanBudgetAssessment($plan->refresh(), $advisor, $finalisedAt);
+
+        // Keep the paid, approved fixture on the same path as a real
+        // assessment finalisation: Advisory Services is only requestable once
+        // the finalised assessment has an advisory-readiness signal.
+        $this->upsert('advisory_readiness_signals', [
+            'entrepreneur_profile_id' => $profile->getKey(),
+        ], [
+            'business_plan_id' => $plan->getKey(),
+            'plan_assessment_id' => $assessmentId,
+            'score' => 86.0,
+            'surfaced_at' => $finalisedAt,
+            'advisor_notified_at' => $finalisedAt,
+        ]);
+    }
+
+    /**
+     * Seed the two states that follow a completed, advisor-approved BP&B.
+     *
+     * The request-ready fixture deliberately stops at the entrepreneur
+     * lifecycle gate. The proposal fixture then uses the same conversion and
+     * proposal services as the live workflow so it exercises Founding Advisory
+     * rather than a disconnected set of test records.
+     */
+    private function seedAdvisoryServiceTestScenarios(): void
+    {
+        $advisor = $this->users['advisor'];
+
+        /** @var EntrepreneurProfile $requestReadyProfile */
+        $requestReadyProfile = EntrepreneurProfile::query()
+            ->where('email', $this->users['ideaAdvisoryStart']->email)
+            ->firstOrFail();
+        /** @var BusinessPlan $requestReadyPlan */
+        $requestReadyPlan = BusinessPlan::query()
+            ->where('entrepreneur_profile_id', $requestReadyProfile->getKey())
+            ->where('source_type', BusinessPlan::SOURCE_ENTREPRENEUR)
+            ->latest('updated_at')
+            ->firstOrFail();
+
+        // This must remain a request gate, not a converted advisory client.
+        // It lets a founder test the action that asks their advisor to prepare
+        // the tailored proposal.
+        FoundingAdvisoryEngagement::query()
+            ->where('entrepreneur_profile_id', $requestReadyProfile->getKey())
+            ->delete();
+
+        /** @var EntrepreneurProfile $proposalProfile */
+        $proposalProfile = EntrepreneurProfile::query()
+            ->where('email', $this->users['ideaAdvisoryProposal']->email)
+            ->firstOrFail();
+        /** @var BusinessPlan $proposalPlan */
+        $proposalPlan = BusinessPlan::query()
+            ->where('entrepreneur_profile_id', $proposalProfile->getKey())
+            ->where('source_type', BusinessPlan::SOURCE_ENTREPRENEUR)
+            ->latest('updated_at')
+            ->firstOrFail();
+
+        /** @var Client|null $advisoryClient */
+        $advisoryClient = Client::query()
+            ->where('primary_contact_user_id', $proposalProfile->user_id)
+            ->where('engagement_type', EngagementType::FOUNDING_ADVISORY->value)
+            ->first();
+
+        if (! $advisoryClient instanceof Client) {
+            $advisoryClient = app(AdvisoryConversion::class)->convert(
+                $proposalProfile,
+                $advisor,
+                $proposalPlan,
+            );
+        } else {
+            $proposalProfile->forceFill(['client_id' => $advisoryClient->getKey()])->save();
+            $proposalPlan->forceFill([
+                'client_id' => $advisoryClient->getKey(),
+                'status' => BusinessPlan::STATUS_FOUNDING,
+            ])->save();
+        }
+
+        $proposalProfile = $proposalProfile->refresh();
+        $proposalPlan = $proposalPlan->refresh();
+        $this->clients['ideaAdvisoryProposal'] = $advisoryClient;
+
+        /** @var FeeCalculation $calculation */
+        $calculation = FeeCalculation::query()->firstOrCreate(
+            [
+                'client_id' => $advisoryClient->getKey(),
+                'method' => FeeMethod::Entrepreneur->value,
+            ],
+            [
+                'inputs' => [
+                    'fixture' => 'idea_advisory_proposal',
+                    'engagement' => 'founding_advisory',
+                ],
+                'suggested_low' => 8_000,
+                'suggested_mid' => 12_000,
+                'suggested_high' => 16_000,
+                'roi_ratio' => 5.25,
+                'justification' => [
+                    'summary' => 'A founding advisory programme to turn the approved BP&B into an operating, sales, and cash-management rhythm.',
+                    'retainer' => ['monthly_fee' => 2_000],
+                ],
+                'created_by_user_id' => $advisor->getKey(),
+            ],
+        );
+
+        /** @var Proposal|null $proposal */
+        $proposal = Proposal::query()
+            ->where('client_id', $advisoryClient->getKey())
+            ->where('fee_calculation_id', $calculation->getKey())
+            ->first();
+
+        if (! $proposal instanceof Proposal) {
+            $proposal = app(ProposalBuilder::class)->generate($advisoryClient, $calculation, [
+                'scope' => [
+                    'summary' => 'A 90-day Founding Advisory programme built from the approved Business Plan & Budget.',
+                    'included' => [
+                        'Weekly priorities for sales, delivery, and cash decisions',
+                        'Monthly performance and financial review',
+                        'Advisor-led 90-day roadmap and decision support',
+                    ],
+                    'excluded' => [
+                        'Third-party software, accounting, and legal costs',
+                        'Implementation work outside the agreed 90-day roadmap',
+                    ],
+                ],
+            ], [
+                'created_by_user_id' => $advisor->getKey(),
+            ]);
+        }
+
+        $foundingAdvisory = app(FoundingAdvisoryService::class);
+        $engagement = FoundingAdvisoryEngagement::query()
+            ->where('client_id', $advisoryClient->getKey())
+            ->firstOrFail();
+
+        if ((string) $engagement->proposal_id !== (string) $proposal->getKey()) {
+            $engagement = $foundingAdvisory->attachProposal($advisoryClient, $proposal, $advisor) ?? $engagement;
+        }
+
+        if ($proposal->released_at === null) {
+            $proposal = app(ProposalBuilder::class)->release($proposal, $advisor, 30);
+        }
+
+        if ($engagement->refresh()->status !== FoundingAdvisoryEngagement::STATUS_PROPOSAL_SENT) {
+            $foundingAdvisory->markProposalReleased($proposal, $advisor);
+        }
+
+        // Keep the model instance refreshed so subsequent seed stages use the
+        // same completed BP&B record that founded the advisory engagement.
+        $requestReadyPlan->refresh();
+    }
+
+    private function completePlanBudgetFixture(BusinessPlan $plan, User $user): void
+    {
+        $builder = app(PlanBuilder::class);
+
+        foreach (PlanRequirements::definitions() as $phaseKey => $definition) {
+            foreach ($definition['requirements'] as $requirement) {
+                if (($requirement['type'] ?? null) === 'budget') {
+                    continue;
+                }
+
+                $requirementKey = (string) $requirement['key'];
+                $builder->upsertSection(
+                    plan: $plan,
+                    phaseKey: $phaseKey,
+                    key: 'founder-'.$phaseKey.'-'.$requirementKey,
+                    title: (string) $requirement['title'],
+                    body: $this->planBudgetFixtureAnswer($requirementKey),
+                    sourceType: BusinessPlan::SOURCE_ENTREPRENEUR,
+                    metadata: [
+                        'fixture' => true,
+                        'requirement_key' => $requirementKey,
+                    ],
+                );
+            }
+        }
+
+        app(EntrepreneurBudgetService::class)->update($plan->refresh(), [
+            'expected_runway_months' => 12,
+            'forecast_years' => 3,
+            'assumptions' => [
+                'opening_cash_balance' => 120_000,
+                'revenue_growth_percent' => 8,
+                'cost_inflation_percent' => 2.5,
+                'target_gross_profit_percent' => 65,
+                'target_net_profit_before_tax_percent' => 15,
+                'target_net_profit_after_tax_percent' => 11,
+                'debtor_days' => 21,
+                'creditor_days' => 14,
+            ],
+            'launch_costs' => [
+                ['label' => 'Customer workflow setup', 'amount' => 18_000, 'month' => 1, 'confidence' => 'known'],
+            ],
+            'monthly_fixed_costs' => [
+                ['label' => 'Founder delivery and operations', 'amount' => 4_500, 'month' => 1, 'confidence' => 'known', 'cadence' => 'monthly'],
+            ],
+            'future_costs' => [],
+            'revenue_forecast' => [
+                ['label' => 'Monthly customer subscriptions', 'amount' => 12_000, 'month' => 1, 'monthly_growth_percent' => 8, 'variable_cost_percent' => 25, 'confidence' => 'known', 'monthly_capacity_units' => 20],
+            ],
+            'funding_sources' => [
+                ['label' => 'Founder cash contribution', 'amount' => 120_000, 'month' => 1, 'confidence' => 'known'],
+            ],
+            'funding_scenarios' => [],
+        ], $user);
+    }
+
+    /**
+     * Give the Financials fixture realistic inputs while intentionally leaving
+     * funding open. With every narrative section saved, Budget is the only
+     * incomplete requirement and is selected when the workspace opens.
+     */
+    private function seedPlanBudgetFinancialsFixture(BusinessPlan $plan, User $user): void
+    {
+        app(EntrepreneurBudgetService::class)->update($plan->refresh(), [
+            'expected_runway_months' => 12,
+            'forecast_years' => 3,
+            'assumptions' => [
+                'opening_cash_balance' => 120_000,
+                'revenue_growth_percent' => 8,
+                'cost_inflation_percent' => 2.5,
+                'target_gross_profit_percent' => 65,
+                'target_net_profit_before_tax_percent' => 15,
+                'target_net_profit_after_tax_percent' => 11,
+                'debtor_days' => 21,
+                'creditor_days' => 14,
+            ],
+            'launch_costs' => [
+                ['label' => 'Customer workflow setup', 'amount' => 18_000, 'month' => 1, 'confidence' => 'known'],
+            ],
+            'monthly_fixed_costs' => [
+                ['label' => 'Founder delivery and operations', 'amount' => 4_500, 'month' => 1, 'confidence' => 'known', 'cadence' => 'monthly'],
+                ['label' => 'Software and customer workflow tools', 'amount' => 680, 'month' => 1, 'confidence' => 'estimate', 'cadence' => 'monthly'],
+            ],
+            'future_costs' => [],
+            'revenue_forecast' => [
+                ['label' => 'Monthly customer subscriptions', 'amount' => 12_000, 'month' => 1, 'monthly_growth_percent' => 8, 'variable_cost_percent' => 25, 'confidence' => 'known', 'monthly_capacity_units' => 20],
+            ],
+            // Deliberately empty: testers can add, replace, and remove funding
+            // while observing autosave, recalculation, and completion state.
+            'funding_sources' => [],
+            'funding_scenarios' => [],
+        ], $user);
+    }
+
+    private function planBudgetFixtureAnswer(string $requirementKey): string
+    {
+        return match ($requirementKey) {
+            'business-type-location' => 'Auckland-based service business operating online with founder-led customer delivery and a small remote support team.',
+            'mission-vision' => 'Our mission is to help owner-led firms convert more customer enquiries into paid work through practical follow-up habits and clear weekly sales visibility.',
+            'industry-context' => 'Owner-managed professional-service firms need a reliable response process because delayed estimates and follow-up cause avoidable lost sales. Six interviews and three paid-pilot commitments support the first launch.',
+            'differentiation' => 'The offer fits alongside existing accounting and customer tools, focusing on a lightweight follow-up workflow that owners can adopt without a complex replacement project.',
+            'competitor-comparison' => 'The first alternatives are spreadsheets, generic CRM tools, and manual text-message follow-up. The service differentiates through a focused setup, practical templates, and weekly owner reporting.',
+            'success-factors' => 'The founder brings industry relationships, a tested follow-up process, and paid-pilot commitments that can guide the first release and customer onboarding.',
+            'goals-objectives' => 'Launch with three paid pilots, reach 20 subscription customers within the first year, and review the sales pipeline, service capacity, and customer retention every week.',
+            'culture' => 'The team will be practical, responsive, evidence-led, and respectful of customer time. Every customer interaction should make the next sales decision clearer.',
+            'organisation-management' => 'The founder owns customer delivery, product priorities, and commercial decisions. A contract specialist supports implementation, while an external accountant reviews monthly cash and margin reporting.',
+            'risk-register' => 'Key risks are slow pilot conversion, founder capacity, customer-data handling, and competitors. The founder reviews pipeline, capacity, privacy controls, and customer feedback weekly, with clear mitigation owners.',
+            'intellectual-property' => 'The business will protect its workflow templates, brand, customer data practices, and customer contracts. It will use appropriate licences for software and obtain consent for customer communications.',
+            'legal-environment' => 'The service will follow privacy, consumer, contract, employment, and tax obligations. Customer data is stored in approved systems with access controls and documented supplier responsibilities.',
+            'systems-software-processes' => 'The business requires a customer workflow platform, accounting system, secure document storage, customer consent process, service playbooks, and a weekly operating review.',
+            'financial-assumptions' => 'Opening cash is $120,000. Monthly operating costs are $4,500, and the plan targets 12 months of runway. The forecast begins with 20 customer-delivery units each month and uses founder funding rather than debt.',
+            'revenue-model' => 'The business sells monthly subscriptions and onboarding support. Initial monthly subscription revenue is $12,000, with 8% monthly growth and 25% variable delivery costs as customer capacity grows.',
+            'launch-funding' => 'Founder cash contribution of $120,000 covers the $18,000 workflow setup and provides the planned 12-month runway. No borrowing is assumed in the forecast.',
+            'executive-summary' => 'This plan supports a practical customer follow-up service for owner-led firms. Verified customer interviews and paid-pilot commitments support launch, while founder funding covers setup, operations, and early delivery capacity.',
+            default => 'Seeded BP&B fixture content for '.$requirementKey.'.',
+        };
+    }
+
+    private function seedApprovedPlanBudgetAssessment(BusinessPlan $plan, User $advisor, CarbonInterface $finalisedAt): string|int|null
+    {
+        $ratingFrameworkId = DB::table('rating_frameworks')
+            ->where('production_ready', true)
+            ->whereNull('industry_variant')
+            ->orderByDesc('version')
+            ->value('id');
+
+        if ($ratingFrameworkId === null) {
+            throw new \LogicException('The approved BP&B fixture requires a published production rating framework.');
+        }
+
+        $scores = DB::table('rating_criteria')
+            ->where('rating_framework_id', $ratingFrameworkId)
+            ->orderBy('number')
+            ->get(['id', 'number', 'name', 'weight'])
+            ->map(fn (object $criterion): array => [
+                'criterion_id' => (string) $criterion->id,
+                'criterion_number' => (int) $criterion->number,
+                'criterion_name' => (string) $criterion->name,
+                'score' => 86,
+                'weight' => (float) $criterion->weight,
+                'rationale' => 'Seeded approved BP&B fixture score with complete evidence and reconciled budget inputs.',
+                'attributions' => [[
+                    'claim' => 'Approved seed fixture assessment.',
+                    'source_reference' => 'business_plan:'.$plan->getKey(),
+                ]],
+                'score_source' => 'seed_fixture',
+            ])
+            ->values()
+            ->all();
+
+        return $this->upsert('plan_assessments', [
+            'business_plan_id' => $plan->getKey(),
+            'round' => 1,
+        ], [
+            'rating_framework_id' => $ratingFrameworkId,
+            'ai_scores' => $this->json($scores),
+            'advisor_scores' => $this->json([]),
+            'mentor_notes' => $this->json([]),
+            'document_support' => $this->json([]),
+            'plan_snapshot' => $this->json(app(BusinessPlanSnapshot::class)->capture($plan)),
+            'scoring_scope' => $this->json([
+                'fixture' => true,
+                'plan_budget_coherence' => [
+                    'status' => 'met',
+                    'status_label' => 'Reconciled',
+                    'score' => 100,
+                    'summary' => 'The budget supports the submitted plan and its financial claims agree with the forecast.',
+                    'evidence' => ['Seeded approved BP&B fixture.'],
+                    'findings' => [],
+                    'approval_available' => true,
+                    'approval_message' => 'Plan–budget coherence is reconciled.',
+                    'budget_support' => ['status' => 'met', 'status_label' => 'Supported', 'summary' => 'Seeded budget support is complete.', 'unresolved_count' => 0],
+                    'plan_correlation' => ['status' => 'met', 'status_label' => 'Reconciled', 'summary' => 'Seeded financial plan aligns with the budget.', 'unresolved_count' => 0],
+                    'unresolved_count' => 0,
+                ],
+                'rescored_criterion_numbers' => [],
+                'reused_criterion_numbers' => [],
+                'scope_correction_criterion_numbers' => [],
+            ]),
+            'overall_grade' => 'strong',
+            'concept_pv_calculation_id' => null,
+            'finalised_at' => $finalisedAt,
+            'finalised_by_user_id' => $advisor->getKey(),
         ]);
     }
 

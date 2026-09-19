@@ -301,7 +301,7 @@ const entrepreneurIdeaValidationNavItem: NavItem = {
 
 const entrepreneurPlanBudgetNavItem: NavItem = {
     title: 'Business Plan & Budget',
-    href: '/portal/entrepreneur/plan-budget',
+    href: '/portal/entrepreneur/plan?journey=plan-budget',
     icon: FileSpreadsheet,
 };
 
@@ -454,6 +454,18 @@ type PortalServiceItem = {
 type PortalServices = {
     options: PortalServiceOption[];
     items: PortalServiceItem[];
+};
+
+type EntrepreneurJourney = {
+    active_service: 'Idea Validation' | 'Business Plan & Budget' | 'Advisory';
+    includes_idea_validation: boolean;
+    includes_plan_budget: boolean;
+    next: { url: string };
+    advisory: {
+        available: boolean;
+        label: string;
+        url: string;
+    };
 };
 
 type AdvisorPageClient = {
@@ -642,27 +654,60 @@ function activeWorkspaceNavItems(
         }));
 }
 
+function entrepreneurServiceItems(
+    workspaces: WorkspaceSwitcherPayload | null | undefined,
+): NavItem[] {
+    const dueDiligenceWorkspace = (workspaces?.items ?? []).find(
+        (workspace) => workspace.service_type === 'due_diligence',
+    );
+
+    return [
+        dueDiligenceWorkspace
+            ? {
+                  ...acquisitionPlanNavItem,
+                  href: dueDiligenceWorkspace.href,
+              }
+            : {
+                  ...acquisitionPlanNavItem,
+                  href: entrepreneurBuyingBusinessNavItem.href,
+                  disabled: true,
+                  description:
+                      'Start “Explore buying a business” when you are ready to open a Due Diligence workspace.',
+              },
+        entrepreneurBuyingBusinessNavItem,
+    ];
+}
+
 function navGroupsFor(
     userType?: string | null,
     portalClient?: PortalClient | null,
     portalServices?: PortalServices | null,
     workspaces?: WorkspaceSwitcherPayload | null,
+    entrepreneurJourney?: EntrepreneurJourney | null,
 ): NavGroup[] {
     const secondaryWorkspaceNavItems = activeWorkspaceNavItems(workspaces);
 
     if (userType === 'entrepreneur') {
+        const journeyWorkspaceNavItems = activeWorkspaceNavItems(workspaces, [
+            'due_diligence',
+            'dd_plan_budget',
+            'entrepreneur',
+            'standard_advisory',
+        ]);
+        const journeyPlatformItem: NavItem =
+            entrepreneurJourney?.includes_plan_budget
+                ? entrepreneurPlanBudgetNavItem
+                : entrepreneurIdeaValidationNavItem;
+
         return portalNavGroups({
             platformItems: [
                 entrepreneurDashboardNavItem,
-                entrepreneurIdeaValidationNavItem,
-                ...secondaryWorkspaceNavItems,
+                journeyPlatformItem,
+                ...journeyWorkspaceNavItems,
                 portalInspirationNavItem,
                 entrepreneurSurveysNavItem,
             ],
-            serviceItems: [
-                entrepreneurPlanBudgetNavItem,
-                entrepreneurBuyingBusinessNavItem,
-            ],
+            serviceItems: entrepreneurServiceItems(workspaces),
         });
     }
 
@@ -679,21 +724,32 @@ function navGroupsFor(
         };
 
         if (portalClient?.engagement_type === 'entrepreneur_module') {
+            const journeyWorkspaceNavItems = activeWorkspaceNavItems(
+                workspaces,
+                [
+                    'due_diligence',
+                    'dd_plan_budget',
+                    'entrepreneur',
+                    'standard_advisory',
+                ],
+            );
+            const journeyPlatformItem: NavItem =
+                entrepreneurJourney?.includes_plan_budget
+                    ? entrepreneurPlanBudgetNavItem
+                    : entrepreneurIdeaValidationNavItem;
+
             return portalNavGroups({
                 platformItems: [
                     {
                         ...entrepreneurDashboardNavItem,
                         href: '/portal/entrepreneur',
                     },
-                    entrepreneurIdeaValidationNavItem,
-                    ...secondaryWorkspaceNavItems,
+                    journeyPlatformItem,
+                    ...journeyWorkspaceNavItems,
                     portalInspirationNavItem,
                     portalSurveysNavItem,
                 ],
-                serviceItems: [
-                    entrepreneurPlanBudgetNavItem,
-                    entrepreneurBuyingBusinessNavItem,
-                ],
+                serviceItems: entrepreneurServiceItems(workspaces),
             });
         }
 
@@ -888,6 +944,7 @@ export function AppSidebar() {
         portalClient?: PortalClient | null;
         portalServices?: PortalServices | null;
         workspaces?: WorkspaceSwitcherPayload | null;
+        entrepreneurJourney?: EntrepreneurJourney | null;
         client?: AdvisorPageClient | null;
     }>();
     const { isMobile, setOpenMobile } = useSidebar();
@@ -910,6 +967,7 @@ export function AppSidebar() {
             page.props.portalClient,
             page.props.portalServices,
             page.props.workspaces,
+            page.props.entrepreneurJourney,
         ),
         currentUrl.pathname,
         engagementType,

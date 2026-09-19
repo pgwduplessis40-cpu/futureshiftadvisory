@@ -26,7 +26,7 @@ export function shouldShowPlanWorkspacePriorityActions(
     includesIdeaValidation: boolean,
     includesPlanBudget: boolean,
 ): boolean {
-    return !includesIdeaValidation || includesPlanBudget;
+    return includesPlanBudget;
 }
 
 export function PlanWorkspacePriorityActions({
@@ -54,43 +54,49 @@ export function PlanWorkspacePriorityActions({
             <div>
                 <h2 className="text-base font-semibold">Priority actions</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                    {packageAccess.package_scope_label}
+                    {includesPlanBudget
+                        ? 'Business Plan & Budget'
+                        : packageAccess.package_scope_label}
                 </p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <ActionPanel
-                    icon={Bot}
-                    title="Idea validation"
-                    value={
-                        !includesIdeaValidation
-                            ? 'Not included'
-                            : ideaValidation
-                              ? planBuilderUnlocked
-                                  ? 'Advisor approved'
-                                  : ideaChangesRequested
-                                    ? 'Changes requested'
-                                    : ideaValidationRecalled
-                                      ? 'Ready to revise'
-                                      : 'Awaiting advisor gate'
-                              : 'Not submitted'
-                    }
-                    explanation="Idea validation captures the customer problem, solution, demand, and revenue logic before the plan builder opens."
-                >
-                    {!includesIdeaValidation ? (
-                        <Badge variant="outline">Not in package</Badge>
-                    ) : !ideaValidation ? (
-                        <Badge variant="outline">Complete the form below</Badge>
-                    ) : planBuilderUnlocked ? (
-                        <Badge variant="secondary">Builder unlocked</Badge>
-                    ) : ideaChangesRequested ? (
-                        <Badge variant="outline">Changes requested</Badge>
-                    ) : ideaValidationRecalled ? (
-                        <Badge variant="outline">Ready to revise</Badge>
-                    ) : (
-                        <Badge variant="outline">Advisor review</Badge>
-                    )}
-                </ActionPanel>
+                {includesIdeaValidation && !includesPlanBudget ? (
+                    <ActionPanel
+                        icon={Bot}
+                        title="Idea validation"
+                        value={
+                            !includesIdeaValidation
+                                ? 'Not included'
+                                : ideaValidation
+                                  ? planBuilderUnlocked
+                                      ? 'Advisor approved'
+                                      : ideaChangesRequested
+                                        ? 'Changes requested'
+                                        : ideaValidationRecalled
+                                          ? 'Ready to revise'
+                                          : 'Awaiting advisor gate'
+                                  : 'Not submitted'
+                        }
+                        explanation="Idea validation captures the customer problem, solution, demand, and revenue logic before the plan builder opens."
+                    >
+                        {!includesIdeaValidation ? (
+                            <Badge variant="outline">Not in package</Badge>
+                        ) : !ideaValidation ? (
+                            <Badge variant="outline">
+                                Complete the form below
+                            </Badge>
+                        ) : planBuilderUnlocked ? (
+                            <Badge variant="secondary">Builder unlocked</Badge>
+                        ) : ideaChangesRequested ? (
+                            <Badge variant="outline">Changes requested</Badge>
+                        ) : ideaValidationRecalled ? (
+                            <Badge variant="outline">Ready to revise</Badge>
+                        ) : (
+                            <Badge variant="outline">Advisor review</Badge>
+                        )}
+                    </ActionPanel>
+                ) : null}
 
                 <PlanCompletionAction
                     includesPlanBudget={includesPlanBudget}
@@ -125,40 +131,42 @@ export function PlanWorkspacePriorityActions({
                     )}
                 </ActionPanel>
 
-                <ActionPanel
-                    icon={CheckCircle2}
-                    title="Advisory"
-                    value={
-                        !includesPlanBudget
-                            ? 'Not included'
-                            : advisoryRequest.requested
-                              ? 'Requested'
-                              : advisoryRequest.available
-                                ? 'Available'
-                                : 'Locked'
-                    }
-                    explanation="Request advisory once the plan has been assessed as advisory ready. This asks your advisor to convert the plan into a standard advisory engagement."
-                >
-                    {!includesPlanBudget ? (
-                        <Badge variant="outline">Not in package</Badge>
-                    ) : advisoryRequest.requested &&
-                      advisoryRequest.thread_url ? (
-                        <Button asChild size="sm" variant="outline">
-                            <Link href={advisoryRequest.thread_url}>
-                                Open request
-                            </Link>
-                        </Button>
-                    ) : (
-                        <Button
-                            type="button"
-                            size="sm"
-                            disabled={!advisoryRequest.available}
-                            onClick={requestAdvisory}
-                        >
-                            Request advisory
-                        </Button>
-                    )}
-                </ActionPanel>
+                <div id="advisory-services">
+                    <ActionPanel
+                        icon={CheckCircle2}
+                        title="Advisory"
+                        value={
+                            !includesPlanBudget
+                                ? 'Not included'
+                                : advisoryRequest.requested
+                                  ? 'Requested'
+                                  : advisoryRequest.available
+                                    ? 'Available'
+                                    : 'Locked'
+                        }
+                        explanation="Request advisory once the plan has been assessed as advisory ready. This asks your advisor to convert the plan into a standard advisory engagement."
+                    >
+                        {!includesPlanBudget ? (
+                            <Badge variant="outline">Not in package</Badge>
+                        ) : advisoryRequest.requested &&
+                          advisoryRequest.thread_url ? (
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={advisoryRequest.thread_url}>
+                                    Open request
+                                </Link>
+                            </Button>
+                        ) : (
+                            <Button
+                                type="button"
+                                size="sm"
+                                disabled={!advisoryRequest.available}
+                                onClick={requestAdvisory}
+                            >
+                                Request advisory
+                            </Button>
+                        )}
+                    </ActionPanel>
+                </div>
             </div>
         </section>
     );
