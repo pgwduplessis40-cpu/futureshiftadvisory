@@ -176,12 +176,10 @@ final class ClientPortalResolver
         $existing = ClientTeamMember::query()
             ->where('client_id', $client->getKey())
             ->where('user_id', $user->getKey())
-            ->first();
-        $engagementModule = $client->engagement_type instanceof EngagementType
-            ? $client->engagement_type->value
-            : (string) $client->engagement_type;
+            ->firstOrNew();
+        $engagementModule = $client->engagement_type->value;
         $modules = array_values(array_unique(array_filter([
-            ...($existing?->granted_modules ?? []),
+            ...($existing->granted_modules ?? []),
             'portal',
             EngagementType::ENTREPRENEUR_MODULE->value,
             EngagementType::DUE_DILIGENCE->value,
@@ -194,7 +192,7 @@ final class ClientPortalResolver
                 'user_id' => $user->getKey(),
             ],
             [
-                'role' => $existing?->role ?? $fallbackRole,
+                'role' => $existing->role ?? $fallbackRole,
                 'granted_modules' => $modules,
             ],
         );
