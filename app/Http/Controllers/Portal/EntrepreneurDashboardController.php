@@ -26,6 +26,7 @@ use App\Models\User;
 use App\Services\Board\InspirationBoard;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
+use App\Services\Entrepreneurs\EntrepreneurJourney;
 use App\Services\Entrepreneurs\FoundingAdvisoryService;
 use App\Services\Entrepreneurs\IdeaValidationCancellation;
 use App\Services\Portal\ServiceWorkspaces;
@@ -42,6 +43,7 @@ final class EntrepreneurDashboardController extends Controller
     public function __construct(
         private readonly InspirationBoard $inspirationBoard,
         private readonly EntrepreneurGamification $gamification,
+        private readonly EntrepreneurJourney $journey,
         private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
         private readonly EntrepreneurPlanWorkspace $planWorkspace,
         private readonly FoundingAdvisoryService $foundingAdvisory,
@@ -64,22 +66,27 @@ final class EntrepreneurDashboardController extends Controller
             403,
         );
 
-        $this->entrepreneurInvites->reconcile($user);
+        $reconciledProfile = $this->entrepreneurInvites->reconcile($user);
 
-        $profile = EntrepreneurProfile::query()
+        // An entrepreneur's own profile is the source of truth for their
+        // dashboard. Do not let an unrelated client activation override it:
+        // that can make a submitted Idea Validation appear as a fresh start.
+        $profileQuery = EntrepreneurProfile::query()
             ->with([
                 'assignedAdvisor',
                 'businessPlans.assessments.ratingFramework.criteria',
                 'advisoryReadinessSignals.planAssessment.ratingFramework.criteria',
-            ])
-            ->when(
-                $clientActivation instanceof ServiceActivation && $clientActivation->related_entrepreneur_profile_id !== null,
-                fn ($query) => $query->whereKey($clientActivation->related_entrepreneur_profile_id),
-                fn ($query) => $entrepreneurModuleClient instanceof Client
-                    ? $query->where('client_id', $entrepreneurModuleClient->getKey())
-                    : $query->where('user_id', $user->getKey()),
-            )
-            ->first();
+            ]);
+        if ($user->user_type === User::TYPE_ENTREPRENEUR && $reconciledProfile instanceof EntrepreneurProfile) {
+            $profileQuery->whereKey($reconciledProfile->getKey());
+        } elseif ($clientActivation instanceof ServiceActivation && $clientActivation->related_entrepreneur_profile_id !== null) {
+            $profileQuery->whereKey($clientActivation->related_entrepreneur_profile_id);
+        } elseif ($entrepreneurModuleClient instanceof Client) {
+            $profileQuery->where('client_id', $entrepreneurModuleClient->getKey());
+        } else {
+            $profileQuery->whereRaw('1 = 0');
+        }
+        $profile = $profileQuery->first();
         $latestPlan = $profile?->businessPlans
             ->sortByDesc('updated_at')
             ->first();
@@ -145,6 +152,9 @@ final class EntrepreneurDashboardController extends Controller
             'messagesUrl' => route('portal.messages.index', absolute: false),
             'planWorkspaceUrl' => route('portal.entrepreneur.plan.show', absolute: false),
             'planBudgetUrl' => route('portal.entrepreneur.plan-budget.show', absolute: false),
+            'journey' => $profile instanceof EntrepreneurProfile && is_array($packageAccess)
+                ? $this->journey->payload($profile, $packageAccess, $latestPlan instanceof BusinessPlan ? $latestPlan : null)
+                : null,
             'isIdeaValidationOnly' => $packageAccess !== null
                 && $packageAccess['includes_idea_validation']
                 && ! $packageAccess['includes_plan_budget'],

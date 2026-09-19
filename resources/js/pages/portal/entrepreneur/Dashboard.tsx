@@ -15,8 +15,6 @@ import { ClientCoBrowse } from '@/components/co-browse/ClientCoBrowse';
 import type { ClientCoBrowseConfig } from '@/components/co-browse/ClientCoBrowse';
 import { InspirationCard } from '@/components/inspiration/InspirationCard';
 import type { InspirationPost } from '@/components/inspiration/InspirationCard';
-import { WorkspaceSwitcher } from '@/components/portal/WorkspaceSwitcher';
-import type { WorkspaceSwitcherPayload } from '@/components/portal/WorkspaceSwitcher';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -215,6 +213,12 @@ type FoundingRoadmapVersion = {
 type FoundingAdvisoryPayload = {
     status: string;
     status_label: string;
+    proposal: {
+        id: string;
+        status: string;
+        status_label: string;
+        signoff_url: string | null;
+    } | null;
     baseline: {
         version: number;
         captured_at: string | null;
@@ -236,15 +240,38 @@ type JourneyStatus = {
     humanSupport: string;
 };
 
+type EntrepreneurJourney = {
+    state:
+        | 'idea_validation_start'
+        | 'idea_validation_review'
+        | 'idea_validation_approved'
+        | 'plan_budget_start'
+        | 'plan_budget_building'
+        | 'plan_budget_review'
+        | 'plan_budget_assessed'
+        | 'advisory_preparing'
+        | 'advisory_proposal'
+        | 'advisory_implementation';
+    active_service: 'Idea Validation' | 'Business Plan & Budget' | 'Advisory';
+    idea_validation: { submitted: boolean; approved: boolean };
+    plan: {
+        exists: boolean;
+        completion: { total: number; completed: number; percent: number };
+    };
+    assessment: { exists: boolean; finalised: boolean; status_label: string };
+    advisory: { available: boolean; label: string; url: string };
+    next: { label: string; description: string; url: string };
+};
+
 type Props = {
     profile: EntrepreneurProfile;
     inspirationBoard: InspirationPost | null;
     messagesUrl: string;
     planWorkspaceUrl: string;
+    journey: EntrepreneurJourney | null;
     isIdeaValidationOnly: boolean;
     ideaValidationSubmitted: boolean;
     ideaValidationApproved: boolean;
-    workspaces: WorkspaceSwitcherPayload | null;
     notificationsUrl: string;
     settingsUrl: string;
     surveys: PendingSurveysPayload;
@@ -260,10 +287,10 @@ export default function EntrepreneurDashboard({
     inspirationBoard,
     messagesUrl,
     planWorkspaceUrl,
+    journey,
     isIdeaValidationOnly,
     ideaValidationSubmitted,
     ideaValidationApproved,
-    workspaces,
     notificationsUrl,
     settingsUrl,
     surveys,
@@ -286,8 +313,9 @@ export default function EntrepreneurDashboard({
         latestAssessment,
         readiness,
         nextSurvey,
+        journey,
     );
-    const journeyPrompt = hasPlan
+    const legacyJourneyPrompt = hasPlan
         ? {
               badge: 'Continue',
               title: 'Continue the business plan',
@@ -309,30 +337,58 @@ export default function EntrepreneurDashboard({
                 body: 'Validate the customer problem, solution, demand, and revenue logic first. The plan sections open after advisor review.',
                 action: 'Start idea validation',
             };
-    const planActionTitle = hasPlan ? 'Business plan' : 'Idea validation';
-    const planActionValue = hasPlan
-        ? formatLabel(profile?.latest_plan?.status ?? '')
-        : ideaValidationSubmitted
-          ? ideaValidationApproved
-              ? 'Approved'
-              : 'Submitted'
-          : 'Start here';
-    const planActionExplanation = hasPlan
-        ? 'Business plan opens the guided workspace for plan sections, preview, and advisory request.'
-        : ideaValidationSubmitted
-          ? 'Open Idea Validation to review the submitted validation and advisor feedback.'
-          : 'Idea validation is the first milestone before the business plan sections open.';
+    const journeyPrompt = journey
+        ? {
+              badge: journey.active_service,
+              title: journey.next.label,
+              body: journey.next.description,
+              action: journey.next.label,
+              url: journey.next.url,
+          }
+        : { ...legacyJourneyPrompt, url: planWorkspaceUrl };
+    const planActionTitle =
+        journey?.state === 'advisory_proposal'
+            ? 'Advisory proposal'
+            : (journey?.active_service ??
+              (hasPlan ? 'Business plan' : 'Idea validation'));
+    const planActionValue =
+        journey?.state === 'advisory_proposal'
+            ? 'Ready to review'
+            : journey?.plan.exists
+              ? `${journey.plan.completion.completed}/${journey.plan.completion.total} complete`
+              : hasPlan
+                ? formatLabel(profile?.latest_plan?.status ?? '')
+                : ideaValidationSubmitted
+                  ? ideaValidationApproved
+                      ? 'Approved'
+                      : 'Submitted'
+                  : 'Start here';
+    const planActionExplanation = journey
+        ? journey.next.description
+        : hasPlan
+          ? 'Business plan opens the guided workspace for plan sections, preview, and advisory request.'
+          : ideaValidationSubmitted
+            ? 'Open Idea Validation to review the submitted validation and advisor feedback.'
+            : 'Idea validation is the first milestone before the business plan sections open.';
 
     return (
         <>
-            <Head title="Entrepreneur dashboard" />
+            <Head
+                title={
+                    journey
+                        ? `${journey.active_service} journey`
+                        : 'Entrepreneur dashboard'
+                }
+            />
             <ClientCoBrowse config={coBrowse} />
 
             <div className="space-y-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">
-                            Entrepreneur dashboard
+                            {journey
+                                ? `${journey.active_service} journey`
+                                : 'Entrepreneur dashboard'}
                         </h1>
                         <div className="text-sm text-muted-foreground">
                             {profile?.name ?? 'Profile pending'}
@@ -342,10 +398,11 @@ export default function EntrepreneurDashboard({
                         profile={profile}
                         latestAssessment={latestAssessment}
                         readiness={readiness}
+                        journey={journey}
                     />
                 </div>
 
-                <WorkspaceSwitcher workspaces={workspaces} />
+                {journey ? <JourneyWorkspaceTabs journey={journey} /> : null}
 
                 {inspirationBoard ? (
                     <InspirationCard post={inspirationBoard} />
@@ -360,14 +417,11 @@ export default function EntrepreneurDashboard({
                         gamification={gamification}
                         isIdeaValidationOnly={isIdeaValidationOnly}
                         ideaValidationSubmitted={ideaValidationSubmitted}
+                        journey={journey}
                     />
                 ) : null}
 
-                <JourneyPrompt
-                    prompt={journeyPrompt}
-                    status={journeyStatus}
-                    planWorkspaceUrl={planWorkspaceUrl}
-                />
+                <JourneyPrompt prompt={journeyPrompt} status={journeyStatus} />
 
                 {foundingAdvisory ? (
                     <FoundingRoadmapPanel roadmap={foundingAdvisory} />
@@ -389,7 +443,9 @@ export default function EntrepreneurDashboard({
                                         : ideaValidationSubmitted
                                           ? 'Open Idea Validation to review its status and advisor feedback.'
                                           : 'Complete Idea Validation, then your advisor will review it.'
-                                    : 'Start with idea validation, then use the plan workspace, assessment, and advisor messages.'
+                                    : journey
+                                      ? `Continue through ${journey.active_service}. Your next action and progress reflect the saved plan and assessment state.`
+                                      : 'Start with idea validation, then use the plan workspace, assessment, and advisor messages.'
                             }
                         >
                             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -450,16 +506,17 @@ export default function EntrepreneurDashboard({
                                     explanation={planActionExplanation}
                                 >
                                     <Button asChild size="sm" variant="outline">
-                                        <Link href={planWorkspaceUrl}>
+                                        <Link href={journeyPrompt.url}>
                                             <Eye
                                                 className="size-4"
                                                 aria-hidden="true"
                                             />
-                                            {hasPlan
-                                                ? 'Open workspace'
-                                                : ideaValidationSubmitted
-                                                  ? 'Open Idea Validation'
-                                                  : 'Start idea validation'}
+                                            {journey?.next.label ??
+                                                (hasPlan
+                                                    ? 'Open workspace'
+                                                    : ideaValidationSubmitted
+                                                      ? 'Open Idea Validation'
+                                                      : 'Start idea validation')}
                                         </Link>
                                     </Button>
                                 </ActionPanel>
@@ -886,12 +943,14 @@ function StatusBadge({
     profile,
     latestAssessment,
     readiness,
+    journey,
 }: {
     profile: EntrepreneurProfile;
     latestAssessment: AssessmentLink | null;
     readiness: NonNullable<EntrepreneurProfile>['advisory_readiness_signal'];
+    journey: EntrepreneurJourney | null;
 }) {
-    const status = statusDetails(profile, latestAssessment, readiness);
+    const status = statusDetails(profile, latestAssessment, readiness, journey);
 
     return (
         <TooltipProvider>
@@ -1009,16 +1068,15 @@ function WelcomeBanner({ welcomeMessage }: { welcomeMessage: WelcomeMessage }) {
 function JourneyPrompt({
     prompt,
     status,
-    planWorkspaceUrl,
 }: {
     prompt: {
         badge: string;
         title: string;
         body: string;
         action: string;
+        url: string;
     };
     status: JourneyStatus;
-    planWorkspaceUrl: string;
 }) {
     return (
         <section className="rounded-md border bg-background p-4">
@@ -1034,7 +1092,7 @@ function JourneyPrompt({
                     </p>
                 </div>
                 <Button asChild size="sm">
-                    <Link href={planWorkspaceUrl}>{prompt.action}</Link>
+                    <Link href={prompt.url}>{prompt.action}</Link>
                 </Button>
             </div>
             <div className="mt-4 grid gap-4 border-t pt-4 text-sm sm:grid-cols-2 xl:grid-cols-4">
@@ -1070,6 +1128,50 @@ function JourneyDetail({ label, value }: { label: string; value: string }) {
     );
 }
 
+function JourneyWorkspaceTabs({ journey }: { journey: EntrepreneurJourney }) {
+    const tabs = [
+        {
+            label: 'Advisory',
+            href: journey.advisory.url,
+            active: journey.active_service === 'Advisory',
+        },
+        {
+            label: 'Business Plan & Budget',
+            href: journey.plan.exists
+                ? '/portal/entrepreneur/plan?journey=plan-budget'
+                : '/portal/entrepreneur/plan-budget',
+            active: journey.active_service === 'Business Plan & Budget',
+        },
+        {
+            label: 'Idea Validation',
+            href: '/portal/entrepreneur/plan?journey=idea-validation',
+            active: journey.active_service === 'Idea Validation',
+        },
+    ];
+
+    return (
+        <nav
+            aria-label="Founder journey workspaces"
+            className="inline-flex max-w-full flex-wrap gap-1 rounded-md border bg-muted/25 p-1"
+        >
+            {tabs.map((tab) => (
+                <Link
+                    key={tab.label}
+                    href={tab.href}
+                    className={cn(
+                        'inline-flex min-h-9 items-center rounded-sm px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                        tab.active &&
+                            'bg-[var(--fs-admiralty)] text-white shadow-xs hover:text-white',
+                    )}
+                    aria-current={tab.active ? 'page' : undefined}
+                >
+                    {tab.label}
+                </Link>
+            ))}
+        </nav>
+    );
+}
+
 function FoundingRoadmapPanel({
     roadmap,
 }: {
@@ -1077,6 +1179,9 @@ function FoundingRoadmapPanel({
 }) {
     const version = roadmap.draft_version ?? roadmap.current_version;
     const horizons = version?.agenda.horizons ?? [];
+    const proposalUrl = roadmap.proposal?.signoff_url ?? null;
+    const proposalReady =
+        roadmap.status === 'proposal_sent' && proposalUrl !== null;
 
     return (
         <section className="space-y-4 border bg-background p-4">
@@ -1085,7 +1190,9 @@ function FoundingRoadmapPanel({
                     <div className="flex flex-wrap items-center gap-2">
                         <Trophy className="size-4" aria-hidden="true" />
                         <h2 className="text-base font-semibold">
-                            Founding Advisory roadmap
+                            {proposalReady
+                                ? 'Advisory proposal and implementation roadmap'
+                                : 'Founding Advisory roadmap'}
                         </h2>
                         <Badge variant="outline">{roadmap.status_label}</Badge>
                         {roadmap.replan_due ? (
@@ -1093,19 +1200,26 @@ function FoundingRoadmapPanel({
                         ) : null}
                     </div>
                     <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-                        Your finalised business plan is the fixed starting
-                        point. The active 90-day agenda is agreed work; the
-                        later horizons show what can come next and will be
-                        revised with your advisor as the business develops.
+                        {proposalReady
+                            ? 'Your finalised Business Plan & Budget is the agreed starting point. Review the advisory proposal now; after you accept it, you and your advisor will agree the first 90-day plan and keep the 180- and 270-day horizons under review as the business develops.'
+                            : 'Your finalised Business Plan & Budget is the fixed starting point. The active 90-day agenda is agreed work; the later horizons show what can come next and will be revised with your advisor as the business develops.'}
                     </p>
                 </div>
-                <div className="grid gap-1 text-right text-xs text-muted-foreground">
-                    <span>Next review {formatDate(roadmap.replan_due_at)}</span>
-                    <span>
-                        Transition review{' '}
-                        {formatDate(roadmap.transition_review_at)}
-                    </span>
-                </div>
+                {proposalUrl ? (
+                    <Button asChild size="sm">
+                        <Link href={proposalUrl}>Review advisory proposal</Link>
+                    </Button>
+                ) : (
+                    <div className="grid gap-1 text-right text-xs text-muted-foreground">
+                        <span>
+                            Next review {formatDate(roadmap.replan_due_at)}
+                        </span>
+                        <span>
+                            Transition review{' '}
+                            {formatDate(roadmap.transition_review_at)}
+                        </span>
+                    </div>
+                )}
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -1176,9 +1290,9 @@ function FoundingRoadmapPanel({
                 </div>
             ) : (
                 <p className="text-sm text-muted-foreground">
-                    Your advisor is preparing the proposal. After it is
-                    accepted, they will review and publish the first rolling
-                    roadmap with you.
+                    {proposalReady
+                        ? 'Your proposal is ready for review. Once it is accepted, your advisor will work with you to publish the first rolling roadmap: a committed 90-day plan, followed by provisional 180- and 270-day horizons.'
+                        : 'Your advisor is preparing the proposal. After it is accepted, they will review and publish the first rolling roadmap with you.'}
                 </p>
             )}
         </section>
@@ -1291,7 +1405,73 @@ function journeyStatusFor(
     latestAssessment: AssessmentLink | null,
     readiness: NonNullable<EntrepreneurProfile>['advisory_readiness_signal'],
     nextSurvey: PendingSurvey | null,
+    journey: EntrepreneurJourney | null,
 ): JourneyStatus {
+    if (journey?.state === 'advisory_proposal') {
+        return {
+            current: 'Advisory proposal ready',
+            completed:
+                'Idea Validation and Business Plan & Budget are complete, and your advisor has used the approved assessment to prepare the next stage of support.',
+            next: journey.next.description,
+            doneLooksLike:
+                'You accept the proposal, then your advisor works with you to publish the first 90-day implementation plan and its 180- and 270-day horizons.',
+            humanSupport:
+                'Your advisor remains responsible for turning the agreed proposal into a practical implementation roadmap with you.',
+        };
+    }
+
+    if (journey?.state === 'advisory_preparing') {
+        return {
+            current: 'Advisory proposal in preparation',
+            completed:
+                'Your Business Plan & Budget and its assessment have been completed and handed to your advisor for the next service design.',
+            next: journey.next.description,
+            doneLooksLike:
+                'Your advisor releases a proposal that explains the implementation work, the 90-day focus, and the later review horizons.',
+            humanSupport:
+                'Your advisor is preparing the recommended scope, timing, and implementation approach from the completed plan.',
+        };
+    }
+
+    if (journey?.state === 'advisory_implementation') {
+        return {
+            current: 'Advisory implementation underway',
+            completed:
+                'Your proposal has moved into the advisory implementation journey, using the completed Business Plan & Budget as its baseline.',
+            next: journey.next.description,
+            doneLooksLike:
+                'The committed 90-day work is progressing and the 180- and 270-day horizons are being reviewed with your advisor.',
+            humanSupport:
+                'Your advisor will keep the roadmap grounded in actual delivery, financial results, and the decisions you make together.',
+        };
+    }
+
+    if (journey?.state === 'idea_validation_review') {
+        return {
+            current: 'Idea Validation is with your advisor',
+            completed:
+                'Your Idea Validation has been submitted. Your advisor is reviewing the evidence and will either approve it or ask for a focused update.',
+            next: journey.next.description,
+            doneLooksLike:
+                'You receive an advisor decision with clear feedback and, when approved, access to Business Plan & Budget.',
+            humanSupport:
+                'Your advisor is reviewing the submitted evidence. You can open Idea Validation to see the current status and any feedback.',
+        };
+    }
+
+    if (journey?.state === 'idea_validation_approved') {
+        return {
+            current: 'Idea Validation approved',
+            completed:
+                'Your advisor has approved the idea. The evidence now carries forward into Business Plan & Budget.',
+            next: journey.next.description,
+            doneLooksLike:
+                'Business Plan & Budget is purchased or opened, and the approved idea provides the starting point for the plan.',
+            humanSupport:
+                'Your advisor has confirmed the idea is ready for the next service. Open Business Plan & Budget when you are ready to continue.',
+        };
+    }
+
     const hasPlan = Boolean(profile?.latest_plan);
     const current = displayStageLabel(
         profile?.stage,
@@ -1340,7 +1520,63 @@ function statusDetails(
     profile: EntrepreneurProfile,
     latestAssessment: AssessmentLink | null,
     readiness: NonNullable<EntrepreneurProfile>['advisory_readiness_signal'],
+    journey: EntrepreneurJourney | null,
 ) {
+    if (journey?.state === 'advisory_proposal') {
+        return {
+            label: 'Proposal ready',
+            summary: 'Your advisory proposal is ready for review',
+            description:
+                'Your completed Business Plan & Budget and advisor assessment now support the proposed implementation work. Review the proposal to move into the first 90-day roadmap.',
+            className: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+            dotClassName: 'bg-emerald-500',
+        };
+    }
+
+    if (journey?.state === 'advisory_preparing') {
+        return {
+            label: 'With your advisor',
+            summary: 'Your advisory proposal is being prepared',
+            description:
+                'Your advisor is turning the completed plan and assessment into a scoped implementation proposal and roadmap recommendation.',
+            className: 'border-amber-200 bg-amber-50 text-amber-800',
+            dotClassName: 'bg-amber-500',
+        };
+    }
+
+    if (journey?.state === 'advisory_implementation') {
+        return {
+            label: 'Implementation',
+            summary: 'Your advisory implementation journey is active',
+            description:
+                'You and your advisor are working through the agreed 90-day plan while keeping the 180- and 270-day horizons current.',
+            className: 'border-sky-200 bg-sky-50 text-sky-800',
+            dotClassName: 'bg-sky-500',
+        };
+    }
+
+    if (journey?.state === 'idea_validation_review') {
+        return {
+            label: 'With your advisor',
+            summary: 'Idea Validation submitted for review',
+            description:
+                'Your advisor is reviewing the customer problem, target customer, solution, demand evidence, and revenue model. You will be notified when feedback or an approval is ready.',
+            className: 'border-amber-200 bg-amber-50 text-amber-800',
+            dotClassName: 'bg-amber-500',
+        };
+    }
+
+    if (journey?.state === 'idea_validation_approved') {
+        return {
+            label: 'Idea validated',
+            summary: 'Idea Validation approved by your advisor',
+            description:
+                'The idea has met the validation gate. Business Plan & Budget is the next service when you are ready to continue.',
+            className: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+            dotClassName: 'bg-emerald-500',
+        };
+    }
+
     const stageLabel = displayStageLabel(
         profile?.stage,
         profile?.stage_label ?? 'Onboarding',

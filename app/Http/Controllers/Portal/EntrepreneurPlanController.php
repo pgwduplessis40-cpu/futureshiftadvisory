@@ -201,16 +201,12 @@ final class EntrepreneurPlanController extends Controller
         $requirement = $this->requirements->requirement($phaseKey, $requirementKey);
         $sectionKey = 'founder-'.$phaseKey.'-'.$requirementKey;
         $body = $this->requirements->integrateDatedUpdate((string) ($validated['body'] ?? ''));
-        $existingSection = PlanSection::query()
-            ->where('business_plan_id', $plan->getKey())
-            ->where('key', $sectionKey)
-            ->first();
         $completenessStatus = null;
 
         if ($autosave) {
-            $completenessStatus = trim($body) === ''
-                ? PlanSection::STATUS_DRAFT
-                : ($existingSection instanceof PlanSection ? $existingSection->completeness_status : PlanSection::STATUS_DRAFT);
+            $completenessStatus = Str::length(trim($body)) >= 80
+                ? PlanSection::STATUS_COMPLETE
+                : PlanSection::STATUS_DRAFT;
         }
 
         $section = $this->plans->upsertSection(

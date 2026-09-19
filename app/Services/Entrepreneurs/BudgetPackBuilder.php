@@ -1565,7 +1565,7 @@ HTML,
 .report-hero .eyebrow:empty { display: none; }
 .report-hero h1 { font-size: 31px; margin: 0 0 12px; }
 .report-hero p { color: #39465a; font-size: 16px; }
-.report-footer { bottom: -10mm; left: 0; position: fixed; right: 0; }
+.report-footer { background: #fff; bottom: 6mm; left: 0; padding-top: 8px; position: fixed; right: 0; z-index: 2; }
 .finance-summary { background: #f8f5ee; border-left-color: #b8860b; break-after: page; margin-top: 62px; min-height: 365px; padding: 28px 30px; }
 .finance-summary h2 { font-size: 25px; margin-bottom: 15px; }
 .finance-summary p { color: #34443c; font-size: 13px; line-height: 1.75; margin: 0; max-width: 74ch; }

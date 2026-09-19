@@ -30,6 +30,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\MakesIdeaReviewEligible;
 use Tests\TestCase;
 
@@ -107,6 +108,26 @@ final class EntrepreneurPlanBudgetCheckoutTest extends TestCase
         app(ApprovedIdeaPlanStarter::class)->start($profile, $laterApproved, $founder);
 
         $this->assertSame('Founder-owned BP&B content must not be overwritten.', $section->refresh()->body);
+    }
+
+    public function test_paid_bpb_client_can_open_the_locked_advisory_services_page(): void
+    {
+        [$advisor, $founder, $profile] = $this->profile();
+        $this->planBudgetRate();
+        $this->ideaValidation($profile, $advisor, approved: true);
+
+        $checkout = app(EntrepreneurPlanBudgetCheckout::class);
+        $checkout->beginPayment($founder, $profile);
+        $checkout->confirmFixturePayment($founder, $profile);
+
+        $this->actingAsMfa($founder)
+            ->get(route('portal.entrepreneur.advisory-services.show'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('portal/entrepreneur/AdvisoryServices')
+                ->where('advisory.available', false)
+                ->where('assessmentStatus', 'Not started')
+                ->where('requestUrl', route('portal.entrepreneur.advisory-request.store', absolute: false)));
     }
 
     public function test_paid_bpb_purchase_waits_for_advisor_approval_before_creating_the_plan(): void
