@@ -685,8 +685,6 @@ function navGroupsFor(
     workspaces?: WorkspaceSwitcherPayload | null,
     entrepreneurJourney?: EntrepreneurJourney | null,
 ): NavGroup[] {
-    const secondaryWorkspaceNavItems = activeWorkspaceNavItems(workspaces);
-
     if (userType === 'entrepreneur') {
         const journeyWorkspaceNavItems = activeWorkspaceNavItems(workspaces, [
             'due_diligence',
