@@ -47,6 +47,7 @@ use App\Services\Entrepreneurs\EntrepreneurDocumentTemplate;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\Entrepreneurs\EntrepreneurInviteOffer;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
+use App\Services\Entrepreneurs\EntrepreneurJourney;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Entrepreneurs\EntrepreneurPlanBudgetCheckout;
 use App\Services\Entrepreneurs\EntrepreneurPlanBudgetProvisioner;
@@ -183,6 +184,7 @@ final class MethodologyDriftGuardTest extends TestCase
         EntrepreneurGamification::class => 'Gamification payload renderer; requirement and milestone rules are not advisor methodology disclosures.',
         EntrepreneurInviteOffer::class => 'Snapshots admin-set package terms and records invitation consent; pricing and waiver policy are delegated, not an advisory calculation methodology.',
         EntrepreneurInviteReconciler::class => 'Invite reconciliation workflow.',
+        EntrepreneurJourney::class => 'Journey-state orchestration that presents existing approval, completion, and advisory facts; it does not calculate a methodology.',
         EntrepreneurMilestones::class => 'Milestone-award persistence workflow.',
         EntrepreneurPlanBudgetCheckout::class => 'Authenticated Stripe checkout orchestration for the BP&B add-on; it does not calculate advisor methodology.',
         EntrepreneurPlanBudgetProvisioner::class => 'Paid BP&B activation workflow that waits for advisor approval; it does not calculate advisor methodology.',
