@@ -390,6 +390,13 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertStandardAdvisoryReviewReadyFixture();
     }
 
+    public function test_testing_seed_data_includes_dedicated_standard_advisory_start_and_submit_ready_clients(): void
+    {
+        $this->seed(TestingSeedDataSeeder::class);
+
+        $this->assertDedicatedStandardAdvisoryClientFixtures();
+    }
+
     public function test_seed_buyer_portal_resolves_to_southern_lights_and_rejects_post_acquisition_client(): void
     {
         $this->seed(TestingSeedDataSeeder::class);
@@ -1167,6 +1174,37 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertTrue($readiness['can_run_analysis']);
         $this->assertSame('green', $readiness['analysis_readiness']['level']);
         $this->assertSame('ready_for_analysis', $readiness['status']);
+    }
+
+    private function assertDedicatedStandardAdvisoryClientFixtures(): void
+    {
+        $startUser = User::query()
+            ->where('email', 'seed.client.advisory.start@futureshiftadvisory.test')
+            ->firstOrFail();
+        $startClient = Client::query()->where('nzbn', '9429000000246')->firstOrFail();
+        $reviewUser = User::query()
+            ->where('email', 'seed.client.advisory.review@futureshiftadvisory.test')
+            ->firstOrFail();
+        $reviewClient = Client::query()->where('nzbn', '9429000000253')->firstOrFail();
+        $wizard = app(OnboardingWizard::class);
+
+        $this->assertSame(EngagementType::STANDARD_ADVISORY, $startClient->engagement_type);
+        $this->assertSame((string) $startUser->getKey(), (string) $startClient->primary_contact_user_id);
+        $this->assertSame(0, $wizard->progress($startClient)['percentage']);
+        $this->assertSame(OnboardingWizard::STEP_WELCOME, $wizard->currentStepSlug($startClient));
+        $this->assertNull($wizard->state($startClient)['submitted_at']);
+
+        $this->assertSame(EngagementType::STANDARD_ADVISORY, $reviewClient->engagement_type);
+        $this->assertSame((string) $reviewUser->getKey(), (string) $reviewClient->primary_contact_user_id);
+        $this->assertSame(83, $wizard->progress($reviewClient)['percentage']);
+        $this->assertSame(OnboardingWizard::STEP_REVIEW, $wizard->currentStepSlug($reviewClient));
+        $this->assertNull($wizard->state($reviewClient)['submitted_at']);
+        $this->assertTrue($wizard->canAccess($reviewClient, OnboardingWizard::STEP_REVIEW));
+
+        $readiness = app(StandardAdvisoryWorkflow::class)->readiness($reviewClient);
+        $this->assertTrue($readiness['questionnaire_submitted']);
+        $this->assertSame(1, $readiness['document_count']);
+        $this->assertSame(0, $readiness['blocking_verification_count']);
     }
 
     private function assertWebsiteAuditDemoFixture(): void
