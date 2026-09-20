@@ -28,6 +28,12 @@ export type SectionAutosavePayload = {
     attached_document_ids?: string[];
 };
 
+export type SectionAutosaveResult = {
+    section: {
+        completeness_status: string;
+    };
+};
+
 export function csrfToken(): string {
     return (
         document
@@ -133,7 +139,7 @@ export function restoreSectionTextareaPosition(
 export async function postSectionAutosave(
     url: string,
     payload: SectionAutosavePayload,
-): Promise<boolean> {
+): Promise<SectionAutosaveResult | null> {
     const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -148,7 +154,11 @@ export async function postSectionAutosave(
         }),
     });
 
-    return response.ok;
+    if (!response.ok) {
+        return null;
+    }
+
+    return (await response.json()) as SectionAutosaveResult;
 }
 
 export async function postBudgetAutosave(

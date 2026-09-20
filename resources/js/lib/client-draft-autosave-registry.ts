@@ -138,6 +138,13 @@ export const CLIENT_DRAFT_AUTOSAVE_SURFACES: readonly ClientDraftAutosaveSurface
                 'Starting a reassessment or saving advisor review feedback',
         },
         {
+            source: 'resources/js/pages/portal/entrepreneur/AdvisoryServices.tsx',
+            mode: 'explicit',
+            summary:
+                'This page only sends a deliberate request for advisory support after BP&B approval.',
+            explicitAction: 'Requesting advisory support',
+        },
+        {
             source: 'resources/js/pages/portal/entrepreneur/dashboard-gamification-panel.tsx',
             mode: 'explicit',
             summary:

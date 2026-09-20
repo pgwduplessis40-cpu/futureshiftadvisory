@@ -3,9 +3,11 @@
 namespace App\Http\Middleware;
 
 use App\Enums\ClientStatus;
+use App\Http\Controllers\Portal\EntrepreneurPlanWorkspace;
 use App\Models\Client;
 use App\Models\EntrepreneurProfile;
 use App\Models\User;
+use App\Services\Entrepreneurs\EntrepreneurJourney;
 use App\Services\Notifications\NotificationCenter;
 use App\Services\Portal\OnboardingWizard;
 use App\Services\ScreenShare\ClientPortalContextTokens;
@@ -14,6 +16,7 @@ use App\Support\ReleaseVersion;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
+/** @phpstan-import-type JourneyPayload from EntrepreneurJourney */
 class HandleInertiaRequests extends Middleware
 {
     /**
@@ -73,6 +76,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'portalClient' => fn () => $this->portalClient($request),
             'portalServices' => fn () => $this->portalServices($request),
+            'entrepreneurJourney' => fn () => $this->entrepreneurJourney($request),
             'portalScreenShare' => fn () => $this->portalScreenShare($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
@@ -135,6 +139,51 @@ class HandleInertiaRequests extends Middleware
         }
 
         return app(ServiceActivationNavigation::class)->payload($client);
+    }
+
+    /**
+     * The sidebar is rendered on every portal page, so it needs the same
+     * workflow facts as the dashboard and workspace rather than a static
+     * list based only on the authenticated user's role.
+     *
+     * @return JourneyPayload|null
+     */
+    private function entrepreneurJourney(Request $request): ?array
+    {
+        $user = $request->user();
+        if (! $user instanceof User || ! $request->routeIs('portal.*')) {
+            return null;
+        }
+
+        $client = $this->portalClientModel($request);
+        $engagementType = $client?->engagement_type?->value;
+        $isEntrepreneurJourney = $user->user_type === User::TYPE_ENTREPRENEUR
+            || $engagementType === 'entrepreneur_module';
+        if (! $isEntrepreneurJourney) {
+            return null;
+        }
+
+        $profile = EntrepreneurProfile::query()
+            ->when(
+                $user->user_type === User::TYPE_ENTREPRENEUR,
+                fn ($query) => $query->where('user_id', $user->getKey()),
+                fn ($query) => $client instanceof Client
+                    ? $query->where('client_id', $client->getKey())
+                    : $query->whereRaw('1 = 0'),
+            )
+            ->latest()
+            ->first();
+        if (! $profile instanceof EntrepreneurProfile) {
+            return null;
+        }
+
+        $workspace = app(EntrepreneurPlanWorkspace::class);
+
+        return app(EntrepreneurJourney::class)->payload(
+            $profile,
+            $workspace->packageAccess($profile),
+            $workspace->latestPlan($profile),
+        );
     }
 
     /**

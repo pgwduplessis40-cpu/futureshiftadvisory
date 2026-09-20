@@ -30,6 +30,10 @@ export function NavMain({ groups = [] }: { groups: NavGroup[] }) {
     };
 
     const isActive = (item: NavItem) => {
+        if (item.disabled) {
+            return false;
+        }
+
         if (typeof item.isActive === 'boolean') {
             return item.isActive;
         }
@@ -57,18 +61,33 @@ export function NavMain({ groups = [] }: { groups: NavGroup[] }) {
                             {group.items.map((item) => (
                                 <SidebarMenuItem key={item.title}>
                                     <SidebarMenuButton
-                                        asChild
+                                        asChild={!item.disabled}
                                         isActive={isActive(item)}
-                                        tooltip={{ children: item.title }}
+                                        className={cn(
+                                            item.locked &&
+                                                'text-muted-foreground hover:text-foreground',
+                                        )}
+                                        tooltip={{
+                                            children:
+                                                item.description ?? item.title,
+                                        }}
+                                        disabled={item.disabled}
                                     >
-                                        <Link
-                                            href={item.href}
-                                            prefetch
-                                            onClick={closeMobileSidebar}
-                                        >
-                                            {item.icon && <item.icon />}
-                                            <span>{item.title}</span>
-                                        </Link>
+                                        {item.disabled ? (
+                                            <span title={item.description}>
+                                                {item.icon && <item.icon />}
+                                                <span>{item.title}</span>
+                                            </span>
+                                        ) : (
+                                            <Link
+                                                href={item.href}
+                                                prefetch
+                                                onClick={closeMobileSidebar}
+                                            >
+                                                {item.icon && <item.icon />}
+                                                <span>{item.title}</span>
+                                            </Link>
+                                        )}
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
                             ))}

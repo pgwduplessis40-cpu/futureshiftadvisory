@@ -1,13 +1,5 @@
-import { router } from '@inertiajs/react';
-import {
-    Bot,
-    ChevronDown,
-    ChevronUp,
-    Pencil,
-    Trophy,
-    Upload,
-} from 'lucide-react';
-import FileDropzone from '@/components/file-dropzone';
+import { Link, router } from '@inertiajs/react';
+import { Bot, ChevronDown, ChevronUp, Pencil, Trophy } from 'lucide-react';
 import { FormattedTextarea } from '@/components/formatted-textarea';
 import InputError from '@/components/input-error';
 import { DraftSaveStatus } from '@/components/portal/draft-save-status';
@@ -18,10 +10,10 @@ import { ExecutiveSummaryNotice } from './executive-summary-notice';
 import { BudgetEditor, requirementId } from './plan-budget';
 import {
     IdeaValidationSnapshot,
-    PlainLanguageGuide,
     formatDate,
     ideaFields,
 } from './plan-dashboard-panels';
+import { PlanSupportingDocuments } from './plan-supporting-documents';
 import {
     IDEA_VALIDATION_FIELD_MAX_LENGTH,
     PLAN_SECTION_BODY_MAX_LENGTH,
@@ -46,6 +38,8 @@ export function PlanWorkspaceActions({
         ideaValidationVersions,
         plan,
         gamification,
+        journey,
+        urls,
         ideaForm,
         ideaDraftState,
         setShowValidatedIdeaForm,
@@ -74,11 +68,15 @@ export function PlanWorkspaceActions({
         setSectionBody,
         supportingFile,
         setSupportingFile,
+        supportingDocuments,
+        supportingDocumentNotice,
+        pendingSupportingDocument,
         uploadingSupportingDocument,
         uploadSupportingDocument,
+        retrySupportingDocumentAttachment,
+        removeSupportingDocument,
         supportingKey,
         sectionError,
-        savingSection,
         assistingSection,
         assistantNotice,
         budgetForm,
@@ -94,16 +92,74 @@ export function PlanWorkspaceActions({
         rememberWorkspacePosition,
         startPlan,
         assistRequirement,
-        saveSection,
         saveBudget,
         acknowledgeBudgetFlag,
         dismissBudgetAdvisorNudge,
     } = workspace;
     const planChangesLocked = planChangesAreLocked(plan);
     const draft = { state: sectionDraftState, retry: retrySectionDraft };
+    const approvedIdeaOnly =
+        includesIdeaValidation && ideaValidationApproved && !includesPlanBudget;
+    const ideaValidationCompletion = Math.round(
+        (ideaFields.filter(({ key, minimum }) => {
+            return ideaForm.data[key].trim().length >= minimum;
+        }).length /
+            ideaFields.length) *
+            100,
+    );
+    const isIdeaValidationProgress =
+        includesIdeaValidation && !includesPlanBudget;
+    const planIsComplete =
+        includesPlanBudget &&
+        planCompletion.total > 0 &&
+        planCompletion.completed === planCompletion.total;
+    const progress = isIdeaValidationProgress
+        ? {
+              label: 'Idea validation progress',
+              percent: ideaValidationCompletion,
+              actionLabel: approvedIdeaOnly
+                  ? 'Open Business Plan & Budget'
+                  : 'Review idea validation',
+          }
+        : {
+              label: 'Plan progress',
+              percent: planCompletion.percent,
+              actionLabel: planIsComplete
+                  ? journey.assessment.finalised
+                      ? 'View assessment'
+                      : 'Review Business Plan & Budget'
+                  : hasPlan
+                    ? 'Open plan requirements'
+                    : 'Start plan requirements',
+          };
+    const openProgress = () => {
+        if (approvedIdeaOnly) {
+            router.visit(urls.planBudgetAccess);
+
+            return;
+        }
+
+        if (planIsComplete && plan?.latest_assessment?.url) {
+            router.visit(plan.latest_assessment.url);
+
+            return;
+        }
+
+        document
+            .getElementById(
+                isIdeaValidationProgress
+                    ? 'idea-validation'
+                    : 'business-plan-requirements',
+            )
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
     const showPriorityActions = shouldShowPlanWorkspacePriorityActions(
         includesIdeaValidation,
         includesPlanBudget,
+    );
+    const ideaStarter = ideaValidationStarter(
+        selectedRequirement?.key ?? null,
+        ideaValidation,
     );
 
     return (
@@ -137,24 +193,6 @@ export function PlanWorkspaceActions({
                             advisor still reviews the evidence and agrees the
                             next step with you.
                         </p>
-                        {nextSmallWin.action === 'Start idea validation' ? (
-                            <div className="mt-3">
-                                <Button asChild size="sm">
-                                    <a href="#idea-validation">
-                                        Start idea validation
-                                    </a>
-                                </Button>
-                            </div>
-                        ) : null}
-                        {nextSmallWin.action === 'Revise idea validation' ? (
-                            <div className="mt-3">
-                                <Button asChild size="sm">
-                                    <a href="#idea-validation">
-                                        Revise idea validation
-                                    </a>
-                                </Button>
-                            </div>
-                        ) : null}
                         {nextSmallWin.action === 'Start plan' ? (
                             <div className="mt-3">
                                 <Button
@@ -166,28 +204,34 @@ export function PlanWorkspaceActions({
                                 </Button>
                             </div>
                         ) : null}
-                        {gamification.enabled && gamification.next_quest ? (
+                        {gamification.enabled ? (
                             <p className="mt-1 text-xs text-muted-foreground">
-                                Next quest: {gamification.next_quest.label} for{' '}
-                                {gamification.next_quest.points} points.
+                                Journey step: {journey.next.label}
                             </p>
                         ) : null}
                     </div>
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>Plan progress</span>
-                            <span>{planCompletion.percent}%</span>
-                        </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-muted">
-                            <div
+                    <button
+                        type="button"
+                        className="group block w-full rounded-md p-2 text-left transition-colors hover:bg-muted/60 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                        onClick={openProgress}
+                    >
+                        <span className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>{progress.label}</span>
+                            <span>{progress.percent}%</span>
+                        </span>
+                        <span className="mt-1 block h-2 overflow-hidden rounded-full bg-muted">
+                            <span
                                 className="h-full rounded-full bg-emerald-500 transition-all"
                                 style={{
-                                    width: `${Math.min(100, Math.max(0, planCompletion.percent))}%`,
+                                    width: `${Math.min(100, Math.max(0, progress.percent))}%`,
                                 }}
                             />
-                        </div>
+                        </span>
+                        <span className="mt-2 block text-xs font-medium text-primary underline-offset-4 group-hover:underline">
+                            {progress.actionLabel}
+                        </span>
                         {gamification.enabled ? (
-                            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                            <span className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                                 <span>
                                     Streak {gamification.current_streak ?? 0}{' '}
                                     days
@@ -200,13 +244,11 @@ export function PlanWorkspaceActions({
                                             : 's'}
                                     </span>
                                 ) : null}
-                            </div>
+                            </span>
                         ) : null}
-                    </div>
+                    </button>
                 </div>
             </section>
-
-            <PlainLanguageGuide />
 
             {includesIdeaValidation ? (
                 <section
@@ -316,16 +358,31 @@ export function PlanWorkspaceActions({
                                     </p>
                                 </div>
                             ))}
-                            {ideaValidation?.advisor_gate_note ? (
-                                <div className="rounded-md border bg-muted/20 p-3 md:col-span-2 xl:col-span-3">
-                                    <div className="text-xs font-medium text-muted-foreground">
-                                        Advisor note
-                                    </div>
-                                    <p className="mt-1 text-sm">
+                            <div className="rounded-md border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950 md:col-span-2 xl:col-span-3">
+                                <div className="font-medium">Advisor note</div>
+                                <p className="mt-1">
+                                    Your idea has been validated. You have
+                                    demonstrated a clear customer problem, a
+                                    defined target customer, and a potential
+                                    solution. Your next best step is to turn
+                                    this validated idea into a practical
+                                    Business Plan &amp; Budget, covering
+                                    delivery, pricing, costs, cash flow, and
+                                    funding needs.
+                                </p>
+                                {ideaValidation?.advisor_gate_note ? (
+                                    <p className="mt-3 border-t border-sky-200 pt-3 text-sky-900">
                                         {ideaValidation.advisor_gate_note}
                                     </p>
-                                </div>
-                            ) : null}
+                                ) : null}
+                                {approvedIdeaOnly ? (
+                                    <Button asChild className="mt-3" size="sm">
+                                        <Link href={urls.planBudgetAccess}>
+                                            Business Plan &amp; Budget
+                                        </Link>
+                                    </Button>
+                                ) : null}
+                            </div>
                         </div>
                     ) : showIdeaValidationEditor ? (
                         <form
@@ -367,9 +424,15 @@ export function PlanWorkspaceActions({
                                                 }
                                             </span>
                                         </span>
-                                        <span className="text-xs text-muted-foreground">
+                                        <p className="text-xs text-muted-foreground">
                                             {field.plain}
-                                        </span>
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            <span className="font-medium text-foreground">
+                                                Include:{' '}
+                                            </span>
+                                            {field.guidance}
+                                        </p>
                                         <FormattedTextarea
                                             id={fieldId}
                                             value={fieldValue}
@@ -668,6 +731,33 @@ export function PlanWorkspaceActions({
                                                 ) : null}
                                             </div>
                                         </div>
+                                        {ideaStarter ? (
+                                            <div className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-950">
+                                                <div className="font-medium">
+                                                    From your validated idea
+                                                </div>
+                                                <p className="mt-1 whitespace-pre-line text-sky-900">
+                                                    {ideaStarter}
+                                                </p>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="mt-3 border-sky-300 bg-white"
+                                                    disabled={planChangesLocked}
+                                                    onClick={() =>
+                                                        setSectionBody(
+                                                            (current) =>
+                                                                current.trim()
+                                                                    ? `${current}\n\n${ideaStarter}`
+                                                                    : ideaStarter,
+                                                        )
+                                                    }
+                                                >
+                                                    Use as a starting point
+                                                </Button>
+                                            </div>
+                                        ) : null}
                                         {selectedRequirement.key ===
                                             'executive-summary' &&
                                         plan?.executive_summary ? (
@@ -742,6 +832,13 @@ export function PlanWorkspaceActions({
                                                 </span>
                                             </span>
                                             <DraftSaveStatus draft={draft} />
+                                            <p className="text-xs text-muted-foreground">
+                                                Your changes save automatically.
+                                                Add the operating detail and
+                                                evidence that makes this
+                                                requirement specific to your
+                                                business.
+                                            </p>
                                             <FormattedTextarea
                                                 id="entrepreneur-plan-section-body"
                                                 value={sectionBody}
@@ -758,59 +855,50 @@ export function PlanWorkspaceActions({
                                                 }
                                             />
                                         </div>
-                                        {selectedRequirement.key !==
-                                        'executive-summary' ? (
-                                            <FileDropzone
-                                                key={supportingKey}
-                                                id="entrepreneur-plan-support"
-                                                files={
-                                                    supportingFile
-                                                        ? [supportingFile]
-                                                        : []
-                                                }
-                                                label="Attach supporting document"
-                                                disabled={
-                                                    planChangesLocked ||
-                                                    uploadingSupportingDocument
-                                                }
-                                                onFilesChange={(files) => {
-                                                    const selectedFile =
-                                                        files[0] ?? null;
-                                                    setSupportingFile(
+                                        <PlanSupportingDocuments
+                                            canAttachSupportingDocument={
+                                                selectedRequirement.key !==
+                                                'executive-summary'
+                                            }
+                                            planChangesLocked={
+                                                planChangesLocked
+                                            }
+                                            supportingKey={supportingKey}
+                                            supportingFile={supportingFile}
+                                            uploadingSupportingDocument={
+                                                uploadingSupportingDocument
+                                            }
+                                            sectionError={sectionError}
+                                            pendingSupportingDocument={
+                                                pendingSupportingDocument
+                                            }
+                                            supportingDocumentNotice={
+                                                supportingDocumentNotice
+                                            }
+                                            supportingDocuments={
+                                                supportingDocuments
+                                            }
+                                            onFilesChange={(selectedFile) => {
+                                                setSupportingFile(selectedFile);
+
+                                                if (selectedFile) {
+                                                    void uploadSupportingDocument(
                                                         selectedFile,
                                                     );
-
-                                                    if (selectedFile) {
-                                                        void uploadSupportingDocument(
-                                                            selectedFile,
-                                                        );
-                                                    }
-                                                }}
-                                            />
-                                        ) : null}
-                                        {uploadingSupportingDocument ? (
-                                            <span
-                                                className="text-xs text-muted-foreground"
-                                                role="status"
-                                            >
-                                                Uploading supporting document…
-                                            </span>
-                                        ) : sectionError && supportingFile ? (
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() =>
-                                                    void uploadSupportingDocument()
                                                 }
-                                            >
-                                                <Upload
-                                                    className="size-4"
-                                                    aria-hidden="true"
-                                                />
-                                                Retry upload
-                                            </Button>
-                                        ) : null}
+                                            }}
+                                            onRetryAttachment={() =>
+                                                void retrySupportingDocumentAttachment()
+                                            }
+                                            onRemove={(document) =>
+                                                void removeSupportingDocument(
+                                                    document,
+                                                )
+                                            }
+                                            onRetryUpload={() =>
+                                                void uploadSupportingDocument()
+                                            }
+                                        />
                                         <InputError
                                             message={sectionError ?? undefined}
                                         />
@@ -837,26 +925,6 @@ export function PlanWorkspaceActions({
                                                 </p>
                                             </div>
                                         ) : null}
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            onClick={() => void saveSection()}
-                                            disabled={
-                                                !plan ||
-                                                savingSection ||
-                                                selectedRequirement.key ===
-                                                    'executive-summary' ||
-                                                planChangesLocked
-                                            }
-                                        >
-                                            <Upload
-                                                className="size-4"
-                                                aria-hidden="true"
-                                            />
-                                            {savingSection
-                                                ? 'Saving'
-                                                : 'Save requirement'}
-                                        </Button>
                                     </>
                                 )
                             ) : (
@@ -887,7 +955,7 @@ export function PlanWorkspaceActions({
                                           ? 'Your advisor requested changes to the idea validation. Update and resubmit it before these sections open.'
                                           : hasIdeaValidation
                                             ? 'Your idea validation has been submitted. Your advisor needs to approve it before these sections open.'
-                                            : 'Complete idea validation first so your advisor can confirm the concept before detailed plan work starts.'}
+                                            : 'Complete the Idea Validation form above so your advisor can confirm the concept before detailed plan work starts.'}
                                 </p>
                             </div>
                             {planBuilderUnlocked ? (
@@ -897,17 +965,6 @@ export function PlanWorkspaceActions({
                                     onClick={startPlan}
                                 >
                                     Start plan
-                                </Button>
-                            ) : !hasIdeaValidation ||
-                              ideaChangesRequested ||
-                              ideaValidationRecalled ? (
-                                <Button asChild size="sm">
-                                    <a href="#idea-validation">
-                                        {ideaChangesRequested ||
-                                        ideaValidationRecalled
-                                            ? 'Revise idea validation'
-                                            : 'Start idea validation'}
-                                    </a>
                                 </Button>
                             ) : null}
                         </div>
@@ -923,4 +980,45 @@ export function PlanWorkspaceActions({
             />
         </div>
     );
+}
+
+function ideaValidationStarter(
+    requirementKey: string | null,
+    ideaValidation: PlanWorkspace['ideaValidation'],
+): string | null {
+    if (!ideaValidation || !requirementKey) {
+        return null;
+    }
+
+    const sources: Record<string, string[]> = {
+        'business-type-location': [
+            `Customer problem: ${ideaValidation.problem}`,
+            `Target customer: ${ideaValidation.target_customer}`,
+            `Initial offer: ${ideaValidation.solution}`,
+        ],
+        'mission-vision': [
+            `Problem to solve: ${ideaValidation.problem}`,
+            `Customer outcome: ${ideaValidation.value_proposition}`,
+        ],
+        'industry-customer-demand': [
+            `Target customer: ${ideaValidation.target_customer}`,
+            `Demand evidence: ${ideaValidation.demand_signal}`,
+        ],
+        differentiation: [
+            `Initial offer: ${ideaValidation.solution}`,
+            `Why the customer may choose it: ${ideaValidation.value_proposition}`,
+        ],
+        'revenue-model': [
+            `Validated revenue approach: ${ideaValidation.revenue_model}`,
+            `Demand evidence to test against: ${ideaValidation.demand_signal}`,
+        ],
+        'financial-assumptions': [
+            `Revenue starting point: ${ideaValidation.revenue_model}`,
+            `Offer to cost and price: ${ideaValidation.solution}`,
+        ],
+    };
+
+    const source = sources[requirementKey];
+
+    return source ? source.join('\n\n') : null;
 }

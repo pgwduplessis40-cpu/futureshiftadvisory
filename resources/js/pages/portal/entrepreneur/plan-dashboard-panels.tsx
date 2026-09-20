@@ -43,6 +43,8 @@ export const ideaFields = [
         minimum: 5,
         placeholder: 'What specific customer problem are you solving?',
         plain: 'What is hard, costly, risky, or frustrating for the customer right now?',
+        guidance:
+            'Describe one real customer problem, who experiences it, when it happens, and the cost or risk it causes. Do not describe your solution yet.',
     },
     {
         key: 'target_customer',
@@ -50,6 +52,8 @@ export const ideaFields = [
         minimum: 3,
         placeholder: 'Who has this problem and how do you know?',
         plain: 'Who exactly would pay attention to this problem first?',
+        guidance:
+            'Name the first specific group you will serve, not everyone. Explain what you have seen, heard, or measured that tells you this group has the problem.',
     },
     {
         key: 'solution',
@@ -57,6 +61,8 @@ export const ideaFields = [
         minimum: 10,
         placeholder: 'What will you offer and how will it work?',
         plain: 'What will you sell or deliver, and what changes for the customer?',
+        guidance:
+            'Explain the first practical offer: what the customer receives, how it works, and the result it creates. Keep this focused on the first usable version.',
     },
     {
         key: 'value_proposition',
@@ -64,6 +70,8 @@ export const ideaFields = [
         minimum: 10,
         placeholder: 'Why would the customer choose this over alternatives?',
         plain: 'Why would a customer choose you instead of doing nothing or choosing another option?',
+        guidance:
+            'State the customer benefit and why it is better than their current option. Be specific about saved time, money, risk, effort, or a better outcome.',
     },
     {
         key: 'demand_signal',
@@ -71,6 +79,8 @@ export const ideaFields = [
         minimum: 5,
         placeholder: 'What evidence shows people want or need this?',
         plain: 'What have real people done or said that shows this is worth testing further?',
+        guidance:
+            'Use evidence from real customers: interviews, quotes, bookings, deposits, pilots, repeat requests, or sales. Say how many people and what they committed to.',
     },
     {
         key: 'revenue_model',
@@ -78,6 +88,8 @@ export const ideaFields = [
         minimum: 5,
         placeholder: 'How will the business earn, collect, and retain revenue?',
         plain: 'How will money come in, how often, and from whom?',
+        guidance:
+            'Explain who pays, what they pay for, the expected price, and how often payment happens. Separate one-off fees from recurring revenue if both apply.',
     },
 ] satisfies {
     key:
@@ -91,40 +103,8 @@ export const ideaFields = [
     minimum: number;
     placeholder: string;
     plain: string;
+    guidance: string;
 }[];
-
-const plainLanguageTerms = [
-    {
-        term: 'Target customer',
-        meaning:
-            'The specific person or business most likely to need this first.',
-    },
-    {
-        term: 'Demand signal',
-        meaning:
-            'Evidence that someone wants the offer, such as interviews, bookings, pilots, deposits, or repeated requests.',
-    },
-    {
-        term: 'Value proposition',
-        meaning:
-            'The reason a customer would choose this option instead of another option or doing nothing.',
-    },
-    {
-        term: 'Revenue model',
-        meaning:
-            'How the business gets paid, how often it gets paid, and what keeps that income going.',
-    },
-    {
-        term: 'Evidence',
-        meaning:
-            'Real support for a claim: a quote, customer note, test result, sale, supplier price, contract, or clear calculation.',
-    },
-    {
-        term: 'Advisory ready',
-        meaning:
-            'Ready for an advisor to rely on the plan enough to agree the next service or roadmap.',
-    },
-] satisfies Array<{ term: string; meaning: string }>;
 
 export function TabList({
     activeTab,
@@ -156,30 +136,6 @@ export function TabList({
                 </button>
             ))}
         </div>
-    );
-}
-
-export function PlainLanguageGuide() {
-    return (
-        <section className="space-y-3 rounded-md border bg-background p-4">
-            <div>
-                <h2 className="text-sm font-medium">Plain English guide</h2>
-                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-                    These are the business terms used in the workspace, written
-                    as the practical questions your advisor needs answered.
-                </p>
-            </div>
-            <dl className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-3">
-                {plainLanguageTerms.map((term) => (
-                    <div key={term.term}>
-                        <dt className="font-medium">{term.term}</dt>
-                        <dd className="mt-1 text-muted-foreground">
-                            {term.meaning}
-                        </dd>
-                    </div>
-                ))}
-            </dl>
-        </section>
     );
 }
 

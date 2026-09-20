@@ -298,6 +298,14 @@ export type PlanSectionPayload = {
     source_type: string;
     completeness_status: string;
     attached_document_ids: string[];
+    attached_documents: Array<{
+        id: string;
+        original_filename: string;
+        byte_size: number;
+        scanner_result: string;
+        uploaded_at: string | null;
+        url: string;
+    }>;
     predictive_score: {
         score?: number;
         band?: string;
@@ -378,9 +386,30 @@ export type PackageAccessPayload = {
     source_activation_id: string | null;
 };
 
+export type EntrepreneurJourneyPayload = {
+    state: string;
+    active_service: 'Idea Validation' | 'Business Plan & Budget' | 'Advisory';
+    includes_idea_validation: boolean;
+    includes_plan_budget: boolean;
+    idea_validation: { submitted: boolean; approved: boolean };
+    plan: {
+        exists: boolean;
+        completion: { total: number; completed: number; percent: number };
+    };
+    assessment: { exists: boolean; finalised: boolean; status_label: string };
+    advisory: { available: boolean; label: string; url: string };
+    next: { label: string; description: string; url: string };
+    tabs: {
+        advisory: boolean;
+        idea_validation: boolean;
+        plan_budget: boolean;
+    };
+};
+
 export type Props = {
     profile: ProfilePayload;
     packageAccess: PackageAccessPayload;
+    journey: EntrepreneurJourneyPayload;
     ideaValidation: IdeaValidationPayload;
     ideaValidationVersions: IdeaValidationVersion[];
     plan: BusinessPlanPayload;
@@ -390,6 +419,7 @@ export type Props = {
     gamification: GamificationPayload;
     urls: {
         dashboard: string;
+        planBudgetAccess: string;
         ideaValidation: string;
         ideaValidationDraft: string;
         recallIdeaValidation: string;

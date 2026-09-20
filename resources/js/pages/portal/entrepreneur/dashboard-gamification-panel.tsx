@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { Flame, Trophy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,18 +9,30 @@ export function DashboardGamificationPanel({
     gamification,
     isIdeaValidationOnly,
     ideaValidationSubmitted,
+    journey,
 }: {
     gamification: GamificationPayload;
     isIdeaValidationOnly: boolean;
     ideaValidationSubmitted: boolean;
+    journey: {
+        active_service:
+            | 'Idea Validation'
+            | 'Business Plan & Budget'
+            | 'Advisory';
+        plan: { exists: boolean; completion: { percent: number } };
+        assessment: { status_label: string };
+        next: { label: string; description: string; url: string };
+    } | null;
 }) {
     const badges = gamification.badges ?? [];
     const newBadgeCount = gamification.new_badge_count ?? 0;
-    const completionPercent = isIdeaValidationOnly
-        ? ideaValidationSubmitted
-            ? 100
-            : 0
-        : (gamification.plan_completion?.percent ?? 0);
+    const completionPercent = journey?.plan.exists
+        ? journey.plan.completion.percent
+        : isIdeaValidationOnly
+          ? ideaValidationSubmitted
+              ? 100
+              : 0
+          : (gamification.plan_completion?.percent ?? 0);
     const markSeen = () => {
         if (!gamification.seen_url) {
             return;
@@ -60,14 +72,17 @@ export function DashboardGamificationPanel({
                         {journeyLevelLabel(gamification.current_level)}
                     </div>
                 </div>
-                <div
+                <Link
+                    href={journey?.next.url ?? '/portal/entrepreneur/plan'}
                     className="rounded-md border bg-background p-4"
                     data-co-browse-target="entrepreneur.dashboard.progress"
                 >
                     <div className="text-xs text-muted-foreground">
-                        {isIdeaValidationOnly
-                            ? 'Idea Validation completion'
-                            : 'Plan completion'}
+                        {journey?.active_service
+                            ? `${journey.active_service} progress`
+                            : isIdeaValidationOnly
+                              ? 'Idea Validation completion'
+                              : 'Plan completion'}
                     </div>
                     <div className="mt-2 text-sm font-medium">
                         {completionPercent}%
@@ -80,7 +95,12 @@ export function DashboardGamificationPanel({
                             }}
                         />
                     </div>
-                </div>
+                    {journey ? (
+                        <div className="mt-2 text-xs font-medium text-primary">
+                            {journey.next.label}
+                        </div>
+                    ) : null}
+                </Link>
                 <div className="rounded-md border bg-background p-4">
                     <div className="text-xs text-muted-foreground">
                         Journey points
@@ -111,7 +131,21 @@ export function DashboardGamificationPanel({
                 </div>
             </div>
 
-            {gamification.next_quest ? (
+            {journey ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/30 p-3">
+                    <div>
+                        <div className="text-sm font-medium">
+                            Next step: {journey.next.label}
+                        </div>
+                        <div className="mt-1 text-sm text-muted-foreground">
+                            {journey.next.description}
+                        </div>
+                    </div>
+                    <Badge variant="outline">
+                        Assessment: {journey.assessment.status_label}
+                    </Badge>
+                </div>
+            ) : gamification.next_quest ? (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/30 p-3">
                     <div>
                         <div className="text-sm font-medium">
@@ -143,7 +177,7 @@ export function DashboardGamificationPanel({
                         </Badge>
                     ))}
                 </div>
-            ) : gamification.next_milestone ? (
+            ) : !journey && gamification.next_milestone ? (
                 <div className="text-sm text-muted-foreground">
                     Next: {nextMilestoneLabel(gamification.next_milestone)}
                 </div>

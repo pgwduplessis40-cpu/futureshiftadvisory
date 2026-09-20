@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Entrepreneurs;
 
+use App\Enums\ProposalStatus;
 use App\Models\AdvisoryReadinessSignal;
 use App\Models\BusinessPlan;
 use App\Models\Client;
@@ -248,7 +249,7 @@ final class FoundingAdvisoryService
     public function advisorPayload(Client $client): ?array
     {
         $engagement = FoundingAdvisoryEngagement::query()
-            ->with(['roadmapVersions.strategicPlan.milestones'])
+            ->with(['proposal', 'roadmapVersions.strategicPlan.milestones'])
             ->where('client_id', $client->getKey())
             ->first();
 
@@ -263,7 +264,7 @@ final class FoundingAdvisoryService
     public function founderPayload(EntrepreneurProfile $profile): ?array
     {
         $engagement = FoundingAdvisoryEngagement::query()
-            ->with(['roadmapVersions.strategicPlan.milestones'])
+            ->with(['proposal', 'roadmapVersions.strategicPlan.milestones'])
             ->where('entrepreneur_profile_id', $profile->getKey())
             ->first();
 
@@ -639,6 +640,14 @@ final class FoundingAdvisoryService
             'replan_due_at' => $engagement->replan_due_at?->toIso8601String(),
             'replan_due' => $engagement->replan_due_at?->isPast() ?? false,
             'transition_review_at' => $engagement->transition_review_at?->toIso8601String(),
+            'proposal' => $engagement->proposal instanceof Proposal ? [
+                'id' => $engagement->proposal->getKey(),
+                'status' => $engagement->proposal->status->value,
+                'status_label' => str($engagement->proposal->status->value)->replace('_', ' ')->title()->toString(),
+                'signoff_url' => $engagement->proposal->status === ProposalStatus::Released
+                    ? route('portal.proposals.signoff.show', $engagement->proposal, absolute: false)
+                    : null,
+            ] : null,
             'current_version' => $current instanceof FoundingRoadmapVersion ? $this->versionPayload($current, $forAdvisor) : null,
             'draft_version' => $draft instanceof FoundingRoadmapVersion ? $this->versionPayload($draft, $forAdvisor) : null,
             'versions' => $versions

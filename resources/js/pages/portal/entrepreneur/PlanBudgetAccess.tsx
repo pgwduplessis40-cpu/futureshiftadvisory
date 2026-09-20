@@ -11,6 +11,10 @@ type Offer = {
     currency: string | null;
 };
 
+export function planBudgetApprovalMessage(price: string | null): string {
+    return `Once your idea meets the minimum criteria and your advisor approves it, you will be able to purchase Business Plan & Budget here${price ? ` for ${price}.` : '.'}`;
+}
+
 export default function PlanBudgetAccess({
     hasPlanBudgetAccess,
     ideaValidationApproved,
@@ -85,16 +89,9 @@ export default function PlanBudgetAccess({
                                     Available after approval
                                 </h2>
                                 <p className="mt-1 text-sm text-muted-foreground">
-                                    Once your advisor validates your idea, you
-                                    will be able to purchase Business Plan &amp;
-                                    Budget here.
+                                    {planBudgetApprovalMessage(price)}
                                 </p>
-                                <Button
-                                    asChild
-                                    className="mt-4"
-                                    size="sm"
-                                    variant="outline"
-                                >
+                                <Button asChild className="mt-4" size="sm">
                                     <Link href={workspaceUrl}>
                                         Return to Idea Validation
                                     </Link>

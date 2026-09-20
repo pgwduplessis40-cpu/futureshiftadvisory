@@ -10,6 +10,7 @@ use App\Http\Controllers\Portal\ClientLeavePeriodController;
 use App\Http\Controllers\Portal\DashboardController as ClientPortalDashboardController;
 use App\Http\Controllers\Portal\DdBusinessPlanController;
 use App\Http\Controllers\Portal\EntrepreneurAdvisoryRequestController;
+use App\Http\Controllers\Portal\EntrepreneurAdvisoryServicesController;
 use App\Http\Controllers\Portal\EntrepreneurAssessmentController;
 use App\Http\Controllers\Portal\EntrepreneurDashboardController;
 use App\Http\Controllers\Portal\EntrepreneurGamificationController;
@@ -104,6 +105,7 @@ Route::middleware(['auth', 'verified', 'mfa', EnsureEntrepreneurInviteOfferAccep
         Route::post('entrepreneur/service-offer', [EntrepreneurServiceOfferController::class, 'store'])->name('entrepreneur.service-offer.store');
         Route::get('entrepreneur/plan', [EntrepreneurPlanWorkspaceController::class, 'show'])->name('entrepreneur.plan.show');
         Route::get('entrepreneur/plan-budget', EntrepreneurPlanBudgetAccessController::class)->name('entrepreneur.plan-budget.show');
+        Route::get('entrepreneur/advisory-services', EntrepreneurAdvisoryServicesController::class)->name('entrepreneur.advisory-services.show');
         Route::post('entrepreneur/plan-budget/payment-intent', [EntrepreneurPlanBudgetCheckoutController::class, 'paymentIntent'])->name('entrepreneur.plan-budget.payment-intent');
         Route::post('entrepreneur/plan-budget/confirm-payment', [EntrepreneurPlanBudgetCheckoutController::class, 'confirmPayment'])->name('entrepreneur.plan-budget.confirm-payment');
         Route::post('entrepreneur/plan-budget/confirm-fixture-payment', [EntrepreneurPlanBudgetCheckoutController::class, 'confirmFixturePayment'])->name('entrepreneur.plan-budget.confirm-fixture-payment');

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Database;
 
 use App\Enums\EngagementType;
+use App\Http\Controllers\Portal\EntrepreneurPlanWorkspace;
 use App\Models\AnalysisFinding;
 use App\Models\AnalysisRun;
 use App\Models\Client;
@@ -27,6 +28,7 @@ use App\Models\ServiceRatePackage;
 use App\Models\StrategicBudget;
 use App\Models\Template;
 use App\Models\User;
+use App\Services\Entrepreneurs\EntrepreneurJourney;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Portal\OnboardingWizard;
 use App\Services\Pv\PvWaterfallBuilder;
@@ -75,6 +77,7 @@ final class TestingSeedDataSeederTest extends TestCase
             'risk_costs',
             'templates',
             'proposals',
+            'founding_advisory_engagements',
             'service_rate_packages',
             'service_activations',
             'business_plans',
@@ -88,6 +91,7 @@ final class TestingSeedDataSeederTest extends TestCase
             'entrepreneur_profiles',
             'idea_validations',
             'idea_validation_purchases',
+            'entrepreneur_plan_budget_purchases',
             'advisor_client_transfer_requests',
         ];
 
@@ -196,6 +200,8 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertAtLeast(1, 'advisory_readiness_signals');
         $this->assertAtLeast(2, 'outcome_follow_ups');
         $this->assertSeededIdeaValidationTestScenarios();
+        $this->assertSeededPaidPlanBudgetTestScenarios();
+        $this->assertSeededAdvisoryServiceTestScenarios();
 
         $this->assertAtLeast(2, 'panel_members');
         $this->assertAtLeast(2, 'panel_agreements');
@@ -269,6 +275,39 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertAtLeast(1, 'offboarding_records');
         $this->assertAtLeast(1, 'bulk_communications');
         $this->assertAtLeast(3, 'bulk_communication_recipients');
+    }
+
+    public function test_advisory_proposal_fixture_shows_the_founder_handoff_and_signoff(): void
+    {
+        $this->seed(TestingSeedDataSeeder::class);
+
+        $entrepreneur = User::query()
+            ->where('email', 'seed.idea-advisory.proposal@futureshiftadvisory.test')
+            ->firstOrFail();
+        $proposal = Proposal::query()
+            ->whereHas('foundingAdvisoryEngagement.entrepreneurProfile', fn ($query) => $query
+                ->where('email', 'seed.idea-advisory.proposal@futureshiftadvisory.test'))
+            ->firstOrFail();
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('portal/entrepreneur/Dashboard')
+                ->where('journey.state', 'advisory_proposal')
+                ->where('journey.active_service', 'Advisory')
+                ->where('journey.next.label', 'Review advisory proposal')
+                ->where('journey.next.url', route('portal.proposals.signoff.show', $proposal, absolute: false))
+                ->where('foundingAdvisory.status', 'proposal_sent')
+                ->where('foundingAdvisory.proposal.id', $proposal->getKey())
+                ->where('foundingAdvisory.proposal.signoff_url', route('portal.proposals.signoff.show', $proposal, absolute: false)));
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.proposals.signoff.show', $proposal))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('portal/ProposalSignoff')
+                ->where('proposal.id', $proposal->getKey()));
     }
 
     /**
@@ -524,6 +563,212 @@ final class TestingSeedDataSeederTest extends TestCase
             'email' => 'seed.idea.cancel@futureshiftadvisory.test',
             'suspended_at' => null,
         ]);
+    }
+
+    private function assertSeededPaidPlanBudgetTestScenarios(): void
+    {
+        $package = DB::table('service_rate_packages')
+            ->where('service_type', ServiceRatePackage::SERVICE_ENTREPRENEUR)
+            ->where('package_scope', ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET)
+            ->where('is_active', true)
+            ->orderByDesc('effective_from')
+            ->first();
+
+        $this->assertNotNull($package, 'Expected an active Business Plan & Budget Service Rate.');
+        $expectedGross = round((float) $package->fixed_fee * 1.15, 2);
+
+        foreach ([
+            'start' => ['stage' => 'building_phase1', 'plan_status' => 'building', 'assessment_finalised' => false],
+            'financials' => ['stage' => 'building_phase5', 'plan_status' => 'building', 'assessment_finalised' => false],
+            'review' => ['stage' => 'submitted', 'plan_status' => 'submitted', 'assessment_finalised' => false],
+            'approved' => ['stage' => 'advisory_ready', 'plan_status' => 'finalised', 'assessment_finalised' => true],
+        ] as $state => $expectation) {
+            $profile = DB::table('entrepreneur_profiles')
+                ->where('email', "seed.plan-budget.{$state}@futureshiftadvisory.test")
+                ->first();
+            $this->assertNotNull($profile, "Expected the paid BP&B {$state} profile.");
+            $this->assertSame($expectation['stage'], $profile->stage);
+            $this->assertSame(ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET, $profile->intended_package_scope);
+            $this->assertNotNull($profile->client_id, "Expected the paid BP&B {$state} profile to have a client record.");
+
+            $purchase = DB::table('entrepreneur_plan_budget_purchases')
+                ->where('entrepreneur_profile_id', $profile->id)
+                ->first();
+            $this->assertNotNull($purchase, "Expected the paid BP&B {$state} purchase.");
+            $this->assertSame('paid', $purchase->status);
+            $this->assertNotNull($purchase->paid_at);
+            $this->assertNotNull($purchase->activated_at);
+            $this->assertNotNull($purchase->approved_idea_validation_id);
+            $this->assertSame((float) $package->fixed_fee, (float) $purchase->amount_ex_gst);
+            $this->assertSame($expectedGross, (float) $purchase->amount_including_gst);
+
+            $payment = DB::table('payments')->where('id', $purchase->payment_id)->first();
+            $this->assertNotNull($payment, "Expected the paid BP&B {$state} payment record.");
+            $this->assertSame('succeeded', $payment->status);
+            $this->assertSame($expectedGross, (float) $payment->amount);
+
+            $idea = DB::table('idea_validations')->where('id', $purchase->approved_idea_validation_id)->first();
+            $this->assertNotNull($idea, "Expected the paid BP&B {$state} approved idea validation.");
+            $this->assertNotNull($idea->advisor_gate_passed_at);
+
+            $plan = DB::table('business_plans')
+                ->where('entrepreneur_profile_id', $profile->id)
+                ->where('source_type', 'entrepreneur')
+                ->first();
+            $this->assertNotNull($plan, "Expected the paid BP&B {$state} workspace.");
+            $this->assertSame($expectation['plan_status'], $plan->status);
+
+            $modelProfile = EntrepreneurProfile::query()->findOrFail($profile->id);
+            $workspace = app(EntrepreneurPlanWorkspace::class);
+            $journey = app(EntrepreneurJourney::class)->payload(
+                $modelProfile,
+                $workspace->packageAccess($modelProfile),
+                $workspace->latestPlan($modelProfile),
+            );
+            $this->assertSame('Business Plan & Budget', $journey['active_service']);
+            $this->assertTrue($journey['includes_plan_budget']);
+            $this->assertSame(
+                match ($state) {
+                    'review' => 'plan_budget_review',
+                    'approved' => 'plan_budget_assessed',
+                    default => 'plan_budget_building',
+                },
+                $journey['state'],
+            );
+            $this->assertSame(
+                $expectation['assessment_finalised']
+                    ? 'Feedback ready'
+                    : ($state === 'review' ? 'Awaiting advisor review' : 'Not started'),
+                $journey['assessment']['status_label'],
+            );
+            $this->assertSame(
+                $state === 'approved',
+                $journey['advisory']['available'],
+                "The paid BP&B {$state} fixture has an unexpected advisory-request state.",
+            );
+
+            if ($state === 'financials') {
+                $this->assertSame(18, $journey['plan']['completion']['total']);
+                $this->assertSame(17, $journey['plan']['completion']['completed']);
+                $this->assertSame(94, $journey['plan']['completion']['percent']);
+
+                $budget = DB::table('entrepreneur_budgets')
+                    ->where('business_plan_id', $plan->id)
+                    ->first();
+                $this->assertNotNull($budget, 'Expected the Financials fixture to have a budget.');
+                $this->assertSame('partial', $budget->status);
+                $this->assertSame([], json_decode((string) $budget->funding_sources, true));
+            }
+
+            $assessment = DB::table('plan_assessments')
+                ->where('business_plan_id', $plan->id)
+                ->orderByDesc('round')
+                ->first();
+            if ($expectation['assessment_finalised']) {
+                $this->assertNotNull($assessment, 'Expected an approved BP&B assessment.');
+                $this->assertNotNull($assessment->finalised_at);
+                $this->assertDatabaseHas('advisory_readiness_signals', [
+                    'entrepreneur_profile_id' => $profile->id,
+                    'business_plan_id' => $plan->id,
+                    'plan_assessment_id' => $assessment->id,
+                ]);
+            } else {
+                $this->assertNull($assessment, "The BP&B {$state} fixture should not have a finalised assessment.");
+            }
+        }
+    }
+
+    private function assertSeededAdvisoryServiceTestScenarios(): void
+    {
+        foreach ([
+            'start' => [
+                'email' => 'seed.idea-advisory.start@futureshiftadvisory.test',
+                'founding_engagement' => false,
+                'journey_state' => 'plan_budget_assessed',
+                'active_service' => 'Business Plan & Budget',
+                'advisory_available' => true,
+            ],
+            'proposal' => [
+                'email' => 'seed.idea-advisory.proposal@futureshiftadvisory.test',
+                'founding_engagement' => true,
+                'journey_state' => 'advisory_proposal',
+                'active_service' => 'Advisory',
+                'advisory_available' => false,
+            ],
+        ] as $state => $expectation) {
+            $profile = DB::table('entrepreneur_profiles')
+                ->where('email', $expectation['email'])
+                ->first();
+            $this->assertNotNull($profile, "Expected the advisory {$state} profile.");
+            $this->assertSame('advisory_ready', $profile->stage);
+
+            $purchase = DB::table('entrepreneur_plan_budget_purchases')
+                ->where('entrepreneur_profile_id', $profile->id)
+                ->first();
+            $this->assertNotNull($purchase, "Expected the advisory {$state} BP&B purchase.");
+            $this->assertSame('paid', $purchase->status);
+
+            $plan = DB::table('business_plans')
+                ->where('entrepreneur_profile_id', $profile->id)
+                ->where('source_type', 'entrepreneur')
+                ->first();
+            $this->assertNotNull($plan, "Expected the advisory {$state} BP&B workspace.");
+
+            $assessment = DB::table('plan_assessments')
+                ->where('business_plan_id', $plan->id)
+                ->whereNotNull('finalised_at')
+                ->orderByDesc('round')
+                ->first();
+            $this->assertNotNull($assessment, "Expected the advisory {$state} finalised BP&B assessment.");
+
+            $this->assertDatabaseHas('advisory_readiness_signals', [
+                'entrepreneur_profile_id' => $profile->id,
+                'business_plan_id' => $plan->id,
+                'plan_assessment_id' => $assessment->id,
+            ]);
+
+            $modelProfile = EntrepreneurProfile::query()->findOrFail($profile->id);
+            $workspace = app(EntrepreneurPlanWorkspace::class);
+            $journey = app(EntrepreneurJourney::class)->payload(
+                $modelProfile,
+                $workspace->packageAccess($modelProfile),
+                $workspace->latestPlan($modelProfile),
+            );
+            $this->assertSame($expectation['journey_state'], $journey['state']);
+            $this->assertSame($expectation['active_service'], $journey['active_service']);
+            $this->assertSame($expectation['advisory_available'], $journey['advisory']['available']);
+
+            $engagement = DB::table('founding_advisory_engagements')
+                ->where('entrepreneur_profile_id', $profile->id)
+                ->first();
+
+            if (! $expectation['founding_engagement']) {
+                $this->assertSame('finalised', $plan->status);
+                $this->assertNull($engagement, 'The request-ready fixture must not bypass the client advisory-request step.');
+
+                continue;
+            }
+
+            $this->assertSame('founding', $plan->status);
+            $this->assertNotNull($engagement, 'Expected a Founding Advisory engagement for the released-proposal fixture.');
+            $this->assertSame('proposal_sent', $engagement->status);
+            $this->assertNotNull($engagement->proposal_id);
+
+            $proposal = DB::table('proposals')->where('id', $engagement->proposal_id)->first();
+            $this->assertNotNull($proposal, 'Expected the Founding Advisory proposal.');
+            $this->assertSame('released', $proposal->status);
+            $this->assertNotNull($proposal->released_at);
+            $this->assertNull($proposal->recalled_at);
+            $this->assertSame('Review advisory proposal', $journey['next']['label']);
+            $this->assertSame(
+                route('portal.proposals.signoff.show', $proposal->id, absolute: false),
+                $journey['next']['url'],
+            );
+
+            $client = DB::table('clients')->where('id', $engagement->client_id)->first();
+            $this->assertNotNull($client, 'Expected the converted Founding Advisory client.');
+            $this->assertSame(EngagementType::FOUNDING_ADVISORY->value, $client->engagement_type);
+        }
     }
 
     private function assertPvWaterfallSeedCoverage(): void
