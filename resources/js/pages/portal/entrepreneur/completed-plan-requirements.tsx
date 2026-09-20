@@ -1,10 +1,10 @@
 import { Badge } from '@/components/ui/badge';
-import type { PlanPhasePayload } from './plan-types';
+import type { PlanTemplatePhasePayload } from './plan-types';
 
 export function CompletedPlanRequirements({
     phases,
 }: {
-    phases: PlanPhasePayload[];
+    phases: PlanTemplatePhasePayload[];
 }) {
     const requirements = phases.flatMap((phase) => phase.requirements);
     const completed = requirements.filter(

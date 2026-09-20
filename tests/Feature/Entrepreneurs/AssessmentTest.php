@@ -907,7 +907,7 @@ final class AssessmentTest extends TestCase
                 ->where('plan.history.0.id', $assessment->id)
                 ->where('plan.history.0.round', 2)
                 ->where('plan.history.0.status', 'Advisor feedback')
-                ->where('plan.history', fn (array $history): bool => count($history) === 1)
+                ->where('plan.history', fn ($history): bool => count($history) === 1)
                 ->where('plan.latest_assessment.id', $assessment->id)
                 ->where('plan.history.0.assessment_url', route('portal.entrepreneur.assessments.show', $assessment, absolute: false))
                 ->where('plan.history.0.plan_snapshot_url', route('portal.entrepreneur.assessments.plan-preview', $assessment, absolute: false)));
