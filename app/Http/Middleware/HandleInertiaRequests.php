@@ -16,6 +16,7 @@ use App\Support\ReleaseVersion;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
+/** @phpstan-import-type JourneyPayload from EntrepreneurJourney */
 class HandleInertiaRequests extends Middleware
 {
     /**
@@ -145,7 +146,7 @@ class HandleInertiaRequests extends Middleware
      * workflow facts as the dashboard and workspace rather than a static
      * list based only on the authenticated user's role.
      *
-     * @return array<string, mixed>|null
+     * @return JourneyPayload|null
      */
     private function entrepreneurJourney(Request $request): ?array
     {

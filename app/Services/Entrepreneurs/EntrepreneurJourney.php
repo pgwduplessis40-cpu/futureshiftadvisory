@@ -17,6 +17,19 @@ use App\Models\Proposal;
  * Produces the single, factual view of an entrepreneur's journey used by the
  * portal shell, dashboard and workspace.  Presentation must not infer the
  * current service from a user type or a stale local progress value.
+ *
+ * @phpstan-type JourneyPayload array{
+ *     state:string,
+ *     active_service:string,
+ *     includes_idea_validation:bool,
+ *     includes_plan_budget:bool,
+ *     idea_validation:array{submitted:bool,approved:bool},
+ *     plan:array{exists:bool,completion:array{total:int,completed:int,percent:int}},
+ *     assessment:array{exists:bool,finalised:bool,status_label:string},
+ *     advisory:array{available:bool,label:string,url:string},
+ *     next:array{label:string,description:string,url:string},
+ *     tabs:array{advisory:bool,idea_validation:bool,plan_budget:bool}
+ * }
  */
 final class EntrepreneurJourney
 {
@@ -27,7 +40,7 @@ final class EntrepreneurJourney
 
     /**
      * @param  array{includes_idea_validation:bool,includes_plan_budget:bool,package_label:string,source_activation_id:string|null}  $packageAccess
-     * @return array<string, mixed>
+     * @return JourneyPayload
      */
     public function payload(
         EntrepreneurProfile $profile,

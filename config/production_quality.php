@@ -101,10 +101,25 @@ return [
             'production_limit' => 1386,
             'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Portal/PortalWorkspaceDraftTest.php'],
         ],
+        'resources/js/components/app-sidebar.tsx' => [
+            'ceiling' => 1021,
+            'production_limit' => 1100,
+            'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Portal/EntrepreneurNavigationTest.php'],
+        ],
+        'resources/js/pages/portal/entrepreneur/Dashboard.tsx' => [
+            'ceiling' => 1731,
+            'production_limit' => 1750,
+            'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Portal/EntrepreneurNavigationTest.php'],
+        ],
         'resources/js/pages/portal/entrepreneur/plan-workspace-actions.tsx' => [
             'ceiling' => 1040,
             'production_limit' => 1040,
             'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Portal/PortalWorkspaceDraftTest.php'],
+        ],
+        'resources/js/pages/portal/entrepreneur/use-plan-workspace.ts' => [
+            'ceiling' => 1033,
+            'production_limit' => 1100,
+            'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Entrepreneurs'],
         ],
         'resources/js/pages/portal/onboarding/Step.tsx' => [
             'ceiling' => 1130,
