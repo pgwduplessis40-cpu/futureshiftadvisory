@@ -114,7 +114,7 @@ return [
         'resources/js/pages/portal/entrepreneur/plan-workspace-actions.tsx' => [
             'ceiling' => 1040,
             'production_limit' => 1040,
-            'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Portal/PortalWorkspaceDraftTest.php'],
+            'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Entrepreneurs/AssessmentTest.php', 'tests/Feature/Portal/PortalWorkspaceDraftTest.php'],
         ],
         'resources/js/pages/portal/entrepreneur/use-plan-workspace.ts' => [
             'ceiling' => 1033,

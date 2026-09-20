@@ -85,6 +85,7 @@ final class EntrepreneurAssessmentController extends Controller
             $profile instanceof EntrepreneurProfile && (int) $profile->user_id === (int) $user->getKey(),
             403,
         );
+        abort_unless($planAssessment->isClientVisible(), 404);
 
         return $profile;
     }

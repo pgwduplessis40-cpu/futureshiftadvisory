@@ -6,6 +6,7 @@ import { DraftSaveStatus } from '@/components/portal/draft-save-status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { CompletedPlanRequirements } from './completed-plan-requirements';
 import { ExecutiveSummaryNotice } from './executive-summary-notice';
 import { BudgetEditor, requirementId } from './plan-budget';
 import {
@@ -565,6 +566,8 @@ export function PlanWorkspaceActions({
                             the bundle package if you decide to progress.
                         </p>
                     </div>
+                ) : hasPlan && planChangesLocked && planIsComplete ? (
+                    <CompletedPlanRequirements phases={phases} />
                 ) : hasPlan ? (
                     <div className="grid items-start gap-6 xl:grid-cols-[minmax(15rem,0.58fr)_minmax(0,1.42fr)]">
                         <div className="space-y-3 xl:sticky xl:top-24 xl:self-start">

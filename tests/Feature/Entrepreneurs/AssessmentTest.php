@@ -873,13 +873,7 @@ final class AssessmentTest extends TestCase
 
         $this->actingAsMfa($plan->entrepreneurProfile()->firstOrFail()->user()->firstOrFail())
             ->get(route('portal.entrepreneur.assessments.show', $assessment))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page): Assert => $page
-                ->where('assessment.automated_score_available', false)
-                ->where('assessment.weighted_score', null)
-                ->where('assessment.incomplete_criterion_numbers', [1])
-                ->where('assessment.criteria.0.score', null),
-            );
+            ->assertNotFound();
 
         try {
             app(Assessment::class)->finalise($assessment, $advisor);
@@ -895,7 +889,15 @@ final class AssessmentTest extends TestCase
     public function test_entrepreneur_plan_workspace_keeps_submitted_plan_versions_at_the_bottom_with_owner_only_snapshots(): void
     {
         [$advisor, $plan] = $this->plan('plan-history-founder@example.test');
-        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $internalAssessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $assessment = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+        app(Assessment::class)->saveAdvisorFeedback(
+            assessment: $assessment,
+            feedback: 'Your advisor has reviewed this plan and shared the next steps.',
+            proposedReply: 'Your advisor has shared feedback on your business plan.',
+            sentToFounder: true,
+            advisor: $advisor,
+        );
         $entrepreneur = $plan->entrepreneurProfile()->firstOrFail()->user()->firstOrFail();
 
         $this->actingAsMfa($entrepreneur)
@@ -903,9 +905,20 @@ final class AssessmentTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('plan.history.0.id', $assessment->id)
-                ->where('plan.history.0.round', 1)
+                ->where('plan.history.0.round', 2)
+                ->where('plan.history.0.status', 'Advisor feedback')
+                ->where('plan.history', fn (array $history): bool => count($history) === 1)
+                ->where('plan.latest_assessment.id', $assessment->id)
                 ->where('plan.history.0.assessment_url', route('portal.entrepreneur.assessments.show', $assessment, absolute: false))
                 ->where('plan.history.0.plan_snapshot_url', route('portal.entrepreneur.assessments.plan-preview', $assessment, absolute: false)));
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.assessments.show', $internalAssessment))
+            ->assertNotFound();
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.assessments.plan-preview', $internalAssessment))
+            ->assertNotFound();
 
         $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
         {
@@ -914,6 +927,10 @@ final class AssessmentTest extends TestCase
                 return "%PDF-1.4\n".strip_tags($html);
             }
         });
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.assessments.show', $assessment))
+            ->assertOk();
 
         $this->actingAsMfa($entrepreneur)
             ->get(route('portal.entrepreneur.assessments.plan-preview', $assessment))
@@ -1196,6 +1213,7 @@ final class AssessmentTest extends TestCase
         $this->assertSame($feedback, data_get($notes, 'overall_visible'));
         $this->assertSame($proposedReply, data_get($notes, 'proposed_reply'));
         $this->assertNotNull(data_get($notes, 'feedback_sent_at'));
+        $this->assertTrue($assessment->refresh()->isClientVisible());
         $this->assertSame($assessment->getKey(), data_get($notes, 'feedback_snapshot.source.plan_assessment_id'));
         $this->assertCount(3, data_get($notes, 'feedback_snapshot.priorities'));
         $this->assertNotNull(data_get($notes, 'feedback_snapshot.suggested_feedback.sha256'));
@@ -1249,6 +1267,7 @@ final class AssessmentTest extends TestCase
         $this->assertArrayNotHasKey('proposed_reply', $visible);
         $this->assertArrayNotHasKey('feedback_snapshot', $visible);
         $this->assertArrayNotHasKey('overall_visible', $visible);
+        $this->assertFalse($saved->isClientVisible());
     }
 
     public function test_criteria_are_hidden_until_assessment_is_finalised(): void
@@ -1258,10 +1277,12 @@ final class AssessmentTest extends TestCase
         $assessment = app(Assessment::class)->firstPass($plan, $advisor);
 
         $this->assertFalse(app(Assessment::class)->criteriaVisible($plan));
+        $this->assertFalse($assessment->isClientVisible());
 
         app(Assessment::class)->finalise($assessment, $advisor);
 
         $this->assertTrue(app(Assessment::class)->criteriaVisible($plan));
+        $this->assertTrue($assessment->refresh()->isClientVisible());
         $this->assertSame(BusinessPlan::STATUS_FINALISED, $plan->refresh()->status);
     }
 
