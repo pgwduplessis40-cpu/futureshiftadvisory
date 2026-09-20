@@ -163,6 +163,8 @@ final class TestingSeedDataSeeder extends Seeder
             'transferAdvisor' => ['Seed Receiving Advisor', 'seed.receiving.advisor@futureshiftadvisory.test', User::TYPE_ADVISOR, 30],
             'junior' => ['Seed Junior Advisor', 'seed.junior@futureshiftadvisory.test', User::TYPE_JUNIOR_ADVISOR, 30],
             'primary' => ['Seed Client Principal', 'seed.client.primary@futureshiftadvisory.test', User::TYPE_CLIENT_PRIMARY, 20],
+            'clientAdvisoryStart' => ['Seed Advisory Client Start', 'seed.client.advisory.start@futureshiftadvisory.test', User::TYPE_CLIENT_PRIMARY, 20],
+            'clientAdvisoryReview' => ['Seed Advisory Client Review', 'seed.client.advisory.review@futureshiftadvisory.test', User::TYPE_CLIENT_PRIMARY, 20],
             'team' => ['Seed Finance Lead', 'seed.client.team@futureshiftadvisory.test', User::TYPE_CLIENT_TEAM, 20],
             'buyer' => ['Seed Buyer Principal', 'seed.buyer.primary@futureshiftadvisory.test', User::TYPE_CLIENT_PRIMARY, 20],
             'analyst' => ['Seed Buyer Analyst', 'seed.buyer.analyst@futureshiftadvisory.test', User::TYPE_CLIENT_TEAM, 20],
@@ -1009,10 +1011,90 @@ XML);
             ],
         );
 
+        $this->seedClientAdvisoryFixtureClients();
         $this->seedPlanBudgetFixtureClients();
         $this->seedPvWaterfallClients();
         $this->seedClientTeam();
         $this->seedConflictDeclarations();
+    }
+
+    private function seedClientAdvisoryFixtureClients(): void
+    {
+        $fixtures = [
+            'clientAdvisoryStart' => [
+                'nzbn' => '9429000000246',
+                'legal_name' => 'Seed Client Advisory Start Limited',
+                'trading_name' => 'Seed Client Advisory Start',
+                'fixture' => 'client_standard_advisory_start',
+                'completed_steps' => [],
+                'current_step' => 1,
+                'steps' => [],
+            ],
+            'clientAdvisoryReview' => [
+                'nzbn' => '9429000000253',
+                'legal_name' => 'Seed Client Advisory Review Limited',
+                'trading_name' => 'Seed Client Advisory Review',
+                'fixture' => 'client_standard_advisory_review_submit_ready',
+                'completed_steps' => ['welcome', 'goals', 'website', 'questionnaire', 'documents'],
+                'current_step' => 6,
+                'steps' => [
+                    'welcome' => ['acknowledged' => true],
+                    'goals' => [
+                        'primary_goal' => 'Improve operating margin while protecting service quality.',
+                        'success_measure' => 'Increase gross margin by five percentage points over the next two quarters.',
+                    ],
+                    'website' => [
+                        'website_url' => null,
+                        'website_skipped' => true,
+                        'website_status' => 'not_listed',
+                    ],
+                    'questionnaire' => ['questionnaire_set_acknowledged' => true],
+                    'documents' => ['documents_acknowledged' => true],
+                ],
+            ],
+        ];
+
+        foreach ($fixtures as $key => $fixture) {
+            $user = $this->users[$key];
+
+            $this->clients[$key] = Client::query()->updateOrCreate(
+                ['nzbn' => $fixture['nzbn']],
+                [
+                    'engagement_type' => EngagementType::STANDARD_ADVISORY->value,
+                    'status' => ClientStatus::ACTIVE->value,
+                    'legal_name' => $fixture['legal_name'],
+                    'trading_name' => $fixture['trading_name'],
+                    'entity_type' => 'NZ Limited Company',
+                    'address' => [
+                        'line1' => '24 Advisory Lane',
+                        'city' => 'Auckland',
+                        'region' => 'Auckland',
+                        'country' => 'NZ',
+                    ],
+                    'gst_registered' => true,
+                    'directors' => [[
+                        'name' => $user->name,
+                        'role' => 'Managing Director',
+                    ]],
+                    'filing_status' => 'up_to_date',
+                    'data_quality' => Client::DATA_QUALITY_HIGH,
+                    'registry_sources' => [
+                        'nzbn' => 'seeded',
+                        'workspace_fixture' => $fixture['fixture'],
+                    ],
+                    'created_by_user_id' => $this->users['advisor']->getKey(),
+                    'primary_contact_user_id' => $user->getKey(),
+                    'engagement_type_locked_at' => $this->now->copy()->subDays(5),
+                    'onboarding_wizard_state' => [
+                        'journey_version' => 4,
+                        'completed_steps' => $fixture['completed_steps'],
+                        'current_step' => $fixture['current_step'],
+                        'steps' => $fixture['steps'],
+                        'fixture' => $fixture['fixture'],
+                    ],
+                ],
+            );
+        }
     }
 
     private function seedPlanBudgetFixtureClients(): void
@@ -1213,6 +1295,10 @@ XML);
             ['advisory', 'team', 'finance_contact', ['documents', 'payments', 'reports']],
             ['advisoryReviewReady', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'questionnaire', 'reports']],
             ['advisoryReviewReady', 'primary', 'primary_contact', ['portal', 'documents', 'questionnaire', 'reports']],
+            ['clientAdvisoryStart', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'questionnaire', 'reports']],
+            ['clientAdvisoryStart', 'clientAdvisoryStart', 'primary_contact', ['portal', 'documents', 'questionnaire', 'reports']],
+            ['clientAdvisoryReview', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'questionnaire', 'reports']],
+            ['clientAdvisoryReview', 'clientAdvisoryReview', 'primary_contact', ['portal', 'documents', 'questionnaire', 'reports']],
             ['websiteAudit', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'questionnaire', 'reports']],
             ['websiteAudit', 'primary', 'primary_contact', ['portal', 'documents', 'questionnaire', 'reports']],
             ['ddGuided', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'entrepreneur_module', 'dd', 'reports']],
@@ -1558,6 +1644,16 @@ XML);
             expiresAt: $this->now->copy()->addDays(45),
             size: 380_000,
         );
+        $this->ids['doc_client_advisory_review_financials'] = $this->document(
+            key: 'client-advisory-review-financial-statements',
+            client: $this->clients['clientAdvisoryReview'],
+            category: 'financial_statement',
+            filename: 'client-advisory-review-financial-statements.pdf',
+            uploader: $this->users['clientAdvisoryReview'],
+            scannerResult: 'clean',
+            expiresAt: $this->now->copy()->addDays(45),
+            size: 380_000,
+        );
         $this->ids['doc_contract'] = $this->document(
             key: 'advisory-key-supplier-contract',
             client: $this->clients['advisory'],
@@ -1627,6 +1723,14 @@ XML);
         );
         $this->ids['advisory_review_ready_response'] = $advisoryReviewReady['response_id'];
 
+        $clientAdvisoryReview = $this->seedQuestionnaireResponse(
+            client: $this->clients['clientAdvisoryReview'],
+            set: QuestionnaireSet::STANDARD_ADVISORY,
+            submittedBy: $this->users['clientAdvisoryReview'],
+            attachedDocumentId: (string) $this->ids['doc_client_advisory_review_financials'],
+        );
+        $this->ids['client_advisory_review_response'] = $clientAdvisoryReview['response_id'];
+
         $websiteAudit = $this->seedQuestionnaireResponse(
             client: $this->clients['websiteAudit'],
             set: QuestionnaireSet::STANDARD_ADVISORY,
@@ -1669,6 +1773,18 @@ XML);
             questionnaireAnswerId: $advisoryReviewReady['file_answer_id'],
             questionnaireQuestionId: $advisoryReviewReady['file_question_id'],
             questionPrompt: $advisoryReviewReady['file_question_prompt'],
+        );
+        $this->ids['verification_client_advisory_review_financials'] = $this->verification(
+            documentId: (string) $this->ids['doc_client_advisory_review_financials'],
+            context: 'client-advisory-review-financials-questionnaire',
+            client: $this->clients['clientAdvisoryReview'],
+            claim: 'The submitted financial statements support the Standard Advisory review submission.',
+            outcome: 'verified',
+            confidence: 0.96,
+            questionnaireResponseId: (string) $clientAdvisoryReview['response_id'],
+            questionnaireAnswerId: $clientAdvisoryReview['file_answer_id'],
+            questionnaireQuestionId: $clientAdvisoryReview['file_question_id'],
+            questionPrompt: $clientAdvisoryReview['file_question_prompt'],
         );
         $this->ids['verification_insurance'] = $this->verification(
             documentId: (string) $this->ids['doc_insurance_expired'],
