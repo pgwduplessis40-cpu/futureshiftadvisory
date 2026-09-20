@@ -246,16 +246,24 @@ export function IdeaValidationHistory({
     }
 
     return (
-        <section className="space-y-3 rounded-md border bg-background p-4">
-            <div>
-                <h2 className="text-sm font-medium">Version history</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                    Earlier idea-validation versions are retained for your
-                    records. Open a version only when you need to review or
-                    restore it.
-                </p>
-            </div>
-            <div className="overflow-x-auto">
+        <details className="rounded-md border bg-background p-4">
+            <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3">
+                <span>
+                    <span className="block text-sm font-medium">
+                        Version history
+                    </span>
+                    <span className="mt-1 block text-sm text-muted-foreground">
+                        Earlier idea-validation versions are retained for your
+                        records. Open this list only when you need to review or
+                        restore a version.
+                    </span>
+                </span>
+                <Badge variant="secondary">
+                    {historicVersions.length} earlier version
+                    {historicVersions.length === 1 ? '' : 's'}
+                </Badge>
+            </summary>
+            <div className="mt-4 overflow-x-auto border-t pt-4">
                 <table className="w-full min-w-[38rem] text-left text-sm">
                     <thead className="border-b text-xs text-muted-foreground">
                         <tr>
@@ -328,7 +336,7 @@ export function IdeaValidationHistory({
                     </tbody>
                 </table>
             </div>
-        </section>
+        </details>
     );
 }
 
@@ -342,16 +350,23 @@ export function SubmittedPlanHistory({
     }
 
     return (
-        <section className="space-y-3 rounded-md border bg-background p-4">
-            <div>
-                <h2 className="text-sm font-medium">Submitted plan history</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                    Earlier submitted versions are kept here so your current
-                    workspace stays focused. You can open an assessment or the
-                    exact plan snapshot whenever you need it.
-                </p>
-            </div>
-            <div className="overflow-x-auto">
+        <details className="rounded-md border bg-background p-4">
+            <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3">
+                <span>
+                    <span className="block text-sm font-medium">
+                        Advisor-reviewed plan history
+                    </span>
+                    <span className="mt-1 block text-sm text-muted-foreground">
+                        Only plan rounds where your advisor sent feedback or
+                        approved the plan are shown here.
+                    </span>
+                </span>
+                <Badge variant="secondary">
+                    {versions.length} visible round
+                    {versions.length === 1 ? '' : 's'}
+                </Badge>
+            </summary>
+            <div className="mt-4 overflow-x-auto border-t pt-4">
                 <table className="w-full min-w-[38rem] text-left text-sm">
                     <thead className="border-b text-xs text-muted-foreground">
                         <tr>
@@ -419,7 +434,7 @@ export function SubmittedPlanHistory({
                     </tbody>
                 </table>
             </div>
-        </section>
+        </details>
     );
 }
 

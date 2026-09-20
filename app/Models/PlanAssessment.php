@@ -42,6 +42,19 @@ final class PlanAssessment extends Model
         'finalised_at' => 'datetime',
     ];
 
+    public function isClientVisible(): bool
+    {
+        if ($this->finalised_at !== null) {
+            return true;
+        }
+
+        $notes = $this->mentor_notes;
+
+        return is_array($notes)
+            && is_string($notes['feedback_sent_at'] ?? null)
+            && trim($notes['feedback_sent_at']) !== '';
+    }
+
     /**
      * @return BelongsTo<BusinessPlan, PlanAssessment>
      */

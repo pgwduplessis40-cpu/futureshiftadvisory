@@ -218,7 +218,10 @@ final class EntrepreneurPlanWorkspacePayload
             ->keyBy('id');
         $requirements = $this->requirements->payload($plan);
         $completion = $this->requirements->completion($plan, $requirements);
-        $latestAssessment = $plan->assessments->sortByDesc('round')->first();
+        $latestAssessment = $plan->assessments
+            ->filter(fn (PlanAssessment $assessment): bool => $assessment->isClientVisible())
+            ->sortByDesc('round')
+            ->first();
 
         return [
             'id' => $plan->id,
@@ -296,6 +299,7 @@ final class EntrepreneurPlanWorkspacePayload
     private function submittedPlanHistory(BusinessPlan $plan): array
     {
         return $plan->assessments
+            ->filter(fn (PlanAssessment $assessment): bool => $assessment->isClientVisible())
             ->sortByDesc('round')
             ->map(function (PlanAssessment $assessment): array {
                 $snapshot = $assessment->plan_snapshot;
@@ -308,8 +312,8 @@ final class EntrepreneurPlanWorkspacePayload
                         ? data_get($snapshot, 'captured_at')
                         : $assessment->created_at?->toIso8601String(),
                     'status' => $assessment->finalised_at !== null
-                        ? 'Feedback ready'
-                        : 'Assessment in progress',
+                        ? 'Approved by advisor'
+                        : 'Advisor feedback',
                     'assessment_url' => route('portal.entrepreneur.assessments.show', $assessment, absolute: false),
                     'plan_snapshot_url' => $snapshotAvailable
                         ? route('portal.entrepreneur.assessments.plan-preview', $assessment, absolute: false)
