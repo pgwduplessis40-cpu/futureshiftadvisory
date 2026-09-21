@@ -145,6 +145,17 @@ export default function EntrepreneurService({
                     alongside the job you already have, and make the leap only
                     once the evidence says it is worth it.
                 </p>
+                <div className="mt-8 max-w-2xl rounded-lg border border-[var(--fs-sand)] bg-white px-5 py-4">
+                    <p className="text-lg text-[var(--fs-admiralty)]">
+                        <span className="font-semibold">
+                            {validationPrice
+                                ? `Idea validation is a fixed fee of ${validationPrice}.`
+                                : 'Idea validation is a single fixed fee.'}
+                        </span>{' '}
+                        Agreed before you start - no hidden costs, and no
+                        surprises at checkout.
+                    </p>
+                </div>
                 <div className="mt-10 flex flex-wrap items-center gap-4">
                     <Link
                         href="/validate-idea/purchase"
@@ -183,11 +194,11 @@ export default function EntrepreneurService({
                         cheaper thing to hear now than two years and a mortgage
                         later.
                     </p>
-                    {validationPrice ? (
-                        <p className="mt-5 text-sm font-semibold text-[var(--fs-admiralty)]">
-                            Validate your idea — {validationPrice}.
-                        </p>
-                    ) : null}
+                    <p className="mt-5 text-sm font-semibold text-[var(--fs-admiralty)]">
+                        {validationPrice
+                            ? `A fixed fee of ${validationPrice}, agreed before you pay.`
+                            : 'A single fixed fee, agreed before you pay.'}
+                    </p>
                     <Link
                         href="/validate-idea/purchase"
                         className="mt-6 inline-flex items-center gap-2 rounded-md bg-[var(--fs-admiralty)] px-5 py-3 text-sm font-medium text-[var(--fs-parchment)] shadow-sm transition-colors hover:bg-[var(--fs-commodore)]"
