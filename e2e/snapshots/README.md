@@ -19,6 +19,14 @@ Actions-first client workflow from browser-e2e run `#349` for commit
 source artifact digest is
 `sha256:cc6a4650474ca413cf1cddbef8cfb43e743f70e0e985374c61c2fb3bd3960587`.
 
+The Budget and Runway Builder desktop and mobile baselines were updated for
+the approved optional Business Plan & Budget journey from browser-e2e run
+`#394` for commit `0d34e667`. They were visually reviewed and approved on
+2026-09-21. The Standard Advisory fixture now sees the FSA quote-and-approval
+journey before its Business Plan & Budget workspace is opened. Their source
+artifact digest is
+`sha256:dd7b2926a3221d117fa6e2f767047b34ef4cdc8fb8c8967032b38fdc6fe292f1`.
+
 Each flow has a desktop (1440px) and mobile (390px) capture. Do not replace a
 baseline merely to make CI pass: review the resulting image and record an
 explicit approval with the change.

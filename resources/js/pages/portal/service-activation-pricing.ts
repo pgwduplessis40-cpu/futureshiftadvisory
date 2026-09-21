@@ -1,3 +1,4 @@
+import { formatCurrency } from '@/lib/formatters';
 import type { ServicePackage } from './ServiceActivationRequest';
 
 export function selectPricingPackage(
@@ -73,11 +74,9 @@ export function packagePaymentSplit(servicePackage: ServicePackage) {
 }
 
 export function formatMoney(value: number, currency: string) {
-    return new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency,
+    return formatCurrency(value, currency, {
         maximumFractionDigits: 2,
-    }).format(value);
+    });
 }
 
 export function parseMoneyInput(value: string) {
