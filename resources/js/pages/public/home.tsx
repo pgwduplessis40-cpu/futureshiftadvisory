@@ -27,6 +27,13 @@ type EngagementSummary = {
     detail_path?: string;
 };
 
+type IdeaValidationOffer = {
+    available: boolean;
+    label: string;
+    amount_ex_gst: number | null;
+    currency: string | null;
+};
+
 const accentClass: Record<string, string> = {
     pacific: 'border-l-[var(--fs-pacific)]',
     admiralty: 'border-l-[var(--fs-admiralty)]',
@@ -37,10 +44,20 @@ const accentClass: Record<string, string> = {
 
 export default function Home({
     engagementTypes,
+    ideaValidationOffer,
 }: {
     engagementTypes: EngagementSummary[];
+    ideaValidationOffer: IdeaValidationOffer;
 }) {
     const base = usePage<SharedPageProps>().props.publicUrl ?? '';
+    const validationPrice =
+        ideaValidationOffer.available &&
+        ideaValidationOffer.amount_ex_gst !== null
+            ? `$${ideaValidationOffer.amount_ex_gst.toLocaleString('en-NZ', {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 2,
+              })} + GST`
+            : null;
 
     return (
         <>
@@ -76,7 +93,9 @@ export default function Home({
                                 href="/validate-idea/purchase"
                                 className="inline-flex items-center gap-2 rounded-md bg-[var(--fs-admiralty)] px-5 py-3 text-sm font-medium text-[var(--fs-parchment)] shadow-sm transition-colors hover:bg-[var(--fs-commodore)]"
                             >
-                                Validate my idea{' '}
+                                {validationPrice
+                                    ? `Validate my idea — ${validationPrice}`
+                                    : 'Validate my idea'}{' '}
                                 <ArrowRight className="h-4 w-4" />
                             </a>
                             <Link
