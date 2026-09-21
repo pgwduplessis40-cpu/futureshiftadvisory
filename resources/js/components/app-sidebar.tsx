@@ -542,9 +542,7 @@ function portalNavGroups({
     ].filter((group): group is NavGroup => group !== null);
 }
 
-function portalServiceNavItems(
-    portalServices?: PortalServices | null,
-): NavItem[] {
+function portalServiceNavItems(portalServices?: PortalServices): NavItem[] {
     const fallbackOptions: PortalServiceOption[] = [
         {
             service_type: 'due_diligence',
@@ -587,15 +585,13 @@ function portalServiceNavItems(
             return;
         }
 
-        const href = option.start_url;
-
-        if (!href) {
+        if (!option.start_url) {
             return;
         }
 
         items.push({
             title: option.label,
-            href,
+            href: option.start_url,
             icon: portalServiceIcon(option.service_type),
         });
     });
@@ -678,7 +674,7 @@ function entrepreneurServiceItems(
     ];
 }
 
-function navGroupsFor(
+export function navGroupsFor(
     userType?: string | null,
     portalClient?: PortalClient | null,
     portalServices?: PortalServices | null,
@@ -710,10 +706,12 @@ function navGroupsFor(
     }
 
     if (userType === 'client_primary' || userType === 'client_team') {
-        const serviceItems = portalServiceNavItems(portalServices);
+        const serviceItems = portalServiceNavItems(portalServices ?? undefined);
+        const isAdvisory =
+            portalClient?.engagement_type === 'standard_advisory';
         const clientSecondaryWorkspaceNavItems = activeWorkspaceNavItems(
             workspaces,
-            ['dd_plan_budget'],
+            isAdvisory ? [] : ['dd_plan_budget'],
         );
         const onboardingComplete = portalClient?.onboarding_complete === true;
         const onboardingNavItem: NavItem = {
@@ -751,13 +749,15 @@ function navGroupsFor(
             });
         }
 
-        const planBudgetNavItem: NavItem = {
-            ...strategicPlanBudgetNavItem,
-            title:
-                portalClient?.engagement_type === 'npo'
-                    ? 'Operating Plan & Budget'
-                    : 'Business Plan & Budget',
-        };
+        const planBudgetNavItem: NavItem | null = isAdvisory
+            ? null
+            : {
+                  ...strategicPlanBudgetNavItem,
+                  title:
+                      portalClient?.engagement_type === 'npo'
+                          ? 'Operating Plan & Budget'
+                          : 'Business Plan & Budget',
+              };
         const dueDiligenceWorkspaceNavItem =
             portalClient?.engagement_type === 'due_diligence'
                 ? acquisitionPlanNavItem
@@ -766,7 +766,7 @@ function navGroupsFor(
             ...(dueDiligenceWorkspaceNavItem
                 ? [dueDiligenceWorkspaceNavItem]
                 : []),
-            planBudgetNavItem,
+            ...(planBudgetNavItem ? [planBudgetNavItem] : []),
             ...clientSecondaryWorkspaceNavItems,
         ];
         const supportingItems = [

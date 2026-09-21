@@ -319,6 +319,41 @@ final class ServiceActivationPackageFlowTest extends TestCase
         $this->assertSame(BusinessPlan::STATUS_BUILDING, $plan->status);
     }
 
+    public function test_standard_advisory_plan_budget_request_uses_a_standalone_advisory_quote(): void
+    {
+        [$existingActivation, $advisor, $clientUser] = $this->activationFixture(
+            'advisory-plan-budget@example.test',
+        );
+        $client = Client::query()->findOrFail($existingActivation->client_id);
+        $package = $this->package(
+            ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
+            serviceType: ServiceRatePackage::SERVICE_DD_PLAN_BUDGET,
+        );
+        $manager = app(ServiceActivationManager::class);
+
+        $preview = $manager->pricingPreviewForRequest(
+            ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+            [],
+            client: $client,
+        );
+        $activation = $manager->request(
+            $client,
+            $clientUser,
+            ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+            [],
+            $preview,
+        );
+
+        $this->assertSame('matched_package', $preview['status']);
+        $this->assertSame((string) $package->getKey(), (string) data_get($preview, 'package.id'));
+        $this->assertArrayNotHasKey('quote_context', (array) data_get($preview, 'package', []));
+        $this->assertSame('Business Plan & Budget', $activation->client_label);
+
+        $activation = $manager->selectPackage($activation, $package, $advisor);
+
+        $this->assertArrayNotHasKey('quote_context', $activation->selected_package_snapshot);
+    }
+
     /**
      * @return array{0: ServiceActivation, 1: User, 2: User}
      */

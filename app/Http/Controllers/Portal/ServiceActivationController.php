@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Portal;
 
+use App\Enums\EngagementType;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\ServiceActivation;
@@ -29,12 +30,8 @@ final class ServiceActivationController extends Controller
 
     public function create(Request $request, string $serviceType): Response|RedirectResponse
     {
-        abort_unless(in_array($serviceType, [
-            ServiceActivation::SERVICE_DUE_DILIGENCE,
-            ServiceActivation::SERVICE_ENTREPRENEUR,
-        ], true), 404);
-
         $client = $this->clients->resolveForServiceWorkspace($request);
+        abort_unless($this->canClientSelfStart($client, $serviceType), 404);
         $currentActivation = ServiceActivation::query()
             ->where('client_id', $client->getKey())
             ->where('service_type', $serviceType)
@@ -106,10 +103,7 @@ final class ServiceActivationController extends Controller
             'pricing_package_id' => ['nullable', 'string', 'max:36'],
         ]);
 
-        if (! in_array((string) $validated['service_type'], [
-            ServiceActivation::SERVICE_DUE_DILIGENCE,
-            ServiceActivation::SERVICE_ENTREPRENEUR,
-        ], true)) {
+        if (! $this->canClientSelfStart($client, (string) $validated['service_type'])) {
             throw ValidationException::withMessages([
                 'service_type' => 'This service is advisor-led. Message FSA to confirm the right scope and next step.',
             ]);
@@ -213,6 +207,19 @@ final class ServiceActivationController extends Controller
         return $request->user() instanceof User && $request->user()->user_type === User::TYPE_ENTREPRENEUR
             ? route('portal.entrepreneur.dashboard', absolute: false)
             : route('portal.dashboard', absolute: false);
+    }
+
+    private function canClientSelfStart(Client $client, string $serviceType): bool
+    {
+        if (in_array($serviceType, [
+            ServiceActivation::SERVICE_DUE_DILIGENCE,
+            ServiceActivation::SERVICE_ENTREPRENEUR,
+        ], true)) {
+            return true;
+        }
+
+        return $serviceType === ServiceActivation::SERVICE_DD_PLAN_BUDGET
+            && $client->engagement_type === EngagementType::STANDARD_ADVISORY;
     }
 
     /**

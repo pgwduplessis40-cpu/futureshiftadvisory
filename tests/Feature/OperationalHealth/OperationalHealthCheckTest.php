@@ -476,6 +476,7 @@ final class OperationalHealthCheckTest extends TestCase
             'role' => 'primary_contact',
             'granted_modules' => ['portal', EngagementType::STANDARD_ADVISORY->value],
         ]);
+        $this->activatePlanBudgetAddOn($activeClient, $fallbackUser, $admin);
 
         $this->artisan(RunOperationalHealthChecks::class)
             ->assertSuccessful();
@@ -829,6 +830,29 @@ final class OperationalHealthCheckTest extends TestCase
                 return "%PDF-1.4\n".strip_tags($html);
             }
         });
+    }
+
+    private function activatePlanBudgetAddOn(Client $client, User $clientUser, User $admin): void
+    {
+        ServiceActivation::query()->create([
+            'client_id' => $client->getKey(),
+            'requested_by_user_id' => $clientUser->getKey(),
+            'advisor_id' => $admin->getKey(),
+            'approved_by_user_id' => $admin->getKey(),
+            'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+            'client_label' => 'Business Plan & Budget',
+            'status' => ServiceActivation::STATUS_ACTIVE,
+            'selected_package_snapshot' => [
+                'client_label' => 'Business Plan & Budget',
+                'fixed_fee' => 2400,
+                'currency' => 'NZD',
+            ],
+            'accepted_by_user_id' => $clientUser->getKey(),
+            'accepted_at' => now(),
+            'payment_status' => ServiceActivation::PAYMENT_PAID,
+            'payment_completed_at' => now(),
+            'metadata' => ['source' => 'operational_health_test'],
+        ]);
     }
 
     private function clientFixture(

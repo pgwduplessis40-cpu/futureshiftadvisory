@@ -88,7 +88,7 @@ final class BrowserE2eFixtureTest extends TestCase
             ->get(route('portal.business-plan-budget.show'))
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
-                ->component('portal/StrategicPlanBudget')
+                ->component('portal/StrategicPlanBudgetQuoteApproval')
                 ->where('client.legal_name', 'Browser E2E Isolated Client')
                 ->has('portalScreenShare.portal_context_token')
                 ->where(

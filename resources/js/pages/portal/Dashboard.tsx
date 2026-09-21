@@ -66,6 +66,8 @@ import {
     formatNumber as formatNumberValue,
 } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import { StandardAdvisoryDashboard } from '@/pages/portal/dashboard/StandardAdvisoryDashboard';
+import { WelcomeBanner } from '@/pages/portal/dashboard/WelcomeBanner';
 
 type ClientPayload = {
     id: string;
@@ -84,7 +86,7 @@ type Progress = {
     percentage: number;
 };
 
-type Props = {
+export type PortalDashboardProps = {
     client: ClientPayload;
     coBrowse: ClientCoBrowseConfig | null;
     progress: Progress;
@@ -604,52 +606,6 @@ type HealthFinding = {
 
 type PortalDashboardTab = 'actions' | 'information';
 
-function WelcomeBanner({ welcomeMessage }: { welcomeMessage: WelcomeMessage }) {
-    const storageKey = `fs-welcome-dismissed-v${welcomeMessage.version ?? 0}`;
-    const [dismissed, setDismissed] = useState<boolean>(() => {
-        if (typeof window === 'undefined') {
-            return false;
-        }
-
-        try {
-            return window.localStorage.getItem(storageKey) === '1';
-        } catch {
-            return false;
-        }
-    });
-
-    if (dismissed) {
-        return null;
-    }
-
-    const dismiss = () => {
-        setDismissed(true);
-
-        try {
-            window.localStorage.setItem(storageKey, '1');
-        } catch {
-            // Ignore storage failures — dismissal is best-effort.
-        }
-    };
-
-    return (
-        <section
-            aria-label="Welcome message"
-            className="rounded-md border border-[var(--fs-linen)] bg-[var(--fs-linen)]/50 p-5"
-        >
-            <div
-                className="text-sm leading-relaxed text-foreground [&_a]:text-[var(--fs-admiralty)] [&_a]:underline [&_p]:mb-3 [&_p:last-child]:mb-0 [&_strong]:font-semibold"
-                dangerouslySetInnerHTML={{ __html: welcomeMessage.html }}
-            />
-            <div className="mt-4 flex justify-end">
-                <Button variant="ghost" size="sm" onClick={dismiss}>
-                    Dismiss
-                </Button>
-            </div>
-        </section>
-    );
-}
-
 function DueDiligenceDashboard({
     client,
     coBrowse,
@@ -676,7 +632,7 @@ function DueDiligenceDashboard({
     journey: ServiceJourneyPayload;
     recognition: ServiceJourneyRecognitionPayload;
     reports: ReportPayload[];
-    messageSummary: Props['messageSummary'];
+    messageSummary: PortalDashboardProps['messageSummary'];
     messagesUrl: string;
 }) {
     const onboardingOpen = progress.percentage < 100;
@@ -909,7 +865,7 @@ export default function PortalDashboard({
     outcomeFollowUps,
     welcomeMessage,
     inspirationBoard,
-}: Props) {
+}: PortalDashboardProps) {
     useDrillFocus();
     const [documents, setDocuments] =
         useState<DocumentPayload[]>(initialDocuments);
@@ -1175,6 +1131,30 @@ export default function PortalDashboard({
                 reports={reports}
                 messageSummary={messageSummary}
                 messagesUrl={messagesUrl}
+            />
+        );
+    }
+
+    if (client.engagement_type === 'standard_advisory') {
+        return (
+            <StandardAdvisoryDashboard
+                client={client}
+                coBrowse={coBrowse}
+                progress={progress}
+                onboardingUrl={onboardingUrl}
+                workspaces={workspaces}
+                standardAdvisory={standardAdvisory}
+                serviceActivations={serviceActivations}
+                proposals={proposals}
+                reports={reports}
+                strategicPlan={strategicPlan}
+                messageSummary={messageSummary}
+                messagesUrl={messagesUrl}
+                welcomeBanner={
+                    welcomeMessage.has_message && progress.percentage < 100 ? (
+                        <WelcomeBanner welcomeMessage={welcomeMessage} />
+                    ) : null
+                }
             />
         );
     }

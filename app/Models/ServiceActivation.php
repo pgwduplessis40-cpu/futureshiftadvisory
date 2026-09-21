@@ -184,7 +184,9 @@ final class ServiceActivation extends Model
     {
         return match ($this->service_type) {
             self::SERVICE_DUE_DILIGENCE => 'Explore buying a business',
-            self::SERVICE_DD_PLAN_BUDGET => 'DD + Business Plan & Budget',
+            self::SERVICE_DD_PLAN_BUDGET => $this->client_label !== ''
+                ? $this->client_label
+                : 'Business Plan & Budget',
             self::SERVICE_ENTREPRENEUR => 'Idea Validation',
             self::SERVICE_INTEGRATION_SCOPING => 'Systems integration scoping',
             self::SERVICE_INTEGRATION => 'Systems integration delivery',

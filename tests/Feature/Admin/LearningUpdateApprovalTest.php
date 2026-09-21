@@ -262,7 +262,7 @@ final class LearningUpdateApprovalTest extends TestCase
         $admin = $this->superAdmin();
         $packageSelectionSource = [
             'type' => 'service_activation_funnel',
-            'service_type' => 'due_diligence',
+            'service_type' => 'standard_advisory',
             'stage' => 'package_selection',
             'rollup_key' => 'service_activation:funnel:client_portal_workspace_activation',
             'rollup_label' => 'Service activation funnel',
@@ -301,6 +301,9 @@ final class LearningUpdateApprovalTest extends TestCase
                     ->unique()
                     ->all() === ['service_activation:funnel:client_portal_workspace_activation']
                     && $cards->pluck('delivery_rollup.label')->unique()->all() === ['Service activation funnel']
+                    && $cards->contains(fn (array $card): bool => data_get($card, 'source.service_type') === 'standard_advisory'
+                        && data_get($card, 'proposed_change.automatic_application') === false
+                        && $card['requires_tracked_delivery'] === true)
                     && $cards->contains(fn (array $card): bool => $card['status'] === LearningUpdate::STATUS_IMPLEMENTED
                         && $card['implementations'][0]['review_outcome'] === null)));
     }

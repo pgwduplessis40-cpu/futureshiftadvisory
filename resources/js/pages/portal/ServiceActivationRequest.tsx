@@ -1,6 +1,12 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import type { InertiaFormProps } from '@inertiajs/react';
-import { ArrowLeft, BriefcaseBusiness, Lightbulb, Send } from 'lucide-react';
+import {
+    ArrowLeft,
+    BriefcaseBusiness,
+    FileSpreadsheet,
+    Lightbulb,
+    Send,
+} from 'lucide-react';
 import type { FormEvent } from 'react';
 import { ExplainedSectionHeader, Explainer } from '@/components/explainer';
 import type { Explanation } from '@/components/explainer';
@@ -19,8 +25,15 @@ import {
 } from '@/components/ui/select';
 import { usePersistedWorkspaceDraft } from '@/hooks/use-persisted-workspace-draft';
 import { cn } from '@/lib/utils';
+import {
+    formatMoney,
+    normalizeMoneyInput,
+    packagePaymentSplit,
+    parseMoneyInput,
+    selectPricingPackage,
+} from './service-activation-pricing';
 
-type ServiceType = 'due_diligence' | 'entrepreneur';
+type ServiceType = 'due_diligence' | 'dd_plan_budget' | 'entrepreneur';
 
 type ServiceOption = {
     service_type: ServiceType;
@@ -37,7 +50,7 @@ type PaymentSplit = {
     requires_bank_transfer: boolean;
 };
 
-type ServicePackage = {
+export type ServicePackage = {
     id?: string;
     client_label?: string;
     package_name?: string;
@@ -94,6 +107,7 @@ export default function ServiceActivationRequest({
     dashboardUrl,
 }: Props) {
     const isDueDiligence = service.service_type === 'due_diligence';
+    const isPlanBudget = service.service_type === 'dd_plan_budget';
     const pricingPackages = pricingPreview.packages ?? [];
     const form = useForm<ServiceActivationForm>({
         service_type: service.service_type,
@@ -118,10 +132,16 @@ export default function ServiceActivationRequest({
         data: { ...form.data, pricing_acknowledged: false },
         hydrate: (payload) => form.setData({ ...form.data, ...payload }),
     });
-    const Icon = isDueDiligence ? BriefcaseBusiness : Lightbulb;
+    const Icon = isDueDiligence
+        ? BriefcaseBusiness
+        : isPlanBudget
+          ? FileSpreadsheet
+          : Lightbulb;
     const matchedPackage = isDueDiligence
         ? selectPricingPackage(form.data.asking_price, pricingPackages)
-        : null;
+        : isPlanBudget
+          ? pricingPreview.package
+          : null;
 
     function submit(event: FormEvent) {
         event.preventDefault();
@@ -202,6 +222,8 @@ export default function ServiceActivationRequest({
                                 form={form}
                                 onAskingPriceChange={updateAskingPrice}
                             />
+                        ) : isPlanBudget ? (
+                            <PlanBudgetFields form={form} />
                         ) : (
                             <EntrepreneurFields form={form} />
                         )}
@@ -249,6 +271,7 @@ export default function ServiceActivationRequest({
 
                     <PricingTransparencyPanel
                         isDueDiligence={isDueDiligence}
+                        isPlanBudget={isPlanBudget}
                         pricingPreview={pricingPreview}
                         matchedPackage={matchedPackage}
                         askingPrice={form.data.asking_price}
@@ -276,6 +299,55 @@ export default function ServiceActivationRequest({
                 </form>
             </main>
         </>
+    );
+}
+
+function PlanBudgetFields({
+    form,
+}: {
+    form: InertiaFormProps<ServiceActivationForm>;
+}) {
+    return (
+        <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid gap-2 lg:col-span-2">
+                <LabelWithExplanation
+                    htmlFor="service_business_name"
+                    explanation={serviceExplanations.businessName}
+                >
+                    Business name
+                </LabelWithExplanation>
+                <Input
+                    id="service_business_name"
+                    value={form.data.target_name}
+                    onChange={(event) =>
+                        form.setData('target_name', event.target.value)
+                    }
+                    placeholder="Your current business name"
+                />
+                <InputError message={form.errors.target_name} />
+            </div>
+            <div className="grid gap-2">
+                <LabelWithExplanation
+                    htmlFor="service_plan_industry"
+                    explanation={serviceExplanations.industry}
+                >
+                    Industry
+                </LabelWithExplanation>
+                <Input
+                    id="service_plan_industry"
+                    value={form.data.industry}
+                    onChange={(event) =>
+                        form.setData('industry', event.target.value)
+                    }
+                />
+                <InputError message={form.errors.industry} />
+            </div>
+            <p className="text-sm text-muted-foreground lg:col-span-3">
+                FSA will use your advisory context to confirm the right plan,
+                budget, and funding scope. You can add any priorities or
+                constraints in the notes below.
+            </p>
+        </div>
     );
 }
 
@@ -565,6 +637,7 @@ type ServiceActivationForm = {
 
 function PricingTransparencyPanel({
     isDueDiligence,
+    isPlanBudget,
     pricingPreview,
     matchedPackage,
     askingPrice,
@@ -573,6 +646,7 @@ function PricingTransparencyPanel({
     onAcknowledgedChange,
 }: {
     isDueDiligence: boolean;
+    isPlanBudget: boolean;
     pricingPreview: PricingPreview;
     matchedPackage: ServicePackage | null;
     askingPrice: string;
@@ -580,7 +654,7 @@ function PricingTransparencyPanel({
     error?: string;
     onAcknowledgedChange: (checked: boolean) => void;
 }) {
-    const packageToShow = isDueDiligence ? matchedPackage : null;
+    const packageToShow = matchedPackage;
     const packagePayment = packageToShow
         ? packagePaymentSplit(packageToShow)
         : null;
@@ -716,7 +790,9 @@ function PricingTransparencyPanel({
                             ? pricingPreview.message
                             : 'No payment will be requested and no workspace will open until the advisor confirms the package, scope, and GST-exclusive fee.'}
                     </p>
-                    {!isDueDiligence && activePackages.length > 0 ? (
+                    {!isDueDiligence &&
+                    !isPlanBudget &&
+                    activePackages.length > 0 ? (
                         <div className="mt-2 space-y-1">
                             <p className="font-medium">
                                 Active packages currently configured:
@@ -772,99 +848,6 @@ function PricingFact({ label, value }: { label: string; value: string }) {
     );
 }
 
-function selectPricingPackage(askingPrice: string, packages: ServicePackage[]) {
-    const price = parseMoneyInput(askingPrice);
-
-    if (price === null) {
-        return null;
-    }
-
-    return (
-        packages.find((servicePackage) => {
-            const minimum =
-                servicePackage.purchase_price_min !== null &&
-                servicePackage.purchase_price_min !== undefined
-                    ? Number(servicePackage.purchase_price_min)
-                    : null;
-            const maximum =
-                servicePackage.purchase_price_max !== null &&
-                servicePackage.purchase_price_max !== undefined
-                    ? Number(servicePackage.purchase_price_max)
-                    : null;
-
-            if (minimum !== null && price < minimum) {
-                return false;
-            }
-
-            if (maximum !== null && price > maximum) {
-                return false;
-            }
-
-            return true;
-        }) ?? null
-    );
-}
-
-function parseMoneyInput(value: string) {
-    const normalized = normalizeMoneyInput(value);
-
-    if (normalized === '') {
-        return null;
-    }
-
-    const parsed = Number(normalized);
-
-    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
-}
-
-function normalizeMoneyInput(value: string) {
-    return value.replace(/[$,\s]/g, '');
-}
-
-function packagePaymentSplit(servicePackage: ServicePackage) {
-    if (servicePackage.payment_split) {
-        return servicePackage.payment_split;
-    }
-
-    if (
-        servicePackage.billing_model !== 'fixed_fee' ||
-        servicePackage.fixed_fee === null ||
-        servicePackage.fixed_fee === undefined
-    ) {
-        return null;
-    }
-
-    const depositPercent = Math.min(
-        Math.max(Number(servicePackage.deposit_percent ?? 100), 0),
-        100,
-    );
-    const cardDeposit = roundCurrency(
-        servicePackage.fixed_fee * (depositPercent / 100),
-    );
-    const bankTransfer = roundCurrency(
-        Math.max(servicePackage.fixed_fee - cardDeposit, 0),
-    );
-
-    return {
-        deposit_percent: depositPercent,
-        card_deposit_amount: cardDeposit,
-        bank_transfer_amount: bankTransfer,
-        requires_bank_transfer: bankTransfer > 0,
-    };
-}
-
-function roundCurrency(value: number) {
-    return Math.round(value * 100) / 100;
-}
-
-function formatMoney(value: number, currency: string) {
-    return new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency,
-        maximumFractionDigits: 2,
-    }).format(value);
-}
-
 function LabelWithExplanation({
     htmlFor,
     explanation,
@@ -888,6 +871,12 @@ const serviceExplanations = {
         what: 'The business you may buy or want assessed through due diligence.',
         action: 'Enter the legal, trading, or commonly used business name if you know it.',
         why: 'The target name lets your advisor match evidence, vendor information, and DD reporting to the correct acquisition.',
+    },
+    businessName: {
+        title: 'Business name',
+        what: 'The business that needs a formal plan and budget.',
+        action: 'Use the trading or legal name that you and your advisor will recognise.',
+        why: 'It keeps the optional plan-and-budget work connected to the correct advisory client.',
     },
     vendorName: {
         title: 'Vendor',

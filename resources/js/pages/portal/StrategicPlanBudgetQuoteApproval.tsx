@@ -109,7 +109,10 @@ export default function StrategicPlanBudgetQuoteApproval({
         <>
             <Head title="Business Plan & Budget" />
 
-            <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-4 sm:p-6">
+            <section
+                aria-labelledby="business-plan-budget-heading"
+                className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-4 sm:p-6"
+            >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <Button asChild variant="ghost" size="sm">
@@ -122,7 +125,10 @@ export default function StrategicPlanBudgetQuoteApproval({
                             </Link>
                         </Button>
                         <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <h1 className="text-xl font-semibold">
+                            <h1
+                                id="business-plan-budget-heading"
+                                className="text-xl font-semibold"
+                            >
                                 Business Plan & Budget
                             </h1>
                             <Badge variant="secondary">{access.label}</Badge>
@@ -319,7 +325,7 @@ export default function StrategicPlanBudgetQuoteApproval({
                         </form>
                     )}
                 </section>
-            </main>
+            </section>
         </>
     );
 }
