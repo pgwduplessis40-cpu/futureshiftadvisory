@@ -542,9 +542,7 @@ function portalNavGroups({
     ].filter((group): group is NavGroup => group !== null);
 }
 
-function portalServiceNavItems(
-    portalServices?: PortalServices | null,
-): NavItem[] {
+function portalServiceNavItems(portalServices?: PortalServices): NavItem[] {
     const fallbackOptions: PortalServiceOption[] = [
         {
             service_type: 'due_diligence',
@@ -587,15 +585,13 @@ function portalServiceNavItems(
             return;
         }
 
-        const href = option.start_url;
-
-        if (!href) {
+        if (!option.start_url) {
             return;
         }
 
         items.push({
             title: option.label,
-            href,
+            href: option.start_url,
             icon: portalServiceIcon(option.service_type),
         });
     });
@@ -710,12 +706,12 @@ function navGroupsFor(
     }
 
     if (userType === 'client_primary' || userType === 'client_team') {
-        const serviceItems = portalServiceNavItems(portalServices);
-        const isStandardAdvisoryClient =
+        const serviceItems = portalServiceNavItems(portalServices ?? undefined);
+        const isAdvisory =
             portalClient?.engagement_type === 'standard_advisory';
         const clientSecondaryWorkspaceNavItems = activeWorkspaceNavItems(
             workspaces,
-            isStandardAdvisoryClient ? [] : ['dd_plan_budget'],
+            isAdvisory ? [] : ['dd_plan_budget'],
         );
         const onboardingComplete = portalClient?.onboarding_complete === true;
         const onboardingNavItem: NavItem = {
@@ -753,7 +749,7 @@ function navGroupsFor(
             });
         }
 
-        const planBudgetNavItem: NavItem | null = isStandardAdvisoryClient
+        const planBudgetNavItem: NavItem | null = isAdvisory
             ? null
             : {
                   ...strategicPlanBudgetNavItem,
