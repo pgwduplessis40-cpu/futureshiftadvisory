@@ -133,15 +133,92 @@ final class OnboardingWizardTest extends TestCase
                 ->has('serviceJourney.stages', 5)
                 ->has('serviceJourney.metrics', 3)
                 ->where('serviceJourney.metrics.0.value', '1 document')
-                ->has('serviceActivations.options', 7)
+                ->has('serviceActivations.options', 8)
                 ->where('serviceActivations.options.0.service_type', ServiceActivation::SERVICE_DUE_DILIGENCE)
                 ->where('serviceActivations.options.0.delivery_mode', 'self_start')
                 ->where('serviceActivations.options.0.start_url', route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DUE_DILIGENCE], absolute: false))
-                ->where('serviceActivations.options.2.service_type', EngagementType::STANDARD_ADVISORY->value)
-                ->where('serviceActivations.options.2.delivery_mode', 'advisor_led')
-                ->where('serviceActivations.options.2.start_url', null)
-                ->where('serviceActivations.options.4.service_type', EngagementType::NPO->value)
-                ->where('serviceActivations.options.5.service_type', ServiceActivation::SERVICE_INTEGRATION_SCOPING)
+                ->where('serviceActivations.options.1.service_type', ServiceActivation::SERVICE_DD_PLAN_BUDGET)
+                ->where('serviceActivations.options.1.label', 'Business Plan & Budget')
+                ->where('serviceActivations.options.1.delivery_mode', 'quote_approval')
+                ->where('serviceActivations.options.1.start_url', route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DD_PLAN_BUDGET], absolute: false))
+                ->where('serviceActivations.options.3.service_type', EngagementType::STANDARD_ADVISORY->value)
+                ->where('serviceActivations.options.3.delivery_mode', 'advisor_led')
+                ->where('serviceActivations.options.3.start_url', null)
+                ->where('serviceActivations.options.5.service_type', EngagementType::NPO->value)
+                ->where('serviceActivations.options.6.service_type', ServiceActivation::SERVICE_INTEGRATION_SCOPING)
+            );
+    }
+
+    public function test_standard_advisory_client_requests_business_plan_budget_as_an_optional_add_on(): void
+    {
+        $this->seed(RoleSeeder::class);
+        [$user, $client] = $this->clientUserWithClient(EngagementType::STANDARD_ADVISORY);
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('portal/Dashboard')
+                ->where('planBudgetAccess.allowed', false)
+                ->where('planBudgetAccess.label', 'Optional service')
+                ->has('workspaces.items', 1)
+                ->where('workspaces.items.0.key', 'standard_advisory')
+                ->where('serviceActivations.options.1.service_type', ServiceActivation::SERVICE_DD_PLAN_BUDGET)
+                ->where('serviceActivations.options.1.start_url', route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DD_PLAN_BUDGET], absolute: false))
+            );
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DD_PLAN_BUDGET]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('portal/ServiceActivationRequest')
+                ->where('service.service_type', ServiceActivation::SERVICE_DD_PLAN_BUDGET)
+                ->where('service.label', 'Business Plan & Budget')
+            );
+
+        $this->actingAsMfa($user)
+            ->post(route('portal.service-activations.store'), [
+                'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+                'target_name' => 'Existing advisory business',
+                'industry' => 'Professional services',
+                'timing' => 'This quarter',
+                'notes' => 'We need a formal plan and budget to support the next growth decision.',
+                'pricing_acknowledged' => true,
+            ])
+            ->assertRedirect();
+
+        $activation = ServiceActivation::query()
+            ->where('client_id', $client->getKey())
+            ->where('service_type', ServiceActivation::SERVICE_DD_PLAN_BUDGET)
+            ->firstOrFail();
+
+        $this->assertSame('Business Plan & Budget', $activation->client_label);
+        $this->assertSame(ServiceActivation::STATUS_REQUESTED, $activation->status);
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('planBudgetAccess.allowed', false)
+                ->where('planBudgetAccess.state', 'quote_requested')
+                ->has('workspaces.items', 1)
+            );
+
+        $activation->forceFill([
+            'status' => ServiceActivation::STATUS_ACTIVE,
+            'payment_status' => ServiceActivation::PAYMENT_NOT_REQUIRED,
+            'accepted_at' => now(),
+        ])->save();
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('planBudgetAccess.allowed', true)
+                ->where('planBudgetAccess.state', 'active_add_on')
+                ->has('workspaces.items', 2)
+                ->where('workspaces.items.1.key', ServiceActivation::SERVICE_DD_PLAN_BUDGET)
+                ->where('workspaces.items.1.label', 'Business Plan & Budget')
             );
     }
 

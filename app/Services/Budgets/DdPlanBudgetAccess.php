@@ -27,7 +27,7 @@ final class DdPlanBudgetAccess
      */
     public function payload(Client $client): array
     {
-        if (! $this->isDueDiligenceClient($client)) {
+        if (! $this->isDueDiligenceClient($client) && ! $this->isStandardAdvisoryClient($client)) {
             return $this->basePayload(
                 allowed: true,
                 state: self::STATE_NOT_REQUIRED,
@@ -43,7 +43,9 @@ final class DdPlanBudgetAccess
                 state: self::STATE_ACTIVE_ADD_ON,
                 allowed: true,
                 label: 'Business Plan & Budget active',
-                message: 'The Business Plan & Budget add-on has been approved and accepted for this DD client.',
+                message: $this->isDueDiligenceClient($client)
+                    ? 'The Business Plan & Budget add-on has been approved and accepted for this DD client.'
+                    : 'The Business Plan & Budget add-on has been approved and accepted for this advisory client.',
             );
         }
 
@@ -61,14 +63,18 @@ final class DdPlanBudgetAccess
         return $this->basePayload(
             allowed: false,
             state: self::STATE_NOT_REQUESTED,
-            label: 'FSA quote required',
-            message: 'This DD service is currently DD-only. Business Plan & Budget can be requested as an additional FSA-quoted add-on.',
+            label: $this->isDueDiligenceClient($client)
+                ? 'FSA quote required'
+                : 'Optional service',
+            message: $this->isDueDiligenceClient($client)
+                ? 'This DD service is currently DD-only. Business Plan & Budget can be requested as an additional FSA-quoted add-on.'
+                : 'Business Plan & Budget is an optional add-on for this advisory journey. Request it when a formal plan and budget will help your next decision.',
         );
     }
 
     public function allowed(Client $client): bool
     {
-        if (! $this->isDueDiligenceClient($client)) {
+        if (! $this->isDueDiligenceClient($client) && ! $this->isStandardAdvisoryClient($client)) {
             return true;
         }
 
@@ -102,6 +108,10 @@ final class DdPlanBudgetAccess
             return $addOn;
         }
 
+        if (! $this->isDueDiligenceClient($client)) {
+            return null;
+        }
+
         return ServiceActivation::query()
             ->where('client_id', $client->getKey())
             ->where('service_type', ServiceActivation::SERVICE_DUE_DILIGENCE)
@@ -118,6 +128,11 @@ final class DdPlanBudgetAccess
     private function isDueDiligenceClient(Client $client): bool
     {
         return $client->engagement_type === EngagementType::DUE_DILIGENCE;
+    }
+
+    private function isStandardAdvisoryClient(Client $client): bool
+    {
+        return $client->engagement_type === EngagementType::STANDARD_ADVISORY;
     }
 
     /**

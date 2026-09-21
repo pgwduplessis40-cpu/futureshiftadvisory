@@ -212,7 +212,7 @@ final class ServiceWorkspaces
     {
         return match ($key) {
             self::KEY_DUE_DILIGENCE => 'Buying-a-business questions, evidence, DD review, and acquisition next steps.',
-            self::KEY_DD_PLAN_BUDGET => 'Business plan, funding budget, PDF outputs, and advisor assessment for the DD client.',
+            self::KEY_DD_PLAN_BUDGET => 'Business plan, funding budget, PDF outputs, and advisor assessment for this client.',
             self::KEY_ENTREPRENEUR => 'Idea validation, entrepreneur plan, budget, evidence, and advisor messages.',
             self::KEY_NPO => 'NPO governance, impact, funding, board evidence, and reporting.',
             self::KEY_POST_ACQUISITION => 'Post-close actions, migration context, and advisory handoff.',

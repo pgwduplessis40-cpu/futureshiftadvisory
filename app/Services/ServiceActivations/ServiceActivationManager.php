@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ServiceActivations;
 
+use App\Enums\EngagementType;
 use App\Enums\EntrepreneurStage;
 use App\Enums\FeeMethod;
 use App\Models\BillingAdjustment;
@@ -140,7 +141,7 @@ final class ServiceActivationManager
                 'requested_by_user_id' => $actor->getKey(),
                 'advisor_id' => $advisor?->getKey(),
                 'service_type' => $serviceType,
-                'client_label' => $this->clientLabel($serviceType),
+                'client_label' => $this->clientLabel($serviceType, $client),
                 'status' => ServiceActivation::STATUS_REQUESTED,
                 'intake' => $this->cleanIntake($serviceType, $intake),
                 'metadata' => [
@@ -179,7 +180,8 @@ final class ServiceActivationManager
     {
         $activation->loadMissing('client');
         $snapshot = $this->packageSnapshotForActivation($package, $activation->client);
-        if ($activation->service_type === ServiceActivation::SERVICE_DD_PLAN_BUDGET) {
+        if ($activation->service_type === ServiceActivation::SERVICE_DD_PLAN_BUDGET
+            && $activation->client?->engagement_type === EngagementType::DUE_DILIGENCE) {
             $snapshot = $this->withDdPlanBudgetQuoteContext(
                 $snapshot,
                 $this->matchedDueDiligencePackageSnapshot($activation->client, (array) ($activation->intake ?? [])),
@@ -604,6 +606,19 @@ final class ServiceActivationManager
             );
         }
 
+        if ($serviceType === ServiceActivation::SERVICE_DD_PLAN_BUDGET
+            && $client?->engagement_type === EngagementType::STANDARD_ADVISORY) {
+            $package = $packages->first();
+
+            return $this->pricingPreviewPayload(
+                status: 'matched_package',
+                message: 'This is the Business Plan & Budget package available for your advisory journey. FSA will confirm the final scope before any charge or workspace access.',
+                package: $this->packageSnapshotForActivation($package, $client),
+                includePackages: $includePackages,
+                packages: $packageSnapshots,
+            );
+        }
+
         if ($serviceType === ServiceActivation::SERVICE_DD_PLAN_BUDGET) {
             if ($packages->isEmpty()) {
                 return $this->pricingPreviewPayload(
@@ -705,7 +720,7 @@ final class ServiceActivationManager
         if ($exists) {
             $message = match ($serviceType) {
                 ServiceActivation::SERVICE_DUE_DILIGENCE => 'You already have an open buying-a-business workspace. Close or cancel it before starting another DD request.',
-                ServiceActivation::SERVICE_DD_PLAN_BUDGET => 'You already have an open Business Plan & Budget quote or add-on for this DD workspace.',
+                ServiceActivation::SERVICE_DD_PLAN_BUDGET => 'You already have an open Business Plan & Budget request or active add-on.',
                 ServiceActivation::SERVICE_ENTREPRENEUR => 'You already have an open idea-testing workspace. Close or cancel it before starting another one.',
                 default => 'You already have an open integration service for this stage. Close or cancel it before starting another one.',
             };
@@ -934,11 +949,13 @@ final class ServiceActivationManager
         $activation->forceFill(['related_entrepreneur_profile_id' => $profile->getKey()])->save();
     }
 
-    private function clientLabel(string $serviceType): string
+    private function clientLabel(string $serviceType, ?Client $client = null): string
     {
         return match ($serviceType) {
             ServiceActivation::SERVICE_DUE_DILIGENCE => 'Explore buying a business',
-            ServiceActivation::SERVICE_DD_PLAN_BUDGET => 'DD + Business Plan & Budget',
+            ServiceActivation::SERVICE_DD_PLAN_BUDGET => $client?->engagement_type === EngagementType::STANDARD_ADVISORY
+                ? 'Business Plan & Budget'
+                : 'DD + Business Plan & Budget',
             ServiceActivation::SERVICE_ENTREPRENEUR => 'Test new Business Idea',
             ServiceActivation::SERVICE_INTEGRATION_SCOPING => 'Systems integration scoping',
             ServiceActivation::SERVICE_INTEGRATION => 'Systems integration delivery',
@@ -949,7 +966,9 @@ final class ServiceActivationManager
     private function requestThreadBody(ServiceActivation $activation): string
     {
         $requestLabel = $activation->service_type === ServiceActivation::SERVICE_DD_PLAN_BUDGET
-            ? 'I would like to request an FSA quote for the DD + Business Plan & Budget add-on.'
+            ? ($activation->clientLabel() === 'DD + Business Plan & Budget'
+                ? 'I would like to request an FSA quote for the DD + Business Plan & Budget add-on.'
+                : 'I would like to request access to the Business Plan & Budget add-on for my advisory journey.')
             : 'I would like to request a new workspace: '.$activation->clientLabel().'.';
         $lines = [
             $requestLabel,

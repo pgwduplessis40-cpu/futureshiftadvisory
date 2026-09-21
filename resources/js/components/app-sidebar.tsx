@@ -711,9 +711,11 @@ function navGroupsFor(
 
     if (userType === 'client_primary' || userType === 'client_team') {
         const serviceItems = portalServiceNavItems(portalServices);
+        const isStandardAdvisoryClient =
+            portalClient?.engagement_type === 'standard_advisory';
         const clientSecondaryWorkspaceNavItems = activeWorkspaceNavItems(
             workspaces,
-            ['dd_plan_budget'],
+            isStandardAdvisoryClient ? [] : ['dd_plan_budget'],
         );
         const onboardingComplete = portalClient?.onboarding_complete === true;
         const onboardingNavItem: NavItem = {
@@ -751,13 +753,15 @@ function navGroupsFor(
             });
         }
 
-        const planBudgetNavItem: NavItem = {
-            ...strategicPlanBudgetNavItem,
-            title:
-                portalClient?.engagement_type === 'npo'
-                    ? 'Operating Plan & Budget'
-                    : 'Business Plan & Budget',
-        };
+        const planBudgetNavItem: NavItem | null = isStandardAdvisoryClient
+            ? null
+            : {
+                  ...strategicPlanBudgetNavItem,
+                  title:
+                      portalClient?.engagement_type === 'npo'
+                          ? 'Operating Plan & Budget'
+                          : 'Business Plan & Budget',
+              };
         const dueDiligenceWorkspaceNavItem =
             portalClient?.engagement_type === 'due_diligence'
                 ? acquisitionPlanNavItem
@@ -766,7 +770,7 @@ function navGroupsFor(
             ...(dueDiligenceWorkspaceNavItem
                 ? [dueDiligenceWorkspaceNavItem]
                 : []),
-            planBudgetNavItem,
+            ...(planBudgetNavItem ? [planBudgetNavItem] : []),
             ...clientSecondaryWorkspaceNavItems,
         ];
         const supportingItems = [
