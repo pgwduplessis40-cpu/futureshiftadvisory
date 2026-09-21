@@ -334,6 +334,35 @@ final class BusinessPlanPreviewRendererTest extends TestCase
         $this->assertStringNotContainsString(',,,,', $sections[0]['entries'][0]['body']);
     }
 
+    public function test_document_sections_remove_unrenderable_leading_glyphs_from_each_paragraph(): void
+    {
+        $renderer = app(BusinessPlanPreviewRenderer::class);
+        $method = new ReflectionMethod($renderer, 'documentSections');
+        $method->setAccessible(true);
+
+        $sections = $method->invoke($renderer, [[
+            'title' => 'Foundation',
+            'requirements' => [[
+                'key' => 'business-type-location',
+                'title' => 'Business type, location, and operating model',
+            ]],
+            'sections' => [[
+                'requirement_key' => 'business-type-location',
+                'body' => "The business is building a clear, practical offer.\n\n\u{25A1}\u{25A1}\u{E000}\u{FFFD} This business direction is supported by customer evidence.\n\n\u{25A1}\u{25A1}, \u{1F4A1} \u{25A1}\u{25A1} While validation is continuing, the current evidence is encouraging.",
+                'attached_document_ids' => [],
+            ]],
+        ]]);
+
+        $body = $sections[0]['entries'][0]['body'];
+
+        $this->assertStringContainsString('This business direction is supported by customer evidence.', $body);
+        $this->assertStringContainsString('While validation is continuing, the current evidence is encouraging.', $body);
+        $this->assertStringNotContainsString("\u{25A1}", $body);
+        $this->assertStringNotContainsString("\u{E000}", $body);
+        $this->assertStringNotContainsString("\u{FFFD}", $body);
+        $this->assertStringNotContainsString("\u{1F4A1}", $body);
+    }
+
     public function test_document_sections_collapse_dated_updates_and_normalise_funding_heading(): void
     {
         $renderer = app(BusinessPlanPreviewRenderer::class);
