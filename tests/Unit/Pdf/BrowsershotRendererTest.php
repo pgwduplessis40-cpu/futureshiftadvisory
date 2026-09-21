@@ -10,6 +10,23 @@ use Tests\TestCase;
 
 final class BrowsershotRendererTest extends TestCase
 {
+    public function test_static_report_footers_receive_a_protected_print_margin(): void
+    {
+        $renderer = new BrowsershotRenderer;
+        $method = new ReflectionMethod($renderer, 'extractPdfFooter');
+
+        [$html, $footer] = $method->invoke($renderer, '<main>Report</main><footer class="report-footer">Internal draft</footer>');
+
+        self::assertStringNotContainsString('report-footer', $html);
+        self::assertStringContainsString('Internal draft', $footer);
+        self::assertStringContainsString('pdf-footer-rule', $footer);
+
+        $margin = new ReflectionMethod($renderer, 'contentBottomMargin');
+
+        self::assertSame(32, $margin->invoke($renderer, $footer));
+        self::assertSame(18, $margin->invoke($renderer, null));
+    }
+
     public function test_pdf_execution_time_limit_is_restored_after_rendering(): void
     {
         $renderer = new BrowsershotRenderer;

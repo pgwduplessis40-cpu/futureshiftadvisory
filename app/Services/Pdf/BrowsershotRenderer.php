@@ -28,7 +28,7 @@ final class BrowsershotRenderer implements PdfRenderer
 
         $shot = Browsershot::html($html)
             ->format('A4')
-            ->margins(18, 16, $footer === null ? 18 : 32, 16)
+            ->margins(18, 16, $this->contentBottomMargin($footer), 16)
             ->showBackground()
             ->noSandbox()
             ->timeout($timeout);
@@ -227,13 +227,42 @@ JS;
      */
     private function extractPdfFooter(string $html): array
     {
-        if (preg_match('/<template\s+data-pdf-footer[^>]*>(.*?)<\/template>/is', $html, $matches) !== 1) {
+        if (preg_match('/<template\s+data-pdf-footer[^>]*>(.*?)<\/template>/is', $html, $matches) === 1) {
+            $footer = trim($matches[1]);
+            $html = preg_replace('/<template\s+data-pdf-footer[^>]*>.*?<\/template>/is', '', $html, 1) ?? $html;
+
+            return [$html, $footer === '' ? null : $footer];
+        }
+
+        $staticFooterPattern = '/<footer\\b(?=[^>]*\\bclass=(["\'])[^"\']*\\breport-footer\\b[^"\']*\\1)[^>]*>(.*?)<\\/footer>/is';
+
+        if (preg_match($staticFooterPattern, $html, $matches) !== 1) {
             return [$html, null];
         }
 
-        $footer = trim($matches[1]);
-        $html = preg_replace('/<template\s+data-pdf-footer[^>]*>.*?<\/template>/is', '', $html, 1) ?? $html;
+        $footer = trim($matches[2]);
+        $html = preg_replace($staticFooterPattern, '', $html, 1) ?? $html;
 
-        return [$html, $footer === '' ? null : $footer];
+        return [$html, $footer === '' ? null : $this->staticReportFooterHtml($footer)];
+    }
+
+    private function contentBottomMargin(?string $footer): int
+    {
+        return $footer === null ? 18 : 32;
+    }
+
+    private function staticReportFooterHtml(string $footer): string
+    {
+        return sprintf(
+            <<<'HTML'
+<style>
+* { box-sizing: border-box; }
+.pdf-footer { color: #667282; font-family: Arial, sans-serif; font-size: 9px; line-height: 1.35; padding: 0 16mm; text-align: right; width: 100%%; }
+.pdf-footer-rule { border-top: 1px solid #ded6c7; height: 0; margin: 0 0 3mm; }
+</style>
+<div class="pdf-footer"><div class="pdf-footer-rule"></div><div>%s</div></div>
+HTML,
+            $footer,
+        );
     }
 }

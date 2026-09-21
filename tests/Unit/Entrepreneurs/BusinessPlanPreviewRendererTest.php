@@ -303,6 +303,8 @@ final class BusinessPlanPreviewRendererTest extends TestCase
 
         $css = $method->invoke($renderer);
 
+        $this->assertStringContainsString('@page { margin: 18mm 15mm 32mm; }', $css);
+        $this->assertStringContainsString('.report-footer { bottom: 0; left: 0; position: fixed;', $css);
         $this->assertStringContainsString('.plan-phase { border: 0; border-left: 0; break-inside: auto;', $css);
         $this->assertStringContainsString('.phase-heading { border-bottom: 1px solid #ded6c7; break-after: avoid; break-inside: avoid;', $css);
         $this->assertStringContainsString('.reader-roadmap { border-top: 1px solid #ded6c7; break-after: page; break-before: page;', $css);

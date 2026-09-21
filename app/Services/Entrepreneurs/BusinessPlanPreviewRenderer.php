@@ -731,6 +731,7 @@ HTML,
     private function businessPlanCss(): string
     {
         return <<<'CSS'
+@page { margin: 18mm 15mm 32mm; }
 .report-content { display: block; }
 .report-hero { background: #fff; border: 0; border-left: 0; break-after: page; margin: 68px 0 0; min-height: 430px; padding: 0; }
 .report-hero .eyebrow:empty { display: none; }
