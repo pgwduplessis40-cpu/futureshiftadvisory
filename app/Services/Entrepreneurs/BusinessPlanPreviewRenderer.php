@@ -605,6 +605,7 @@ HTML,
     private function cleanResponseBody(string $body): string
     {
         $body = str_replace(["\r\n", "\r"], "\n", trim($body));
+        $body = $this->normalisePdfText($body);
         $body = $this->normaliseFundingHeadings($body);
         $body = $this->collapseDatedUpdate($body);
         $body = $this->removeRepeatedSignaturePhrase($body);
@@ -620,6 +621,17 @@ HTML,
         $body = preg_replace('/(\n\s*)([,.;:!?]+\s*)+/', '$1', $body) ?? $body;
 
         return trim($body);
+    }
+
+    private function normalisePdfText(string $body): string
+    {
+        $body = preg_replace(
+            '/[\x{0000}-\x{0008}\x{000B}\x{000C}\x{000E}-\x{001F}\x{007F}-\x{009F}\p{Cf}\p{Co}\p{Cs}\p{Cn}\x{FFFD}\x{FDD0}-\x{FDEF}\x{FFFE}\x{FFFF}]/u',
+            '',
+            $body,
+        ) ?? $body;
+
+        return preg_replace('/(?m)^(\s*(?:[-*]\s*)?)(?:[\p{So},.;:!?]+\s*)+/u', '$1', $body) ?? $body;
     }
 
     private function normaliseFundingHeadings(string $body): string
