@@ -7,6 +7,7 @@ namespace Tests\Feature\Budgets;
 use App\Enums\EngagementType;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Pdf\PdfRenderer;
@@ -62,6 +63,23 @@ final class StrategicBudgetPresentationTest extends TestCase
             'user_id' => $clientUser->getKey(),
             'role' => 'primary_contact',
             'granted_modules' => [EngagementType::STANDARD_ADVISORY->value],
+        ]);
+        ServiceActivation::query()->create([
+            'client_id' => $client->getKey(),
+            'requested_by_user_id' => $clientUser->getKey(),
+            'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+            'client_label' => 'Business Plan & Budget',
+            'status' => ServiceActivation::STATUS_ACTIVE,
+            'selected_package_snapshot' => [
+                'client_label' => 'Business Plan & Budget',
+                'fixed_fee' => 2400,
+                'currency' => 'NZD',
+            ],
+            'accepted_by_user_id' => $clientUser->getKey(),
+            'accepted_at' => now(),
+            'payment_status' => ServiceActivation::PAYMENT_PAID,
+            'payment_completed_at' => now(),
+            'metadata' => ['source' => 'strategic_budget_presentation_test'],
         ]);
 
         $budget = app(StrategicBudgetService::class)->ensureForClient($client);

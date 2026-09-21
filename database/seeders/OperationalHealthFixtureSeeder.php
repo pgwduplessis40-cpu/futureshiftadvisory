@@ -62,6 +62,7 @@ final class OperationalHealthFixtureSeeder extends Seeder
                     'portal',
                     EngagementType::STANDARD_ADVISORY->value,
                 ]);
+                $this->standardPlanBudgetActivation($standardClient, $clientUser, $admin);
                 $this->document(
                     path: 'operational-health/client-documents/client-portal-fixture.pdf',
                     originalName: 'operational-health-client-document.pdf',
@@ -340,6 +341,59 @@ final class OperationalHealthFixtureSeeder extends Seeder
                     'source' => 'operational_health_fixture',
                 ],
                 'related_dd_engagement_id' => $engagement->getKey(),
+                'payment_status' => ServiceActivation::PAYMENT_PAID,
+                'payment_completed_at' => now(),
+                'metadata' => [
+                    'source' => 'operational_health_fixture',
+                    'monitor_only' => true,
+                ],
+            ],
+        );
+    }
+
+    private function standardPlanBudgetActivation(Client $client, User $clientUser, User $admin): ServiceActivation
+    {
+        $package = ServiceRatePackage::query()->updateOrCreate(
+            [
+                'service_type' => ServiceRatePackage::SERVICE_DD_PLAN_BUDGET,
+                'package_name' => 'Operational Health Advisory Business Plan & Budget add-on',
+            ],
+            [
+                'package_scope' => ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
+                'client_label' => 'Business Plan & Budget add-on',
+                'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+                'fixed_fee' => 2400,
+                'deposit_percent' => 100,
+                'purchase_price_min' => null,
+                'purchase_price_max' => null,
+                'currency' => 'NZD',
+                'scope_description' => 'Operational health fixture for the active advisory Business Plan & Budget add-on.',
+                'is_active' => true,
+                'effective_from' => now(),
+                'effective_to' => null,
+                'created_by_user_id' => $admin->getKey(),
+            ],
+        );
+
+        return ServiceActivation::query()->updateOrCreate(
+            [
+                'client_id' => $client->getKey(),
+                'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+            ],
+            [
+                'requested_by_user_id' => $clientUser->getKey(),
+                'advisor_id' => $admin->getKey(),
+                'approved_by_user_id' => $admin->getKey(),
+                'client_label' => 'Business Plan & Budget',
+                'service_rate_package_id' => $package->getKey(),
+                'status' => ServiceActivation::STATUS_ACTIVE,
+                'intake' => ['source' => 'operational_health_fixture'],
+                'selected_package_snapshot' => $package->snapshot(),
+                'accepted_by_user_id' => $clientUser->getKey(),
+                'accepted_at' => now(),
+                'acceptance_text' => 'Operational health fixture acceptance for advisory Business Plan & Budget access.',
+                'terms_reference' => ['source' => 'operational_health_fixture'],
+                'related_dd_engagement_id' => null,
                 'payment_status' => ServiceActivation::PAYMENT_PAID,
                 'payment_completed_at' => now(),
                 'metadata' => [

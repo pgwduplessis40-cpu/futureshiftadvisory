@@ -102,7 +102,7 @@ final class ServiceActivationControllerTest extends TestCase
         ]);
     }
 
-    public function test_dd_plan_budget_request_uses_single_add_on_and_combines_the_dd_price_band(): void
+    public function test_standard_advisory_plan_budget_request_uses_a_single_add_on_without_dd_quote_context(): void
     {
         [$advisor, $client, $clientUser] = $this->clientFixture();
         $activation = ServiceActivation::query()->create([
@@ -119,13 +119,6 @@ final class ServiceActivationControllerTest extends TestCase
                 'support_level' => 'guided',
             ],
         ]);
-        $this->package(
-            serviceType: ServiceActivation::SERVICE_DUE_DILIGENCE,
-            packageScope: ServiceRatePackage::SCOPE_DD_UNDER_300K,
-            purchasePriceMin: 1,
-            purchasePriceMax: 300000,
-            fixedFee: 4500,
-        );
         $addOnPackage = $this->package(
             serviceType: ServiceActivation::SERVICE_DD_PLAN_BUDGET,
             packageScope: ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
@@ -159,11 +152,8 @@ final class ServiceActivationControllerTest extends TestCase
 
         $this->assertSame(ServiceActivation::STATUS_PACKAGE_SELECTED, $activation->status);
         $this->assertSame(ServiceActivation::PAYMENT_PENDING, $activation->payment_status);
-        $this->assertSame(ServiceRatePackage::SCOPE_DD_UNDER_300K, data_get($activation->selected_package_snapshot, 'quote_context.dd_package.package_scope'));
-        $this->assertSame(4500.0, (float) data_get($activation->selected_package_snapshot, 'quote_context.dd_package.fixed_fee'));
-        $this->assertSame(2400.0, (float) data_get($activation->selected_package_snapshot, 'quote_context.plan_budget_fixed_fee'));
-        $this->assertSame(6900.0, (float) data_get($activation->selected_package_snapshot, 'quote_context.combined_fixed_fee'));
-        $this->assertSame(2400.0, (float) data_get($activation->selected_package_snapshot, 'quote_context.amount_due_for_this_activation'));
+        $this->assertNull(data_get($activation->selected_package_snapshot, 'quote_context'));
+        $this->assertSame(2400.0, (float) data_get($activation->selected_package_snapshot, 'fixed_fee'));
     }
 
     /**
