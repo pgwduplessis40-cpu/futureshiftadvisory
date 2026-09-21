@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Entrepreneurs;
 
 use App\Models\ServiceRatePackage;
+use App\Support\RequestContext;
 
 /**
  * Reads the currently sellable entrepreneur packages from Service Rates.
@@ -14,11 +15,19 @@ use App\Models\ServiceRatePackage;
  */
 final class EntrepreneurServiceOffer
 {
+    public function __construct(private readonly RequestContext $context) {}
+
     /** @return array{available:bool,label:string,amount_ex_gst:float|null,currency:string|null} */
     public function forScope(string $scope): array
     {
         $now = now();
-        $package = ServiceRatePackage::query()
+
+        // service_rate_packages is row-level-security protected. The public
+        // pages call this anonymously, so the read must run inside a system
+        // context - the same way the checkout does - otherwise RLS returns zero
+        // rows on production (where it is enforced) and the price silently
+        // disappears, even though the package exists.
+        $package = $this->context->withSystemContext(fn (): ?ServiceRatePackage => ServiceRatePackage::query()
             ->where('service_type', ServiceRatePackage::SERVICE_ENTREPRENEUR)
             ->where('package_scope', $scope)
             ->where('billing_model', ServiceRatePackage::BILLING_FIXED_FEE)
@@ -31,7 +40,7 @@ final class EntrepreneurServiceOffer
             ->whereNotNull('fixed_fee')
             ->where('fixed_fee', '>', 0)
             ->latest('effective_from')
-            ->first();
+            ->first());
 
         if (! $package instanceof ServiceRatePackage) {
             return [
