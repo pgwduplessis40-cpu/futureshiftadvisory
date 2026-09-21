@@ -173,6 +173,8 @@ type Props = {
     } | null;
 };
 
+const PROPOSED_REPLY_MAX_LENGTH = 10_000;
+
 export default function EntrepreneurAssessment({
     profile,
     assessment,
@@ -673,11 +675,20 @@ export default function EntrepreneurAssessment({
                                             event.target.value,
                                         )
                                     }
+                                    maxLength={PROPOSED_REPLY_MAX_LENGTH}
                                     rows={12}
                                     aria-invalid={Boolean(
                                         feedbackErrors.proposed_reply,
                                     )}
                                 />
+                                <p
+                                    className="text-right text-xs font-normal text-muted-foreground"
+                                    aria-live="polite"
+                                >
+                                    {proposedReply.length.toLocaleString()} /{' '}
+                                    {PROPOSED_REPLY_MAX_LENGTH.toLocaleString()}{' '}
+                                    characters
+                                </p>
                                 <InputError
                                     message={feedbackErrors.proposed_reply}
                                 />

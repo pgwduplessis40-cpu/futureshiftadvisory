@@ -1197,7 +1197,7 @@ final class AssessmentTest extends TestCase
         $profile = $plan->entrepreneurProfile()->firstOrFail();
         $assessment = app(Assessment::class)->firstPass($plan, $advisor);
         $feedback = 'Strengthen the financial assumptions and add customer evidence before the next assessment.';
-        $proposedReply = "Dear Assessment,\n\nThank you for the work on your plan. Please strengthen the financial assumptions and add customer evidence before the next assessment.";
+        $proposedReply = str_repeat('A', 10_000);
 
         $response = $this->actingAsMfa($advisor)
             ->patch(route('advisor.entrepreneurs.assessments.feedback.update', [$profile, $assessment]), [
@@ -1246,6 +1246,21 @@ final class AssessmentTest extends TestCase
                 ->where('advisorFeedback.proposed_reply', $proposedReply)
                 ->missing('assessment.mentor_notes.feedback_snapshot')
             );
+    }
+
+    public function test_assessment_feedback_rejects_founder_replies_over_ten_thousand_characters(): void
+    {
+        [$advisor, $plan] = $this->plan('assessment-feedback-reply-limit@example.test');
+        $profile = $plan->entrepreneurProfile()->firstOrFail();
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+
+        $this->actingAsMfa($advisor)
+            ->patch(route('advisor.entrepreneurs.assessments.feedback.update', [$profile, $assessment]), [
+                'feedback' => 'Strengthen the financial assumptions and add customer evidence before the next assessment.',
+                'proposed_reply' => str_repeat('A', 10_001),
+                'send_to_founder' => false,
+            ])
+            ->assertSessionHasErrors('proposed_reply');
     }
 
     public function test_saved_assessment_feedback_stays_private_until_it_is_sent(): void
