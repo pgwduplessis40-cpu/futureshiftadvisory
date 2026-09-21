@@ -674,7 +674,7 @@ function entrepreneurServiceItems(
     ];
 }
 
-function navGroupsFor(
+export function navGroupsFor(
     userType?: string | null,
     portalClient?: PortalClient | null,
     portalServices?: PortalServices | null,

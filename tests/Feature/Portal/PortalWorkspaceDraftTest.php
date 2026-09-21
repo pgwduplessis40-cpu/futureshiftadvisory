@@ -7,6 +7,7 @@ namespace Tests\Feature\Portal;
 use App\Enums\EngagementType;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Services\Portal\OnboardingWizard;
 use App\Support\RequestContext;
@@ -164,6 +165,27 @@ final class PortalWorkspaceDraftTest extends TestCase
                     'step' => OnboardingWizard::STEP_QUESTIONNAIRE,
                 ]))
                 ->where('serviceJourney.primary.action_label', 'Continue'));
+    }
+
+    public function test_standard_advisory_dashboard_offers_plan_budget_without_opening_its_workspace(): void
+    {
+        [$user] = $this->clientUser('Morgan');
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('portal/Dashboard')
+                ->has('workspaces.items', 1)
+                ->where('workspaces.items.0.service_type', EngagementType::STANDARD_ADVISORY->value)
+                ->where('serviceActivations.options.1.service_type', ServiceActivation::SERVICE_DD_PLAN_BUDGET)
+                ->where('serviceActivations.options.1.label', 'Business Plan & Budget')
+                ->where('serviceActivations.options.1.availability_label', 'Optional add-on')
+                ->where('serviceActivations.options.1.start_url', route(
+                    'portal.service-activations.create',
+                    ['serviceType' => ServiceActivation::SERVICE_DD_PLAN_BUDGET],
+                    absolute: false,
+                )));
     }
 
     /**
