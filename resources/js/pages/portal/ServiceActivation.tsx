@@ -63,26 +63,6 @@ type ActivationPackage = {
         expires_at?: string | null;
         stripe_required?: boolean;
     };
-    quote_context?: DdPlanBudgetQuoteContext | null;
-};
-
-type QuoteLine = {
-    client_label?: string | null;
-    package_name?: string | null;
-    package_scope_label?: string | null;
-    fixed_fee?: number | null;
-    currency?: string | null;
-};
-
-type DdPlanBudgetQuoteContext = {
-    type?: string;
-    summary?: string | null;
-    currency?: string | null;
-    dd_package?: QuoteLine | null;
-    plan_budget_package?: QuoteLine | null;
-    plan_budget_fixed_fee?: number | null;
-    combined_fixed_fee?: number | null;
-    amount_due_for_this_activation?: number | null;
 };
 
 type Activation = {
@@ -185,7 +165,7 @@ export default function ServiceActivation({ activation, urls }: Props) {
                         </h1>
                         <p className="mt-1 text-sm text-muted-foreground">
                             {isDdPlanBudget
-                                ? 'FSA quote, service fee, and scope acknowledgement for the DD + Business Plan & Budget add-on.'
+                                ? 'Fixed-fee Business Plan & Budget service and scope acknowledgement.'
                                 : 'Workspace request and fee/scope acknowledgement.'}
                         </p>
                     </div>
@@ -294,9 +274,6 @@ export default function ServiceActivation({ activation, urls }: Props) {
                                     />
                                 ) : null}
                             </div>
-                            <DdPlanBudgetQuoteSummary
-                                quoteContext={selectedPackage.quote_context}
-                            />
                             {selectedPackage.pilot_fee_waiver?.active ? (
                                 <p className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
                                     This client has an active pilot fee waiver.
@@ -607,10 +584,6 @@ function PreRequestPricing({
                     />
                 ) : null}
             </div>
-            <DdPlanBudgetQuoteSummary
-                quoteContext={servicePackage.quote_context}
-            />
-
             {servicePackage.scope_description ? (
                 <p>{servicePackage.scope_description}</p>
             ) : null}
@@ -622,94 +595,6 @@ function PreRequestPricing({
             ) : null}
         </div>
     );
-}
-
-function DdPlanBudgetQuoteSummary({
-    quoteContext,
-}: {
-    quoteContext?: DdPlanBudgetQuoteContext | null;
-}) {
-    if (quoteContext?.type !== 'dd_plus_business_plan_budget') {
-        return null;
-    }
-
-    const currency = quoteContext.currency ?? 'NZD';
-    const ddPackage = quoteContext.dd_package;
-    const planBudgetPackage = quoteContext.plan_budget_package;
-
-    return (
-        <div className="rounded-md border bg-muted/25 p-3">
-            <div className="text-sm font-medium">
-                Combined DD + Business Plan & Budget quote
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-                {quoteContext.summary ??
-                    'FSA combines the selected DD price band with the single Business Plan & Budget add-on fee.'}
-            </p>
-            <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                <QuoteFact
-                    label="DD price band"
-                    value={quoteLineValue(ddPackage, currency)}
-                />
-                <QuoteFact
-                    label="BP&B add-on"
-                    value={quoteLineValue(planBudgetPackage, currency)}
-                />
-                <QuoteFact
-                    label="Combined quote"
-                    value={
-                        quoteContext.combined_fixed_fee !== null &&
-                        quoteContext.combined_fixed_fee !== undefined
-                            ? `${formatMoney(
-                                  quoteContext.combined_fixed_fee,
-                                  currency,
-                              )} ex GST`
-                            : 'DD band to confirm'
-                    }
-                />
-                <QuoteFact
-                    label="Due for this add-on"
-                    value={
-                        quoteContext.amount_due_for_this_activation !== null &&
-                        quoteContext.amount_due_for_this_activation !==
-                            undefined
-                            ? `${formatMoney(
-                                  quoteContext.amount_due_for_this_activation,
-                                  currency,
-                              )} ex GST`
-                            : 'To confirm'
-                    }
-                />
-            </dl>
-        </div>
-    );
-}
-
-function QuoteFact({ label, value }: { label: string; value: string }) {
-    return (
-        <div>
-            <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd className="font-medium">{value}</dd>
-        </div>
-    );
-}
-
-function quoteLineValue(line: QuoteLine | null | undefined, currency: string) {
-    if (!line) {
-        return 'To confirm';
-    }
-
-    const label =
-        line.package_scope_label ??
-        line.client_label ??
-        line.package_name ??
-        'Selected package';
-    const fee =
-        line.fixed_fee !== null && line.fixed_fee !== undefined
-            ? ` / ${formatMoney(line.fixed_fee, line.currency ?? currency)} ex GST`
-            : '';
-
-    return `${label}${fee}`;
 }
 
 function Metric({

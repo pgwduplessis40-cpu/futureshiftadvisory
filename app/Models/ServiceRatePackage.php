@@ -272,7 +272,7 @@ final class ServiceRatePackage extends Model
             self::SCOPE_DD_UNDER_300K => 'Purchase price below $300k',
             self::SCOPE_DD_300K_1M => 'Purchase price $300k-$1m',
             self::SCOPE_DD_1M_3M => 'Purchase price $1m-$3m',
-            self::SCOPE_DD_PLAN_BUDGET_ADD_ON => 'Business Plan & Budget add-on',
+            self::SCOPE_DD_PLAN_BUDGET_ADD_ON => 'Business Plan & Budget',
             default => 'Standard workspace',
         };
     }
@@ -565,11 +565,9 @@ final class ServiceRatePackage extends Model
     {
         return match ($scope) {
             self::SCOPE_DD_PLAN_BUDGET_ADD_ON, self::SCOPE_DD_UNDER_300K, self::SCOPE_DD_300K_1M, self::SCOPE_DD_1M_3M => [
-                'FSA quote and approval before the module opens',
-                'DD onboarding support profile carried into fee/scope selection',
-                'Acquisition business plan built from DD evidence',
-                'Funding budget and cash-flow assumptions',
-                'Advisor assessment before client uses the plan for funding',
+                'Business plan workspace',
+                'Budget, runway, and funding assumptions',
+                'Advisor assessment before the plan is used for funding or delivery decisions',
             ],
             default => [],
         };
@@ -582,8 +580,8 @@ final class ServiceRatePackage extends Model
     {
         return match ($scope) {
             self::SCOPE_DD_PLAN_BUDGET_ADD_ON, self::SCOPE_DD_UNDER_300K, self::SCOPE_DD_300K_1M, self::SCOPE_DD_1M_3M => [
-                'A structured acquisition business plan for funding conversations.',
-                'A supporting budget that uses DD evidence, financial records, and purchase assumptions.',
+                'A structured business plan for funding or delivery conversations.',
+                'A supporting budget, runway view, and funding assumptions.',
                 'Advisor-reviewed readiness signals before the plan is shared with lenders or funders.',
             ],
             default => [],

@@ -84,7 +84,11 @@ return [
         'app/Services/ServiceActivations/ServiceActivationManager.php' => [
             'ceiling' => 1431,
             'production_limit' => 1500,
-            'contract_tests' => ['tests/Feature/Admin/LearningUpdateApprovalTest.php'],
+            'contract_tests' => [
+                'tests/Feature/Admin/LearningUpdateApprovalTest.php',
+                'tests/Feature/Advisor/ServiceActivationControllerTest.php',
+                'tests/Feature/Budgets/DdPlanBudgetQuoteApprovalTest.php',
+            ],
         ],
         'resources/js/pages/portal/StrategicPlanBudget.tsx' => [
             'ceiling' => 2616,

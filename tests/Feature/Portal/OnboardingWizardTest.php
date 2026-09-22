@@ -56,16 +56,16 @@ final class OnboardingWizardTest extends TestCase
             'client_id' => $client->getKey(),
             'requested_by_user_id' => $user->getKey(),
             'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
-            'client_label' => 'Business Plan & Budget add-on',
+            'client_label' => 'Business Plan & Budget',
             'status' => ServiceActivation::STATUS_PACKAGE_SELECTED,
             'payment_status' => ServiceActivation::PAYMENT_PENDING,
             'selected_package_snapshot' => [
-                'client_label' => 'Business Plan & Budget add-on',
+                'client_label' => 'Business Plan & Budget',
                 'fixed_fee' => 3200,
                 'currency' => 'NZD',
                 'scope_description' => 'Funding plan and budget support.',
                 'included_stages' => ['Acquisition business plan', 'Funding budget'],
-                'access' => ['package_scope_label' => 'Business Plan & Budget add-on'],
+                'access' => ['package_scope_label' => 'Business Plan & Budget'],
             ],
             'metadata' => [
                 'source' => 'client_invite_offer',
@@ -139,7 +139,7 @@ final class OnboardingWizardTest extends TestCase
                 ->where('serviceActivations.options.0.start_url', route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DUE_DILIGENCE], absolute: false))
                 ->where('serviceActivations.options.1.service_type', ServiceActivation::SERVICE_DD_PLAN_BUDGET)
                 ->where('serviceActivations.options.1.label', 'Business Plan & Budget')
-                ->where('serviceActivations.options.1.delivery_mode', 'quote_approval')
+                ->where('serviceActivations.options.1.delivery_mode', 'fixed_fee')
                 ->where('serviceActivations.options.1.start_url', route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DD_PLAN_BUDGET], absolute: false))
                 ->where('serviceActivations.options.3.service_type', EngagementType::STANDARD_ADVISORY->value)
                 ->where('serviceActivations.options.3.delivery_mode', 'advisor_led')
@@ -149,7 +149,7 @@ final class OnboardingWizardTest extends TestCase
             );
     }
 
-    public function test_standard_advisory_client_requests_business_plan_budget_as_an_optional_add_on(): void
+    public function test_standard_advisory_client_can_request_the_fixed_fee_business_plan_budget_service(): void
     {
         $this->seed(RoleSeeder::class);
         [$user, $client] = $this->clientUserWithClient(EngagementType::STANDARD_ADVISORY);
@@ -160,7 +160,7 @@ final class OnboardingWizardTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('portal/Dashboard')
                 ->where('planBudgetAccess.allowed', false)
-                ->where('planBudgetAccess.label', 'Optional service')
+                ->where('planBudgetAccess.label', 'Fixed-fee service available')
                 ->has('workspaces.items', 1)
                 ->where('workspaces.items.0.key', 'standard_advisory')
                 ->where('serviceActivations.options.1.service_type', ServiceActivation::SERVICE_DD_PLAN_BUDGET)

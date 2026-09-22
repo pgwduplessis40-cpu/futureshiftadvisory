@@ -1014,17 +1014,14 @@ final class TestingSeedDataSeederTest extends TestCase
             ->where('service_type', ServiceActivation::SERVICE_DD_PLAN_BUDGET)
             ->first();
 
-        $this->assertNotNull($activation, 'Expected Southern Lights to have active BP&B add-on access.');
+        $this->assertNotNull($activation, 'Expected Southern Lights to have active fixed-fee BP&B access.');
         $this->assertSame(ServiceActivation::STATUS_ACTIVE, $activation->status);
         $this->assertSame(ServiceActivation::PAYMENT_PAID, $activation->payment_status);
 
         $snapshot = json_decode((string) $activation->selected_package_snapshot, true, flags: JSON_THROW_ON_ERROR);
         $this->assertSame(ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON, data_get($snapshot, 'package_scope'));
-        $this->assertSame(ServiceRatePackage::SCOPE_DD_1M_3M, data_get($snapshot, 'quote_context.dd_package.package_scope'));
-        $this->assertSame(14500.0, (float) data_get($snapshot, 'quote_context.dd_package.fixed_fee'));
-        $this->assertSame(2400.0, (float) data_get($snapshot, 'quote_context.plan_budget_fixed_fee'));
-        $this->assertSame(16900.0, (float) data_get($snapshot, 'quote_context.combined_fixed_fee'));
-        $this->assertSame(2400.0, (float) data_get($snapshot, 'quote_context.amount_due_for_this_activation'));
+        $this->assertSame(2400.0, (float) data_get($snapshot, 'fixed_fee'));
+        $this->assertNull(data_get($snapshot, 'quote_context'));
 
         $document = DB::table('documents')
             ->where('client_id', $client->id)

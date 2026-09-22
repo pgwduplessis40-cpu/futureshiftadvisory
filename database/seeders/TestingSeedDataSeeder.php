@@ -1504,13 +1504,13 @@ XML);
             'dd_plan_budget_add_on' => [
                 'service_type' => ServiceRatePackage::SERVICE_DD_PLAN_BUDGET,
                 'package_scope' => ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
-                'package_name' => 'Business Plan & Budget add-on',
-                'client_label' => 'Business Plan & Budget add-on',
+                'package_name' => 'Business Plan & Budget',
+                'client_label' => 'Business Plan & Budget',
                 'fixed_fee' => 2400,
                 'deposit_percent' => 100,
                 'purchase_price_min' => null,
                 'purchase_price_max' => null,
-                'scope_description' => 'Single Business Plan & Budget add-on fee. Explore Buying a Business keeps its matched purchase-price band, and this BP&B fee is added only when BP&B is included for the client.',
+                'scope_description' => 'Fixed-fee Business Plan & Budget service. It is separate from any Due Diligence purchase-price band.',
             ],
             'entrepreneur_combo' => [
                 'service_type' => ServiceRatePackage::SERVICE_ENTREPRENEUR,
@@ -6848,11 +6848,6 @@ XML);
             return;
         }
 
-        $ddPackage = ServiceRatePackage::query()
-            ->where('service_type', ServiceRatePackage::SERVICE_DUE_DILIGENCE)
-            ->where('package_scope', ServiceRatePackage::SCOPE_DD_1M_3M)
-            ->where('is_active', true)
-            ->first();
         $planBudgetPackage = ServiceRatePackage::query()
             ->where('service_type', ServiceRatePackage::SERVICE_DD_PLAN_BUDGET)
             ->where('is_active', true)
@@ -6863,51 +6858,11 @@ XML);
         }
 
         $planBudgetSnapshot = $planBudgetPackage->snapshot();
-        $ddSnapshot = $ddPackage instanceof ServiceRatePackage ? $ddPackage->snapshot() : null;
-        $ddFee = is_numeric(data_get($ddSnapshot, 'fixed_fee')) ? (float) data_get($ddSnapshot, 'fixed_fee') : null;
-        $planBudgetFee = is_numeric($planBudgetSnapshot['fixed_fee'] ?? null) ? (float) $planBudgetSnapshot['fixed_fee'] : null;
-        $combinedFee = $ddFee !== null && $planBudgetFee !== null
-            ? round($ddFee + $planBudgetFee, 2)
-            : null;
-
-        $planBudgetSnapshot = [
-            ...$planBudgetSnapshot,
-            'quote_context' => [
-                'type' => 'dd_plus_business_plan_budget',
-                'summary' => 'DD price band plus Business Plan & Budget add-on.',
-                'currency' => 'NZD',
-                'dd_package' => $ddSnapshot === null ? null : [
-                    'id' => $ddSnapshot['id'] ?? null,
-                    'service_type' => $ddSnapshot['service_type'] ?? null,
-                    'package_scope' => $ddSnapshot['package_scope'] ?? null,
-                    'package_scope_label' => data_get($ddSnapshot, 'access.package_scope_label'),
-                    'package_name' => $ddSnapshot['package_name'] ?? null,
-                    'client_label' => $ddSnapshot['client_label'] ?? null,
-                    'fixed_fee' => $ddFee,
-                    'currency' => $ddSnapshot['currency'] ?? 'NZD',
-                    'scope_description' => $ddSnapshot['scope_description'] ?? null,
-                ],
-                'plan_budget_package' => [
-                    'id' => $planBudgetSnapshot['id'] ?? null,
-                    'service_type' => $planBudgetSnapshot['service_type'] ?? null,
-                    'package_scope' => $planBudgetSnapshot['package_scope'] ?? null,
-                    'package_scope_label' => data_get($planBudgetSnapshot, 'access.package_scope_label'),
-                    'package_name' => $planBudgetSnapshot['package_name'] ?? null,
-                    'client_label' => $planBudgetSnapshot['client_label'] ?? null,
-                    'fixed_fee' => $planBudgetFee,
-                    'currency' => $planBudgetSnapshot['currency'] ?? 'NZD',
-                    'scope_description' => $planBudgetSnapshot['scope_description'] ?? null,
-                ],
-                'plan_budget_fixed_fee' => $planBudgetFee,
-                'combined_fixed_fee' => $combinedFee,
-                'amount_due_for_this_activation' => $planBudgetFee,
-            ],
-        ];
 
         $this->ids['service_activation_dd_plan_budget_active'] = $this->upsert('service_activations', [
             'client_id' => $client->getKey(),
             'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
-            'client_label' => 'DD + Business Plan & Budget',
+            'client_label' => 'Business Plan & Budget',
         ], [
             'requested_by_user_id' => $buyer->getKey(),
             'advisor_id' => $advisor->getKey(),
@@ -6941,16 +6896,12 @@ XML);
             'balance_reference' => null,
             'accepted_by_user_id' => $buyer->getKey(),
             'accepted_at' => $this->now->copy()->subDay(),
-            'acceptance_text' => 'Seeded accepted DD + Business Plan & Budget add-on for submit-for-review testing.',
+            'acceptance_text' => 'Seeded accepted fixed-fee Business Plan & Budget service for submit-for-review testing.',
             'terms_reference' => $this->json([
                 'standard_terms_already_accepted' => true,
                 'workspace_specific_fee_scope_acknowledged' => true,
-                'quote_context' => [
-                    'dd_package_scope' => ServiceRatePackage::SCOPE_DD_1M_3M,
-                    'plan_budget_scope' => ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
-                    'combined_fixed_fee' => $combinedFee,
-                    'plan_budget_fixed_fee' => $planBudgetFee,
-                ],
+                'service_rate_package_scope' => ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
+                'fixed_fee' => $planBudgetSnapshot['fixed_fee'] ?? null,
             ]),
             'related_dd_engagement_id' => $this->ids['dd_engagement'] ?? null,
             'related_entrepreneur_profile_id' => null,
@@ -6961,7 +6912,7 @@ XML);
                 'fixture' => true,
                 'fixture_key' => 'service_activation_dd_plan_budget_active',
                 'pricing_source' => 'testing_seed_data',
-                'combined_quote_seeded' => true,
+                'fixed_fee_service_seeded' => true,
                 'payment_required_before_workspace_access' => true,
             ]),
         ]);

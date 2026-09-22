@@ -7,7 +7,6 @@ namespace App\Services\ServiceActivations;
 use App\Enums\EngagementType;
 use App\Models\Client;
 use App\Models\ServiceActivation;
-use Illuminate\Support\Collection;
 
 final class ServiceActivationNavigation
 {
@@ -25,8 +24,10 @@ final class ServiceActivationNavigation
         $open = $activations
             ->filter(fn (ServiceActivation $activation): bool => $activation->isOpen())
             ->values();
-        $hasDueDiligenceContext = $this->hasDueDiligenceContext($client, $open);
-        $isStandardAdvisoryClient = $client->engagement_type === EngagementType::STANDARD_ADVISORY;
+        $isExistingBusinessClient = in_array($client->engagement_type, [
+            EngagementType::DUE_DILIGENCE,
+            EngagementType::STANDARD_ADVISORY,
+        ], true);
 
         return [
             'request_url' => route('portal.service-activations.store', absolute: false),
@@ -38,20 +39,15 @@ final class ServiceActivationNavigation
                     ! $open->contains(fn (ServiceActivation $activation): bool => $activation->service_type === ServiceActivation::SERVICE_DUE_DILIGENCE),
                     'self_start',
                 ),
-                ...($hasDueDiligenceContext ? [
-                    $this->ddPlanBudgetOption(
-                        ! $open->contains(fn (ServiceActivation $activation): bool => $activation->service_type === ServiceActivation::SERVICE_DD_PLAN_BUDGET),
-                    ),
-                ] : []),
-                ...($isStandardAdvisoryClient ? [
-                    $this->standardAdvisoryPlanBudgetOption(
+                ...($isExistingBusinessClient ? [
+                    $this->planBudgetOption(
                         ! $open->contains(fn (ServiceActivation $activation): bool => $activation->service_type === ServiceActivation::SERVICE_DD_PLAN_BUDGET),
                     ),
                 ] : []),
                 $this->optionPayload(
                     ServiceActivation::SERVICE_ENTREPRENEUR,
                     'Test new Business Idea',
-                    'Open idea validation, business-plan, and budget support inside this portal.',
+                    'Start with Idea Validation. Business Plan & Budget can be requested after approval.',
                     ! $open->contains(fn (ServiceActivation $activation): bool => $activation->service_type === ServiceActivation::SERVICE_ENTREPRENEUR),
                     'self_start',
                 ),
@@ -122,44 +118,18 @@ final class ServiceActivationNavigation
     }
 
     /**
-     * @param  Collection<int, ServiceActivation>  $open
-     */
-    private function hasDueDiligenceContext(Client $client, Collection $open): bool
-    {
-        return $client->engagement_type === EngagementType::DUE_DILIGENCE
-            || $open->contains(fn (ServiceActivation $activation): bool => $activation->service_type === ServiceActivation::SERVICE_DUE_DILIGENCE);
-    }
-
-    /**
      * @return array<array-key, mixed>
      */
-    private function ddPlanBudgetOption(bool $available): array
-    {
-        return [
-            'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
-            'label' => 'DD + Business Plan & Budget',
-            'description' => 'Request FSA quote approval for the acquisition business plan and funding budget add-on.',
-            'available' => $available,
-            'delivery_mode' => 'quote_approval',
-            'availability_label' => $available ? 'FSA quote required' : 'Already requested',
-            'unavailable_reason' => 'You already have an open Business Plan & Budget quote or add-on for this DD workspace.',
-            'start_url' => $available ? route('portal.business-plan-budget.show', absolute: false) : null,
-        ];
-    }
-
-    /**
-     * @return array<array-key, mixed>
-     */
-    private function standardAdvisoryPlanBudgetOption(bool $available): array
+    private function planBudgetOption(bool $available): array
     {
         return [
             'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
             'label' => 'Business Plan & Budget',
-            'description' => 'Request this optional add-on when a formal plan, budget, or funding view will support your advisory priorities.',
+            'description' => 'Request the fixed-fee Business Plan & Budget service when a formal plan, budget, or funding view will support your next decision.',
             'available' => $available,
-            'delivery_mode' => 'quote_approval',
-            'availability_label' => $available ? 'Optional add-on' : 'Already requested',
-            'unavailable_reason' => 'You already have an open Business Plan & Budget request or active add-on.',
+            'delivery_mode' => 'fixed_fee',
+            'availability_label' => $available ? 'Fixed fee' : 'Already requested',
+            'unavailable_reason' => 'You already have an open Business Plan & Budget request or active workspace.',
             'start_url' => $available
                 ? route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DD_PLAN_BUDGET], absolute: false)
                 : null,
