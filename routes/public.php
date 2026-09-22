@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Public\AboutController;
+use App\Http\Controllers\Public\BlogController;
 use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Public\EntrepreneurServiceController;
 use App\Http\Controllers\Public\FaqController;
@@ -64,6 +65,11 @@ Route::name('public.')->group(function (): void {
         ->name('services.entrepreneur');
     Route::get('/about', AboutController::class)->name('about');
     Route::get('/faq', FaqController::class)->name('faq');
+
+    Route::get('/blog', [BlogController::class, 'index'])->name('blog');
+    Route::get('/blog/{slug}', [BlogController::class, 'show'])
+        ->where('slug', '[a-z0-9-]+')
+        ->name('blog.show');
 
     Route::get('/contact', [ContactController::class, 'create'])->name('contact');
     Route::post('/contact', [ContactController::class, 'store'])

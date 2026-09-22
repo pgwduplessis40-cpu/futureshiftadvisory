@@ -27,6 +27,7 @@ export function SiteHeader() {
     const nav: NavItem[] = [
         { label: 'Services', href: '/services', active: isActive('/services') },
         { label: 'About', href: '/about', active: isActive('/about') },
+        { label: 'Blog', href: '/blog', active: isActive('/blog') },
         { label: 'FAQ', href: '/faq', active: isActive('/faq') },
         { label: 'Contact', href: '/contact', active: isActive('/contact') },
     ];
