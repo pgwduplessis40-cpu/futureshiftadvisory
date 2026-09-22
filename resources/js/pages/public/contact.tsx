@@ -46,7 +46,9 @@ export default function Contact({
         if (!turnstileSiteKey) {
             return;
         }
+
         const el = captchaRef.current;
+
         if (!el) {
             return;
         }
@@ -66,6 +68,7 @@ export default function Contact({
             let script = document.querySelector<HTMLScriptElement>(
                 'script[data-turnstile]',
             );
+
             if (!script) {
                 script = document.createElement('script');
                 script.src =
@@ -75,6 +78,7 @@ export default function Contact({
                 script.dataset.turnstile = 'true';
                 document.head.appendChild(script);
             }
+
             script.addEventListener('load', render, { once: true });
             const poll = window.setInterval(() => {
                 if (window.turnstile) {
