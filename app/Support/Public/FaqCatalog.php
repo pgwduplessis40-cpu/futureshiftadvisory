@@ -56,6 +56,11 @@ final class FaqCatalog
             ],
             [
                 'group' => 'Starting a new business',
+                'question' => 'How do I start a business in New Zealand?',
+                'answer' => 'Start with the idea, not the paperwork. Before you register anything, it is worth knowing whether the idea actually holds up - real demand, who else is already doing it, and whether the numbers work. That is what idea validation is for, and it is the cheapest step to get right first. From there the practical path is roughly: validate the idea, write a business plan and budget with real numbers, decide on a structure (sole trader or company), register with the Companies Office and IRD, and line up any funding you need. We walk New Zealand founders through the early stretch - the validation, the plan, and getting funding-ready - so you make the leap on evidence, not hope.',
+            ],
+            [
+                'group' => 'Starting a new business',
                 'question' => 'How do I know if my business idea will work?',
                 'answer' => 'You cannot know for certain - but you can find out a great deal before you spend serious money. That is what idea validation is for: testing the concept against real demand, the numbers, who else is already doing it, and what it would genuinely take to deliver. Sometimes the honest answer is that the idea does not hold up in its current form. Hearing that early costs you a conversation; hearing it two years in costs a great deal more.',
             ],
