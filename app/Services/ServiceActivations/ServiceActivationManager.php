@@ -219,8 +219,7 @@ final class ServiceActivationManager
             'service_rate_package_id' => $package->getKey(),
             'service_type' => $activation->service_type,
             'fixed_fee' => $snapshot['fixed_fee'] ?? null,
-            'payment_split' => $snapshot['payment_split'] ?? null,
-            'quote_context' => $snapshot['quote_context'] ?? null,
+            'payment_split' => data_get($snapshot, 'payment_split'),
             'billing_model' => $package->billing_model,
         ]);
 
