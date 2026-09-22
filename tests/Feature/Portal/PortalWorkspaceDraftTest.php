@@ -180,7 +180,7 @@ final class PortalWorkspaceDraftTest extends TestCase
                 ->where('workspaces.items.0.service_type', EngagementType::STANDARD_ADVISORY->value)
                 ->where('serviceActivations.options.1.service_type', ServiceActivation::SERVICE_DD_PLAN_BUDGET)
                 ->where('serviceActivations.options.1.label', 'Business Plan & Budget')
-                ->where('serviceActivations.options.1.availability_label', 'Optional add-on')
+                ->where('serviceActivations.options.1.availability_label', 'Fixed fee')
                 ->where('serviceActivations.options.1.start_url', route(
                     'portal.service-activations.create',
                     ['serviceType' => ServiceActivation::SERVICE_DD_PLAN_BUDGET],

@@ -108,6 +108,7 @@ export default function ServiceActivationRequest({
 }: Props) {
     const isDueDiligence = service.service_type === 'due_diligence';
     const isPlanBudget = service.service_type === 'dd_plan_budget';
+    const isIdeaValidation = service.service_type === 'entrepreneur';
     const pricingPackages = pricingPreview.packages ?? [];
     const form = useForm<ServiceActivationForm>({
         service_type: service.service_type,
@@ -120,8 +121,6 @@ export default function ServiceActivationRequest({
         financial_confidence: '',
         preferred_guidance: '',
         idea_name: '',
-        customer: '',
-        problem: '',
         timing: '',
         notes: '',
         pricing_acknowledged: false,
@@ -139,9 +138,7 @@ export default function ServiceActivationRequest({
           : Lightbulb;
     const matchedPackage = isDueDiligence
         ? selectPricingPackage(form.data.asking_price, pricingPackages)
-        : isPlanBudget
-          ? pricingPreview.package
-          : null;
+        : pricingPreview.package;
 
     function submit(event: FormEvent) {
         event.preventDefault();
@@ -208,12 +205,22 @@ export default function ServiceActivationRequest({
                 >
                     <ExplainedSectionHeader
                         title="Workspace request"
-                        description="These details help your advisor confirm the right service path before selecting scope and package."
+                        description={
+                            isIdeaValidation
+                                ? 'Give your idea or concept a working name. You will complete the validation questions once access opens.'
+                                : 'These details help FSA set up the right service for your business.'
+                        }
                         explanation={{
                             title: 'Workspace request',
-                            what: 'This form captures the initial business, acquisition, or idea context for the requested service.',
-                            action: 'Complete the fields you know now. Your advisor can clarify or refine the scope after the request is submitted.',
-                            why: 'Early context helps FSA choose the correct package and avoid opening the wrong workflow for the client.',
+                            what: isIdeaValidation
+                                ? 'This request captures a working name for the idea you want to validate.'
+                                : 'This form captures the starting business or acquisition context for the requested service.',
+                            action: isIdeaValidation
+                                ? 'Enter the idea or concept. The substantive validation questions open after access is granted.'
+                                : 'Complete the fields you know now. FSA can clarify the delivery details after the request is submitted.',
+                            why: isIdeaValidation
+                                ? 'This keeps the request quick while preserving the full validation work for the Idea Validation workspace.'
+                                : 'Early context connects the request to the correct fixed-fee service or proposal path.',
                         }}
                     />
                     <div className="grid gap-4">
@@ -228,45 +235,55 @@ export default function ServiceActivationRequest({
                             <EntrepreneurFields form={form} />
                         )}
 
-                        <div className="grid gap-2">
-                            <LabelWithExplanation
-                                htmlFor="service_timing"
-                                explanation={serviceExplanations.timing}
-                            >
-                                Timing
-                            </LabelWithExplanation>
-                            <Input
-                                id="service_timing"
-                                value={form.data.timing}
-                                onChange={(event) =>
-                                    form.setData('timing', event.target.value)
-                                }
-                                placeholder="Now, next month, after funding, still exploring"
-                            />
-                            <InputError message={form.errors.timing} />
-                        </div>
+                        {!isIdeaValidation && (
+                            <div className="grid gap-2">
+                                <LabelWithExplanation
+                                    htmlFor="service_timing"
+                                    explanation={serviceExplanations.timing}
+                                >
+                                    Timing
+                                </LabelWithExplanation>
+                                <Input
+                                    id="service_timing"
+                                    value={form.data.timing}
+                                    onChange={(event) =>
+                                        form.setData(
+                                            'timing',
+                                            event.target.value,
+                                        )
+                                    }
+                                    placeholder="Now, next month, after funding, still exploring"
+                                />
+                                <InputError message={form.errors.timing} />
+                            </div>
+                        )}
 
-                        <div className="grid gap-2">
-                            <LabelWithExplanation
-                                htmlFor="service_notes"
-                                explanation={serviceExplanations.notes}
-                            >
-                                Notes
-                            </LabelWithExplanation>
-                            <textarea
-                                id="service_notes"
-                                value={form.data.notes}
-                                onChange={(event) =>
-                                    form.setData('notes', event.target.value)
-                                }
-                                rows={5}
-                                className={cn(
-                                    'min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
-                                    'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                                )}
-                            />
-                            <InputError message={form.errors.notes} />
-                        </div>
+                        {!isIdeaValidation && (
+                            <div className="grid gap-2">
+                                <LabelWithExplanation
+                                    htmlFor="service_notes"
+                                    explanation={serviceExplanations.notes}
+                                >
+                                    Notes
+                                </LabelWithExplanation>
+                                <textarea
+                                    id="service_notes"
+                                    value={form.data.notes}
+                                    onChange={(event) =>
+                                        form.setData(
+                                            'notes',
+                                            event.target.value,
+                                        )
+                                    }
+                                    rows={5}
+                                    className={cn(
+                                        'min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
+                                        'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                                    )}
+                                />
+                                <InputError message={form.errors.notes} />
+                            </div>
+                        )}
                     </div>
 
                     <PricingTransparencyPanel
@@ -542,8 +559,8 @@ function EntrepreneurFields({
     form: InertiaFormProps<ServiceActivationForm>;
 }) {
     return (
-        <div className="grid gap-4 lg:grid-cols-3">
-            <div className="grid gap-2 lg:col-span-3">
+        <div className="grid gap-2">
+            <div className="grid gap-2">
                 <LabelWithExplanation
                     htmlFor="service_idea_name"
                     explanation={serviceExplanations.ideaName}
@@ -556,61 +573,9 @@ function EntrepreneurFields({
                     onChange={(event) =>
                         form.setData('idea_name', event.target.value)
                     }
+                    required
                 />
                 <InputError message={form.errors.idea_name} />
-            </div>
-            <div className="grid gap-2">
-                <LabelWithExplanation
-                    htmlFor="service_idea_industry"
-                    explanation={serviceExplanations.industry}
-                >
-                    Industry
-                </LabelWithExplanation>
-                <Input
-                    id="service_idea_industry"
-                    value={form.data.industry}
-                    onChange={(event) =>
-                        form.setData('industry', event.target.value)
-                    }
-                />
-                <InputError message={form.errors.industry} />
-            </div>
-            <div className="grid gap-2 lg:col-span-2">
-                <LabelWithExplanation
-                    htmlFor="service_customer"
-                    explanation={serviceExplanations.customer}
-                >
-                    Customer
-                </LabelWithExplanation>
-                <Input
-                    id="service_customer"
-                    value={form.data.customer}
-                    onChange={(event) =>
-                        form.setData('customer', event.target.value)
-                    }
-                />
-                <InputError message={form.errors.customer} />
-            </div>
-            <div className="grid gap-2 lg:col-span-3">
-                <LabelWithExplanation
-                    htmlFor="service_problem"
-                    explanation={serviceExplanations.problem}
-                >
-                    Problem to solve
-                </LabelWithExplanation>
-                <textarea
-                    id="service_problem"
-                    value={form.data.problem}
-                    onChange={(event) =>
-                        form.setData('problem', event.target.value)
-                    }
-                    rows={4}
-                    className={cn(
-                        'min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
-                        'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                    )}
-                />
-                <InputError message={form.errors.problem} />
             </div>
         </div>
     );
@@ -627,8 +592,6 @@ type ServiceActivationForm = {
     financial_confidence: string;
     preferred_guidance: string;
     idea_name: string;
-    customer: string;
-    problem: string;
     timing: string;
     notes: string;
     pricing_acknowledged: boolean;
@@ -901,18 +864,6 @@ const serviceExplanations = {
         what: 'The short working name for the business idea being explored.',
         action: 'Use the name you would recognize later in your portal and advisor messages.',
         why: 'A clear idea name keeps validation, budget, assessment, and follow-up records connected.',
-    },
-    customer: {
-        title: 'Customer',
-        what: 'The person, business, or market segment expected to buy from the idea.',
-        action: 'Describe the primary customer as specifically as you can.',
-        why: 'Customer clarity is central to testing whether the idea solves a real commercial problem.',
-    },
-    problem: {
-        title: 'Problem to solve',
-        what: 'The customer problem, friction, or unmet need the idea is trying to address.',
-        action: "Write the practical problem in the customer's words where possible.",
-        why: 'Problem clarity helps the advisor separate attractive ideas from ideas with evidence of demand.',
     },
     timing: {
         title: 'Timing',

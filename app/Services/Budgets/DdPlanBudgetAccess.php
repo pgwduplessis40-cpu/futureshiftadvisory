@@ -43,9 +43,7 @@ final class DdPlanBudgetAccess
                 state: self::STATE_ACTIVE_ADD_ON,
                 allowed: true,
                 label: 'Business Plan & Budget active',
-                message: $this->isDueDiligenceClient($client)
-                    ? 'The Business Plan & Budget add-on has been approved and accepted for this DD client.'
-                    : 'The Business Plan & Budget add-on has been approved and accepted for this advisory client.',
+                message: 'The fixed-fee Business Plan & Budget service has been approved, paid, and accepted.',
             );
         }
 
@@ -63,12 +61,8 @@ final class DdPlanBudgetAccess
         return $this->basePayload(
             allowed: false,
             state: self::STATE_NOT_REQUESTED,
-            label: $this->isDueDiligenceClient($client)
-                ? 'FSA quote required'
-                : 'Optional service',
-            message: $this->isDueDiligenceClient($client)
-                ? 'This DD service is currently DD-only. Business Plan & Budget can be requested as an additional FSA-quoted add-on.'
-                : 'Business Plan & Budget is an optional add-on for this advisory journey. Request it when a formal plan and budget will help your next decision.',
+            label: 'Fixed-fee service available',
+            message: 'Business Plan & Budget is a separate fixed-fee service. Request it when a formal plan and budget will help your next decision.',
         );
     }
 
@@ -159,7 +153,7 @@ final class DdPlanBudgetAccess
             'package_label' => data_get($snapshot, 'client_label'),
             'fixed_fee' => data_get($snapshot, 'fixed_fee'),
             'currency' => data_get($snapshot, 'currency', 'NZD'),
-            'quote_context' => data_get($snapshot, 'quote_context'),
+            'quote_context' => null,
             'payment_status' => $activation->payment_status ?? ServiceActivation::PAYMENT_NOT_REQUIRED,
             'payment_status_label' => str((string) ($activation->payment_status ?? ServiceActivation::PAYMENT_NOT_REQUIRED))->replace('_', ' ')->title()->toString(),
         ];
@@ -203,18 +197,18 @@ final class DdPlanBudgetAccess
     private function labelForOpenRequest(ServiceActivation $activation): string
     {
         return match ($this->stateForOpenRequest($activation)) {
-            self::STATE_PAYMENT_DUE => 'Quote approved - payment due',
-            self::STATE_ACCEPTANCE_DUE => 'Quote approved - acceptance due',
-            default => 'FSA quote requested',
+            self::STATE_PAYMENT_DUE => 'Fixed fee selected - payment due',
+            self::STATE_ACCEPTANCE_DUE => 'Payment complete - acceptance due',
+            default => 'Business Plan & Budget requested',
         };
     }
 
     private function messageForOpenRequest(ServiceActivation $activation): string
     {
         return match ($this->stateForOpenRequest($activation)) {
-            self::STATE_PAYMENT_DUE => 'FSA has selected the Business Plan & Budget add-on package. Complete the payment step before the module opens.',
-            self::STATE_ACCEPTANCE_DUE => 'FSA has approved the quote and payment is complete. Accept the package scope to open Business Plan & Budget.',
-            default => 'FSA is reviewing the Business Plan & Budget add-on request and will select the package, scope, and fee before anything is charged.',
+            self::STATE_PAYMENT_DUE => 'FSA has selected the fixed-fee Business Plan & Budget package. Complete payment before the workspace opens.',
+            self::STATE_ACCEPTANCE_DUE => 'Payment is complete. Accept the fixed-fee package scope to open Business Plan & Budget.',
+            default => 'FSA is reviewing the Business Plan & Budget request and will confirm the fixed-fee package before anything is charged.',
         };
     }
 }

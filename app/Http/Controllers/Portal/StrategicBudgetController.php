@@ -419,7 +419,7 @@ final class StrategicBudgetController extends Controller
         abort_unless(
             $this->ddPlanBudgetAccess->allowed($client),
             403,
-            'Business Plan & Budget requires FSA quote approval for this DD client.',
+            'Business Plan & Budget requires the fixed-fee service to be accepted before this workspace opens.',
         );
     }
 
@@ -442,8 +442,8 @@ final class StrategicBudgetController extends Controller
             'business_ownership_experience' => data_get($capability, 'business_ownership_experience'),
             'financial_confidence' => data_get($capability, 'financial_confidence'),
             'preferred_guidance' => data_get($capability, 'preferred_guidance'),
-            'timing' => 'Client requested FSA quote approval for the DD + Business Plan & Budget add-on.',
-            'notes' => 'Quote request created from the inactive DD Business Plan & Budget module. Use the DD onboarding support profile to select the right support level, scope, and service fee.',
+            'timing' => 'Client requested the fixed-fee Business Plan & Budget service.',
+            'notes' => 'Service request created from the locked Business Plan & Budget module. Keep the plan and budget scope separate from the DD purchase-price band.',
         ];
     }
 }

@@ -94,9 +94,12 @@ final class ServiceActivationController extends Controller
                 'string',
                 Rule::in(['guided', 'balanced', 'fast_track']),
             ],
-            'idea_name' => ['nullable', 'string', 'max:255'],
-            'customer' => ['nullable', 'string', 'max:255'],
-            'problem' => ['nullable', 'string', 'max:1200'],
+            'idea_name' => [
+                Rule::requiredIf(fn (): bool => $request->input('service_type') === ServiceActivation::SERVICE_ENTREPRENEUR),
+                'nullable',
+                'string',
+                'max:255',
+            ],
             'timing' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'pricing_acknowledged' => ['accepted'],
@@ -219,7 +222,10 @@ final class ServiceActivationController extends Controller
         }
 
         return $serviceType === ServiceActivation::SERVICE_DD_PLAN_BUDGET
-            && $client->engagement_type === EngagementType::STANDARD_ADVISORY;
+            && in_array($client->engagement_type, [
+                EngagementType::DUE_DILIGENCE,
+                EngagementType::STANDARD_ADVISORY,
+            ], true);
     }
 
     /**

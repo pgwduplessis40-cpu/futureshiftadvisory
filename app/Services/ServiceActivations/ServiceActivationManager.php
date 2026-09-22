@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\ServiceActivations;
 
-use App\Enums\EngagementType;
 use App\Enums\EntrepreneurStage;
 use App\Enums\FeeMethod;
 use App\Models\BillingAdjustment;
@@ -165,7 +164,7 @@ final class ServiceActivationManager
                 'advisor_id' => $advisor?->getKey(),
                 'pre_request_pricing_status' => $pricingPreview['status'] ?? null,
                 'pre_request_package_id' => data_get($pricingPreview, 'package.id'),
-                'pre_request_combined_fixed_fee' => data_get($pricingPreview, 'package.quote_context.combined_fixed_fee'),
+                'pre_request_fixed_fee' => data_get($pricingPreview, 'package.fixed_fee'),
             ]);
 
             return $activation->refresh();
@@ -180,13 +179,6 @@ final class ServiceActivationManager
     {
         $activation->loadMissing('client');
         $snapshot = $this->packageSnapshotForActivation($package, $activation->client);
-        if ($activation->service_type === ServiceActivation::SERVICE_DD_PLAN_BUDGET
-            && $activation->client?->engagement_type === EngagementType::DUE_DILIGENCE) {
-            $snapshot = $this->withDdPlanBudgetQuoteContext(
-                $snapshot,
-                $this->matchedDueDiligencePackageSnapshot($activation->client, (array) ($activation->intake ?? [])),
-            );
-        }
         $paymentStatus = $this->packagePaymentStatus($snapshot);
 
         if (! in_array($advisor->user_type, [User::TYPE_ADVISOR, User::TYPE_JUNIOR_ADVISOR, User::TYPE_SUPER_ADMIN], true)) {
@@ -606,43 +598,19 @@ final class ServiceActivationManager
             );
         }
 
-        if ($serviceType === ServiceActivation::SERVICE_DD_PLAN_BUDGET
-            && $client?->engagement_type === EngagementType::STANDARD_ADVISORY) {
-            $package = $packages->first();
-
-            return $this->pricingPreviewPayload(
-                status: 'matched_package',
-                message: 'This is the Business Plan & Budget package available for your advisory journey. FSA will confirm the final scope before any charge or workspace access.',
-                package: $this->packageSnapshotForActivation($package, $client),
-                includePackages: $includePackages,
-                packages: $packageSnapshots,
-            );
-        }
-
         if ($serviceType === ServiceActivation::SERVICE_DD_PLAN_BUDGET) {
-            if ($packages->isEmpty()) {
-                return $this->pricingPreviewPayload(
-                    status: 'pricing_to_confirm',
-                    message: 'Pricing will be confirmed by your advisor before any charge or Business Plan & Budget access.',
-                    includePackages: $includePackages,
-                    packages: $packageSnapshots,
-                );
-            }
-
-            $addOnPackage = $packages->first();
-            $addOnSnapshot = $this->withDdPlanBudgetQuoteContext(
-                $this->packageSnapshotForActivation($addOnPackage, $client),
-                $this->matchedDueDiligencePackageSnapshot($client, $intake),
+            $package = $packages->first(
+                fn (ServiceRatePackage $package): bool => $package->packageScope() === ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
             );
 
-            $combinedFee = data_get($addOnSnapshot, 'quote_context.combined_fixed_fee');
-
             return $this->pricingPreviewPayload(
-                status: $combinedFee !== null ? 'matched_package' : 'pricing_to_confirm',
-                message: $combinedFee !== null
-                    ? 'FSA will combine the matched DD price band with the single Business Plan & Budget add-on fee before approval.'
-                    : 'FSA will confirm the matched DD price band and add the Business Plan & Budget fee before any charge or access.',
-                package: $addOnSnapshot,
+                status: $package instanceof ServiceRatePackage ? 'matched_package' : 'pricing_to_confirm',
+                message: $package instanceof ServiceRatePackage
+                    ? 'This is the fixed Business Plan & Budget fee. It is separate from any Due Diligence purchase-price band.'
+                    : 'Pricing will be confirmed by your advisor before any charge or Business Plan & Budget access.',
+                package: $package instanceof ServiceRatePackage
+                    ? $this->packageSnapshotForActivation($package, $client)
+                    : null,
                 includePackages: $includePackages,
                 packages: $packageSnapshots,
             );
@@ -681,6 +649,24 @@ final class ServiceActivationManager
                     ? 'This is the matched GST-exclusive package fee before you request access.'
                     : 'No payment will be requested for this service at this time.',
                 package: $snapshot,
+                includePackages: $includePackages,
+                packages: $packageSnapshots,
+            );
+        }
+
+        if ($serviceType === ServiceActivation::SERVICE_ENTREPRENEUR) {
+            $package = $packages->first(
+                fn (ServiceRatePackage $package): bool => $package->packageScope() === ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION,
+            );
+
+            return $this->pricingPreviewPayload(
+                status: $package instanceof ServiceRatePackage ? 'matched_package' : 'pricing_to_confirm',
+                message: $package instanceof ServiceRatePackage
+                    ? 'This is the fixed Idea Validation fee. Business Plan & Budget can be requested after the idea-validation journey is complete.'
+                    : 'Pricing will be confirmed by your advisor before any charge or Idea Validation workspace access.',
+                package: $package instanceof ServiceRatePackage
+                    ? $this->packageSnapshotForActivation($package, $client)
+                    : null,
                 includePackages: $includePackages,
                 packages: $packageSnapshots,
             );
@@ -788,7 +774,7 @@ final class ServiceActivationManager
                 'timing',
                 'notes',
             ],
-            default => ['idea_name', 'industry', 'customer', 'problem', 'timing', 'notes'],
+            default => ['idea_name'],
         };
 
         return collect($intake)
@@ -953,9 +939,7 @@ final class ServiceActivationManager
     {
         return match ($serviceType) {
             ServiceActivation::SERVICE_DUE_DILIGENCE => 'Explore buying a business',
-            ServiceActivation::SERVICE_DD_PLAN_BUDGET => $client?->engagement_type === EngagementType::STANDARD_ADVISORY
-                ? 'Business Plan & Budget'
-                : 'DD + Business Plan & Budget',
+            ServiceActivation::SERVICE_DD_PLAN_BUDGET => 'Business Plan & Budget',
             ServiceActivation::SERVICE_ENTREPRENEUR => 'Test new Business Idea',
             ServiceActivation::SERVICE_INTEGRATION_SCOPING => 'Systems integration scoping',
             ServiceActivation::SERVICE_INTEGRATION => 'Systems integration delivery',
@@ -966,9 +950,7 @@ final class ServiceActivationManager
     private function requestThreadBody(ServiceActivation $activation): string
     {
         $requestLabel = $activation->service_type === ServiceActivation::SERVICE_DD_PLAN_BUDGET
-            ? ($activation->clientLabel() === 'DD + Business Plan & Budget'
-                ? 'I would like to request an FSA quote for the DD + Business Plan & Budget add-on.'
-                : 'I would like to request access to the Business Plan & Budget add-on for my advisory journey.')
+            ? 'I would like to request the fixed-fee Business Plan & Budget service.'
             : 'I would like to request a new workspace: '.$activation->clientLabel().'.';
         $lines = [
             $requestLabel,
@@ -988,22 +970,6 @@ final class ServiceActivationManager
                 $fee,
             );
 
-            $quoteContext = data_get($package, 'quote_context');
-            if (is_array($quoteContext)) {
-                $combinedFee = data_get($quoteContext, 'combined_fixed_fee');
-                $ddFee = data_get($quoteContext, 'dd_package.fixed_fee');
-                $addOnFee = data_get($quoteContext, 'plan_budget_fixed_fee');
-
-                if (is_numeric($combinedFee) && is_numeric($ddFee) && is_numeric($addOnFee)) {
-                    $lines[] = sprintf(
-                        'Combined quote context: DD price band %s plus Business Plan & Budget %s equals %s ex GST. Add-on amount due for this request: %s ex GST.',
-                        $this->formatMoney((float) $ddFee, $currency),
-                        $this->formatMoney((float) $addOnFee, $currency),
-                        $this->formatMoney((float) $combinedFee, $currency),
-                        $this->formatMoney((float) $addOnFee, $currency),
-                    );
-                }
-            }
         } else {
             $lines[] = 'Before submitting, I acknowledged that pricing will be confirmed before any charge or workspace access.';
         }
@@ -1027,11 +993,8 @@ final class ServiceActivationManager
             : 'the selected fee';
         $currency = (string) ($snapshot['currency'] ?? 'NZD');
         $isDdPlanBudget = $activation->service_type === ServiceActivation::SERVICE_DD_PLAN_BUDGET;
-        $accessNoun = $isDdPlanBudget ? 'Business Plan & Budget module access' : 'workspace access';
-        $serviceNoun = $isDdPlanBudget ? 'add-on package' : 'workspace package';
-        $quoteContextText = $isDdPlanBudget
-            ? $this->ddPlanBudgetAcceptanceQuoteText($snapshot, $currency)
-            : '';
+        $accessNoun = $isDdPlanBudget ? 'Business Plan & Budget workspace access' : 'workspace access';
+        $serviceNoun = $isDdPlanBudget ? 'fixed-fee package' : 'workspace package';
         $paymentText = match (true) {
             $this->activationRequiresPayment($activation) => $accessNoun.' opens only after full package payment has been received and confirmed',
             (bool) data_get($snapshot, 'pilot_fee_waiver.active', false) => 'no payment is required before '.$accessNoun.' opens because this client has an active pilot fee waiver',
@@ -1046,29 +1009,7 @@ final class ServiceActivationManager
             $currency,
             $fee,
             $this->paymentSplitAcceptanceText($snapshot, $currency),
-            $paymentText.$quoteContextText,
-        );
-    }
-
-    /**
-     * @param  array<array-key, mixed>  $snapshot
-     */
-    private function ddPlanBudgetAcceptanceQuoteText(array $snapshot, string $currency): string
-    {
-        $combinedFee = data_get($snapshot, 'quote_context.combined_fixed_fee');
-        $ddFee = data_get($snapshot, 'quote_context.dd_package.fixed_fee');
-        $addOnFee = data_get($snapshot, 'quote_context.plan_budget_fixed_fee');
-
-        if (! is_numeric($combinedFee) || ! is_numeric($ddFee) || ! is_numeric($addOnFee)) {
-            return '';
-        }
-
-        return sprintf(
-            '. The combined DD + Business Plan & Budget quote is %s ex GST, made up of the DD price band %s plus Business Plan & Budget %s; this add-on payment is %s ex GST',
-            $this->formatMoney((float) $combinedFee, $currency),
-            $this->formatMoney((float) $ddFee, $currency),
-            $this->formatMoney((float) $addOnFee, $currency),
-            $this->formatMoney((float) $addOnFee, $currency),
+            $paymentText,
         );
     }
 
@@ -1076,13 +1017,11 @@ final class ServiceActivationManager
     {
         $intake = (array) ($activation->intake ?? []);
 
-        return trim(implode("\n", array_filter([
-            isset($intake['idea_name']) ? 'Idea: '.$intake['idea_name'] : null,
-            isset($intake['industry']) ? 'Industry: '.$intake['industry'] : null,
-            isset($intake['customer']) ? 'Customer: '.$intake['customer'] : null,
-            isset($intake['problem']) ? 'Problem: '.$intake['problem'] : null,
-            isset($intake['notes']) ? 'Notes: '.$intake['notes'] : null,
-        ]))) ?: 'Client requested idea validation, business plan, and budget support from the advisory portal.';
+        $idea = trim((string) ($intake['idea_name'] ?? ''));
+
+        return $idea !== ''
+            ? 'Idea: '.$idea
+            : 'Client requested Idea Validation from the advisory portal.';
     }
 
     /** @return InviteOfferSnapshot */
@@ -1117,123 +1056,6 @@ final class ServiceActivationManager
         }
 
         return true;
-    }
-
-    /**
-     * @param  array<array-key, mixed>  $intake
-     * @return array<array-key, mixed>|null
-     */
-    private function matchedDueDiligencePackageSnapshot(?Client $client, array $intake): ?array
-    {
-        if ($client instanceof Client) {
-            $activation = ServiceActivation::query()
-                ->where('client_id', $client->getKey())
-                ->where('service_type', ServiceActivation::SERVICE_DUE_DILIGENCE)
-                ->where('status', ServiceActivation::STATUS_ACTIVE)
-                ->whereNotNull('selected_package_snapshot')
-                ->latest()
-                ->get()
-                ->first(fn (ServiceActivation $activation): bool => is_array($activation->selected_package_snapshot));
-
-            if ($activation instanceof ServiceActivation && is_array($activation->selected_package_snapshot)) {
-                return $this->quoteLineSnapshot($activation->selected_package_snapshot);
-            }
-        }
-
-        $askingPrice = $this->askingPriceFrom($client, $intake);
-
-        if ($askingPrice === null) {
-            return null;
-        }
-
-        $package = collect($this->activePackagesFor(ServiceActivation::SERVICE_DUE_DILIGENCE))
-            ->first(fn (ServiceRatePackage $package): bool => $this->packageMatchesPurchasePrice($package, $askingPrice));
-
-        if (! $package instanceof ServiceRatePackage) {
-            return null;
-        }
-
-        return $this->quoteLineSnapshot($this->packageSnapshotForActivation($package, $client));
-    }
-
-    /**
-     * @param  array<array-key, mixed>  $intake
-     */
-    private function askingPriceFrom(?Client $client, array $intake): ?float
-    {
-        $askingPrice = $intake['asking_price'] ?? null;
-
-        if (! is_numeric($askingPrice) && $client instanceof Client) {
-            $engagement = DdEngagement::query()
-                ->where('client_id', $client->getKey())
-                ->latest()
-                ->first();
-            $askingPrice = data_get($engagement?->target_details, 'asking_price');
-        }
-
-        return is_numeric($askingPrice) ? (float) $askingPrice : null;
-    }
-
-    /**
-     * @param  array<array-key, mixed>  $addOnSnapshot
-     * @param  array<array-key, mixed>|null  $ddSnapshot
-     * @return array<array-key, mixed>
-     */
-    private function withDdPlanBudgetQuoteContext(array $addOnSnapshot, ?array $ddSnapshot): array
-    {
-        $addOnLine = $this->quoteLineSnapshot($addOnSnapshot);
-        $addOnFee = $this->snapshotFixedFee($addOnLine);
-        $ddFee = $ddSnapshot === null ? null : $this->snapshotFixedFee($ddSnapshot);
-        $currency = (string) ($addOnLine['currency'] ?? $ddSnapshot['currency'] ?? 'NZD');
-        $combinedFee = $addOnFee !== null && $ddFee !== null
-            ? round($addOnFee + $ddFee, 2)
-            : null;
-
-        return [
-            ...$addOnSnapshot,
-            'quote_context' => [
-                'type' => 'dd_plus_business_plan_budget',
-                'summary' => $combinedFee !== null
-                    ? 'DD price band plus Business Plan & Budget add-on.'
-                    : 'Business Plan & Budget add-on; FSA still needs to confirm the DD price band.',
-                'currency' => $currency,
-                'dd_package' => $ddSnapshot,
-                'plan_budget_package' => $addOnLine,
-                'plan_budget_fixed_fee' => $addOnFee,
-                'combined_fixed_fee' => $combinedFee,
-                'amount_due_for_this_activation' => $addOnFee,
-            ],
-        ];
-    }
-
-    /**
-     * @param  array<array-key, mixed>  $snapshot
-     * @return array<array-key, mixed>
-     */
-    private function quoteLineSnapshot(array $snapshot): array
-    {
-        return [
-            'id' => $snapshot['id'] ?? null,
-            'service_type' => $snapshot['service_type'] ?? null,
-            'package_scope' => $snapshot['package_scope'] ?? null,
-            'package_scope_label' => data_get($snapshot, 'access.package_scope_label')
-                ?? ServiceRatePackage::packageScopeLabel(is_string($snapshot['package_scope'] ?? null) ? $snapshot['package_scope'] : null),
-            'package_name' => $snapshot['package_name'] ?? null,
-            'client_label' => $snapshot['client_label'] ?? null,
-            'fixed_fee' => $snapshot['fixed_fee'] ?? null,
-            'currency' => $snapshot['currency'] ?? 'NZD',
-            'scope_description' => $snapshot['scope_description'] ?? null,
-        ];
-    }
-
-    /**
-     * @param  array<array-key, mixed>  $snapshot
-     */
-    private function snapshotFixedFee(array $snapshot): ?float
-    {
-        $fee = $snapshot['fixed_fee'] ?? null;
-
-        return is_numeric($fee) ? (float) $fee : null;
     }
 
     /**

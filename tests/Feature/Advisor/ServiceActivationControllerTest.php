@@ -102,7 +102,7 @@ final class ServiceActivationControllerTest extends TestCase
         ]);
     }
 
-    public function test_standard_advisory_plan_budget_request_uses_a_single_add_on_without_dd_quote_context(): void
+    public function test_standard_advisory_plan_budget_request_uses_a_single_fixed_fee_without_dd_quote_context(): void
     {
         [$advisor, $client, $clientUser] = $this->clientFixture();
         $activation = ServiceActivation::query()->create([
@@ -110,7 +110,7 @@ final class ServiceActivationControllerTest extends TestCase
             'requested_by_user_id' => $clientUser->getKey(),
             'advisor_id' => $advisor->getKey(),
             'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
-            'client_label' => 'DD + Business Plan & Budget',
+            'client_label' => 'Business Plan & Budget',
             'status' => ServiceActivation::STATUS_REQUESTED,
             'payment_status' => ServiceActivation::PAYMENT_NOT_REQUIRED,
             'intake' => [
@@ -154,6 +154,107 @@ final class ServiceActivationControllerTest extends TestCase
         $this->assertSame(ServiceActivation::PAYMENT_PENDING, $activation->payment_status);
         $this->assertNull(data_get($activation->selected_package_snapshot, 'quote_context'));
         $this->assertSame(2400.0, (float) data_get($activation->selected_package_snapshot, 'fixed_fee'));
+    }
+
+    public function test_due_diligence_client_can_request_the_separate_fixed_fee_plan_budget_service(): void
+    {
+        [$advisor, $client, $clientUser] = $this->clientFixture();
+        $client->forceFill(['engagement_type' => EngagementType::DUE_DILIGENCE])->save();
+        $package = $this->package(
+            serviceType: ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+            packageScope: ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
+            fixedFee: 2400,
+        );
+
+        $this->actingAsMfa($clientUser)
+            ->get(route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DD_PLAN_BUDGET]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('portal/ServiceActivationRequest')
+                ->where('service.label', 'Business Plan & Budget')
+                ->where('pricingPreview.status', 'matched_package')
+                ->where('pricingPreview.package.id', $package->getKey())
+                ->where('pricingPreview.package.fixed_fee', 2400)
+                ->missing('pricingPreview.package.quote_context')
+            );
+
+        $this->actingAsMfa($clientUser)
+            ->post(route('portal.service-activations.store'), [
+                'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
+                'target_name' => 'Southern Lights Limited',
+                'industry' => 'Manufacturing',
+                'timing' => 'This quarter',
+                'pricing_acknowledged' => true,
+                'pricing_package_id' => $package->getKey(),
+            ])
+            ->assertRedirect();
+
+        $activation = ServiceActivation::query()
+            ->where('client_id', $client->getKey())
+            ->where('service_type', ServiceActivation::SERVICE_DD_PLAN_BUDGET)
+            ->firstOrFail();
+
+        $this->assertSame('Business Plan & Budget', $activation->client_label);
+        $this->assertSame(2400.0, (float) data_get($activation->metadata, 'pre_request_pricing.package.fixed_fee'));
+        $this->assertNull(data_get($activation->metadata, 'pre_request_pricing.package.quote_context'));
+    }
+
+    public function test_idea_validation_request_uses_its_fixed_fee_not_an_entrepreneur_bundle(): void
+    {
+        [$advisor, $client, $clientUser] = $this->clientFixture();
+        $ideaPackage = $this->package(
+            serviceType: ServiceActivation::SERVICE_ENTREPRENEUR,
+            packageScope: ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION,
+            fixedFee: 1650,
+        );
+        $this->package(
+            serviceType: ServiceActivation::SERVICE_ENTREPRENEUR,
+            packageScope: ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET,
+            fixedFee: 3450,
+        );
+
+        $preview = app(ServiceActivationManager::class)->pricingPreviewForRequest(
+            ServiceActivation::SERVICE_ENTREPRENEUR,
+            client: $client,
+        );
+
+        $this->assertSame('matched_package', $preview['status']);
+        $this->assertSame($ideaPackage->getKey(), data_get($preview, 'package.id'));
+        $this->assertSame(1650.0, (float) data_get($preview, 'package.fixed_fee'));
+        $this->assertNull(data_get($preview, 'package.quote_context'));
+    }
+
+    public function test_idea_validation_request_keeps_only_the_idea_or_concept(): void
+    {
+        [$advisor, $client, $clientUser] = $this->clientFixture();
+        $package = $this->package(
+            serviceType: ServiceActivation::SERVICE_ENTREPRENEUR,
+            packageScope: ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION,
+            fixedFee: 1650,
+        );
+
+        $this->actingAsMfa($clientUser)
+            ->post(route('portal.service-activations.store'), [
+                'service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+                'idea_name' => 'A better way for trades to schedule field work',
+                'industry' => 'Construction',
+                'customer' => 'Trade businesses',
+                'problem' => 'Scheduling and invoicing take too long.',
+                'timing' => 'This month',
+                'notes' => 'Legacy request context that must not be retained.',
+                'pricing_acknowledged' => true,
+                'pricing_package_id' => $package->getKey(),
+            ])
+            ->assertRedirect();
+
+        $activation = ServiceActivation::query()
+            ->where('client_id', $client->getKey())
+            ->where('service_type', ServiceActivation::SERVICE_ENTREPRENEUR)
+            ->firstOrFail();
+
+        $this->assertSame([
+            'idea_name' => 'A better way for trades to schedule field work',
+        ], $activation->intake);
     }
 
     /**
@@ -236,7 +337,7 @@ final class ServiceActivationControllerTest extends TestCase
         };
         $label = match ($serviceType) {
             ServiceRatePackage::SERVICE_DUE_DILIGENCE => ServiceRatePackage::packageScopeLabel($packageScope),
-            ServiceRatePackage::SERVICE_DD_PLAN_BUDGET => 'Business Plan & Budget add-on',
+            ServiceRatePackage::SERVICE_DD_PLAN_BUDGET => 'Business Plan & Budget',
             default => 'Entrepreneur plan and budget',
         };
 

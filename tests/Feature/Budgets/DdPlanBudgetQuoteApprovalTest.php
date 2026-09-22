@@ -50,7 +50,7 @@ final class DdPlanBudgetQuoteApprovalTest extends TestCase
                 ->component('portal/StrategicPlanBudgetQuoteApproval')
                 ->where('access.allowed', false)
                 ->where('access.state', 'not_requested')
-                ->where('access.label', 'FSA quote required')
+                ->where('access.label', 'Fixed-fee service available')
                 ->where('target.name', 'Kauri Kitchens Limited')
                 ->where('target.vendor_name', 'Kauri Kitchens Group')
                 ->where('target.industry', 'Manufacturing')
@@ -84,16 +84,14 @@ final class DdPlanBudgetQuoteApprovalTest extends TestCase
             ->firstOrFail();
 
         $this->assertSame(ServiceActivation::STATUS_REQUESTED, $activation->status);
-        $this->assertSame('DD + Business Plan & Budget', $activation->client_label);
+        $this->assertSame('Business Plan & Budget', $activation->client_label);
         $this->assertSame('Kauri Kitchens Limited', $activation->intake['target_name']);
         $this->assertSame('Kauri Kitchens Group', $activation->intake['vendor_name']);
         $this->assertSame('guided', $activation->intake['support_level']);
         $this->assertSame('first_time', $activation->intake['dd_experience']);
         $this->assertSame('low', $activation->intake['financial_confidence']);
-        $this->assertSame(8500.0, (float) data_get($activation->metadata, 'pre_request_pricing.package.quote_context.dd_package.fixed_fee'));
-        $this->assertSame(2400.0, (float) data_get($activation->metadata, 'pre_request_pricing.package.quote_context.plan_budget_fixed_fee'));
-        $this->assertSame(10900.0, (float) data_get($activation->metadata, 'pre_request_pricing.package.quote_context.combined_fixed_fee'));
-        $this->assertSame(2400.0, (float) data_get($activation->metadata, 'pre_request_pricing.package.quote_context.amount_due_for_this_activation'));
+        $this->assertSame(2400.0, (float) data_get($activation->metadata, 'pre_request_pricing.package.fixed_fee'));
+        $this->assertNull(data_get($activation->metadata, 'pre_request_pricing.package.quote_context'));
 
         $this->actingAsMfa($clientUser)
             ->get(route('portal.dashboard'))
@@ -102,7 +100,7 @@ final class DdPlanBudgetQuoteApprovalTest extends TestCase
                 ->component('portal/Dashboard')
                 ->where('planBudgetAccess.allowed', false)
                 ->where('planBudgetAccess.state', 'quote_requested')
-                ->where('planBudgetAccess.label', 'FSA quote requested')
+                ->where('planBudgetAccess.label', 'Business Plan & Budget requested')
                 ->where('planBudgetAccess.activation_url', route('portal.service-activations.show', $activation, absolute: false))
                 ->has('workspaces.items', 1)
                 ->where('workspaces.items.0.key', ServiceActivation::SERVICE_DUE_DILIGENCE)
@@ -123,7 +121,7 @@ final class DdPlanBudgetQuoteApprovalTest extends TestCase
             'requested_by_user_id' => $clientUser->getKey(),
             'advisor_id' => $advisor->getKey(),
             'service_type' => ServiceActivation::SERVICE_DD_PLAN_BUDGET,
-            'client_label' => 'DD + Business Plan & Budget',
+            'client_label' => 'Business Plan & Budget',
             'status' => ServiceActivation::STATUS_REQUESTED,
             'intake' => [
                 'target_name' => 'Kauri Kitchens Limited',
@@ -133,9 +131,8 @@ final class DdPlanBudgetQuoteApprovalTest extends TestCase
         ]);
 
         $activation = $manager->selectPackage($activation, $package, $advisor);
-        $this->assertSame(8500.0, (float) data_get($activation->selected_package_snapshot, 'quote_context.dd_package.fixed_fee'));
-        $this->assertSame(2400.0, (float) data_get($activation->selected_package_snapshot, 'quote_context.plan_budget_fixed_fee'));
-        $this->assertSame(10900.0, (float) data_get($activation->selected_package_snapshot, 'quote_context.combined_fixed_fee'));
+        $this->assertSame(2400.0, (float) data_get($activation->selected_package_snapshot, 'fixed_fee'));
+        $this->assertNull(data_get($activation->selected_package_snapshot, 'quote_context'));
         $activation = $manager->completePayment($activation->refresh(), $clientUser);
         $activation = $manager->accept($activation->refresh(), $clientUser);
 
@@ -346,15 +343,15 @@ final class DdPlanBudgetQuoteApprovalTest extends TestCase
         return ServiceRatePackage::query()->create([
             'service_type' => ServiceRatePackage::SERVICE_DD_PLAN_BUDGET,
             'package_scope' => ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
-            'package_name' => 'Business Plan & Budget add-on',
-            'client_label' => 'Business Plan & Budget add-on',
+            'package_name' => 'Business Plan & Budget',
+            'client_label' => 'Business Plan & Budget',
             'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
             'fixed_fee' => 2400,
             'deposit_percent' => 100,
             'purchase_price_min' => null,
             'purchase_price_max' => null,
             'currency' => 'NZD',
-            'scope_description' => 'Single Business Plan & Budget add-on fee added to the matched Explore Buying a Business purchase-price band when BP&B is included.',
+            'scope_description' => 'Fixed-fee Business Plan & Budget service, separate from the Due Diligence purchase-price band.',
             'is_active' => true,
             'effective_from' => now(),
         ]);
