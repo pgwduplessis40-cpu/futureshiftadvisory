@@ -1,6 +1,6 @@
 import { Form, usePage } from '@inertiajs/react';
 import { Loader2, Mail, MapPin, ShieldCheck } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import InputError from '@/components/input-error';
 import {
@@ -15,12 +15,90 @@ import type { SharedPageProps } from '@/types';
 
 type Option = { value: string; label: string };
 
+type TurnstileApi = {
+    render: (
+        el: HTMLElement,
+        options: { sitekey: string; [key: string]: unknown },
+    ) => string;
+    remove: (id: string) => void;
+};
+
+declare global {
+    interface Window {
+        turnstile?: TurnstileApi;
+    }
+}
+
 export default function Contact({
     engagementOptions,
+    turnstileSiteKey,
 }: {
     engagementOptions: Option[];
+    turnstileSiteKey?: string;
 }) {
     const page = usePage<SharedPageProps>();
+    const captchaRef = useRef<HTMLDivElement>(null);
+
+    // Cloudflare Turnstile. Only renders when a site key is configured; the
+    // widget injects a hidden `cf-turnstile-response` input the form submits.
+    // Explicit render handles Inertia SPA navigation (no full page reload).
+    useEffect(() => {
+        if (!turnstileSiteKey) {
+            return;
+        }
+
+        const el = captchaRef.current;
+
+        if (!el) {
+            return;
+        }
+
+        let widgetId: string | undefined;
+        const render = () => {
+            if (window.turnstile && el.childElementCount === 0) {
+                widgetId = window.turnstile.render(el, {
+                    sitekey: turnstileSiteKey,
+                });
+            }
+        };
+
+        if (window.turnstile) {
+            render();
+        } else {
+            let script = document.querySelector<HTMLScriptElement>(
+                'script[data-turnstile]',
+            );
+
+            if (!script) {
+                script = document.createElement('script');
+                script.src =
+                    'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+                script.async = true;
+                script.defer = true;
+                script.dataset.turnstile = 'true';
+                document.head.appendChild(script);
+            }
+
+            script.addEventListener('load', render, { once: true });
+            const poll = window.setInterval(() => {
+                if (window.turnstile) {
+                    window.clearInterval(poll);
+                    render();
+                }
+            }, 200);
+            window.setTimeout(() => window.clearInterval(poll), 8000);
+        }
+
+        return () => {
+            if (widgetId && window.turnstile) {
+                try {
+                    window.turnstile.remove(widgetId);
+                } catch {
+                    // widget already removed
+                }
+            }
+        };
+    }, [turnstileSiteKey]);
     const url = page.url;
     const base = page.props.publicUrl ?? '';
 
@@ -232,6 +310,15 @@ export default function Contact({
                                                 ].join(' ')}
                                             />
                                         </Field>
+
+                                        {turnstileSiteKey ? (
+                                            <div>
+                                                <div ref={captchaRef} />
+                                                <InputError
+                                                    message={errors.captcha}
+                                                />
+                                            </div>
+                                        ) : null}
 
                                         <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
                                             <p className="text-xs text-[var(--fs-graphite)]">

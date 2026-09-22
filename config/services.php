@@ -35,6 +35,13 @@ return [
         ],
     ],
 
+    // Cloudflare Turnstile - bot protection on the public contact form. With
+    // no secret configured the check is skipped, so the form keeps working.
+    'turnstile' => [
+        'site_key' => env('TURNSTILE_SITE_KEY'),
+        'secret_key' => env('TURNSTILE_SECRET_KEY'),
+    ],
+
     'anthropic' => [
         'key' => env('ANTHROPIC_API_KEY'),
         'admin_key' => env('ANTHROPIC_ADMIN_API_KEY'),

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Public;
 
+use App\Services\Security\TurnstileVerifier;
 use App\Support\Public\EngagementTypeCatalog;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -44,6 +45,14 @@ class StoreContactRequest extends FormRequest
             if ($this->filled('website')) {
                 // Pretend it succeeded; do not give bots a useful signal.
                 throw ValidationException::withMessages([]);
+            }
+
+            // Cloudflare Turnstile. Only enforced once a secret is configured,
+            // so the form keeps working until the keys are in place.
+            $turnstile = app(TurnstileVerifier::class);
+            if ($turnstile->isConfigured()
+                && ! $turnstile->verify($this->input('cf-turnstile-response'), $this->ip())) {
+                $v->errors()->add('captcha', 'Please complete the verification below and try again.');
             }
         });
     }

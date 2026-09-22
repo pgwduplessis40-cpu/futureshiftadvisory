@@ -22,6 +22,7 @@ class ContactController extends Controller
     {
         return Inertia::render('public/contact', [
             'engagementOptions' => EngagementTypeCatalog::selectOptions(),
+            'turnstileSiteKey' => (string) config('services.turnstile.site_key'),
         ]);
     }
 
