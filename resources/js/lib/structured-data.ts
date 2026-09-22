@@ -146,3 +146,29 @@ export function servicesLd(
         })),
     };
 }
+
+/** BlogPosting for an individual article. */
+export function blogPostingLd(
+    base: string,
+    post: { title: string; description: string; path: string; dateIso: string },
+): Json {
+    const origin = clean(base);
+
+    return {
+        '@context': 'https://schema.org',
+        '@type': 'BlogPosting',
+        headline: post.title,
+        description: post.description,
+        datePublished: post.dateIso,
+        dateModified: post.dateIso,
+        url: `${origin}${post.path}`,
+        mainEntityOfPage: `${origin}${post.path}`,
+        author: {
+            '@type': 'Person',
+            name: 'Pieter Du Plessis',
+            url: `${origin}/about`,
+        },
+        publisher: { '@id': `${origin}/${ORG_ID}` },
+        inLanguage: 'en-NZ',
+    };
+}

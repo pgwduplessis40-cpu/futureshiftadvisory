@@ -75,6 +75,14 @@ export function SiteFooter() {
                             </li>
                             <li>
                                 <Link
+                                    href="/blog"
+                                    className="text-[#E0D8CC] hover:text-white"
+                                >
+                                    Blog
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
                                     href="/faq"
                                     className="text-[#E0D8CC] hover:text-white"
                                 >

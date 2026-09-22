@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\ServiceRatePackage;
 use App\Services\Entrepreneurs\EntrepreneurServiceOffer;
+use App\Support\Public\BlogRepository;
 use App\Support\Public\EngagementTypeCatalog;
 use App\Support\Public\FaqCatalog;
 use Illuminate\Http\Response;
@@ -18,7 +19,7 @@ use Illuminate\Http\Response;
  */
 class LlmsTxtController extends Controller
 {
-    public function __invoke(EntrepreneurServiceOffer $offers): Response
+    public function __invoke(EntrepreneurServiceOffer $offers, BlogRepository $blog): Response
     {
         $base = rtrim((string) config('app.public_url'), '/');
 
@@ -66,9 +67,27 @@ class LlmsTxtController extends Controller
         $lines[] = "- [Validate your idea]({$base}/validate-idea): Idea Validation information, current rate, and advisor review within 24 hours.{$ideaPrice}";
         $lines[] = "- [Terms and Privacy Policy]({$base}/terms-and-privacy): The current published customer policy, also available as structured JSON at {$base}/terms-and-privacy.json.";
         $lines[] = "- [About]({$base}/about): The practice's principles and the Principal Advisor's background.";
+        $lines[] = "- [Blog]({$base}/blog): Practical, honest writing on starting and building a business in New Zealand.";
         $lines[] = "- [FAQ]({$base}/faq): Answers on engagements, fees, security, not-for-profits, and use of AI.";
         $lines[] = "- [Contact]({$base}/contact): Enquiry form to book a discovery call.";
         $lines[] = '';
+
+        $posts = $blog->all();
+        if ($posts !== []) {
+            $lines[] = '## Blog';
+            $lines[] = '';
+            foreach ($posts as $post) {
+                $lines[] = sprintf(
+                    '- [%s](%s/blog/%s) (%s): %s',
+                    $post['title'],
+                    $base,
+                    $post['slug'],
+                    $post['date_iso'],
+                    $post['description'],
+                );
+            }
+            $lines[] = '';
+        }
 
         $lines[] = '## Frequently asked questions';
         $lines[] = '';

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
+use App\Support\Public\BlogRepository;
 use Illuminate\Http\Response;
 
 class SitemapController extends Controller
@@ -12,7 +13,7 @@ class SitemapController extends Controller
     /**
      * Render the public XML sitemap using the canonical production origin.
      */
-    public function __invoke(): Response
+    public function __invoke(BlogRepository $blog): Response
     {
         $base = rtrim((string) config('app.public_url'), '/');
 
@@ -22,13 +23,14 @@ class SitemapController extends Controller
             '/services' => ['monthly', '0.9'],
             '/services/entrepreneur' => ['monthly', '0.8'],
             '/validate-idea' => ['monthly', '0.8'],
+            '/blog' => ['weekly', '0.7'],
             '/terms-and-privacy' => ['monthly', '0.4'],
             '/about' => ['monthly', '0.7'],
             '/faq' => ['monthly', '0.6'],
             '/contact' => ['yearly', '0.8'],
         ];
 
-        $lastmod = now()->toAtomString();
+        $now = now()->toAtomString();
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
         $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
@@ -37,9 +39,19 @@ class SitemapController extends Controller
             $loc = $base.($path === '/' ? '/' : $path);
             $xml .= "  <url>\n";
             $xml .= '    <loc>'.htmlspecialchars($loc, ENT_XML1).'</loc>'."\n";
-            $xml .= '    <lastmod>'.$lastmod.'</lastmod>'."\n";
+            $xml .= '    <lastmod>'.$now.'</lastmod>'."\n";
             $xml .= '    <changefreq>'.$changefreq.'</changefreq>'."\n";
             $xml .= '    <priority>'.$priority.'</priority>'."\n";
+            $xml .= "  </url>\n";
+        }
+
+        foreach ($blog->all() as $post) {
+            $loc = $base.'/blog/'.$post['slug'];
+            $xml .= "  <url>\n";
+            $xml .= '    <loc>'.htmlspecialchars($loc, ENT_XML1).'</loc>'."\n";
+            $xml .= '    <lastmod>'.$post['date_iso'].'</lastmod>'."\n";
+            $xml .= "    <changefreq>monthly</changefreq>\n";
+            $xml .= "    <priority>0.6</priority>\n";
             $xml .= "  </url>\n";
         }
 
