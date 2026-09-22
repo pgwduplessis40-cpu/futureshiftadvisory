@@ -7,7 +7,7 @@
 type Json = Record<string, unknown>;
 
 export const ORG_ID = '#organization';
-const LINKEDIN_URL = 'https://www.linkedin.com/company/future-shift-advisory';
+const LINKEDIN_URL = 'https://www.linkedin.com/in/pieterduplessisnz/';
 
 const clean = (base: string) => base.replace(/\/$/, '');
 
@@ -41,8 +41,14 @@ export function organizationLd(base: string): Json {
             'Governance review',
             'Business process automation',
             'Custom business tools',
+            'How to start a business in New Zealand',
         ],
-        sameAs: [LINKEDIN_URL],
+        founder: {
+            '@type': 'Person',
+            name: 'Pieter Du Plessis',
+            jobTitle: 'Principal Advisor',
+            sameAs: [LINKEDIN_URL],
+        },
     };
 }
 

@@ -4,8 +4,8 @@ import { Linkedin } from 'lucide-react';
 import { BrandMark } from '@/components/public/brand-mark';
 import { login } from '@/routes';
 
-// TODO: replace with the real Future Shift Advisory LinkedIn company-page URL.
-const LINKEDIN_URL = 'https://www.linkedin.com/company/future-shift-advisory';
+// Pieter Du Plessis, Principal Advisor - the practice's LinkedIn presence.
+const LINKEDIN_URL = 'https://www.linkedin.com/in/pieterduplessisnz/';
 
 export function SiteFooter() {
     const year = new Date().getFullYear();
@@ -36,7 +36,7 @@ export function SiteFooter() {
                                 href={LINKEDIN_URL}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                aria-label="Future Shift Advisory on LinkedIn"
+                                aria-label="Pieter Du Plessis on LinkedIn"
                                 className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[#2A3B5C] text-[#E0D8CC] transition-colors hover:border-[var(--fs-warm-gold)] hover:text-[var(--fs-warm-gold)]"
                             >
                                 <Linkedin className="h-4 w-4" />
