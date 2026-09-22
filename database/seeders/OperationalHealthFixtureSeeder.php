@@ -287,34 +287,12 @@ final class OperationalHealthFixtureSeeder extends Seeder
         User $clientUser,
         User $admin,
     ): ServiceActivation {
-        $package = ServiceRatePackage::query()->updateOrCreate(
-            [
-                'service_type' => ServiceRatePackage::SERVICE_DD_PLAN_BUDGET,
-                'package_name' => 'Operational Health Business Plan & Budget add-on',
-            ],
-            [
-                'package_scope' => ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
-                'client_label' => 'Business Plan & Budget add-on',
-                'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
-                'fixed_fee' => 2400,
-                'deposit_percent' => 100,
-                'purchase_price_min' => null,
-                'purchase_price_max' => null,
-                'currency' => 'NZD',
-                'scope_description' => 'Operational health fixture for the active Business Plan & Budget add-on fee.',
-                'is_active' => true,
-                'effective_from' => now(),
-                'effective_to' => null,
-                'created_by_user_id' => $admin->getKey(),
-            ],
-        );
-        $snapshot = $package->snapshot();
-        $snapshot['quote_context'] = [
+        $snapshot = $this->planBudgetSnapshot([
             'plan_budget_fixed_fee' => 2400,
             'amount_due_for_this_activation' => 0,
             'combined_fixed_fee' => 2400,
             'source' => 'operational_health_fixture',
-        ];
+        ]);
 
         return ServiceActivation::query()->updateOrCreate(
             [
@@ -326,7 +304,7 @@ final class OperationalHealthFixtureSeeder extends Seeder
                 'advisor_id' => $admin->getKey(),
                 'approved_by_user_id' => $admin->getKey(),
                 'client_label' => 'DD + Business Plan & Budget',
-                'service_rate_package_id' => $package->getKey(),
+                'service_rate_package_id' => null,
                 'status' => ServiceActivation::STATUS_ACTIVE,
                 'intake' => [
                     'target_name' => $engagement->target_name,
@@ -353,28 +331,6 @@ final class OperationalHealthFixtureSeeder extends Seeder
 
     private function standardPlanBudgetActivation(Client $client, User $clientUser, User $admin): ServiceActivation
     {
-        $package = ServiceRatePackage::query()->updateOrCreate(
-            [
-                'service_type' => ServiceRatePackage::SERVICE_DD_PLAN_BUDGET,
-                'package_name' => 'Operational Health Advisory Business Plan & Budget add-on',
-            ],
-            [
-                'package_scope' => ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
-                'client_label' => 'Business Plan & Budget add-on',
-                'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
-                'fixed_fee' => 2400,
-                'deposit_percent' => 100,
-                'purchase_price_min' => null,
-                'purchase_price_max' => null,
-                'currency' => 'NZD',
-                'scope_description' => 'Operational health fixture for the active advisory Business Plan & Budget add-on.',
-                'is_active' => true,
-                'effective_from' => now(),
-                'effective_to' => null,
-                'created_by_user_id' => $admin->getKey(),
-            ],
-        );
-
         return ServiceActivation::query()->updateOrCreate(
             [
                 'client_id' => $client->getKey(),
@@ -385,10 +341,10 @@ final class OperationalHealthFixtureSeeder extends Seeder
                 'advisor_id' => $admin->getKey(),
                 'approved_by_user_id' => $admin->getKey(),
                 'client_label' => 'Business Plan & Budget',
-                'service_rate_package_id' => $package->getKey(),
+                'service_rate_package_id' => null,
                 'status' => ServiceActivation::STATUS_ACTIVE,
                 'intake' => ['source' => 'operational_health_fixture'],
-                'selected_package_snapshot' => $package->snapshot(),
+                'selected_package_snapshot' => $this->planBudgetSnapshot(),
                 'accepted_by_user_id' => $clientUser->getKey(),
                 'accepted_at' => now(),
                 'acceptance_text' => 'Operational health fixture acceptance for advisory Business Plan & Budget access.',
@@ -402,6 +358,53 @@ final class OperationalHealthFixtureSeeder extends Seeder
                 ],
             ],
         );
+    }
+
+    /**
+     * The monitor must exercise the same entitlement path as a paid add-on
+     * without publishing or changing a commercial Service Rate.
+     *
+     * @param  array<string, mixed>  $quoteContext
+     * @return array<string, mixed>
+     */
+    private function planBudgetSnapshot(array $quoteContext = []): array
+    {
+        $scope = ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON;
+        $access = ServiceRatePackage::accessFor(ServiceRatePackage::SERVICE_DD_PLAN_BUDGET, $scope);
+
+        $snapshot = [
+            'id' => null,
+            'service_type' => ServiceRatePackage::SERVICE_DD_PLAN_BUDGET,
+            'package_scope' => $scope,
+            'package_name' => 'Operational health Business Plan & Budget fixture',
+            'client_label' => 'Business Plan & Budget add-on',
+            'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+            'fixed_fee' => 2400.0,
+            'deposit_percent' => 100.0,
+            'hourly_rate' => null,
+            'retainer_amount' => null,
+            'purchase_price_min' => null,
+            'purchase_price_max' => null,
+            'currency' => 'NZD',
+            'scope_description' => 'Synthetic operational-health fixture. It is not a commercial Service Rate.',
+            'included_stages' => data_get($access, 'included_stages', []),
+            'client_outcomes' => data_get($access, 'client_outcomes', []),
+            'access' => $access,
+            'payment_split' => [
+                'deposit_percent' => 100.0,
+                'card_deposit_amount' => 2400.0,
+                'bank_transfer_amount' => 0.0,
+                'requires_bank_transfer' => false,
+            ],
+            'effective_from' => null,
+            'monitor_only' => true,
+        ];
+
+        if ($quoteContext !== []) {
+            $snapshot['quote_context'] = $quoteContext;
+        }
+
+        return $snapshot;
     }
 
     private function ddDecisionReport(Client $client, User $admin): Report

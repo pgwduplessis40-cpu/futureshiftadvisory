@@ -13,6 +13,7 @@ use App\Models\OperationalHealthCheckResult;
 use App\Models\OperationalHealthCheckRun;
 use App\Models\Report;
 use App\Models\ServiceActivation;
+use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Notifications\OperationalHealthAttentionNotification;
 use App\Services\OperationalHealth\OperationalHealthAlerter;
@@ -358,6 +359,50 @@ final class OperationalHealthCheckTest extends TestCase
                 'status' => OperationalHealthCheckResult::STATUS_PASSED,
             ]);
         }
+    }
+
+    public function test_operational_health_fixture_seeding_does_not_reactivate_or_create_service_rates(): void
+    {
+        Storage::fake('secure_local');
+        $this->fakePdfRenderer();
+
+        $legacyFixtures = collect([
+            'Operational Health Business Plan & Budget add-on',
+            'Operational Health Advisory Business Plan & Budget add-on',
+        ])->map(fn (string $packageName): ServiceRatePackage => ServiceRatePackage::query()->create([
+            'service_type' => ServiceRatePackage::SERVICE_DD_PLAN_BUDGET,
+            'package_scope' => ServiceRatePackage::SCOPE_DD_PLAN_BUDGET_ADD_ON,
+            'package_name' => $packageName,
+            'client_label' => 'Business Plan & Budget add-on',
+            'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+            'fixed_fee' => 2400,
+            'deposit_percent' => 100,
+            'currency' => 'NZD',
+            'scope_description' => 'Legacy monitor fixture that an administrator deactivated.',
+            'is_active' => false,
+            'effective_from' => now()->subMonth(),
+            'effective_to' => now()->subDay(),
+        ]));
+
+        $this->artisan('fsa:seed-operational-health-fixtures')
+            ->assertSuccessful();
+
+        $this->assertSame(2, ServiceRatePackage::query()->count());
+        $legacyFixtures->each(function (ServiceRatePackage $fixture): void {
+            $freshFixture = $fixture->fresh();
+
+            $this->assertInstanceOf(ServiceRatePackage::class, $freshFixture);
+            $this->assertFalse((bool) $freshFixture->is_active);
+            $this->assertNotNull($freshFixture->effective_to);
+        });
+        $this->assertSame(
+            2,
+            ServiceActivation::query()
+                ->where('service_type', ServiceActivation::SERVICE_DD_PLAN_BUDGET)
+                ->where('status', ServiceActivation::STATUS_ACTIVE)
+                ->whereNull('service_rate_package_id')
+                ->count(),
+        );
     }
 
     public function test_pdf_health_checks_warn_when_the_simple_fallback_renderer_is_served(): void
