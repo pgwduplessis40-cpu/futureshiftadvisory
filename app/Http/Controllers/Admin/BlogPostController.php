@@ -85,6 +85,9 @@ final class BlogPostController extends Controller
 
         return Inertia::render('public/blog-post', [
             'post' => $this->posts->previewPayload($blogPost),
+            'preview' => [
+                'backUrl' => route('admin.blog.edit', $blogPost, absolute: false),
+            ],
         ]);
     }
 

@@ -83,6 +83,20 @@ final class BlogTest extends TestCase
         $this->assertStringNotContainsString('href="javascript:', $html);
     }
 
+    public function test_admin_preview_returns_to_the_blog_editor(): void
+    {
+        $admin = $this->superAdmin();
+        $post = $this->draftPost('preview-post', 'Preview title', 'Preview body');
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.blog.preview', $post))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('public/blog-post')
+                ->where('post.title', 'Preview title')
+                ->where('preview.backUrl', route('admin.blog.edit', $post, absolute: false)));
+    }
+
     public function test_super_admin_can_draft_publish_revise_and_unpublish_without_changing_the_original_publication_date(): void
     {
         $admin = $this->superAdmin();
