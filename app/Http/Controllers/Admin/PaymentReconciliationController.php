@@ -9,9 +9,11 @@ use App\Models\IdeaValidationPurchase;
 use App\Models\Payment;
 use App\Models\PaymentAccountingSync;
 use App\Models\PaymentRefund;
+use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Services\Accounting\IdeaValidationPaymentLedger;
 use App\Services\Audit\AuditWriter;
+use App\Services\Entrepreneurs\ExternalStripeRefundReconciler;
 use App\Services\Payments\IdeaValidationHistoricalQuote;
 use App\Services\Payments\IdeaValidationPaymentReconciliationService;
 use Illuminate\Http\RedirectResponse;
@@ -23,6 +25,7 @@ final class PaymentReconciliationController extends Controller
 {
     public function __construct(
         private readonly IdeaValidationPaymentReconciliationService $reconciliations,
+        private readonly ExternalStripeRefundReconciler $externalRefunds,
         private readonly IdeaValidationPaymentLedger $accountingLedger,
         private readonly AuditWriter $audit,
     ) {}
@@ -46,6 +49,19 @@ final class PaymentReconciliationController extends Controller
                 'refund_exceptions' => $this->accountingLedger
                     ->refundExceptions()
                     ->map(fn (PaymentRefund $refund): array => $this->refundPayload($refund))
+                    ->all(),
+                'external_refund_candidates' => $this->externalRefunds
+                    ->candidates()
+                    ->map(function (array $candidate): array {
+                        return [
+                            ...$candidate,
+                            'reconcile_url' => route(
+                                'admin.payment-refunds.reconcile',
+                                $candidate['id'],
+                                absolute: false,
+                            ),
+                        ];
+                    })
                     ->all(),
             ],
         ])->toResponse($request);
@@ -106,6 +122,26 @@ final class PaymentReconciliationController extends Controller
 
         return to_route('admin.payment-reconciliations.index')
             ->with('status', 'payment-accounting-sync-retried');
+    }
+
+    public function reconcileExternalRefund(Request $request, ServiceActivation $serviceActivation): RedirectResponse
+    {
+        $actor = $this->superAdmin($request);
+        $validated = $request->validate([
+            'refund_reference' => ['required', 'string', 'regex:/^re_[A-Za-z0-9_]+$/', 'max:191'],
+            'reason' => ['required', 'string', 'min:10', 'max:1000'],
+            'confirmation' => ['accepted'],
+        ]);
+
+        $this->externalRefunds->reconcile(
+            activation: $serviceActivation,
+            actor: $actor,
+            refundReference: $validated['refund_reference'],
+            reason: trim($validated['reason']),
+        );
+
+        return to_route('admin.payment-reconciliations.index')
+            ->with('status', 'external-stripe-refund-reconciled');
     }
 
     /**

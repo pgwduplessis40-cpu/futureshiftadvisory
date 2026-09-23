@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 final class ServiceActivation extends Model
 {
@@ -154,6 +155,14 @@ final class ServiceActivation extends Model
     public function entrepreneurProfile(): BelongsTo
     {
         return $this->belongsTo(EntrepreneurProfile::class, 'related_entrepreneur_profile_id');
+    }
+
+    /**
+     * @return HasOne<PaymentRefund>
+     */
+    public function paymentRefund(): HasOne
+    {
+        return $this->hasOne(PaymentRefund::class);
     }
 
     /**

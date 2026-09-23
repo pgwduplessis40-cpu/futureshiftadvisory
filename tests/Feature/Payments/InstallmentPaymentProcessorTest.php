@@ -30,6 +30,7 @@ use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
+use App\Services\Payments\PaymentRefundLookup;
 use App\Services\Payments\PaymentRefundRequest;
 use App\Services\Payments\PaymentRefundResult;
 use App\Services\Payments\PaymentSetupIntent;
@@ -748,6 +749,11 @@ final class InstallmentPaymentProcessorTest extends TestCase
             public function refund(PaymentRefundRequest $request): PaymentRefundResult
             {
                 throw new \LogicException('Refunds are not used by this payment processor fixture.');
+            }
+
+            public function findRefund(string $refundReference): PaymentRefundLookup
+            {
+                throw new \LogicException('Refund lookups are not used by this payment processor fixture.');
             }
 
             public function findCharge(?string $gatewayRef, string $idempotencyKey, string $paymentId): PaymentChargeLookup

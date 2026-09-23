@@ -98,6 +98,9 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::post('payment-accounting/{sync}/retry', [PaymentReconciliationController::class, 'retry'])
                 ->middleware('require.fresh-step-up')
                 ->name('payment-accounting.retry');
+            Route::post('payment-refunds/{serviceActivation}/reconcile', [PaymentReconciliationController::class, 'reconcileExternalRefund'])
+                ->middleware('require.fresh-step-up')
+                ->name('payment-refunds.reconcile');
 
             Route::get('questionnaires', [QuestionnaireController::class, 'index'])->name('questionnaires.index');
             Route::post('questionnaires', [QuestionnaireController::class, 'store'])->name('questionnaires.store');
