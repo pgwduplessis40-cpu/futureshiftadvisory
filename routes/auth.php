@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Permission;
 use App\Http\Controllers\Admin\AuditTrailController;
+use App\Http\Controllers\Admin\BlogPostController;
 use App\Http\Controllers\Admin\ClientAllocationController;
 use App\Http\Controllers\Admin\InspirationBoardController;
 use App\Http\Controllers\Admin\IntegrationCredentialController;
@@ -58,6 +59,17 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         ->name('admin.')
         ->middleware(['mfa', 'role:'.User::TYPE_SUPER_ADMIN])
         ->group(function (): void {
+            Route::get('blog', [BlogPostController::class, 'index'])->name('blog.index');
+            Route::get('blog/create', [BlogPostController::class, 'create'])->name('blog.create');
+            Route::post('blog/import', [BlogPostController::class, 'import'])->name('blog.import');
+            Route::post('blog', [BlogPostController::class, 'store'])->name('blog.store');
+            Route::get('blog/{blogPost}/edit', [BlogPostController::class, 'edit'])->name('blog.edit');
+            Route::patch('blog/{blogPost}', [BlogPostController::class, 'update'])->name('blog.update');
+            Route::get('blog/{blogPost}/preview', [BlogPostController::class, 'preview'])->name('blog.preview');
+            Route::post('blog/{blogPost}/publish', [BlogPostController::class, 'publish'])->name('blog.publish');
+            Route::post('blog/{blogPost}/unpublish', [BlogPostController::class, 'unpublish'])->name('blog.unpublish');
+            Route::delete('blog/{blogPost}', [BlogPostController::class, 'destroy'])->name('blog.destroy');
+
             Route::get('invitations', [InvitationController::class, 'index'])->name('invitations.index');
             Route::get('invitations/create', [InvitationController::class, 'create'])->name('invitations.create');
             Route::post('invitations', [InvitationController::class, 'store'])->name('invitations.store');

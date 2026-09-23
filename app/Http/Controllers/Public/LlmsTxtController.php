@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\ServiceRatePackage;
 use App\Services\Entrepreneurs\EntrepreneurServiceOffer;
-use App\Support\Public\BlogRepository;
+use App\Services\Blog\BlogPosts;
 use App\Support\Public\EngagementTypeCatalog;
 use App\Support\Public\FaqCatalog;
 use Illuminate\Http\Response;
@@ -19,7 +19,7 @@ use Illuminate\Http\Response;
  */
 class LlmsTxtController extends Controller
 {
-    public function __invoke(EntrepreneurServiceOffer $offers, BlogRepository $blog): Response
+    public function __invoke(EntrepreneurServiceOffer $offers, BlogPosts $blog): Response
     {
         $base = rtrim((string) config('app.public_url'), '/');
 
@@ -72,7 +72,9 @@ class LlmsTxtController extends Controller
         $lines[] = "- [Contact]({$base}/contact): Enquiry form to book a discovery call.";
         $lines[] = '';
 
-        $posts = $blog->all();
+        $posts = $blog->published()
+            ->map(fn ($post): array => $blog->summary($post))
+            ->all();
         if ($posts !== []) {
             $lines[] = '## Blog';
             $lines[] = '';

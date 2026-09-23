@@ -13,6 +13,7 @@ type Post = {
     description: string;
     date: string;
     date_iso: string;
+    date_modified_iso: string;
     html: string;
 };
 
@@ -32,6 +33,7 @@ export default function BlogPost({ post }: { post: Post }) {
                         description: post.description,
                         path,
                         dateIso: post.date_iso,
+                        dateModifiedIso: post.date_modified_iso,
                     }),
                     breadcrumbLd(base, [
                         { name: 'Home', path: '/' },

@@ -164,6 +164,7 @@ return [
         'App\\Models\\ReportSectionRevision' => 'app/Models/ReportSectionRevision.php',
         'App\\Models\\ReportSectionComment' => 'app/Models/ReportSectionComment.php',
         'App\\Models\\AuditEvent' => 'app/Models/AuditEvent.php',
+        'App\\Models\\BlogPost' => 'app/Models/BlogPost.php',
         'App\\Models\\SecurityAudit' => 'app/Models/SecurityAudit.php',
         'App\\Models\\User' => 'app/Models/User.php',
         'App\\Models\\DeviceRegistration' => 'app/Models/DeviceRegistration.php',

@@ -1140,6 +1140,34 @@ Phase 1 only needs scaffolds for: **NZBN, Companies Office, IRD**, plus the patt
 
 ---
 
+### WO-125 — Database-backed blog administration
+
+**Goal:** Let super-admins write, review, preview, import, and explicitly
+publish public blog posts without a code deployment, while keeping public URLs,
+sitemap, `llms.txt`, and SEO output correct.
+
+**Files:**
+- `blog_posts` migration, model, policy, RLS policy, and audit-backed publish
+  service.
+- Public blog, sitemap, and `llms.txt` use one published-post read service.
+- Inertia admin index/editor and the super-admin sidebar entry.
+- `docs/architecture/blog-admin.md` and the corresponding feature/RLS tests.
+
+**Acceptance criteria:**
+- Working edits never change live content without an explicit Publish action.
+- `published_at` is the immutable first-publication time, while
+  `published_revision_at` supplies the most-recent published revision for
+  structured data.
+- Only complete published snapshots are public; drafts are absent from the
+  blog, sitemap, and `llms.txt`.
+- Super-admin-only writes are audited atomically, Markdown rendering is
+  hardened, and the legacy post retains its URL and New Zealand date.
+
+**Out of scope:** scheduled publishing, media management, tags, comments,
+rich-text editing, and slug-change redirects.
+
+---
+
 ## 9. Acceptance & Definition of Done (per WO)
 
 A WO is "done" only when **all** of the following are true:

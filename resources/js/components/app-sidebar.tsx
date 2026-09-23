@@ -22,6 +22,7 @@ import {
     LayoutGrid,
     Lightbulb,
     MessageSquare,
+    Newspaper,
     PlugZap,
     Scale,
     Settings2,
@@ -45,6 +46,7 @@ import {
     useSidebar,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as blogIndex } from '@/routes/admin/blog';
 import type { Auth, NavGroup, NavItem } from '@/types';
 
 const dashboardNavItem: NavItem = {
@@ -317,6 +319,12 @@ const inspirationBoardNavItem: NavItem = {
     icon: Sparkles,
 };
 
+const blogNavItem: NavItem = {
+    title: 'Blog',
+    href: blogIndex(),
+    icon: Newspaper,
+};
+
 const portalInspirationNavItem: NavItem = {
     title: 'Inspiration',
     href: '/portal/inspiration-board',
@@ -389,6 +397,7 @@ const superAdminCommunicationNavItems: NavItem[] = [
     notificationsNavItem,
     inspirationBoardNavItem,
     welcomeMessageNavItem,
+    blogNavItem,
 ];
 
 const superAdminAdministrationNavItems: NavItem[] = [

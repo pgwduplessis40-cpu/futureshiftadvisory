@@ -150,7 +150,13 @@ export function servicesLd(
 /** BlogPosting for an individual article. */
 export function blogPostingLd(
     base: string,
-    post: { title: string; description: string; path: string; dateIso: string },
+    post: {
+        title: string;
+        description: string;
+        path: string;
+        dateIso: string;
+        dateModifiedIso: string;
+    },
 ): Json {
     const origin = clean(base);
 
@@ -160,7 +166,7 @@ export function blogPostingLd(
         headline: post.title,
         description: post.description,
         datePublished: post.dateIso,
-        dateModified: post.dateIso,
+        dateModified: post.dateModifiedIso,
         url: `${origin}${post.path}`,
         mainEntityOfPage: `${origin}${post.path}`,
         author: {

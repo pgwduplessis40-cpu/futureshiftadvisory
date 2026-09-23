@@ -1,3 +1,4 @@
+import blog from './blog'
 import invitations from './invitations'
 import staff from './staff'
 import clientAllocations from './client-allocations'
@@ -25,6 +26,7 @@ import learningUpdateImplementations from './learning-update-implementations'
 import panelMembers from './panel-members'
 
 const admin = {
+    blog: Object.assign(blog, blog),
     invitations: Object.assign(invitations, invitations),
     staff: Object.assign(staff, staff),
     clientAllocations: Object.assign(clientAllocations, clientAllocations),
