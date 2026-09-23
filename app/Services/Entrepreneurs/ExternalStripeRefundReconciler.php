@@ -102,11 +102,6 @@ final class ExternalStripeRefundReconciler
 
                 $this->assertEligible($activation, $profile);
                 $result = $lookup->refund;
-                if (! $result instanceof PaymentRefundResult) {
-                    throw ValidationException::withMessages([
-                        'refund_reference' => 'Stripe does not verify this refund as succeeded. No account access has changed.',
-                    ]);
-                }
                 $this->assertMatches($activation, $result);
 
                 $refund = PaymentRefund::query()

@@ -158,7 +158,7 @@ final class ServiceActivation extends Model
     }
 
     /**
-     * @return HasOne<PaymentRefund>
+     * @return HasOne<PaymentRefund, $this>
      */
     public function paymentRefund(): HasOne
     {
