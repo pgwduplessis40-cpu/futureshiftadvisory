@@ -12,6 +12,7 @@ use App\Services\Blog\BlogPostManager;
 use App\Services\Blog\BlogPosts;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -122,7 +123,7 @@ final class BlogPostController extends Controller
             'file' => ['required', 'file', 'max:512', 'extensions:md'],
         ]);
 
-        /** @var \Illuminate\Http\UploadedFile $file */
+        /** @var UploadedFile $file */
         $file = $validated['file'];
         $import = $this->importer->parse($file);
 

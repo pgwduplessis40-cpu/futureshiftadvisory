@@ -95,6 +95,15 @@ test('Standard Advisory presents Business Plan & Budget as a request until the a
     );
 });
 
+test('Super admins can open the blog workspace', () => {
+    const groups = navGroupsFor('super_admin');
+
+    assert.deepEqual(itemFor(groups, 'Comms', 'Blog')?.href, {
+        method: 'get',
+        url: '/admin/blog',
+    });
+});
+
 function itemFor(
     groups: ReturnType<typeof navGroupsFor>,
     groupTitle: string,

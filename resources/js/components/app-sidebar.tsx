@@ -45,6 +45,7 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from '@/components/ui/sidebar';
+import type { EntrepreneurJourneyPayload } from '@/pages/portal/entrepreneur/plan-types';
 import { dashboard } from '@/routes';
 import { index as blogIndex } from '@/routes/admin/blog';
 import type { Auth, NavGroup, NavItem } from '@/types';
@@ -465,18 +466,6 @@ type PortalServices = {
     items: PortalServiceItem[];
 };
 
-type EntrepreneurJourney = {
-    active_service: 'Idea Validation' | 'Business Plan & Budget' | 'Advisory';
-    includes_idea_validation: boolean;
-    includes_plan_budget: boolean;
-    next: { url: string };
-    advisory: {
-        available: boolean;
-        label: string;
-        url: string;
-    };
-};
-
 type AdvisorPageClient = {
     engagement_type?: string | null;
 };
@@ -688,7 +677,7 @@ export function navGroupsFor(
     portalClient?: PortalClient | null,
     portalServices?: PortalServices | null,
     workspaces?: WorkspaceSwitcherPayload | null,
-    entrepreneurJourney?: EntrepreneurJourney | null,
+    entrepreneurJourney?: EntrepreneurJourneyPayload | null,
 ): NavGroup[] {
     if (userType === 'entrepreneur') {
         const journeyWorkspaceNavItems = activeWorkspaceNavItems(workspaces, [
@@ -951,7 +940,7 @@ export function AppSidebar() {
         portalClient?: PortalClient | null;
         portalServices?: PortalServices | null;
         workspaces?: WorkspaceSwitcherPayload | null;
-        entrepreneurJourney?: EntrepreneurJourney | null;
+        entrepreneurJourney?: EntrepreneurJourneyPayload | null;
         client?: AdvisorPageClient | null;
     }>();
     const { isMobile, setOpenMobile } = useSidebar();
