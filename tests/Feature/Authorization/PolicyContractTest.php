@@ -7,6 +7,7 @@ namespace Tests\Feature\Authorization;
 use App\Enums\EngagementType;
 use App\Enums\Permission;
 use App\Enums\SurveyAssignmentStatus;
+use App\Models\BlogPost;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\EntrepreneurProfile;
@@ -16,6 +17,7 @@ use App\Models\SurveyAssignment;
 use App\Models\Template;
 use App\Models\User;
 use App\Policies\AuditEventPolicy;
+use App\Policies\BlogPostPolicy;
 use App\Policies\ClientPolicy;
 use App\Policies\DocumentPolicy;
 use App\Policies\EntrepreneurProfilePolicy;
@@ -106,6 +108,30 @@ final class PolicyContractTest extends TestCase
         $this->assertFalse($policy->create($reader));
         $this->assertFalse($policy->update($reader));
         $this->assertFalse($policy->delete($reader));
+    }
+
+    public function test_blog_posts_are_managed_only_by_super_admins(): void
+    {
+        $superAdmin = $this->superAdmin();
+        $advisor = $this->userWithPermissions();
+        $post = new BlogPost;
+        $policy = new BlogPostPolicy;
+
+        $this->assertTrue($policy->viewAny($superAdmin));
+        $this->assertTrue($policy->view($superAdmin, $post));
+        $this->assertTrue($policy->create($superAdmin));
+        $this->assertTrue($policy->update($superAdmin, $post));
+        $this->assertTrue($policy->delete($superAdmin, $post));
+        $this->assertTrue($policy->publish($superAdmin, $post));
+        $this->assertTrue($policy->unpublish($superAdmin, $post));
+
+        $this->assertFalse($policy->viewAny($advisor));
+        $this->assertFalse($policy->view($advisor, $post));
+        $this->assertFalse($policy->create($advisor));
+        $this->assertFalse($policy->update($advisor, $post));
+        $this->assertFalse($policy->delete($advisor, $post));
+        $this->assertFalse($policy->publish($advisor, $post));
+        $this->assertFalse($policy->unpublish($advisor, $post));
     }
 
     public function test_client_policy_requires_the_right_permission_and_subject_access(): void

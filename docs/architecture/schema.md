@@ -2,6 +2,29 @@
 
 This file records schema additions by work order. It is intentionally concise; migrations remain the source of truth.
 
+## WO-125 - Database-backed blog administration
+
+### `blog_posts`
+
+Global public-content posts with a private working copy and a separately
+published snapshot. The public query is restricted to complete snapshots;
+working edits to a live post remain private until a later explicit publish.
+
+Key columns:
+
+- `id` UUID primary key
+- `slug` unique URL segment; immutable after a first publication
+- `title`, `description`, `body` working Markdown values
+- `status` (`draft`, `published`)
+- `published_title`, `published_description`, `published_body` public snapshot
+- `published_at` immutable first-publish timestamp
+- `published_revision_at` most-recent explicit publish timestamp
+- `author_id` nullable `users` reference for the migrated legacy post
+
+PostgreSQL RLS exposes only complete published snapshots to public and
+non-admin contexts, while `super_admin` may read every row and is the only
+writer.
+
 ## WO-04 - AI integrity foundation
 
 ### `learning_updates`

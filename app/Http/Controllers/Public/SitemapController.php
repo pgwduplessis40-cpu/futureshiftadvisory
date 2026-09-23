@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
-use App\Support\Public\BlogRepository;
+use App\Services\Blog\BlogPosts;
 use Illuminate\Http\Response;
 
 class SitemapController extends Controller
@@ -13,7 +13,7 @@ class SitemapController extends Controller
     /**
      * Render the public XML sitemap using the canonical production origin.
      */
-    public function __invoke(BlogRepository $blog): Response
+    public function __invoke(BlogPosts $blog): Response
     {
         $base = rtrim((string) config('app.public_url'), '/');
 
@@ -45,11 +45,12 @@ class SitemapController extends Controller
             $xml .= "  </url>\n";
         }
 
-        foreach ($blog->all() as $post) {
-            $loc = $base.'/blog/'.$post['slug'];
+        foreach ($blog->published() as $post) {
+            $payload = $blog->summary($post);
+            $loc = $base.'/blog/'.$payload['slug'];
             $xml .= "  <url>\n";
             $xml .= '    <loc>'.htmlspecialchars($loc, ENT_XML1).'</loc>'."\n";
-            $xml .= '    <lastmod>'.$post['date_iso'].'</lastmod>'."\n";
+            $xml .= '    <lastmod>'.$payload['date_modified_iso'].'</lastmod>'."\n";
             $xml .= "    <changefreq>monthly</changefreq>\n";
             $xml .= "    <priority>0.6</priority>\n";
             $xml .= "  </url>\n";
