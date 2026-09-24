@@ -259,6 +259,77 @@ async function runScreenSupportCollaboration(browserInstance) {
             { timeout: 15_000 },
         );
 
+        const registrationCount = await clientPage.evaluate(
+            () =>
+                performance
+                    .getEntriesByType('resource')
+                    .filter((entry) =>
+                        entry.name.includes('/screen-share/connections'),
+                    ).length,
+        );
+        const destination = await clientPage.evaluate(() => {
+            const current = window.location.pathname + window.location.search;
+            const link = Array.from(document.querySelectorAll('a')).find(
+                (candidate) => {
+                    const href = candidate.getAttribute('href');
+
+                    return (
+                        href?.startsWith('/portal/') &&
+                        href !== current &&
+                        candidate.target !== '_blank'
+                    );
+                },
+            );
+
+            return link?.getAttribute('href') ?? null;
+        });
+
+        if (!destination) {
+            throw new Error(
+                'Client portal did not expose an in-app destination for the screen-share continuity check.',
+            );
+        }
+
+        await clientPage.evaluate((href) => {
+            const link = Array.from(document.querySelectorAll('a')).find(
+                (candidate) => candidate.getAttribute('href') === href,
+            );
+
+            if (!(link instanceof HTMLAnchorElement)) {
+                throw new Error('Client portal navigation link was not found.');
+            }
+
+            link.click();
+        }, destination);
+        await clientPage.waitForFunction(
+            (expected) =>
+                window.location.pathname + window.location.search === expected,
+            { timeout: 10_000 },
+            destination,
+        );
+        await clientPage.waitForFunction(
+            () => document.body.innerText.includes('Screen sharing with'),
+            { timeout: 10_000 },
+        );
+        await advisorPage.waitForFunction(
+            () => document.body.innerText.includes('View only. Live for'),
+            { timeout: 10_000 },
+        );
+        const registrationCountAfterNavigation = await clientPage.evaluate(
+            () =>
+                performance
+                    .getEntriesByType('resource')
+                    .filter((entry) =>
+                        entry.name.includes('/screen-share/connections'),
+                    ).length,
+        );
+
+        if (registrationCountAfterNavigation !== registrationCount) {
+            throw new Error(
+                'Client navigation registered a new screen-share connection instead of preserving the live share.',
+            );
+        }
+
         await clickButton(advisorPage, 'Request guidance approval');
         await waitForBodyText(clientPage, 'Allow guided assistance?');
         await clickButton(clientPage, 'Allow assistance');

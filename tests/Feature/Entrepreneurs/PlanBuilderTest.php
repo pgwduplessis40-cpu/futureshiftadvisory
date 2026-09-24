@@ -158,6 +158,7 @@ final class PlanBuilderTest extends TestCase
                 ->where('urls.previewDownload', route('portal.entrepreneur.plan.preview', ['download' => 1], absolute: false))
                 ->has('portalScreenShare.portal_context_token')
                 ->where('portalScreenShare.connection_url', route('portal.entrepreneur-screen-share.connections.store', absolute: false))
+                ->where('portalScreenShare.reconnect_grace_seconds', 60)
                 ->where('planTemplate.3.title', 'Legal & Operations')
                 ->where('planTemplate.3.requirements.2.key', 'systems-software-processes')
                 ->where('planTemplate.3.requirements.2.title', 'What systems/software/processes will be required to run this business if viable?')

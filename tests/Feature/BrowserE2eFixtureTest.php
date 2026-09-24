@@ -94,7 +94,20 @@ final class BrowserE2eFixtureTest extends TestCase
                 ->where(
                     'portalScreenShare.connection_url',
                     route('portal.screen-share.connections.store', absolute: false),
-                ));
+                )
+                ->where('portalScreenShare.reconnect_grace_seconds', 60));
+
+        $this->actingAsMfa($clientUser)
+            ->get(route('profile.edit'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('settings/profile')
+                ->has('portalScreenShare.portal_context_token')
+                ->where(
+                    'portalScreenShare.connection_url',
+                    route('portal.screen-share.connections.store', absolute: false),
+                )
+                ->where('portalScreenShare.reconnect_grace_seconds', 60));
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.clients.show', $client))
