@@ -115,7 +115,7 @@ final class ProspectInboxController extends Controller
             return null;
         }
 
-        $option = $this->invitePathOption((string) ($validated['invite_path'] ?? ''));
+        $option = $this->invitePathOption($validated['invite_path']);
         $targetUserType = (string) $option['target_user_type'];
 
         return $issuer->issue(
