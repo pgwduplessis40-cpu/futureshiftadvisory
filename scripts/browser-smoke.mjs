@@ -267,43 +267,39 @@ async function runScreenSupportCollaboration(browserInstance) {
                         entry.name.includes('/screen-share/connections'),
                     ).length,
         );
-        const destination = await clientPage.evaluate(() => {
-            const current = window.location.pathname + window.location.search;
-            const link = Array.from(document.querySelectorAll('a')).find(
-                (candidate) => {
-                    const href = candidate.getAttribute('href');
+        // Messages is a persistent client-portal Inertia route. Using this
+        // known destination makes this continuity assertion independent of
+        // which service-specific navigation items the fixture receives.
+        const destination = '/portal/messages';
+        await clientPage.waitForFunction(
+            (href) =>
+                Array.from(document.querySelectorAll('a')).some(
+                    (candidate) =>
+                        candidate.getAttribute('href') === href &&
+                        candidate.target !== '_blank',
+                ),
+            { timeout: 10_000 },
+            destination,
+        );
+        const navigationLink = (
+            await Promise.all(
+                (await clientPage.$$('a')).map(async (candidate) =>
+                    (await candidate.evaluate((element) =>
+                        element.getAttribute('href'),
+                    )) === destination
+                        ? candidate
+                        : null,
+                ),
+            )
+        ).find((candidate) => candidate !== null);
 
-                    return (
-                        href?.startsWith('/portal/') &&
-                        href !== current &&
-                        candidate.target !== '_blank'
-                    );
-                },
-            );
-
-            return link?.getAttribute('href') ?? null;
-        });
-
-        if (!destination) {
-            throw new Error(
-                'Client portal did not expose an in-app destination for the screen-share continuity check.',
-            );
+        if (!navigationLink) {
+            throw new Error('Client Messages navigation link was not found.');
         }
 
-        await clientPage.evaluate((href) => {
-            const link = Array.from(document.querySelectorAll('a')).find(
-                (candidate) => candidate.getAttribute('href') === href,
-            );
-
-            if (!(link instanceof HTMLAnchorElement)) {
-                throw new Error('Client portal navigation link was not found.');
-            }
-
-            link.click();
-        }, destination);
+        await navigationLink.click();
         await clientPage.waitForFunction(
-            (expected) =>
-                window.location.pathname + window.location.search === expected,
+            (expected) => window.location.pathname === expected,
             { timeout: 10_000 },
             destination,
         );
