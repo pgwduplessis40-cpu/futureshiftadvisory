@@ -163,6 +163,19 @@ async function runFlow(browserInstance, flow) {
     }
 }
 
+async function screenShareRegistrationCount(page) {
+    return page.evaluate(
+        () =>
+            performance
+                .getEntriesByType('resource')
+                .filter(
+                    (entry) =>
+                        new URL(entry.name).pathname ===
+                        '/portal/screen-share/connections',
+                ).length,
+    );
+}
+
 /**
  * Exercise the real advisor/client collaboration controls as two isolated
  * browser users. The deterministic media implementation replaces browser
@@ -259,14 +272,7 @@ async function runScreenSupportCollaboration(browserInstance) {
             { timeout: 15_000 },
         );
 
-        const registrationCount = await clientPage.evaluate(
-            () =>
-                performance
-                    .getEntriesByType('resource')
-                    .filter((entry) =>
-                        entry.name.includes('/screen-share/connections'),
-                    ).length,
-        );
+        const registrationCount = await screenShareRegistrationCount(clientPage);
         // Messages is a persistent client-portal Inertia route. Using this
         // known destination makes this continuity assertion independent of
         // which service-specific navigation items the fixture receives.
@@ -311,14 +317,8 @@ async function runScreenSupportCollaboration(browserInstance) {
             () => document.body.innerText.includes('View only. Live for'),
             { timeout: 10_000 },
         );
-        const registrationCountAfterNavigation = await clientPage.evaluate(
-            () =>
-                performance
-                    .getEntriesByType('resource')
-                    .filter((entry) =>
-                        entry.name.includes('/screen-share/connections'),
-                    ).length,
-        );
+        const registrationCountAfterNavigation =
+            await screenShareRegistrationCount(clientPage);
 
         if (registrationCountAfterNavigation !== registrationCount) {
             throw new Error(
