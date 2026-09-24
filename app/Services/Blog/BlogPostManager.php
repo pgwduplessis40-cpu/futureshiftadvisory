@@ -51,19 +51,25 @@ final class BlogPostManager
         });
     }
 
-    public function publish(BlogPost $post, User $actor): BlogPost
+    /**
+     * @param  array{title?:string|null,slug?:string|null,description?:string|null,body?:string|null}  $attributes
+     */
+    public function publish(BlogPost $post, User $actor, array $attributes = []): BlogPost
     {
-        return DB::transaction(function () use ($post, $actor): BlogPost {
+        return DB::transaction(function () use ($post, $actor, $attributes): BlogPost {
             $locked = $this->locked($post);
-            $this->ensurePublishable($locked);
+            $working = $this->workingAttributes($attributes, $locked);
+            $this->ensureSlugIsUnlocked($locked, $working['slug']);
             $before = $this->metadata($locked);
+            $locked->forceFill($working);
+            $this->ensurePublishable($locked);
             $now = now();
 
             $locked->forceFill([
                 'status' => BlogPost::STATUS_PUBLISHED,
-                'published_title' => $locked->title,
-                'published_description' => $locked->description,
-                'published_body' => $locked->body,
+                'published_title' => $working['title'],
+                'published_description' => $working['description'],
+                'published_body' => $working['body'],
                 'published_at' => $locked->published_at ?? $now,
                 'published_revision_at' => $now,
             ])->save();

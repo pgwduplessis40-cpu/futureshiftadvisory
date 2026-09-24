@@ -1,7 +1,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Eye, Save, Send, Trash2, Undo2, Upload } from 'lucide-react';
 import type { ChangeEvent, FormEvent } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,16 @@ export default function BlogEdit({
     const importForm = useForm<{ file: File | null }>({ file: null });
     const isNew = post === null;
     const slugLocked = post?.slug_locked ?? false;
+    const { clearErrors, setData } = form;
+
+    useEffect(() => {
+        if (!isNew || !imported) {
+            return;
+        }
+
+        setData(imported);
+        clearErrors();
+    }, [clearErrors, imported, isNew, setData]);
 
     function submit(event: FormEvent) {
         event.preventDefault();
@@ -103,6 +113,15 @@ export default function BlogEdit({
         }
 
         router.delete(destroyPost(post.id).url);
+    }
+
+    function publishPost() {
+        if (!post) {
+            return;
+        }
+
+        form.clearErrors();
+        form.post(publish(post.id).url, { preserveScroll: true });
     }
 
     return (
@@ -316,9 +335,7 @@ export default function BlogEdit({
                                 <Button
                                     type="button"
                                     disabled={form.processing}
-                                    onClick={() =>
-                                        router.post(publish(post.id).url)
-                                    }
+                                    onClick={publishPost}
                                 >
                                     <Send
                                         className="size-4"

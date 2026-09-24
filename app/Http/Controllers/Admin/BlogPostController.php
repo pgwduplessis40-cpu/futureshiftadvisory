@@ -85,6 +85,9 @@ final class BlogPostController extends Controller
 
         return Inertia::render('public/blog-post', [
             'post' => $this->posts->previewPayload($blogPost),
+            'preview' => [
+                'backUrl' => route('admin.blog.edit', $blogPost, absolute: false),
+            ],
         ]);
     }
 
@@ -92,7 +95,11 @@ final class BlogPostController extends Controller
     {
         Gate::authorize('publish', $blogPost);
 
-        $this->manager->publish($blogPost, $this->actor($request));
+        $this->manager->publish(
+            $blogPost,
+            $this->actor($request),
+            $this->validatedWorkingAttributes($request, $blogPost),
+        );
 
         return to_route('admin.blog.edit', $blogPost)->with('status', 'blog-post-published');
     }

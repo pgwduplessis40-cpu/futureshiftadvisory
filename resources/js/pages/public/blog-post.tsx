@@ -17,7 +17,17 @@ type Post = {
     html: string;
 };
 
-export default function BlogPost({ post }: { post: Post }) {
+type Preview = {
+    backUrl: string;
+};
+
+export default function BlogPost({
+    post,
+    preview,
+}: {
+    post: Post;
+    preview?: Preview;
+}) {
     const base = usePage<SharedPageProps>().props.publicUrl ?? '';
     const path = `/blog/${post.slug}`;
 
@@ -44,14 +54,37 @@ export default function BlogPost({ post }: { post: Post }) {
             />
 
             <Section className="pt-20 pb-16 lg:pt-24">
-                <Link
-                    href="/blog"
-                    className="inline-flex items-center gap-2 text-sm font-medium text-[var(--fs-admiralty)] hover:text-[var(--fs-pacific)]"
-                >
-                    <ArrowLeft className="h-4 w-4" /> All posts
-                </Link>
+                {preview ? (
+                    <aside className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-md border border-[var(--fs-sand)] bg-[var(--fs-linen)] p-4">
+                        <div>
+                            <p className="text-sm font-semibold text-[var(--fs-admiralty)]">
+                                Administrator preview
+                            </p>
+                            <p className="mt-1 text-sm text-[var(--fs-graphite)]">
+                                This view includes draft changes and is not a
+                                public page.
+                            </p>
+                        </div>
+                        <Link
+                            href={preview.backUrl}
+                            className="inline-flex items-center gap-2 rounded-md bg-[var(--fs-admiralty)] px-4 py-2 text-sm font-medium text-[var(--fs-parchment)] transition-colors hover:bg-[var(--fs-commodore)]"
+                        >
+                            <ArrowLeft className="h-4 w-4" /> Back to Blog admin
+                        </Link>
+                    </aside>
+                ) : (
+                    <Link
+                        href="/blog"
+                        className="inline-flex items-center gap-2 text-sm font-medium text-[var(--fs-admiralty)] hover:text-[var(--fs-pacific)]"
+                    >
+                        <ArrowLeft className="h-4 w-4" /> All posts
+                    </Link>
+                )}
 
-                <time dateTime={post.date_iso} className="eyebrow mt-8 block">
+                <time
+                    dateTime={post.date_iso}
+                    className={`eyebrow block ${preview ? '' : 'mt-8'}`}
+                >
                     {post.date}
                 </time>
                 <h1 className="font-display mt-3 max-w-3xl text-4xl leading-tight text-[var(--fs-admiralty)] sm:text-5xl">

@@ -83,6 +83,20 @@ final class BlogTest extends TestCase
         $this->assertStringNotContainsString('href="javascript:', $html);
     }
 
+    public function test_admin_preview_returns_to_the_blog_editor(): void
+    {
+        $admin = $this->superAdmin();
+        $post = $this->draftPost('preview-post', 'Preview title', 'Preview body');
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.blog.preview', $post))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('public/blog-post')
+                ->where('post.title', 'Preview title')
+                ->where('preview.backUrl', route('admin.blog.edit', $post, absolute: false)));
+    }
+
     public function test_super_admin_can_draft_publish_revise_and_unpublish_without_changing_the_original_publication_date(): void
     {
         $admin = $this->superAdmin();
@@ -157,6 +171,30 @@ final class BlogTest extends TestCase
         $this->actingAsMfa($admin)
             ->post(route('admin.blog.publish', $post))
             ->assertSessionHasErrors(['description', 'body']);
+    }
+
+    public function test_publishing_saves_the_current_editor_content_before_creating_the_public_snapshot(): void
+    {
+        $admin = $this->superAdmin();
+        $post = $this->draftPost('working-draft', 'Working draft', 'Original body');
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.blog.publish', $post), [
+                'title' => 'Published from the editor',
+                'slug' => 'published-from-the-editor',
+                'description' => 'Current editor description',
+                'body' => 'Current editor body',
+            ])
+            ->assertRedirect(route('admin.blog.edit', $post));
+
+        $post->refresh();
+
+        $this->assertSame(BlogPost::STATUS_PUBLISHED, $post->status);
+        $this->assertSame('Published from the editor', $post->title);
+        $this->assertSame('Current editor body', $post->body);
+        $this->assertSame('Published from the editor', $post->published_title);
+        $this->assertSame('Current editor description', $post->published_description);
+        $this->assertSame('Current editor body', $post->published_body);
     }
 
     public function test_import_prefills_a_draft_without_persisting_it_and_rejects_malformed_input(): void
