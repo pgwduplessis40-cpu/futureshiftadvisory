@@ -25,8 +25,8 @@ use App\Services\Entrepreneurs\IdeaValidationCancellation;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeResult;
-use App\Services\Payments\PaymentRefundLookup;
 use App\Services\Payments\PaymentRefundResult;
+use App\Services\Payments\PaymentRefundSearch;
 use App\Services\Pdf\PdfRenderer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -257,10 +257,10 @@ final class PaymentReconciliationTest extends TestCase
         $admin = $this->superAdmin();
 
         $this->mock(StripeClient::class, function (MockInterface $stripe): void {
-            $stripe->shouldReceive('findRefund')
+            $stripe->shouldReceive('findRefundsForPayment')
                 ->twice()
-                ->with('re_live_external_refund')
-                ->andReturn(PaymentRefundLookup::succeeded(new PaymentRefundResult(
+                ->with('pi_external_refund')
+                ->andReturn(PaymentRefundSearch::found([new PaymentRefundResult(
                     gateway: 'stripe',
                     gatewayRef: 're_live_external_refund',
                     status: 'succeeded',
@@ -270,7 +270,7 @@ final class PaymentReconciliationTest extends TestCase
                         'live' => true,
                         'payment_intent' => 'pi_external_refund',
                     ],
-                )));
+                )]));
             $stripe->shouldNotReceive('refund');
         });
 
@@ -282,7 +282,6 @@ final class PaymentReconciliationTest extends TestCase
         $reconciler->reconcile(
             $activation,
             $admin,
-            're_live_external_refund',
             'Stripe dashboard and the customer correspondence confirm the full Idea Validation refund.',
         );
 
@@ -307,7 +306,6 @@ final class PaymentReconciliationTest extends TestCase
         $reconciler->reconcile(
             $activation,
             $admin,
-            're_live_external_refund',
             'Stripe dashboard and the customer correspondence confirm the full Idea Validation refund.',
         );
 
@@ -323,9 +321,10 @@ final class PaymentReconciliationTest extends TestCase
         $admin = $this->superAdmin();
 
         $this->mock(StripeClient::class, function (MockInterface $stripe): void {
-            $stripe->shouldReceive('findRefund')
+            $stripe->shouldReceive('findRefundsForPayment')
                 ->once()
-                ->andReturn(PaymentRefundLookup::succeeded(new PaymentRefundResult(
+                ->with('pi_external_refund')
+                ->andReturn(PaymentRefundSearch::found([new PaymentRefundResult(
                     gateway: 'stripe',
                     gatewayRef: 're_other_payment',
                     status: 'succeeded',
@@ -335,7 +334,7 @@ final class PaymentReconciliationTest extends TestCase
                         'live' => true,
                         'payment_intent' => 'pi_other_payment',
                     ],
-                )));
+                )]));
             $stripe->shouldNotReceive('refund');
         });
 
@@ -343,12 +342,11 @@ final class PaymentReconciliationTest extends TestCase
             app(ExternalStripeRefundReconciler::class)->reconcile(
                 $activation,
                 $admin,
-                're_other_payment',
                 'Stripe dashboard and the customer correspondence confirm the full Idea Validation refund.',
             );
             $this->fail('A Stripe refund for another payment must not cancel this client account.');
         } catch (ValidationException $exception) {
-            $this->assertArrayHasKey('refund_reference', $exception->errors());
+            $this->assertArrayHasKey('refund', $exception->errors());
         }
 
         $this->assertSame(ClientStatus::ACTIVE, $client->refresh()->status);
@@ -358,6 +356,52 @@ final class PaymentReconciliationTest extends TestCase
             'service_activation_id' => $activation->getKey(),
             'status' => PaymentRefund::STATUS_FAILED,
         ]);
+    }
+
+    public function test_external_refund_reconciliation_requires_exactly_one_matching_completed_refund(): void
+    {
+        [$client, $buyer, $activation] = $this->refundableIdeaValidation();
+        $admin = $this->superAdmin();
+
+        $this->mock(StripeClient::class, function (MockInterface $stripe): void {
+            $stripe->shouldReceive('findRefundsForPayment')
+                ->once()
+                ->with('pi_external_refund')
+                ->andReturn(PaymentRefundSearch::found([
+                    new PaymentRefundResult(
+                        gateway: 'stripe',
+                        gatewayRef: 're_first_matching_refund',
+                        status: 'succeeded',
+                        amount: '115.00',
+                        currency: 'NZD',
+                        metadata: ['payment_intent' => 'pi_external_refund'],
+                    ),
+                    new PaymentRefundResult(
+                        gateway: 'stripe',
+                        gatewayRef: 're_second_matching_refund',
+                        status: 'succeeded',
+                        amount: '115.00',
+                        currency: 'NZD',
+                        metadata: ['payment_intent' => 'pi_external_refund'],
+                    ),
+                ]));
+            $stripe->shouldNotReceive('refund');
+        });
+
+        try {
+            app(ExternalStripeRefundReconciler::class)->reconcile(
+                $activation,
+                $admin,
+                'Stripe returned more than one completed refund for this payment.',
+            );
+            $this->fail('More than one matching completed refund must not cancel this client account.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('refund', $exception->errors());
+        }
+
+        $this->assertSame(ClientStatus::ACTIVE, $client->refresh()->status);
+        $this->assertSame(ServiceActivation::STATUS_ACTIVE, $activation->refresh()->status);
+        $this->assertNull($buyer->refresh()->suspended_at);
     }
 
     /** @return array{0: IdeaValidationPurchase, 1: User, 2: Payment} */

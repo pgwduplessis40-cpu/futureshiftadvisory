@@ -249,11 +249,10 @@ function ExternalRefundReconciliationCard({
     candidate: ExternalRefundCandidate;
 }) {
     const form = useForm<{
-        refund_reference: string;
         reason: string;
         confirmation: boolean;
+        refund?: never;
     }>({
-        refund_reference: '',
         reason: '',
         confirmation: false,
     });
@@ -282,28 +281,16 @@ function ExternalRefundReconciliationCard({
             </p>
             <p className="rounded-md bg-background/80 p-3 text-sm text-muted-foreground">
                 Use this only after the refund has already been completed in
-                Stripe. The server retrieves the supplied refund directly from
-                Stripe and checks the payment, amount, and currency before it
-                cancels access. It never creates another charge or refund.
+                Stripe. The server retrieves refunds for the stored original
+                payment and proceeds only when exactly one succeeded, full
+                refund matches its amount and currency. It never creates another
+                charge or refund; an ARN is not required.
             </p>
+            <InputError message={form.errors.refund} />
             <form
                 onSubmit={submit}
                 className="space-y-3 border-t border-amber-200 pt-4"
             >
-                <div className="grid gap-1.5">
-                    <Label htmlFor={`refund-reference-${candidate.id}`}>
-                        Stripe refund reference
-                    </Label>
-                    <Input
-                        id={`refund-reference-${candidate.id}`}
-                        placeholder="re_..."
-                        value={form.data.refund_reference}
-                        onChange={(event) =>
-                            form.setData('refund_reference', event.target.value)
-                        }
-                    />
-                    <InputError message={form.errors.refund_reference} />
-                </div>
                 <div className="grid gap-1.5">
                     <Label htmlFor={`external-refund-reason-${candidate.id}`}>
                         Evidence and reason for reconciliation
@@ -344,8 +331,8 @@ function ExternalRefundReconciliationCard({
                 <InputError message={form.errors.confirmation} />
                 <Button type="submit" disabled={form.processing}>
                     {form.processing
-                        ? 'Verifying Stripe refund…'
-                        : 'Verify refund and cancel access'}
+                        ? 'Verifying completed refund…'
+                        : 'Verify completed refund and cancel access'}
                 </Button>
             </form>
         </article>

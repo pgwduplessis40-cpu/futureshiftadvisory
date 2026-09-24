@@ -17,6 +17,7 @@ use App\Services\Payments\PaymentGatewayException;
 use App\Services\Payments\PaymentRefundLookup;
 use App\Services\Payments\PaymentRefundRequest;
 use App\Services\Payments\PaymentRefundResult;
+use App\Services\Payments\PaymentRefundSearch;
 use App\Services\Payments\PaymentSetupIntent;
 use Illuminate\Support\Arr;
 
@@ -142,6 +143,11 @@ final class FakeStripeClient implements StripeClient
     public function findRefund(string $refundReference): PaymentRefundLookup
     {
         return PaymentRefundLookup::unknown();
+    }
+
+    public function findRefundsForPayment(string $paymentReference): PaymentRefundSearch
+    {
+        return PaymentRefundSearch::unknown();
     }
 
     public function findCharge(?string $gatewayRef, string $idempotencyKey, string $paymentId): PaymentChargeLookup

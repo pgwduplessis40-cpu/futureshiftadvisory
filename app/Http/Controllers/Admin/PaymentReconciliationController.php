@@ -128,7 +128,6 @@ final class PaymentReconciliationController extends Controller
     {
         $actor = $this->superAdmin($request);
         $validated = $request->validate([
-            'refund_reference' => ['required', 'string', 'regex:/^re_[A-Za-z0-9_]+$/', 'max:191'],
             'reason' => ['required', 'string', 'min:10', 'max:1000'],
             'confirmation' => ['accepted'],
         ]);
@@ -136,7 +135,6 @@ final class PaymentReconciliationController extends Controller
         $this->externalRefunds->reconcile(
             activation: $serviceActivation,
             actor: $actor,
-            refundReference: $validated['refund_reference'],
             reason: trim($validated['reason']),
         );
 

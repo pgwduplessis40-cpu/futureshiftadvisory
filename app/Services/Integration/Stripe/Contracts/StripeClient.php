@@ -14,6 +14,7 @@ use App\Services\Payments\PaymentChargeResult;
 use App\Services\Payments\PaymentRefundLookup;
 use App\Services\Payments\PaymentRefundRequest;
 use App\Services\Payments\PaymentRefundResult;
+use App\Services\Payments\PaymentRefundSearch;
 use App\Services\Payments\PaymentSetupIntent;
 
 interface StripeClient
@@ -29,6 +30,8 @@ interface StripeClient
     public function refund(PaymentRefundRequest $request): PaymentRefundResult;
 
     public function findRefund(string $refundReference): PaymentRefundLookup;
+
+    public function findRefundsForPayment(string $paymentReference): PaymentRefundSearch;
 
     public function findCharge(?string $gatewayRef, string $idempotencyKey, string $paymentId): PaymentChargeLookup;
 }
