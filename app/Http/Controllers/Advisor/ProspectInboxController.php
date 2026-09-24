@@ -103,7 +103,7 @@ final class ProspectInboxController extends Controller
     }
 
     /**
-     * @param  array<string, mixed>  $validated
+     * @param  array{outcome: 'invited'|'parked'|'declined', triage_notes?: string|null, invite_path: 'business_idea'|'buying_business'}  $validated
      */
     private function inviteForTriage(
         InviteIssuer $issuer,
@@ -167,7 +167,7 @@ final class ProspectInboxController extends Controller
     }
 
     /**
-     * @param  array<string, mixed>  $validated
+     * @param  array{outcome: 'invited'|'parked'|'declined', triage_notes?: string|null, invite_path: 'business_idea'|'buying_business'}  $validated
      */
     private function invitePathForTriage(ProspectLead $lead, array $validated): string
     {
