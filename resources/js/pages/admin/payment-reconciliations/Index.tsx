@@ -30,6 +30,7 @@ type Props = {
         backfill_candidates: AccountingBackfillCandidate[];
         sync_candidates: AccountingSyncCandidate[];
         refund_exceptions: RefundException[];
+        external_refund_candidates: ExternalRefundCandidate[];
     };
 };
 
@@ -67,6 +68,16 @@ type RefundException = {
     failure_reason: string | null;
     payment_reference: string;
     refund_reference: string | null;
+};
+
+type ExternalRefundCandidate = {
+    id: string;
+    customer_name: string;
+    customer_email: string;
+    currency: string;
+    amount: number;
+    payment_reference: string;
+    reconcile_url: string;
 };
 
 type ReconciliationForm = {
@@ -150,6 +161,9 @@ export default function PaymentReconciliationsIndex({
                     backfillCandidates={accounting.backfill_candidates}
                     syncCandidates={accounting.sync_candidates}
                     refundExceptions={accounting.refund_exceptions}
+                    externalRefundCandidates={
+                        accounting.external_refund_candidates
+                    }
                 />
             </div>
         </>
@@ -160,11 +174,19 @@ function AccountingLedger({
     backfillCandidates,
     syncCandidates,
     refundExceptions,
+    externalRefundCandidates,
 }: {
     backfillCandidates: AccountingBackfillCandidate[];
     syncCandidates: AccountingSyncCandidate[];
     refundExceptions: RefundException[];
+    externalRefundCandidates: ExternalRefundCandidate[];
 }) {
+    const reviewCount =
+        backfillCandidates.length +
+        syncCandidates.length +
+        refundExceptions.length +
+        externalRefundCandidates.length;
+
     return (
         <section className="space-y-5 rounded-lg border p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -179,22 +201,15 @@ function AccountingLedger({
                     </p>
                 </div>
                 <Badge variant="outline">
-                    {backfillCandidates.length +
-                        syncCandidates.length +
-                        refundExceptions.length}{' '}
-                    review
-                    {backfillCandidates.length +
-                        syncCandidates.length +
-                        refundExceptions.length ===
-                    1
-                        ? ''
-                        : 's'}
+                    {reviewCount} review
+                    {reviewCount === 1 ? '' : 's'}
                 </Badge>
             </div>
 
             {backfillCandidates.length === 0 &&
             syncCandidates.length === 0 &&
-            refundExceptions.length === 0 ? (
+            refundExceptions.length === 0 &&
+            externalRefundCandidates.length === 0 ? (
                 <p className="rounded-md bg-muted/50 p-4 text-sm text-muted-foreground">
                     No Stripe payments or refunds are waiting for a Xero
                     accounting action.
@@ -216,9 +231,124 @@ function AccountingLedger({
                     {refundExceptions.map((refund) => (
                         <RefundExceptionCard key={refund.id} refund={refund} />
                     ))}
+                    {externalRefundCandidates.map((candidate) => (
+                        <ExternalRefundReconciliationCard
+                            key={candidate.id}
+                            candidate={candidate}
+                        />
+                    ))}
                 </div>
             )}
         </section>
+    );
+}
+
+function ExternalRefundReconciliationCard({
+    candidate,
+}: {
+    candidate: ExternalRefundCandidate;
+}) {
+    const form = useForm<{
+        refund_reference: string;
+        reason: string;
+        confirmation: boolean;
+    }>({
+        refund_reference: '',
+        reason: '',
+        confirmation: false,
+    });
+
+    function submit(event: FormEvent) {
+        event.preventDefault();
+        form.post(candidate.reconcile_url, { preserveScroll: true });
+    }
+
+    return (
+        <article className="space-y-4 rounded-md border border-amber-300 bg-amber-50/50 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h3 className="font-medium">{candidate.customer_name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                        {candidate.customer_email}
+                    </p>
+                </div>
+                <Badge variant="outline">External Stripe refund</Badge>
+            </div>
+            <p className="text-sm">
+                {money(candidate.amount, candidate.currency)} · original payment{' '}
+                <span className="font-mono break-all">
+                    {candidate.payment_reference}
+                </span>
+            </p>
+            <p className="rounded-md bg-background/80 p-3 text-sm text-muted-foreground">
+                Use this only after the refund has already been completed in
+                Stripe. The server retrieves the supplied refund directly from
+                Stripe and checks the payment, amount, and currency before it
+                cancels access. It never creates another charge or refund.
+            </p>
+            <form
+                onSubmit={submit}
+                className="space-y-3 border-t border-amber-200 pt-4"
+            >
+                <div className="grid gap-1.5">
+                    <Label htmlFor={`refund-reference-${candidate.id}`}>
+                        Stripe refund reference
+                    </Label>
+                    <Input
+                        id={`refund-reference-${candidate.id}`}
+                        placeholder="re_..."
+                        value={form.data.refund_reference}
+                        onChange={(event) =>
+                            form.setData('refund_reference', event.target.value)
+                        }
+                    />
+                    <InputError message={form.errors.refund_reference} />
+                </div>
+                <div className="grid gap-1.5">
+                    <Label htmlFor={`external-refund-reason-${candidate.id}`}>
+                        Evidence and reason for reconciliation
+                    </Label>
+                    <textarea
+                        id={`external-refund-reason-${candidate.id}`}
+                        rows={2}
+                        maxLength={1000}
+                        value={form.data.reason}
+                        onChange={(event) =>
+                            form.setData('reason', event.target.value)
+                        }
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        placeholder="For example: Stripe dashboard confirms the full Idea Validation refund."
+                    />
+                    <InputError message={form.errors.reason} />
+                </div>
+                <label
+                    className="flex items-start gap-2 text-sm"
+                    htmlFor={`external-refund-confirmation-${candidate.id}`}
+                >
+                    <input
+                        id={`external-refund-confirmation-${candidate.id}`}
+                        name="confirmation"
+                        type="checkbox"
+                        checked={form.data.confirmation}
+                        onChange={(event) =>
+                            form.setData('confirmation', event.target.checked)
+                        }
+                        className="mt-1 size-4"
+                    />
+                    <span>
+                        I have verified this is the completed Stripe refund for
+                        this payment. Update the account and reconcile Xero only
+                        where an existing ledger record does not already do so.
+                    </span>
+                </label>
+                <InputError message={form.errors.confirmation} />
+                <Button type="submit" disabled={form.processing}>
+                    {form.processing
+                        ? 'Verifying Stripe refund…'
+                        : 'Verify refund and cancel access'}
+                </Button>
+            </form>
+        </article>
     );
 }
 

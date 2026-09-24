@@ -19,6 +19,7 @@ use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
 use App\Services\Payments\PaymentGatewayException;
+use App\Services\Payments\PaymentRefundLookup;
 use App\Services\Payments\PaymentRefundRequest;
 use App\Services\Payments\PaymentRefundResult;
 use App\Services\Payments\PaymentSetupIntent;
@@ -288,6 +289,49 @@ final class LiveStripeClient implements StripeClient
                 'correlation_id' => $result->correlationId,
             ],
         );
+    }
+
+    public function findRefund(string $refundReference): PaymentRefundLookup
+    {
+        $refundReference = trim($refundReference);
+        if (! str_starts_with($refundReference, 're_')) {
+            return PaymentRefundLookup::notRefunded();
+        }
+
+        $result = $this->http->request(
+            method: 'GET',
+            service: 'stripe',
+            endpoint: $this->endpoint('/v1/refunds/'.rawurlencode($refundReference)),
+            options: ['headers' => $this->headers($this->secret())],
+        );
+        if (! $result->successful() || $result->fromFallback || ! is_array($result->data)) {
+            return PaymentRefundLookup::unknown();
+        }
+
+        $status = (string) data_get($result->data, 'status', '');
+        $reference = (string) data_get($result->data, 'id', '');
+        if ($status !== 'succeeded' || $reference === '') {
+            return in_array($status, ['canceled', 'failed'], true)
+                ? PaymentRefundLookup::notRefunded()
+                : PaymentRefundLookup::unknown();
+        }
+
+        $paymentIntent = data_get($result->data, 'payment_intent');
+        $charge = data_get($result->data, 'charge');
+
+        return PaymentRefundLookup::succeeded(new PaymentRefundResult(
+            gateway: 'stripe',
+            gatewayRef: $reference,
+            status: $status,
+            amount: number_format(((float) data_get($result->data, 'amount', 0)) / 100, 2, '.', ''),
+            currency: strtoupper((string) data_get($result->data, 'currency', 'NZD')),
+            metadata: [
+                'live' => true,
+                'correlation_id' => $result->correlationId,
+                'payment_intent' => is_scalar($paymentIntent) ? (string) $paymentIntent : null,
+                'charge' => is_scalar($charge) ? (string) $charge : null,
+            ],
+        ));
     }
 
     public function findCharge(?string $gatewayRef, string $idempotencyKey, string $paymentId): PaymentChargeLookup

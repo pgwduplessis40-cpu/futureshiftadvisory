@@ -14,6 +14,7 @@ use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
 use App\Services\Payments\PaymentGatewayException;
+use App\Services\Payments\PaymentRefundLookup;
 use App\Services\Payments\PaymentRefundRequest;
 use App\Services\Payments\PaymentRefundResult;
 use App\Services\Payments\PaymentSetupIntent;
@@ -136,6 +137,11 @@ final class FakeStripeClient implements StripeClient
             currency: $request->currency,
             metadata: ['fixture' => true],
         );
+    }
+
+    public function findRefund(string $refundReference): PaymentRefundLookup
+    {
+        return PaymentRefundLookup::unknown();
     }
 
     public function findCharge(?string $gatewayRef, string $idempotencyKey, string $paymentId): PaymentChargeLookup

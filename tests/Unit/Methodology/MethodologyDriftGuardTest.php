@@ -58,6 +58,7 @@ use App\Services\Entrepreneurs\EntrepreneurStreak;
 use App\Services\Entrepreneurs\ExecutiveSummaryContext;
 use App\Services\Entrepreneurs\ExecutiveSummaryEligibility;
 use App\Services\Entrepreneurs\ExternalIssueReview;
+use App\Services\Entrepreneurs\ExternalStripeRefundReconciler;
 use App\Services\Entrepreneurs\FixedCostCadenceQuantityGuard;
 use App\Services\Entrepreneurs\FounderChangeRequestMessage;
 use App\Services\Entrepreneurs\FoundingAdvisoryService;
@@ -194,6 +195,7 @@ final class MethodologyDriftGuardTest extends TestCase
         EntrepreneurStreak::class => 'Gamification streak persistence workflow.',
         ExecutiveSummaryContext::class => 'Builds an immutable plan-and-budget fingerprint for summary provenance; it does not calculate advisory guidance.',
         ExecutiveSummaryEligibility::class => 'Enforces the published summary eligibility policy; it does not calculate or disclose an advisory methodology.',
+        ExternalStripeRefundReconciler::class => 'Staff-only verification and recovery workflow; it compares exact recorded payment facts without calculating advisory methodology.',
         ExternalIssueReview::class => 'External-issue document-quality gate; plan and budget methodologies are owned elsewhere.',
         FixedCostCadenceQuantityGuard::class => 'Input-quality guard that detects a likely duplicated billing-period count; the forecast methodology is owned by BudgetCalculator.',
         FoundingAdvisoryService::class => 'Founding engagement and rolling-roadmap orchestration; it applies the finalised plan baseline and does not own a separate calculation methodology.',

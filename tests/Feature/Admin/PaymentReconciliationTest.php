@@ -6,27 +6,34 @@ namespace Tests\Feature\Admin;
 
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
+use App\Enums\EntrepreneurStage;
 use App\Models\AuditEvent;
 use App\Models\Client;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidationPurchase;
 use App\Models\Payment;
 use App\Models\PaymentAccountingSync;
+use App\Models\PaymentRefund;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\TermsVersion;
 use App\Models\User;
 use App\Notifications\IdeaValidationPurchaseAdvisorNotification;
 use App\Notifications\IdeaValidationPurchaseConfirmedNotification;
+use App\Services\Entrepreneurs\ExternalStripeRefundReconciler;
+use App\Services\Entrepreneurs\IdeaValidationCancellation;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Payments\PaymentChargeLookup;
 use App\Services\Payments\PaymentChargeResult;
+use App\Services\Payments\PaymentRefundLookup;
+use App\Services\Payments\PaymentRefundResult;
 use App\Services\Pdf\PdfRenderer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Mockery\MockInterface;
 use Tests\TestCase;
@@ -243,6 +250,116 @@ final class PaymentReconciliationTest extends TestCase
         $this->assertDatabaseCount('service_activations', 0);
     }
 
+    public function test_super_admin_reconciles_a_completed_external_stripe_refund_without_creating_another_refund(): void
+    {
+        Notification::fake();
+        [$client, $buyer, $activation] = $this->refundableIdeaValidation(simulatedRefund: true);
+        $admin = $this->superAdmin();
+
+        $this->mock(StripeClient::class, function (MockInterface $stripe): void {
+            $stripe->shouldReceive('findRefund')
+                ->twice()
+                ->with('re_live_external_refund')
+                ->andReturn(PaymentRefundLookup::succeeded(new PaymentRefundResult(
+                    gateway: 'stripe',
+                    gatewayRef: 're_live_external_refund',
+                    status: 'succeeded',
+                    amount: '115.00',
+                    currency: 'NZD',
+                    metadata: [
+                        'live' => true,
+                        'payment_intent' => 'pi_external_refund',
+                    ],
+                )));
+            $stripe->shouldNotReceive('refund');
+        });
+
+        $reconciler = app(ExternalStripeRefundReconciler::class);
+        $candidates = $reconciler->candidates();
+        $this->assertCount(1, $candidates);
+        $this->assertSame($buyer->email, $candidates->first()['customer_email']);
+
+        $reconciler->reconcile(
+            $activation,
+            $admin,
+            're_live_external_refund',
+            'Stripe dashboard and the customer correspondence confirm the full Idea Validation refund.',
+        );
+
+        $this->assertSame(ClientStatus::SUSPENDED, $client->refresh()->status);
+        $this->assertSame(ServiceActivation::STATUS_CANCELLED, $activation->refresh()->status);
+        $this->assertSame(IdeaValidationCancellation::SUSPENSION_REASON, $buyer->refresh()->suspended_reason);
+        $this->assertSame(
+            EntrepreneurStage::CANCELLED,
+            EntrepreneurProfile::query()->where('user_id', $buyer->getKey())->firstOrFail()->stage,
+        );
+        $this->assertDatabaseHas('payment_refunds', [
+            'service_activation_id' => $activation->getKey(),
+            'gateway_ref' => 're_live_external_refund',
+            'status' => PaymentRefund::STATUS_ACCEPTED,
+            'amount' => '115.00',
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.idea_validation_external_refund_reconciled',
+            'subject_id' => (string) $activation->getKey(),
+        ]);
+
+        $reconciler->reconcile(
+            $activation,
+            $admin,
+            're_live_external_refund',
+            'Stripe dashboard and the customer correspondence confirm the full Idea Validation refund.',
+        );
+
+        $this->assertDatabaseCount('payment_refunds', 1);
+        $this->assertSame(1, AuditEvent::query()
+            ->where('action', 'entrepreneur.idea_validation_external_refund_reconciled')
+            ->count());
+    }
+
+    public function test_external_refund_reconciliation_fails_closed_when_stripe_refund_is_for_another_payment(): void
+    {
+        [$client, $buyer, $activation] = $this->refundableIdeaValidation();
+        $admin = $this->superAdmin();
+
+        $this->mock(StripeClient::class, function (MockInterface $stripe): void {
+            $stripe->shouldReceive('findRefund')
+                ->once()
+                ->andReturn(PaymentRefundLookup::succeeded(new PaymentRefundResult(
+                    gateway: 'stripe',
+                    gatewayRef: 're_other_payment',
+                    status: 'succeeded',
+                    amount: '115.00',
+                    currency: 'NZD',
+                    metadata: [
+                        'live' => true,
+                        'payment_intent' => 'pi_other_payment',
+                    ],
+                )));
+            $stripe->shouldNotReceive('refund');
+        });
+
+        try {
+            app(ExternalStripeRefundReconciler::class)->reconcile(
+                $activation,
+                $admin,
+                're_other_payment',
+                'Stripe dashboard and the customer correspondence confirm the full Idea Validation refund.',
+            );
+            $this->fail('A Stripe refund for another payment must not cancel this client account.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('refund_reference', $exception->errors());
+        }
+
+        $this->assertSame(ClientStatus::ACTIVE, $client->refresh()->status);
+        $this->assertSame(ServiceActivation::STATUS_ACTIVE, $activation->refresh()->status);
+        $this->assertNull($buyer->refresh()->suspended_at);
+        $this->assertDatabaseHas('payment_refunds', [
+            'service_activation_id' => $activation->getKey(),
+            'status' => PaymentRefund::STATUS_FAILED,
+        ]);
+    }
+
     /** @return array{0: IdeaValidationPurchase, 1: User, 2: Payment} */
     private function mismatchedPurchase(): array
     {
@@ -323,6 +440,84 @@ final class PaymentReconciliationTest extends TestCase
         ])->save();
 
         return [$purchase->refresh()->load(['payment', 'user', 'advisor']), $buyer, $payment];
+    }
+
+    /** @return array{0: Client, 1: User, 2: ServiceActivation} */
+    private function refundableIdeaValidation(bool $simulatedRefund = false): array
+    {
+        $advisor = User::factory()->create([
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $buyer = User::factory()->create([
+            'name' => 'External refund founder',
+            'email' => 'external-refund@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $buyer->assignRole(User::TYPE_ENTREPRENEUR);
+        $client = Client::query()->create([
+            'engagement_type' => EngagementType::ENTREPRENEUR_MODULE,
+            'status' => ClientStatus::ACTIVE,
+            'legal_name' => $buyer->name,
+            'data_quality' => Client::DATA_QUALITY_LOW,
+            'registry_sources' => ['source' => 'external-refund-reconciliation-test'],
+            'created_by_user_id' => $advisor->getKey(),
+            'primary_contact_user_id' => $buyer->getKey(),
+        ]);
+        $package = ServiceRatePackage::query()->create([
+            'service_type' => ServiceRatePackage::SERVICE_ENTREPRENEUR,
+            'package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION,
+            'package_name' => 'Idea Validation',
+            'client_label' => 'Idea Validation',
+            'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+            'fixed_fee' => 100,
+            'currency' => 'NZD',
+            'scope_description' => 'Idea validation only.',
+            'is_active' => true,
+            'effective_from' => now()->subMinute(),
+        ]);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $buyer->getKey(),
+            'client_id' => $client->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => $buyer->name,
+            'email' => $buyer->email,
+            'stage' => EntrepreneurStage::IDEA_VALIDATION,
+        ]);
+        $activation = ServiceActivation::query()->create([
+            'client_id' => $client->getKey(),
+            'requested_by_user_id' => $buyer->getKey(),
+            'advisor_id' => $advisor->getKey(),
+            'approved_by_user_id' => $advisor->getKey(),
+            'service_rate_package_id' => $package->getKey(),
+            'service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'client_label' => 'Idea Validation',
+            'status' => ServiceActivation::STATUS_ACTIVE,
+            'selected_package_snapshot' => $package->snapshot(),
+            'payment_status' => ServiceActivation::PAYMENT_PAID,
+            'payment_completed_at' => now()->subHour(),
+            'payment_completed_by_user_id' => $buyer->getKey(),
+            'payment_reference' => 'pi_external_refund',
+            'related_entrepreneur_profile_id' => $profile->getKey(),
+        ]);
+        PaymentRefund::query()->create([
+            'client_id' => $client->getKey(),
+            'service_activation_id' => $activation->getKey(),
+            'requested_by_user_id' => $buyer->getKey(),
+            'gateway' => 'stripe',
+            'payment_reference' => 'pi_external_refund',
+            'amount' => '115.00',
+            'currency' => 'NZD',
+            'gateway_ref' => $simulatedRefund ? 're_stripe_prior_simulated' : null,
+            'status' => $simulatedRefund ? PaymentRefund::STATUS_ACCEPTED : PaymentRefund::STATUS_FAILED,
+            'idempotency_key' => 'external-refund-recovery-'.$activation->getKey(),
+            'failure_reason' => $simulatedRefund ? null : 'Stripe refund verification was unavailable.',
+            'processed_at' => $simulatedRefund ? now()->subMinute() : null,
+            'metadata' => $simulatedRefund ? ['fixture' => true] : null,
+        ]);
+
+        return [$client, $buyer, $activation];
     }
 
     private function superAdmin(): User
