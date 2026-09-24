@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType, CSSProperties, ReactNode } from 'react';
+import { toast } from 'sonner';
 import { BudgetCashChart } from '@/components/budget-cash-chart';
 import { WorkspaceSwitcher } from '@/components/portal/WorkspaceSwitcher';
 import type { WorkspaceSwitcherPayload } from '@/components/portal/WorkspaceSwitcher';
@@ -612,7 +613,9 @@ export default function StrategicPlanBudget({
                 return;
             }
 
-            window.location.assign(url);
+            toast.error(
+                'Your PDF is ready. Allow pop-ups for Future Shift Advisory to open it without interrupting screen sharing.',
+            );
         };
 
         if (serializedForm === lastSavedSignature.current) {

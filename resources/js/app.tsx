@@ -9,6 +9,7 @@ import AuthLayout from '@/layouts/auth-layout';
 import DocumentLayout from '@/layouts/document-layout';
 import NotificationsLayout from '@/layouts/notifications-layout';
 import PublicLayout from '@/layouts/public-layout';
+import ScreenShareLayout from '@/layouts/screen-share-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import {
     configureClientErrorTelemetry,
@@ -31,25 +32,25 @@ void createInertiaApp({
     layout: (name) => {
         switch (true) {
             case name.startsWith('public/'):
-                return PublicLayout;
+                return [ScreenShareLayout, PublicLayout];
             case name.startsWith('auth/'):
-                return AuthLayout;
+                return [ScreenShareLayout, AuthLayout];
             case name === 'portal/StrategicPlanBudgetDocument':
-                return DocumentLayout;
+                return [ScreenShareLayout, DocumentLayout];
             case name === 'portal/entrepreneur/Dashboard':
-                return AppLayout;
+                return [ScreenShareLayout, AppLayout];
             case name.startsWith('portal/messages/'):
-                return AppLayout;
+                return [ScreenShareLayout, AppLayout];
             case name.startsWith('portal/'):
-                return AppLayout;
+                return [ScreenShareLayout, AppLayout];
             case name.startsWith('advisor/'):
-                return AdvisorLayout;
+                return [ScreenShareLayout, AdvisorLayout];
             case name.startsWith('notifications/'):
-                return NotificationsLayout;
+                return [ScreenShareLayout, NotificationsLayout];
             case name.startsWith('settings/'):
-                return [AppLayout, SettingsLayout];
+                return [ScreenShareLayout, AppLayout, SettingsLayout];
             default:
-                return AppLayout;
+                return [ScreenShareLayout, AppLayout];
         }
     },
     strictMode: true,

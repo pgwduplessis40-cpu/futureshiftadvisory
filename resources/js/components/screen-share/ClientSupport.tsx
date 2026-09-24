@@ -16,6 +16,7 @@ import {
     screenShareEcho,
     screenSharePost,
 } from '@/lib/screen-share';
+import { screenShareConnectionScopeKey } from '@/lib/screen-share-connection-scope';
 
 export type ClientScreenShareConfig = {
     portal_context_token: string;
@@ -102,9 +103,23 @@ export function ClientSupport({ config }: Props) {
         async () => undefined,
     );
     const stopRef = useRef<() => void>(() => undefined);
+    const connectionScope = screenShareConnectionScopeKey(config);
+    const connectionConfig = useRef<ClientScreenShareConfig>(config);
+
+    // The server deliberately provides a new one-time portal token after each
+    // Inertia visit. Keep the original config for the established connection;
+    // re-registering would stop the capture and end an otherwise live session.
+    if (
+        screenShareConnectionScopeKey(connectionConfig.current) !==
+        connectionScope
+    ) {
+        connectionConfig.current = config;
+    }
 
     useEffect(() => {
-        if (!config) {
+        const activeConfig = connectionConfig.current;
+
+        if (!activeConfig) {
             return;
         }
 
@@ -112,8 +127,8 @@ export function ClientSupport({ config }: Props) {
         let promptPoll: number | null = null;
         let connectionHeartbeat: number | null = null;
         let refreshPresenceOnVisibilityChange: (() => void) | null = null;
-        void registerScreenShareConnection(config.connection_url, {
-            portal_context_token: config.portal_context_token,
+        void registerScreenShareConnection(activeConfig.connection_url, {
+            portal_context_token: activeConfig.portal_context_token,
         })
             .then((next) => {
                 if (!active) {
@@ -124,7 +139,7 @@ export function ClientSupport({ config }: Props) {
                 const pollForPrompt = (): void => {
                     void screenSharePost<PendingPromptResponse>(
                         replaceConnection(
-                            config.prompt_url,
+                            activeConfig.prompt_url,
                             next.connection_id,
                         ),
                         participant(next),
@@ -141,7 +156,7 @@ export function ClientSupport({ config }: Props) {
                 const heartbeat = (): void => {
                     void screenSharePost(
                         replaceConnection(
-                            config.connection_heartbeat_url,
+                            activeConfig.connection_heartbeat_url,
                             next.connection_id,
                         ),
                         participant(next),
@@ -150,7 +165,7 @@ export function ClientSupport({ config }: Props) {
                 heartbeat();
                 connectionHeartbeat = window.setInterval(
                     heartbeat,
-                    config.heartbeat_seconds * 1000,
+                    activeConfig.heartbeat_seconds * 1000,
                 );
                 refreshPresenceOnVisibilityChange = (): void => heartbeat();
                 document.addEventListener(
@@ -217,7 +232,7 @@ export function ClientSupport({ config }: Props) {
             stopRef.current();
             closeScreenShareEcho();
         };
-    }, [config]);
+    }, [connectionScope]);
 
     useEffect(() => {
         if (!config || !credentials || !sessionId) {
