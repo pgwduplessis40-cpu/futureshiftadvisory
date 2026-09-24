@@ -279,10 +279,30 @@ async function runScreenSupportCollaboration(browserInstance) {
             { timeout: 15_000 },
         );
 
+        stage = 'requesting guidance approval';
+        await clickButton(advisorPage, 'Request guidance approval');
+        stage = 'waiting for the client guidance prompt';
+        await waitForBodyText(clientPage, 'Allow guided assistance?');
+        await clickButton(clientPage, 'Allow assistance');
+        stage = 'waiting for guided assistance';
+        await advisorPage.waitForFunction(
+            () =>
+                document.body.innerText.includes('Guided assistance is active'),
+            { timeout: 10_000 },
+        );
+
+        stage = 'ending guided assistance';
+        await clickButton(advisorPage, 'End guidance');
+        stage = 'waiting for guided assistance to end on the client';
+        await clientPage.waitForFunction(
+            () => !document.body.innerText.includes('Stop assistance'),
+            { timeout: 10_000 },
+        );
+
         const registrationCount = await screenShareRegistrationCount(clientPage);
-        // Messages is a persistent client-portal Inertia route. Using this
-        // known destination makes this continuity assertion independent of
-        // which service-specific navigation items the fixture receives.
+        // Messages is a persistent client-portal Inertia route. Run this
+        // after the separate co-browse flow has completed so this assertion
+        // remains focused on keeping an active screen share alive.
         const destination = '/portal/messages';
         stage = 'waiting for the client Messages navigation link';
         await clientPage.waitForFunction(
@@ -338,24 +358,9 @@ async function runScreenSupportCollaboration(browserInstance) {
             );
         }
 
-        stage = 'requesting guidance approval';
-        await clickButton(advisorPage, 'Request guidance approval');
-        stage = 'waiting for the client guidance prompt';
-        await waitForBodyText(clientPage, 'Allow guided assistance?');
-        await clickButton(clientPage, 'Allow assistance');
-        stage = 'waiting for guided assistance';
-        await advisorPage.waitForFunction(
-            () =>
-                document.body.innerText.includes('Guided assistance is active'),
-            { timeout: 10_000 },
-        );
-
-        await clickButton(advisorPage, 'End guidance');
-        await clientPage.waitForFunction(
-            () => !document.body.innerText.includes('Stop assistance'),
-            { timeout: 10_000 },
-        );
+        stage = 'ending the screen-share session';
         await clickButton(advisorPage, 'End');
+        stage = 'waiting for the client screen-share session to end';
         await clientPage.waitForFunction(
             () => !document.body.innerText.includes('Screen sharing with'),
             { timeout: 10_000 },
