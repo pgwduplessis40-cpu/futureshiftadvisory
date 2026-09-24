@@ -17,6 +17,7 @@ use App\Services\Payments\PaymentGatewayException;
 use App\Services\Payments\PaymentRefundLookup;
 use App\Services\Payments\PaymentRefundRequest;
 use App\Services\Payments\PaymentRefundResult;
+use App\Services\Payments\PaymentRefundSearch;
 use App\Services\Payments\PaymentSetupIntent;
 
 final class FallbackStripeClient implements StripeClient
@@ -93,6 +94,18 @@ final class FallbackStripeClient implements StripeClient
     {
         try {
             return $this->live->findRefund($refundReference);
+        } catch (IntegrationDisabledException $exception) {
+            throw new PaymentGatewayException(
+                'Stripe refund verification is unavailable because the live Stripe integration is not active.',
+                previous: $exception,
+            );
+        }
+    }
+
+    public function findRefundsForPayment(string $paymentReference): PaymentRefundSearch
+    {
+        try {
+            return $this->live->findRefundsForPayment($paymentReference);
         } catch (IntegrationDisabledException $exception) {
             throw new PaymentGatewayException(
                 'Stripe refund verification is unavailable because the live Stripe integration is not active.',

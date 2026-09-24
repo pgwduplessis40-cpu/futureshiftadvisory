@@ -28,8 +28,8 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * A deliberately staff-mediated recovery for refunds processed directly in
- * Stripe. It never creates a Stripe refund: the supplied refund reference is
- * read from Stripe and must match the original payment before access changes.
+ * Stripe. It never creates a Stripe refund: it retrieves refunds for the
+ * stored original payment and must find one exact match before access changes.
  */
 final class ExternalStripeRefundReconciler
 {
@@ -63,25 +63,35 @@ final class ExternalStripeRefundReconciler
     public function reconcile(
         ServiceActivation $activation,
         User $actor,
-        string $refundReference,
         string $reason,
     ): PaymentRefund {
         try {
-            $lookup = $this->stripe->findRefund($refundReference);
+            $lookup = $this->stripe->findRefundsForPayment((string) $activation->payment_reference);
         } catch (PaymentGatewayException $exception) {
             throw ValidationException::withMessages([
-                'refund_reference' => Str::limit($exception->getMessage(), 500, ''),
+                'refund' => Str::limit($exception->getMessage(), 500, ''),
             ]);
         }
 
-        if (! $lookup->isSucceeded() || ! $lookup->refund instanceof PaymentRefundResult) {
+        if (! $lookup->isFound()) {
             throw ValidationException::withMessages([
-                'refund_reference' => 'Stripe does not verify this refund as succeeded. No account access has changed.',
+                'refund' => 'Stripe refund verification could not be completed. No account access has changed.',
             ]);
         }
 
-        [$refund, $client, , $newlyReconciled] = $this->context->withSystemContext(function () use ($activation, $actor, $lookup, $reason): array {
-            return DB::transaction(function () use ($activation, $actor, $lookup, $reason): array {
+        $matches = array_values(array_filter(
+            $lookup->refunds,
+            fn (PaymentRefundResult $refund): bool => $this->matches($activation, $refund),
+        ));
+        if (count($matches) !== 1) {
+            throw ValidationException::withMessages([
+                'refund' => 'Stripe must show exactly one succeeded, full refund for this payment. No account access has changed.',
+            ]);
+        }
+        $result = $matches[0];
+
+        [$refund, $client, , $newlyReconciled] = $this->context->withSystemContext(function () use ($activation, $actor, $result, $reason): array {
+            return DB::transaction(function () use ($activation, $actor, $result, $reason): array {
                 $activation = ServiceActivation::query()
                     ->whereKey($activation->getKey())
                     ->lockForUpdate()
@@ -96,12 +106,11 @@ final class ExternalStripeRefundReconciler
                     : null;
                 if (! $profile instanceof EntrepreneurProfile || ! $client instanceof Client || ! $user instanceof User) {
                     throw ValidationException::withMessages([
-                        'refund_reference' => 'This service no longer has the client account required for a safe refund reconciliation.',
+                        'refund' => 'This service no longer has the client account required for a safe refund reconciliation.',
                     ]);
                 }
 
                 $this->assertEligible($activation, $profile);
-                $result = $lookup->refund;
                 $this->assertMatches($activation, $result);
 
                 $refund = PaymentRefund::query()
@@ -118,7 +127,7 @@ final class ExternalStripeRefundReconciler
                     && $refund->gateway_ref !== $result->gatewayRef
                     && ! $this->isSimulated($refund)) {
                     throw ValidationException::withMessages([
-                        'refund_reference' => 'This account is already reconciled to a different accepted Stripe refund.',
+                        'refund' => 'This account is already reconciled to a different accepted Stripe refund.',
                     ]);
                 }
 
@@ -243,7 +252,7 @@ final class ExternalStripeRefundReconciler
     {
         if (! $this->eligible($activation, $profile)) {
             throw ValidationException::withMessages([
-                'refund_reference' => 'This account is not eligible for an Idea Validation refund reconciliation.',
+                'refund' => 'This account is not eligible for an Idea Validation refund reconciliation.',
             ]);
         }
     }
@@ -277,20 +286,26 @@ final class ExternalStripeRefundReconciler
 
     private function assertMatches(ServiceActivation $activation, PaymentRefundResult $refund): void
     {
+        if (! $this->matches($activation, $refund)) {
+            throw ValidationException::withMessages([
+                'refund' => 'The verified Stripe refund does not match the original Idea Validation payment. No account access has changed.',
+            ]);
+        }
+    }
+
+    private function matches(ServiceActivation $activation, PaymentRefundResult $refund): bool
+    {
         $paymentReferences = array_filter([
             data_get($refund->metadata, 'payment_intent'),
             data_get($refund->metadata, 'charge'),
         ], 'is_string');
-        if ($refund->gateway !== 'stripe'
-            || ! str_starts_with($refund->gatewayRef, 're_')
-            || $refund->status !== 'succeeded'
-            || ! in_array($activation->payment_reference, $paymentReferences, true)
-            || strtoupper($refund->currency) !== $this->currency($activation)
-            || $this->cents($this->money($refund->amount)) !== $this->cents((string) $this->refundAmount($activation))) {
-            throw ValidationException::withMessages([
-                'refund_reference' => 'The verified Stripe refund does not match the original Idea Validation payment. No account access has changed.',
-            ]);
-        }
+
+        return $refund->gateway === 'stripe'
+            && str_starts_with($refund->gatewayRef, 're_')
+            && $refund->status === 'succeeded'
+            && in_array($activation->payment_reference, $paymentReferences, true)
+            && strtoupper($refund->currency) === $this->currency($activation)
+            && $this->cents($this->money($refund->amount)) === $this->cents((string) $this->refundAmount($activation));
     }
 
     private function isSimulated(PaymentRefund $refund): bool
