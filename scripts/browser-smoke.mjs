@@ -188,6 +188,7 @@ async function runScreenSupportCollaboration(browserInstance) {
     const advisorPage = await advisorContext.newPage();
     const clientPage = await clientContext.newPage();
     const collaborationFailures = [];
+    let stage = 'initialising the collaboration browsers';
 
     for (const [role, page] of [
         ['advisor', advisorPage],
@@ -233,10 +234,12 @@ async function runScreenSupportCollaboration(browserInstance) {
             login(advisorPage, accounts.advisor, 'desktop collaboration'),
             login(clientPage, accounts.client, 'desktop collaboration'),
         ]);
+        stage = 'opening the client portal';
         await clientPage.goto(
             absoluteUrl(process.env.E2E_CLIENT_PORTAL_PATH ?? '/portal'),
             { waitUntil: 'networkidle2' },
         );
+        stage = 'waiting for the client connection registrations';
         await clientPage.waitForFunction(
             () => {
                 const resources = performance.getEntriesByType('resource');
@@ -250,6 +253,7 @@ async function runScreenSupportCollaboration(browserInstance) {
             },
             { timeout: 10_000 },
         );
+        stage = 'opening the advisor client screen';
         await advisorPage.goto(
             absoluteUrl(process.env.E2E_CLIENT_SCREEN_PATH),
             {
@@ -260,13 +264,16 @@ async function runScreenSupportCollaboration(browserInstance) {
         await clickButton(advisorPage, 'Screen support');
         await clickButton(advisorPage, 'Request view');
 
+        stage = 'waiting for the client screen-support prompt';
         await waitForBodyText(clientPage, 'Screen support request');
         await clickButton(clientPage, 'Continue');
 
+        stage = 'waiting for the advisor view-only session';
         await advisorPage.waitForFunction(
             () => document.body.innerText.includes('View only. Live for'),
             { timeout: 15_000 },
         );
+        stage = 'waiting for the client share session';
         await clientPage.waitForFunction(
             () => document.body.innerText.includes('Screen sharing with'),
             { timeout: 15_000 },
@@ -277,6 +284,7 @@ async function runScreenSupportCollaboration(browserInstance) {
         // known destination makes this continuity assertion independent of
         // which service-specific navigation items the fixture receives.
         const destination = '/portal/messages';
+        stage = 'waiting for the client Messages navigation link';
         await clientPage.waitForFunction(
             (href) =>
                 Array.from(document.querySelectorAll('a')).some(
@@ -303,16 +311,20 @@ async function runScreenSupportCollaboration(browserInstance) {
             throw new Error('Client Messages navigation link was not found.');
         }
 
+        stage = 'navigating the client to Messages';
         await navigationLink.click();
+        stage = 'waiting for the client Messages route';
         await clientPage.waitForFunction(
             (expected) => window.location.pathname === expected,
             { timeout: 10_000 },
             destination,
         );
+        stage = 'verifying the client share after Messages navigation';
         await clientPage.waitForFunction(
             () => document.body.innerText.includes('Screen sharing with'),
             { timeout: 10_000 },
         );
+        stage = 'verifying the advisor view after client Messages navigation';
         await advisorPage.waitForFunction(
             () => document.body.innerText.includes('View only. Live for'),
             { timeout: 10_000 },
@@ -326,9 +338,12 @@ async function runScreenSupportCollaboration(browserInstance) {
             );
         }
 
+        stage = 'requesting guidance approval';
         await clickButton(advisorPage, 'Request guidance approval');
+        stage = 'waiting for the client guidance prompt';
         await waitForBodyText(clientPage, 'Allow guided assistance?');
         await clickButton(clientPage, 'Allow assistance');
+        stage = 'waiting for guided assistance';
         await advisorPage.waitForFunction(
             () =>
                 document.body.innerText.includes('Guided assistance is active'),
@@ -364,7 +379,7 @@ async function runScreenSupportCollaboration(browserInstance) {
         }
 
         collaborationFailures.push(
-            error instanceof Error ? error.message : String(error),
+            `${stage}: ${error instanceof Error ? error.message : String(error)}`,
         );
     } finally {
         await Promise.all([advisorContext.close(), clientContext.close()]);
