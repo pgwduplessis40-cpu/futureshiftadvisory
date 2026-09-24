@@ -52,10 +52,9 @@ final class ProspectInboxController extends Controller
             'outcome' => ['required', 'string', Rule::in(ProspectLead::triageOutcomes())],
             'triage_notes' => ['nullable', 'string', 'max:2000'],
             'invite_path' => [
-                Rule::requiredIf(fn (): bool => $request->input('outcome') === ProspectLead::STATUS_INVITED),
-                'nullable',
+                'required',
                 'string',
-                Rule::in(array_keys($this->invitePathOptions())),
+                Rule::in(ProspectLead::invitePaths()),
             ],
         ]);
 
@@ -66,6 +65,7 @@ final class ProspectInboxController extends Controller
             'triaged_at',
             'triaged_by_user_id',
             'invite_token_id',
+            'invite_path',
         ]);
 
         DB::transaction(function () use ($actor, $issuer, $prospectLead, $validated, $before): void {
@@ -79,6 +79,7 @@ final class ProspectInboxController extends Controller
                 'triaged_by_user_id' => $actor->getKey(),
                 'assigned_advisor_user_id' => $prospectLead->assigned_advisor_user_id ?? $actor->getKey(),
                 'invite_token_id' => $invite?->getKey() ?? $prospectLead->invite_token_id,
+                'invite_path' => $this->invitePathForTriage($prospectLead, $validated),
             ])->save();
 
             $this->auditWriter->record(
@@ -93,6 +94,7 @@ final class ProspectInboxController extends Controller
                     'triaged_at',
                     'triaged_by_user_id',
                     'invite_token_id',
+                    'invite_path',
                 ]),
             );
         });
@@ -132,6 +134,8 @@ final class ProspectInboxController extends Controller
      */
     private function leadPayload(ProspectLead $lead): array
     {
+        $invitePath = $this->invitePathForLead($lead);
+
         return [
             'id' => $lead->id,
             'name' => $lead->name,
@@ -152,11 +156,48 @@ final class ProspectInboxController extends Controller
                 ? ($lead->inviteToken instanceof InviteToken ? 'pending' : null)
                 : 'accepted',
             'triage_url' => route('advisor.prospects.triage', $lead, absolute: false),
-            'invite_path_label' => $lead->inviteToken?->serviceIntentLabel(),
+            'invite_path' => $invitePath,
+            'invite_path_label' => $invitePath === null
+                ? null
+                : $this->invitePathOption($invitePath)['label'],
             'invite_package_scope_label' => $lead->inviteToken instanceof InviteToken
                 ? ServiceRatePackage::packageScopeLabel($lead->inviteToken->intended_package_scope)
                 : null,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function invitePathForTriage(ProspectLead $lead, array $validated): string
+    {
+        if ($lead->inviteToken instanceof InviteToken) {
+            return $this->invitePathForToken($lead->inviteToken)
+                ?? $lead->invite_path
+                ?? (string) $validated['invite_path'];
+        }
+
+        return (string) $validated['invite_path'];
+    }
+
+    private function invitePathForLead(ProspectLead $lead): ?string
+    {
+        if ($lead->invite_path !== null) {
+            return $lead->invite_path;
+        }
+
+        return $lead->inviteToken instanceof InviteToken
+            ? $this->invitePathForToken($lead->inviteToken)
+            : null;
+    }
+
+    private function invitePathForToken(InviteToken $invite): ?string
+    {
+        return match ($invite->intended_service_type) {
+            ServiceActivation::SERVICE_ENTREPRENEUR => ProspectLead::INVITE_PATH_BUSINESS_IDEA,
+            ServiceActivation::SERVICE_DUE_DILIGENCE => ProspectLead::INVITE_PATH_BUYING_BUSINESS,
+            default => null,
+        };
     }
 
     /**
@@ -165,16 +206,16 @@ final class ProspectInboxController extends Controller
     private function invitePathOptions(): array
     {
         return [
-            'business_idea' => [
-                'value' => 'business_idea',
+            ProspectLead::INVITE_PATH_BUSINESS_IDEA => [
+                'value' => ProspectLead::INVITE_PATH_BUSINESS_IDEA,
                 'label' => 'Business Idea',
                 'description' => 'Creates an entrepreneur account and opens the idea-validation path first.',
                 'target_user_type' => User::TYPE_ENTREPRENEUR,
                 'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
                 'intended_package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION,
             ],
-            'buying_business' => [
-                'value' => 'buying_business',
+            ProspectLead::INVITE_PATH_BUYING_BUSINESS => [
+                'value' => ProspectLead::INVITE_PATH_BUYING_BUSINESS,
                 'label' => 'Buying a Business',
                 'description' => 'Creates a client-primary account for the buying-a-business/DD access path.',
                 'target_user_type' => User::TYPE_CLIENT_PRIMARY,
@@ -191,6 +232,6 @@ final class ProspectInboxController extends Controller
     {
         $options = $this->invitePathOptions();
 
-        return $options[$value] ?? $options['business_idea'];
+        return $options[$value] ?? $options[ProspectLead::INVITE_PATH_BUSINESS_IDEA];
     }
 }

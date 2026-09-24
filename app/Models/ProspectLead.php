@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'triaged_at',
     'triaged_by_user_id',
     'invite_token_id',
+    'invite_path',
 ])]
 class ProspectLead extends Model
 {
@@ -38,6 +39,10 @@ class ProspectLead extends Model
     public const STATUS_PARKED = 'parked';
 
     public const STATUS_DECLINED = 'declined';
+
+    public const INVITE_PATH_BUSINESS_IDEA = 'business_idea';
+
+    public const INVITE_PATH_BUYING_BUSINESS = 'buying_business';
 
     protected $table = 'prospect_leads';
 
@@ -92,6 +97,17 @@ class ProspectLead extends Model
             self::STATUS_INVITED,
             self::STATUS_PARKED,
             self::STATUS_DECLINED,
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function invitePaths(): array
+    {
+        return [
+            self::INVITE_PATH_BUSINESS_IDEA,
+            self::INVITE_PATH_BUYING_BUSINESS,
         ];
     }
 }
