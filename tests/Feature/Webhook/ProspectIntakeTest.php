@@ -151,11 +151,19 @@ final class ProspectIntakeTest extends TestCase
         $this->assertSame('Good fit for buying-a-business support.', $lead->triage_notes);
         $this->assertSame($advisor->getKey(), $lead->triaged_by_user_id);
         $this->assertSame($invite->getKey(), $lead->invite_token_id);
+        $this->assertSame(ProspectLead::INVITE_PATH_BUYING_BUSINESS, $lead->invite_path);
         $this->assertSame('kai@example.test', $invite->email);
         $this->assertSame(User::TYPE_CLIENT_PRIMARY, $invite->target_user_type);
         $this->assertSame(ServiceActivation::SERVICE_DUE_DILIGENCE, $invite->intended_service_type);
         $this->assertNull($invite->intended_package_scope);
         $this->assertSame('Buying a Business', $invite->serviceIntentLabel());
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.prospects.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('leads.0.invite_path', ProspectLead::INVITE_PATH_BUYING_BUSINESS)
+                ->where('leads.0.invite_path_label', 'Buying a Business'));
         $this->assertDatabaseHas('audit_events', [
             'action' => 'prospect_lead.triaged',
             'subject_id' => (string) $lead->id,
@@ -181,6 +189,7 @@ final class ProspectIntakeTest extends TestCase
         $this->assertSame(ServiceActivation::SERVICE_ENTREPRENEUR, $invite->intended_service_type);
         $this->assertSame(ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION, $invite->intended_package_scope);
         $this->assertSame('Business Idea', $invite->serviceIntentLabel());
+        $this->assertSame(ProspectLead::INVITE_PATH_BUSINESS_IDEA, $lead->refresh()->invite_path);
     }
 
     public function test_advisor_can_record_parked_and_declined_triage_outcomes(): void
@@ -192,6 +201,7 @@ final class ProspectIntakeTest extends TestCase
         $this->actingAsMfa($advisor)
             ->patch(route('advisor.prospects.triage', $parked), [
                 'outcome' => ProspectLead::STATUS_PARKED,
+                'invite_path' => ProspectLead::INVITE_PATH_BUYING_BUSINESS,
                 'triage_notes' => 'Circle back next quarter.',
             ])
             ->assertRedirect();
@@ -199,13 +209,33 @@ final class ProspectIntakeTest extends TestCase
         $this->actingAsMfa($advisor)
             ->patch(route('advisor.prospects.triage', $declined), [
                 'outcome' => ProspectLead::STATUS_DECLINED,
+                'invite_path' => ProspectLead::INVITE_PATH_BUSINESS_IDEA,
                 'triage_notes' => 'Outside current scope.',
             ])
             ->assertRedirect();
 
         $this->assertSame(ProspectLead::STATUS_PARKED, $parked->refresh()->triage_outcome);
         $this->assertSame(ProspectLead::STATUS_DECLINED, $declined->refresh()->triage_outcome);
+        $this->assertSame(ProspectLead::INVITE_PATH_BUYING_BUSINESS, $parked->invite_path);
+        $this->assertSame(ProspectLead::INVITE_PATH_BUSINESS_IDEA, $declined->invite_path);
         $this->assertDatabaseCount('invite_tokens', 0);
+    }
+
+    public function test_triage_requires_an_invite_path_for_every_outcome(): void
+    {
+        $advisor = $this->advisor();
+        $lead = $this->lead('missing-invite-path@example.test');
+
+        $this->actingAsMfa($advisor)
+            ->from(route('advisor.prospects.index'))
+            ->patch(route('advisor.prospects.triage', $lead), [
+                'outcome' => ProspectLead::STATUS_PARKED,
+                'triage_notes' => 'Awaiting clarification.',
+            ])
+            ->assertRedirect(route('advisor.prospects.index', absolute: false))
+            ->assertSessionHasErrors('invite_path');
+
+        $this->assertSame(ProspectLead::STATUS_NEW, $lead->refresh()->status);
     }
 
     private function advisor(string $email = 'advisor@example.test'): User

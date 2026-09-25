@@ -983,6 +983,7 @@ Key columns:
 - `triaged_at`
 - `triaged_by_user_id`
 - `invite_token_id`
+- `invite_path` (`business_idea` or `buying_business`, retained for every triage outcome)
 
 ## WO-30 - API health dashboard
 
