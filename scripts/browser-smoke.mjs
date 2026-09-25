@@ -361,9 +361,13 @@ async function runScreenSupportCollaboration(browserInstance) {
         stage = 'ending the screen-share session';
         await clickButton(advisorPage, 'End');
         stage = 'waiting for the client screen-share session to end';
+        // The test environment intentionally has no Reverb service. The
+        // client therefore observes an advisor-ended session through its
+        // 10-second HTTP heartbeat. A timeout equal to that interval races
+        // the next timer tick and can fail even after the session has ended.
         await clientPage.waitForFunction(
             () => !document.body.innerText.includes('Screen sharing with'),
-            { timeout: 10_000 },
+            { timeout: 20_000 },
         );
     } catch (error) {
         for (const [role, page] of [
