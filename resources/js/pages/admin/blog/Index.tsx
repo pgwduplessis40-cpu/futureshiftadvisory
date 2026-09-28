@@ -424,6 +424,30 @@ export default function BlogIndex({
                                                             </Button>
                                                         </ActionTooltip>
                                                     </>
+                                                ) : post.status ===
+                                                  'scheduled' ? (
+                                                    <ActionTooltip
+                                                        label={`Manage the automatic publication time for ${post.title || post.slug}`}
+                                                    >
+                                                        <Button
+                                                            asChild
+                                                            variant="ghost"
+                                                            size="sm"
+                                                        >
+                                                            <Link
+                                                                href={edit(
+                                                                    post.id,
+                                                                )}
+                                                                aria-label={`Manage schedule for ${post.title || post.slug}`}
+                                                            >
+                                                                <CalendarClock
+                                                                    className="size-4"
+                                                                    aria-hidden="true"
+                                                                />
+                                                                Manage schedule
+                                                            </Link>
+                                                        </Button>
+                                                    </ActionTooltip>
                                                 ) : (
                                                     <>
                                                         <ActionTooltip
@@ -444,10 +468,7 @@ export default function BlogIndex({
                                                                         className="size-4"
                                                                         aria-hidden="true"
                                                                     />
-                                                                    {post.status ===
-                                                                    'scheduled'
-                                                                        ? 'Manage schedule'
-                                                                        : 'Schedule'}
+                                                                    Schedule
                                                                 </Link>
                                                             </Button>
                                                         </ActionTooltip>
