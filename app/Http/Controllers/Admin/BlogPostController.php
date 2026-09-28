@@ -108,7 +108,7 @@ final class BlogPostController extends Controller
     {
         Gate::authorize('publish', $blogPost);
 
-        $this->manager->publish(
+        $published = $this->manager->publish(
             $blogPost,
             $this->actor($request),
             $this->validatedWorkingAttributes($request, $blogPost),
@@ -118,7 +118,7 @@ final class BlogPostController extends Controller
             ->with('status', 'blog-post-published')
             ->with('toast', [
                 'type' => 'success',
-                'message' => 'Published “'.$blogPost->title.'”. It is now live.',
+                'message' => 'Published “'.$published->title.'”. It is now live.',
             ]);
     }
 
@@ -222,8 +222,9 @@ final class BlogPostController extends Controller
 
         $this->ensureBatchSlugsAreAvailable($imports);
 
-        return to_route('admin.blog.batch-import')
-            ->with('blog_batch_imports', $imports);
+        $request->session()->put('blog_batch_imports', $imports);
+
+        return to_route('admin.blog.batch-import');
     }
 
     public function storeBatchImport(Request $request): RedirectResponse

@@ -292,6 +292,8 @@ final class BlogTest extends TestCase
         $this->get('/blog/scheduled-post')->assertNotFound();
         $this->get(route('public.sitemap'))->assertDontSee('/blog/scheduled-post', false);
 
+        app(RequestContext::class)->apply('system', []);
+
         $this->assertSame(0, app(BlogPostManager::class)->publishDue($scheduledAt->copy()->subMinute()));
         $this->assertSame(1, app(BlogPostManager::class)->publishDue($scheduledAt));
 
