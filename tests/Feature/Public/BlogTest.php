@@ -399,6 +399,54 @@ final class BlogTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_super_admin_can_search_and_sort_blog_posts(): void
+    {
+        $admin = $this->superAdmin();
+        $this->draftPost('zulu-sort-check', 'Zulu sort check', 'Zulu body');
+        $this->draftPost('alpha-sort-check', 'Alpha sort check', 'Alpha body');
+        $published = $this->publishedPost('published-insight', 'Published insight', 'Published body');
+
+        $scheduledAt = CarbonImmutable::parse('2026-10-20 08:00:00', 'Pacific/Auckland')->utc();
+        $scheduled = BlogPost::query()->create([
+            'slug' => 'scheduled-insight',
+            'title' => 'Scheduled insight',
+            'description' => 'Scheduled insight description',
+            'body' => 'Scheduled body',
+            'status' => BlogPost::STATUS_SCHEDULED,
+            'scheduled_title' => 'Scheduled insight',
+            'scheduled_description' => 'Scheduled insight description',
+            'scheduled_body' => 'Scheduled body',
+            'scheduled_at' => $scheduledAt,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.blog.index', [
+                'search' => 'sort check',
+                'sort' => 'post',
+                'direction' => 'asc',
+            ]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('admin/blog/Index')
+                ->where('filters.search', 'sort check')
+                ->where('filters.sort', 'post')
+                ->where('filters.direction', 'asc')
+                ->has('posts', 2)
+                ->where('posts.0.slug', 'alpha-sort-check')
+                ->where('posts.1.slug', 'zulu-sort-check'));
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.blog.index', [
+                'search' => 'insight',
+                'sort' => 'publication',
+                'direction' => 'desc',
+            ]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('posts.0.id', (string) $scheduled->id)
+                ->where('posts.1.id', (string) $published->id));
+    }
+
     private function superAdmin(): User
     {
         $admin = User::factory()->superAdmin()->withTwoFactor()->create();
