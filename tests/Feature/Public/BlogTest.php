@@ -309,6 +309,34 @@ final class BlogTest extends TestCase
         ]);
     }
 
+    public function test_scheduled_posts_cannot_be_published_manually_before_their_due_time(): void
+    {
+        $admin = $this->superAdmin();
+        $post = $this->draftPost('manual-publish-guard', 'Manual publish guard', 'Scheduled body');
+        $scheduledAt = now('Pacific/Auckland')->addDay()->startOfMinute();
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.blog.schedule', $post), [
+                'title' => 'Manual publish guard',
+                'slug' => 'manual-publish-guard',
+                'description' => 'Scheduled description',
+                'body' => 'Scheduled body',
+                'scheduled_at' => $scheduledAt->format('Y-m-d\\TH:i'),
+            ])
+            ->assertRedirect();
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.blog.publish', $post))
+            ->assertSessionHasErrors([
+                'post' => 'This post is scheduled for automatic publication. Update or cancel the schedule before publishing it.',
+            ]);
+
+        $post->refresh();
+        $this->assertSame(BlogPost::STATUS_SCHEDULED, $post->status);
+        $this->assertTrue($post->scheduled_at?->equalTo($scheduledAt) ?? false);
+        $this->get('/blog/manual-publish-guard')->assertNotFound();
+    }
+
     public function test_working_edits_do_not_change_a_scheduled_snapshot_without_an_explicit_update_or_cancellation(): void
     {
         $admin = $this->superAdmin();

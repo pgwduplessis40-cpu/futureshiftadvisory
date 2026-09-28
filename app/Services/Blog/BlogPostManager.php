@@ -77,6 +77,7 @@ final class BlogPostManager
     {
         return DB::transaction(function () use ($post, $actor, $attributes): BlogPost {
             $locked = $this->locked($post);
+            $this->ensureNotScheduledForImmediatePublication($locked);
             $working = $this->workingAttributes($attributes, $locked);
             $this->ensureSlugIsUnlocked($locked, $working['slug']);
             $before = $this->metadata($locked);
@@ -287,6 +288,15 @@ final class BlogPostManager
         if (! $post->isScheduled()) {
             throw ValidationException::withMessages([
                 'post' => 'This post does not have an active publication schedule.',
+            ]);
+        }
+    }
+
+    private function ensureNotScheduledForImmediatePublication(BlogPost $post): void
+    {
+        if ($post->isScheduled()) {
+            throw ValidationException::withMessages([
+                'post' => 'This post is scheduled for automatic publication. Update or cancel the schedule before publishing it.',
             ]);
         }
     }

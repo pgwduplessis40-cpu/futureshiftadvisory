@@ -411,10 +411,9 @@ export default function BlogEdit({
                                 </Button>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                Scheduling freezes the current reviewed title,
-                                description, and body. Later edits stay private
-                                until you explicitly update the scheduled
-                                version.
+                                {post.status === 'scheduled'
+                                    ? 'This post will publish automatically at the scheduled time. Update or cancel the schedule before it can be published another way.'
+                                    : 'Scheduling freezes the current reviewed title, description, and body. Later edits stay private until you explicitly update the scheduled version.'}
                             </p>
                             {post.status === 'scheduled' ? (
                                 <Button
@@ -483,7 +482,7 @@ export default function BlogEdit({
                                     ? 'Save working changes'
                                     : 'Save draft'}
                             </Button>
-                            {post ? (
+                            {post && post.status !== 'scheduled' ? (
                                 <Button
                                     type="button"
                                     disabled={form.processing}
@@ -499,8 +498,9 @@ export default function BlogEdit({
                         </div>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                        A draft may be incomplete. Publishing requires a title,
-                        description, body, and valid slug.
+                        {post?.status === 'scheduled'
+                            ? 'Scheduled posts remain private until their scheduled publication time.'
+                            : 'A draft may be incomplete. Publishing requires a title, description, body, and valid slug.'}
                     </p>
                 </form>
             </div>
