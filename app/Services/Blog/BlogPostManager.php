@@ -142,7 +142,7 @@ final class BlogPostManager
 
     public function publishDue(?CarbonInterface $at = null): int
     {
-        $at ??= now();
+        $at = ($at ?? now())->utc();
 
         return DB::transaction(function () use ($at): int {
             $posts = BlogPost::query()
@@ -274,7 +274,7 @@ final class BlogPostManager
             'scheduled_title' => $post->title,
             'scheduled_description' => $post->description,
             'scheduled_body' => $post->body,
-            'scheduled_at' => $scheduledAt,
+            'scheduled_at' => $scheduledAt->utc(),
         ])->save();
 
         $this->audit->record('blog_post.scheduled', subject: $post, actor: $actor, before: $before, after: $this->metadata($post));
