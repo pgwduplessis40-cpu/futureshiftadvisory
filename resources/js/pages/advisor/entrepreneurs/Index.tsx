@@ -100,6 +100,9 @@ export default function EntrepreneursIndex({ entrepreneurs, capacity }: Props) {
                                         Stage
                                     </th>
                                     <th className="px-3 py-2 font-medium">
+                                        Invite status
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
                                         Advisor
                                     </th>
                                     <th className="px-3 py-2 text-right font-medium">
@@ -134,6 +137,22 @@ export default function EntrepreneursIndex({ entrepreneurs, capacity }: Props) {
                                             <Badge variant="secondary">
                                                 {entrepreneur.stage_label}
                                             </Badge>
+                                        </td>
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="Invite status"
+                                        >
+                                            {entrepreneur.invite_status_label ? (
+                                                <Badge variant="outline">
+                                                    {
+                                                        entrepreneur.invite_status_label
+                                                    }
+                                                </Badge>
+                                            ) : (
+                                                <span className="text-sm text-muted-foreground">
+                                                    —
+                                                </span>
+                                            )}
                                         </td>
                                         <td
                                             className="px-3 py-2"

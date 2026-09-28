@@ -42,6 +42,8 @@ export type EntrepreneurSummary = {
     email: string;
     stage: string;
     stage_label: string;
+    invite_status: string | null;
+    invite_status_label: string | null;
     assigned_advisor_name: string | null;
 };
 
@@ -75,12 +77,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         assessment_action_label: string;
         assessment_run: {
             status:
-                | 'queued'
-                | 'running'
-                | 'completed'
-                | 'failed'
-                | string
-                | null;
+                'queued' | 'running' | 'completed' | 'failed' | string | null;
             requested_at: string | null;
             started_at: string | null;
             total_criteria: number | null;

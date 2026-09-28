@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\EntrepreneurInviteStatus;
 use App\Enums\EntrepreneurStage;
 use App\Support\OperationalHealthFixtures;
 use Illuminate\Database\Eloquent\Builder;
@@ -57,6 +58,27 @@ final class EntrepreneurProfile extends Model
     public function currentStageLabel(): string
     {
         return $this->currentStage()->label();
+    }
+
+    public function invitationStatus(): ?EntrepreneurInviteStatus
+    {
+        if ($this->currentStage() === EntrepreneurStage::CANCELLED) {
+            return EntrepreneurInviteStatus::CANCELLED;
+        }
+
+        $invite = $this->inviteToken;
+
+        if (! $invite instanceof InviteToken) {
+            return null;
+        }
+
+        if ($this->user_id !== null || $invite->isAccepted()) {
+            return EntrepreneurInviteStatus::ACCEPTED;
+        }
+
+        return $invite->isExpired()
+            ? EntrepreneurInviteStatus::EXPIRED
+            : EntrepreneurInviteStatus::PENDING;
     }
 
     public function ensureStageIsValid(?EntrepreneurStage $fallback = null): EntrepreneurStage

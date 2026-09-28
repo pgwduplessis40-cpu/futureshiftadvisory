@@ -21,7 +21,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 
 /**
- * @phpstan-type ProfileSummary array{id:string, name:string, email:string, stage:string, stage_label:string, assigned_advisor_name:string|null}
+ * @phpstan-type ProfileSummary array{id:string, name:string, email:string, stage:string, stage_label:string, invite_status:string|null, invite_status_label:string|null, assigned_advisor_name:string|null}
  * @phpstan-type ServiceOption array{value:string, label:string, description:string}
  * @phpstan-type CollaborationParticipant array{id:string, name:string}
  * @phpstan-type ScreenSharePayload array{connection_url:string, connection_heartbeat_url:string, request_url:string, ice_servers_url:string, active_url:string, signal_url:string, pending_signals_url:string, heartbeat_url:string, end_url:string, heartbeat_seconds:int, participants:list<CollaborationParticipant>}
@@ -58,7 +58,7 @@ final class AdvisorEntrepreneurWorkspacePayload
             ->all();
     }
 
-    /** @return array{entrepreneur:array{id:string, name:string, email:string, stage:string, stage_label:string, assigned_advisor_name:string|null, concept_summary:string|null, user_id:int|null, invite_accepted_at:string|null, invite_expires_at:string|null, invite_delivery_label:string, invite_update_url:string|null, invite_resend_url:string|null, invite_cancel_url:string|null, intended_package_scope:string, intended_package_scope_label:string, created_at:string|null, latest_plan:PlanProgressSummary|null, readiness:ReadinessSummary, feedback_survey:array{action_url:string}, service_feedback_survey:mixed, idea_validation:IdeaValidationSummary|null, advisory_readiness:AdvisoryReadinessSummary|null, reports:list<ReportSummary>, conversion:ConversionSummary, documents:list<DocumentSummary>, messages:MessageSummary, client_actions:mixed, gamification:mixed}, serviceOptions:array<int, ServiceOption>, screenShare:ScreenSharePayload|null, coBrowse:CoBrowsePayload|null} */
+    /** @return array{entrepreneur:array{id:string, name:string, email:string, stage:string, stage_label:string, invite_status:string|null, invite_status_label:string|null, assigned_advisor_name:string|null, concept_summary:string|null, user_id:int|null, invite_accepted_at:string|null, invite_expires_at:string|null, invite_delivery_label:string, invite_update_url:string|null, invite_resend_url:string|null, invite_cancel_url:string|null, intended_package_scope:string, intended_package_scope_label:string, created_at:string|null, latest_plan:PlanProgressSummary|null, readiness:ReadinessSummary, feedback_survey:array{action_url:string}, service_feedback_survey:mixed, idea_validation:IdeaValidationSummary|null, advisory_readiness:AdvisoryReadinessSummary|null, reports:list<ReportSummary>, conversion:ConversionSummary, documents:list<DocumentSummary>, messages:MessageSummary, client_actions:mixed, gamification:mixed}, serviceOptions:array<int, ServiceOption>, screenShare:ScreenSharePayload|null, coBrowse:CoBrowsePayload|null} */
     public function show(User $viewer, EntrepreneurProfile $profile): array
     {
         $profile->loadMissing([
@@ -253,6 +253,7 @@ final class AdvisorEntrepreneurWorkspacePayload
     private function profileSummary(EntrepreneurProfile $profile): array
     {
         $stage = $profile->currentStage();
+        $inviteStatus = $profile->invitationStatus();
 
         return [
             'id' => $profile->id,
@@ -260,6 +261,8 @@ final class AdvisorEntrepreneurWorkspacePayload
             'email' => $profile->email,
             'stage' => $stage->value,
             'stage_label' => $this->profileStageLabel($profile, $stage),
+            'invite_status' => $inviteStatus?->value,
+            'invite_status_label' => $inviteStatus?->label(),
             'assigned_advisor_name' => $profile->assignedAdvisor?->name,
         ];
     }
