@@ -332,7 +332,7 @@ final class BlogPostController extends Controller
     {
         $seen = [];
         foreach ($imports as $index => $import) {
-            $slug = (string) ($import['slug'] ?? '');
+            $slug = $import['slug'];
 
             if ($slug === '' || isset($seen[$slug])) {
                 throw ValidationException::withMessages([
