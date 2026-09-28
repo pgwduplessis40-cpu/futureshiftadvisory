@@ -16,6 +16,9 @@ final class ScheduledCommandContractTest extends TestCase
         $this->artisan('screen-share:expire')->assertExitCode(0);
         $this->artisan('co-browse:expire')->assertExitCode(0);
         $this->artisan('communications:bulk-send')->assertExitCode(0);
+        $this->artisan('blog:publish-due')
+            ->expectsOutput('0 scheduled blog posts published.')
+            ->assertExitCode(0);
         $this->artisan('service-journeys:reconcile')
             ->expectsOutput('Reconciled 0 enabled service journey(s).')
             ->assertExitCode(0);

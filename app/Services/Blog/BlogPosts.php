@@ -80,7 +80,7 @@ final class BlogPosts
     }
 
     /**
-     * @return array{id:string,title:string,slug:string,status:string,published_at:string|null,published_revision_at:string|null,updated_at:string,has_pending_changes:bool}
+     * @return array{id:string,title:string,slug:string,status:string,published_at:string|null,published_revision_at:string|null,scheduled_at:string|null,updated_at:string,has_pending_changes:bool}
      */
     public function adminSummary(BlogPost $post): array
     {
@@ -91,17 +91,16 @@ final class BlogPosts
             'status' => $post->status,
             'published_at' => $post->published_at?->toIso8601String(),
             'published_revision_at' => $post->published_revision_at?->toIso8601String(),
+            'scheduled_at' => $post->scheduled_at?->toIso8601String(),
             'updated_at' => $post->updated_at->toIso8601String(),
-            'has_pending_changes' => $post->isPublished() && (
-                $post->title !== $post->published_title
-                || $post->description !== $post->published_description
-                || $post->body !== $post->published_body
-            ),
+            'has_pending_changes' => $post->isPublished()
+                ? $this->differsFromPublishedSnapshot($post)
+                : ($post->isScheduled() && $this->differsFromScheduledSnapshot($post)),
         ];
     }
 
     /**
-     * @return array{id:string,title:string,slug:string,description:string,body:string,status:string,published_at:string|null,published_revision_at:string|null,slug_locked:bool}
+     * @return array{id:string,title:string,slug:string,description:string,body:string,status:string,published_at:string|null,published_revision_at:string|null,scheduled_at:string|null,slug_locked:bool}
      */
     public function editorPayload(BlogPost $post): array
     {
@@ -114,8 +113,23 @@ final class BlogPosts
             'status' => $post->status,
             'published_at' => $post->published_at?->toIso8601String(),
             'published_revision_at' => $post->published_revision_at?->toIso8601String(),
-            'slug_locked' => $post->hasBeenPublished(),
+            'scheduled_at' => $post->scheduled_at?->toIso8601String(),
+            'slug_locked' => $post->isSlugLocked(),
         ];
+    }
+
+    private function differsFromPublishedSnapshot(BlogPost $post): bool
+    {
+        return $post->title !== $post->published_title
+            || $post->description !== $post->published_description
+            || $post->body !== $post->published_body;
+    }
+
+    private function differsFromScheduledSnapshot(BlogPost $post): bool
+    {
+        return $post->title !== $post->scheduled_title
+            || $post->description !== $post->scheduled_description
+            || $post->body !== $post->scheduled_body;
     }
 
     private function displayDate(?CarbonInterface $date): CarbonInterface

@@ -6,6 +6,7 @@ namespace Tests\Feature\Public;
 
 use App\Models\BlogPost;
 use App\Models\User;
+use App\Services\Blog\BlogPostManager;
 use App\Services\Blog\BlogPosts;
 use App\Support\RequestContext;
 use Carbon\CarbonImmutable;
@@ -185,7 +186,11 @@ final class BlogTest extends TestCase
                 'description' => 'Current editor description',
                 'body' => 'Current editor body',
             ])
-            ->assertRedirect(route('admin.blog.edit', $post));
+            ->assertRedirect(route('admin.blog.index'))
+            ->assertSessionHas('toast', [
+                'type' => 'success',
+                'message' => 'Published “Published from the editor”. It is now live.',
+            ]);
 
         $post->refresh();
 
@@ -222,6 +227,139 @@ final class BlogTest extends TestCase
             ->assertSessionHasErrors('file');
 
         $this->assertSame($before, BlogPost::query()->count());
+    }
+
+    public function test_super_admin_can_batch_review_imports_and_schedule_each_complete_snapshot(): void
+    {
+        $admin = $this->superAdmin();
+        $first = UploadedFile::fake()->createWithContent('first-article.md', "---\ntitle: First imported title\ndescription: First imported description\ndate: 2026-09-23\n---\nFirst imported body");
+        $second = UploadedFile::fake()->createWithContent('second-article.md', "---\ntitle: Second imported title\ndescription: Second imported description\ndate: 2026-09-24\n---\nSecond imported body");
+        $scheduledAt = now('Pacific/Auckland')->addDay()->startOfMinute();
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.blog.batch-import.preview'), ['files' => [$first, $second]])
+            ->assertRedirect(route('admin.blog.batch-import'));
+
+        $this->assertDatabaseMissing('blog_posts', ['slug' => 'first-article']);
+
+        $this->get(route('admin.blog.batch-import'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('admin/blog/BatchImport')
+                ->where('imports.0.filename', 'first-article.md')
+                ->where('imports.1.slug', 'second-article'));
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.blog.batch-import.store'), [
+                'scheduled_at' => [
+                    $scheduledAt->format('Y-m-d\\TH:i'),
+                    '',
+                ],
+            ])
+            ->assertRedirect(route('admin.blog.index'));
+
+        $scheduled = BlogPost::query()->where('slug', 'first-article')->firstOrFail();
+        $draft = BlogPost::query()->where('slug', 'second-article')->firstOrFail();
+
+        $this->assertSame(BlogPost::STATUS_SCHEDULED, $scheduled->status);
+        $this->assertSame('First imported title', $scheduled->scheduled_title);
+        $this->assertTrue($scheduled->scheduled_at?->equalTo($scheduledAt) ?? false);
+        $this->assertSame(BlogPost::STATUS_DRAFT, $draft->status);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'blog_post.scheduled',
+            'subject_id' => $scheduled->id,
+        ]);
+    }
+
+    public function test_scheduled_posts_stay_private_until_the_due_command_publishes_the_approved_snapshot(): void
+    {
+        $admin = $this->superAdmin();
+        $post = $this->draftPost('scheduled-post', 'Scheduled title', 'Scheduled body');
+        $scheduledAt = now('Pacific/Auckland')->addDay()->startOfMinute();
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.blog.schedule', $post), [
+                'title' => 'Scheduled title',
+                'slug' => 'scheduled-post',
+                'description' => 'Scheduled description',
+                'body' => 'Scheduled body',
+                'scheduled_at' => $scheduledAt->format('Y-m-d\\TH:i'),
+            ])
+            ->assertRedirect(route('admin.blog.edit', $post));
+
+        $post->refresh();
+        $this->assertSame(BlogPost::STATUS_SCHEDULED, $post->status);
+        $this->get('/blog/scheduled-post')->assertNotFound();
+        $this->get(route('public.sitemap'))->assertDontSee('/blog/scheduled-post', false);
+
+        $this->assertSame(0, app(BlogPostManager::class)->publishDue($scheduledAt->copy()->subMinute()));
+        $this->assertSame(1, app(BlogPostManager::class)->publishDue($scheduledAt));
+
+        $post->refresh();
+        $this->assertSame(BlogPost::STATUS_PUBLISHED, $post->status);
+        $this->assertSame('Scheduled title', $post->published_title);
+        $this->assertNull($post->scheduled_at);
+        $this->assertTrue($post->published_at?->equalTo($scheduledAt) ?? false);
+        $this->get('/blog/scheduled-post')->assertOk();
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'blog_post.scheduled_published',
+            'subject_id' => $post->id,
+        ]);
+    }
+
+    public function test_working_edits_do_not_change_a_scheduled_snapshot_without_an_explicit_update_or_cancellation(): void
+    {
+        $admin = $this->superAdmin();
+        $post = $this->draftPost('scheduled-snapshot', 'Original title', 'Original body');
+        $scheduledAt = now('Pacific/Auckland')->addDay()->startOfMinute();
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.blog.schedule', $post), [
+                'title' => 'Original title',
+                'slug' => 'scheduled-snapshot',
+                'description' => 'Original description',
+                'body' => 'Original body',
+                'scheduled_at' => $scheduledAt->format('Y-m-d\\TH:i'),
+            ])
+            ->assertRedirect();
+
+        $this->actingAsMfa($admin)
+            ->patch(route('admin.blog.update', $post), [
+                'title' => 'Changed working title',
+                'slug' => 'scheduled-snapshot',
+                'description' => 'Changed working description',
+                'body' => 'Changed working body',
+            ])
+            ->assertRedirect();
+
+        $post->refresh();
+        $this->assertSame('Changed working title', $post->title);
+        $this->assertSame('Original title', $post->scheduled_title);
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.blog.schedule', $post), [
+                'title' => 'Changed working title',
+                'slug' => 'scheduled-snapshot',
+                'description' => 'Changed working description',
+                'body' => 'Changed working body',
+                'scheduled_at' => $scheduledAt->copy()->addDay()->format('Y-m-d\\TH:i'),
+            ])
+            ->assertRedirect();
+
+        $post->refresh();
+        $this->assertSame('Changed working title', $post->scheduled_title);
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.blog.cancel-schedule', $post))
+            ->assertRedirect(route('admin.blog.edit', $post));
+
+        $post->refresh();
+        $this->assertSame(BlogPost::STATUS_DRAFT, $post->status);
+        $this->assertNull($post->scheduled_at);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'blog_post.schedule_cancelled',
+            'subject_id' => $post->id,
+        ]);
     }
 
     public function test_a_failed_audit_write_rolls_back_the_blog_write(): void

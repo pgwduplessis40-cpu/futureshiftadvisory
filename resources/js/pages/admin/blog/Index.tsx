@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
+    CalendarClock,
     Eye,
     FilePlus,
     Pencil,
@@ -8,9 +9,16 @@ import {
     Undo2,
     Upload,
 } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+    batchImport,
     create,
     destroy as destroyPost,
     edit,
@@ -23,9 +31,10 @@ type BlogPostSummary = {
     id: string;
     title: string;
     slug: string;
-    status: 'draft' | 'published';
+    status: 'draft' | 'published' | 'scheduled';
     published_at: string | null;
     published_revision_at: string | null;
+    scheduled_at: string | null;
     updated_at: string;
     has_pending_changes: boolean;
 };
@@ -41,6 +50,18 @@ function formatDate(value: string | null): string {
     }).format(new Date(value));
 }
 
+function formatDateTime(value: string | null): string {
+    if (!value) {
+        return 'Not scheduled';
+    }
+
+    return new Intl.DateTimeFormat('en-NZ', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: 'Pacific/Auckland',
+    }).format(new Date(value));
+}
+
 export default function BlogIndex({ posts }: { posts: BlogPostSummary[] }) {
     function destroy(post: BlogPostSummary) {
         if (
@@ -52,6 +73,18 @@ export default function BlogIndex({ posts }: { posts: BlogPostSummary[] }) {
         }
 
         router.delete(destroyPost(post.id).url);
+    }
+
+    function unpublishPost(post: BlogPostSummary) {
+        if (
+            !window.confirm(
+                `Unpublish “${post.title || post.slug}”? It will no longer be visible on the public blog.`,
+            )
+        ) {
+            return;
+        }
+
+        router.post(unpublish(post.id).url);
     }
 
     return (
@@ -71,10 +104,16 @@ export default function BlogIndex({ posts }: { posts: BlogPostSummary[] }) {
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                        <Link href={batchImport()}>
+                            <Button variant="outline" type="button">
+                                <Upload className="size-4" aria-hidden="true" />
+                                Import multiple .md files
+                            </Button>
+                        </Link>
                         <Link href={create()}>
                             <Button variant="outline" type="button">
                                 <Upload className="size-4" aria-hidden="true" />
-                                Import .md
+                                Import one .md file
                             </Button>
                         </Link>
                         <Link href={create()}>
@@ -106,7 +145,7 @@ export default function BlogIndex({ posts }: { posts: BlogPostSummary[] }) {
                                         Status
                                     </th>
                                     <th className="px-4 py-3 font-medium">
-                                        Published
+                                        Publication
                                     </th>
                                     <th className="px-4 py-3 font-medium">
                                         Last saved
@@ -146,11 +185,16 @@ export default function BlogIndex({ posts }: { posts: BlogPostSummary[] }) {
                                             >
                                                 {post.status === 'published'
                                                     ? 'Published'
-                                                    : 'Draft'}
+                                                    : post.status ===
+                                                        'scheduled'
+                                                      ? 'Scheduled'
+                                                      : 'Draft'}
                                             </Badge>
                                             {post.has_pending_changes ? (
                                                 <p className="mt-1 text-xs text-amber-700">
-                                                    Pending changes
+                                                    {post.status === 'scheduled'
+                                                        ? 'Working changes are not scheduled'
+                                                        : 'Pending changes'}
                                                 </p>
                                             ) : null}
                                         </td>
@@ -158,7 +202,16 @@ export default function BlogIndex({ posts }: { posts: BlogPostSummary[] }) {
                                             className="px-4 py-3 text-sm"
                                             data-label="Published"
                                         >
-                                            {formatDate(post.published_at)}
+                                            {post.status === 'scheduled' ? (
+                                                <span>
+                                                    Scheduled for{' '}
+                                                    {formatDateTime(
+                                                        post.scheduled_at,
+                                                    )}
+                                                </span>
+                                            ) : (
+                                                formatDate(post.published_at)
+                                            )}
                                         </td>
                                         <td
                                             className="px-4 py-3 text-sm"
@@ -170,80 +223,161 @@ export default function BlogIndex({ posts }: { posts: BlogPostSummary[] }) {
                                             className="px-4 py-3"
                                             data-label="Actions"
                                         >
-                                            <div className="flex justify-end gap-1">
-                                                <Link href={edit(post.id)}>
+                                            <div className="flex flex-wrap justify-end gap-2">
+                                                <ActionTooltip
+                                                    label={`Edit the working copy of ${post.title || post.slug}`}
+                                                >
                                                     <Button
+                                                        asChild
                                                         variant="ghost"
-                                                        size="icon"
+                                                        size="sm"
                                                         aria-label={`Edit ${post.title || post.slug}`}
                                                     >
-                                                        <Pencil
-                                                            className="size-4"
-                                                            aria-hidden="true"
-                                                        />
+                                                        <Link
+                                                            href={edit(post.id)}
+                                                        >
+                                                            <Pencil
+                                                                className="size-4"
+                                                                aria-hidden="true"
+                                                            />
+                                                            Edit
+                                                        </Link>
                                                     </Button>
-                                                </Link>
-                                                <Link href={preview(post.id)}>
+                                                </ActionTooltip>
+                                                <ActionTooltip
+                                                    label={`Preview the working copy of ${post.title || post.slug}`}
+                                                >
                                                     <Button
+                                                        asChild
                                                         variant="ghost"
-                                                        size="icon"
+                                                        size="sm"
                                                         aria-label={`Preview ${post.title || post.slug}`}
                                                     >
-                                                        <Eye
-                                                            className="size-4"
-                                                            aria-hidden="true"
-                                                        />
+                                                        <Link
+                                                            href={preview(
+                                                                post.id,
+                                                            )}
+                                                        >
+                                                            <Eye
+                                                                className="size-4"
+                                                                aria-hidden="true"
+                                                            />
+                                                            Preview
+                                                        </Link>
                                                     </Button>
-                                                </Link>
+                                                </ActionTooltip>
                                                 {post.status === 'published' ? (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        aria-label={`Unpublish ${post.title || post.slug}`}
-                                                        onClick={() =>
-                                                            router.post(
-                                                                unpublish(
-                                                                    post.id,
-                                                                ).url,
-                                                            )
-                                                        }
-                                                    >
-                                                        <Undo2
-                                                            className="size-4"
-                                                            aria-hidden="true"
-                                                        />
-                                                    </Button>
+                                                    <>
+                                                        <ActionTooltip
+                                                            label={`Open the live post ${post.title || post.slug}`}
+                                                        >
+                                                            <Button
+                                                                asChild
+                                                                variant="ghost"
+                                                                size="sm"
+                                                            >
+                                                                <Link
+                                                                    href={`/blog/${post.slug}`}
+                                                                    aria-label={`View live ${post.title || post.slug}`}
+                                                                >
+                                                                    <Eye
+                                                                        className="size-4"
+                                                                        aria-hidden="true"
+                                                                    />
+                                                                    View live
+                                                                </Link>
+                                                            </Button>
+                                                        </ActionTooltip>
+                                                        <ActionTooltip
+                                                            label={`Remove ${post.title || post.slug} from the public blog`}
+                                                        >
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                aria-label={`Unpublish ${post.title || post.slug}`}
+                                                                onClick={() =>
+                                                                    unpublishPost(
+                                                                        post,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Undo2
+                                                                    className="size-4"
+                                                                    aria-hidden="true"
+                                                                />
+                                                                Unpublish
+                                                            </Button>
+                                                        </ActionTooltip>
+                                                    </>
                                                 ) : (
+                                                    <>
+                                                        <ActionTooltip
+                                                            label={`Choose when ${post.title || post.slug} should automatically publish`}
+                                                        >
+                                                            <Button
+                                                                asChild
+                                                                variant="ghost"
+                                                                size="sm"
+                                                            >
+                                                                <Link
+                                                                    href={edit(
+                                                                        post.id,
+                                                                    )}
+                                                                    aria-label={`Schedule ${post.title || post.slug}`}
+                                                                >
+                                                                    <CalendarClock
+                                                                        className="size-4"
+                                                                        aria-hidden="true"
+                                                                    />
+                                                                    {post.status ===
+                                                                    'scheduled'
+                                                                        ? 'Manage schedule'
+                                                                        : 'Schedule'}
+                                                                </Link>
+                                                            </Button>
+                                                        </ActionTooltip>
+                                                        <ActionTooltip
+                                                            label={`Publish ${post.title || post.slug} immediately`}
+                                                        >
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                aria-label={`Publish ${post.title || post.slug}`}
+                                                                onClick={() =>
+                                                                    router.post(
+                                                                        publish(
+                                                                            post.id,
+                                                                        ).url,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Send
+                                                                    className="size-4"
+                                                                    aria-hidden="true"
+                                                                />
+                                                                Publish now
+                                                            </Button>
+                                                        </ActionTooltip>
+                                                    </>
+                                                )}
+                                                <ActionTooltip
+                                                    label={`Permanently delete ${post.title || post.slug}`}
+                                                >
                                                     <Button
                                                         variant="ghost"
-                                                        size="icon"
-                                                        aria-label={`Publish ${post.title || post.slug}`}
+                                                        size="sm"
+                                                        aria-label={`Delete ${post.title || post.slug}`}
                                                         onClick={() =>
-                                                            router.post(
-                                                                publish(post.id)
-                                                                    .url,
-                                                            )
+                                                            destroy(post)
                                                         }
                                                     >
-                                                        <Send
-                                                            className="size-4"
+                                                        <Trash2
+                                                            className="size-4 text-destructive"
                                                             aria-hidden="true"
                                                         />
+                                                        Delete
                                                     </Button>
-                                                )}
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    aria-label={`Delete ${post.title || post.slug}`}
-                                                    onClick={() =>
-                                                        destroy(post)
-                                                    }
-                                                >
-                                                    <Trash2
-                                                        className="size-4 text-destructive"
-                                                        aria-hidden="true"
-                                                    />
-                                                </Button>
+                                                </ActionTooltip>
                                             </div>
                                         </td>
                                     </tr>
@@ -254,5 +388,20 @@ export default function BlogIndex({ posts }: { posts: BlogPostSummary[] }) {
                 )}
             </div>
         </>
+    );
+}
+
+function ActionTooltip({
+    label,
+    children,
+}: {
+    label: string;
+    children: ReactNode;
+}) {
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>{children}</TooltipTrigger>
+            <TooltipContent>{label}</TooltipContent>
+        </Tooltip>
     );
 }

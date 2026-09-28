@@ -1163,8 +1163,39 @@ sitemap, `llms.txt`, and SEO output correct.
 - Super-admin-only writes are audited atomically, Markdown rendering is
   hardened, and the legacy post retains its URL and New Zealand date.
 
-**Out of scope:** scheduled publishing, media management, tags, comments,
-rich-text editing, and slug-change redirects.
+**Out of scope:** media management, tags, comments, rich-text editing, and
+slug-change redirects.
+
+---
+
+### WO-126 — Scheduled and batch blog publishing
+
+**Goal:** Let super-admins review several Markdown posts together, create
+drafts, and automatically publish a deliberately approved snapshot at a chosen
+New Zealand date and time.
+
+**Depends on:** WO-125.
+
+**Files:**
+- Scheduling snapshot fields and a narrowly permitted `system` RLS path for
+  the due-publication command.
+- Batch Markdown review/import UI, per-post Pacific/Auckland scheduling, and
+  clearly labelled, keyboard-accessible blog actions.
+- `blog:publish-due` scheduled every minute, plus feature and command tests.
+
+**Acceptance criteria:**
+- A batch import is reviewed before any row is created; an item can remain a
+  draft or be scheduled individually.
+- Scheduled posts remain absent from public pages, the sitemap, and `llms.txt`
+  until their due time, when the server publishes the approved snapshot.
+- Later working-copy edits cannot silently alter a scheduled publication;
+  replacing it requires an explicit schedule update. Schedules can be
+  cancelled, and publish/unpublish/destructive actions are clear and audited.
+- Publication time is entered and displayed in `Pacific/Auckland`, while the
+  scheduler stores and compares it in UTC.
+
+**Tests:** Batch import validation, snapshot isolation, cancellation, due
+release, public visibility, audit events, and the scheduled-command contract.
 
 ---
 
