@@ -1,17 +1,24 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
+    ArrowDown,
+    ArrowUp,
     CalendarClock,
+    ChevronsUpDown,
     Eye,
     FilePlus,
     Pencil,
+    RotateCcw,
+    Search,
     Send,
     Trash2,
     Undo2,
     Upload,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { FormEvent, ReactNode } from 'react';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
     Tooltip,
     TooltipContent,
@@ -22,6 +29,7 @@ import {
     create,
     destroy as destroyPost,
     edit,
+    index as blogIndex,
     preview,
     publish,
     unpublish,
@@ -37,6 +45,14 @@ type BlogPostSummary = {
     scheduled_at: string | null;
     updated_at: string;
     has_pending_changes: boolean;
+};
+
+type SortColumn = 'post' | 'status' | 'publication' | 'updated';
+
+type BlogFilters = {
+    search: string;
+    sort: SortColumn;
+    direction: 'asc' | 'desc';
 };
 
 function formatDate(value: string | null): string {
@@ -62,7 +78,51 @@ function formatDateTime(value: string | null): string {
     }).format(new Date(value));
 }
 
-export default function BlogIndex({ posts }: { posts: BlogPostSummary[] }) {
+export default function BlogIndex({
+    posts,
+    filters,
+}: {
+    posts: BlogPostSummary[];
+    filters: BlogFilters;
+}) {
+    const [search, setSearch] = useState(filters.search);
+
+    function visit(nextFilters: BlogFilters) {
+        router.get(
+            blogIndex.url({
+                query: nextFilters,
+            }),
+            {},
+            {
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
+        );
+    }
+
+    function submitSearch(event: FormEvent) {
+        event.preventDefault();
+
+        visit({ ...filters, search: search.trim() });
+    }
+
+    function clearSearch() {
+        setSearch('');
+        visit({ ...filters, search: '' });
+    }
+
+    function sortBy(sort: SortColumn) {
+        visit({
+            search: search.trim(),
+            sort,
+            direction:
+                filters.sort === sort && filters.direction === 'asc'
+                    ? 'desc'
+                    : 'asc',
+        });
+    }
+
     function destroy(post: BlogPostSummary) {
         if (
             !window.confirm(
@@ -128,10 +188,45 @@ export default function BlogIndex({ posts }: { posts: BlogPostSummary[] }) {
                     </div>
                 </div>
 
+                <form
+                    onSubmit={submitSearch}
+                    className="flex flex-wrap items-end gap-3 rounded-md border bg-background p-4"
+                >
+                    <div className="min-w-64 flex-1">
+                        <label
+                            htmlFor="blog-search"
+                            className="mb-1.5 block text-sm font-medium"
+                        >
+                            Search posts
+                        </label>
+                        <Input
+                            id="blog-search"
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Title, slug, or status"
+                        />
+                    </div>
+                    <Button type="submit">
+                        <Search className="size-4" aria-hidden="true" />
+                        Search
+                    </Button>
+                    {filters.search !== '' ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={clearSearch}
+                        >
+                            <RotateCcw className="size-4" aria-hidden="true" />
+                            Clear search
+                        </Button>
+                    ) : null}
+                </form>
+
                 {posts.length === 0 ? (
                     <section className="rounded-md border bg-background p-6 text-sm text-muted-foreground">
-                        No posts yet. Create a draft or import a Markdown file
-                        to begin.
+                        {filters.search === ''
+                            ? 'No posts yet. Create a draft or import a Markdown file to begin.'
+                            : 'No posts match the current search.'}
                     </section>
                 ) : (
                     <section className="overflow-hidden rounded-md border bg-background">
@@ -139,16 +234,36 @@ export default function BlogIndex({ posts }: { posts: BlogPostSummary[] }) {
                             <thead className="bg-muted/60 text-left text-sm">
                                 <tr>
                                     <th className="px-4 py-3 font-medium">
-                                        Post
+                                        <SortButton
+                                            label="Post"
+                                            column="post"
+                                            filters={filters}
+                                            onSort={sortBy}
+                                        />
                                     </th>
                                     <th className="px-4 py-3 font-medium">
-                                        Status
+                                        <SortButton
+                                            label="Status"
+                                            column="status"
+                                            filters={filters}
+                                            onSort={sortBy}
+                                        />
                                     </th>
                                     <th className="px-4 py-3 font-medium">
-                                        Publication
+                                        <SortButton
+                                            label="Publication"
+                                            column="publication"
+                                            filters={filters}
+                                            onSort={sortBy}
+                                        />
                                     </th>
                                     <th className="px-4 py-3 font-medium">
-                                        Last saved
+                                        <SortButton
+                                            label="Last saved"
+                                            column="updated"
+                                            filters={filters}
+                                            onSort={sortBy}
+                                        />
                                     </th>
                                     <th className="px-4 py-3 text-right font-medium">
                                         Actions
@@ -200,7 +315,7 @@ export default function BlogIndex({ posts }: { posts: BlogPostSummary[] }) {
                                         </td>
                                         <td
                                             className="px-4 py-3 text-sm"
-                                            data-label="Published"
+                                            data-label="Publication"
                                         >
                                             {post.status === 'scheduled' ? (
                                                 <span>
@@ -388,6 +503,42 @@ export default function BlogIndex({ posts }: { posts: BlogPostSummary[] }) {
                 )}
             </div>
         </>
+    );
+}
+
+function SortButton({
+    label,
+    column,
+    filters,
+    onSort,
+}: {
+    label: string;
+    column: SortColumn;
+    filters: BlogFilters;
+    onSort: (column: SortColumn) => void;
+}) {
+    const isActive = filters.sort === column;
+    const nextDirection =
+        isActive && filters.direction === 'asc' ? 'descending' : 'ascending';
+    const Icon = !isActive
+        ? ChevronsUpDown
+        : filters.direction === 'asc'
+          ? ArrowUp
+          : ArrowDown;
+
+    return (
+        <button
+            type="button"
+            onClick={() => onSort(column)}
+            className="inline-flex items-center gap-1 rounded-sm text-left hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+            aria-label={`Sort by ${label}, ${nextDirection}`}
+        >
+            {label}
+            <Icon className="size-3.5" aria-hidden="true" />
+            {isActive ? (
+                <span className="sr-only">, currently {filters.direction}</span>
+            ) : null}
+        </button>
     );
 }
 

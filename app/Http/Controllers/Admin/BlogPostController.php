@@ -11,6 +11,7 @@ use App\Services\Blog\BlogMarkdownImporter;
 use App\Services\Blog\BlogPostManager;
 use App\Services\Blog\BlogPosts;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -28,17 +29,72 @@ final class BlogPostController extends Controller
         private readonly BlogPosts $posts,
     ) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
         Gate::authorize('viewAny', BlogPost::class);
 
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:120'],
+            'sort' => ['nullable', 'string', Rule::in(['post', 'status', 'publication', 'updated'])],
+            'direction' => ['nullable', 'string', Rule::in(['asc', 'desc'])],
+        ]);
+
+        $search = trim((string) ($validated['search'] ?? ''));
+        $sort = (string) ($validated['sort'] ?? 'updated');
+        $direction = (string) ($validated['direction'] ?? 'desc');
+
+        $query = $this->applyIndexSearch(BlogPost::query(), $search);
+        $this->applyIndexSort($query, $sort, $direction);
+
         return Inertia::render('admin/blog/Index', [
-            'posts' => BlogPost::query()
-                ->latest('updated_at')
+            'posts' => $query
                 ->get()
                 ->map(fn (BlogPost $post): array => $this->posts->adminSummary($post))
                 ->all(),
+            'filters' => [
+                'search' => $search,
+                'sort' => $sort,
+                'direction' => $direction,
+            ],
         ]);
+    }
+
+    /**
+     * @param  Builder<BlogPost>  $query
+     * @return Builder<BlogPost>
+     */
+    private function applyIndexSearch(Builder $query, string $search): Builder
+    {
+        if ($search === '') {
+            return $query;
+        }
+
+        $needle = '%'.strtolower($search).'%';
+
+        return $query->where(function (Builder $inner) use ($needle): void {
+            $inner
+                ->whereRaw('LOWER(title) LIKE ?', [$needle])
+                ->orWhereRaw('LOWER(slug) LIKE ?', [$needle])
+                ->orWhereRaw('LOWER(status) LIKE ?', [$needle]);
+        });
+    }
+
+    /**
+     * @param  Builder<BlogPost>  $query
+     */
+    private function applyIndexSort(Builder $query, string $sort, string $direction): void
+    {
+        $direction = $direction === 'asc' ? 'asc' : 'desc';
+
+        match ($sort) {
+            'post' => $query->orderByRaw("LOWER(title) {$direction}")->orderBy('id', $direction),
+            'status' => $query->orderBy('status', $direction)->orderBy('id', $direction),
+            'publication' => $query
+                ->orderByRaw('COALESCE(scheduled_at, published_at) IS NULL')
+                ->orderByRaw("COALESCE(scheduled_at, published_at) {$direction}")
+                ->orderBy('id', $direction),
+            default => $query->orderBy('updated_at', $direction)->orderBy('id', $direction),
+        };
     }
 
     public function create(Request $request): Response
