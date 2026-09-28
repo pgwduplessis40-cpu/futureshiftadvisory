@@ -21,7 +21,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 
 /**
- * @phpstan-type ProfileSummary array{id:string, name:string, email:string, stage:string, stage_label:string, invite_status:string|null, invite_status_label:string|null, assigned_advisor_name:string|null}
+ * @phpstan-import-type ProfileSummary from AdvisorEntrepreneurProfileSummary
+ *
  * @phpstan-type ServiceOption array{value:string, label:string, description:string}
  * @phpstan-type CollaborationParticipant array{id:string, name:string}
  * @phpstan-type ScreenSharePayload array{connection_url:string, connection_heartbeat_url:string, request_url:string, ice_servers_url:string, active_url:string, signal_url:string, pending_signals_url:string, heartbeat_url:string, end_url:string, heartbeat_seconds:int, participants:list<CollaborationParticipant>}
@@ -38,6 +39,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 final class AdvisorEntrepreneurWorkspacePayload
 {
     public function __construct(
+        private readonly AdvisorEntrepreneurProfileSummary $profileSummary,
         private readonly EntrepreneurGamification $gamification,
         private readonly AdvisorEntrepreneurPlanPayload $planPayload,
         private readonly AdvisorEntrepreneurIdeaPayload $ideaPayload,
@@ -53,7 +55,7 @@ final class AdvisorEntrepreneurWorkspacePayload
             ->latest()
             ->limit(100)
             ->get()
-            ->map(fn (EntrepreneurProfile $profile): array => $this->profileSummary($profile))
+            ->map(fn (EntrepreneurProfile $profile): array => $this->profileSummary->for($profile))
             ->values()
             ->all();
     }
@@ -79,7 +81,7 @@ final class AdvisorEntrepreneurWorkspacePayload
 
         return [
             'entrepreneur' => [
-                ...$this->profileSummary($profile),
+                ...$this->profileSummary->for($profile),
                 'concept_summary' => $profile->concept_summary,
                 'user_id' => $profile->user_id,
                 'invite_accepted_at' => $profile->inviteToken?->accepted_at?->toIso8601String(),
@@ -247,41 +249,5 @@ final class AdvisorEntrepreneurWorkspacePayload
         return $user->user_type === User::TYPE_ENTREPRENEUR
             ? $query->where('user_id', $user->getKey())
             : $query->where('assigned_advisor_id', $user->getKey());
-    }
-
-    /** @return ProfileSummary */
-    private function profileSummary(EntrepreneurProfile $profile): array
-    {
-        $stage = $profile->currentStage();
-        $inviteStatus = $profile->invitationStatus();
-
-        return [
-            'id' => $profile->id,
-            'name' => $profile->name,
-            'email' => $profile->email,
-            'stage' => $stage->value,
-            'stage_label' => $this->profileStageLabel($profile, $stage),
-            'invite_status' => $inviteStatus?->value,
-            'invite_status_label' => $inviteStatus?->label(),
-            'assigned_advisor_name' => $profile->assignedAdvisor?->name,
-        ];
-    }
-
-    private function profileStageLabel(EntrepreneurProfile $profile, EntrepreneurStage $stage): string
-    {
-        $latestPlan = $profile->relationLoaded('businessPlans')
-            ? $profile->businessPlans->where('source_type', BusinessPlan::SOURCE_ENTREPRENEUR)->sortByDesc('updated_at')->first()
-            : null;
-        if (! in_array($stage, [EntrepreneurStage::CANCELLED, EntrepreneurStage::SUSPENDED], true) && $latestPlan instanceof BusinessPlan && $latestPlan->status === BusinessPlan::STATUS_REVISING) {
-            return 'Revision requested - awaiting resubmission';
-        }
-        if ($stage === EntrepreneurStage::INVITED && $profile->inviteToken?->isAccepted()) {
-            return 'Invite accepted';
-        }
-        if (in_array($stage, [EntrepreneurStage::INVITED, EntrepreneurStage::ONBOARDING], true) && ($profile->user_id !== null || $profile->user instanceof User || $profile->inviteToken?->isAccepted())) {
-            return 'Active';
-        }
-
-        return $stage->label();
     }
 }
