@@ -42,6 +42,8 @@ export type EntrepreneurSummary = {
     email: string;
     stage: string;
     stage_label: string;
+    invite_status: string | null;
+    invite_status_label: string | null;
     assigned_advisor_name: string | null;
 };
 

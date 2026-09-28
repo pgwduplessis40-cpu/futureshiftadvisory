@@ -239,6 +239,8 @@ final class AddEntrepreneurTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('entrepreneur.invite_delivery_label', 'Email sent')
+                ->where('entrepreneur.invite_status', 'pending')
+                ->where('entrepreneur.invite_status_label', 'Pending')
                 ->where('entrepreneur.invite_resend_url', route('advisor.entrepreneurs.invite.resend', $profile, absolute: false))
                 ->where('entrepreneur.invite_cancel_url', route('advisor.entrepreneurs.invite.cancel', $profile, absolute: false))
             );
@@ -389,6 +391,55 @@ final class AddEntrepreneurTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->where('entrepreneur.stage', EntrepreneurStage::CANCELLED->value)
                 ->where('entrepreneur.stage_label', 'Cancelled')
+                ->where('entrepreneur.invite_status', 'cancelled')
+                ->where('entrepreneur.invite_status_label', 'Cancelled')
+                ->where('entrepreneur.invite_resend_url', route('advisor.entrepreneurs.invite.resend', $profile, absolute: false))
+                ->where('entrepreneur.invite_cancel_url', null)
+            );
+    }
+
+    public function test_expired_entrepreneur_invites_are_visible_and_do_not_consume_capacity(): void
+    {
+        Mail::fake();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $issued = app(InviteIssuer::class)->issue(
+            email: 'expired-founder@example.com',
+            targetUserType: User::TYPE_ENTREPRENEUR,
+            targetRole: User::TYPE_ENTREPRENEUR,
+            issuedBy: $advisor,
+        );
+        $issued->invite->forceFill(['expires_at' => now()->subMinute()])->save();
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->id,
+            'invite_token_id' => $issued->invite->id,
+            'name' => 'Expired Founder',
+            'email' => 'expired-founder@example.com',
+            'stage' => EntrepreneurStage::INVITED,
+            'concept_summary' => 'An invitation that was not accepted before it expired.',
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('advisor/entrepreneurs/Index')
+                ->where('entrepreneurs.0.id', $profile->id)
+                ->where('entrepreneurs.0.stage', EntrepreneurStage::INVITED->value)
+                ->where('entrepreneurs.0.invite_status', 'expired')
+                ->where('entrepreneurs.0.invite_status_label', 'Expired')
+                ->where('capacity.active_count', 0)
+                ->where('capacity.remaining', 30)
+            );
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('advisor/entrepreneurs/Show')
+                ->where('entrepreneur.invite_status', 'expired')
+                ->where('entrepreneur.invite_status_label', 'Expired')
                 ->where('entrepreneur.invite_resend_url', route('advisor.entrepreneurs.invite.resend', $profile, absolute: false))
                 ->where('entrepreneur.invite_cancel_url', null)
             );
@@ -489,6 +540,8 @@ final class AddEntrepreneurTest extends TestCase
                 ->where('entrepreneurs.0.id', $profile->id)
                 ->where('entrepreneurs.0.stage', EntrepreneurStage::INVITED->value)
                 ->where('entrepreneurs.0.stage_label', 'Invite accepted')
+                ->where('entrepreneurs.0.invite_status', 'accepted')
+                ->where('entrepreneurs.0.invite_status_label', 'Accepted')
             );
 
         $this->actingAsMfa($advisor)
@@ -498,6 +551,8 @@ final class AddEntrepreneurTest extends TestCase
                 ->component('advisor/entrepreneurs/Show')
                 ->where('entrepreneur.stage', EntrepreneurStage::INVITED->value)
                 ->where('entrepreneur.stage_label', 'Invite accepted')
+                ->where('entrepreneur.invite_status', 'accepted')
+                ->where('entrepreneur.invite_status_label', 'Accepted')
                 ->whereNot('entrepreneur.invite_accepted_at', null)
                 ->where('entrepreneur.invite_resend_url', null)
                 ->where('entrepreneur.invite_cancel_url', null)

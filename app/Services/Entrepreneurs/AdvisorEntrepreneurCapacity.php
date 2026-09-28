@@ -7,6 +7,7 @@ namespace App\Services\Entrepreneurs;
 use App\Enums\EntrepreneurStage;
 use App\Models\EntrepreneurProfile;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\ValidationException;
 
 final class AdvisorEntrepreneurCapacity
@@ -25,6 +26,17 @@ final class AdvisorEntrepreneurCapacity
             ->withoutOperationalHealthFixtures()
             ->where('assigned_advisor_id', $advisor->getKey())
             ->whereIn('stage', EntrepreneurStage::activeCapacityValues())
+            ->where(function (Builder $query): void {
+                $query
+                    ->where('stage', '!=', EntrepreneurStage::INVITED->value)
+                    ->orWhereNull('invite_token_id')
+                    ->orWhereNotNull('user_id')
+                    ->orWhereHas('inviteToken', function (Builder $invite): void {
+                        $invite
+                            ->whereNotNull('accepted_at')
+                            ->orWhere('expires_at', '>', now());
+                    });
+            })
             ->count();
 
         return [

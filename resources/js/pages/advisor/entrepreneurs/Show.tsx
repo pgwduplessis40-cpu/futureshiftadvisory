@@ -1855,12 +1855,17 @@ export default function EntrepreneursShow({
                             </div>
                             <HoverBadge
                                 label={
-                                    entrepreneur.invite_accepted_at
-                                        ? 'Accepted'
-                                        : entrepreneur.invite_delivery_label
+                                    entrepreneur.invite_status_label ??
+                                    entrepreneur.invite_delivery_label
                                 }
                                 title="Invite status"
                                 rows={[
+                                    {
+                                        label: 'Status',
+                                        value:
+                                            entrepreneur.invite_status_label ??
+                                            'Not applicable',
+                                    },
                                     {
                                         label: 'Invite email',
                                         value: entrepreneur.email,
