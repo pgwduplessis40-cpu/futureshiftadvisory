@@ -1,5 +1,14 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Eye, Save, Send, Trash2, Undo2, Upload } from 'lucide-react';
+import {
+    ArrowLeft,
+    CalendarClock,
+    Eye,
+    Save,
+    Send,
+    Trash2,
+    Undo2,
+    Upload,
+} from 'lucide-react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useEffect, useState } from 'react';
 import InputError from '@/components/input-error';
@@ -11,8 +20,10 @@ import {
     destroy as destroyPost,
     importMethod as importMarkdownPost,
     index as blogIndex,
+    cancelSchedule,
     preview,
     publish,
+    schedule,
     store,
     unpublish,
     update,
@@ -24,9 +35,10 @@ type EditorPost = {
     slug: string;
     description: string;
     body: string;
-    status: 'draft' | 'published';
+    status: 'draft' | 'published' | 'scheduled';
     published_at: string | null;
     published_revision_at: string | null;
+    scheduled_at: string | null;
     slug_locked: boolean;
 };
 
@@ -37,6 +49,10 @@ type WorkingPost = {
     body: string;
 };
 
+type EditorForm = WorkingPost & {
+    scheduled_at: string;
+};
+
 function slugify(title: string): string {
     return title
         .toLowerCase()
@@ -44,6 +60,29 @@ function slugify(title: string): string {
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
+}
+
+function toAucklandDateTimeLocal(value: string | null): string {
+    if (!value) {
+        return '';
+    }
+
+    const values = Object.fromEntries(
+        new Intl.DateTimeFormat('en-NZ', {
+            timeZone: 'Pacific/Auckland',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hourCycle: 'h23',
+        })
+            .formatToParts(new Date(value))
+            .filter((part) => part.type !== 'literal')
+            .map((part) => [part.type, part.value]),
+    );
+
+    return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}`;
 }
 
 export default function BlogEdit({
@@ -58,7 +97,10 @@ export default function BlogEdit({
     );
     const data = post ??
         imported ?? { title: '', slug: '', description: '', body: '' };
-    const form = useForm<WorkingPost>(data);
+    const form = useForm<EditorForm>({
+        ...data,
+        scheduled_at: toAucklandDateTimeLocal(post?.scheduled_at ?? null),
+    });
     const importForm = useForm<{ file: File | null }>({ file: null });
     const isNew = post === null;
     const slugLocked = post?.slug_locked ?? false;
@@ -72,6 +114,21 @@ export default function BlogEdit({
         setData(imported);
         clearErrors();
     }, [clearErrors, imported, isNew, setData]);
+
+    useEffect(() => {
+        if (!post) {
+            return;
+        }
+
+        setData({
+            title: post.title,
+            slug: post.slug,
+            description: post.description,
+            body: post.body,
+            scheduled_at: toAucklandDateTimeLocal(post.scheduled_at),
+        });
+        clearErrors();
+    }, [clearErrors, post, setData]);
 
     function submit(event: FormEvent) {
         event.preventDefault();
@@ -124,6 +181,28 @@ export default function BlogEdit({
         form.post(publish(post.id).url, { preserveScroll: true });
     }
 
+    function schedulePost() {
+        if (!post) {
+            return;
+        }
+
+        form.clearErrors();
+        form.post(schedule(post.id).url, { preserveScroll: true });
+    }
+
+    function cancelPublicationSchedule() {
+        if (
+            !post ||
+            !window.confirm(
+                `Cancel the publication schedule for “${post.title || post.slug}”?`,
+            )
+        ) {
+            return;
+        }
+
+        router.post(cancelSchedule(post.id).url, {}, { preserveScroll: true });
+    }
+
     return (
         <>
             <Head
@@ -137,12 +216,15 @@ export default function BlogEdit({
             <div className="mx-auto max-w-5xl space-y-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <Link
-                            href={blogIndex()}
-                            className="text-sm text-muted-foreground hover:underline"
-                        >
-                            All blog posts
-                        </Link>
+                        <Button asChild variant="outline" size="sm">
+                            <Link href={blogIndex()}>
+                                <ArrowLeft
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Back to all blog posts
+                            </Link>
+                        </Button>
                         <h1 className="font-display mt-2 text-3xl text-[var(--fs-admiralty)]">
                             {isNew
                                 ? 'New blog post'
@@ -163,7 +245,9 @@ export default function BlogEdit({
                         >
                             {post.status === 'published'
                                 ? 'Published'
-                                : 'Draft'}
+                                : post.status === 'scheduled'
+                                  ? 'Scheduled'
+                                  : 'Draft'}
                         </Badge>
                     ) : null}
                 </div>
@@ -238,7 +322,7 @@ export default function BlogEdit({
                             <InputError message={form.errors.slug} />
                             <p className="text-xs text-muted-foreground">
                                 {slugLocked
-                                    ? 'The public URL is frozen after first publication.'
+                                    ? 'The public URL is frozen after scheduling or first publication.'
                                     : 'Generated from the title; you can edit it before publication.'}
                             </p>
                         </div>
@@ -279,6 +363,72 @@ export default function BlogEdit({
                         />
                         <InputError message={form.errors.body} />
                     </div>
+
+                    {post && post.status !== 'published' ? (
+                        <section className="space-y-3 rounded-md border border-[var(--fs-gold)] bg-[var(--fs-sand)]/30 p-4">
+                            <div>
+                                <h2 className="font-medium text-[var(--fs-admiralty)]">
+                                    Schedule publication
+                                </h2>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Choose when the reviewed version should go
+                                    live. Times are Pacific/Auckland.
+                                </p>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-[minmax(0,20rem)_auto] sm:items-end">
+                                <div className="space-y-2">
+                                    <Label htmlFor="scheduled_at">
+                                        Publish date and time
+                                    </Label>
+                                    <Input
+                                        id="scheduled_at"
+                                        type="datetime-local"
+                                        value={form.data.scheduled_at}
+                                        onChange={(event) =>
+                                            form.setData(
+                                                'scheduled_at',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    <InputError
+                                        message={form.errors.scheduled_at}
+                                    />
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={form.processing}
+                                    onClick={schedulePost}
+                                >
+                                    <CalendarClock
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    {post.status === 'scheduled'
+                                        ? 'Update scheduled version'
+                                        : 'Schedule post'}
+                                </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Scheduling freezes the current reviewed title,
+                                description, and body. Later edits stay private
+                                until you explicitly update the scheduled
+                                version.
+                            </p>
+                            {post.status === 'scheduled' ? (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="text-destructive hover:text-destructive"
+                                    disabled={form.processing}
+                                    onClick={cancelPublicationSchedule}
+                                >
+                                    Cancel schedule and return to draft
+                                </Button>
+                            ) : null}
+                        </section>
+                    ) : null}
 
                     <div className="flex flex-wrap justify-between gap-3 border-t pt-5">
                         <div className="flex flex-wrap gap-2">
@@ -329,7 +479,9 @@ export default function BlogEdit({
                                 disabled={form.processing}
                             >
                                 <Save className="size-4" aria-hidden="true" />
-                                Save draft
+                                {post?.status === 'scheduled'
+                                    ? 'Save working changes'
+                                    : 'Save draft'}
                             </Button>
                             {post ? (
                                 <Button

@@ -787,15 +787,83 @@ destroyForm.delete = (args: { blogPost: string | number } | [blogPost: string | 
 
 destroy.form = destroyForm
 
+/**
+ * @see \App\Http\Controllers\Admin\BlogPostController::batchImport
+ * @route '/admin/blog/imports'
+ */
+export const batchImport = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: '/admin/blog/imports' + queryParams(options),
+    method: 'get',
+})
+
+/**
+ * @see \App\Http\Controllers\Admin\BlogPostController::previewBatchImport
+ * @route '/admin/blog/imports/preview'
+ */
+export const batchImportPreview = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: '/admin/blog/imports/preview' + queryParams(options),
+    method: 'post',
+})
+
+/**
+ * @see \App\Http\Controllers\Admin\BlogPostController::storeBatchImport
+ * @route '/admin/blog/imports'
+ */
+export const batchImportStore = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: '/admin/blog/imports' + queryParams(options),
+    method: 'post',
+})
+
+type BlogPostRouteParameter = string | number | { id: string | number }
+
+function blogPostActionUrl(
+    post: BlogPostRouteParameter,
+    action: 'schedule' | 'cancel-schedule',
+    options?: RouteQueryOptions,
+): string {
+    const id = typeof post === 'object' ? post.id : post
+
+    return `/admin/blog/${id}/${action}` + queryParams(options)
+}
+
+/**
+ * @see \App\Http\Controllers\Admin\BlogPostController::schedule
+ * @route '/admin/blog/{blogPost}/schedule'
+ */
+export const schedule = (
+    post: BlogPostRouteParameter,
+    options?: RouteQueryOptions,
+): RouteDefinition<'post'> => ({
+    url: blogPostActionUrl(post, 'schedule', options),
+    method: 'post',
+})
+
+/**
+ * @see \App\Http\Controllers\Admin\BlogPostController::cancelSchedule
+ * @route '/admin/blog/{blogPost}/cancel-schedule'
+ */
+export const cancelSchedule = (
+    post: BlogPostRouteParameter,
+    options?: RouteQueryOptions,
+): RouteDefinition<'post'> => ({
+    url: blogPostActionUrl(post, 'cancel-schedule', options),
+    method: 'post',
+})
+
 const blog = {
     index: Object.assign(index, index),
     create: Object.assign(create, create),
     import: Object.assign(importMethod, importMethod),
+    batchImport: Object.assign(batchImport, batchImport),
+    batchImportPreview: Object.assign(batchImportPreview, batchImportPreview),
+    batchImportStore: Object.assign(batchImportStore, batchImportStore),
     store: Object.assign(store, store),
     edit: Object.assign(edit, edit),
     update: Object.assign(update, update),
     preview: Object.assign(preview, preview),
     publish: Object.assign(publish, publish),
+    schedule: Object.assign(schedule, schedule),
+    cancelSchedule: Object.assign(cancelSchedule, cancelSchedule),
     unpublish: Object.assign(unpublish, unpublish),
     destroy: Object.assign(destroy, destroy),
 }

@@ -61,12 +61,17 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         ->group(function (): void {
             Route::get('blog', [BlogPostController::class, 'index'])->name('blog.index');
             Route::get('blog/create', [BlogPostController::class, 'create'])->name('blog.create');
+            Route::get('blog/imports', [BlogPostController::class, 'batchImport'])->name('blog.batch-import');
             Route::post('blog/import', [BlogPostController::class, 'import'])->name('blog.import');
+            Route::post('blog/imports/preview', [BlogPostController::class, 'previewBatchImport'])->name('blog.batch-import.preview');
+            Route::post('blog/imports', [BlogPostController::class, 'storeBatchImport'])->name('blog.batch-import.store');
             Route::post('blog', [BlogPostController::class, 'store'])->name('blog.store');
             Route::get('blog/{blogPost}/edit', [BlogPostController::class, 'edit'])->name('blog.edit');
             Route::patch('blog/{blogPost}', [BlogPostController::class, 'update'])->name('blog.update');
             Route::get('blog/{blogPost}/preview', [BlogPostController::class, 'preview'])->name('blog.preview');
             Route::post('blog/{blogPost}/publish', [BlogPostController::class, 'publish'])->name('blog.publish');
+            Route::post('blog/{blogPost}/schedule', [BlogPostController::class, 'schedule'])->name('blog.schedule');
+            Route::post('blog/{blogPost}/cancel-schedule', [BlogPostController::class, 'cancelSchedule'])->name('blog.cancel-schedule');
             Route::post('blog/{blogPost}/unpublish', [BlogPostController::class, 'unpublish'])->name('blog.unpublish');
             Route::delete('blog/{blogPost}', [BlogPostController::class, 'destroy'])->name('blog.destroy');
 

@@ -17,6 +17,8 @@ final class BlogPost extends Model
 
     public const STATUS_PUBLISHED = 'published';
 
+    public const STATUS_SCHEDULED = 'scheduled';
+
     /** @var list<string> */
     protected $fillable = [
         'slug',
@@ -29,12 +31,17 @@ final class BlogPost extends Model
         'published_body',
         'published_at',
         'published_revision_at',
+        'scheduled_title',
+        'scheduled_description',
+        'scheduled_body',
+        'scheduled_at',
         'author_id',
     ];
 
     protected $casts = [
         'published_at' => 'datetime',
         'published_revision_at' => 'datetime',
+        'scheduled_at' => 'datetime',
     ];
 
     /**
@@ -67,5 +74,15 @@ final class BlogPost extends Model
     public function hasBeenPublished(): bool
     {
         return $this->published_at !== null;
+    }
+
+    public function isScheduled(): bool
+    {
+        return $this->status === self::STATUS_SCHEDULED;
+    }
+
+    public function isSlugLocked(): bool
+    {
+        return $this->hasBeenPublished() || $this->isScheduled();
     }
 }

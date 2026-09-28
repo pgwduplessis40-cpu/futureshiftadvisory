@@ -84,6 +84,31 @@ final class BlogPostRlsTest extends TestCase
         );
     }
 
+    public function test_system_can_read_and_update_scheduled_posts_for_due_publication(): void
+    {
+        app(RequestContext::class)->apply(RequestContext::ROLE_SUPER_ADMIN, []);
+        DB::table('blog_posts')->where('id', $this->draftId)->update([
+            'status' => BlogPost::STATUS_SCHEDULED,
+            'scheduled_title' => 'Approved title',
+            'scheduled_description' => 'Approved description',
+            'scheduled_body' => 'Approved body',
+            'scheduled_at' => now()->addMinute(),
+            'updated_at' => now(),
+        ]);
+
+        app(RequestContext::class)->apply('system', []);
+
+        $this->assertSame(
+            BlogPost::STATUS_SCHEDULED,
+            $this->withRlsRole(fn (): string => (string) DB::table('blog_posts')->where('id', $this->draftId)->value('status')),
+        );
+
+        $this->assertSame(1, $this->withRlsRole(fn (): int => DB::table('blog_posts')->where('id', $this->draftId)->update([
+            'scheduled_title' => 'Updated approved title',
+            'updated_at' => now(),
+        ])));
+    }
+
     public function test_non_admin_cannot_read_drafts_or_write_posts(): void
     {
         app(RequestContext::class)->apply('advisor', []);
