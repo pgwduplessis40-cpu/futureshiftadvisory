@@ -47,6 +47,7 @@ type WorkingPost = {
     slug: string;
     description: string;
     body: string;
+    publish_at?: string | null;
 };
 
 type EditorForm = WorkingPost & {
@@ -98,8 +99,13 @@ export default function BlogEdit({
     const data = post ??
         imported ?? { title: '', slug: '', description: '', body: '' };
     const form = useForm<EditorForm>({
-        ...data,
-        scheduled_at: toAucklandDateTimeLocal(post?.scheduled_at ?? null),
+        title: data.title,
+        slug: data.slug,
+        description: data.description,
+        body: data.body,
+        scheduled_at: post
+            ? toAucklandDateTimeLocal(post.scheduled_at)
+            : (imported?.publish_at ?? ''),
     });
     const importForm = useForm<{ file: File | null }>({ file: null });
     const isNew = post === null;
@@ -111,7 +117,13 @@ export default function BlogEdit({
             return;
         }
 
-        setData(imported);
+        setData({
+            title: imported.title,
+            slug: imported.slug,
+            description: imported.description,
+            body: imported.body,
+            scheduled_at: imported.publish_at ?? '',
+        });
         clearErrors();
     }, [clearErrors, imported, isNew, setData]);
 
@@ -364,7 +376,8 @@ export default function BlogEdit({
                         <InputError message={form.errors.body} />
                     </div>
 
-                    {post && post.status !== 'published' ? (
+                    {(post && post.status !== 'published') ||
+                    (isNew && imported?.publish_at) ? (
                         <section className="space-y-3 rounded-md border border-[var(--fs-gold)] bg-[var(--fs-sand)]/30 p-4">
                             <div>
                                 <h2 className="font-medium text-[var(--fs-admiralty)]">
@@ -395,27 +408,31 @@ export default function BlogEdit({
                                         message={form.errors.scheduled_at}
                                     />
                                 </div>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    disabled={form.processing}
-                                    onClick={schedulePost}
-                                >
-                                    <CalendarClock
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    {post.status === 'scheduled'
-                                        ? 'Update scheduled version'
-                                        : 'Schedule post'}
-                                </Button>
+                                {post ? (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        disabled={form.processing}
+                                        onClick={schedulePost}
+                                    >
+                                        <CalendarClock
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        {post.status === 'scheduled'
+                                            ? 'Update scheduled version'
+                                            : 'Schedule post'}
+                                    </Button>
+                                ) : null}
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                {post.status === 'scheduled'
+                                {post?.status === 'scheduled'
                                     ? 'This post will publish automatically at the scheduled time. Update or cancel the schedule before it can be published another way.'
-                                    : 'Scheduling freezes the current reviewed title, description, and body. Later edits stay private until you explicitly update the scheduled version.'}
+                                    : post
+                                      ? 'Scheduling freezes the current reviewed title, description, and body. Later edits stay private until you explicitly update the scheduled version.'
+                                      : 'This publish_at value came from the Markdown file. Save the post to create its scheduled snapshot, or clear it to create a normal draft. Use YYYY-MM-DDTHH:mm in Pacific/Auckland time.'}
                             </p>
-                            {post.status === 'scheduled' ? (
+                            {post?.status === 'scheduled' ? (
                                 <Button
                                     type="button"
                                     variant="ghost"
@@ -478,9 +495,11 @@ export default function BlogEdit({
                                 disabled={form.processing}
                             >
                                 <Save className="size-4" aria-hidden="true" />
-                                {post?.status === 'scheduled'
-                                    ? 'Save working changes'
-                                    : 'Save draft'}
+                                {isNew && form.data.scheduled_at
+                                    ? 'Save and schedule'
+                                    : post?.status === 'scheduled'
+                                      ? 'Save working changes'
+                                      : 'Save draft'}
                             </Button>
                             {post && post.status !== 'scheduled' ? (
                                 <Button

@@ -202,11 +202,12 @@ final class BlogTest extends TestCase
         $this->assertSame('Current editor body', $post->published_body);
     }
 
-    public function test_import_prefills_a_draft_without_persisting_it_and_rejects_malformed_input(): void
+    public function test_markdown_import_prefills_and_schedules_a_post_when_saved(): void
     {
         $admin = $this->superAdmin();
         $before = BlogPost::query()->count();
-        $file = UploadedFile::fake()->createWithContent('imported-article.md', "---\ntitle: Imported title\ndescription: Imported description\ndate: 2026-09-23\n---\nImported body");
+        $scheduledAt = now('Pacific/Auckland')->addDay()->startOfMinute();
+        $file = UploadedFile::fake()->createWithContent('imported-article.md', "---\ntitle: Imported title\ndescription: Imported description\ndate: 2026-09-23\npublish_at: {$scheduledAt->format('Y-m-d\\TH:i')}\n---\nImported body");
 
         $this->actingAsMfa($admin)
             ->post(route('admin.blog.import'), ['file' => $file])
@@ -219,22 +220,42 @@ final class BlogTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->where('import.title', 'Imported title')
                 ->where('import.slug', 'imported-article')
+                ->where('import.publish_at', $scheduledAt->format('Y-m-d\\TH:i'))
                 ->where('import.body', 'Imported body'));
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.blog.store'), [
+                'title' => 'Imported title',
+                'slug' => 'imported-article',
+                'description' => 'Imported description',
+                'body' => 'Imported body',
+                'scheduled_at' => $scheduledAt->format('Y-m-d\\TH:i'),
+            ])
+            ->assertRedirect();
+
+        $scheduled = BlogPost::query()->where('slug', 'imported-article')->firstOrFail();
+        $this->assertSame(BlogPost::STATUS_SCHEDULED, $scheduled->status);
+        $this->assertTrue($scheduled->scheduled_at?->equalTo($scheduledAt) ?? false);
 
         $bad = UploadedFile::fake()->createWithContent('bad.md', 'not valid frontmatter');
         $this->actingAsMfa($admin)
             ->post(route('admin.blog.import'), ['file' => $bad])
             ->assertSessionHasErrors('file');
 
-        $this->assertSame($before, BlogPost::query()->count());
+        $invalidSchedule = UploadedFile::fake()->createWithContent('invalid-schedule.md', "---\ntitle: Invalid schedule\ndescription: Invalid schedule description\ndate: 2026-09-23\npublish_at: 2026-10-05\n---\nBody");
+        $this->actingAsMfa($admin)
+            ->post(route('admin.blog.import'), ['file' => $invalidSchedule])
+            ->assertSessionHasErrors('file');
+
+        $this->assertSame($before + 1, BlogPost::query()->count());
     }
 
-    public function test_super_admin_can_batch_review_imports_and_schedule_each_complete_snapshot(): void
+    public function test_super_admin_can_batch_review_imports_and_schedule_from_markdown_metadata(): void
     {
         $admin = $this->superAdmin();
-        $first = UploadedFile::fake()->createWithContent('first-article.md', "---\ntitle: First imported title\ndescription: First imported description\ndate: 2026-09-23\n---\nFirst imported body");
-        $second = UploadedFile::fake()->createWithContent('second-article.md', "---\ntitle: Second imported title\ndescription: Second imported description\ndate: 2026-09-24\n---\nSecond imported body");
         $scheduledAt = now('Pacific/Auckland')->addDay()->startOfMinute();
+        $first = UploadedFile::fake()->createWithContent('first-article.md', "---\ntitle: First imported title\ndescription: First imported description\ndate: 2026-09-23\npublish_at: {$scheduledAt->format('Y-m-d\\TH:i')}\n---\nFirst imported body");
+        $second = UploadedFile::fake()->createWithContent('second-article.md', "---\ntitle: Second imported title\ndescription: Second imported description\ndate: 2026-09-24\n---\nSecond imported body");
 
         $this->actingAsMfa($admin)
             ->post(route('admin.blog.batch-import.preview'), ['files' => [$first, $second]])
@@ -247,6 +268,7 @@ final class BlogTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('admin/blog/BatchImport')
                 ->where('imports.0.filename', 'first-article.md')
+                ->where('imports.0.publish_at', $scheduledAt->format('Y-m-d\\TH:i'))
                 ->where('imports.1.slug', 'second-article'));
 
         $this->actingAsMfa($admin)

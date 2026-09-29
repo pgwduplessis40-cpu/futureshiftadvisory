@@ -124,7 +124,14 @@ final class BlogPostController extends Controller
     {
         Gate::authorize('create', BlogPost::class);
 
-        $post = $this->manager->create($this->validatedWorkingAttributes($request), $this->actor($request));
+        $attributes = $this->validatedWorkingAttributes($request);
+        $scheduledAt = $request->filled('scheduled_at')
+            ? $this->validatedScheduledAt($request, 'scheduled_at')
+            : null;
+        $actor = $this->actor($request);
+        $post = $scheduledAt === null
+            ? $this->manager->create($attributes, $actor)
+            : $this->manager->createAndSchedule($attributes, $scheduledAt, $actor);
 
         return to_route('admin.blog.edit', $post)->with('status', 'blog-post-created');
     }
@@ -383,7 +390,7 @@ final class BlogPostController extends Controller
     }
 
     /**
-     * @param  list<array{filename?:string,title:string,slug:string,description:string,body:string}>  $imports
+     * @param  list<array{filename?:string,title:string,slug:string,description:string,body:string,publish_at?:string|null}>  $imports
      */
     private function ensureBatchSlugsAreAvailable(array $imports): void
     {

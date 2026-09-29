@@ -18,7 +18,12 @@ type ImportedPost = {
     slug: string;
     description: string;
     body: string;
+    publish_at: string | null;
 };
+
+function importedSchedules(imports: ImportedPost[]): string[] {
+    return imports.map((post) => post.publish_at ?? '');
+}
 
 export default function BlogBatchImport({
     imports,
@@ -27,16 +32,13 @@ export default function BlogBatchImport({
 }) {
     const uploadForm = useForm<{ files: File[] }>({ files: [] });
     const scheduleForm = useForm<{ scheduled_at: string[] }>({
-        scheduled_at: imports.map(() => ''),
+        scheduled_at: importedSchedules(imports),
     });
     const { clearErrors: clearScheduleErrors, setData: setScheduleData } =
         scheduleForm;
 
     useEffect(() => {
-        setScheduleData(
-            'scheduled_at',
-            imports.map(() => ''),
-        );
+        setScheduleData('scheduled_at', importedSchedules(imports));
         clearScheduleErrors();
     }, [clearScheduleErrors, imports, setScheduleData]);
 
@@ -141,8 +143,11 @@ export default function BlogBatchImport({
                             </h2>
                             <p className="mt-1 text-sm text-muted-foreground">
                                 A scheduled post publishes this exact reviewed
-                                title, description, and body. Leave a date blank
-                                to create a normal draft instead.
+                                title, description, and body. A Markdown
+                                publish_at value pre-fills its schedule. Clear a
+                                date to create a normal draft instead. Use
+                                publish_at: 2026-10-05T08:00 for an Auckland
+                                publication time.
                             </p>
                         </div>
                         <div className="divide-y">

@@ -22,7 +22,7 @@ final class BlogMarkdownImporter
     public const MAX_BODY_LENGTH = 100000;
 
     /**
-     * @return array{title:string,slug:string,description:string,body:string}
+     * @return array{title:string,slug:string,description:string,body:string,publish_at:string|null}
      */
     public function parse(UploadedFile $file): array
     {
@@ -64,12 +64,23 @@ final class BlogMarkdownImporter
             $this->reject('file', 'Frontmatter date must use the YYYY-MM-DD format.');
         }
 
+        $publishAt = $frontmatter['publish_at'] ?? null;
+        if ($publishAt !== null && ! $this->isPublishAt($publishAt)) {
+            $this->reject('file', 'Frontmatter publish_at must use the YYYY-MM-DDTHH:mm format in Pacific/Auckland time.');
+        }
+
         $this->assertLength('title', $title, self::MAX_TITLE_LENGTH);
         $this->assertLength('slug', $slug, self::MAX_SLUG_LENGTH);
         $this->assertLength('description', $description, self::MAX_DESCRIPTION_LENGTH);
         $this->assertLength('body', $body, self::MAX_BODY_LENGTH);
 
-        return compact('title', 'slug', 'description', 'body');
+        return [
+            'title' => $title,
+            'slug' => $slug,
+            'description' => $description,
+            'body' => $body,
+            'publish_at' => $publishAt,
+        ];
     }
 
     /**
@@ -85,8 +96,8 @@ final class BlogMarkdownImporter
             }
 
             $key = strtolower($match[1]);
-            if (! in_array($key, ['title', 'description', 'date'], true) || array_key_exists($key, $values)) {
-                $this->reject('file', 'Frontmatter may contain title, description, and date once each.');
+            if (! in_array($key, ['title', 'description', 'date', 'publish_at'], true) || array_key_exists($key, $values)) {
+                $this->reject('file', 'Frontmatter may contain title, description, date, and an optional publish_at once each.');
             }
 
             $values[$key] = trim($match[2], " \t\"'");
@@ -104,6 +115,17 @@ final class BlogMarkdownImporter
         }
 
         return $parsed->format('Y-m-d') === $date;
+    }
+
+    private function isPublishAt(string $publishAt): bool
+    {
+        try {
+            $parsed = CarbonImmutable::createFromFormat('!Y-m-d\\TH:i', $publishAt, 'Pacific/Auckland');
+        } catch (\Throwable) {
+            return false;
+        }
+
+        return $parsed->format('Y-m-d\\TH:i') === $publishAt;
     }
 
     private function assertLength(string $field, string $value, int $maximum): void
