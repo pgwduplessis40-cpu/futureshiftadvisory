@@ -28,7 +28,20 @@ final class BlogPostManager
     }
 
     /**
-     * @param  list<array{title:string,slug:string,description:string,body:string}>  $imports
+     * @param  array{title?:string|null,slug?:string|null,description?:string|null,body?:string|null}  $attributes
+     */
+    public function createAndSchedule(array $attributes, CarbonInterface $scheduledAt, User $actor): BlogPost
+    {
+        return DB::transaction(function () use ($attributes, $scheduledAt, $actor): BlogPost {
+            $post = $this->createLocked($attributes, $actor);
+            $this->scheduleLocked($post, $scheduledAt, $actor);
+
+            return $post;
+        });
+    }
+
+    /**
+     * @param  list<array{title:string,slug:string,description:string,body:string,publish_at?:string|null}>  $imports
      * @param  array<int, CarbonInterface>  $scheduledAt
      * @return Collection<int, BlogPost>
      */
