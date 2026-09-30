@@ -67,9 +67,16 @@ XML,
     public function test_docx_template_without_section_token_appends_generated_sections_and_standalone_fragment(): void
     {
         $bytes = $this->docx(
-            document: '<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="8" w:color="B8860B"/></w:pBdr></w:pPr></w:p><w:p><w:r><w:t>Body copy</w:t></w:r></w:p>',
+            document: '<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="8" w:color="B8860B"/></w:pBdr></w:pPr></w:p><w:p><w:r><w:t>Body copy</w:t></w:r></w:p><w:p><w:pPr><w:numPr><w:numId w:val="7"/></w:numPr></w:pPr><w:r><w:t>First obligation</w:t></w:r></w:p><w:p><w:pPr><w:numPr><w:numId w:val="7"/></w:numPr></w:pPr><w:r><w:t>Second obligation</w:t></w:r></w:p>',
             header: '',
             footer: '',
+            numbering: <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:abstractNum w:abstractNumId="3"><w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/></w:lvl></w:abstractNum>
+  <w:num w:numId="7"><w:abstractNumId w:val="3"/></w:num>
+</w:numbering>
+XML,
         );
         $path = 'documents/templates/no-sections-token.docx';
         Storage::disk('secure_local')->put($path, $bytes);
@@ -86,6 +93,8 @@ XML,
         $this->assertIsString($standalone);
         $this->assertStringContainsString('uploaded-docx-standalone', $standalone);
         $this->assertStringContainsString('Body copy', $standalone);
+        $this->assertStringContainsString('<ul class="docx-template-list"><li class="docx-template-list-item" style="">First obligation</li><li class="docx-template-list-item" style="">Second obligation</li></ul>', $standalone);
+        $this->assertStringContainsString('ul.docx-template-list { list-style-type: disc; }', $standalone);
     }
 
     public function test_renderer_rejects_non_docx_unscanned_missing_and_invalid_templates(): void
@@ -171,7 +180,7 @@ XML,
         ]);
     }
 
-    private function docx(string $document, string $header, string $footer): string
+    private function docx(string $document, string $header, string $footer, string $numbering = ''): string
     {
         $path = tempnam(sys_get_temp_dir(), 'fsa-uploaded-report-template-');
         $this->assertIsString($path);
@@ -186,6 +195,10 @@ XML,
 
         if ($footer !== '') {
             $zip->addFromString('word/footer1.xml', $this->wordXml($footer));
+        }
+
+        if ($numbering !== '') {
+            $zip->addFromString('word/numbering.xml', $numbering);
         }
 
         $zip->close();
