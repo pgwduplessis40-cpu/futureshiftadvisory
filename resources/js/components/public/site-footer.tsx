@@ -99,10 +99,18 @@ export function SiteFooter() {
                             </li>
                             <li>
                                 <Link
-                                    href="/terms-and-privacy"
+                                    href="/terms"
                                     className="text-[#E0D8CC] hover:text-white"
                                 >
-                                    Terms &amp; Privacy
+                                    Terms of Use
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    href="/privacy"
+                                    className="text-[#E0D8CC] hover:text-white"
+                                >
+                                    Privacy Policy
                                 </Link>
                             </li>
                         </ul>

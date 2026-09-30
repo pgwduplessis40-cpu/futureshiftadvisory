@@ -24,22 +24,27 @@ final class SignedAcceptancePdf
         private readonly TermsPdfFallback $fallbackPdf,
     ) {}
 
+    /**
+     * @param  non-empty-list<TermsVersion>  $versions
+     */
     public function create(
-        TermsVersion $termsVersion,
+        array $versions,
         User $user,
         Request $request,
         DateTimeInterface $acceptedAt,
     ): SignedAcceptanceArtifact {
-        $termsVersion->loadMissing('clauses');
+        foreach ($versions as $version) {
+            $version->loadMissing('clauses');
+        }
 
-        $html = $this->documents->signedAcceptanceHtml($termsVersion, $user, $request, $acceptedAt);
+        $html = $this->documents->signedAcceptanceHtml($versions, $user, $request, $acceptedAt);
         try {
             $pdf = $this->renderer->render($html);
         } catch (Throwable $exception) {
             report($exception);
-            $pdf = $this->fallbackPdf->signedAcceptance($termsVersion, $user, $request, $acceptedAt);
+            $pdf = $this->fallbackPdf->signedAcceptance($versions, $user, $request, $acceptedAt);
         }
-        $path = $this->path($termsVersion, $user, $acceptedAt);
+        $path = $this->path($versions, $user, $acceptedAt);
         $written = Storage::disk('secure_local')->put($path, $pdf);
 
         if ($written !== true) {
@@ -56,16 +61,21 @@ final class SignedAcceptancePdf
         );
     }
 
-    private function path(TermsVersion $termsVersion, User $user, DateTimeInterface $acceptedAt): string
+    /**
+     * @param  non-empty-list<TermsVersion>  $versions
+     */
+    private function path(array $versions, User $user, DateTimeInterface $acceptedAt): string
     {
-        $version = Str::slug($termsVersion->version) ?: 'version';
+        $versionsLabel = collect($versions)
+            ->map(fn (TermsVersion $version): string => Str::slug($version->version) ?: 'version')
+            ->implode('-');
 
         return sprintf(
-            'terms/acceptances/%s/%s/%s-terms-%s.pdf',
+            'terms/acceptances/%s/%s/%s-legal-documents-%s.pdf',
             $user->getKey(),
             $acceptedAt->format('Y/m'),
             Str::uuid(),
-            $version,
+            $versionsLabel,
         );
     }
 }

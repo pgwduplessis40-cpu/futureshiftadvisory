@@ -254,9 +254,15 @@ const termsNavItem: NavItem = {
     icon: FileText,
 };
 
-const termsAndPrivacyNavItem: NavItem = {
-    title: 'Terms and Privacy Policy',
-    href: '/admin/terms-and-privacy',
+const termsOfUseNavItem: NavItem = {
+    title: 'Terms of Use',
+    href: '/admin/terms-of-use',
+    icon: FileText,
+};
+
+const privacyPolicyNavItem: NavItem = {
+    title: 'Privacy Policy',
+    href: '/admin/privacy-policy',
     icon: FileText,
 };
 
@@ -416,7 +422,8 @@ const superAdminAdministrationNavItems: NavItem[] = [
     paymentReconciliationsNavItem,
     ratingFrameworkNavItem,
     termsNavItem,
-    termsAndPrivacyNavItem,
+    termsOfUseNavItem,
+    privacyPolicyNavItem,
     partnerAgreementNavItem,
     auditTrailNavItem,
     referenceDataNavItem,

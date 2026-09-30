@@ -60,7 +60,7 @@ final class IdeaValidationCheckout
     ) {}
 
     /**
-     * @param  array{name:string,email:string,password:string,terms_version_id:string}  $input
+     * @param  array{name:string,email:string,password:string,terms_version_id:string,privacy_policy_version_id:string}  $input
      */
     public function register(Request $request, array $input): IdeaValidationPurchase
     {
@@ -82,11 +82,21 @@ final class IdeaValidationCheckout
 
                 $terms = $this->terms->latestPublishedVersion(
                     withClauses: true,
-                    documentScope: TermsVersion::SCOPE_WEBSITE,
+                    documentScope: TermsVersion::SCOPE_WEBSITE_TERMS,
                 );
                 if (! $terms instanceof TermsVersion || (string) $terms->getKey() !== $input['terms_version_id']) {
                     throw ValidationException::withMessages([
-                        'terms_version_id' => 'The Terms and Privacy Policy has changed or is not published. Review the current policy before continuing.',
+                        'terms_version_id' => 'The Terms of Use has changed or is not published. Review the current document before continuing.',
+                    ]);
+                }
+
+                $privacyPolicy = $this->terms->latestPublishedVersion(
+                    withClauses: true,
+                    documentScope: TermsVersion::SCOPE_PRIVACY_POLICY,
+                );
+                if (! $privacyPolicy instanceof TermsVersion || (string) $privacyPolicy->getKey() !== $input['privacy_policy_version_id']) {
+                    throw ValidationException::withMessages([
+                        'privacy_policy_version_id' => 'The Privacy Policy has changed or is not published. Review the current document before continuing.',
                     ]);
                 }
 
@@ -126,10 +136,11 @@ final class IdeaValidationCheckout
                 ]);
 
                 $acceptedAt = now();
-                $artifact = $this->signedTerms->create($terms, $user, $request, $acceptedAt);
+                $artifact = $this->signedTerms->create([$terms, $privacyPolicy], $user, $request, $acceptedAt);
                 TermsAcceptance::query()->create([
                     'user_id' => $user->getKey(),
                     'terms_version_id' => $terms->getKey(),
+                    'privacy_policy_version_id' => $privacyPolicy->getKey(),
                     'accepted_at' => $acceptedAt,
                     'signed_pdf_path' => $artifact->path,
                     'signed_pdf_sha256_envelope' => $artifact->sha256Envelope,
@@ -144,10 +155,12 @@ final class IdeaValidationCheckout
                     'client_id' => $client->getKey(),
                     'advisor_id' => $advisor->getKey(),
                     'terms_version_id' => $terms->getKey(),
+                    'privacy_policy_version_id' => $privacyPolicy->getKey(),
                     'status' => IdeaValidationPurchase::STATUS_EMAIL_VERIFICATION_PENDING,
                     'metadata' => [
                         'source' => 'public_validate_idea',
                         'terms_version' => $terms->version,
+                        'privacy_policy_version' => $privacyPolicy->version,
                     ],
                 ]);
 
@@ -155,6 +168,7 @@ final class IdeaValidationCheckout
                     'client_id' => $client->getKey(),
                     'advisor_id' => $advisor->getKey(),
                     'terms_version_id' => $terms->getKey(),
+                    'privacy_policy_version_id' => $privacyPolicy->getKey(),
                     'email_verified' => false,
                 ]);
 
@@ -459,7 +473,7 @@ final class IdeaValidationCheckout
             return DB::transaction(function () use ($payment, $charge, $processedAt, $historicalQuote, $reconciledBy, $reconciliationReason): array {
                 $payment = Payment::query()->whereKey($payment->getKey())->lockForUpdate()->firstOrFail();
                 $purchase = IdeaValidationPurchase::query()
-                    ->with(['user', 'client', 'termsVersion', 'advisor'])
+                    ->with(['user', 'client', 'termsVersion', 'privacyPolicyVersion', 'advisor'])
                     ->where('payment_id', $payment->getKey())
                     ->lockForUpdate()
                     ->firstOrFail();
@@ -569,10 +583,12 @@ final class IdeaValidationCheckout
                     'payment_reference' => $charge->gatewayRef,
                     'accepted_by_user_id' => $user->getKey(),
                     'accepted_at' => $purchase->created_at,
-                    'acceptance_text' => 'The client accepted the published Future Shift Advisory Terms and Privacy Policy before purchasing Idea Validation.',
+                    'acceptance_text' => 'The client agreed to the published Future Shift Advisory Terms of Use and acknowledged the Privacy Policy before purchasing Idea Validation.',
                     'terms_reference' => [
                         'terms_version_id' => $purchase->terms_version_id,
                         'terms_version' => $purchase->termsVersion?->version,
+                        'privacy_policy_version_id' => $purchase->privacy_policy_version_id,
+                        'privacy_policy_version' => $purchase->privacyPolicyVersion?->version,
                         'accepted_at' => $purchase->created_at?->toIso8601String(),
                     ],
                     'related_entrepreneur_profile_id' => $profile->getKey(),

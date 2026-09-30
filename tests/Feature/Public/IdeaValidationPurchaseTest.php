@@ -59,20 +59,21 @@ final class IdeaValidationPurchaseTest extends TestCase
         });
     }
 
-    public function test_public_policy_page_and_json_are_derived_from_the_published_version(): void
+    public function test_public_legal_pages_and_json_are_derived_from_their_published_versions(): void
     {
         $terms = $this->publishedTerms();
+        $privacyPolicy = $this->publishedPrivacyPolicy();
 
-        $this->get(route('public.terms-and-privacy'))
+        $this->get(route('public.terms'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('public/terms-and-privacy')
+                ->component('public/legal-document')
                 ->where('document.published', true)
                 ->where('document.title', $terms->title)
                 ->where('document.version', $terms->version)
                 ->has('document.clauses', 1));
 
-        $this->getJson(route('public.terms-and-privacy.json'))
+        $this->getJson(route('public.terms.json'))
             ->assertOk()
             ->assertHeaderContains('cache-control', 'max-age=300')
             ->assertHeader('access-control-allow-origin', '*')
@@ -80,18 +81,30 @@ final class IdeaValidationPurchaseTest extends TestCase
             ->assertJsonPath('document.title', $terms->title)
             ->assertJsonPath('document.clauses.0.title', 'Acceptance');
 
-        $this->get(route('public.terms-and-privacy', ['return_to' => 'idea-validation']))
+        $this->get(route('public.privacy'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('public/legal-document')
+                ->where('document.published', true)
+                ->where('document.title', $privacyPolicy->title)
+                ->where('document.version', $privacyPolicy->version));
+
+        $this->getJson(route('public.privacy.json'))
+            ->assertOk()
+            ->assertJsonPath('document.title', $privacyPolicy->title);
+
+        $this->get(route('public.terms', ['return_to' => 'idea-validation']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('returnToIdeaValidation', true));
 
-        $this->get(route('public.terms-and-privacy', ['return_to' => 'https://untrusted.example']))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->where('returnToIdeaValidation', false));
+        $this->get(route('public.terms-and-privacy'))
+            ->assertRedirect(route('public.terms'));
+        $this->get(route('public.terms-and-privacy.json'))
+            ->assertRedirect(route('public.terms.json'));
     }
 
-    public function test_public_policy_page_never_uses_published_proposal_terms(): void
+    public function test_public_legal_pages_never_use_published_proposal_terms(): void
     {
         $proposal = TermsVersion::query()->create([
             'document_scope' => TermsVersion::SCOPE_PROPOSAL,
@@ -108,13 +121,13 @@ final class IdeaValidationPurchaseTest extends TestCase
             'material' => true,
         ]);
 
-        $this->get(route('public.terms-and-privacy'))
+        $this->get(route('public.terms'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('document.published', false)
                 ->where('document.version', null));
 
-        $this->getJson(route('public.terms-and-privacy.json'))
+        $this->getJson(route('public.privacy.json'))
             ->assertOk()
             ->assertJsonPath('document.published', false)
             ->assertJsonPath('document.version', null);
@@ -146,6 +159,7 @@ final class IdeaValidationPurchaseTest extends TestCase
                 'password' => 'IdeaValidation1!',
                 'password_confirmation' => 'IdeaValidation1!',
                 'terms_version_id' => $terms->getKey(),
+                'privacy_policy_version_id' => $this->publishedPrivacyPolicy()->getKey(),
                 'terms_accepted' => '1',
             ])
             ->assertRedirect(route('public.validate-idea.purchase'))
@@ -172,6 +186,7 @@ final class IdeaValidationPurchaseTest extends TestCase
             'password' => 'IdeaValidation1!',
             'password_confirmation' => 'IdeaValidation1!',
             'terms_version_id' => $terms->getKey(),
+            'privacy_policy_version_id' => $this->publishedPrivacyPolicy()->getKey(),
             'terms_accepted' => '1',
         ])
             ->assertRedirect(route('public.validate-idea.purchase'))
@@ -207,6 +222,7 @@ final class IdeaValidationPurchaseTest extends TestCase
             'password' => 'IdeaValidation1!',
             'password_confirmation' => 'IdeaValidation1!',
             'terms_version_id' => $terms->getKey(),
+            'privacy_policy_version_id' => $this->publishedPrivacyPolicy()->getKey(),
             'terms_accepted' => '1',
         ])
             ->assertRedirect(route('public.validate-idea.purchase'))
@@ -237,6 +253,7 @@ final class IdeaValidationPurchaseTest extends TestCase
             'password' => 'IdeaValidation1!',
             'password_confirmation' => 'IdeaValidation1!',
             'terms_version_id' => $terms->getKey(),
+            'privacy_policy_version_id' => $this->publishedPrivacyPolicy()->getKey(),
             'terms_accepted' => '1',
         ])->assertSessionHasNoErrors();
 
@@ -281,6 +298,7 @@ final class IdeaValidationPurchaseTest extends TestCase
             'password' => 'IdeaValidation1!',
             'password_confirmation' => 'IdeaValidation1!',
             'terms_version_id' => $terms->getKey(),
+            'privacy_policy_version_id' => $this->publishedPrivacyPolicy()->getKey(),
             'terms_accepted' => '1',
         ])->assertRedirect(route('public.validate-idea.purchase'));
 
@@ -476,11 +494,16 @@ final class IdeaValidationPurchaseTest extends TestCase
         $this->assertSame(ServiceActivation::STATUS_ACTIVE, $activation->status);
         $this->assertSame(ServiceActivation::PAYMENT_PAID, $activation->payment_status);
         $this->assertSame($purchase->stripe_payment_intent_ref, $activation->payment_reference);
+        $this->assertNotNull($purchase->privacy_policy_version_id);
+        $this->assertSame($purchase->privacy_policy_version_id, data_get($activation->terms_reference, 'privacy_policy_version_id'));
+        $this->assertStringContainsString('Terms of Use', (string) $activation->acceptance_text);
+        $this->assertStringContainsString('Privacy Policy', (string) $activation->acceptance_text);
         $this->assertSame('idea_validation', $profile->stage->value);
         $this->assertDatabaseHas('receipts', ['payment_id' => $payment->getKey()]);
         $this->assertDatabaseHas('terms_acceptances', [
             'user_id' => $buyer->getKey(),
             'terms_version_id' => $purchase->terms_version_id,
+            'privacy_policy_version_id' => $purchase->privacy_policy_version_id,
         ]);
 
         Notification::assertSentTo($buyer, IdeaValidationPurchaseConfirmedNotification::class);
@@ -593,6 +616,7 @@ final class IdeaValidationPurchaseTest extends TestCase
             'password' => 'IdeaValidation1!',
             'password_confirmation' => 'IdeaValidation1!',
             'terms_version_id' => $terms->getKey(),
+            'privacy_policy_version_id' => $this->publishedPrivacyPolicy()->getKey(),
             'terms_accepted' => '1',
         ])->assertSessionHasNoErrors()->assertRedirect(route('public.validate-idea.purchase'));
 
@@ -623,6 +647,7 @@ final class IdeaValidationPurchaseTest extends TestCase
         $this->assertDatabaseHas('terms_acceptances', [
             'user_id' => $buyer->getKey(),
             'terms_version_id' => $terms->getKey(),
+            'privacy_policy_version_id' => $this->publishedPrivacyPolicy()->getKey(),
         ]);
 
         return [$terms, $buyer];
@@ -658,9 +683,9 @@ final class IdeaValidationPurchaseTest extends TestCase
     private function publishedTerms(): TermsVersion
     {
         $terms = TermsVersion::query()->create([
-            'document_scope' => TermsVersion::SCOPE_WEBSITE,
+            'document_scope' => TermsVersion::SCOPE_WEBSITE_TERMS,
             'version' => 'idea-validation-terms-v1',
-            'title' => 'Future Shift Advisory Terms and Privacy Policy',
+            'title' => 'Future Shift Advisory Terms of Use',
             'material' => true,
             'published_at' => now()->subMinute(),
             'notice_period_days' => 30,
@@ -668,10 +693,33 @@ final class IdeaValidationPurchaseTest extends TestCase
         $terms->clauses()->create([
             'clause_number' => 1,
             'title' => 'Acceptance',
-            'body' => 'The client accepts the published terms and privacy policy before purchase.',
+            'body' => 'The client agrees to the published Terms of Use before purchase.',
+            'material' => true,
+        ]);
+
+        $privacyPolicy = TermsVersion::query()->create([
+            'document_scope' => TermsVersion::SCOPE_PRIVACY_POLICY,
+            'version' => 'idea-validation-privacy-v1',
+            'title' => 'Future Shift Advisory Privacy Policy',
+            'material' => true,
+            'published_at' => now()->subMinute(),
+            'notice_period_days' => 30,
+        ]);
+        $privacyPolicy->clauses()->create([
+            'clause_number' => 1,
+            'title' => 'Collection and use',
+            'body' => 'The client acknowledges the published Privacy Policy before purchase.',
             'material' => true,
         ]);
 
         return $terms->refresh()->load('clauses');
+    }
+
+    private function publishedPrivacyPolicy(): TermsVersion
+    {
+        return TermsVersion::query()
+            ->forDocument(TermsVersion::SCOPE_PRIVACY_POLICY)
+            ->published()
+            ->firstOrFail();
     }
 }

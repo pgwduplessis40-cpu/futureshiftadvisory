@@ -11,25 +11,39 @@ final class WebsiteTermsPrivacyPolicySeeder extends Seeder
 {
     public function run(): void
     {
-        $policy = TermsVersion::query()->updateOrCreate(
+        $this->seedDocument(
+            TermsVersion::SCOPE_WEBSITE_TERMS,
+            'Testing Terms of Use',
+            'This is a test-environment Terms of Use document. Upload and publish the approved terms before using Idea Validation in production.',
+        );
+        $this->seedDocument(
+            TermsVersion::SCOPE_PRIVACY_POLICY,
+            'Testing Privacy Policy',
+            'This is a test-environment Privacy Policy. Upload and publish the approved privacy policy before using Idea Validation in production.',
+        );
+    }
+
+    private function seedDocument(string $scope, string $clauseTitle, string $clauseBody): void
+    {
+        $document = TermsVersion::query()->updateOrCreate(
             [
-                'document_scope' => TermsVersion::SCOPE_WEBSITE,
+                'document_scope' => $scope,
                 'version' => '1',
             ],
             [
-                'title' => TermsVersion::defaultTitle(TermsVersion::SCOPE_WEBSITE),
+                'title' => TermsVersion::defaultTitle($scope),
                 'material' => true,
                 'notice_period_days' => 0,
-                'reviewer_reference' => 'Testing seed policy only. Replace it with the approved website policy before production use.',
+                'reviewer_reference' => 'Testing seed document only. Replace it with the approved document before production use.',
                 'published_at' => now()->subMinute(),
             ],
         );
 
-        $policy->clauses()->updateOrCreate(
+        $document->clauses()->updateOrCreate(
             ['clause_number' => 1],
             [
-                'title' => 'Testing policy',
-                'body' => 'This is a test-environment Terms and Privacy Policy. Upload and publish the approved website policy before using Idea Validation in production.',
+                'title' => $clauseTitle,
+                'body' => $clauseBody,
                 'material' => true,
             ],
         );

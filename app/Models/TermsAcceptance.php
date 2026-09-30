@@ -41,6 +41,18 @@ final class TermsAcceptance extends Model
     }
 
     /**
+     * The Privacy Policy accepted with the associated public Terms of Use.
+     * This remains null for historic combined-policy acceptances and for the
+     * platform's separate proposal-terms workflow.
+     *
+     * @return BelongsTo<TermsVersion, $this>
+     */
+    public function privacyPolicyVersion(): BelongsTo
+    {
+        return $this->belongsTo(TermsVersion::class, 'privacy_policy_version_id');
+    }
+
+    /**
      * @param  Builder<TermsAcceptance>  $query
      * @return Builder<TermsAcceptance>
      */

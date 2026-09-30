@@ -313,7 +313,7 @@ final class TermsController extends Controller
         $this->assertDocumentScope($termsVersion, $scope);
         abort_if($termsVersion->isPublished(), 422, 'This terms version has already been published.');
         abort_if(
-            $scope === TermsVersion::SCOPE_WEBSITE
+            TermsVersion::isPublicDocumentScope($scope)
                 && $termsVersion->clauses()->doesntExist()
                 && ! $this->sourceFileIsClean($this->sourceFile($termsVersion)),
             422,
@@ -500,16 +500,22 @@ final class TermsController extends Controller
 
     private function documentScope(Request $request): string
     {
-        return str_starts_with((string) $request->route()?->getName(), 'admin.terms-and-privacy.')
-            ? TermsVersion::SCOPE_WEBSITE
-            : TermsVersion::SCOPE_PROPOSAL;
+        $routeName = (string) $request->route()?->getName();
+
+        return match (true) {
+            str_starts_with($routeName, 'admin.terms-of-use.') => TermsVersion::SCOPE_WEBSITE_TERMS,
+            str_starts_with($routeName, 'admin.privacy-policy.') => TermsVersion::SCOPE_PRIVACY_POLICY,
+            default => TermsVersion::SCOPE_PROPOSAL,
+        };
     }
 
     private function routeName(string $scope, string $suffix): string
     {
-        $prefix = $scope === TermsVersion::SCOPE_WEBSITE
-            ? 'admin.terms-and-privacy'
-            : 'admin.terms';
+        $prefix = match ($scope) {
+            TermsVersion::SCOPE_WEBSITE_TERMS => 'admin.terms-of-use',
+            TermsVersion::SCOPE_PRIVACY_POLICY => 'admin.privacy-policy',
+            default => 'admin.terms',
+        };
 
         return $prefix.'.'.$suffix;
     }

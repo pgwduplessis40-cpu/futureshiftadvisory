@@ -104,7 +104,7 @@ final class TermsPendingController extends Controller
         }
 
         $acceptedAt = now();
-        $artifact = $this->signedPdf->create($version, $user, $request, $acceptedAt);
+        $artifact = $this->signedPdf->create([$version], $user, $request, $acceptedAt);
 
         DB::transaction(function () use ($artifact, $acceptedAt, $request, $user, $version): void {
             $acceptance = TermsAcceptance::query()->create([

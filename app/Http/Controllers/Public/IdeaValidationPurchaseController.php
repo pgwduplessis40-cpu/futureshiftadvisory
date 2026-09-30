@@ -78,6 +78,7 @@ final class IdeaValidationPurchaseController extends Controller
             'email' => ['required', 'string', 'email:rfc', 'max:255'],
             'password' => ['required', 'confirmed', Password::defaults()],
             'terms_version_id' => ['required', 'uuid'],
+            'privacy_policy_version_id' => ['required', 'uuid'],
             'terms_accepted' => ['accepted'],
         ]);
 
@@ -87,6 +88,7 @@ final class IdeaValidationPurchaseController extends Controller
                 'email' => $validated['email'],
                 'password' => $validated['password'],
                 'terms_version_id' => $validated['terms_version_id'],
+                'privacy_policy_version_id' => $validated['privacy_policy_version_id'],
             ]);
         } catch (IdeaValidationRegistrationConflict $conflict) {
             return to_route('public.validate-idea.purchase')
@@ -133,20 +135,35 @@ final class IdeaValidationPurchaseController extends Controller
     {
         $terms = $this->terms->latestPublishedVersion(
             withClauses: false,
-            documentScope: TermsVersion::SCOPE_WEBSITE,
+            documentScope: TermsVersion::SCOPE_WEBSITE_TERMS,
+        );
+        $privacyPolicy = $this->terms->latestPublishedVersion(
+            withClauses: false,
+            documentScope: TermsVersion::SCOPE_PRIVACY_POLICY,
         );
 
         return Inertia::render('public/idea-validation-purchase', [
             'state' => $state,
             'accountConflict' => $this->accountConflict($request),
             'purchase' => $purchase instanceof IdeaValidationPurchase ? $this->purchasePayload($purchase) : null,
-            'terms' => $terms instanceof TermsVersion ? [
-                'id' => $terms->getKey(),
-                'version' => $terms->version,
-                'title' => $terms->title,
-                'url' => route('public.terms-and-privacy', ['return_to' => 'idea-validation'], absolute: false),
+            'legalDocuments' => $terms instanceof TermsVersion && $privacyPolicy instanceof TermsVersion ? [
+                'terms' => $this->legalDocumentPayload($terms, 'public.terms'),
+                'privacyPolicy' => $this->legalDocumentPayload($privacyPolicy, 'public.privacy'),
             ] : null,
         ]);
+    }
+
+    /**
+     * @return array{id: string, version: string, title: string, url: string}
+     */
+    private function legalDocumentPayload(TermsVersion $document, string $routeName): array
+    {
+        return [
+            'id' => (string) $document->getKey(),
+            'version' => $document->version,
+            'title' => $document->title,
+            'url' => route($routeName, ['return_to' => 'idea-validation'], absolute: false),
+        ];
     }
 
     private function accountConflict(Request $request): ?string
