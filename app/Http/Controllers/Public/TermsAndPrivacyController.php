@@ -9,17 +9,15 @@ use App\Models\TermsVersion;
 use App\Services\Terms\TermsAcceptanceGate;
 use App\Services\Terms\TermsDocumentRenderer;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * The public source of truth for the current FSA Terms and Privacy Policy.
- *
- * The website can link to the human-readable page or consume the deliberately
- * small JSON representation. Both are derived from the dedicated website
- * policy version the Idea Validation purchase flow presents for acceptance,
- * so proposal terms can never be published on the public website by mistake.
+ * Public, independently versioned Terms of Use and Privacy Policy documents.
+ * The former combined URL is retained only as a permanent redirect so an old
+ * link cannot expose the retired document as the current policy.
  */
 final class TermsAndPrivacyController extends Controller
 {
@@ -28,30 +26,76 @@ final class TermsAndPrivacyController extends Controller
         private readonly TermsDocumentRenderer $documents,
     ) {}
 
-    public function show(Request $request): Response
+    public function terms(Request $request): Response
     {
-        $version = $this->terms->latestPublishedVersion(
-            withClauses: true,
-            documentScope: TermsVersion::SCOPE_WEBSITE,
+        return $this->showDocument(
+            $request,
+            TermsVersion::SCOPE_WEBSITE_TERMS,
+            'Terms of Use',
+            '/terms.json',
         );
+    }
 
-        return Inertia::render('public/terms-and-privacy', [
-            'document' => $this->payload($version),
+    public function privacy(Request $request): Response
+    {
+        return $this->showDocument(
+            $request,
+            TermsVersion::SCOPE_PRIVACY_POLICY,
+            'Privacy Policy',
+            '/privacy.json',
+        );
+    }
+
+    public function termsJson(): JsonResponse
+    {
+        return $this->jsonDocument(
+            TermsVersion::SCOPE_WEBSITE_TERMS,
+            'Future Shift Advisory Terms of Use',
+        );
+    }
+
+    public function privacyJson(): JsonResponse
+    {
+        return $this->jsonDocument(
+            TermsVersion::SCOPE_PRIVACY_POLICY,
+            'Future Shift Advisory Privacy Policy',
+        );
+    }
+
+    public function legacy(): RedirectResponse
+    {
+        return to_route('public.terms', status: 301);
+    }
+
+    public function legacyJson(): RedirectResponse
+    {
+        return to_route('public.terms.json', status: 301);
+    }
+
+    private function showDocument(
+        Request $request,
+        string $scope,
+        string $documentLabel,
+        string $jsonUrl,
+    ): Response {
+        $version = $this->terms->latestPublishedVersion(withClauses: true, documentScope: $scope);
+
+        return Inertia::render('public/legal-document', [
+            'document' => $this->payload($version, 'Future Shift Advisory '.$documentLabel),
+            'documentLabel' => $documentLabel,
+            'jsonUrl' => $jsonUrl,
             // Do not reflect arbitrary URLs from a public legal page. The
             // checkout can opt into this one, known-safe return destination.
             'returnToIdeaValidation' => $request->query('return_to') === 'idea-validation',
         ]);
     }
 
-    public function json(): JsonResponse
+    private function jsonDocument(string $scope, string $fallbackTitle): JsonResponse
     {
-        $version = $this->terms->latestPublishedVersion(
-            withClauses: true,
-            documentScope: TermsVersion::SCOPE_WEBSITE,
-        );
+        $version = $this->terms->latestPublishedVersion(withClauses: true, documentScope: $scope);
 
         return response()->json([
-            'document' => $this->payload($version),
+            'document' => $this->payload($version, $fallbackTitle),
         ], 200, [
             'Cache-Control' => 'public, max-age=300',
             // This is public legal content. A separately hosted public
@@ -70,12 +114,12 @@ final class TermsAndPrivacyController extends Controller
      *     clauses: list<array{id: int|string, clause_number: int, title: string, body: string}>
      * }
      */
-    private function payload(?TermsVersion $version): array
+    private function payload(?TermsVersion $version, string $fallbackTitle): array
     {
         if (! $version instanceof TermsVersion) {
             return [
                 'published' => false,
-                'title' => 'Future Shift Advisory Terms and Privacy Policy',
+                'title' => $fallbackTitle,
                 'version' => null,
                 'published_at' => null,
                 'source_preview_html' => null,

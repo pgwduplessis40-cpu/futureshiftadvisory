@@ -3203,18 +3203,24 @@ XML);
 
             if (Schema::hasTable('idea_validation_purchases')) {
                 $termsVersionId = DB::table('terms_versions')
-                    ->where('document_scope', 'website')
+                    ->where('document_scope', 'website_terms')
+                    ->whereNotNull('published_at')
+                    ->orderByDesc('published_at')
+                    ->value('id');
+                $privacyPolicyVersionId = DB::table('terms_versions')
+                    ->where('document_scope', 'privacy_policy')
                     ->whereNotNull('published_at')
                     ->orderByDesc('published_at')
                     ->value('id');
 
-                if ($termsVersionId !== null) {
+                if ($termsVersionId !== null && $privacyPolicyVersionId !== null) {
                     $this->ids['idea_validation_checkout_purchase'] = $this->upsert('idea_validation_purchases', [
                         'user_id' => $this->users['ideaValidationCheckout']->getKey(),
                     ], [
                         'client_id' => $this->clients['ideaValidationCheckout']->getKey(),
                         'advisor_id' => $this->users['advisor']->getKey(),
                         'terms_version_id' => $termsVersionId,
+                        'privacy_policy_version_id' => $privacyPolicyVersionId,
                         'service_rate_package_id' => $cancellationPackage->getKey(),
                         'payment_id' => null,
                         'service_activation_id' => null,

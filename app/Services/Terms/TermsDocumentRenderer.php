@@ -42,22 +42,36 @@ final class TermsDocumentRenderer
         ]);
     }
 
+    /**
+     * @param  non-empty-list<TermsVersion>  $versions
+     */
     public function signedAcceptanceHtml(
-        TermsVersion $version,
+        array $versions,
         User $user,
         Request $request,
         DateTimeInterface $acceptedAt,
     ): string {
-        return $this->downloadHtml($version, [
+        $documentLines = collect($versions)
+            ->map(fn (TermsVersion $version): string => $this->documentLabel($version).' version: '.$version->version.' - '.$version->title)
+            ->all();
+        $content = collect($versions)
+            ->map(function (TermsVersion $version): string {
+                $source = $this->sourcePreviewHtml($version) ?? $this->clausesHtml($version);
+
+                return '<section class="legal-document"><h2>'.$this->escape($this->documentLabel($version).' — '.$version->title.' (version '.$version->version.')').'</h2>'.$source.'</section>';
+            })
+            ->implode('<hr>');
+
+        return $this->htmlDocument('Signed legal document acceptance', [
             'Future Shift Advisory',
-            'Signed '.$this->documentLabel($version).' acceptance record.',
+            'Signed legal document acceptance record.',
             'Accepted by: '.$user->name.' <'.$user->email.'>',
             'User ID: '.$user->getKey(),
-            'Terms version: '.$version->version.' - '.$version->title,
+            ...$documentLines,
             'Accepted at: '.$acceptedAt->format(DATE_ATOM),
             'IP address: '.($request->ip() ?? ''),
             'User agent: '.((string) $request->userAgent()),
-        ], 'Signed terms acceptance');
+        ], $content);
     }
 
     /**

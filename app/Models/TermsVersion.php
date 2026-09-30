@@ -17,6 +17,15 @@ final class TermsVersion extends Model
 
     public const SCOPE_WEBSITE = 'website';
 
+    /**
+     * The retired, combined website scope remains so past acceptances retain
+     * their original legal record. New public documents use the two scopes
+     * below and are versioned independently.
+     */
+    public const SCOPE_WEBSITE_TERMS = 'website_terms';
+
+    public const SCOPE_PRIVACY_POLICY = 'privacy_policy';
+
     protected $guarded = [];
 
     protected $casts = [
@@ -71,16 +80,31 @@ final class TermsVersion extends Model
 
     public static function documentLabel(string $scope): string
     {
-        return $scope === self::SCOPE_WEBSITE
-            ? 'Terms and Privacy Policy'
-            : 'Terms & Conditions';
+        return match ($scope) {
+            self::SCOPE_WEBSITE => 'Terms and Privacy Policy',
+            self::SCOPE_WEBSITE_TERMS => 'Terms of Use',
+            self::SCOPE_PRIVACY_POLICY => 'Privacy Policy',
+            default => 'Terms & Conditions',
+        };
     }
 
     public static function defaultTitle(string $scope): string
     {
-        return $scope === self::SCOPE_WEBSITE
-            ? 'Future Shift Advisory Terms and Privacy Policy'
-            : 'Future Shift Advisory Terms and Conditions';
+        return match ($scope) {
+            self::SCOPE_WEBSITE => 'Future Shift Advisory Terms and Privacy Policy',
+            self::SCOPE_WEBSITE_TERMS => 'Future Shift Advisory Terms of Use',
+            self::SCOPE_PRIVACY_POLICY => 'Future Shift Advisory Privacy Policy',
+            default => 'Future Shift Advisory Terms and Conditions',
+        };
+    }
+
+    public static function isPublicDocumentScope(string $scope): bool
+    {
+        return in_array($scope, [
+            self::SCOPE_WEBSITE,
+            self::SCOPE_WEBSITE_TERMS,
+            self::SCOPE_PRIVACY_POLICY,
+        ], true);
     }
 
     public function isPublished(): bool

@@ -89,23 +89,37 @@ final class TermsVersioningTest extends TestCase
         $this->assertTrue((bool) $draft->clauses()->where('clause_number', 2)->firstOrFail()->material);
     }
 
-    public function test_website_policy_workspace_is_separate_from_proposal_terms(): void
+    public function test_public_terms_and_privacy_workspaces_are_separate_from_proposal_terms(): void
     {
         $this->seed(RoleSeeder::class);
         $admin = $this->superAdmin();
         $proposal = $this->termsVersion('1', published: true);
-        $policy = TermsVersion::query()->create([
-            'document_scope' => TermsVersion::SCOPE_WEBSITE,
+        $termsOfUse = TermsVersion::query()->create([
+            'document_scope' => TermsVersion::SCOPE_WEBSITE_TERMS,
             'version' => '1',
-            'title' => 'Website policy',
+            'title' => 'Terms of Use',
             'material' => true,
             'published_at' => now()->subMinute(),
             'notice_period_days' => 0,
         ]);
-        $policy->clauses()->create([
+        $termsOfUse->clauses()->create([
             'clause_number' => 1,
-            'title' => 'Privacy',
-            'body' => 'Website policy body.',
+            'title' => 'Acceptance',
+            'body' => 'Terms of Use body.',
+            'material' => true,
+        ]);
+        $privacyPolicy = TermsVersion::query()->create([
+            'document_scope' => TermsVersion::SCOPE_PRIVACY_POLICY,
+            'version' => '1',
+            'title' => 'Privacy Policy',
+            'material' => true,
+            'published_at' => now()->subMinute(),
+            'notice_period_days' => 0,
+        ]);
+        $privacyPolicy->clauses()->create([
+            'clause_number' => 1,
+            'title' => 'Collection and use',
+            'body' => 'Privacy Policy body.',
             'material' => true,
         ]);
 
@@ -118,24 +132,40 @@ final class TermsVersioningTest extends TestCase
                 ->where('versions.0.id', $proposal->id));
 
         $this->actingAsMfa($admin)
-            ->get(route('admin.terms-and-privacy.index'))
+            ->get(route('admin.terms-of-use.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('workspace.label', 'Terms and Privacy Policy')
+                ->where('workspace.label', 'Terms of Use')
                 ->where('enforcement', null)
                 ->has('versions', 1)
-                ->where('versions.0.id', $policy->id));
+                ->where('versions.0.id', $termsOfUse->id));
 
         $this->actingAsMfa($admin)
-            ->get(route('admin.terms-and-privacy.edit', $proposal))
+            ->get(route('admin.privacy-policy.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('workspace.label', 'Privacy Policy')
+                ->where('enforcement', null)
+                ->has('versions', 1)
+                ->where('versions.0.id', $privacyPolicy->id));
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.terms-of-use.edit', $proposal))
             ->assertNotFound();
 
         $this->actingAsMfa($admin)
-            ->post(route('admin.terms-and-privacy.store'))
+            ->post(route('admin.terms-of-use.store'))
+            ->assertRedirect();
+        $this->actingAsMfa($admin)
+            ->post(route('admin.privacy-policy.store'))
             ->assertRedirect();
 
         $this->assertDatabaseHas('terms_versions', [
-            'document_scope' => TermsVersion::SCOPE_WEBSITE,
+            'document_scope' => TermsVersion::SCOPE_WEBSITE_TERMS,
+            'version' => '2',
+        ]);
+        $this->assertDatabaseHas('terms_versions', [
+            'document_scope' => TermsVersion::SCOPE_PRIVACY_POLICY,
             'version' => '2',
         ]);
     }
@@ -223,14 +253,14 @@ final class TermsVersioningTest extends TestCase
                 ->where('version.clauses.3.material', true),
             );
 
-        $websitePolicy = TermsVersion::query()->create([
-            'document_scope' => TermsVersion::SCOPE_WEBSITE,
+        $privacyPolicy = TermsVersion::query()->create([
+            'document_scope' => TermsVersion::SCOPE_PRIVACY_POLICY,
             'version' => '1',
             'title' => 'Website policy',
             'material' => false,
             'notice_period_days' => 0,
         ]);
-        $websitePolicy->clauses()->create([
+        $privacyPolicy->clauses()->create([
             'clause_number' => 1,
             'title' => 'Privacy',
             'body' => 'Website policy body.',
@@ -238,11 +268,11 @@ final class TermsVersioningTest extends TestCase
         ]);
 
         $this->actingAsMfa($admin)
-            ->get(route('admin.terms-and-privacy.edit', $websitePolicy))
+            ->get(route('admin.privacy-policy.edit', $privacyPolicy))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('admin/terms/Edit')
-                ->where('version.urls.update', route('admin.terms-and-privacy.update', $websitePolicy, absolute: false)),
+                ->where('version.urls.update', route('admin.privacy-policy.update', $privacyPolicy, absolute: false)),
             );
     }
 

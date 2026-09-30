@@ -37,22 +37,31 @@ final class TermsPdfFallback
         ]);
     }
 
+    /**
+     * @param  non-empty-list<TermsVersion>  $versions
+     */
     public function signedAcceptance(
-        TermsVersion $version,
+        array $versions,
         User $user,
         Request $request,
         DateTimeInterface $acceptedAt,
     ): string {
-        return $this->pdf->render('Signed terms acceptance', [
+        $documentLines = collect($versions)
+            ->flatMap(fn (TermsVersion $version): array => [
+                $this->documentLabel($version).' version: '.$version->version.' - '.$version->title,
+                ...$this->documents->plainTextLines($version),
+            ])
+            ->all();
+
+        return $this->pdf->render('Signed legal document acceptance', [
             'Future Shift Advisory',
-            'Signed '.$this->documentLabel($version).' acceptance record.',
+            'Signed legal document acceptance record.',
             'Accepted by: '.$user->name.' <'.$user->email.'>',
             'User ID: '.$user->getKey(),
-            'Terms version: '.$version->version.' - '.$version->title,
             'Accepted at: '.$acceptedAt->format(DATE_ATOM),
             'IP address: '.($request->ip() ?? ''),
             'User agent: '.((string) $request->userAgent()),
-            ...$this->documents->plainTextLines($version),
+            ...$documentLines,
         ]);
     }
 

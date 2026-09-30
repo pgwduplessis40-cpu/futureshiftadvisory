@@ -25,25 +25,27 @@ type LegalDocument = {
     clauses: Clause[];
 };
 
-export default function TermsAndPrivacy({
-    document,
-    returnToIdeaValidation,
-}: {
+type Props = {
     document: LegalDocument;
+    documentLabel: string;
+    jsonUrl: string;
     returnToIdeaValidation: boolean;
-}) {
+};
+
+export default function LegalDocument({
+    document,
+    documentLabel,
+    jsonUrl,
+    returnToIdeaValidation,
+}: Props) {
     return (
         <>
             <Seo
-                title="Terms and Privacy Policy"
-                description="Future Shift Advisory's current published terms and privacy policy."
+                title={documentLabel}
+                description={`Future Shift Advisory's current published ${documentLabel.toLowerCase()}.`}
             />
             <Head>
-                <link
-                    rel="alternate"
-                    type="application/json"
-                    href="/terms-and-privacy.json"
-                />
+                <link rel="alternate" type="application/json" href={jsonUrl} />
             </Head>
             <Section className="py-20 lg:py-24">
                 {returnToIdeaValidation ? (
@@ -56,7 +58,7 @@ export default function TermsAndPrivacy({
                 ) : null}
                 <SectionEyebrow>Legal</SectionEyebrow>
                 <SectionTitle as="h1" className="mt-4">
-                    Terms and Privacy Policy
+                    {documentLabel}
                 </SectionTitle>
                 <GoldRule className="mt-6" />
 
@@ -66,12 +68,12 @@ export default function TermsAndPrivacy({
                             <FileText className="mt-0.5 h-5 w-5 shrink-0 text-[var(--fs-admiralty)]" />
                             <div>
                                 <h2 className="font-display text-xl text-[var(--fs-admiralty)]">
-                                    Policy not yet published
+                                    Document not yet published
                                 </h2>
                                 <p className="mt-2 text-sm leading-relaxed text-[var(--fs-graphite)]">
-                                    The current Terms and Privacy Policy will
-                                    appear here once it has been reviewed and
-                                    published by Future Shift Advisory.
+                                    The current {documentLabel} will appear here
+                                    once it has been reviewed and published by
+                                    Future Shift Advisory.
                                 </p>
                             </div>
                         </div>
@@ -122,7 +124,7 @@ export default function TermsAndPrivacy({
                                             {clause.clause_number}.{' '}
                                             {clause.title}
                                         </h3>
-                                        <p className="mt-2 text-sm leading-7 whitespace-pre-wrap text-[var(--fs-graphite)]">
+                                        <p className="mt-3 whitespace-pre-line text-[var(--fs-graphite)]">
                                             {clause.body}
                                         </p>
                                     </section>

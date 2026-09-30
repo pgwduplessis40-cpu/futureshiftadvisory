@@ -31,6 +31,7 @@ import {
     UsersRound,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
+import { legalAdministrationNavItems } from '@/components/app-sidebar-legal-administration';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -248,24 +249,6 @@ const ratingFrameworkNavItem: NavItem = {
     icon: ClipboardCheck,
 };
 
-const termsNavItem: NavItem = {
-    title: 'Terms & Conditions',
-    href: '/admin/terms',
-    icon: FileText,
-};
-
-const termsAndPrivacyNavItem: NavItem = {
-    title: 'Terms and Privacy Policy',
-    href: '/admin/terms-and-privacy',
-    icon: FileText,
-};
-
-const partnerAgreementNavItem: NavItem = {
-    title: 'Partner Agreement',
-    href: '/admin/partner-agreement',
-    icon: FileText,
-};
-
 const auditTrailNavItem: NavItem = {
     title: 'Audit Trail',
     href: '/admin/audit-trail',
@@ -415,9 +398,7 @@ const superAdminAdministrationNavItems: NavItem[] = [
     pilotFeeWaiversNavItem,
     paymentReconciliationsNavItem,
     ratingFrameworkNavItem,
-    termsNavItem,
-    termsAndPrivacyNavItem,
-    partnerAgreementNavItem,
+    ...legalAdministrationNavItems,
     auditTrailNavItem,
     referenceDataNavItem,
     questionnairesNavItem,

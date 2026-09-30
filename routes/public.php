@@ -54,9 +54,17 @@ Route::middleware('throttle:6,1')->group(function (): void {
     Route::post('/validate-idea/purchase/confirm-fixture-payment', [IdeaValidationPurchaseController::class, 'confirmFixturePayment'])
         ->name('public.validate-idea.purchase.confirm-fixture-payment');
 });
-Route::get('/terms-and-privacy', [TermsAndPrivacyController::class, 'show'])
+Route::get('/terms', [TermsAndPrivacyController::class, 'terms'])
+    ->name('public.terms');
+Route::get('/terms.json', [TermsAndPrivacyController::class, 'termsJson'])
+    ->name('public.terms.json');
+Route::get('/privacy', [TermsAndPrivacyController::class, 'privacy'])
+    ->name('public.privacy');
+Route::get('/privacy.json', [TermsAndPrivacyController::class, 'privacyJson'])
+    ->name('public.privacy.json');
+Route::get('/terms-and-privacy', [TermsAndPrivacyController::class, 'legacy'])
     ->name('public.terms-and-privacy');
-Route::get('/terms-and-privacy.json', [TermsAndPrivacyController::class, 'json'])
+Route::get('/terms-and-privacy.json', [TermsAndPrivacyController::class, 'legacyJson'])
     ->name('public.terms-and-privacy.json');
 
 Route::name('public.')->group(function (): void {

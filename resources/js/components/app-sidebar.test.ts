@@ -104,6 +104,19 @@ test('Super admins can open the blog workspace', () => {
     });
 });
 
+test('Super admins retain separate Terms of Use and Privacy Policy workspaces', () => {
+    const groups = navGroupsFor('super_admin');
+
+    assert.equal(
+        itemFor(groups, 'Administration', 'Terms of Use')?.href,
+        '/admin/terms-of-use',
+    );
+    assert.equal(
+        itemFor(groups, 'Administration', 'Privacy Policy')?.href,
+        '/admin/privacy-policy',
+    );
+});
+
 function itemFor(
     groups: ReturnType<typeof navGroupsFor>,
     groupTitle: string,

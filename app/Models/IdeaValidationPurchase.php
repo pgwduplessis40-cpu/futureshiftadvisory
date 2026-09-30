@@ -41,6 +41,7 @@ final class IdeaValidationPurchase extends Model
         'client_id',
         'advisor_id',
         'terms_version_id',
+        'privacy_policy_version_id',
         'status',
         'metadata',
     ];
@@ -78,6 +79,12 @@ final class IdeaValidationPurchase extends Model
     public function termsVersion(): BelongsTo
     {
         return $this->belongsTo(TermsVersion::class);
+    }
+
+    /** @return BelongsTo<TermsVersion, $this> */
+    public function privacyPolicyVersion(): BelongsTo
+    {
+        return $this->belongsTo(TermsVersion::class, 'privacy_policy_version_id');
     }
 
     /** @return BelongsTo<ServiceRatePackage, $this> */

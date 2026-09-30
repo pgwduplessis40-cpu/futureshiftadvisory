@@ -47,7 +47,6 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::post('mfa/challenge', [MfaChallengeController::class, 'store'])->name('mfa.challenge.store');
 
     Route::middleware('mfa')->group(function (): void {
-        Route::get('terms', [TermsPendingController::class, 'show'])->name('terms.show');
         Route::get('terms/pending', [TermsPendingController::class, 'show'])->name('terms.pending');
         Route::get('terms/download', [TermsPendingController::class, 'download'])->name('terms.download');
         Route::post('terms/accept', [TermsPendingController::class, 'accept'])->name('terms.accept');
@@ -151,16 +150,27 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::post('terms/{termsVersion}/publish', [TermsController::class, 'publish'])->name('terms.publish');
             Route::post('terms/enforcement/activate', [TermsController::class, 'activateEnforcement'])->name('terms.enforcement.activate');
 
-            Route::get('terms-and-privacy', [TermsController::class, 'index'])->name('terms-and-privacy.index');
-            Route::post('terms-and-privacy', [TermsController::class, 'store'])->name('terms-and-privacy.store');
-            Route::get('terms-and-privacy/{termsVersion}/edit', [TermsController::class, 'edit'])->name('terms-and-privacy.edit');
-            Route::put('terms-and-privacy/{termsVersion}', [TermsController::class, 'update'])->name('terms-and-privacy.update');
-            Route::get('terms-and-privacy/{termsVersion}/preview', [TermsController::class, 'preview'])->name('terms-and-privacy.preview');
-            Route::get('terms-and-privacy/{termsVersion}/download', [TermsController::class, 'download'])->name('terms-and-privacy.download');
-            Route::post('terms-and-privacy/{termsVersion}/source-file', [TermsController::class, 'uploadSourceFile'])->name('terms-and-privacy.source-file.store');
-            Route::get('terms-and-privacy/{termsVersion}/source-file/download', [TermsController::class, 'downloadSourceFile'])->name('terms-and-privacy.source-file.download');
-            Route::get('terms-and-privacy/{termsVersion}/publish', [TermsController::class, 'confirmPublish'])->name('terms-and-privacy.publish.create');
-            Route::post('terms-and-privacy/{termsVersion}/publish', [TermsController::class, 'publish'])->name('terms-and-privacy.publish');
+            Route::get('terms-of-use', [TermsController::class, 'index'])->name('terms-of-use.index');
+            Route::post('terms-of-use', [TermsController::class, 'store'])->name('terms-of-use.store');
+            Route::get('terms-of-use/{termsVersion}/edit', [TermsController::class, 'edit'])->name('terms-of-use.edit');
+            Route::put('terms-of-use/{termsVersion}', [TermsController::class, 'update'])->name('terms-of-use.update');
+            Route::get('terms-of-use/{termsVersion}/preview', [TermsController::class, 'preview'])->name('terms-of-use.preview');
+            Route::get('terms-of-use/{termsVersion}/download', [TermsController::class, 'download'])->name('terms-of-use.download');
+            Route::post('terms-of-use/{termsVersion}/source-file', [TermsController::class, 'uploadSourceFile'])->name('terms-of-use.source-file.store');
+            Route::get('terms-of-use/{termsVersion}/source-file/download', [TermsController::class, 'downloadSourceFile'])->name('terms-of-use.source-file.download');
+            Route::get('terms-of-use/{termsVersion}/publish', [TermsController::class, 'confirmPublish'])->name('terms-of-use.publish.create');
+            Route::post('terms-of-use/{termsVersion}/publish', [TermsController::class, 'publish'])->name('terms-of-use.publish');
+
+            Route::get('privacy-policy', [TermsController::class, 'index'])->name('privacy-policy.index');
+            Route::post('privacy-policy', [TermsController::class, 'store'])->name('privacy-policy.store');
+            Route::get('privacy-policy/{termsVersion}/edit', [TermsController::class, 'edit'])->name('privacy-policy.edit');
+            Route::put('privacy-policy/{termsVersion}', [TermsController::class, 'update'])->name('privacy-policy.update');
+            Route::get('privacy-policy/{termsVersion}/preview', [TermsController::class, 'preview'])->name('privacy-policy.preview');
+            Route::get('privacy-policy/{termsVersion}/download', [TermsController::class, 'download'])->name('privacy-policy.download');
+            Route::post('privacy-policy/{termsVersion}/source-file', [TermsController::class, 'uploadSourceFile'])->name('privacy-policy.source-file.store');
+            Route::get('privacy-policy/{termsVersion}/source-file/download', [TermsController::class, 'downloadSourceFile'])->name('privacy-policy.source-file.download');
+            Route::get('privacy-policy/{termsVersion}/publish', [TermsController::class, 'confirmPublish'])->name('privacy-policy.publish.create');
+            Route::post('privacy-policy/{termsVersion}/publish', [TermsController::class, 'publish'])->name('privacy-policy.publish');
 
             Route::get('partner-agreement', [PartnerAgreementController::class, 'index'])->name('partner-agreement.index');
             Route::patch('partner-agreement', [PartnerAgreementController::class, 'update'])

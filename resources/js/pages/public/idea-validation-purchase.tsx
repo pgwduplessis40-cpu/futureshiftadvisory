@@ -41,11 +41,16 @@ type Purchase = {
     payment_review_required: boolean;
 };
 
-type Terms = {
+type LegalDocument = {
     id: string;
     version: string;
     title: string;
     url: string;
+};
+
+type LegalDocuments = {
+    terms: LegalDocument;
+    privacyPolicy: LegalDocument;
 };
 
 type StripeIntentPayload = {
@@ -63,12 +68,12 @@ export default function IdeaValidationPurchase({
     state,
     accountConflict,
     purchase,
-    terms,
+    legalDocuments,
 }: {
     state: State;
     accountConflict: AccountConflict;
     purchase: Purchase | null;
-    terms: Terms | null;
+    legalDocuments: LegalDocuments | null;
 }) {
     return (
         <>
@@ -117,7 +122,7 @@ export default function IdeaValidationPurchase({
 
                     <div className="mt-6 rounded-xl border border-[var(--fs-sand)] bg-white p-6 shadow-[0_1px_2px_rgba(28,43,69,0.04)] sm:p-8">
                         {state === 'register' ? (
-                            <AccountForm terms={terms} />
+                            <AccountForm legalDocuments={legalDocuments} />
                         ) : null}
                         {state === 'existing_session' ? (
                             <ExistingSession />
@@ -223,7 +228,11 @@ function ExistingSession() {
     );
 }
 
-function AccountForm({ terms }: { terms: Terms | null }) {
+function AccountForm({
+    legalDocuments,
+}: {
+    legalDocuments: LegalDocuments | null;
+}) {
     return (
         <Form
             action="/validate-idea/purchase"
@@ -241,17 +250,23 @@ function AccountForm({ terms }: { terms: Terms | null }) {
                         </p>
                     </div>
 
-                    {!terms ? (
+                    {!legalDocuments ? (
                         <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
                             Checkout is temporarily unavailable while the
-                            current Terms and Privacy Policy is being published.
+                            current Terms of Use and Privacy Policy are being
+                            published.
                         </div>
                     ) : (
                         <>
                             <input
                                 type="hidden"
                                 name="terms_version_id"
-                                value={terms.id}
+                                value={legalDocuments.terms.id}
+                            />
+                            <input
+                                type="hidden"
+                                name="privacy_policy_version_id"
+                                value={legalDocuments.privacyPolicy.id}
                             />
                             <Field label="Name" error={errors.name}>
                                 <input
@@ -304,20 +319,35 @@ function AccountForm({ terms }: { terms: Terms | null }) {
                                     className="mt-1 size-4 rounded border-[var(--fs-sand)]"
                                 />
                                 <span>
-                                    I have read and agree to the{' '}
+                                    I agree to the{' '}
                                     <a
-                                        href={terms.url}
+                                        href={legalDocuments.terms.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="font-semibold text-[var(--fs-admiralty)] underline"
                                     >
-                                        {terms.title} (version {terms.version})
+                                        {legalDocuments.terms.title} (version{' '}
+                                        {legalDocuments.terms.version})
+                                    </a>{' '}
+                                    and acknowledge that I have read the{' '}
+                                    <a
+                                        href={legalDocuments.privacyPolicy.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="font-semibold text-[var(--fs-admiralty)] underline"
+                                    >
+                                        {legalDocuments.privacyPolicy.title}{' '}
+                                        (version{' '}
+                                        {legalDocuments.privacyPolicy.version})
                                     </a>
                                     .
                                 </span>
                             </label>
                             <InputError message={errors.terms_accepted} />
                             <InputError message={errors.terms_version_id} />
+                            <InputError
+                                message={errors.privacy_policy_version_id}
+                            />
                             <InputError message={errors.checkout} />
                             <Button
                                 type="submit"
