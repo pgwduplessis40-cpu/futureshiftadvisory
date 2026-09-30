@@ -541,6 +541,8 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertSame('idea_validation', $cancellation->intended_package_scope);
         $this->assertSame('payment_pending', $checkout->status);
         $this->assertNull($checkout->payment_id);
+        $this->assertNotNull($checkout->terms_version_id);
+        $this->assertNotNull($checkout->privacy_policy_version_id);
         $this->assertDatabaseMissing('idea_validations', [
             'entrepreneur_profile_id' => $starter->id,
         ]);

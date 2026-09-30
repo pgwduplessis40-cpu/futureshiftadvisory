@@ -47,7 +47,6 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::post('mfa/challenge', [MfaChallengeController::class, 'store'])->name('mfa.challenge.store');
 
     Route::middleware('mfa')->group(function (): void {
-        Route::get('terms', [TermsPendingController::class, 'show'])->name('terms.show');
         Route::get('terms/pending', [TermsPendingController::class, 'show'])->name('terms.pending');
         Route::get('terms/download', [TermsPendingController::class, 'download'])->name('terms.download');
         Route::post('terms/accept', [TermsPendingController::class, 'accept'])->name('terms.accept');
