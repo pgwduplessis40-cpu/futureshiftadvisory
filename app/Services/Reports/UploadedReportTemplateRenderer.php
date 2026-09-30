@@ -198,17 +198,18 @@ HTML,
             @unlink($path);
         }
 
+        $numbering = $this->numberingMap($parts['numbering']);
         $html = [
-            'header' => trim(implode("\n", array_map(fn (string $xml): string => $this->xmlPartHtml($xml), $parts['headers']))),
-            'body' => $this->xmlPartHtml($parts['document']),
-            'footer' => trim(implode("\n", array_map(fn (string $xml): string => $this->xmlPartHtml($xml), $parts['footers']))),
+            'header' => trim(implode("\n", array_map(fn (string $xml): string => $this->xmlPartHtml($xml, $numbering), $parts['headers']))),
+            'body' => $this->xmlPartHtml($parts['document'], $numbering),
+            'footer' => trim(implode("\n", array_map(fn (string $xml): string => $this->xmlPartHtml($xml, $numbering), $parts['footers']))),
         ];
 
         return trim(implode('', $html)) === '' ? null : $html;
     }
 
     /**
-     * @return array{headers:array<int, string>,document:string,footers:array<int, string>}
+     * @return array{headers:array<int, string>,document:string,footers:array<int, string>,numbering:string}
      */
     private function documentXmlParts(ZipArchive $zip): array
     {
@@ -239,15 +240,20 @@ HTML,
         ksort($footers);
 
         $document = $zip->getFromName('word/document.xml');
+        $numbering = $zip->getFromName('word/numbering.xml');
 
         return [
             'headers' => array_values($headers),
             'document' => is_string($document) ? $document : '',
             'footers' => array_values($footers),
+            'numbering' => is_string($numbering) ? $numbering : '',
         ];
     }
 
-    private function xmlPartHtml(string $xml): string
+    /**
+     * @param  array<string, array<int, 'ul'|'ol'>>  $numbering
+     */
+    private function xmlPartHtml(string $xml, array $numbering): string
     {
         $dom = new DOMDocument;
         $previous = libxml_use_internal_errors(true);
@@ -267,30 +273,232 @@ HTML,
             $body = $bodies->item(0);
         }
 
-        return $this->childrenHtml($body instanceof DOMNode ? $body : $dom->documentElement);
+        return $this->childrenHtml($body instanceof DOMNode ? $body : $dom->documentElement, $numbering);
     }
 
-    private function childrenHtml(?DOMNode $node): string
+    /**
+     * @param  array<string, array<int, 'ul'|'ol'>>  $numbering
+     */
+    private function childrenHtml(?DOMNode $node, array $numbering): string
     {
         if (! $node instanceof DOMNode) {
             return '';
         }
 
         $html = '';
+        /** @var array<int, array{tag:'ul'|'ol',num_id:string,level:int}> $listStack */
+        $listStack = [];
         foreach ($node->childNodes as $child) {
             if (! $child instanceof DOMElement) {
                 continue;
             }
 
+            if ($child->localName === 'p') {
+                $list = $this->paragraphList($child, $numbering);
+
+                if ($list !== null) {
+                    $html .= $this->listParagraphHtml($child, $list, $listStack);
+
+                    continue;
+                }
+
+                $html .= $this->closeLists($listStack);
+                $html .= $this->paragraphHtml($child);
+
+                continue;
+            }
+
+            $html .= $this->closeLists($listStack);
             $html .= match ($child->localName) {
-                'p' => $this->paragraphHtml($child),
-                'tbl' => $this->tableHtml($child),
+                'tbl' => $this->tableHtml($child, $numbering),
                 'sectPr' => '',
-                default => $this->childrenHtml($child),
+                default => $this->childrenHtml($child, $numbering),
             };
         }
 
+        return $html.$this->closeLists($listStack);
+    }
+
+    /**
+     * @param  array<string, array<int, 'ul'|'ol'>>  $numbering
+     * @return array{tag:'ul'|'ol',num_id:string,level:int}|null
+     */
+    private function paragraphList(DOMElement $paragraph, array $numbering): ?array
+    {
+        $properties = $this->firstChild($paragraph, 'pPr');
+        $numberProperties = $properties instanceof DOMElement ? $this->firstChild($properties, 'numPr') : null;
+        if (! $numberProperties instanceof DOMElement) {
+            return null;
+        }
+
+        $numberId = $this->firstChild($numberProperties, 'numId')?->getAttributeNS(self::WORD_NAMESPACE, 'val');
+        if (! is_string($numberId) || $numberId === '') {
+            return null;
+        }
+
+        $levelValue = $this->firstChild($numberProperties, 'ilvl')?->getAttributeNS(self::WORD_NAMESPACE, 'val');
+        $level = is_numeric($levelValue) ? (int) $levelValue : 0;
+        $tag = $numbering[$numberId][$level] ?? null;
+
+        return $tag === null ? null : [
+            'tag' => $tag,
+            'num_id' => $numberId,
+            'level' => $level,
+        ];
+    }
+
+    /**
+     * @param  array{tag:'ul'|'ol',num_id:string,level:int}  $list
+     * @param  array<int, array{tag:'ul'|'ol',num_id:string,level:int}>  $listStack
+     */
+    private function listParagraphHtml(DOMElement $paragraph, array $list, array &$listStack): string
+    {
+        $html = '';
+
+        while ($listStack !== [] && $listStack[array_key_last($listStack)]['level'] > $list['level']) {
+            $html .= $this->closeList($listStack);
+        }
+
+        $current = $listStack === [] ? null : $listStack[array_key_last($listStack)];
+        if ($current !== null && $current['level'] === $list['level']) {
+            if ($current['tag'] === $list['tag'] && $current['num_id'] === $list['num_id']) {
+                return $html.'</li>'.$this->listItemHtml($paragraph);
+            }
+
+            $html .= $this->closeList($listStack);
+        }
+
+        $html .= sprintf('<%s class="docx-template-list">', $list['tag']);
+        $listStack[] = $list;
+
+        return $html.$this->listItemHtml($paragraph);
+    }
+
+    /**
+     * @param  array<int, array{tag:'ul'|'ol',num_id:string,level:int}>  $listStack
+     */
+    private function closeLists(array &$listStack): string
+    {
+        $html = '';
+
+        while ($listStack !== []) {
+            $html .= $this->closeList($listStack);
+        }
+
         return $html;
+    }
+
+    /**
+     * @param  array<int, array{tag:'ul'|'ol',num_id:string,level:int}>  $listStack
+     */
+    private function closeList(array &$listStack): string
+    {
+        $list = array_pop($listStack);
+
+        return $list === null ? '' : '</li></'.$list['tag'].'>';
+    }
+
+    private function listItemHtml(DOMElement $paragraph): string
+    {
+        $text = $this->nodeText($paragraph);
+        $css = $this->paragraphCss($paragraph, includeIndent: false);
+
+        return sprintf(
+            '<li class="docx-template-list-item" style="%s">%s',
+            $this->escape($css),
+            nl2br($this->escape($text)),
+        );
+    }
+
+    /**
+     * @return array<string, array<int, 'ul'|'ol'>>
+     */
+    private function numberingMap(string $xml): array
+    {
+        if (trim($xml) === '') {
+            return [];
+        }
+
+        $dom = new DOMDocument;
+        $previous = libxml_use_internal_errors(true);
+
+        try {
+            if ($dom->loadXML($xml) !== true) {
+                return [];
+            }
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
+
+        /** @var array<string, array<int, 'ul'|'ol'>> $abstractFormats */
+        $abstractFormats = [];
+        foreach ($dom->getElementsByTagNameNS(self::WORD_NAMESPACE, 'abstractNum') as $abstract) {
+            $abstractId = $abstract->getAttributeNS(self::WORD_NAMESPACE, 'abstractNumId');
+            if ($abstractId === '') {
+                continue;
+            }
+
+            $formats = [];
+            foreach ($abstract->childNodes as $level) {
+                if (! $level instanceof DOMElement || $level->namespaceURI !== self::WORD_NAMESPACE || $level->localName !== 'lvl') {
+                    continue;
+                }
+
+                $levelValue = $level->getAttributeNS(self::WORD_NAMESPACE, 'ilvl');
+                $numberFormat = $this->firstChild($level, 'numFmt')?->getAttributeNS(self::WORD_NAMESPACE, 'val');
+                $tag = is_string($numberFormat) ? $this->listTag($numberFormat) : null;
+
+                if (is_numeric($levelValue) && $tag !== null) {
+                    $formats[(int) $levelValue] = $tag;
+                }
+            }
+
+            if ($formats !== []) {
+                $abstractFormats[$abstractId] = $formats;
+            }
+        }
+
+        /** @var array<string, array<int, 'ul'|'ol'>> $numbering */
+        $numbering = [];
+        foreach ($dom->getElementsByTagNameNS(self::WORD_NAMESPACE, 'num') as $number) {
+            $numberId = $number->getAttributeNS(self::WORD_NAMESPACE, 'numId');
+            $abstractId = $this->firstChild($number, 'abstractNumId')?->getAttributeNS(self::WORD_NAMESPACE, 'val');
+            if ($numberId === '' || ! is_string($abstractId) || ! array_key_exists($abstractId, $abstractFormats)) {
+                continue;
+            }
+
+            $formats = $abstractFormats[$abstractId];
+            foreach ($number->childNodes as $override) {
+                if (! $override instanceof DOMElement || $override->namespaceURI !== self::WORD_NAMESPACE || $override->localName !== 'lvlOverride') {
+                    continue;
+                }
+
+                $levelValue = $override->getAttributeNS(self::WORD_NAMESPACE, 'ilvl');
+                $level = $this->firstChild($override, 'lvl');
+                $numberFormat = $level instanceof DOMElement
+                    ? $this->firstChild($level, 'numFmt')?->getAttributeNS(self::WORD_NAMESPACE, 'val')
+                    : null;
+                $tag = is_string($numberFormat) ? $this->listTag($numberFormat) : null;
+
+                if (is_numeric($levelValue) && $tag !== null) {
+                    $formats[(int) $levelValue] = $tag;
+                }
+            }
+
+            $numbering[$numberId] = $formats;
+        }
+
+        return $numbering;
+    }
+
+    private function listTag(string $numberFormat): ?string
+    {
+        return match (Str::lower($numberFormat)) {
+            '', 'none' => null,
+            'bullet' => 'ul',
+            default => 'ol',
+        };
     }
 
     private function paragraphHtml(DOMElement $paragraph): string
@@ -350,7 +558,7 @@ HTML,
         );
     }
 
-    private function paragraphCss(DOMElement $paragraph): string
+    private function paragraphCss(DOMElement $paragraph, bool $includeIndent = true): string
     {
         $css = [];
         $properties = $this->firstChild($paragraph, 'pPr');
@@ -375,7 +583,7 @@ HTML,
             }
 
             $indent = $this->firstChild($properties, 'ind');
-            if ($indent instanceof DOMElement) {
+            if ($includeIndent && $indent instanceof DOMElement) {
                 $left = $this->twipsAttributeToPt($indent, 'left');
                 if ($left !== null) {
                     $css[] = 'margin-left: '.$left.'pt;';
@@ -426,7 +634,10 @@ HTML,
         return implode(' ', $css);
     }
 
-    private function tableHtml(DOMElement $table): string
+    /**
+     * @param  array<string, array<int, 'ul'|'ol'>>  $numbering
+     */
+    private function tableHtml(DOMElement $table, array $numbering): string
     {
         $tableStyle = $this->tableCss($table);
         $rows = '';
@@ -441,7 +652,7 @@ HTML,
                     continue;
                 }
 
-                $cellHtml = $this->childrenHtml($cell);
+                $cellHtml = $this->childrenHtml($cell, $numbering);
                 $cells .= sprintf(
                     '<td style="%s">%s</td>',
                     $this->escape($this->cellCss($cell)),
@@ -751,6 +962,11 @@ template[data-pdf-footer] { display: none; }
 h1.docx-template-block { font-size: 25px; line-height: 1.15; margin-bottom: 14px; }
 h2.docx-template-block { font-size: 17px; line-height: 1.25; margin: 16px 0 9px; }
 h3.docx-template-block { font-size: 13px; line-height: 1.3; margin: 12px 0 7px; }
+.docx-template-list { margin: 0 0 10px; padding-left: 24px; }
+ul.docx-template-list { list-style-type: disc; }
+ol.docx-template-list { list-style-type: decimal; }
+.docx-template-list .docx-template-list { margin: 4px 0 0; }
+.docx-template-list-item { margin: 0 0 4px; }
 .docx-template-rule { height: 1px; margin: 8px 0; }
 .docx-template-table { border-collapse: collapse; margin: 10px 0 14px; table-layout: fixed; width: 100%; }
 .docx-template-table td { border: 1px solid #ded6c7; padding: 7px 8px; vertical-align: top; }
