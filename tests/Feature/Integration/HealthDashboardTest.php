@@ -143,6 +143,41 @@ final class HealthDashboardTest extends TestCase
             && str_starts_with((string) $request->url(), 'https://api.anthropic.com/v1/organizations/cost_report'));
     }
 
+    public function test_admin_cost_sync_surfaces_a_sanitised_anthropic_error_and_request_id(): void
+    {
+        config(['services.anthropic.admin_key' => 'sk-ant-admin01-test']);
+        Http::fake([
+            'https://api.anthropic.com/v1/organizations/cost_report*' => Http::response([
+                'type' => 'error',
+                'error' => [
+                    'type' => 'invalid_request_error',
+                    'message' => 'The organization is not eligible for Usage and Cost API access. Credential sk-ant-admin01-secret',
+                ],
+                'request_id' => 'req_cost_body_123',
+            ], 400, ['request-id' => 'req_cost_header_123']),
+        ]);
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'anthropic-cost-error-admin@example.test');
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.integration-health.refresh'))
+            ->assertRedirect(route('admin.integration-health.index'));
+
+        $call = IntegrationCall::query()
+            ->where('service', 'anthropic')
+            ->where('endpoint', 'https://api.anthropic.com/v1/organizations/cost_report')
+            ->firstOrFail();
+        $this->assertSame('The organization is not eligible for Usage and Cost API access. Credential [redacted]', data_get($call->error_payload, 'provider_message'));
+        $this->assertSame('req_cost_header_123', data_get($call->error_payload, 'request_id'));
+        $this->assertStringNotContainsString('sk-ant-admin01-secret', json_encode($call->error_payload, JSON_THROW_ON_ERROR));
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.integration-health.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('aiUsage.official.status', 'sync_failed')
+                ->where('aiUsage.official.error', 'Anthropic Admin API returned HTTP 400. The organization is not eligible for Usage and Cost API access. Credential [redacted] Request ID: req_cost_header_123.'));
+    }
+
     public function test_super_admin_sees_stripe_readiness_and_latest_sanitized_failure(): void
     {
         $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'stripe-health-admin@example.test');
@@ -335,6 +370,9 @@ final class HealthDashboardTest extends TestCase
         ]);
     }
 
+    /**
+     * @param  array<string, mixed>|null  $errorPayload
+     */
     private function recordCall(
         string $service,
         string $status,

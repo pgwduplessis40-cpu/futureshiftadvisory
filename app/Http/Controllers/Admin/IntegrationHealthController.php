@@ -496,6 +496,11 @@ final class IntegrationHealthController extends Controller
         }
 
         if ($response->failed()) {
+            $failure = $this->anthropicAdminFailureDetails(
+                status: $response->status(),
+                payload: $response->json(),
+                requestId: $response->header('request-id'),
+            );
             $this->recordAnthropicCostProbe(
                 enabled: $recordHealthProbe,
                 status: IntegrationCall::STATUS_FAILURE,
@@ -504,12 +509,14 @@ final class IntegrationHealthController extends Controller
                     'reason' => 'admin_api_http_error',
                     'http_status' => $response->status(),
                     'message' => 'Anthropic Admin API returned HTTP '.$response->status().'.',
+                    'provider_message' => $failure['provider_message'],
+                    'request_id' => $failure['request_id'],
                 ],
             );
 
             return $this->emptyAnthropicOfficialPayload(
                 'sync_failed',
-                'Anthropic Admin API returned HTTP '.$response->status().'.',
+                $failure['display_message'],
             );
         }
 
@@ -528,6 +535,58 @@ final class IntegrationHealthController extends Controller
             'credit_balance_supported' => false,
             'credit_balance_usd' => null,
         ];
+    }
+
+    /**
+     * @return array{display_message:string,provider_message:string|null,request_id:string|null}
+     */
+    private function anthropicAdminFailureDetails(int $status, mixed $payload, mixed $requestId): array
+    {
+        $providerMessage = is_array($payload)
+            ? $this->sanitisedAnthropicErrorMessage(data_get($payload, 'error.message') ?? data_get($payload, 'message'))
+            : null;
+        $bodyRequestId = is_array($payload) ? data_get($payload, 'request_id') : null;
+        $safeRequestId = $this->sanitisedAnthropicRequestId($requestId)
+            ?? $this->sanitisedAnthropicRequestId($bodyRequestId);
+        $displayMessage = 'Anthropic Admin API returned HTTP '.$status.'.';
+
+        if ($providerMessage !== null) {
+            $displayMessage .= ' '.$providerMessage;
+        }
+
+        if ($safeRequestId !== null) {
+            $displayMessage .= ' Request ID: '.$safeRequestId.'.';
+        }
+
+        return [
+            'display_message' => $displayMessage,
+            'provider_message' => $providerMessage,
+            'request_id' => $safeRequestId,
+        ];
+    }
+
+    private function sanitisedAnthropicErrorMessage(mixed $message): ?string
+    {
+        if (! is_scalar($message)) {
+            return null;
+        }
+
+        $sanitised = preg_replace('/\s+/', ' ', trim((string) $message));
+        $sanitised = preg_replace('/(?:sk-ant-|Bearer\s+)[A-Za-z0-9_\-]+/i', '[redacted]', $sanitised ?? '');
+        $sanitised = trim((string) $sanitised);
+
+        return $sanitised === '' ? null : Str::limit($sanitised, 160, '');
+    }
+
+    private function sanitisedAnthropicRequestId(mixed $requestId): ?string
+    {
+        if (! is_string($requestId)) {
+            return null;
+        }
+
+        $requestId = trim($requestId);
+
+        return preg_match('/^[A-Za-z0-9_-]{1,128}$/', $requestId) === 1 ? $requestId : null;
     }
 
     /**

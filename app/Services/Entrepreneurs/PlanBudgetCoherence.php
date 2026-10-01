@@ -13,7 +13,7 @@ namespace App\Services\Entrepreneurs;
  * @phpstan-type Finding array{category:'budget_support'|'plan_correlation',severity:'missing'|'review',message:string,next_action:string}
  * @phpstan-type Direction array{status:'met'|'review'|'missing',status_label:string,summary:string,unresolved_count:int}
  * @phpstan-type Reconciliation array{status:'met'|'review'|'missing',status_label:string,score:int,summary:string,evidence:list<string>,findings:list<Finding>,approval_available:bool,approval_message:string,budget_support:Direction,plan_correlation:Direction,unresolved_count:int}
- * @phpstan-type BudgetRow array{label?:string,type?:string,amount?:float|int,monthly_capacity_units?:float|int,cadence?:string}
+ * @phpstan-type BudgetRow array{label?:string,type?:string,amount?:float|int,quantity?:float|int,monthly_capacity_units?:float|int,cadence?:string}
  * @phpstan-type BudgetFlag array{key?:string,message?:string,title?:string}
  * @phpstan-type BudgetComputed array{available_after_launch?:float|int,monthly_fixed_costs?:float|int,runway_months?:float|int,runway_open_ended?:bool,input_count?:int,break_even_reached?:bool}
  * @phpstan-type BudgetAssumptions array{opening_cash_balance?:float|int}
@@ -215,7 +215,8 @@ final class PlanBudgetCoherence
         $planRunway = $this->runwayMonths($planText);
         $planOpeningCash = $this->openingCash($planText);
         $planCapacity = $this->monthlyCapacity($planText);
-        $planMonthlyCosts = $this->monthlyOperatingCosts($planText);
+        $planMonthlyCostClaim = $this->monthlyOperatingCostClaim($planText);
+        $planMonthlyCosts = $planMonthlyCostClaim['operating_cost'] ?? null;
         $hasCheckableClaim = $planRunway !== null || $planOpeningCash !== null || $planCapacity !== null || $planMonthlyCosts !== null || $this->claimsDebtFree($planText);
 
         if (! $hasCheckableClaim) {
@@ -300,11 +301,22 @@ final class PlanBudgetCoherence
         $this->addMissingPlannedCostFindings($planText, $fixedCosts, $findings);
 
         $budgetMonthlyCosts = data_get($computed, 'monthly_fixed_costs');
-        if ($planMonthlyCosts !== null && is_numeric($budgetMonthlyCosts) && ! $this->withinTolerance($planMonthlyCosts, (float) $budgetMonthlyCosts)) {
+        $planCostBasis = $planMonthlyCosts;
+        $excludedOwnerCompensation = $planMonthlyCostClaim['excluded_owner_compensation'] ?? null;
+        if ($planCostBasis !== null && $excludedOwnerCompensation !== null) {
+            $planCostBasis += $excludedOwnerCompensation;
+        }
+
+        if ($planCostBasis !== null && is_numeric($budgetMonthlyCosts) && ! $this->withinTolerance($planCostBasis, (float) $budgetMonthlyCosts)) {
+            $planCostDescription = $excludedOwnerCompensation === null
+                ? 'monthly operating costs of '.$this->money($planMonthlyCosts)
+                : 'monthly operating costs of '.$this->money($planMonthlyCosts)
+                    .' excluding owner compensation of '.$this->money($excludedOwnerCompensation)
+                    .' ('.$this->money($planCostBasis).' total)';
             $findings[] = $this->finding(
                 'plan_correlation',
                 'review',
-                'The plan states monthly operating costs of '.$this->money($planMonthlyCosts).', but the budget uses '.$this->money((float) $budgetMonthlyCosts).' of monthly fixed costs.',
+                'The plan states '.$planCostDescription.', but the budget uses '.$this->money((float) $budgetMonthlyCosts).' of monthly fixed costs.',
                 'Reconcile the recurring cost base in Financial assumptions and Budget before relying on the stated runway or funding requirement.',
             );
         }
@@ -536,7 +548,10 @@ final class PlanBudgetCoherence
         return is_numeric($matches[1]) ? max(0.0, (float) $matches[1]) : null;
     }
 
-    private function monthlyOperatingCosts(string $planText): ?float
+    /**
+     * @return array{operating_cost:float,excluded_owner_compensation:float|null}|null
+     */
+    private function monthlyOperatingCostClaim(string $planText): ?array
     {
         $patterns = [
             '/\b(?:operating|fixed|overhead)\s+costs?\D{0,30}?\$?\s*([0-9][0-9,]*(?:\.\d{1,2})?)\s*(?:\/|per\s*)\s*month\b/i',
@@ -544,11 +559,28 @@ final class PlanBudgetCoherence
         ];
 
         foreach ($patterns as $pattern) {
-            if (preg_match($pattern, $planText, $matches) === 1) {
-                $amount = str_replace(',', '', (string) $matches[1]);
-
-                return is_numeric($amount) ? max(0.0, (float) $amount) : null;
+            if (preg_match($pattern, $planText, $matches, PREG_OFFSET_CAPTURE) !== 1) {
+                continue;
             }
+
+            $amount = str_replace(',', '', (string) $matches[1][0]);
+            if (! is_numeric($amount)) {
+                return null;
+            }
+
+            $context = substr($planText, (int) $matches[0][1], 220);
+            $excludedOwnerCompensation = null;
+            if (preg_match('/\b(?:excluding|exclude)\b.{0,60}?\b(?:(?:my\s+)?own|owner(?:\'s)?)\s+(?:wages?|compensation|pay|salary)\D{0,50}?\$?\s*([0-9][0-9,]*(?:\.\d{1,2})?)\s*(?:\/|per\s*)\s*month\b/i', $context, $ownerMatches) === 1) {
+                $ownerAmount = str_replace(',', '', (string) $ownerMatches[1]);
+                $excludedOwnerCompensation = is_numeric($ownerAmount)
+                    ? max(0.0, (float) $ownerAmount)
+                    : null;
+            }
+
+            return [
+                'operating_cost' => max(0.0, (float) $amount),
+                'excluded_owner_compensation' => $excludedOwnerCompensation,
+            ];
         }
 
         return null;
