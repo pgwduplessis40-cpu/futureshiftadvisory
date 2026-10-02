@@ -50,4 +50,31 @@ final class PlanBudgetCoherenceTest extends TestCase
             array_column($result['findings'], 'message'),
         );
     }
+
+    public function test_it_prefers_a_formatted_cost_claim_that_explicitly_excludes_owner_wages(): void
+    {
+        $result = (new PlanBudgetCoherence)->evaluate([
+            'budget' => [
+                'status' => 'complete',
+                'assessment_evidence' => [
+                    'monthly_fixed_costs' => [],
+                    'computed' => [
+                        'monthly_fixed_costs' => 4_298,
+                    ],
+                ],
+            ],
+            'phases' => [[
+                'sections' => [[
+                    'requirement_key' => 'financial-assumptions',
+                    'body' => '<p>Earlier note: operating costs are $600 per month.</p><p>Essential operating costs are approximately <strong>$600</strong> per month, excluding my own <em>wages</em> of an estimated <strong>$3,698</strong> per month.</p>',
+                ]],
+            ]],
+        ]);
+
+        $this->assertSame('met', $result['plan_correlation']['status']);
+        $this->assertNotContains(
+            'The plan states monthly operating costs of $600, but the budget uses $4,298 of monthly fixed costs.',
+            array_column($result['findings'], 'message'),
+        );
+    }
 }

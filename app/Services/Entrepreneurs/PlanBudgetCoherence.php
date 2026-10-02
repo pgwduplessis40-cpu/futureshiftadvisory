@@ -553,37 +553,60 @@ final class PlanBudgetCoherence
      */
     private function monthlyOperatingCostClaim(string $planText): ?array
     {
+        $planText = $this->normalisedFinancialText($planText);
         $patterns = [
             '/\b(?:operating|fixed|overhead)\s+costs?\D{0,30}?\$?\s*([0-9][0-9,]*(?:\.\d{1,2})?)\s*(?:\/|per\s*)\s*month\b/i',
             '/\$?\s*([0-9][0-9,]*(?:\.\d{1,2})?)\s*(?:\/|per\s*)\s*month\D{0,30}?\b(?:operating|fixed|overhead)\s+costs?\b/i',
         ];
+        $fallbackClaim = null;
 
         foreach ($patterns as $pattern) {
-            if (preg_match($pattern, $planText, $matches, PREG_OFFSET_CAPTURE) !== 1) {
+            $matchCount = preg_match_all($pattern, $planText, $matches, PREG_OFFSET_CAPTURE);
+            if ($matchCount === false || $matchCount === 0) {
                 continue;
             }
 
-            $amount = str_replace(',', '', (string) $matches[1][0]);
-            if (! is_numeric($amount)) {
-                return null;
-            }
+            for ($index = 0; $index < $matchCount; $index++) {
+                $amount = str_replace(',', '', (string) $matches[1][$index][0]);
+                if (! is_numeric($amount)) {
+                    continue;
+                }
 
-            $context = substr($planText, (int) $matches[0][1], 220);
-            $excludedOwnerCompensation = null;
-            if (preg_match('/\b(?:excluding|exclude)\b.{0,60}?\b(?:(?:my\s+)?own|owner(?:\'s)?)\s+(?:wages?|compensation|pay|salary)\D{0,50}?\$?\s*([0-9][0-9,]*(?:\.\d{1,2})?)\s*(?:\/|per\s*)\s*month\b/i', $context, $ownerMatches) === 1) {
-                $ownerAmount = str_replace(',', '', (string) $ownerMatches[1]);
-                $excludedOwnerCompensation = is_numeric($ownerAmount)
-                    ? max(0.0, (float) $ownerAmount)
-                    : null;
-            }
+                $context = substr($planText, (int) $matches[0][$index][1], 220);
+                $claim = [
+                    'operating_cost' => max(0.0, (float) $amount),
+                    'excluded_owner_compensation' => $this->excludedOwnerCompensation($context),
+                ];
 
-            return [
-                'operating_cost' => max(0.0, (float) $amount),
-                'excluded_owner_compensation' => $excludedOwnerCompensation,
-            ];
+                if ($claim['excluded_owner_compensation'] !== null) {
+                    return $claim;
+                }
+
+                $fallbackClaim ??= $claim;
+            }
         }
 
-        return null;
+        return $fallbackClaim;
+    }
+
+    private function normalisedFinancialText(string $planText): string
+    {
+        $plainText = preg_replace('/<[^>]*>/', ' ', $planText) ?? $planText;
+        $plainText = html_entity_decode($plainText, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $normalised = preg_replace('/\s+/u', ' ', $plainText);
+
+        return trim($normalised ?? $plainText);
+    }
+
+    private function excludedOwnerCompensation(string $context): ?float
+    {
+        if (preg_match('/\b(?:excluding|exclude)\b.{0,80}?\b(?:(?:my\s+)?own|owner(?:[\'’]s)?)\s+(?:wages?|compensation|pay|salary)\D{0,60}?\$?\s*([0-9][0-9,]*(?:\.\d{1,2})?)\s*(?:\/|per\s*)\s*month\b/i', $context, $ownerMatches) !== 1) {
+            return null;
+        }
+
+        $ownerAmount = str_replace(',', '', (string) $ownerMatches[1]);
+
+        return is_numeric($ownerAmount) ? max(0.0, (float) $ownerAmount) : null;
     }
 
     private function containsFinancialClaim(string $body): bool
