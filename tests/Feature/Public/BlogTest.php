@@ -331,6 +331,36 @@ final class BlogTest extends TestCase
         ]);
     }
 
+    public function test_scheduled_republications_use_the_scheduled_date_instead_of_the_previous_publication_date(): void
+    {
+        $admin = $this->superAdmin();
+        $post = $this->publishedPost('scheduled-republication', 'Scheduled republication', 'Scheduled body');
+        $previousPublishedAt = $post->published_at;
+        $scheduledAt = now('Pacific/Auckland')->addDay()->startOfMinute();
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.blog.unpublish', $post))
+            ->assertRedirect();
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.blog.schedule', $post), [
+                'title' => 'Scheduled republication',
+                'slug' => 'scheduled-republication',
+                'description' => 'Scheduled republication description',
+                'body' => 'Scheduled body',
+                'scheduled_at' => $scheduledAt->format('Y-m-d\\TH:i'),
+            ])
+            ->assertRedirect(route('admin.blog.edit', $post));
+
+        app(RequestContext::class)->apply('system', []);
+        $this->assertSame(1, app(BlogPostManager::class)->publishDue($scheduledAt));
+
+        $post->refresh();
+        $this->assertSame(BlogPost::STATUS_PUBLISHED, $post->status);
+        $this->assertTrue($post->published_at?->equalTo($scheduledAt) ?? false);
+        $this->assertFalse($post->published_at?->equalTo($previousPublishedAt) ?? true);
+    }
+
     public function test_scheduled_posts_cannot_be_published_manually_before_their_due_time(): void
     {
         $admin = $this->superAdmin();
