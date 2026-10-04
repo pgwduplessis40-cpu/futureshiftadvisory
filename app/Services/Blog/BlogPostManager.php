@@ -168,7 +168,7 @@ final class BlogPostManager
             foreach ($posts as $post) {
                 $this->ensureScheduledSnapshot($post);
                 $before = $this->metadata($post);
-                $publishedAt = $post->published_at ?? $post->scheduled_at ?? $at;
+                $publishedAt = $post->scheduled_at ?? $at;
 
                 $post->forceFill([
                     'status' => BlogPost::STATUS_PUBLISHED,
