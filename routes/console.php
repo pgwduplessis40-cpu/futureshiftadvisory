@@ -24,6 +24,7 @@ Schedule::command('entrepreneurs:recompute-streaks')
 Schedule::command('service-journeys:reconcile')->everyTenMinutes()->withoutOverlapping();
 Schedule::command('npo:impact-summary-auto-release')->hourly()->withoutOverlapping();
 Schedule::command('blog:publish-due')->everyMinute()->withoutOverlapping();
+Schedule::command('fsa:indexnow-submit')->hourly()->withoutOverlapping();
 Schedule::command('inspiration:release-due-rotations')->everyMinute()->withoutOverlapping();
 Schedule::command('inspiration:select-weekly-quote')
     ->weeklyOn(1, '06:00')

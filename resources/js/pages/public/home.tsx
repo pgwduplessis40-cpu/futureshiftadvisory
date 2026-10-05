@@ -34,6 +34,14 @@ type IdeaValidationOffer = {
     currency: string | null;
 };
 
+type LatestPost = {
+    slug: string;
+    title: string;
+    description: string;
+    date: string;
+    date_iso: string;
+};
+
 const accentClass: Record<string, string> = {
     pacific: 'border-l-[var(--fs-pacific)]',
     admiralty: 'border-l-[var(--fs-admiralty)]',
@@ -45,9 +53,11 @@ const accentClass: Record<string, string> = {
 export default function Home({
     engagementTypes,
     ideaValidationOffer,
+    latestPosts = [],
 }: {
     engagementTypes: EngagementSummary[];
     ideaValidationOffer: IdeaValidationOffer;
+    latestPosts?: LatestPost[];
 }) {
     const base = usePage<SharedPageProps>().props.publicUrl ?? '';
     const validationPrice =
@@ -230,6 +240,57 @@ export default function Home({
                     even build the small tools that make the change stick.
                 </p>
             </Section>
+
+            {/* ── FROM THE BLOG ───────────────────────────────── */}
+            {latestPosts.length > 0 ? (
+                <div className="bg-[var(--fs-linen)] py-20">
+                    <Section>
+                        <div className="flex flex-wrap items-end justify-between gap-4">
+                            <div>
+                                <SectionEyebrow>From the blog</SectionEyebrow>
+                                <SectionTitle className="mt-3">
+                                    Practical reading for founders.
+                                </SectionTitle>
+                            </div>
+                            <Link
+                                href="/blog"
+                                className="inline-flex items-center gap-1 text-sm font-medium text-[var(--fs-admiralty)] hover:text-[var(--fs-pacific)]"
+                            >
+                                All posts <ArrowRight className="h-4 w-4" />
+                            </Link>
+                        </div>
+
+                        <div className="mt-10 grid gap-6 md:grid-cols-3">
+                            {latestPosts.map((post) => (
+                                <Link
+                                    key={post.slug}
+                                    href={`/blog/${post.slug}`}
+                                    className="group block rounded-xl border border-[var(--fs-sand)] bg-white p-6 shadow-[0_1px_2px_rgba(28,43,69,0.04)] transition hover:shadow-[0_8px_24px_rgba(28,43,69,0.08)]"
+                                >
+                                    <time
+                                        dateTime={post.date_iso}
+                                        className="eyebrow"
+                                    >
+                                        {post.date}
+                                    </time>
+                                    <h3 className="font-display mt-2 text-xl text-[var(--fs-admiralty)]">
+                                        {post.title}
+                                    </h3>
+                                    {post.description ? (
+                                        <p className="mt-2 text-sm leading-relaxed text-[var(--fs-graphite)]">
+                                            {post.description}
+                                        </p>
+                                    ) : null}
+                                    <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[var(--fs-admiralty)] transition group-hover:text-[var(--fs-pacific)]">
+                                        Read the post{' '}
+                                        <ArrowRight className="h-4 w-4" />
+                                    </span>
+                                </Link>
+                            ))}
+                        </div>
+                    </Section>
+                </div>
+            ) : null}
 
             {/* ── CLOSING CTA ─────────────────────────────────── */}
             <div

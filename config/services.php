@@ -42,6 +42,15 @@ return [
         'secret_key' => env('TURNSTILE_SECRET_KEY'),
     ],
 
+    // IndexNow - instant search-engine notification (Bing, Yandex, et al.) when
+    // a blog post is published or revised. The key is public by design: it is
+    // served at https://<host>/<key>.txt to prove ownership. With no key the
+    // submitter no-ops, so nothing is sent from local or test environments.
+    'indexnow' => [
+        'key' => env('INDEXNOW_KEY', 'b4e575664eb3417a487ec0340d6dae5b'),
+        'endpoint' => env('INDEXNOW_ENDPOINT', 'https://api.indexnow.org/indexnow'),
+    ],
+
     'anthropic' => [
         'key' => env('ANTHROPIC_API_KEY'),
         'admin_key' => env('ANTHROPIC_ADMIN_API_KEY'),
