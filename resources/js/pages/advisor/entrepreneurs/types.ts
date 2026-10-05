@@ -19,6 +19,12 @@ export type PlanBudgetCoherence = {
         message: string;
         next_action: string;
     }[];
+    advisories: {
+        key: string;
+        category: 'budget_support' | string;
+        message: string;
+        next_action: string;
+    }[];
     approval_available: boolean;
     approval_message: string;
     budget_support: {

@@ -79,6 +79,43 @@ final class BudgetFundingReadinessTest extends TestCase
         $this->assertStringContainsString('forecast start month', $warnings);
     }
 
+    public function test_unevidenced_estimates_remain_an_external_issue_gate(): void
+    {
+        $budget = new EntrepreneurBudget([
+            'status' => EntrepreneurBudget::STATUS_COMPLETE,
+            'expected_runway_months' => 6,
+            'computed' => [
+                'opening_cash_balance' => 20_000,
+                'total_funding' => 20_000,
+                'total_launch_costs' => 0,
+                'monthly_fixed_costs' => 1_000,
+                'break_even_year' => 1,
+                'cash_flow_positive_year' => 1,
+                'assumptions' => [
+                    'company_tax_configured' => true,
+                    'funding_position' => 'external_funding',
+                    'funding_position_confirmed' => true,
+                    'funding_request_purpose' => 'Operating cover and contingency',
+                ],
+                'monthly_detail' => [
+                    ['month' => 1, 'cumulative_cash' => 39_000],
+                ],
+                'input_quality' => [
+                    'unverified_fixed_cost_sources' => ['Software subscription'],
+                    'unverified_revenue_sources' => ['Advisory package'],
+                ],
+            ],
+            'flags' => [],
+        ]);
+
+        $decision = (new BudgetFundingReadiness)->evaluate($budget);
+        $warnings = implode("\n", $decision['warnings']);
+
+        $this->assertFalse($decision['external_issue_ready']);
+        $this->assertStringContainsString('Verify the source for every fixed cost', $warnings);
+        $this->assertStringContainsString('Verify the pipeline, contract, or pricing source', $warnings);
+    }
+
     public function test_a_verified_external_request_can_be_ready_when_its_use_of_funds_matches_the_forecast(): void
     {
         $budget = new EntrepreneurBudget([
