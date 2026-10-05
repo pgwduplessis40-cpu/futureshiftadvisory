@@ -17,15 +17,25 @@ type Post = {
     html: string;
 };
 
+type RelatedPost = {
+    slug: string;
+    title: string;
+    description: string;
+    date: string;
+    date_iso: string;
+};
+
 type Preview = {
     backUrl: string;
 };
 
 export default function BlogPost({
     post,
+    related = [],
     preview,
 }: {
     post: Post;
+    related?: RelatedPost[];
     preview?: Preview;
 }) {
     const base = usePage<SharedPageProps>().props.publicUrl ?? '';
@@ -124,6 +134,43 @@ export default function BlogPost({
                         </Link>
                     </div>
                 </div>
+
+                {/* ── KEEP READING ────────────────────────────── */}
+                {!preview && related.length > 0 ? (
+                    <div className="mt-16 max-w-3xl border-t border-[var(--fs-sand)] pt-10">
+                        <h2 className="font-display text-2xl text-[var(--fs-admiralty)]">
+                            Keep reading
+                        </h2>
+                        <div className="mt-6 space-y-5">
+                            {related.map((item) => (
+                                <Link
+                                    key={item.slug}
+                                    href={`/blog/${item.slug}`}
+                                    className="group block rounded-xl border border-[var(--fs-sand)] bg-white p-5 shadow-[0_1px_2px_rgba(28,43,69,0.04)] transition hover:shadow-[0_8px_24px_rgba(28,43,69,0.08)]"
+                                >
+                                    <time
+                                        dateTime={item.date_iso}
+                                        className="eyebrow"
+                                    >
+                                        {item.date}
+                                    </time>
+                                    <h3 className="font-display mt-2 text-xl text-[var(--fs-admiralty)]">
+                                        {item.title}
+                                    </h3>
+                                    {item.description ? (
+                                        <p className="mt-2 text-sm leading-relaxed text-[var(--fs-graphite)]">
+                                            {item.description}
+                                        </p>
+                                    ) : null}
+                                    <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[var(--fs-admiralty)] transition group-hover:text-[var(--fs-pacific)]">
+                                        Read the post{' '}
+                                        <ArrowRight className="h-4 w-4" />
+                                    </span>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
             </Section>
 
             <BackToTop />

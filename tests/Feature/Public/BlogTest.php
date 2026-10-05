@@ -68,6 +68,30 @@ final class BlogTest extends TestCase
             ->assertDontSee('Draft title');
     }
 
+    public function test_the_blog_post_page_links_to_related_posts(): void
+    {
+        $this->publishedPost('first-insight', 'First insight', 'First body');
+        $this->publishedPost('second-insight', 'Second insight', 'Second body');
+
+        $this->get('/blog/first-insight')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('public/blog-post')
+                ->where('post.slug', 'first-insight')
+                ->where('related.0.slug', 'second-insight'));
+    }
+
+    public function test_the_homepage_links_to_the_latest_blog_posts(): void
+    {
+        $this->publishedPost('homepage-insight', 'Homepage insight', 'Homepage body');
+
+        $this->get('/')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('public/home')
+                ->where('latestPosts.0.slug', 'homepage-insight'));
+    }
+
     public function test_markdown_is_rendered_with_raw_html_escaped(): void
     {
         $post = $this->publishedPost(

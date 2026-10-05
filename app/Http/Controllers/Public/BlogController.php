@@ -28,6 +28,12 @@ class BlogController extends Controller
 
         return Inertia::render('public/blog-post', [
             'post' => $blog->publicPayload($post),
+            'related' => $blog->published()
+                ->reject(fn ($candidate): bool => $candidate->slug === $slug)
+                ->take(3)
+                ->map(fn ($candidate): array => $blog->summary($candidate))
+                ->values()
+                ->all(),
         ]);
     }
 }
