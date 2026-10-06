@@ -17,6 +17,12 @@ export type PlanBudgetCoherenceSummary = {
         message: string;
         next_action: string;
     }[];
+    advisories?: {
+        key: string;
+        category: string;
+        message: string;
+        next_action: string;
+    }[];
 };
 
 type Props = {
@@ -31,6 +37,7 @@ export function PlanBudgetCoherencePanel({
     historicalMessage,
 }: Props) {
     const Heading = heading;
+    const advisories = coherence?.advisories ?? [];
 
     if (coherence === null) {
         return (
@@ -128,6 +135,33 @@ export function PlanBudgetCoherencePanel({
                         </li>
                     ))}
                 </ul>
+            ) : null}
+
+            {advisories.length > 0 ? (
+                <div className="space-y-3 border-t border-amber-200 pt-3">
+                    <div className="space-y-1">
+                        <p className="font-medium">
+                            Evidence to strengthen these estimates
+                        </p>
+                        <p className="text-muted-foreground">
+                            These estimates do not block plan–budget
+                            correlation. Record supporting evidence before
+                            issuing the plan externally.
+                        </p>
+                    </div>
+                    <ul className="space-y-3">
+                        {advisories.map((advisory) => (
+                            <li key={advisory.key} className="space-y-1">
+                                <p className="font-medium">
+                                    {advisory.message}
+                                </p>
+                                <p className="text-muted-foreground">
+                                    Next action: {advisory.next_action}
+                                </p>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
             ) : null}
         </section>
     );

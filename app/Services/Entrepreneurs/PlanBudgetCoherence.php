@@ -11,8 +11,9 @@ namespace App\Services\Entrepreneurs;
  * assessment snapshot, so a later edit cannot change a recorded result.
  *
  * @phpstan-type Finding array{category:'budget_support'|'plan_correlation',severity:'missing'|'review',message:string,next_action:string}
+ * @phpstan-type Advisory array{key:'fixed_cost_sources'|'revenue_sources',category:'budget_support',message:string,next_action:string}
  * @phpstan-type Direction array{status:'met'|'review'|'missing',status_label:string,summary:string,unresolved_count:int}
- * @phpstan-type Reconciliation array{status:'met'|'review'|'missing',status_label:string,score:int,summary:string,evidence:list<string>,findings:list<Finding>,approval_available:bool,approval_message:string,budget_support:Direction,plan_correlation:Direction,unresolved_count:int}
+ * @phpstan-type Reconciliation array{status:'met'|'review'|'missing',status_label:string,score:int,summary:string,evidence:list<string>,findings:list<Finding>,advisories:list<Advisory>,approval_available:bool,approval_message:string,budget_support:Direction,plan_correlation:Direction,unresolved_count:int}
  * @phpstan-type BudgetRow array{label?:string,type?:string,amount?:float|int,quantity?:float|int,monthly_capacity_units?:float|int,cadence?:string}
  * @phpstan-type BudgetFlag array{key?:string,message?:string,title?:string}
  * @phpstan-type BudgetComputed array{available_after_launch?:float|int,monthly_fixed_costs?:float|int,runway_months?:float|int,runway_open_ended?:bool,input_count?:int,break_even_reached?:bool}
@@ -55,6 +56,7 @@ final class PlanBudgetCoherence
         $planText = implode("\n", array_column($financialSections, 'body'));
         $budgetSupportFindings = [];
         $planCorrelationFindings = [];
+        $advisories = [];
 
         if (! is_array($budget)) {
             $budgetSupportFindings[] = $this->finding(
@@ -64,7 +66,7 @@ final class PlanBudgetCoherence
                 'Complete the budget and run the assessment again so its cash, cost, revenue and funding assumptions can be checked.',
             );
         } else {
-            $this->evaluateBudgetSupport($budget, $budgetSupportFindings);
+            $this->evaluateBudgetSupport($budget, $budgetSupportFindings, $advisories);
         }
 
         if ($financialSections === []) {
@@ -117,6 +119,7 @@ final class PlanBudgetCoherence
                     : $unresolvedCount.' unresolved plan–budget '.($unresolvedCount === 1 ? 'issue remains.' : 'issues remain.'),
             ],
             'findings' => $findings,
+            'advisories' => $advisories,
             'approval_available' => $approvalAvailable,
             'approval_message' => $approvalAvailable
                 ? 'Plan–budget coherence is reconciled.'
@@ -130,8 +133,9 @@ final class PlanBudgetCoherence
     /**
      * @param  Budget  $budget
      * @param  list<Finding>  $findings
+     * @param  list<Advisory>  $advisories
      */
-    private function evaluateBudgetSupport(array $budget, array &$findings): void
+    private function evaluateBudgetSupport(array $budget, array &$findings, array &$advisories): void
     {
         $status = (string) data_get($budget, 'status', 'not_started');
         $computed = data_get($budget, 'computed');
@@ -192,11 +196,12 @@ final class PlanBudgetCoherence
         }
 
         $this->addInputQualityFindings($flags, $findings);
+        $this->addInputQualityAdvisories($flags, $advisories);
 
         $fundingReadiness = $budget['funding_readiness'] ?? null;
         if (is_array($fundingReadiness)) {
             /** @var FundingReadiness $fundingReadiness */
-            $this->addFundingReadinessFindings($fundingReadiness, $availableAfterLaunch, $findings);
+            $this->addFundingReadinessFindings($fundingReadiness, $availableAfterLaunch, $findings, $advisories);
         }
     }
 
@@ -341,8 +346,6 @@ final class PlanBudgetCoherence
             'fixed_cost_cadences_need_confirmation' => 'Confirm the billing cadence for the fixed-cost rows before relying on the forecast.',
             'revenue_capacity_needs_confirmation' => 'Set and confirm the maximum delivery capacity for each affected revenue line.',
             'contractor_delivery_cost_needs_confirmation' => 'Confirm the cost of delivery beyond founder capacity before relying on projected revenue.',
-            'fixed_cost_sources_need_verification' => 'Verify fixed costs against current source records before external issue.',
-            'revenue_sources_need_verification' => 'Verify revenue with pipeline, contract or pricing evidence before external issue.',
             'cash_timing_needs_verification' => 'Verify cash timing from current records before relying on the forecast.',
             'funding_position_needs_confirmation' => 'Confirm whether the plan is self-funded or requires external funding.',
         ];
@@ -363,6 +366,37 @@ final class PlanBudgetCoherence
     }
 
     /**
+     * Evidence coverage strengthens an estimate but does not determine whether
+     * the entrepreneur's current plan and budget are internally coherent.
+     * External-issue readiness continues to enforce this evidence separately.
+     *
+     * @param  list<BudgetFlag>  $flags
+     * @param  list<Advisory>  $advisories
+     */
+    private function addInputQualityAdvisories(array $flags, array &$advisories): void
+    {
+        $nextActions = [
+            'fixed_cost_sources_need_verification' => 'Record a source type, reference and source check in Budget > Monthly fixed costs before external issue. The estimate remains available for this assessment.',
+            'revenue_sources_need_verification' => 'Record pipeline, contract or pricing evidence in Budget > Revenue forecast before external issue. The estimate remains available for this assessment.',
+        ];
+
+        foreach ($flags as $flag) {
+            $key = (string) ($flag['key'] ?? '');
+            if (! array_key_exists($key, $nextActions)) {
+                continue;
+            }
+
+            $this->addAdvisoryOnce(
+                $advisories,
+                $key === 'fixed_cost_sources_need_verification' ? 'fixed_cost_sources' : 'revenue_sources',
+                'budget_support',
+                (string) ($flag['message'] ?? $flag['title'] ?? 'Supporting evidence has not yet been recorded for an estimate.'),
+                $nextActions[$key],
+            );
+        }
+    }
+
+    /**
      * Adds the fuller readiness diagnostics which are captured with new assessment
      * snapshots. These diagnostics are intentionally separate from the existing
      * small set of gating flags: they explain the specific budget rows and
@@ -371,8 +405,9 @@ final class PlanBudgetCoherence
      * @param  FundingReadiness  $readiness
      * @param  float|int|mixed  $availableAfterLaunch
      * @param  list<Finding>  $findings
+     * @param  list<Advisory>  $advisories
      */
-    private function addFundingReadinessFindings(array $readiness, mixed $availableAfterLaunch, array &$findings): void
+    private function addFundingReadinessFindings(array $readiness, mixed $availableAfterLaunch, array &$findings, array &$advisories): void
     {
         $requiredFunding = $readiness['required_additional_funding'] ?? null;
         $sameAsLaunchGap = is_numeric($requiredFunding)
@@ -396,6 +431,19 @@ final class PlanBudgetCoherence
                 continue;
             }
 
+            $evidenceAdvisory = $this->evidenceAdvisory($message);
+            if ($evidenceAdvisory !== null) {
+                $this->addAdvisoryOnce(
+                    $advisories,
+                    $evidenceAdvisory['key'],
+                    'budget_support',
+                    $message,
+                    $evidenceAdvisory['next_action'],
+                );
+
+                continue;
+            }
+
             $this->addFindingOnce(
                 $findings,
                 'budget_support',
@@ -404,6 +452,34 @@ final class PlanBudgetCoherence
                 $this->warningNextAction($message),
             );
         }
+    }
+
+    /**
+     * @return array{key:'fixed_cost_sources'|'revenue_sources',next_action:string}|null
+     */
+    private function evidenceAdvisory(string $warning): ?array
+    {
+        $normalised = strtolower($warning);
+
+        if (str_contains($normalised, 'fixed-cost sources need verification')
+            || str_contains($normalised, 'source and reference for every fixed-cost')
+            || str_contains($normalised, 'source for every fixed cost')) {
+            return [
+                'key' => 'fixed_cost_sources',
+                'next_action' => 'Record a source type, reference and source check in Budget > Monthly fixed costs before external issue. The estimate remains available for this assessment.',
+            ];
+        }
+
+        if (str_contains($normalised, 'revenue sources need verification')
+            || str_contains($normalised, 'pipeline, contract, or pricing source for every revenue')
+            || str_contains($normalised, 'pipeline, contract or pricing source for every revenue')) {
+            return [
+                'key' => 'revenue_sources',
+                'next_action' => 'Record pipeline, contract or pricing evidence in Budget > Revenue forecast before external issue. The estimate remains available for this assessment.',
+            ];
+        }
+
+        return null;
     }
 
     /**
@@ -419,6 +495,27 @@ final class PlanBudgetCoherence
         }
 
         $findings[] = $this->finding($category, $severity, $message, $nextAction);
+    }
+
+    /**
+     * @param  list<Advisory>  $advisories
+     * @param  Advisory['key']  $key
+     * @param  Advisory['category']  $category
+     */
+    private function addAdvisoryOnce(array &$advisories, string $key, string $category, string $message, string $nextAction): void
+    {
+        foreach ($advisories as $advisory) {
+            if ($advisory['key'] === $key) {
+                return;
+            }
+        }
+
+        $advisories[] = [
+            'key' => $key,
+            'category' => $category,
+            'message' => $message,
+            'next_action' => $nextAction,
+        ];
     }
 
     private function warningNeedsEvidence(string $warning): bool

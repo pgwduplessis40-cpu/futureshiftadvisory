@@ -77,4 +77,50 @@ final class PlanBudgetCoherenceTest extends TestCase
             array_column($result['findings'], 'message'),
         );
     }
+
+    public function test_it_keeps_unevidenced_cost_and_revenue_estimates_as_non_blocking_advisories(): void
+    {
+        $result = (new PlanBudgetCoherence)->evaluate([
+            'budget' => [
+                'status' => 'complete',
+                'assessment_evidence' => [
+                    'assumptions' => [
+                        'opening_cash_balance' => 0,
+                    ],
+                    'computed' => [
+                        'input_count' => 0,
+                    ],
+                    'flags' => [
+                        [
+                            'key' => 'fixed_cost_sources_need_verification',
+                            'message' => 'Record the source and reference for every fixed-cost line before external issue: Software subscription.',
+                        ],
+                        [
+                            'key' => 'revenue_sources_need_verification',
+                            'message' => 'Record the pipeline, contract, or pricing source for every revenue line before external issue: Advisory package.',
+                        ],
+                    ],
+                    'funding_readiness' => [
+                        'warnings' => [
+                            'Fixed-cost sources need verification: Record the source and reference for every fixed-cost line before external issue: Software subscription.',
+                            'Verify the source for every fixed cost before external issue: Software subscription.',
+                            'Revenue sources need verification: Record the pipeline, contract, or pricing source for every revenue line before external issue: Advisory package.',
+                            'Verify the pipeline, contract, or pricing source for every revenue line before external issue: Advisory package.',
+                        ],
+                    ],
+                ],
+            ],
+            'phases' => [[
+                'sections' => [[
+                    'requirement_key' => 'financial-assumptions',
+                    'body' => 'Starting cash is $0.',
+                ]],
+            ]],
+        ]);
+
+        $this->assertTrue($result['approval_available']);
+        $this->assertSame('met', $result['status']);
+        $this->assertSame([], $result['findings']);
+        $this->assertSame(['fixed_cost_sources', 'revenue_sources'], array_column($result['advisories'], 'key'));
+    }
 }

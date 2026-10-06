@@ -24,8 +24,9 @@ use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
  * @phpstan-type AssessmentScopePayload array{is_full_reassessment:bool,has_scope_correction:bool,scope_correction_criterion_numbers:list<int>}
  * @phpstan-type AssessmentCriterionPayload array{criterion_number:int,name:string,score:float|int}
  * @phpstan-type PlanBudgetCoherenceFindingPayload array{category:string,severity:string,message:string,next_action:string}
+ * @phpstan-type PlanBudgetCoherenceAdvisoryPayload array{key:string,category:string,message:string,next_action:string}
  * @phpstan-type PlanBudgetCoherenceDirectionPayload array{status:string,status_label:string,summary:string,unresolved_count:int}
- * @phpstan-type PlanBudgetCoherencePayload array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<PlanBudgetCoherenceFindingPayload>,approval_available:bool,approval_message:string,budget_support:PlanBudgetCoherenceDirectionPayload,plan_correlation:PlanBudgetCoherenceDirectionPayload,unresolved_count:int}
+ * @phpstan-type PlanBudgetCoherencePayload array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<PlanBudgetCoherenceFindingPayload>,advisories:list<PlanBudgetCoherenceAdvisoryPayload>,approval_available:bool,approval_message:string,budget_support:PlanBudgetCoherenceDirectionPayload,plan_correlation:PlanBudgetCoherenceDirectionPayload,unresolved_count:int}
  * @phpstan-type LatestAssessmentPayload array{round:int,scoring_scope:AssessmentScopePayload|null,criteria:list<AssessmentCriterionPayload>,plan_budget_coherence:PlanBudgetCoherencePayload|null}
  * @phpstan-type CriterionDeltaPayload array{criterion_number:int,criterion_name:string,previous_score:float|int|null,current_score:int,delta:float|int,direction:string}
  * @phpstan-type LatestRevisionPayload array{id:string,round:int,submitted_at:string|null,trajectory_percent:float|int|null,overall_delta:float|int|null,biggest_improvements:list<mixed>,remaining_gaps:list<CriterionDeltaPayload>,comparison_mode:'evidence_progress'|'full_evidence_reassessment'|'scope_correction',comparison_notice:string|null}
