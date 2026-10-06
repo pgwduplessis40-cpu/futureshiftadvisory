@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/tooltip';
 import { formatNzdCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import { BudgetRowsScrollRegion } from './budget-rows-scroll-region';
 import {
     FixedCostCadenceControl,
     fixedCostQuantityWarning,
@@ -940,19 +941,19 @@ export function BudgetRowsEditor({
                 </div>
             ) : null}
 
-            <div className="space-y-2">
+            <BudgetRowsScrollRegion title={title}>
                 {rows.map((row, index) => (
                     <div
                         key={index}
                         className={cn(
-                            'grid gap-3 md:grid-cols-[minmax(13rem,1.35fr)_minmax(7rem,0.75fr)_minmax(5rem,0.55fr)_minmax(8rem,0.8fr)_auto]',
+                            'grid gap-3 md:min-w-[42rem] md:grid-cols-[minmax(13rem,1.35fr)_minmax(7rem,0.75fr)_minmax(5rem,0.55fr)_minmax(8rem,0.8fr)_auto]',
                             timed &&
                                 !revenue &&
-                                'md:grid-cols-[minmax(13rem,1.35fr)_minmax(7rem,0.75fr)_minmax(5rem,0.55fr)_minmax(5rem,0.55fr)_minmax(8rem,0.8fr)_auto]',
+                                'md:min-w-[50rem] md:grid-cols-[minmax(13rem,1.35fr)_minmax(7rem,0.75fr)_minmax(5rem,0.55fr)_minmax(5rem,0.55fr)_minmax(8rem,0.8fr)_auto]',
                             revenue &&
-                                'xl:grid-cols-[minmax(12rem,1.2fr)_repeat(8,minmax(5rem,0.55fr))_minmax(8rem,0.8fr)_auto]',
+                                'xl:min-w-[72rem] xl:grid-cols-[minmax(12rem,1.2fr)_repeat(8,minmax(5rem,0.55fr))_minmax(8rem,0.8fr)_auto]',
                             fixedCost &&
-                                'xl:grid-cols-[minmax(12rem,1.2fr)_repeat(4,minmax(6rem,0.6fr))_minmax(8rem,0.8fr)_auto]',
+                                'xl:min-w-[56rem] xl:grid-cols-[minmax(12rem,1.2fr)_repeat(4,minmax(6rem,0.6fr))_minmax(8rem,0.8fr)_auto]',
                         )}
                     >
                         <BudgetInput
@@ -1248,7 +1249,7 @@ export function BudgetRowsEditor({
                         </div>
                     </div>
                 ))}
-            </div>
+            </BudgetRowsScrollRegion>
         </section>
     );
 }
