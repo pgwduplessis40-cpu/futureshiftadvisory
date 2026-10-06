@@ -186,13 +186,13 @@ export default function EntrepreneursShow({
         ideaValidation?.refresh_stale;
     const ideaRefreshButtonLabel = ideaRefreshInFlight
         ? ideaValidation?.refresh_status === 'running'
-            ? 'AI review running'
-            : 'AI review queued'
+            ? 'AI analysis refreshing'
+            : 'AI analysis queued'
         : ideaRefreshPending
-          ? 'Queueing'
+          ? 'Queueing analysis'
           : ideaRefreshFailed
-            ? 'Retry AI review'
-            : 'Rerun AI review';
+            ? 'Retry AI analysis'
+            : 'Refresh AI analysis';
     const ideaRefreshFailure = ideaValidation?.refresh_failure ?? '';
     const proposedChangeRequest = ideaValidation?.proposed_change_request ?? '';
     const ideaRefreshProviderTransient =
@@ -200,9 +200,9 @@ export default function EntrepreneursShow({
         /timeout|timed out|overloaded/i.test(ideaRefreshFailure);
     const ideaRefreshFailureMessage = ideaRefreshFailure
         ? ideaRefreshProviderTransient
-            ? `AI review reached Anthropic but did not return a usable result. ${ideaRefreshFailure}. Repeated retries may consume API credit; wait a few minutes before retrying.`
-            : `AI review did not complete. ${ideaRefreshFailure}`
-        : 'AI review did not complete. Retry the AI review or continue manual review with the submitted answers.';
+            ? `AI analysis reached Anthropic but did not return a usable result. ${ideaRefreshFailure}. Repeated retries may consume API credit; wait a few minutes before retrying.`
+            : `AI analysis did not complete. ${ideaRefreshFailure}`
+        : 'AI analysis did not complete. Retry the analysis or continue manual review with the submitted answers.';
 
     const runAssessment = () => {
         const assessUrl = entrepreneur.latest_plan?.assess_url;
@@ -1244,6 +1244,14 @@ export default function EntrepreneursShow({
                                         {ideaRefreshButtonLabel}
                                     </Button>
                                 ) : null}
+                                {ideaValidation?.refresh_completed_at ? (
+                                    <span className="text-xs text-muted-foreground">
+                                        Analysis refreshed{' '}
+                                        {formatDate(
+                                            ideaValidation.refresh_completed_at,
+                                        )}
+                                    </span>
+                                ) : null}
                                 <Badge variant={ideaGateBadgeVariant}>
                                     {ideaGateLabel}
                                 </Badge>
@@ -1297,10 +1305,10 @@ export default function EntrepreneursShow({
                                     <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
                                         <p>
                                             {ideaRefreshInFlight
-                                                ? 'AI review is queued and will update this record when complete.'
+                                                ? 'AI analysis is queued and will update this submission when complete.'
                                                 : ideaRefreshFailed
                                                   ? ideaRefreshFailureMessage
-                                                  : 'AI review is deferred. Use the submitted answers for manual review or rerun AI once the provider is live.'}
+                                                  : 'AI analysis is deferred. Use the submitted answers for manual review or refresh the analysis once the provider is live.'}
                                         </p>
                                         <Button
                                             type="button"

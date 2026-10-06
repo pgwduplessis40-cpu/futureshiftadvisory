@@ -760,21 +760,30 @@ final class AssessmentTest extends TestCase
         $scope = (array) $second->scoring_scope;
         $findings = (array) data_get($scope, 'plan_budget_coherence.findings');
         $findings[] = $findings[0];
+        $findings[] = [
+            'category' => 'budget_support',
+            'severity' => 'review',
+            'message' => 'Verify current records for: forecast_start_month.',
+            'next_action' => 'Update Budget > Financial assumptions with the forecast start month.',
+        ];
         $scope['plan_budget_coherence']['findings'] = $findings;
         $second->forceFill(['scoring_scope' => $scope])->save();
 
         $profile = $plan->entrepreneurProfile()->firstOrFail();
         $reply = app(AssessmentFeedback::class)->proposedReply($profile, $second->refresh());
-        $this->assertStringContainsString('Before we can finish this review', $reply);
-        $this->assertStringContainsString('1. Check the cash and funding plan', $reply);
-        $this->assertStringContainsString('The budget is short by $190,057 after planned launch costs.', $reply);
-        $this->assertStringContainsString('Cash runway means how long the business can pay its bills with the money available.', $reply);
-        $this->assertStringContainsString('The itemised regular costs do not add up to the total used in the budget.', $reply);
-        $this->assertStringContainsString('The plan refers to professional indemnity insurance, but no matching cost appears in the budget.', $reply);
-        $this->assertStringContainsString('Budget > Funding and runway', $reply);
+        $this->assertStringContainsString('You do not need to start again.', $reply);
+        $this->assertStringContainsString('1. Confirm the cash and funding timing', $reply);
+        $this->assertStringContainsString('Go to: Budget > Financial assumptions and Funding sources', $reply);
+        $this->assertStringContainsString('Enter the opening cash, when customers are expected to pay, and when regular bills are paid.', $reply);
+        $this->assertStringContainsString('Add a cost row for each of these plan items: professional indemnity insurance, trademark registration and protection.', $reply);
         $this->assertStringContainsString('Budget > Monthly fixed costs', $reply);
-        $this->assertSame(1, substr_count($reply, 'The budget is short by $190,057 after planned launch costs.'));
+        $this->assertStringContainsString('Set “Forecast start month” to the month that should be Month 1 in your forecast.', $reply);
+        $this->assertStringContainsString('Tick “I have checked Month 1 against the written milestones.”', $reply);
+        $this->assertStringContainsString('Use a reasonable estimate if an exact figure is not available yet.', $reply);
+        $this->assertStringNotContainsString('forecast_start_month', $reply);
+        $this->assertStringNotContainsString('What we found:', $reply);
         $this->assertStringNotContainsString('The three areas below are simply the best places', $reply);
+        $this->assertTrue(app(AssessmentFeedback::class)->isLegacyReply("Dear Tania,\n\nBefore we can finish this review\n\nWhat we found:\n\nWhere to update:"));
 
         $notesBeforeDraftGeneration = $second->refresh()->mentor_notes;
         $this->actingAsMfa($advisor)
