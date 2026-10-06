@@ -205,9 +205,10 @@ final class AssessmentFeedback
         $planBudgetFindings = $this->planBudgetFindings($assessment);
         if ($planBudgetFindings !== []) {
             return $this->changeRequestMessages->build($profile, [
-                'Before we can finish this review, please update the budget items below. You do not need to start again: we need the written plan and the budget to tell the same financial story.',
-                "Please work through these steps:\n\n".$this->formatPlanBudgetFindings($planBudgetFindings),
-                'Once the numbers and explanations match, send the plan back for review. If any of the numbers are unclear, reply before changing them and we can talk them through together.',
+                'You do not need to start again. Please complete the Budget updates below, save your changes, then send the plan back for review.',
+                $this->formatPlanBudgetFindings($planBudgetFindings),
+                'Use a reasonable estimate if an exact figure is not available yet. An invoice or other source is helpful if you have one, but it is not required for this update.',
+                'If anything is unclear, reply before changing it and we can talk it through together.',
             ]);
         }
 
@@ -244,6 +245,9 @@ final class AssessmentFeedback
         $reply = trim($reply);
 
         return str_contains($reply, 'What is missing:')
+            || (str_contains($reply, 'Before we can finish this review')
+                && str_contains($reply, 'What we found:')
+                && str_contains($reply, 'Where to update:'))
             || $this->containsRetiredFounderLanguage($reply);
     }
 
@@ -333,19 +337,16 @@ final class AssessmentFeedback
         return collect($findings)
             ->groupBy(fn (array $finding): string => $this->planBudgetTopic($finding))
             ->map(function ($group, string $topic): string {
-                $details = $group
-                    ->map(fn (array $finding): string => '- '.$this->plainLanguageFinding($finding))
-                    ->unique()
-                    ->values()
-                    ->implode("\n");
+                $action = $this->planBudgetAction($topic, $group->values()->all());
 
                 return implode("\n", [
-                    $this->plainLanguageTopicTitle($topic),
-                    'What we found:',
-                    $details,
-                    'Why this matters: '.$this->plainLanguageWhyItMatters($topic),
-                    'What to do: '.$this->plainLanguageNextStep($topic),
-                    'Where to update: '.$this->plainLanguageLocation($topic),
+                    $action['title'],
+                    'Go to: '.$action['destination'],
+                    'Do this:',
+                    ...collect($action['steps'])
+                        ->map(fn (string $step): string => '- '.$step)
+                        ->all(),
+                    'When done: '.$action['completion'],
                 ]);
             })
             ->values()
@@ -379,87 +380,126 @@ final class AssessmentFeedback
             : 'budget_details';
     }
 
-    private function plainLanguageTopicTitle(string $topic): string
+    /**
+     * @param  list<array{category:string,severity:string,message:string,next_action:string}>  $findings
+     * @return array{title:string,destination:string,steps:list<string>,completion:string}
+     */
+    private function planBudgetAction(string $topic, array $findings): array
     {
-        return match ($topic) {
-            'cash_and_funding' => 'Check the cash and funding plan',
-            'regular_costs' => 'Check the regular business costs',
-            'sales_forecast' => 'Check the sales forecast',
-            'plan_and_budget' => 'Make the written plan and budget agree',
-            default => 'Complete the missing budget details',
+        $action = match ($topic) {
+            'cash_and_funding' => [
+                'title' => 'Confirm the cash and funding timing',
+                'destination' => 'Budget > Financial assumptions and Funding sources',
+                'steps' => [
+                    'Enter the opening cash, when customers are expected to pay, and when regular bills are paid.',
+                    'If more money is needed, add a Funding sources row with the amount, source, and expected date it will be available.',
+                ],
+                'completion' => 'Save the Budget section.',
+            ],
+            'regular_costs' => [
+                'title' => 'Complete the regular business costs',
+                'destination' => 'Budget > Monthly fixed costs',
+                'steps' => [
+                    'For every regular cost, enter its name, amount, and whether it is paid weekly, monthly, or yearly.',
+                ],
+                'completion' => 'Save the monthly fixed-cost list.',
+            ],
+            'sales_forecast' => [
+                'title' => 'Complete the sales forecast',
+                'destination' => 'Budget > Revenue forecast',
+                'steps' => [
+                    'For each revenue line, enter the expected sales, price, payment timing, and the capacity needed to deliver the work.',
+                ],
+                'completion' => 'Save the revenue forecast.',
+            ],
+            'plan_and_budget' => [
+                'title' => 'Make the plan and Budget use the same figures',
+                'destination' => 'Business plan > Financial assumptions, Revenue model, and Funding and support',
+                'steps' => [
+                    'Update the matching plan statement so it uses the same amount and timing as the Budget.',
+                ],
+                'completion' => 'Save the plan section and the Budget.',
+            ],
+            default => [
+                'title' => 'Complete the Budget assumptions',
+                'destination' => 'Budget > Financial assumptions',
+                'steps' => [
+                    'Complete the missing financial assumption using the best information you have today.',
+                ],
+                'completion' => 'Save the Financial assumptions section.',
+            ],
         };
+
+        if ($topic === 'budget_details' && $this->needsForecastStartMonth($findings)) {
+            $action = [
+                'title' => 'Set the forecast start month',
+                'destination' => 'Budget > Financial assumptions',
+                'steps' => [
+                    'Set “Forecast start month” to the month that should be Month 1 in your forecast.',
+                    'Tick “I have checked Month 1 against the written milestones.”',
+                ],
+                'completion' => 'Save the Financial assumptions section.',
+            ];
+        }
+
+        if ($topic === 'regular_costs') {
+            $missingCostRows = $this->missingCostRows($findings);
+            if ($missingCostRows !== []) {
+                $action['steps'][] = 'Add a cost row for each of these plan items: '.implode(', ', $missingCostRows).'.';
+            }
+        }
+
+        if ($this->hasPlanCorrelationFinding($findings) && $topic !== 'plan_and_budget') {
+            $action['steps'][] = 'Update the matching financial-plan statement if it currently uses a different amount or timing.';
+        }
+
+        return $action;
     }
 
-    private function plainLanguageWhyItMatters(string $topic): string
+    /**
+     * @param  list<array{category:string,severity:string,message:string,next_action:string}>  $findings
+     */
+    private function needsForecastStartMonth(array $findings): bool
     {
-        return match ($topic) {
-            'cash_and_funding' => 'Cash runway means how long the business can pay its bills with the money available. We need to see how that period will be funded.',
-            'regular_costs' => 'Every regular cost needs to be included so the total cost of running the business is realistic.',
-            'sales_forecast' => 'The sales forecast needs to match the number of customers you can realistically serve and the cost of delivering the work.',
-            'plan_and_budget' => 'We need the written plan and budget to use the same numbers before we can rely on them.',
-            default => 'We need enough clear information to check that the budget supports the plan.',
-        };
+        return collect($findings)->contains(
+            fn (array $finding): bool => str_contains(strtolower($finding['message']), 'forecast_start_month'),
+        );
     }
 
-    private function plainLanguageNextStep(string $topic): string
+    /**
+     * @param  list<array{category:string,severity:string,message:string,next_action:string}>  $findings
+     * @return list<string>
+     */
+    private function missingCostRows(array $findings): array
     {
-        return match ($topic) {
-            'cash_and_funding' => 'Check the cash you start with, the dates money comes in, and the dates bills are paid. If more money is needed, say where it will come from and when it will arrive.',
-            'regular_costs' => 'Add every regular cost, the amount, and whether it is paid weekly, monthly, or yearly. Make sure the total matches the number used in the financial plan.',
-            'sales_forecast' => 'Check the expected number of sales, the price of each sale, when customers will pay, and the people or contractor time needed to deliver the work.',
-            'plan_and_budget' => 'Update the number in the budget and the matching statement in the financial plan so both say the same thing.',
-            default => 'Add the missing information in the budget, then check it against the matching financial plan section.',
-        };
+        return collect($findings)
+            ->map(function (array $finding): ?string {
+                if (preg_match(
+                    '/^The plan refers to (.+?), but the budget does not name a matching cost row\.$/i',
+                    $finding['message'],
+                    $matches,
+                ) !== 1) {
+                    return null;
+                }
+
+                $cost = trim($matches[1]);
+
+                return $cost === '' ? null : $cost;
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
-    private function plainLanguageLocation(string $topic): string
+    /**
+     * @param  list<array{category:string,severity:string,message:string,next_action:string}>  $findings
+     */
+    private function hasPlanCorrelationFinding(array $findings): bool
     {
-        return match ($topic) {
-            'cash_and_funding' => 'Budget > Funding and runway',
-            'regular_costs' => 'Budget > Monthly fixed costs',
-            'sales_forecast' => 'Budget > Revenue forecast',
-            'plan_and_budget' => 'Financial plan > Financial assumptions, Revenue model, and Funding and support',
-            default => 'Budget > Financial assumptions',
-        };
-    }
-
-    /** @param array{category:string,severity:string,message:string,next_action:string} $finding */
-    private function plainLanguageFinding(array $finding): string
-    {
-        $message = $finding['message'];
-        $normalised = strtolower($message);
-
-        if (str_contains($normalised, '0 months of runway')) {
-            return 'The budget shows no months of cash available to pay business bills.';
-        }
-
-        if (str_contains($normalised, 'funding gap of ')) {
-            return str_replace('The budget has a funding gap of ', 'The budget is short by ', $message);
-        }
-
-        if (str_contains($normalised, 'additional funding to cover the modelled cash trough')) {
-            $plainMessage = preg_replace(
-                '/^The forecast requires (.+?) of additional funding to cover the modelled cash trough and planned operating buffer\.$/',
-                'The budget shows it may need $1 more cash to cover costs and keep a small safety buffer.',
-                $message,
-            );
-
-            return is_string($plainMessage) ? $plainMessage : $message;
-        }
-
-        if (str_contains($normalised, 'fixed-cost trace mismatch')) {
-            return 'The itemised regular costs do not add up to the total used in the budget.';
-        }
-
-        if (str_contains($normalised, 'does not name a matching cost row')) {
-            return str_replace('but the budget does not name a matching cost row.', 'but no matching cost appears in the budget.', $message);
-        }
-
-        if (str_contains($normalised, 'cost cadence')) {
-            return str_replace('cost cadence', 'whether costs are paid weekly, monthly, or yearly', $message);
-        }
-
-        return $message;
+        return collect($findings)->contains(
+            fn (array $finding): bool => $finding['category'] === 'plan_correlation',
+        );
     }
 
     private function movementLine(array $priority): ?string
