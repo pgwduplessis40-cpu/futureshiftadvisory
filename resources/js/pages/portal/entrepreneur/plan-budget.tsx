@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/tooltip';
 import { formatNzdCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import { BudgetRowsScrollRegion } from './budget-rows-scroll-region';
 import {
     FixedCostCadenceControl,
     fixedCostQuantityWarning,
@@ -940,16 +941,7 @@ export function BudgetRowsEditor({
                 </div>
             ) : null}
 
-            <p className="hidden text-xs text-muted-foreground md:block">
-                If these inputs exceed the available width, scroll sideways to
-                reach every field.
-            </p>
-            <div
-                className="space-y-2 overflow-x-auto overscroll-x-contain pb-3"
-                role="region"
-                tabIndex={0}
-                aria-label={`${title} inputs. Scroll horizontally to reach every field.`}
-            >
+            <BudgetRowsScrollRegion title={title}>
                 {rows.map((row, index) => (
                     <div
                         key={index}
@@ -1257,7 +1249,7 @@ export function BudgetRowsEditor({
                         </div>
                     </div>
                 ))}
-            </div>
+            </BudgetRowsScrollRegion>
         </section>
     );
 }
