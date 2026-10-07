@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Entrepreneurs;
 
 use App\Models\PlanAssessment;
-use App\Services\Entrepreneurs\PlanBudgetActionMessage;
 use App\Services\Entrepreneurs\PlanBudgetActionMapper;
+use App\Services\Entrepreneurs\PlanBudgetActionMessage;
 use Tests\TestCase;
 
 final class PlanBudgetActionMessageTest extends TestCase
