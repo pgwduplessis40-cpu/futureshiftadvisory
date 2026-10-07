@@ -123,4 +123,78 @@ final class PlanBudgetCoherenceTest extends TestCase
         $this->assertSame([], $result['findings']);
         $this->assertSame(['fixed_cost_sources', 'revenue_sources'], array_column($result['advisories'], 'key'));
     }
+
+    public function test_it_groups_repeated_diagnostics_into_three_specific_founder_actions(): void
+    {
+        $result = (new PlanBudgetCoherence)->evaluate([
+            'budget' => [
+                'status' => 'complete',
+                'assessment_evidence' => [
+                    'expected_runway_months' => 12,
+                    'monthly_fixed_costs' => [
+                        [
+                            'label' => 'Commercial kitchen or site cost',
+                            'amount' => 850,
+                            'cadence' => 'monthly',
+                            'cadence_confirmed' => false,
+                        ],
+                        [
+                            'label' => 'Insurance',
+                            'amount' => 120,
+                            'cadence' => 'monthly',
+                            'cadence_confirmed' => false,
+                        ],
+                    ],
+                    'computed' => [
+                        'monthly_fixed_costs' => 5_718,
+                        'runway_months' => 5,
+                        'input_count' => 1,
+                    ],
+                    'flags' => [
+                        [
+                            'key' => 'fixed_cost_cadences_need_confirmation',
+                            'message' => 'The model is using a monthly equivalent, but each of these costs still needs its billing cadence confirmed: Commercial kitchen or site cost, Insurance.',
+                        ],
+                        [
+                            'key' => 'cash_timing_needs_verification',
+                            'message' => 'Verify current records for: forecast_start_month.',
+                        ],
+                    ],
+                    'funding_readiness' => [
+                        'required_additional_funding' => 4_686,
+                        'warnings' => [
+                            'Fixed-cost cadences need confirmation: The model is using a monthly equivalent, but each of these costs still needs its billing cadence confirmed: Commercial kitchen or site cost, Insurance.',
+                            'Cash timing needs verification: Verify current records for: forecast_start_month.',
+                            'Runway needs checking: The expected runway is more than 2 months away from the budget calculation. Check the assumptions or explain the difference.',
+                        ],
+                    ],
+                ],
+            ],
+            'phases' => [[
+                'sections' => [[
+                    'requirement_key' => 'financial-assumptions',
+                    'body' => 'Essential operating costs are approximately $600 per month, excluding my own wages of an estimated $3,698 per month. Professional indemnity insurance and trademark registration are required before launch.',
+                ]],
+            ]],
+        ]);
+
+        $this->assertSame(3, $result['unresolved_count']);
+        $this->assertSame(
+            ['regular_costs', 'forecast_calendar', 'funding_and_runway'],
+            array_column($result['actions'], 'key'),
+        );
+        $this->assertSame(
+            'Set the billing cadence for: Commercial kitchen or site cost, Insurance.',
+            $result['actions'][0]['steps'][0],
+        );
+        $this->assertStringContainsString('professional indemnity insurance', $result['actions'][0]['steps'][1]);
+        $this->assertStringContainsString('trademark registration and protection', implode(' ', $result['actions'][0]['steps']));
+        $this->assertStringContainsString('$5,718', implode(' ', $result['actions'][0]['steps']));
+        $this->assertSame(
+            'Set and confirm the forecast start month',
+            $result['actions'][1]['title'],
+        );
+        $this->assertStringContainsString('First save the cost and forecast-date changes above', $result['actions'][2]['steps'][0]);
+        $this->assertCount(11, $result['findings']);
+    }
 }

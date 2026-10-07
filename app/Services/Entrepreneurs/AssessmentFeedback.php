@@ -202,6 +202,16 @@ final class AssessmentFeedback
 
     public function proposedReply(EntrepreneurProfile $profile, PlanAssessment $assessment): string
     {
+        $planBudgetActions = $this->planBudgetActions($assessment);
+        if ($planBudgetActions !== []) {
+            return $this->changeRequestMessages->build($profile, [
+                'You do not need to start again. Please complete the Budget updates below, save your changes, then send the plan back for review.',
+                $this->formatPlanBudgetActions($planBudgetActions),
+                'Use a reasonable estimate if an exact figure is not available yet. An invoice or other source is helpful if you have one, but it is not required for this update.',
+                'If anything is unclear, reply before changing it and we can talk it through together.',
+            ]);
+        }
+
         $planBudgetFindings = $this->planBudgetFindings($assessment);
         if ($planBudgetFindings !== []) {
             return $this->changeRequestMessages->build($profile, [
@@ -226,6 +236,56 @@ final class AssessmentFeedback
             "I have set out what to focus on next:\n\n".$this->formatPriorities($priorities, includeScores: false, includeEvidence: false),
             'When you are ready, send the plan back and we will review the updated sections. Reply first if you would like to talk through any of these points.',
         ]);
+    }
+
+    /**
+     * @return list<array{key:string,severity:string,title:string,destination:string,steps:list<string>,completion:string}>
+     */
+    private function planBudgetActions(PlanAssessment $assessment): array
+    {
+        $coherence = data_get($assessment->scoring_scope, 'plan_budget_coherence');
+        if (! is_array($coherence) || (bool) ($coherence['approval_available'] ?? true)) {
+            return [];
+        }
+
+        $actions = $coherence['actions'] ?? [];
+        if (! is_array($actions)) {
+            return [];
+        }
+
+        $normalised = [];
+        foreach ($actions as $action) {
+            if (! is_array($action)) {
+                continue;
+            }
+
+            $title = trim((string) ($action['title'] ?? ''));
+            $destination = trim((string) ($action['destination'] ?? ''));
+            $completion = trim((string) ($action['completion'] ?? ''));
+            $steps = collect((array) ($action['steps'] ?? []))
+                ->map(fn (mixed $step): string => trim((string) $step))
+                ->filter()
+                ->values()
+                ->all();
+
+            if ($title === '' || $destination === '' || $completion === '' || $steps === []) {
+                continue;
+            }
+
+            $normalised[] = [
+                'key' => trim((string) ($action['key'] ?? $title)),
+                'severity' => trim((string) ($action['severity'] ?? 'review')),
+                'title' => $title,
+                'destination' => $destination,
+                'steps' => $steps,
+                'completion' => $completion,
+            ];
+        }
+
+        return collect($normalised)
+            ->unique(fn (array $action): string => Str::lower($action['key']))
+            ->values()
+            ->all();
     }
 
     public function isLegacyFeedback(string $feedback): bool
@@ -351,6 +411,27 @@ final class AssessmentFeedback
             })
             ->values()
             ->map(fn (string $item, int $index): string => ($index + 1).'. '.$item)
+            ->implode("\n\n");
+    }
+
+    /**
+     * @param  list<array{key:string,severity:string,title:string,destination:string,steps:list<string>,completion:string}>  $actions
+     */
+    private function formatPlanBudgetActions(array $actions): string
+    {
+        return collect($actions)
+            ->values()
+            ->map(function (array $action, int $index): string {
+                return implode("\n", [
+                    ($index + 1).'. '.$action['title'],
+                    'Go to: '.$action['destination'],
+                    'Do this:',
+                    ...collect($action['steps'])
+                        ->map(fn (string $step): string => '- '.$step)
+                        ->all(),
+                    'When done: '.$action['completion'],
+                ]);
+            })
             ->implode("\n\n");
     }
 

@@ -12,8 +12,9 @@ namespace App\Services\Entrepreneurs;
  *
  * @phpstan-type Finding array{category:'budget_support'|'plan_correlation',severity:'missing'|'review',message:string,next_action:string}
  * @phpstan-type Advisory array{key:'fixed_cost_sources'|'revenue_sources',category:'budget_support',message:string,next_action:string}
+ * @phpstan-type Action array{key:'regular_costs'|'forecast_calendar'|'funding_and_runway'|'sales_forecast'|'plan_and_budget'|'budget_setup',severity:'missing'|'review',title:string,destination:string,steps:list<string>,completion:string}
  * @phpstan-type Direction array{status:'met'|'review'|'missing',status_label:string,summary:string,unresolved_count:int}
- * @phpstan-type Reconciliation array{status:'met'|'review'|'missing',status_label:string,score:int,summary:string,evidence:list<string>,findings:list<Finding>,advisories:list<Advisory>,approval_available:bool,approval_message:string,budget_support:Direction,plan_correlation:Direction,unresolved_count:int}
+ * @phpstan-type Reconciliation array{status:'met'|'review'|'missing',status_label:string,score:int,summary:string,evidence:list<string>,findings:list<Finding>,actions:list<Action>,advisories:list<Advisory>,approval_available:bool,approval_message:string,budget_support:Direction,plan_correlation:Direction,unresolved_count:int}
  * @phpstan-type BudgetRow array{label?:string,type?:string,amount?:float|int,quantity?:float|int,monthly_capacity_units?:float|int,cadence?:string}
  * @phpstan-type BudgetFlag array{key?:string,message?:string,title?:string}
  * @phpstan-type BudgetComputed array{available_after_launch?:float|int,monthly_fixed_costs?:float|int,runway_months?:float|int,runway_open_ended?:bool,input_count?:int,break_even_reached?:bool}
@@ -81,6 +82,8 @@ final class PlanBudgetCoherence
         }
 
         $findings = [...$budgetSupportFindings, ...$planCorrelationFindings];
+        /** @var list<Action> $actions */
+        $actions = (new PlanBudgetActionMapper)->map($findings);
         $budgetSupport = $this->direction(
             $budgetSupportFindings,
             'The budget supports the submitted plan assumptions.',
@@ -91,10 +94,10 @@ final class PlanBudgetCoherence
             'The submitted financial plan correlates with the budget mechanics.',
             'The submitted financial plan cannot yet be fully reconciled with the budget.',
         );
-        $unresolvedCount = count($findings);
+        $unresolvedCount = count($actions);
         $missingCount = count(array_filter(
-            $findings,
-            fn (array $finding): bool => $finding['severity'] === 'missing',
+            $actions,
+            fn (array $action): bool => $action['severity'] === 'missing',
         ));
         $score = max(0, 100 - ($missingCount * 30) - (($unresolvedCount - $missingCount) * 20));
         $approvalAvailable = $unresolvedCount === 0;
@@ -110,15 +113,16 @@ final class PlanBudgetCoherence
             'score' => $score,
             'summary' => $approvalAvailable
                 ? 'The budget supports the submitted plan and its financial claims agree with the forecast.'
-                : $unresolvedCount.' plan–budget '.($unresolvedCount === 1 ? 'issue needs' : 'issues need').' resolution before the assessment can be finalised.',
+                : $unresolvedCount.' plan–budget '.($unresolvedCount === 1 ? 'action needs' : 'actions need').' resolution before the assessment can be finalised.',
             'evidence' => [
                 count($financialSections).' submitted financial plan section'.(count($financialSections) === 1 ? ' was' : 's were').' checked.',
                 is_array($budget) ? 'Captured budget cash, cost, revenue and funding evidence was checked.' : 'No captured budget evidence was available.',
                 $approvalAvailable
                     ? 'Budget support and plan correlation are both reconciled.'
-                    : $unresolvedCount.' unresolved plan–budget '.($unresolvedCount === 1 ? 'issue remains.' : 'issues remain.'),
+                    : $unresolvedCount.' unresolved plan–budget '.($unresolvedCount === 1 ? 'action remains.' : 'actions remain.'),
             ],
             'findings' => $findings,
+            'actions' => $actions,
             'advisories' => $advisories,
             'approval_available' => $approvalAvailable,
             'approval_message' => $approvalAvailable
