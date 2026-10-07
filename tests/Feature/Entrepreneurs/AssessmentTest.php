@@ -883,7 +883,7 @@ final class AssessmentTest extends TestCase
             $assessment->refresh(),
         );
 
-        $this->assertStringContainsString('1. Set the forecast start month', $reply);
+        $this->assertStringContainsString('1. Set and confirm the forecast start month', $reply);
         $this->assertStringContainsString('Tick “I have checked Month 1 against the written milestones.”', $reply);
     }
 

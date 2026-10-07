@@ -6,6 +6,7 @@ namespace Tests\Unit\Entrepreneurs;
 
 use App\Models\PlanAssessment;
 use App\Services\Entrepreneurs\PlanBudgetActionMessage;
+use App\Services\Entrepreneurs\PlanBudgetActionMapper;
 use Tests\TestCase;
 
 final class PlanBudgetActionMessageTest extends TestCase
@@ -45,7 +46,7 @@ final class PlanBudgetActionMessageTest extends TestCase
             ],
         ];
 
-        $messages = new PlanBudgetActionMessage;
+        $messages = new PlanBudgetActionMessage(new PlanBudgetActionMapper);
         $actions = $messages->actions($assessment);
         $message = $messages->format($actions);
 
@@ -60,7 +61,7 @@ final class PlanBudgetActionMessageTest extends TestCase
 
     public function test_it_returns_no_actions_when_the_assessment_is_approved_or_its_payload_is_not_actionable(): void
     {
-        $messages = new PlanBudgetActionMessage;
+        $messages = new PlanBudgetActionMessage(new PlanBudgetActionMapper);
 
         $noCoherence = new PlanAssessment;
         $noCoherence->scoring_scope = [];
@@ -83,5 +84,29 @@ final class PlanBudgetActionMessageTest extends TestCase
             ],
         ];
         $this->assertSame([], $messages->actions($invalidActions));
+    }
+
+    public function test_it_maps_saved_legacy_findings_when_the_canonical_actions_are_unavailable(): void
+    {
+        $assessment = new PlanAssessment;
+        $assessment->scoring_scope = [
+            'plan_budget_coherence' => [
+                'approval_available' => false,
+                'actions' => 'invalid action payload',
+                'findings' => [
+                    ['category' => 'budget_support', 'severity' => 'review', 'message' => 'Verify current records for: forecast_start_month.', 'next_action' => 'Set the forecast month.'],
+                    ['category' => 'budget_support', 'severity' => 'review', 'message' => 'Verify current records for: forecast_start_month.', 'next_action' => 'Set the forecast month.'],
+                    ['category' => 'other', 'severity' => 'review', 'message' => 'Ignore this unsupported finding.', 'next_action' => 'Ignore it.'],
+                    'not-a-finding',
+                ],
+            ],
+        ];
+
+        $messages = new PlanBudgetActionMessage(new PlanBudgetActionMapper);
+        $actions = $messages->actions($assessment);
+
+        $this->assertSame(['forecast_calendar'], array_column($actions, 'key'));
+        $this->assertSame('Set and confirm the forecast start month', $actions[0]['title']);
+        $this->assertStringContainsString('Tick “I have checked Month 1', implode(' ', $actions[0]['steps']));
     }
 }
