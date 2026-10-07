@@ -91,7 +91,7 @@ final class PlanBudgetActionMessage
      * saved diagnostics through the same mapper, so current and historical
      * reviews produce one consistent set of founder instructions.
      *
-     * @param  array<string, mixed>  $coherence
+     * @param  array{approval_available?:bool,actions?:array<int, mixed>|string,findings?:array<int, mixed>|string}  $coherence
      * @return list<array{category:'budget_support'|'plan_correlation',severity:'missing'|'review',message:string,next_action:string}>
      */
     private function legacyFindings(array $coherence): array
