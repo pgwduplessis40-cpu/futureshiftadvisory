@@ -808,6 +808,85 @@ final class AssessmentTest extends TestCase
         app(Assessment::class)->finalise($second, $advisor);
     }
 
+    public function test_assessment_feedback_normalises_action_payloads_before_sending_them_to_the_founder(): void
+    {
+        [$advisor, $plan] = $this->plan('plan-budget-action-payload-founder@example.test');
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $assessment->forceFill([
+            'scoring_scope' => [
+                'plan_budget_coherence' => [
+                    'approval_available' => false,
+                    'actions' => [
+                        'not-an-action',
+                        [
+                            'key' => 'forecast_calendar',
+                            'severity' => 'review',
+                            'title' => 'Set the forecast start month',
+                            'destination' => 'Budget > Financial assumptions',
+                            'steps' => ['Choose the first forecast month.', '', 12],
+                            'completion' => 'Save the financial assumptions.',
+                        ],
+                        [
+                            'key' => 'FORECAST_CALENDAR',
+                            'severity' => 'review',
+                            'title' => 'Duplicate action',
+                            'destination' => 'Budget > Financial assumptions',
+                            'steps' => ['This action must be removed as a duplicate.'],
+                            'completion' => 'Save the financial assumptions.',
+                        ],
+                        [
+                            'key' => 'incomplete',
+                            'title' => '',
+                            'destination' => 'Budget > Financial assumptions',
+                            'steps' => ['This action is incomplete.'],
+                            'completion' => 'Save the financial assumptions.',
+                        ],
+                    ],
+                    'findings' => [],
+                ],
+            ],
+        ])->save();
+
+        $reply = app(AssessmentFeedback::class)->proposedReply(
+            $plan->entrepreneurProfile()->firstOrFail(),
+            $assessment->refresh(),
+        );
+
+        $this->assertStringContainsString('1. Set the forecast start month', $reply);
+        $this->assertStringContainsString('- Choose the first forecast month.', $reply);
+        $this->assertStringContainsString('- 12', $reply);
+        $this->assertStringNotContainsString('Duplicate action', $reply);
+        $this->assertStringNotContainsString('This action is incomplete.', $reply);
+    }
+
+    public function test_assessment_feedback_falls_back_to_saved_findings_when_actions_are_not_available(): void
+    {
+        [$advisor, $plan] = $this->plan('plan-budget-fallback-feedback-founder@example.test');
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $assessment->forceFill([
+            'scoring_scope' => [
+                'plan_budget_coherence' => [
+                    'approval_available' => false,
+                    'actions' => 'invalid action payload',
+                    'findings' => [[
+                        'category' => 'budget_support',
+                        'severity' => 'review',
+                        'message' => 'Verify current records for: forecast_start_month.',
+                        'next_action' => 'Update Budget > Financial assumptions with the forecast start month.',
+                    ]],
+                ],
+            ],
+        ])->save();
+
+        $reply = app(AssessmentFeedback::class)->proposedReply(
+            $plan->entrepreneurProfile()->firstOrFail(),
+            $assessment->refresh(),
+        );
+
+        $this->assertStringContainsString('1. Set the forecast start month', $reply);
+        $this->assertStringContainsString('Tick “I have checked Month 1 against the written milestones.”', $reply);
+    }
+
     public function test_historical_fallback_scores_are_unavailable_and_do_not_affect_score_movement(): void
     {
         $this->app->instance(AiClient::class, new StructuredScoreAiClient(50));
