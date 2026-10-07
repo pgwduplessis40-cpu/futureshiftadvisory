@@ -11,9 +11,10 @@ use App\Services\Entrepreneurs\AssessmentScoring;
 
 /**
  * @phpstan-type PlanBudgetCoherenceFindingPayload array{category:string,severity:string,message:string,next_action:string}
+ * @phpstan-type PlanBudgetCoherenceActionPayload array{key:string,severity:string,title:string,destination:string,steps:list<string>,completion:string}
  * @phpstan-type PlanBudgetCoherenceAdvisoryPayload array{key:string,category:string,message:string,next_action:string}
  * @phpstan-type PlanBudgetCoherenceDirectionPayload array{status:string,status_label:string,summary:string,unresolved_count:int}
- * @phpstan-type PlanBudgetCoherencePayload array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<PlanBudgetCoherenceFindingPayload>,advisories:list<PlanBudgetCoherenceAdvisoryPayload>,approval_available:bool,approval_message:string,budget_support:PlanBudgetCoherenceDirectionPayload,plan_correlation:PlanBudgetCoherenceDirectionPayload,unresolved_count:int}
+ * @phpstan-type PlanBudgetCoherencePayload array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<PlanBudgetCoherenceFindingPayload>,actions:list<PlanBudgetCoherenceActionPayload>,advisories:list<PlanBudgetCoherenceAdvisoryPayload>,approval_available:bool,approval_message:string,budget_support:PlanBudgetCoherenceDirectionPayload,plan_correlation:PlanBudgetCoherenceDirectionPayload,unresolved_count:int}
  * @phpstan-type ScoringScope array{version?:string,rescored_criterion_numbers?:list<int|numeric-string>,reused_criterion_numbers?:list<int|numeric-string>,scope_correction_criterion_numbers?:list<int|numeric-string>,advisor_review?:array{required?:bool,confirmed_at?:string|null,confirmed_by_user_id?:int|null},cross_plan_review?:array{required?:bool,trigger?:string|null,message?:string|null},plan_budget_coherence?:PlanBudgetCoherencePayload}
  * @phpstan-type ScoringScopePayload array{rescored_criterion_numbers:list<int>,reused_criterion_numbers:list<int>,scope_correction_criterion_numbers:list<int>,is_full_reassessment:bool,has_scope_correction:bool,is_scope_correction_only:bool,advisor_review_required:bool,advisor_review_confirmed_at:string|null,cross_plan_review_required:bool,cross_plan_review_message:string|null}
  * @phpstan-type AssessmentCriterionPayload array{criterion_number:int,name:string,score:float|int}
@@ -396,6 +397,32 @@ trait BuildsEntrepreneurAssessmentPayload
             ->filter(fn (array $finding): bool => $finding['message'] !== '')
             ->values()
             ->all();
+        $actions = collect((array) ($coherence['actions'] ?? []))
+            ->filter(fn (mixed $action): bool => is_array($action))
+            ->map(function (array $action): array {
+                $steps = collect((array) ($action['steps'] ?? []))
+                    ->filter(fn (mixed $step): bool => is_string($step) && trim($step) !== '')
+                    ->map(fn (string $step): string => trim($step))
+                    ->values()
+                    ->all();
+
+                return [
+                    'key' => trim((string) ($action['key'] ?? '')),
+                    'severity' => (string) ($action['severity'] ?? 'review'),
+                    'title' => trim((string) ($action['title'] ?? '')),
+                    'destination' => trim((string) ($action['destination'] ?? '')),
+                    'steps' => $steps,
+                    'completion' => trim((string) ($action['completion'] ?? '')),
+                ];
+            })
+            ->filter(fn (array $action): bool => $action['key'] !== ''
+                && $action['title'] !== ''
+                && $action['destination'] !== ''
+                && $action['steps'] !== []
+                && $action['completion'] !== '')
+            ->unique('key')
+            ->values()
+            ->all();
         $advisories = collect((array) ($coherence['advisories'] ?? []))
             ->filter(fn (mixed $advisory): bool => is_array($advisory))
             ->map(fn (array $advisory): array => [
@@ -424,12 +451,13 @@ trait BuildsEntrepreneurAssessmentPayload
                 ->values()
                 ->all(),
             'findings' => $findings,
+            'actions' => $actions,
             'advisories' => $advisories,
             'approval_available' => (bool) ($coherence['approval_available'] ?? false),
             'approval_message' => (string) ($coherence['approval_message'] ?? 'Resolve the plan–budget coherence findings before finalising.'),
             'budget_support' => $direction($coherence['budget_support'] ?? null),
             'plan_correlation' => $direction($coherence['plan_correlation'] ?? null),
-            'unresolved_count' => (int) ($coherence['unresolved_count'] ?? count($findings)),
+            'unresolved_count' => (int) ($coherence['unresolved_count'] ?? count($actions !== [] ? $actions : $findings)),
         ];
     }
 }
