@@ -71,6 +71,8 @@ use App\Services\Entrepreneurs\IdeaValidationRegistrationConflict;
 use App\Services\Entrepreneurs\IdeaViabilityGate;
 use App\Services\Entrepreneurs\LivingPlan;
 use App\Services\Entrepreneurs\PlanAiContext;
+use App\Services\Entrepreneurs\PlanBudgetActionMapper;
+use App\Services\Entrepreneurs\PlanBudgetActionMessage;
 use App\Services\Entrepreneurs\PlanBudgetCoherence;
 use App\Services\Entrepreneurs\PlanDocuments;
 use App\Services\Entrepreneurs\PlanIssueReadiness;
@@ -209,6 +211,8 @@ final class MethodologyDriftGuardTest extends TestCase
         IdeaViabilityGate::class => 'Advisor approval gate over the IdeaValidationService methodology, not a separate methodology.',
         LivingPlan::class => 'Plan section workflow.',
         PlanAiContext::class => 'AI drafting-context assembler, not a calculation method.',
+        PlanBudgetActionMapper::class => 'Groups existing plan-budget diagnostics into founder actions; the assessment and budget services own the underlying methodologies.',
+        PlanBudgetActionMessage::class => 'Formats the canonical plan-budget action payload for the founder change request; it does not calculate a methodology.',
         PlanBudgetCoherence::class => 'Assessment evidence reconciliation helper; the assessment methodology is owned by Assessment.',
         \App\Services\Entrepreneurs\PlanBuilder::class => 'Plan scaffolding workflow.',
         PlanDocuments::class => 'Document verification helper.',

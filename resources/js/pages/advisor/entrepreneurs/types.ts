@@ -19,6 +19,14 @@ export type PlanBudgetCoherence = {
         message: string;
         next_action: string;
     }[];
+    actions: {
+        key: string;
+        severity: 'missing' | 'review' | string;
+        title: string;
+        destination: string;
+        steps: string[];
+        completion: string;
+    }[];
     advisories: {
         key: string;
         category: 'budget_support' | string;

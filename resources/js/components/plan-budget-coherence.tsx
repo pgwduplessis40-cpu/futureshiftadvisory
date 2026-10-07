@@ -17,6 +17,14 @@ export type PlanBudgetCoherenceSummary = {
         message: string;
         next_action: string;
     }[];
+    actions?: {
+        key: string;
+        severity: 'missing' | 'review' | string;
+        title: string;
+        destination: string;
+        steps: string[];
+        completion: string;
+    }[];
     advisories?: {
         key: string;
         category: string;
@@ -38,6 +46,7 @@ export function PlanBudgetCoherencePanel({
 }: Props) {
     const Heading = heading;
     const advisories = coherence?.advisories ?? [];
+    const actions = coherence?.actions ?? [];
 
     if (coherence === null) {
         return (
@@ -121,7 +130,26 @@ export function PlanBudgetCoherencePanel({
                 </div>
             </div>
 
-            {coherence.findings.length > 0 ? (
+            {actions.length > 0 ? (
+                <ul className="space-y-3 border-t pt-3">
+                    {actions.map((action) => (
+                        <li key={action.key} className="space-y-2">
+                            <p className="font-medium">{action.title}</p>
+                            <p className="text-muted-foreground">
+                                Go to: {action.destination}
+                            </p>
+                            <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+                                {action.steps.map((step) => (
+                                    <li key={step}>{step}</li>
+                                ))}
+                            </ul>
+                            <p className="text-muted-foreground">
+                                When done: {action.completion}
+                            </p>
+                        </li>
+                    ))}
+                </ul>
+            ) : coherence.findings.length > 0 ? (
                 <ul className="space-y-3 border-t pt-3">
                     {coherence.findings.map((finding, index) => (
                         <li

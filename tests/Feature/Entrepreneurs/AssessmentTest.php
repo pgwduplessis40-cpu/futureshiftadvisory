@@ -772,13 +772,13 @@ final class AssessmentTest extends TestCase
         $profile = $plan->entrepreneurProfile()->firstOrFail();
         $reply = app(AssessmentFeedback::class)->proposedReply($profile, $second->refresh());
         $this->assertStringContainsString('You do not need to start again.', $reply);
-        $this->assertStringContainsString('1. Confirm the cash and funding timing', $reply);
-        $this->assertStringContainsString('Go to: Budget > Financial assumptions and Funding sources', $reply);
-        $this->assertStringContainsString('Enter the opening cash, when customers are expected to pay, and when regular bills are paid.', $reply);
-        $this->assertStringContainsString('Add a cost row for each of these plan items: professional indemnity insurance, trademark registration and protection.', $reply);
-        $this->assertStringContainsString('Budget > Monthly fixed costs', $reply);
-        $this->assertStringContainsString('Set “Forecast start month” to the month that should be Month 1 in your forecast.', $reply);
-        $this->assertStringContainsString('Tick “I have checked Month 1 against the written milestones.”', $reply);
+        $this->assertStringContainsString('1. Reconcile the regular business costs', $reply);
+        $this->assertStringContainsString('Go to: Budget > Monthly fixed costs, then Business plan > Financial assumptions', $reply);
+        $this->assertStringContainsString('Add a cost row for: professional indemnity insurance, trademark registration and protection.', $reply);
+        $this->assertStringContainsString('The plan states monthly operating costs of $600, but the budget uses $51,573 of monthly fixed costs.', $reply);
+        $this->assertStringContainsString('2. Confirm the sales forecast assumptions', $reply);
+        $this->assertStringContainsString('3. Recheck funding and runway after the Budget corrections', $reply);
+        $this->assertStringContainsString('Current result: The budget has a funding gap of $190,057 after planned launch costs.', $reply);
         $this->assertStringContainsString('Use a reasonable estimate if an exact figure is not available yet.', $reply);
         $this->assertStringNotContainsString('forecast_start_month', $reply);
         $this->assertStringNotContainsString('What we found:', $reply);
@@ -806,6 +806,85 @@ final class AssessmentTest extends TestCase
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('Resolve the plan–budget findings before finalising');
         app(Assessment::class)->finalise($second, $advisor);
+    }
+
+    public function test_assessment_feedback_normalises_action_payloads_before_sending_them_to_the_founder(): void
+    {
+        [$advisor, $plan] = $this->plan('plan-budget-action-payload-founder@example.test');
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $assessment->forceFill([
+            'scoring_scope' => [
+                'plan_budget_coherence' => [
+                    'approval_available' => false,
+                    'actions' => [
+                        'not-an-action',
+                        [
+                            'key' => 'forecast_calendar',
+                            'severity' => 'review',
+                            'title' => 'Set the forecast start month',
+                            'destination' => 'Budget > Financial assumptions',
+                            'steps' => ['Choose the first forecast month.', '', 12],
+                            'completion' => 'Save the financial assumptions.',
+                        ],
+                        [
+                            'key' => 'FORECAST_CALENDAR',
+                            'severity' => 'review',
+                            'title' => 'Duplicate action',
+                            'destination' => 'Budget > Financial assumptions',
+                            'steps' => ['This action must be removed as a duplicate.'],
+                            'completion' => 'Save the financial assumptions.',
+                        ],
+                        [
+                            'key' => 'incomplete',
+                            'title' => '',
+                            'destination' => 'Budget > Financial assumptions',
+                            'steps' => ['This action is incomplete.'],
+                            'completion' => 'Save the financial assumptions.',
+                        ],
+                    ],
+                    'findings' => [],
+                ],
+            ],
+        ])->save();
+
+        $reply = app(AssessmentFeedback::class)->proposedReply(
+            $plan->entrepreneurProfile()->firstOrFail(),
+            $assessment->refresh(),
+        );
+
+        $this->assertStringContainsString('1. Set the forecast start month', $reply);
+        $this->assertStringContainsString('- Choose the first forecast month.', $reply);
+        $this->assertStringContainsString('- 12', $reply);
+        $this->assertStringNotContainsString('Duplicate action', $reply);
+        $this->assertStringNotContainsString('This action is incomplete.', $reply);
+    }
+
+    public function test_assessment_feedback_falls_back_to_saved_findings_when_actions_are_not_available(): void
+    {
+        [$advisor, $plan] = $this->plan('plan-budget-fallback-feedback-founder@example.test');
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $assessment->forceFill([
+            'scoring_scope' => [
+                'plan_budget_coherence' => [
+                    'approval_available' => false,
+                    'actions' => 'invalid action payload',
+                    'findings' => [[
+                        'category' => 'budget_support',
+                        'severity' => 'review',
+                        'message' => 'Verify current records for: forecast_start_month.',
+                        'next_action' => 'Update Budget > Financial assumptions with the forecast start month.',
+                    ]],
+                ],
+            ],
+        ])->save();
+
+        $reply = app(AssessmentFeedback::class)->proposedReply(
+            $plan->entrepreneurProfile()->firstOrFail(),
+            $assessment->refresh(),
+        );
+
+        $this->assertStringContainsString('1. Set and confirm the forecast start month', $reply);
+        $this->assertStringContainsString('Tick “I have checked Month 1 against the written milestones.”', $reply);
     }
 
     public function test_historical_fallback_scores_are_unavailable_and_do_not_affect_score_movement(): void
