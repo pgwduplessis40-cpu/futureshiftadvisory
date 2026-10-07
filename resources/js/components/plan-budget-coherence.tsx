@@ -17,7 +17,7 @@ export type PlanBudgetCoherenceSummary = {
         message: string;
         next_action: string;
     }[];
-    actions?: {
+    actions: {
         key: string;
         severity: 'missing' | 'review' | string;
         title: string;

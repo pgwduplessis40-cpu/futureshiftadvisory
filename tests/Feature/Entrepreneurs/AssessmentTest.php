@@ -801,6 +801,10 @@ final class AssessmentTest extends TestCase
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.approval_available', false)
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.budget_support.status', 'missing')
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.plan_correlation.status', 'review')
+                ->has('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions', 3)
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.key', 'regular_costs')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.1.key', 'sales_forecast')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.2.key', 'funding_and_runway')
             );
 
         $this->expectException(ValidationException::class);
