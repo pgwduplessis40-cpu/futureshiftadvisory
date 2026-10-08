@@ -310,8 +310,8 @@ final class EntrepreneurBudgetService
         if ($unconfirmedCadences !== []) {
             $flags[] = $this->flag(
                 'fixed_cost_cadences_need_confirmation',
-                'Fixed-cost cadences need confirmation',
-                'The model is using a monthly equivalent, but each of these costs still needs its billing cadence confirmed: '.implode(', ', $unconfirmedCadences).'.',
+                'Payment frequency needs checking',
+                'The forecast uses a monthly equivalent, but the payment frequency for these Budget costs has not been checked: '.implode(', ', $unconfirmedCadences).'.',
                 'high',
                 $existingByKey->get('fixed_cost_cadences_need_confirmation'),
             );

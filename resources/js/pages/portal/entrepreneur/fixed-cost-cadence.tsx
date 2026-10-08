@@ -15,7 +15,7 @@ export function FixedCostCadenceControl({
 }: FixedCostCadenceControlProps) {
     return (
         <label className="grid gap-1 text-xs">
-            <span className="text-muted-foreground">Billing cadence</span>
+            <span className="text-muted-foreground">Payment frequency</span>
             <select
                 value={cadence ?? 'monthly'}
                 onChange={(event) =>
@@ -36,13 +36,13 @@ export function FixedCostCadenceControl({
                 <input
                     type="checkbox"
                     name="cadence_confirmed"
-                    aria-label="Confirm billing cadence"
+                    aria-label="Confirm payment frequency"
                     checked={confirmed}
                     onChange={(event) =>
                         onChange({ cadence_confirmed: event.target.checked })
                     }
                 />
-                Cadence checked
+                I have checked how often this cost is paid
             </span>
         </label>
     );

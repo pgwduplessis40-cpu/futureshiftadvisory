@@ -114,9 +114,9 @@ final class BudgetPackBuilderTest extends TestCase
         $this->assertStringContainsString('Signed delivery agreement', $html);
         $this->assertStringContainsString('Not applicable (self-funded)', $html);
         $this->assertStringContainsString('Self-funded position', $html);
-        $this->assertStringContainsString('Each row separately shows the saved rate, number of billed units, billing cadence, and monthly equivalent used by the model.', $html);
-        $this->assertStringContainsString('<th>Rate</th><th>Units</th><th>Cadence</th>', $html);
-        $this->assertStringContainsString('Confirm the saved billing cadence before external issue.', $html);
+        $this->assertStringContainsString('Each row separately shows the saved rate, number of billed units, payment frequency, and monthly equivalent used by the model.', $html);
+        $this->assertStringContainsString('<th>Rate</th><th>Units</th><th>Payment frequency</th>', $html);
+        $this->assertStringContainsString('Check how often this cost is paid before external issue.', $html);
         $this->assertStringContainsString('Year 2 revenue bridge', $html);
         $this->assertStringContainsString('Month 13 carries forward the Year 1 exit run-rate.', $html);
         $this->assertStringContainsString('Later-year cost trace', $html);
@@ -171,7 +171,7 @@ final class BudgetPackBuilderTest extends TestCase
         $html = app(BudgetPackBuilder::class)->html($profile, $plan);
 
         $this->assertStringContainsString('Fixed-cost reconciliation warning', $html);
-        $this->assertStringContainsString('Add the missing rows or correct a cost cadence', $html);
+        $this->assertStringContainsString('Add the missing rows or correct a payment frequency', $html);
         $this->assertStringContainsString('Owner compensation', $html);
         $this->assertStringContainsString('<td>$875</td><td>52.00</td><td>Weekly</td>', $html);
     }

@@ -95,15 +95,15 @@ export function FixedCostCalculationAudit({
                     </h3>
                     <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
                         These are the live stored rate, number of parallel
-                        units, billing cadence, and monthly equivalent used by
-                        the funding calculation. A cadence-period count in Qty
+                        units, payment frequency, and monthly equivalent used by
+                        the funding calculation. A payment-period count in Qty
                         would convert the same period twice.
                     </p>
                 </div>
                 <Badge
                     variant={duplicateCount > 0 ? 'destructive' : 'secondary'}
                 >
-                    {duplicateCount} duplicate cadence count
+                    {duplicateCount} duplicate payment count
                     {duplicateCount === 1 ? '' : 's'}
                 </Badge>
                 {duplicateCount > 1 && repairAllUrl ? (
@@ -128,7 +128,9 @@ export function FixedCostCalculationAudit({
                                 Stored rate
                             </th>
                             <th className="px-3 py-2 font-medium">Qty</th>
-                            <th className="px-3 py-2 font-medium">Cadence</th>
+                            <th className="px-3 py-2 font-medium">
+                                Payment frequency
+                            </th>
                             <th className="px-3 py-2 font-medium">
                                 Stored model output
                             </th>
@@ -152,7 +154,7 @@ export function FixedCostCalculationAudit({
                                     {row.duplicate_cadence_quantity ? (
                                         <span className="mt-1 block text-xs font-normal text-destructive">
                                             Qty matches the number of{' '}
-                                            {row.cadence} billing periods in a
+                                            {row.cadence} payment periods in a
                                             year.
                                         </span>
                                     ) : null}
