@@ -72,7 +72,7 @@ final class BudgetFundingReadinessTest extends TestCase
         $warnings = implode("\n", $decision['warnings']);
 
         $this->assertFalse($decision['external_issue_ready']);
-        $this->assertStringContainsString('billing cadence', $warnings);
+        $this->assertStringContainsString('how often each fixed cost is paid', $warnings);
         $this->assertStringContainsString('duplicate billing periods', $warnings);
         $this->assertStringContainsString('monthly or annual', $warnings);
         $this->assertStringContainsString('monthly capacity', $warnings);

@@ -63,6 +63,7 @@ final class PlanBudgetActionMapper
         if (str_contains($text, 'fixed cost')
             || str_contains($text, 'operating cost')
             || str_contains($text, 'recurring cost')
+            || str_contains($text, 'payment frequency')
             || str_contains($text, 'cadence')
             || str_contains($text, 'insurance')
             || str_contains($text, 'trademark')
@@ -139,13 +140,13 @@ final class PlanBudgetActionMapper
     private function regularCostsAction(array $messages): array
     {
         $steps = [];
-        $cadenceRows = $this->cadenceRows($messages);
-        if ($cadenceRows !== []) {
-            $steps[] = 'Set the billing cadence for: '.implode(', ', $cadenceRows).'.';
+        $paymentFrequencyRows = $this->paymentFrequencyRows($messages);
+        if ($paymentFrequencyRows !== []) {
+            $steps[] = 'Check how often these existing Budget costs are paid: '.implode(', ', $paymentFrequencyRows).'. If the saved frequency is your best estimate, mark it as checked; an invoice is helpful but not required.';
         }
 
         $missingCosts = $this->missingCostRows($messages);
-        $genericInsurance = collect($cadenceRows)->contains(
+        $genericInsurance = collect($paymentFrequencyRows)->contains(
             fn (string $row): bool => strtolower(trim($row)) === 'insurance',
         );
         if (in_array('professional indemnity insurance', $missingCosts, true) && $genericInsurance) {
@@ -160,11 +161,11 @@ final class PlanBudgetActionMapper
         $costMismatch = collect($messages)
             ->first(fn (string $message): bool => str_contains(strtolower($message), 'monthly operating costs'));
         if (is_string($costMismatch)) {
-            $steps[] = 'Make the plan and Budget use the same monthly cost total. The assessment currently shows: '.$costMismatch;
+            $steps[] = 'Make the written plan and the Budget use the same total monthly regular cost. The assessment currently shows: '.$costMismatch;
         }
 
         if ($steps === []) {
-            $steps[] = 'Review the regular cost rows identified in this assessment and correct the cost amount or cadence that is not yet aligned.';
+            $steps[] = 'Review the regular cost rows identified in this assessment and correct the cost amount or payment frequency that is not yet aligned.';
         }
 
         return [
@@ -261,7 +262,7 @@ final class PlanBudgetActionMapper
             'title' => 'Make the plan and Budget use the same figures',
             'destination' => 'Business plan > Financial assumptions, Revenue model, and Funding and support',
             'steps' => [
-                'Update the matching plan statement and Budget row so both use the same amount, timing, and cadence.',
+                'Update the matching plan statement and Budget row so both use the same amount, timing, and payment frequency.',
                 ...$this->assessmentDetailSteps($messages),
             ],
             'completion' => 'Save the plan section and the Budget.',
@@ -301,11 +302,11 @@ final class PlanBudgetActionMapper
      * @param  list<string>  $messages
      * @return list<string>
      */
-    private function cadenceRows(array $messages): array
+    private function paymentFrequencyRows(array $messages): array
     {
         $rows = [];
         foreach ($messages as $message) {
-            if (preg_match('/billing cadence[^:]*:\s*(.+?)\.$/i', $message, $matches) !== 1) {
+            if (preg_match('/(?:billing cadence|payment frequency)[^:]*:\s*(.+?)\.$/i', $message, $matches) !== 1) {
                 continue;
             }
 

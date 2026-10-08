@@ -737,7 +737,7 @@ final class AssessmentTest extends TestCase
             array_column((array) data_get($coherence, 'findings'), 'message'),
         );
         $this->assertContains(
-            'The plan states monthly operating costs of $600, but the budget uses $51,573 of monthly fixed costs.',
+            'The plan states monthly operating costs of $600, while the Budget totals $51,573 per month. The Budget total is the sum of every saved regular-cost row after weekly, fortnightly, quarterly and yearly values are converted to monthly amounts; it is $50,973 more than the plan.',
             array_column((array) data_get($coherence, 'findings'), 'message'),
         );
         $this->assertContains(
@@ -775,7 +775,7 @@ final class AssessmentTest extends TestCase
         $this->assertStringContainsString('1. Reconcile the regular business costs', $reply);
         $this->assertStringContainsString('Go to: Budget > Monthly fixed costs, then Business plan > Financial assumptions', $reply);
         $this->assertStringContainsString('Add a cost row for: professional indemnity insurance, trademark registration and protection.', $reply);
-        $this->assertStringContainsString('The plan states monthly operating costs of $600, but the budget uses $51,573 of monthly fixed costs.', $reply);
+        $this->assertStringContainsString('The plan states monthly operating costs of $600, while the Budget totals $51,573 per month.', $reply);
         $this->assertStringContainsString('2. Confirm the sales forecast assumptions', $reply);
         $this->assertStringContainsString('3. Recheck funding and runway after the Budget corrections', $reply);
         $this->assertStringContainsString('Current result: The budget has a funding gap of $190,057 after planned launch costs.', $reply);

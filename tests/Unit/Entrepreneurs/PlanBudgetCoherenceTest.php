@@ -124,6 +124,41 @@ final class PlanBudgetCoherenceTest extends TestCase
         $this->assertSame(['fixed_cost_sources', 'revenue_sources'], array_column($result['advisories'], 'key'));
     }
 
+    public function test_it_keeps_an_unchecked_payment_frequency_as_a_non_blocking_advisory(): void
+    {
+        $result = (new PlanBudgetCoherence)->evaluate([
+            'budget' => [
+                'status' => 'complete',
+                'assessment_evidence' => [
+                    'computed' => [
+                        'input_count' => 0,
+                    ],
+                    'flags' => [[
+                        'key' => 'fixed_cost_cadences_need_confirmation',
+                        'message' => 'The forecast uses a monthly equivalent, but the payment frequency for these Budget costs has not been checked: Commercial kitchen or site cost.',
+                    ]],
+                    'funding_readiness' => [
+                        'warnings' => [
+                            'Check how often each fixed cost is paid before external issue: Commercial kitchen or site cost.',
+                        ],
+                    ],
+                ],
+            ],
+            'phases' => [[
+                'sections' => [[
+                    'requirement_key' => 'financial-assumptions',
+                    'body' => 'Starting cash is $0.',
+                ]],
+            ]],
+        ]);
+
+        $this->assertTrue($result['approval_available']);
+        $this->assertSame('met', $result['status']);
+        $this->assertSame([], $result['findings']);
+        $this->assertSame(['payment_frequency'], array_column($result['advisories'], 'key'));
+        $this->assertStringContainsString('best estimate', $result['advisories'][0]['next_action']);
+    }
+
     public function test_it_groups_repeated_diagnostics_into_three_specific_founder_actions(): void
     {
         $result = (new PlanBudgetCoherence)->evaluate([
@@ -153,7 +188,7 @@ final class PlanBudgetCoherenceTest extends TestCase
                     'flags' => [
                         [
                             'key' => 'fixed_cost_cadences_need_confirmation',
-                            'message' => 'The model is using a monthly equivalent, but each of these costs still needs its billing cadence confirmed: Commercial kitchen or site cost, Insurance.',
+                            'message' => 'The forecast uses a monthly equivalent, but the payment frequency for these Budget costs has not been checked: Commercial kitchen or site cost, Insurance.',
                         ],
                         [
                             'key' => 'cash_timing_needs_verification',
@@ -163,7 +198,7 @@ final class PlanBudgetCoherenceTest extends TestCase
                     'funding_readiness' => [
                         'required_additional_funding' => 4_686,
                         'warnings' => [
-                            'Fixed-cost cadences need confirmation: The model is using a monthly equivalent, but each of these costs still needs its billing cadence confirmed: Commercial kitchen or site cost, Insurance.',
+                            'Check how often each fixed cost is paid before external issue: Commercial kitchen or site cost, Insurance.',
                             'Cash timing needs verification: Verify current records for: forecast_start_month.',
                             'Runway needs checking: The expected runway is more than 2 months away from the budget calculation. Check the assumptions or explain the difference.',
                         ],
@@ -183,11 +218,7 @@ final class PlanBudgetCoherenceTest extends TestCase
             ['regular_costs', 'forecast_calendar', 'funding_and_runway'],
             array_column($result['actions'], 'key'),
         );
-        $this->assertSame(
-            'Set the billing cadence for: Commercial kitchen or site cost, Insurance.',
-            $result['actions'][0]['steps'][0],
-        );
-        $this->assertStringContainsString('professional indemnity insurance', $result['actions'][0]['steps'][1]);
+        $this->assertStringContainsString('professional indemnity insurance', $result['actions'][0]['steps'][0]);
         $this->assertStringContainsString('trademark registration and protection', implode(' ', $result['actions'][0]['steps']));
         $this->assertStringContainsString('$5,718', implode(' ', $result['actions'][0]['steps']));
         $this->assertSame(
@@ -195,6 +226,8 @@ final class PlanBudgetCoherenceTest extends TestCase
             $result['actions'][1]['title'],
         );
         $this->assertStringContainsString('First save the cost and forecast-date changes above', $result['actions'][2]['steps'][0]);
-        $this->assertCount(11, $result['findings']);
+        $this->assertCount(9, $result['findings']);
+        $this->assertSame(['payment_frequency'], array_column($result['advisories'], 'key'));
+        $this->assertStringNotContainsString('Commercial kitchen or site cost', implode(' ', $result['actions'][0]['steps']));
     }
 }

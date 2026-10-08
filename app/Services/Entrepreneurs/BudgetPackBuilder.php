@@ -233,7 +233,7 @@ HTML,
             $useOfFundsRows === '' ? '<tr><td colspan="3">No funding inputs saved.</td></tr>' : $useOfFundsRows,
         );
         $fixedCostsSection = sprintf(
-            '<article class="report-section"><h2>Monthly fixed-cost trace</h2><p class="section-intro">Each row separately shows the saved rate, number of billed units, billing cadence, and monthly equivalent used by the model. Units count parallel subscriptions, people, or licences; they are not payments in a year. The converted rows total %s per month; the model base is %s per month.</p>%s<table class="decision-table"><thead><tr><th>Cost item</th><th>Rate</th><th>Units</th><th>Cadence</th><th>Monthly equivalent</th><th>Starts</th><th>Review note</th></tr></thead><tbody>%s</tbody></table></article>',
+            '<article class="report-section"><h2>Monthly fixed-cost trace</h2><p class="section-intro">Each row separately shows the saved rate, number of billed units, payment frequency, and monthly equivalent used by the model. Units count parallel subscriptions, people, or licences; they are not payments in a year. The converted rows total %s per month; the model base is %s per month.</p>%s<table class="decision-table"><thead><tr><th>Cost item</th><th>Rate</th><th>Units</th><th>Payment frequency</th><th>Monthly equivalent</th><th>Starts</th><th>Review note</th></tr></thead><tbody>%s</tbody></table></article>',
             $this->money($fixedCostReconciliation['listed_total'] ?? 0),
             $this->money($fixedCostReconciliation['model_base'] ?? ($decision['monthly_fixed_costs'] ?? 0)),
             $fixedCostReconciliationNote,
@@ -409,7 +409,7 @@ HTML,
             ? ['type' => 'paragraph', 'text' => 'No monthly fixed costs have been saved yet.']
             : [
                 'type' => 'table',
-                'headers' => ['Cost item', 'Rate', 'Units', 'Cadence', 'Monthly equivalent', 'Starts', 'Review note'],
+                'headers' => ['Cost item', 'Rate', 'Units', 'Payment frequency', 'Monthly equivalent', 'Starts', 'Review note'],
                 'rows' => $fixedCosts,
                 'widths' => [1.1, 0.65, 0.45, 0.7, 0.8, 0.5, 1.1],
             ];
@@ -715,7 +715,7 @@ HTML,
             'reconciled' => $reconciled,
             'message' => $reconciled
                 ? 'The converted fixed-cost trace reconciles to the model base.'
-                : 'The converted fixed-cost trace differs from the model base by '.$this->money($difference).'. Add the missing rows or correct a cost cadence before external issue.',
+                : 'The converted fixed-cost trace differs from the model base by '.$this->money($difference).'. Add the missing rows or correct a payment frequency before external issue.',
         ];
     }
 
@@ -734,7 +734,7 @@ HTML,
         }
 
         if (! (bool) ($row['cadence_confirmed'] ?? false)) {
-            return 'Confirm the saved billing cadence before external issue.';
+            return 'Check how often this cost is paid before external issue.';
         }
 
         if (! (bool) ($row['source_confirmed'] ?? false) || trim((string) ($row['source_reference'] ?? '')) === '') {

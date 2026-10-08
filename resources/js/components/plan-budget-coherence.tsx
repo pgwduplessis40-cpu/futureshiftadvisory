@@ -169,12 +169,11 @@ export function PlanBudgetCoherencePanel({
                 <div className="space-y-3 border-t border-amber-200 pt-3">
                     <div className="space-y-1">
                         <p className="font-medium">
-                            Evidence to strengthen these estimates
+                            Helpful checks before you issue the plan externally
                         </p>
                         <p className="text-muted-foreground">
-                            These estimates do not block plan–budget
-                            correlation. Record supporting evidence before
-                            issuing the plan externally.
+                            These checks do not block plan–budget correlation.
+                            They help you prepare the plan for external issue.
                         </p>
                     </div>
                     <ul className="space-y-3">

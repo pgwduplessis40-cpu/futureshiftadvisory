@@ -14,7 +14,7 @@ final class PlanBudgetActionMapperTest extends TestCase
         $actions = (new PlanBudgetActionMapper)->map([
             $this->finding(
                 'budget_support',
-                'The model is using a monthly equivalent, but each of these costs still needs its billing cadence confirmed: Insurance, Commercial kitchen or site cost.',
+                'The forecast uses a monthly equivalent, but the payment frequency for these Budget costs has not been checked: Insurance, Commercial kitchen or site cost.',
             ),
             $this->finding(
                 'plan_correlation',
@@ -26,7 +26,7 @@ final class PlanBudgetActionMapperTest extends TestCase
             ),
             $this->finding(
                 'plan_correlation',
-                'The plan states monthly operating costs of $600, but the budget uses $5,718 of monthly fixed costs.',
+                'The plan states monthly operating costs of $600, while the Budget totals $5,718 per month. The Budget total is the sum of every saved regular-cost row after weekly, fortnightly, quarterly and yearly values are converted to monthly amounts; it is $5,118 more than the plan.',
                 severity: 'missing',
             ),
             $this->finding(
@@ -60,7 +60,7 @@ final class PlanBudgetActionMapperTest extends TestCase
         ], array_column($actions, 'key'));
         $this->assertSame('missing', $actions[0]['severity']);
         $this->assertSame(
-            'Set the billing cadence for: Insurance, Commercial kitchen or site cost.',
+            'Check how often these existing Budget costs are paid: Insurance, Commercial kitchen or site cost. If the saved frequency is your best estimate, mark it as checked; an invoice is helpful but not required.',
             $actions[0]['steps'][0],
         );
         $this->assertStringContainsString(
@@ -89,7 +89,7 @@ final class PlanBudgetActionMapperTest extends TestCase
         $this->assertCount(1, $actions);
         $this->assertSame('regular_costs', $actions[0]['key']);
         $this->assertSame(
-            'Review the regular cost rows identified in this assessment and correct the cost amount or cadence that is not yet aligned.',
+            'Review the regular cost rows identified in this assessment and correct the cost amount or payment frequency that is not yet aligned.',
             $actions[0]['steps'][0],
         );
     }

@@ -160,7 +160,7 @@ final class BudgetFundingReadiness
         $quality = (array) data_get($computed, 'input_quality', []);
         $unconfirmedCadences = array_values((array) ($quality['unconfirmed_fixed_cost_cadences'] ?? []));
         if ($unconfirmedCadences !== []) {
-            $warnings->push('Confirm the billing cadence for every fixed cost before external issue: '.implode(', ', $unconfirmedCadences).'.');
+            $warnings->push('Check how often each fixed cost is paid before external issue: '.implode(', ', $unconfirmedCadences).'.');
         }
 
         $cadenceQuantityConflicts = array_values((array) ($quality['fixed_cost_cadence_quantity_conflicts'] ?? []));

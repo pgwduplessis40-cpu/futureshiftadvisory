@@ -11,7 +11,7 @@ namespace App\Services\Entrepreneurs;
  * assessment snapshot, so a later edit cannot change a recorded result.
  *
  * @phpstan-type Finding array{category:'budget_support'|'plan_correlation',severity:'missing'|'review',message:string,next_action:string}
- * @phpstan-type Advisory array{key:'fixed_cost_sources'|'revenue_sources',category:'budget_support',message:string,next_action:string}
+ * @phpstan-type Advisory array{key:'fixed_cost_sources'|'revenue_sources'|'payment_frequency',category:'budget_support',message:string,next_action:string}
  * @phpstan-type Action array{key:'regular_costs'|'forecast_calendar'|'funding_and_runway'|'sales_forecast'|'plan_and_budget'|'budget_setup',severity:'missing'|'review',title:string,destination:string,steps:list<string>,completion:string}
  * @phpstan-type Direction array{status:'met'|'review'|'missing',status_label:string,summary:string,unresolved_count:int}
  * @phpstan-type Reconciliation array{status:'met'|'review'|'missing',status_label:string,score:int,summary:string,evidence:list<string>,findings:list<Finding>,actions:list<Action>,advisories:list<Advisory>,approval_available:bool,approval_message:string,budget_support:Direction,plan_correlation:Direction,unresolved_count:int}
@@ -75,7 +75,7 @@ final class PlanBudgetCoherence
                 'plan_correlation',
                 'missing',
                 'The submitted plan has no Financial assumptions, Revenue model, or Funding and support evidence to compare with the budget.',
-                'State the plan’s opening cash, runway, funding position, cost cadence and delivery capacity in the financial sections, then reassess.',
+                'State the plan’s opening cash, runway, funding position, payment frequency and delivery capacity in the financial sections, then reassess.',
             );
         } elseif (is_array($budget)) {
             $this->evaluatePlanCorrelation($planText, $budget, $planCorrelationFindings);
@@ -302,7 +302,7 @@ final class PlanBudgetCoherence
                     'plan_correlation',
                     'review',
                     'The plan describes "'.$label.'" as an annual cost, but the budget treats it as monthly.',
-                    'Correct the cost cadence or revise the plan so both use the same monthly cost basis.',
+                    'Correct the payment frequency or revise the plan so both use the same monthly cost basis.',
                 );
             }
         }
@@ -322,11 +322,15 @@ final class PlanBudgetCoherence
                 : 'monthly operating costs of '.$this->money($planMonthlyCosts)
                     .' excluding owner compensation of '.$this->money($excludedOwnerCompensation)
                     .' ('.$this->money($planCostBasis).' total)';
+            $monthlyDifference = abs((float) $budgetMonthlyCosts - $planCostBasis);
+            $differenceDirection = (float) $budgetMonthlyCosts > $planCostBasis ? 'more' : 'less';
+            $budgetMonthlyCostText = $this->money((float) $budgetMonthlyCosts);
+
             $findings[] = $this->finding(
                 'plan_correlation',
                 'review',
-                'The plan states '.$planCostDescription.', but the budget uses '.$this->money((float) $budgetMonthlyCosts).' of monthly fixed costs.',
-                'Reconcile the recurring cost base in Financial assumptions and Budget before relying on the stated runway or funding requirement.',
+                'The plan states '.$planCostDescription.', while the Budget totals '.$budgetMonthlyCostText.' per month. The Budget total is the sum of every saved regular-cost row after weekly, fortnightly, quarterly and yearly values are converted to monthly amounts; it is '.$this->money($monthlyDifference).' '.$differenceDirection.' than the plan.',
+                'Review the saved Budget rows that make up '.$budgetMonthlyCostText.' per month. Update the written plan if they are regular costs, or correct or remove any row that should not be included. The difference to resolve is '.$this->money($monthlyDifference).' per month.',
             );
         }
 
@@ -347,7 +351,6 @@ final class PlanBudgetCoherence
     private function addInputQualityFindings(array $flags, array &$findings): void
     {
         $keys = [
-            'fixed_cost_cadences_need_confirmation' => 'Confirm the billing cadence for the fixed-cost rows before relying on the forecast.',
             'revenue_capacity_needs_confirmation' => 'Set and confirm the maximum delivery capacity for each affected revenue line.',
             'contractor_delivery_cost_needs_confirmation' => 'Confirm the cost of delivery beyond founder capacity before relying on projected revenue.',
             'cash_timing_needs_verification' => 'Verify cash timing from current records before relying on the forecast.',
@@ -380,6 +383,7 @@ final class PlanBudgetCoherence
     private function addInputQualityAdvisories(array $flags, array &$advisories): void
     {
         $nextActions = [
+            'fixed_cost_cadences_need_confirmation' => 'In Budget > Monthly fixed costs, confirm how often each named cost is paid. If the saved frequency is your best estimate, mark it as checked; an invoice is helpful but not required.',
             'fixed_cost_sources_need_verification' => 'Record a source type, reference and source check in Budget > Monthly fixed costs before external issue. The estimate remains available for this assessment.',
             'revenue_sources_need_verification' => 'Record pipeline, contract or pricing evidence in Budget > Revenue forecast before external issue. The estimate remains available for this assessment.',
         ];
@@ -392,7 +396,11 @@ final class PlanBudgetCoherence
 
             $this->addAdvisoryOnce(
                 $advisories,
-                $key === 'fixed_cost_sources_need_verification' ? 'fixed_cost_sources' : 'revenue_sources',
+                match ($key) {
+                    'fixed_cost_cadences_need_confirmation' => 'payment_frequency',
+                    'fixed_cost_sources_need_verification' => 'fixed_cost_sources',
+                    default => 'revenue_sources',
+                },
                 'budget_support',
                 (string) ($flag['message'] ?? $flag['title'] ?? 'Supporting evidence has not yet been recorded for an estimate.'),
                 $nextActions[$key],
@@ -425,7 +433,7 @@ final class PlanBudgetCoherence
                 'budget_support',
                 'review',
                 'The forecast requires '.$this->money((float) $requiredFunding).' of additional funding to cover the modelled cash trough and planned operating buffer.',
-                'Confirm the cost cadence, opening cash, forecast timing, revenue capacity and funding position before treating this as a funding requirement.',
+                'Confirm the payment frequency, opening cash, forecast timing, revenue capacity and funding position before treating this as a funding requirement.',
             );
         }
 
@@ -459,11 +467,19 @@ final class PlanBudgetCoherence
     }
 
     /**
-     * @return array{key:'fixed_cost_sources'|'revenue_sources',next_action:string}|null
+     * @return array{key:'fixed_cost_sources'|'revenue_sources'|'payment_frequency',next_action:string}|null
      */
     private function evidenceAdvisory(string $warning): ?array
     {
         $normalised = strtolower($warning);
+
+        if ((str_contains($normalised, 'payment frequency') || str_contains($normalised, 'how often each fixed cost is paid'))
+            && (str_contains($normalised, 'fixed cost') || str_contains($normalised, 'budget cost'))) {
+            return [
+                'key' => 'payment_frequency',
+                'next_action' => 'In Budget > Monthly fixed costs, confirm how often each named cost is paid. If the saved frequency is your best estimate, mark it as checked; an invoice is helpful but not required.',
+            ];
+        }
 
         if (str_contains($normalised, 'fixed-cost sources need verification')
             || str_contains($normalised, 'source and reference for every fixed-cost')
@@ -539,8 +555,8 @@ final class PlanBudgetCoherence
             return 'Update Budget > Funding and runway with the verified cash position, funding source, timing and funding purpose.';
         }
 
-        if (str_contains($normalised, 'fixed cost') || str_contains($normalised, 'owner compensation') || str_contains($normalised, 'cadence')) {
-            return 'Update Budget > Monthly fixed costs so every recurring cost has one verified amount, cadence and source.';
+        if (str_contains($normalised, 'fixed cost') || str_contains($normalised, 'owner compensation') || str_contains($normalised, 'payment frequency') || str_contains($normalised, 'cadence')) {
+            return 'Update Budget > Monthly fixed costs so every recurring cost has one amount, payment frequency and source.';
         }
 
         if (str_contains($normalised, 'revenue') || str_contains($normalised, 'capacity') || str_contains($normalised, 'contractor')) {
