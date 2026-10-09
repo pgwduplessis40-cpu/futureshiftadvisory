@@ -150,20 +150,24 @@ final class LearningRecommendationWorkflow
             $deliveryTarget = $this->stringInput($input['delivery_target'] ?? $locked->delivery_target);
             $baselineMetrics = $input['baseline_metrics'] ?? $locked->baseline_metrics ?? [];
             $rollbackPlan = $this->stringInput($input['rollback_plan'] ?? $locked->rollback_plan);
-            if ($status === LearningRecommendation::STATUS_IN_DEVELOPMENT && $developmentReference === null) {
-                throw ValidationException::withMessages(['development_reference' => 'Record the development issue, pull request, or commit before marking this recommendation in development.']);
+            $recordsDeliveryEvidence = in_array($status, [
+                LearningRecommendation::STATUS_IN_DEVELOPMENT,
+                LearningRecommendation::STATUS_RELEASED,
+            ], true);
+            if ($recordsDeliveryEvidence && $developmentReference === null) {
+                throw ValidationException::withMessages(['development_reference' => 'Record the development issue, pull request, or commit before recording delivery.']);
             }
-            if ($status === LearningRecommendation::STATUS_IN_DEVELOPMENT && $deliveryOwner === null) {
-                throw ValidationException::withMessages(['delivery_owner' => 'Assign a delivery owner before starting development.']);
+            if ($recordsDeliveryEvidence && $deliveryOwner === null) {
+                throw ValidationException::withMessages(['delivery_owner' => 'Assign a delivery owner before recording delivery.']);
             }
-            if ($status === LearningRecommendation::STATUS_IN_DEVELOPMENT && $deliveryTarget === null) {
-                throw ValidationException::withMessages(['delivery_target' => 'Record the intended delivery target before starting development.']);
+            if ($recordsDeliveryEvidence && $deliveryTarget === null) {
+                throw ValidationException::withMessages(['delivery_target' => 'Record the intended delivery target before recording delivery.']);
             }
-            if ($status === LearningRecommendation::STATUS_IN_DEVELOPMENT && ! $this->hasListItems($baselineMetrics)) {
-                throw ValidationException::withMessages(['baseline_metrics' => 'Record at least one baseline metric before starting development.']);
+            if ($recordsDeliveryEvidence && ! $this->hasListItems($baselineMetrics)) {
+                throw ValidationException::withMessages(['baseline_metrics' => 'Record at least one baseline metric before recording delivery.']);
             }
-            if ($status === LearningRecommendation::STATUS_IN_DEVELOPMENT && $rollbackPlan === null) {
-                throw ValidationException::withMessages(['rollback_plan' => 'Record a rollback plan before starting development.']);
+            if ($recordsDeliveryEvidence && $rollbackPlan === null) {
+                throw ValidationException::withMessages(['rollback_plan' => 'Record a rollback plan before recording delivery.']);
             }
             if ($status === LearningRecommendation::STATUS_RELEASED && $releaseReference === null) {
                 throw ValidationException::withMessages(['release_reference' => 'Record the deployment or version evidence before marking this recommendation released.']);
@@ -307,7 +311,11 @@ final class LearningRecommendationWorkflow
     private function assertDeliveryTransition(LearningRecommendation $recommendation, string $next): void
     {
         $allowed = match ($recommendation->status) {
-            LearningRecommendation::STATUS_APPROVED, LearningRecommendation::STATUS_BLOCKED => [LearningRecommendation::STATUS_IN_DEVELOPMENT],
+            LearningRecommendation::STATUS_APPROVED => [
+                LearningRecommendation::STATUS_IN_DEVELOPMENT,
+                LearningRecommendation::STATUS_RELEASED,
+            ],
+            LearningRecommendation::STATUS_BLOCKED => [LearningRecommendation::STATUS_IN_DEVELOPMENT],
             LearningRecommendation::STATUS_IN_DEVELOPMENT => [LearningRecommendation::STATUS_RELEASED, LearningRecommendation::STATUS_BLOCKED],
             LearningRecommendation::STATUS_RELEASED => [LearningRecommendation::STATUS_VERIFIED, LearningRecommendation::STATUS_ROLLED_BACK, LearningRecommendation::STATUS_BLOCKED],
             default => [],

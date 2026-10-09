@@ -127,6 +127,50 @@ final class LearningRecommendationWorkflowTest extends TestCase
             );
     }
 
+    public function test_approved_recommendation_can_record_an_already_deployed_release_with_complete_evidence(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $admin = $this->admin();
+        $workflow = app(LearningRecommendationWorkflow::class);
+        $recommendation = $this->draftRecommendation($admin, 'Record a completed governed delivery.');
+
+        $workflow->approve($recommendation, $admin);
+        $recommendation->forceFill([
+            'delivery_owner' => null,
+            'delivery_target' => null,
+            'baseline_metrics' => [],
+            'rollback_plan' => null,
+        ])->save();
+
+        try {
+            $workflow->updateDelivery($recommendation, $admin, [
+                'status' => LearningRecommendation::STATUS_RELEASED,
+                'development_reference' => 'PR #62',
+                'release_reference' => 'deploy-production 1.0.246',
+            ]);
+            $this->fail('A direct release must retain the required delivery evidence.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('delivery_owner', $exception->errors());
+        }
+
+        $workflow->updateDelivery($recommendation, $admin, [
+            'status' => LearningRecommendation::STATUS_RELEASED,
+            'development_reference' => 'PR #62',
+            'delivery_owner' => 'FutureShift IT',
+            'delivery_target' => 'Release 1.0.246',
+            'baseline_metrics' => ['Learning queue completion rate: 63%'],
+            'rollback_plan' => 'Revert the deployed change and restore the preceding release.',
+            'release_reference' => 'deploy-production 1.0.246',
+        ]);
+
+        $recommendation->refresh();
+
+        $this->assertSame(LearningRecommendation::STATUS_RELEASED, $recommendation->status);
+        $this->assertSame('PR #62', $recommendation->development_reference);
+        $this->assertSame('deploy-production 1.0.246', $recommendation->release_reference);
+        $this->assertNotNull($recommendation->released_at);
+    }
+
     public function test_admin_can_approve_multiple_draft_recommendations_for_development(): void
     {
         $this->seed(RoleSeeder::class);

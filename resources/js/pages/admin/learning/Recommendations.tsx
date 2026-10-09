@@ -146,44 +146,6 @@ export function DraftRecommendationApprovalPanel({
     );
 }
 
-export function RecommendationDeliveryPanel({
-    recommendations,
-}: {
-    recommendations: LearningRecommendation[];
-}) {
-    const gaps = recommendations.filter(recommendationNeedsDeliverySetup);
-
-    if (gaps.length === 0) {
-        return null;
-    }
-
-    return (
-        <section className="space-y-3 rounded-md border bg-background p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h2 className="text-sm font-medium">
-                        Delivery details to complete
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                        These approved recommendations cannot start development
-                        until their owner, target, baseline, rollback plan, and
-                        development reference are recorded.
-                    </p>
-                </div>
-                <Badge variant="secondary">{gaps.length} to complete</Badge>
-            </div>
-            <div className="grid gap-3">
-                {gaps.map((recommendation) => (
-                    <RecommendationDeliveryItem
-                        key={recommendation.id}
-                        recommendation={recommendation}
-                    />
-                ))}
-            </div>
-        </section>
-    );
-}
-
 export function RecommendationDeliveryRegister({
     recommendations,
 }: {
@@ -198,8 +160,9 @@ export function RecommendationDeliveryRegister({
                     <h2 className="text-sm font-medium">Delivery register</h2>
                     <p className="text-xs text-muted-foreground">
                         Approved work is grouped by pull request, issue, commit,
-                        or other development reference. The unlinked group needs
-                        delivery details before development can start.
+                        or other development reference. Use each delivery record
+                        below to add missing evidence or record a completed
+                        release.
                     </p>
                 </div>
                 <Badge variant="secondary">
@@ -225,7 +188,7 @@ export function RecommendationDeliveryRegister({
                                     </h3>
                                     <p className="text-xs text-muted-foreground">
                                         {group.key === 'unlinked'
-                                            ? 'Add a development reference before starting work.'
+                                            ? 'Add delivery evidence before recording work as developed or released.'
                                             : 'Recommendations sharing this delivery reference.'}
                                     </p>
                                 </div>
@@ -442,12 +405,17 @@ function RecommendationDeliveryItem({
     const [baselineMetrics, setBaselineMetrics] = useState(
         recommendation.baseline_metrics.join('\n'),
     );
+    const [regressionJourneys, setRegressionJourneys] = useState(
+        recommendation.regression_journeys.join('\n'),
+    );
     const [rollbackPlan, setRollbackPlan] = useState(
         recommendation.rollback_plan ?? '',
     );
     const [verificationNotes, setVerificationNotes] = useState(
         recommendation.verification_notes ?? '',
     );
+    const needsReleaseEvidence =
+        status === 'released' || recommendation.status === 'released';
 
     function updateDelivery() {
         router.patch(recommendation.delivery_url, {
@@ -459,14 +427,14 @@ function RecommendationDeliveryItem({
             rollback_plan: rollbackPlan || null,
             release_reference: releaseReference || null,
             verification_notes: verificationNotes || null,
-            regression_journeys: recommendation.regression_journeys,
+            regression_journeys: lines(regressionJourneys),
         });
     }
 
     return (
         <details className="rounded-md border p-3">
             <summary className="cursor-pointer text-sm font-medium text-primary">
-                Update delivery
+                Open delivery record
             </summary>
             <div className="mt-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
@@ -517,6 +485,14 @@ function RecommendationDeliveryItem({
                                 ),
                             )}
                         </select>
+                        {status === 'released' &&
+                        recommendation.status === 'approved' ? (
+                            <span>
+                                Use Released only when this work was already
+                                deployed. A pull request records development,
+                                not deployment.
+                            </span>
+                        ) : null}
                     </label>
                     <label className="grid gap-1 text-xs text-muted-foreground">
                         Development reference
@@ -563,6 +539,17 @@ function RecommendationDeliveryItem({
                         />
                     </label>
                     <label className="grid gap-1 text-xs text-muted-foreground sm:col-span-2">
+                        Regression journeys that passed (one per line)
+                        <textarea
+                            className="min-h-16 rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                            value={regressionJourneys}
+                            placeholder="Advisor learning queue review"
+                            onChange={(event) =>
+                                setRegressionJourneys(event.target.value)
+                            }
+                        />
+                    </label>
+                    <label className="grid gap-1 text-xs text-muted-foreground sm:col-span-2">
                         Rollback plan
                         <textarea
                             className="min-h-16 rounded-md border bg-background px-3 py-2 text-sm text-foreground"
@@ -573,8 +560,7 @@ function RecommendationDeliveryItem({
                             }
                         />
                     </label>
-                    {status === 'released' ||
-                    recommendation.status === 'released' ? (
+                    {needsReleaseEvidence ? (
                         <label className="grid gap-1 text-xs text-muted-foreground">
                             Release reference
                             <input
@@ -605,7 +591,7 @@ function RecommendationDeliveryItem({
                             size="sm"
                             onClick={updateDelivery}
                         >
-                            Update delivery
+                            {deliveryActionLabel(status)}
                         </Button>
                     </div>
                 </div>
@@ -862,6 +848,7 @@ function deliveryStatusOptions(
 ): string[] {
     switch (recommendation.status) {
         case 'approved':
+            return ['in_development', 'released'];
         case 'blocked':
             return ['in_development'];
         case 'in_development':
@@ -870,5 +857,22 @@ function deliveryStatusOptions(
             return ['verified', 'rolled_back', 'blocked'];
         default:
             return [recommendation.status];
+    }
+}
+
+function deliveryActionLabel(status: string): string {
+    switch (status) {
+        case 'in_development':
+            return 'Start development';
+        case 'released':
+            return 'Record release';
+        case 'verified':
+            return 'Record verification';
+        case 'blocked':
+            return 'Mark blocked';
+        case 'rolled_back':
+            return 'Record rollback';
+        default:
+            return 'Update delivery';
     }
 }

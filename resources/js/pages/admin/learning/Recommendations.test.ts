@@ -5,7 +5,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { PlainEnglishSummaryBlock } from './LearningDisplay';
 import {
     DraftRecommendationApprovalPanel,
-    RecommendationDeliveryPanel,
     RecommendationDeliveryRegister,
     RecommendationDraft,
 } from './Recommendations';
@@ -40,7 +39,7 @@ const recommendation: LearningRecommendation = {
 
 function renderDelivery(status: string): string {
     return renderToStaticMarkup(
-        createElement(RecommendationDeliveryPanel, {
+        createElement(RecommendationDeliveryRegister, {
             recommendations: [{ ...recommendation, status }],
         }),
     );
@@ -55,17 +54,6 @@ function renderDraftApproval(): string {
         }),
     );
 }
-
-test('an empty recommendation queue adds no delivery panel', () => {
-    assert.equal(
-        renderToStaticMarkup(
-            createElement(RecommendationDeliveryPanel, {
-                recommendations: [],
-            }),
-        ),
-        '',
-    );
-});
 
 test('draft recommendations retain the admin approval action and evidence context', () => {
     const html = renderDraftApproval();
@@ -103,13 +91,16 @@ test('the delivery register groups approved work by development reference', () =
     assert.match(html, /No development reference/);
     assert.match(html, /FutureShift IT/);
     assert.match(html, /Delivery details/);
+    assert.doesNotMatch(html, /Delivery details to complete/);
 });
 
-test('approved recommendations start development without exposing release or verification controls', () => {
+test('approved recommendations can record an already deployed release with the required evidence', () => {
     const html = renderDelivery('approved');
     assert.match(html, /value="in_development" selected/);
+    assert.match(html, /value="released"/);
     assert.match(html, /Development reference/);
-    assert.match(html, /Update delivery/);
+    assert.match(html, /Regression journeys that passed/);
+    assert.match(html, /Start development/);
     assert.doesNotMatch(html, /placeholder="Deployment\/version evidence"/);
     assert.doesNotMatch(html, /Verification evidence/);
 });
@@ -119,7 +110,15 @@ test('released recommendations retain release and verification evidence controls
     assert.match(html, /value="verified" selected/);
     assert.match(html, /Release reference/);
     assert.match(html, /Verification evidence/);
+    assert.match(html, /Record verification/);
     assert.match(html, /value="rolled_back"/);
+});
+
+test('in-development recommendations can record release evidence', () => {
+    const html = renderDelivery('in_development');
+    assert.match(html, /value="released" selected/);
+    assert.match(html, /Release reference/);
+    assert.match(html, /Record release/);
 });
 
 test('the recommendation form retains all governed fields and the no-automatic-change notice', () => {
