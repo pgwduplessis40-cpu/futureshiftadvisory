@@ -139,11 +139,14 @@ final class EntrepreneurPlanBudgetController extends Controller
         $budget = $this->budgets->update($plan, $validated, $user);
 
         if ($request->expectsJson()) {
+            $updatedPlan = $plan->refresh()->load('sections');
+
             return response()->json([
                 'status' => $request->boolean('_autosave')
                     ? 'entrepreneur-budget-autosaved'
                     : 'entrepreneur-budget-saved',
                 'revision' => $budget->revision,
+                'budget' => $this->requirements->budgetPayload($updatedPlan, $budget),
             ]);
         }
 

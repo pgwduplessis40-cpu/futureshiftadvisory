@@ -8,7 +8,6 @@ import {
     BUDGET_UNLOCK_REQUIREMENT_KEY,
     budgetPlanSource,
     budgetToForm,
-    cleanBudgetForm,
     findSection,
     ideaValidationToForm,
     planWorkspaceKey,
@@ -18,6 +17,7 @@ import { ideaFields } from './plan-dashboard-panels';
 import type { IdeaValidationVersion, Tab } from './plan-dashboard-panels';
 import type {
     BudgetFormState,
+    BudgetPayload,
     IdeaValidationForm,
     PlanSectionPayload,
     Props,
@@ -26,7 +26,6 @@ import {
     csrfToken,
     currentSectionTextareaPosition,
     localDraftIsNewer,
-    postBudgetAutosave,
     postSectionAutosave,
     readPlanWorkspaceDraft,
     restoreSectionTextareaPosition,
@@ -38,6 +37,7 @@ import type {
     SectionAutosaveResult,
 } from './plan-workspace-draft';
 import { syncPlanSupportingDocuments } from './plan-workspace-supporting-documents';
+import { useBudgetAutosave } from './use-budget-autosave';
 
 export function usePlanWorkspace({
     profile,
@@ -126,6 +126,11 @@ export function usePlanWorkspace({
             assumptionsSource.requirement?.complete === true
         );
     }, [plan]);
+    const budgetAutosaveEnabled = Boolean(
+        plan &&
+        selectedRequirement?.type === 'budget' &&
+        budgetAutosaveUnlocked,
+    );
     const completedRequirementCount = requirements.filter(
         (requirement) => requirement.complete,
     ).length;
@@ -306,13 +311,12 @@ export function usePlanWorkspace({
     const [budgetForm, setBudgetForm] = useState<BudgetFormState>(
         () => initialWorkspaceDraft?.budgetForm ?? budgetToForm(plan?.budget),
     );
-    const [savingBudget, setSavingBudget] = useState(false);
+    const [budgetPresentation, setBudgetPresentation] =
+        useState<BudgetPayload | null>(plan?.budget ?? null);
+    const [refreshingBudget, setRefreshingBudget] = useState(false);
     const [sectionAutosaveState, setSectionAutosaveState] =
         useState<AutosaveState>('idle');
-    const [budgetAutosaveState, setBudgetAutosaveState] =
-        useState<AutosaveState>('idle');
     const selectedKeyRef = useRef<string | null>(selectedKey);
-    const budgetAutosaveReadyRef = useRef(false);
     const rememberWorkspacePosition = useCallback(() => {
         const key = selectedKeyRef.current;
         const position = currentSectionTextareaPosition();
@@ -384,6 +388,13 @@ export function usePlanWorkspace({
     }, [plan?.budget, workspaceKey]);
 
     useEffect(() => {
+        // Autosave updates this presentation immediately. Re-sync it if an
+        // Inertia visit supplies a newer full workspace payload.
+        /* eslint-disable-next-line react-hooks/set-state-in-effect */
+        setBudgetPresentation(plan?.budget ?? null);
+    }, [plan?.budget]);
+
+    useEffect(() => {
         selectedKeyRef.current = selectedKey;
         updatePlanWorkspaceDraft(workspaceKey, (draft) => ({
             ...draft,
@@ -420,12 +431,6 @@ export function usePlanWorkspace({
             document.removeEventListener('visibilitychange', rememberOnHidden);
         };
     }, [rememberWorkspacePosition]);
-
-    useEffect(() => {
-        if (selectedRequirement?.type !== 'budget') {
-            budgetAutosaveReadyRef.current = false;
-        }
-    }, [selectedRequirement?.type]);
 
     useEffect(() => {
         if (!selectedRequirement || selectedRequirement.type === 'budget') {
@@ -539,71 +544,17 @@ export function usePlanWorkspace({
         }));
     }, [budgetForm, workspaceKey]);
 
-    const saveBudgetDraft = useCallback(async () => {
-        if (
-            !plan ||
-            selectedRequirement?.type !== 'budget' ||
-            !budgetAutosaveUnlocked
-        ) {
-            return;
-        }
-
-        setBudgetAutosaveState('saving');
-
-        try {
-            const result = await postBudgetAutosave(
-                urls.budgetUpdate,
-                cleanBudgetForm(budgetForm),
-            );
-
-            if (result.revision !== null) {
-                setBudgetForm((current) =>
-                    result.revision !== null &&
-                    result.revision > current.revision
-                        ? { ...current, revision: result.revision }
-                        : current,
-                );
-            }
-
-            setBudgetAutosaveState(result.saved ? 'saved' : 'error');
-        } catch {
-            setBudgetAutosaveState('error');
-        }
-    }, [
-        budgetAutosaveUnlocked,
-        budgetForm,
-        plan,
-        selectedRequirement?.type,
-        urls.budgetUpdate,
-    ]);
-
-    useEffect(() => {
-        if (
-            !plan ||
-            selectedRequirement?.type !== 'budget' ||
-            !budgetAutosaveUnlocked
-        ) {
-            return;
-        }
-
-        if (!budgetAutosaveReadyRef.current) {
-            budgetAutosaveReadyRef.current = true;
-
-            return;
-        }
-
-        const timeout = window.setTimeout(() => {
-            void saveBudgetDraft();
-        }, 2500);
-
-        return () => window.clearTimeout(timeout);
-    }, [
-        budgetAutosaveUnlocked,
-        budgetForm,
-        plan,
-        saveBudgetDraft,
-        selectedRequirement?.type,
-    ]);
+    const {
+        autosaveState: budgetAutosaveState,
+        updateForm: updateBudgetForm,
+        retry: retryBudgetAutosave,
+    } = useBudgetAutosave({
+        enabled: budgetAutosaveEnabled,
+        form: budgetForm,
+        setForm: setBudgetForm,
+        url: urls.budgetUpdate,
+        onSaved: setBudgetPresentation,
+    });
 
     useEffect(() => {
         // Keep the idea form aligned with the latest submitted validation.
@@ -917,15 +868,11 @@ export function usePlanWorkspace({
         await attachSupportingDocument(pendingSupportingDocument);
     };
 
-    const saveBudget = () => {
-        if (!plan) {
-            return;
-        }
-
-        setSavingBudget(true);
-        router.post(urls.budgetUpdate, cleanBudgetForm(budgetForm), {
-            preserveScroll: true,
-            onFinish: () => setSavingBudget(false),
+    const refreshBudget = () => {
+        setRefreshingBudget(true);
+        router.reload({
+            only: ['plan', 'gamification', 'journey'],
+            onFinish: () => setRefreshingBudget(false),
         });
     };
 
@@ -1009,12 +956,13 @@ export function usePlanWorkspace({
         assistingSection,
         assistantNotice,
         budgetForm,
-        setBudgetForm,
-        savingBudget,
+        budgetPresentation,
+        setBudgetForm: updateBudgetForm,
+        refreshingBudget,
         sectionAutosaveState,
         budgetAutosaveState,
         retrySectionAutosave: () => void saveSectionDraft(),
-        retryBudgetAutosave: () => void saveBudgetDraft(),
+        retryBudgetAutosave,
         submitIdea,
         recallIdeaForRevision,
         restoreIdeaVersion,
@@ -1024,7 +972,7 @@ export function usePlanWorkspace({
         requestAdvisory,
         requestGamificationDisablement,
         assistRequirement,
-        saveBudget,
+        refreshBudget,
         acknowledgeBudgetFlag,
         dismissBudgetAdvisorNudge,
     };
