@@ -19,7 +19,6 @@ import { Metric, PlainEnglishSummaryBlock, TableStat } from './LearningDisplay';
 import type { PlainEnglishSummary } from './LearningDisplay';
 import {
     DraftRecommendationApprovalPanel,
-    RecommendationDeliveryPanel,
     RecommendationDeliveryRegister,
     RecommendationDraft,
     recommendationNeedsDeliverySetup,
@@ -278,10 +277,6 @@ export default function LearningUpdatesIndex({
                             cards={pendingCards}
                             decisions={decisions}
                             recommendationDefaults={recommendation_defaults}
-                        />
-
-                        <RecommendationDeliveryPanel
-                            recommendations={delivery}
                         />
 
                         <RecommendationDeliveryRegister
