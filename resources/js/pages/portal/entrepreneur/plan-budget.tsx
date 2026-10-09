@@ -1,4 +1,3 @@
-import { Link } from '@inertiajs/react';
 import {
     AlertTriangle,
     Banknote,
@@ -6,14 +5,12 @@ import {
     Eye,
     FileText,
     Plus,
-    RefreshCw,
     Trash2,
     Trophy,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { BudgetCashChart } from '@/components/budget-cash-chart';
-import { DraftSaveStatus } from '@/components/portal/draft-save-status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,6 +21,10 @@ import {
 import { formatNzdCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { BudgetRowsScrollRegion } from './budget-rows-scroll-region';
+import {
+    BudgetCalculationRefresh,
+    BudgetHeaderActions,
+} from './budget-save-controls';
 import {
     FixedCostCadenceControl,
     fixedCostQuantityWarning,
@@ -368,24 +369,10 @@ export function BudgetEditor({
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <DraftSaveStatus
-                        draft={budgetDraft}
-                        idleLabel="Changes save automatically"
-                        savedLabel="All changes saved"
+                    <BudgetHeaderActions
+                        budget={budget}
+                        budgetDraft={budgetDraft}
                     />
-                    {budget.pack_available && budget.budget_pack_url ? (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            asChild
-                        >
-                            <Link href={budget.budget_pack_url}>
-                                <Eye className="size-4" aria-hidden="true" />
-                                View budget pack
-                            </Link>
-                        </Button>
-                    ) : null}
                     <div
                         className="inline-flex rounded-md border bg-muted/30 p-1"
                         role="tablist"
@@ -843,28 +830,11 @@ export function BudgetEditor({
                         </div>
                     ) : null}
 
-                    <div className="flex flex-wrap items-center gap-3">
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={onRefresh}
-                            disabled={
-                                refreshing ||
-                                budgetDraftState === 'saving' ||
-                                budgetDraftState === 'error'
-                            }
-                        >
-                            <RefreshCw className="size-4" aria-hidden="true" />
-                            {refreshing
-                                ? 'Refreshing calculations'
-                                : 'Refresh calculations'}
-                        </Button>
-                        <span className="text-xs text-muted-foreground">
-                            Calculations update automatically after changes are
-                            saved.
-                        </span>
-                    </div>
+                    <BudgetCalculationRefresh
+                        refreshing={refreshing}
+                        budgetDraftState={budgetDraftState}
+                        onRefresh={onRefresh}
+                    />
                 </>
             ) : null}
         </div>
