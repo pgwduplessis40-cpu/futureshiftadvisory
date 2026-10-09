@@ -6,9 +6,9 @@ import {
     Eye,
     FileText,
     Plus,
+    RefreshCw,
     Trash2,
     Trophy,
-    Upload,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
@@ -245,11 +245,11 @@ export function BudgetEditor({
     plan,
     ideaValidation,
     gamification,
-    saving,
+    refreshing,
     autosaveState: budgetDraftState,
     onRetryAutosave: retryBudgetDraft,
     onFormChange,
-    onSave,
+    onRefresh,
     onAcknowledgeFlag,
     onDismissAdvisorNudge,
 }: {
@@ -258,11 +258,11 @@ export function BudgetEditor({
     plan: NonNullable<BusinessPlanPayload>;
     ideaValidation: IdeaValidationPayload;
     gamification: GamificationPayload;
-    saving: boolean;
+    refreshing: boolean;
     autosaveState: 'idle' | 'saving' | 'saved' | 'error';
     onRetryAutosave: () => void;
     onFormChange: Dispatch<SetStateAction<BudgetFormState>>;
-    onSave: () => void;
+    onRefresh: () => void;
     onAcknowledgeFlag: (key: string) => void;
     onDismissAdvisorNudge: () => void;
 }) {
@@ -368,6 +368,11 @@ export function BudgetEditor({
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                    <DraftSaveStatus
+                        draft={budgetDraft}
+                        idleLabel="Changes save automatically"
+                        savedLabel="All changes saved"
+                    />
                     {budget.pack_available && budget.budget_pack_url ? (
                         <Button
                             type="button"
@@ -842,13 +847,23 @@ export function BudgetEditor({
                         <Button
                             type="button"
                             size="sm"
-                            onClick={onSave}
-                            disabled={saving}
+                            variant="outline"
+                            onClick={onRefresh}
+                            disabled={
+                                refreshing ||
+                                budgetDraftState === 'saving' ||
+                                budgetDraftState === 'error'
+                            }
                         >
-                            <Upload className="size-4" aria-hidden="true" />
-                            {saving ? 'Saving' : 'Save budget'}
+                            <RefreshCw className="size-4" aria-hidden="true" />
+                            {refreshing
+                                ? 'Refreshing calculations'
+                                : 'Refresh calculations'}
                         </Button>
-                        <DraftSaveStatus draft={budgetDraft} />
+                        <span className="text-xs text-muted-foreground">
+                            Calculations update automatically after changes are
+                            saved.
+                        </span>
                     </div>
                 </>
             ) : null}

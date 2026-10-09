@@ -1,3 +1,5 @@
+import type { BudgetPayload } from './plan-types';
+
 export type AutosaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 export type SectionDraft = {
@@ -35,6 +37,10 @@ export type SectionAutosaveResult = {
 };
 
 export function csrfToken(): string {
+    if (typeof document === 'undefined') {
+        return '';
+    }
+
     return (
         document
             .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
@@ -164,7 +170,7 @@ export async function postSectionAutosave(
 export async function postBudgetAutosave(
     url: string,
     payload: object,
-): Promise<{ saved: boolean; revision: number | null }> {
+): Promise<{ saved: boolean; budget: BudgetPayload | null }> {
     const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -179,17 +185,18 @@ export async function postBudgetAutosave(
     });
 
     if (!response.ok) {
-        return { saved: false, revision: null };
+        return { saved: false, budget: null };
     }
 
     const body: unknown = await response.json();
-    const revision =
+    const budget =
         typeof body === 'object' &&
         body !== null &&
-        'revision' in body &&
-        typeof body.revision === 'number'
-            ? body.revision
+        'budget' in body &&
+        typeof body.budget === 'object' &&
+        body.budget !== null
+            ? (body.budget as BudgetPayload)
             : null;
 
-    return { saved: true, revision };
+    return { saved: true, budget };
 }

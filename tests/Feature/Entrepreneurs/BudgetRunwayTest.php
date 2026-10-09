@@ -331,6 +331,65 @@ final class BudgetRunwayTest extends TestCase
         $this->assertEquals(500.0, data_get($budget->computed, 'monthly_detail.1.launch_costs'));
     }
 
+    public function test_budget_autosave_returns_the_refreshed_budget_presentation(): void
+    {
+        [$actor, $plan] = $this->plan();
+        $phase = $plan->phases()->firstOrFail();
+
+        PlanSection::query()->create([
+            'business_plan_id' => $plan->id,
+            'plan_phase_id' => $phase->id,
+            'key' => 'founder-foundation-business-type-location',
+            'title' => 'Business type, location, and operating model',
+            'body' => str_repeat('A practical service business operating locally. ', 3),
+            'source_type' => 'founder',
+            'completeness_status' => PlanSection::STATUS_COMPLETE,
+            'metadata' => ['requirement_key' => 'business-type-location'],
+        ]);
+        PlanSection::query()->create([
+            'business_plan_id' => $plan->id,
+            'plan_phase_id' => $phase->id,
+            'key' => 'founder-financial-financial-assumptions',
+            'title' => 'Financial assumptions',
+            'body' => str_repeat('Revenue grows, costs are forecast, and target margins are set. ', 3),
+            'source_type' => 'founder',
+            'completeness_status' => PlanSection::STATUS_COMPLETE,
+            'metadata' => ['requirement_key' => 'financial-assumptions'],
+        ]);
+
+        $this->actingAs($actor)
+            ->postJson(route('portal.entrepreneur.plan.budget.update'), [
+                '_autosave' => true,
+                'revision' => 0,
+                'expected_runway_months' => 6,
+                'forecast_years' => 1,
+                'assumptions' => [
+                    'revenue_growth_percent' => 10,
+                    'cost_inflation_percent' => 3,
+                    'target_gross_profit_percent' => 55,
+                    'target_net_profit_before_tax_percent' => 10,
+                    'target_net_profit_after_tax_percent' => 7,
+                ],
+                'launch_costs' => [
+                    ['label' => 'Website', 'amount' => 500, 'quantity' => 1],
+                ],
+                'monthly_fixed_costs' => [
+                    ['label' => 'Software', 'amount' => 250, 'quantity' => 1, 'cadence' => 'monthly'],
+                ],
+                'revenue_forecast' => [
+                    ['label' => 'Sales', 'amount' => 1_000, 'quantity' => 1, 'month' => 1],
+                ],
+                'funding_sources' => [
+                    ['label' => 'Founder cash', 'amount' => 5_000, 'quantity' => 1],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'entrepreneur-budget-autosaved')
+            ->assertJsonPath('budget.revision', 1)
+            ->assertJsonPath('budget.status', EntrepreneurBudget::STATUS_COMPLETE)
+            ->assertJsonPath('budget.computed.monthly_fixed_costs', 250);
+    }
+
     /**
      * @return array{0:User, 1:BusinessPlan}
      */

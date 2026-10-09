@@ -81,8 +81,9 @@ export function PlanWorkspaceActions({
         assistingSection,
         assistantNotice,
         budgetForm,
+        budgetPresentation,
         setBudgetForm,
-        savingBudget,
+        refreshingBudget,
         sectionAutosaveState: sectionDraftState,
         budgetAutosaveState,
         retrySectionAutosave: retrySectionDraft,
@@ -93,7 +94,7 @@ export function PlanWorkspaceActions({
         rememberWorkspacePosition,
         startPlan,
         assistRequirement,
-        saveBudget,
+        refreshBudget,
         acknowledgeBudgetFlag,
         dismissBudgetAdvisorNudge,
     } = workspace;
@@ -645,18 +646,21 @@ export function PlanWorkspaceActions({
                                         </div>
                                     ) : (
                                         <BudgetEditor
-                                            budget={plan.budget}
+                                            budget={
+                                                budgetPresentation ??
+                                                plan.budget
+                                            }
                                             form={budgetForm}
                                             plan={plan}
                                             ideaValidation={ideaValidation}
                                             gamification={gamification}
-                                            saving={savingBudget}
+                                            refreshing={refreshingBudget}
                                             autosaveState={budgetAutosaveState}
                                             onRetryAutosave={
                                                 retryBudgetAutosave
                                             }
                                             onFormChange={setBudgetForm}
-                                            onSave={saveBudget}
+                                            onRefresh={refreshBudget}
                                             onAcknowledgeFlag={
                                                 acknowledgeBudgetFlag
                                             }
