@@ -36,8 +36,13 @@ final class BudgetLearningSignal
     }
 
     /**
-     * @param  array<string, mixed>  $source
-     * @param  array<string, mixed>  $evidence
+     * @param  array{type?:string, budget_id?:int|string|null}  $source
+     * @param  array{
+     *     active_flag_keys?:list<string>,
+     *     missing_assumptions?:list<string>,
+     *     break_even_year?:int|string|null,
+     *     cash_flow_positive_year?:int|string|null
+     * }  $evidence
      */
     public function keyForPayload(array $source, array $evidence): ?string
     {
