@@ -12,7 +12,7 @@ namespace App\Services\Entrepreneurs;
  *
  * @phpstan-type Finding array{category:'budget_support'|'plan_correlation',severity:'missing'|'review',message:string,next_action:string}
  * @phpstan-type Advisory array{key:'fixed_cost_sources'|'revenue_sources'|'payment_frequency',category:'budget_support',message:string,next_action:string}
- * @phpstan-type Action array{key:'regular_costs'|'forecast_calendar'|'funding_and_runway'|'sales_forecast'|'plan_and_budget'|'budget_setup',severity:'missing'|'review',title:string,destination:string,steps:list<string>,completion:string}
+ * @phpstan-type Action array{key:'regular_costs'|'forecast_calendar'|'funding_and_runway'|'sales_forecast'|'plan_and_budget'|'budget_setup',severity:'missing'|'review',title:string,destination:string,steps:list<string>}
  * @phpstan-type Direction array{status:'met'|'review'|'missing',status_label:string,summary:string,unresolved_count:int}
  * @phpstan-type Reconciliation array{status:'met'|'review'|'missing',status_label:string,score:int,summary:string,evidence:list<string>,findings:list<Finding>,actions:list<Action>,advisories:list<Advisory>,approval_available:bool,approval_message:string,budget_support:Direction,plan_correlation:Direction,unresolved_count:int}
  * @phpstan-type BudgetRow array{label?:string,type?:string,amount?:float|int,quantity?:float|int,monthly_capacity_units?:float|int,cadence?:string}

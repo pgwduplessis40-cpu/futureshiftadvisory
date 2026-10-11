@@ -25,7 +25,6 @@ export type PlanBudgetCoherence = {
         title: string;
         destination: string;
         steps: string[];
-        completion: string;
     }[];
     advisories: {
         key: string;

@@ -24,7 +24,7 @@ use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
  * @phpstan-type AssessmentScopePayload array{is_full_reassessment:bool,has_scope_correction:bool,scope_correction_criterion_numbers:list<int>}
  * @phpstan-type AssessmentCriterionPayload array{criterion_number:int,name:string,score:float|int}
  * @phpstan-type PlanBudgetCoherenceFindingPayload array{category:string,severity:string,message:string,next_action:string}
- * @phpstan-type PlanBudgetCoherenceActionPayload array{key:string,severity:string,title:string,destination:string,steps:list<string>,completion:string}
+ * @phpstan-type PlanBudgetCoherenceActionPayload array{key:string,severity:string,title:string,destination:string,steps:list<string>}
  * @phpstan-type PlanBudgetCoherenceAdvisoryPayload array{key:string,category:string,message:string,next_action:string}
  * @phpstan-type PlanBudgetCoherenceDirectionPayload array{status:string,status_label:string,summary:string,unresolved_count:int}
  * @phpstan-type PlanBudgetCoherencePayload array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<PlanBudgetCoherenceFindingPayload>,actions:list<PlanBudgetCoherenceActionPayload>,advisories:list<PlanBudgetCoherenceAdvisoryPayload>,approval_available:bool,approval_message:string,budget_support:PlanBudgetCoherenceDirectionPayload,plan_correlation:PlanBudgetCoherenceDirectionPayload,unresolved_count:int}

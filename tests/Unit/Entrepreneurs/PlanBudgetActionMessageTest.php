@@ -25,7 +25,6 @@ final class PlanBudgetActionMessageTest extends TestCase
                         'title' => 'Set the forecast start month',
                         'destination' => 'Budget > Financial assumptions',
                         'steps' => ['Choose the first forecast month.', '', 12],
-                        'completion' => 'Save the financial assumptions.',
                     ],
                     [
                         'key' => 'FORECAST_CALENDAR',
@@ -52,11 +51,14 @@ final class PlanBudgetActionMessageTest extends TestCase
 
         $this->assertSame(['forecast_calendar'], array_column($actions, 'key'));
         $this->assertSame(['Choose the first forecast month.', '12'], $actions[0]['steps']);
+        $this->assertArrayNotHasKey('completion', $actions[0]);
         $this->assertStringContainsString('1. Set the forecast start month', $message);
         $this->assertStringContainsString('- Choose the first forecast month.', $message);
         $this->assertStringContainsString('- 12', $message);
         $this->assertStringNotContainsString('Duplicate action', $message);
         $this->assertStringNotContainsString('This action is incomplete.', $message);
+        $this->assertStringNotContainsString('When done:', $message);
+        $this->assertStringNotContainsString('Save the financial assumptions.', $message);
     }
 
     public function test_it_returns_no_actions_when_the_assessment_is_approved_or_its_payload_is_not_actionable(): void

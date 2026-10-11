@@ -11,7 +11,7 @@ namespace App\Services\Entrepreneurs;
  * screen and the founder change-request message.
  *
  * @phpstan-type Finding array{category:'budget_support'|'plan_correlation',severity:'missing'|'review',message:string,next_action:string}
- * @phpstan-type Action array{key:'regular_costs'|'forecast_calendar'|'funding_and_runway'|'sales_forecast'|'plan_and_budget'|'budget_setup',severity:'missing'|'review',title:string,destination:string,steps:list<string>,completion:string}
+ * @phpstan-type Action array{key:'regular_costs'|'forecast_calendar'|'funding_and_runway'|'sales_forecast'|'plan_and_budget'|'budget_setup',severity:'missing'|'review',title:string,destination:string,steps:list<string>}
  */
 final class PlanBudgetActionMapper
 {
@@ -135,7 +135,7 @@ final class PlanBudgetActionMapper
 
     /**
      * @param  list<string>  $messages
-     * @return array{title:string,destination:string,steps:list<string>,completion:string}
+     * @return array{title:string,destination:string,steps:list<string>}
      */
     private function regularCostsAction(array $messages): array
     {
@@ -172,13 +172,12 @@ final class PlanBudgetActionMapper
             'title' => 'Reconcile the regular business costs',
             'destination' => 'Budget > Monthly fixed costs, then Business plan > Financial assumptions',
             'steps' => $steps,
-            'completion' => 'Save both sections, then rerun the assessment.',
         ];
     }
 
     /**
      * @param  list<string>  $messages
-     * @return array{title:string,destination:string,steps:list<string>,completion:string}
+     * @return array{title:string,destination:string,steps:list<string>}
      */
     private function forecastCalendarAction(array $messages): array
     {
@@ -198,18 +197,17 @@ final class PlanBudgetActionMapper
             'title' => 'Set and confirm the forecast start month',
             'destination' => 'Budget > Financial assumptions',
             'steps' => $steps,
-            'completion' => 'Save the Financial assumptions section.',
         ];
     }
 
     /**
      * @param  list<string>  $messages
-     * @return array{title:string,destination:string,steps:list<string>,completion:string}
+     * @return array{title:string,destination:string,steps:list<string>}
      */
     private function fundingAndRunwayAction(array $messages): array
     {
         $steps = [
-            'First save the cost and forecast-date changes above, then rerun the assessment so the funding result is recalculated.',
+            'Rerun the assessment after the earlier cost and forecast-date updates are complete so the funding result is recalculated.',
         ];
 
         foreach ($messages as $message) {
@@ -231,13 +229,12 @@ final class PlanBudgetActionMapper
             'title' => 'Recheck funding and runway after the Budget corrections',
             'destination' => 'Budget > Funding and runway',
             'steps' => $steps,
-            'completion' => 'Save the funding position only after the recalculated result is confirmed.',
         ];
     }
 
     /**
      * @param  list<string>  $messages
-     * @return array{title:string,destination:string,steps:list<string>,completion:string}
+     * @return array{title:string,destination:string,steps:list<string>}
      */
     private function salesForecastAction(array $messages): array
     {
@@ -248,13 +245,12 @@ final class PlanBudgetActionMapper
                 'For each affected revenue line, set the expected sales, price, payment timing, and monthly delivery capacity.',
                 'Use the assessment detail to correct the named revenue line before changing unrelated estimates.',
             ],
-            'completion' => 'Save the Revenue forecast section.',
         ];
     }
 
     /**
      * @param  list<string>  $messages
-     * @return array{title:string,destination:string,steps:list<string>,completion:string}
+     * @return array{title:string,destination:string,steps:list<string>}
      */
     private function planAndBudgetAction(array $messages): array
     {
@@ -265,13 +261,12 @@ final class PlanBudgetActionMapper
                 'Update the matching plan statement and Budget row so both use the same amount, timing, and payment frequency.',
                 ...$this->assessmentDetailSteps($messages),
             ],
-            'completion' => 'Save the plan section and the Budget.',
         ];
     }
 
     /**
      * @param  list<string>  $messages
-     * @return array{title:string,destination:string,steps:list<string>,completion:string}
+     * @return array{title:string,destination:string,steps:list<string>}
      */
     private function budgetSetupAction(array $messages): array
     {
@@ -282,7 +277,6 @@ final class PlanBudgetActionMapper
                 'Complete the specific Budget input identified in the assessment using the best information available today.',
                 ...$this->assessmentDetailSteps($messages),
             ],
-            'completion' => 'Save the Budget, then rerun the assessment.',
         ];
     }
 

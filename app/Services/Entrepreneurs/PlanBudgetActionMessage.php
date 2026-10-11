@@ -12,7 +12,7 @@ final class PlanBudgetActionMessage
     public function __construct(private readonly PlanBudgetActionMapper $actionMapper) {}
 
     /**
-     * @return list<array{key:string,severity:string,title:string,destination:string,steps:list<string>,completion:string}>
+     * @return list<array{key:string,severity:string,title:string,destination:string,steps:list<string>}>
      */
     public function actions(PlanAssessment $assessment): array
     {
@@ -31,14 +31,13 @@ final class PlanBudgetActionMessage
 
                 $title = trim((string) ($action['title'] ?? ''));
                 $destination = trim((string) ($action['destination'] ?? ''));
-                $completion = trim((string) ($action['completion'] ?? ''));
                 $steps = collect((array) ($action['steps'] ?? []))
                     ->map(fn (mixed $step): string => trim((string) $step))
                     ->filter()
                     ->values()
                     ->all();
 
-                if ($title === '' || $destination === '' || $completion === '' || $steps === []) {
+                if ($title === '' || $destination === '' || $steps === []) {
                     continue;
                 }
 
@@ -48,7 +47,6 @@ final class PlanBudgetActionMessage
                     'title' => $title,
                     'destination' => $destination,
                     'steps' => $steps,
-                    'completion' => $completion,
                 ];
             }
         }
@@ -66,7 +64,7 @@ final class PlanBudgetActionMessage
     }
 
     /**
-     * @param  list<array{key:string,severity:string,title:string,destination:string,steps:list<string>,completion:string}>  $actions
+     * @param  list<array{key:string,severity:string,title:string,destination:string,steps:list<string>}>  $actions
      */
     public function format(array $actions): string
     {
@@ -80,7 +78,6 @@ final class PlanBudgetActionMessage
                     ...collect($action['steps'])
                         ->map(fn (string $step): string => '- '.$step)
                         ->all(),
-                    'When done: '.$action['completion'],
                 ]);
             })
             ->implode("\n\n");

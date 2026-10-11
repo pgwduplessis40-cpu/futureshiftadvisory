@@ -772,6 +772,8 @@ final class AssessmentTest extends TestCase
         $profile = $plan->entrepreneurProfile()->firstOrFail();
         $reply = app(AssessmentFeedback::class)->proposedReply($profile, $second->refresh());
         $this->assertStringContainsString('You do not need to start again.', $reply);
+        $this->assertStringContainsString('Your changes save automatically, so you do not need to find a Save button.', $reply);
+        $this->assertStringContainsString('Once all listed updates show “All changes saved,” select Run reassessment.', $reply);
         $this->assertStringContainsString('1. Reconcile the regular business costs', $reply);
         $this->assertStringContainsString('Go to: Budget > Monthly fixed costs, then Business plan > Financial assumptions', $reply);
         $this->assertStringContainsString('Add a cost row for: professional indemnity insurance, trademark registration and protection.', $reply);
@@ -781,6 +783,8 @@ final class AssessmentTest extends TestCase
         $this->assertStringContainsString('Current result: The budget has a funding gap of $190,057 after planned launch costs.', $reply);
         $this->assertStringContainsString('Use a reasonable estimate if an exact figure is not available yet.', $reply);
         $this->assertStringNotContainsString('forecast_start_month', $reply);
+        $this->assertStringNotContainsString('When done:', $reply);
+        $this->assertStringNotContainsString('Save both sections, then rerun the assessment.', $reply);
         $this->assertStringNotContainsString('What we found:', $reply);
         $this->assertStringNotContainsString('The three areas below are simply the best places', $reply);
         $this->assertTrue(app(AssessmentFeedback::class)->isLegacyReply("Dear Tania,\n\nBefore we can finish this review\n\nWhat we found:\n\nWhere to update:"));
@@ -805,6 +809,7 @@ final class AssessmentTest extends TestCase
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.key', 'regular_costs')
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.1.key', 'sales_forecast')
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.2.key', 'funding_and_runway')
+                ->missing('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.completion')
             );
 
         $this->expectException(ValidationException::class);
@@ -828,7 +833,6 @@ final class AssessmentTest extends TestCase
                             'title' => 'Set the forecast start month',
                             'destination' => 'Budget > Financial assumptions',
                             'steps' => ['Choose the first forecast month.', '', 12],
-                            'completion' => 'Save the financial assumptions.',
                         ],
                         [
                             'key' => 'FORECAST_CALENDAR',
@@ -859,8 +863,12 @@ final class AssessmentTest extends TestCase
         $this->assertStringContainsString('1. Set the forecast start month', $reply);
         $this->assertStringContainsString('- Choose the first forecast month.', $reply);
         $this->assertStringContainsString('- 12', $reply);
+        $this->assertStringContainsString('Your changes save automatically, so you do not need to find a Save button.', $reply);
+        $this->assertStringContainsString('Once all listed updates show “All changes saved,” select Run reassessment.', $reply);
         $this->assertStringNotContainsString('Duplicate action', $reply);
         $this->assertStringNotContainsString('This action is incomplete.', $reply);
+        $this->assertStringNotContainsString('When done:', $reply);
+        $this->assertStringNotContainsString('Save the financial assumptions.', $reply);
     }
 
     public function test_assessment_feedback_falls_back_to_saved_findings_when_actions_are_not_available(): void
