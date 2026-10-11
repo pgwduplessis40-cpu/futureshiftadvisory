@@ -127,6 +127,37 @@ final class LearningRecommendationWorkflowTest extends TestCase
             );
     }
 
+    public function test_learning_queue_hides_legacy_duplicate_budget_candidates_covered_by_an_approved_recommendation(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $admin = $this->admin();
+        $workflow = app(LearningRecommendationWorkflow::class);
+        $covered = $this->budgetLearningUpdate();
+        $duplicate = $this->budgetLearningUpdate();
+
+        $recommendation = $workflow->draft($covered, $admin, [
+            'title' => 'Review budget guidance calibration.',
+            'failure_shortfall' => 'Budget signals are repeating.',
+            'impact' => 'Administrators are asked to review the same condition repeatedly.',
+            'impact_area' => 'Budget guidance',
+            'recommendation' => 'Calibrate the budget guidance.',
+            'recommendation_impact' => 'One governed delivery should cover the unresolved signal.',
+            'acceptance_criteria' => ['Repeated signals remain consolidated until delivery is verified.'],
+        ]);
+        $workflow->approve($recommendation, $admin);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.learning-updates.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('cards', 0)
+                ->has('recommendations', 1)
+                ->where('recommendation_defaults', []),
+            );
+
+        $this->assertSame(LearningUpdate::STATUS_DETECTED, $duplicate->refresh()->status);
+    }
+
     public function test_approved_recommendation_can_record_an_already_deployed_release_with_complete_evidence(): void
     {
         $this->seed(RoleSeeder::class);
@@ -230,6 +261,31 @@ final class LearningRecommendationWorkflowTest extends TestCase
             'delivery_target' => 'Next release train',
             'baseline_metrics' => ['Evidence coverage: 85%'],
             'rollback_plan' => 'Restore the previous approved prompt and test fixture.',
+        ]);
+    }
+
+    private function budgetLearningUpdate(): LearningUpdate
+    {
+        return LearningUpdate::query()->create([
+            'layer_id' => 39,
+            'source' => [
+                'type' => 'entrepreneur_budget_model',
+                'signal_key' => 'legacy-date-scoped-key',
+                'budget_id' => 'budget-1',
+            ],
+            'summary' => 'Budget assistant learning signal detected: Funding position needs confirmation.',
+            'proposed_change' => ['action' => 'review_budget_guidance_calibration'],
+            'impact_scope' => ['module' => 'entrepreneur', 'surface' => 'budget_model'],
+            'clients_affected' => 1,
+            'magnitude' => 'low',
+            'confidence' => 0.68,
+            'evidence' => [
+                'active_flag_keys' => ['funding_shortfall', 'no_break_even'],
+                'missing_assumptions' => [],
+                'break_even_year' => null,
+                'cash_flow_positive_year' => null,
+            ],
+            'status' => LearningUpdate::STATUS_DETECTED,
         ]);
     }
 }
