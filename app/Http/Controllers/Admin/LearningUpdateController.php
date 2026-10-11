@@ -10,6 +10,7 @@ use App\Models\LearningUpdate;
 use App\Models\LearningUpdateImplementation;
 use App\Models\User;
 use App\Services\Learning\ApprovalFlow;
+use App\Services\Learning\BudgetLearningSignal;
 use App\Services\Learning\LayerCadenceRunner;
 use App\Services\Learning\LearningMonitorDashboard;
 use App\Services\Learning\LearningRecommendationWorkflow;
@@ -27,6 +28,7 @@ final class LearningUpdateController extends Controller
         private readonly ApprovalFlow $approvalFlow,
         private readonly LearningMonitorDashboard $monitor,
         private readonly LearningRecommendationWorkflow $recommendations,
+        private readonly BudgetLearningSignal $learningSignals,
     ) {}
 
     public function index(): Response
@@ -36,10 +38,22 @@ final class LearningUpdateController extends Controller
             ->pluck('learning_update_id')
             ->map(fn (mixed $id): string => (string) $id)
             ->all();
+        $coveredBudgetSignalKeys = $activeRecommendations
+            ->map(fn (LearningRecommendation $recommendation): ?string => $this->learningSignals->keyForUpdate($recommendation->learningUpdate))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        $isCovered = fn (string $id, array $source, array $evidence): bool => in_array($id, $activeRecommendationLearningUpdateIds, true)
+            || in_array($this->learningSignals->keyForPayload($source, $evidence), $coveredBudgetSignalKeys, true);
 
         return Inertia::render('admin/learning/Index', [
             'cards' => $this->approvalFlow->cards()
-                ->reject(fn (array $card): bool => in_array($card['id'], $activeRecommendationLearningUpdateIds, true))
+                ->reject(fn (array $card): bool => $isCovered(
+                    (string) $card['id'],
+                    (array) $card['source'],
+                    (array) $card['evidence'],
+                ))
                 ->values(),
             'decisions' => $this->approvalFlow->decisions(),
             'impact_reviews' => $this->approvalFlow->impactReviewCards()->values(),
@@ -48,9 +62,13 @@ final class LearningUpdateController extends Controller
                 ->values(),
             'recommendation_defaults' => LearningUpdate::query()
                 ->whereIn('status', [LearningUpdate::STATUS_DETECTED, LearningUpdate::STATUS_STAGED, LearningUpdate::STATUS_DEFERRED])
-                ->whereNotIn('id', $activeRecommendationLearningUpdateIds)
                 ->latest()
                 ->get()
+                ->reject(fn (LearningUpdate $update): bool => $isCovered(
+                    (string) $update->getKey(),
+                    (array) $update->source,
+                    (array) $update->evidence,
+                ))
                 ->mapWithKeys(fn (LearningUpdate $update): array => [(string) $update->getKey() => $this->recommendations->defaultsFor($update)])
                 ->all(),
             'monitor' => $this->monitor->dashboard(),

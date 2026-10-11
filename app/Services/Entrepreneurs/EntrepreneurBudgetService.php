@@ -10,6 +10,7 @@ use App\Models\EntrepreneurBudget;
 use App\Models\LearningUpdate;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Learning\BudgetLearningSignal;
 use App\Services\Learning\LayerCadenceRegistry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -37,6 +38,7 @@ final class EntrepreneurBudgetService
         private readonly BudgetCalculator $calculator,
         private readonly AuditWriter $audit,
         private readonly EntrepreneurMilestones $milestones,
+        private readonly BudgetLearningSignal $learningSignals,
     ) {}
 
     /**
@@ -653,14 +655,13 @@ final class EntrepreneurBudgetService
         }
 
         $budget->loadMissing('businessPlan.entrepreneurProfile');
-        $signalKey = hash('sha256', implode('|', [
-            $budget->getKey(),
-            now()->toDateString(),
-            $activeFlags->pluck('key')->sort()->implode(','),
-            collect($missingAssumptions)->sort()->implode(','),
-            (string) data_get($computed, 'break_even_year', 'none'),
-            (string) data_get($computed, 'cash_flow_positive_year', 'none'),
-        ]));
+        $signalKey = $this->learningSignals->key(
+            budgetId: $budget->getKey(),
+            activeFlagKeys: $activeFlags->pluck('key')->all(),
+            missingAssumptions: $missingAssumptions,
+            breakEvenYear: data_get($computed, 'break_even_year'),
+            cashFlowPositiveYear: data_get($computed, 'cash_flow_positive_year'),
+        );
 
         $exists = LearningUpdate::query()
             ->where('layer_id', LayerCadenceRegistry::LAYER_ENTREPRENEUR_BUDGET_MODEL)
@@ -670,8 +671,10 @@ final class EntrepreneurBudgetService
                 LearningUpdate::STATUS_APPROVED,
                 LearningUpdate::STATUS_DEFERRED,
             ])
-            ->where('source->signal_key', $signalKey)
-            ->exists();
+            ->where('source->type', BudgetLearningSignal::SOURCE_TYPE)
+            ->where('source->budget_id', $budget->getKey())
+            ->get()
+            ->contains(fn (LearningUpdate $update): bool => $this->learningSignals->keyForUpdate($update) === $signalKey);
 
         if ($exists) {
             return;
@@ -680,7 +683,7 @@ final class EntrepreneurBudgetService
         LearningUpdate::query()->create([
             'layer_id' => LayerCadenceRegistry::LAYER_ENTREPRENEUR_BUDGET_MODEL,
             'source' => [
-                'type' => 'entrepreneur_budget_model',
+                'type' => BudgetLearningSignal::SOURCE_TYPE,
                 'signal_key' => $signalKey,
                 'business_plan_id' => $budget->business_plan_id,
                 'entrepreneur_profile_id' => $budget->businessPlan?->entrepreneur_profile_id,

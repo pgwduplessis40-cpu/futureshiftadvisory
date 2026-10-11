@@ -9,6 +9,7 @@ use App\Models\AuditEvent;
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
+use App\Models\LearningUpdate;
 use App\Models\PlanPhase;
 use App\Models\PlanSection;
 use App\Models\User;
@@ -16,6 +17,7 @@ use App\Services\Entrepreneurs\EntrepreneurBudgetService;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -67,6 +69,41 @@ final class BudgetRunwayTest extends TestCase
         $this->assertSame(3, $budget->forecast_years);
         $this->assertSame(-5000.0, (float) data_get($budget->computed, 'available_after_launch'));
         $this->assertContains('funding_shortfall', collect($budget->flags)->pluck('key')->all());
+    }
+
+    public function test_repeating_an_unchanged_budget_signal_on_a_later_day_does_not_queue_a_duplicate_learning(): void
+    {
+        Carbon::setTestNow('2026-10-11 09:00:00');
+
+        try {
+            [$actor, $plan] = $this->plan();
+            $payload = [
+                'expected_runway_months' => 8,
+                'forecast_years' => 3,
+                'assumptions' => [
+                    'revenue_growth_percent' => 12,
+                    'cost_inflation_percent' => 3,
+                    'target_gross_profit_percent' => 55,
+                    'target_net_profit_before_tax_percent' => 10,
+                    'target_net_profit_after_tax_percent' => 7,
+                ],
+                'launch_costs' => [['label' => 'Fit out', 'amount' => 10_000, 'quantity' => 1]],
+                'monthly_fixed_costs' => [['label' => 'Rent', 'amount' => 2_000, 'quantity' => 1]],
+                'revenue_forecast' => [['label' => 'Subscriptions', 'amount' => 1_500, 'quantity' => 1, 'month' => 1, 'monthly_growth_percent' => 0, 'variable_cost_percent' => 10]],
+                'funding_sources' => [['label' => 'Founder cash', 'amount' => 5_000, 'quantity' => 1]],
+            ];
+
+            $budget = app(EntrepreneurBudgetService::class)->update($plan, $payload, $actor);
+            $candidate = LearningUpdate::query()->sole();
+
+            Carbon::setTestNow('2026-10-12 09:00:00');
+            app(EntrepreneurBudgetService::class)->update($plan, [...$payload, 'revision' => $budget->revision], $actor);
+
+            $this->assertSame(1, LearningUpdate::query()->count());
+            $this->assertSame($candidate->source['signal_key'], LearningUpdate::query()->sole()->source['signal_key']);
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_budget_uses_configurable_runway_tolerance_forecast_options_and_skips_noop_audit(): void
