@@ -547,6 +547,46 @@ async function login(page, account, viewport) {
             { timeout: 15_000 },
         );
     }
+
+    // Inertia updates the address bar as soon as the post-authentication visit
+    // begins. Wait until the redirected page is actually mounted before the
+    // caller navigates again: Fortify may have just regenerated the session
+    // identifier, and an immediate second request can otherwise race the new
+    // session cookie on a fresh browser context.
+    await page.waitForFunction(
+        () => {
+            const path = window.location.pathname;
+
+            if (
+                [
+                    '/login',
+                    '/mfa/challenge',
+                    '/two-factor-challenge',
+                ].some((challengePath) => path.includes(challengePath))
+            ) {
+                return false;
+            }
+
+            const serializedPage = document
+                .querySelector('[data-page]')
+                ?.getAttribute('data-page');
+
+            if (!serializedPage) {
+                return false;
+            }
+
+            try {
+                const component = JSON.parse(serializedPage).component;
+
+                return typeof component === 'string' && !component.startsWith('auth/');
+            } catch {
+                return false;
+            }
+        },
+        { timeout: 15_000 },
+    );
+
+    await page.waitForNetworkIdle({ idleTime: 250, timeout: 15_000 });
 }
 
 async function waitForBodyText(page, text, timeout = 10_000) {
