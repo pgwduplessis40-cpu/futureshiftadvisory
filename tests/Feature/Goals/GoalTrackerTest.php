@@ -101,7 +101,6 @@ final class GoalTrackerTest extends TestCase
             'title' => 'Configure board pack template',
             'owner_user_id' => $advisor->getKey(),
             'priority' => 'high',
-            'due_date' => now()->addWeeks(2)->toDateString(),
         ], $advisor);
 
         $document = $this->document($client, 'The board pack template is live and was accepted by the client.', 'milestone-proof.txt', $advisor);
