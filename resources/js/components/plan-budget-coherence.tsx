@@ -132,10 +132,11 @@ export function PlanBudgetCoherencePanel({
             {actions.length > 0 ? (
                 <div className="space-y-3 border-t pt-3">
                     <p className="rounded border bg-background/70 p-3 text-muted-foreground">
+                        Open Business Plan & Budget, then select Financial
+                        assumptions from the Plan requirements list on the left.
                         Your Budget changes save automatically, so you do not
                         need to find a Save button. After editing, wait until
-                        the page shows “All changes saved.” Once all listed
-                        updates show “All changes saved,” select Run
+                        the page shows “All changes saved,” then select Run
                         reassessment.
                     </p>
                     <ul className="space-y-3">

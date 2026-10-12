@@ -5,7 +5,6 @@ import InputError from '@/components/input-error';
 import { DraftSaveStatus } from '@/components/portal/draft-save-status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { CompletedPlanRequirements } from './completed-plan-requirements';
 import { ExecutiveSummaryNotice } from './executive-summary-notice';
 import { BudgetEditor, requirementId } from './plan-budget';
@@ -14,6 +13,7 @@ import {
     formatDate,
     ideaFields,
 } from './plan-dashboard-panels';
+import { PlanRequirementsLayout } from './plan-requirements-layout';
 import { PlanSupportingDocuments } from './plan-supporting-documents';
 import {
     IDEA_VALIDATION_FIELD_MAX_LENGTH,
@@ -570,64 +570,14 @@ export function PlanWorkspaceActions({
                 ) : hasPlan && planChangesLocked && planIsComplete ? (
                     <CompletedPlanRequirements phases={phases} />
                 ) : hasPlan ? (
-                    <div className="grid items-start gap-6 xl:grid-cols-[minmax(15rem,0.58fr)_minmax(0,1.42fr)]">
-                        <div className="space-y-3 xl:sticky xl:top-24 xl:self-start">
-                            {phases.map((phase) => (
-                                <div key={phase.key} className="space-y-2">
-                                    <div className="text-xs font-medium text-muted-foreground">
-                                        {phase.title}
-                                    </div>
-                                    {phase.requirements.map((requirement) => (
-                                        <button
-                                            key={requirementId(requirement)}
-                                            type="button"
-                                            className={cn(
-                                                'w-full rounded-md border p-3 text-left text-sm transition-colors outline-none hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                                                selectedRequirement &&
-                                                    requirementId(
-                                                        requirement,
-                                                    ) ===
-                                                        requirementId(
-                                                            selectedRequirement,
-                                                        ) &&
-                                                    'border-foreground',
-                                            )}
-                                            onClick={() => {
-                                                rememberWorkspacePosition();
-                                                setSelectedKey(
-                                                    requirementId(requirement),
-                                                );
-                                            }}
-                                        >
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div>
-                                                    <div className="font-medium">
-                                                        {requirement.title}
-                                                    </div>
-                                                    <p className="mt-1 text-xs text-muted-foreground">
-                                                        {
-                                                            requirement.description
-                                                        }
-                                                    </p>
-                                                </div>
-                                                <Badge
-                                                    variant={
-                                                        requirement.complete
-                                                            ? 'secondary'
-                                                            : 'outline'
-                                                    }
-                                                >
-                                                    {requirement.complete
-                                                        ? 'Complete'
-                                                        : 'Needed'}
-                                                </Badge>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            ))}
-                        </div>
-
+                    <PlanRequirementsLayout
+                        phases={phases}
+                        selectedRequirement={selectedRequirement}
+                        onSelect={(requirement) => {
+                            rememberWorkspacePosition();
+                            setSelectedKey(requirementId(requirement));
+                        }}
+                    >
                         <div className="min-w-0 space-y-4 rounded-md border p-4 xl:self-start">
                             {selectedRequirement ? (
                                 selectedRequirement.type === 'budget' &&
@@ -941,7 +891,7 @@ export function PlanWorkspaceActions({
                                 </p>
                             )}
                         </div>
-                    </div>
+                    </PlanRequirementsLayout>
                 ) : (
                     <div className="rounded-md border border-dashed bg-muted/20 p-4">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

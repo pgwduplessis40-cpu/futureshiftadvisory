@@ -54,14 +54,17 @@ final class PlanBudgetActionMapperTest extends TestCase
             'regular_costs',
             'forecast_calendar',
             'sales_forecast',
-            'funding_and_runway',
             'plan_and_budget',
             'budget_setup',
         ], array_column($actions, 'key'));
         $this->assertSame('missing', $actions[0]['severity']);
         $this->assertSame(
-            'Check how often these existing Budget costs are paid: Insurance, Commercial kitchen or site cost. If the saved frequency is your best estimate, mark it as checked; an invoice is helpful but not required.',
+            'In the cost list, find these existing rows: Insurance, Commercial kitchen or site cost. For each row, choose how often the cost is paid, then tick “I have checked how often this cost is paid”. If your best estimate is all you have, you can still tick it.',
             $actions[0]['steps'][0],
+        );
+        $this->assertStringContainsString(
+            'Financial assumptions > Budget editor',
+            $actions[0]['destination'],
         );
         $this->assertStringContainsString(
             'Rename or split the row',
@@ -73,13 +76,9 @@ final class PlanBudgetActionMapperTest extends TestCase
         );
         $this->assertStringContainsString('$5,718', implode(' ', $actions[0]['steps']));
         $this->assertStringContainsString('opening cash', implode(' ', $actions[1]['steps']));
-        $this->assertSame('Let the reassessment recalculate funding and runway', $actions[3]['title']);
-        $this->assertStringContainsString('All changes saved', $actions[3]['steps'][0]);
-        $this->assertStringContainsString('Run reassessment', $actions[3]['steps'][0]);
-        $this->assertStringContainsString('additional funding', implode(' ', $actions[3]['steps']));
-        $this->assertStringContainsString('Runway needs checking', implode(' ', $actions[3]['steps']));
-        $this->assertStringContainsString('The plan and Budget use different payment dates.', implode(' ', $actions[4]['steps']));
-        $this->assertStringContainsString('Add the launch-date financial assumption.', implode(' ', $actions[5]['steps']));
+        $this->assertStringNotContainsString('funding_and_runway', implode(' ', array_column($actions, 'key')));
+        $this->assertStringContainsString('The plan and Budget use different payment dates.', implode(' ', $actions[3]['steps']));
+        $this->assertStringContainsString('Add the launch-date financial assumption.', implode(' ', $actions[4]['steps']));
     }
 
     public function test_it_uses_the_general_cost_instruction_when_no_specific_cost_detail_can_be_extracted(): void
@@ -92,7 +91,7 @@ final class PlanBudgetActionMapperTest extends TestCase
         $this->assertCount(1, $actions);
         $this->assertSame('regular_costs', $actions[0]['key']);
         $this->assertSame(
-            'Review the regular cost rows identified in this assessment and correct the cost amount or payment frequency that is not yet aligned.',
+            'In the cost list, find the row named in this assessment and correct its amount or how often it is paid.',
             $actions[0]['steps'][0],
         );
     }

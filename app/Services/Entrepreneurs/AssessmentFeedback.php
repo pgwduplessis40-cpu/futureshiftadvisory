@@ -208,7 +208,8 @@ final class AssessmentFeedback
         $planBudgetActions = $this->planBudgetActionMessage->actions($assessment);
         if ($planBudgetActions !== []) {
             return $this->changeRequestMessages->build($profile, [
-                'You do not need to start again. Please complete the Budget updates below. Your changes save automatically, so you do not need to find a Save button. After editing, wait until the page shows “All changes saved.”',
+                'You do not need to start again. Open Business Plan & Budget, then use the Plan requirements list on the left to select Financial assumptions. That opens the Budget editor used in the steps below.',
+                'Your changes save automatically, so you do not need to find a Save button. After editing, wait until the page shows “All changes saved.”',
                 $this->planBudgetActionMessage->format($planBudgetActions),
                 'Once all listed updates show “All changes saved,” select Run reassessment.',
                 'Use a reasonable estimate if an exact figure is not available yet. An invoice or other source is helpful if you have one, but it is not required for this update.',
