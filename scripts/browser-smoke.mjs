@@ -586,7 +586,12 @@ async function login(page, account, viewport) {
         { timeout: 15_000 },
     );
 
-    await page.waitForNetworkIdle({ idleTime: 250, timeout: 15_000 });
+    // Authenticated dashboards keep collaboration long-poll requests open, so
+    // network-idle would never be reached here. Let the mounted Inertia page
+    // settle for a short, deterministic interval instead.
+    await page.evaluate(
+        () => new Promise((resolve) => window.setTimeout(resolve, 250)),
+    );
 }
 
 async function waitForBodyText(page, text, timeout = 10_000) {
