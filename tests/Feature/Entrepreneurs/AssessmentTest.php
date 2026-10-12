@@ -780,8 +780,11 @@ final class AssessmentTest extends TestCase
         $this->assertStringContainsString('The plan states monthly operating costs of $600, while the Budget totals $51,573 per month.', $reply);
         $this->assertStringContainsString('2. Set and confirm the forecast start month', $reply);
         $this->assertStringContainsString('3. Confirm the sales forecast assumptions', $reply);
-        $this->assertStringNotContainsString('Let the reassessment recalculate funding and runway', $reply);
-        $this->assertStringNotContainsString('The budget has a funding gap of $190,057 after planned launch costs.', $reply);
+        $this->assertStringContainsString('4. Let the reassessment recalculate funding and runway', $reply);
+        $this->assertStringContainsString('Funding and runway are calculated automatically from the Budget. Do not change a funding figure just to clear this message.', $reply);
+        $this->assertStringContainsString('Current calculation: The budget has a funding gap of $190,057 after planned launch costs.', $reply);
+        $this->assertStringNotContainsString('Recheck funding and runway after the Budget corrections', $reply);
+        $this->assertStringNotContainsString('First save the cost and forecast-date changes above', $reply);
         $this->assertStringContainsString('Use a reasonable estimate if an exact figure is not available yet.', $reply);
         $this->assertStringNotContainsString('forecast_start_month', $reply);
         $this->assertStringNotContainsString('When done:', $reply);
