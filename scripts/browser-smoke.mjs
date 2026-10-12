@@ -547,6 +547,20 @@ async function login(page, account, viewport) {
             { timeout: 15_000 },
         );
     }
+
+    // Inertia updates the address bar as soon as the post-authentication visit
+    // begins. Wait until the redirected page is actually mounted before the
+    // caller navigates again: Fortify may have just regenerated the session
+    // identifier, and an immediate second request can otherwise race the new
+    // session cookie on a fresh browser context.
+    await page.waitForSelector('main, [role="main"]', { timeout: 15_000 });
+
+    // Authenticated dashboards keep collaboration long-poll requests open, so
+    // network-idle would never be reached here. Let the mounted Inertia page
+    // settle for a short, deterministic interval instead.
+    await page.evaluate(
+        () => new Promise((resolve) => window.setTimeout(resolve, 250)),
+    );
 }
 
 async function waitForBodyText(page, text, timeout = 10_000) {
