@@ -809,10 +809,12 @@ final class AssessmentTest extends TestCase
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.approval_available', false)
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.budget_support.status', 'missing')
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.plan_correlation.status', 'review')
-                ->has('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions', 3)
+                ->has('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions', 4)
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.key', 'regular_costs')
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.1.key', 'forecast_calendar')
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.2.key', 'sales_forecast')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.3.key', 'funding_and_runway')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.3.steps.0', 'Funding and runway are calculated automatically from the Budget. Do not change a funding figure just to clear this message.')
                 ->missing('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.completion')
             );
 
