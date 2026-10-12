@@ -8,6 +8,7 @@ use App\Models\PlanAssessment;
 use App\Models\RatingFramework;
 use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\AssessmentScoring;
+use App\Services\Entrepreneurs\PlanBudgetActionMessage;
 
 /**
  * @phpstan-type PlanBudgetCoherenceFindingPayload array{category:string,severity:string,message:string,next_action:string}
@@ -397,30 +398,7 @@ trait BuildsEntrepreneurAssessmentPayload
             ->filter(fn (array $finding): bool => $finding['message'] !== '')
             ->values()
             ->all();
-        $actions = collect((array) ($coherence['actions'] ?? []))
-            ->filter(fn (mixed $action): bool => is_array($action))
-            ->map(function (array $action): array {
-                $steps = collect((array) ($action['steps'] ?? []))
-                    ->filter(fn (mixed $step): bool => is_string($step) && trim($step) !== '')
-                    ->map(fn (string $step): string => trim($step))
-                    ->values()
-                    ->all();
-
-                return [
-                    'key' => trim((string) ($action['key'] ?? '')),
-                    'severity' => (string) ($action['severity'] ?? 'review'),
-                    'title' => trim((string) ($action['title'] ?? '')),
-                    'destination' => trim((string) ($action['destination'] ?? '')),
-                    'steps' => $steps,
-                ];
-            })
-            ->filter(fn (array $action): bool => $action['key'] !== ''
-                && $action['title'] !== ''
-                && $action['destination'] !== ''
-                && $action['steps'] !== [])
-            ->unique('key')
-            ->values()
-            ->all();
+        $actions = app(PlanBudgetActionMessage::class)->actionsForCoherence($coherence);
         $advisories = collect((array) ($coherence['advisories'] ?? []))
             ->filter(fn (mixed $advisory): bool => is_array($advisory))
             ->map(fn (array $advisory): array => [

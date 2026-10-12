@@ -207,26 +207,26 @@ final class PlanBudgetActionMapper
     private function fundingAndRunwayAction(array $messages): array
     {
         $steps = [
-            'Rerun the assessment after the earlier cost and forecast-date updates are complete so the funding result is recalculated.',
+            'After the earlier Budget updates show “All changes saved”, select Run reassessment. The funding and runway result will be recalculated automatically.',
         ];
 
         foreach ($messages as $message) {
             $normalised = strtolower($message);
             if (str_contains($normalised, 'additional funding') || str_contains($normalised, 'funding gap')) {
-                $steps[] = 'If the recalculated forecast still needs funding, record the source, amount, and expected date. Current result: '.$message;
+                $steps[] = 'Only if the reassessment still reports a funding gap, update the funding details it identifies. Current result: '.$message;
                 break;
             }
         }
 
         foreach ($messages as $message) {
             if (str_contains(strtolower($message), 'runway')) {
-                $steps[] = 'Check the intended runway against the recalculated runway before changing the plan statement. Current result: '.$message;
+                $steps[] = 'Only if the reassessment still reports a runway difference, update the amount or timing it identifies. Current result: '.$message;
                 break;
             }
         }
 
         return [
-            'title' => 'Recheck funding and runway after the Budget corrections',
+            'title' => 'Let the reassessment recalculate funding and runway',
             'destination' => 'Budget > Funding and runway',
             'steps' => $steps,
         ];
