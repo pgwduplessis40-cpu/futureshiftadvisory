@@ -779,7 +779,7 @@ final class AssessmentTest extends TestCase
         $this->assertStringContainsString('Add a cost row for: professional indemnity insurance, trademark registration and protection.', $reply);
         $this->assertStringContainsString('The plan states monthly operating costs of $600, while the Budget totals $51,573 per month.', $reply);
         $this->assertStringContainsString('2. Confirm the sales forecast assumptions', $reply);
-        $this->assertStringContainsString('3. Recheck funding and runway after the Budget corrections', $reply);
+        $this->assertStringContainsString('3. Let the reassessment recalculate funding and runway', $reply);
         $this->assertStringContainsString('Current result: The budget has a funding gap of $190,057 after planned launch costs.', $reply);
         $this->assertStringContainsString('Use a reasonable estimate if an exact figure is not available yet.', $reply);
         $this->assertStringNotContainsString('forecast_start_month', $reply);
@@ -897,6 +897,54 @@ final class AssessmentTest extends TestCase
 
         $this->assertStringContainsString('1. Set and confirm the forecast start month', $reply);
         $this->assertStringContainsString('Tick “I have checked Month 1 against the written milestones.”', $reply);
+    }
+
+    public function test_assessment_payload_rebuilds_historic_actions_from_findings_before_rendering_them(): void
+    {
+        [$advisor, $plan] = $this->plan('plan-budget-historic-action-payload@example.test');
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $assessment->forceFill([
+            'scoring_scope' => [
+                'plan_budget_coherence' => [
+                    'approval_available' => false,
+                    'actions' => [[
+                        'key' => 'funding_and_runway',
+                        'severity' => 'review',
+                        'title' => 'Recheck funding and runway after the Budget corrections',
+                        'destination' => 'Budget > Funding and runway',
+                        'steps' => [
+                            'First save the cost and forecast-date changes above, then rerun the assessment so the funding result is recalculated.',
+                            'Check the intended runway against the recalculated runway before changing the plan statement.',
+                        ],
+                    ]],
+                    'findings' => [
+                        [
+                            'category' => 'budget_support',
+                            'severity' => 'review',
+                            'message' => 'The forecast requires $4,686 of additional funding to cover the modelled cash trough.',
+                            'next_action' => 'Confirm the funding source and timing.',
+                        ],
+                        [
+                            'category' => 'plan_correlation',
+                            'severity' => 'review',
+                            'message' => 'Runway needs checking: The expected runway is more than 2 months away from the budget calculation.',
+                            'next_action' => 'Update the funding and runway assumptions.',
+                        ],
+                    ],
+                ],
+            ],
+        ])->save();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $plan->entrepreneurProfile()->firstOrFail()))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.key', 'funding_and_runway')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.title', 'Let the reassessment recalculate funding and runway')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.steps.0', 'After the earlier Budget updates show “All changes saved”, select Run reassessment. The funding and runway result will be recalculated automatically.')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.steps.1', 'Only if the reassessment still reports a funding gap, update the funding details it identifies. Current result: The forecast requires $4,686 of additional funding to cover the modelled cash trough.')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.steps.2', 'Only if the reassessment still reports a runway difference, update the amount or timing it identifies. Current result: Runway needs checking: The expected runway is more than 2 months away from the budget calculation.')
+            );
     }
 
     public function test_historical_fallback_scores_are_unavailable_and_do_not_affect_score_movement(): void

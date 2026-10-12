@@ -73,6 +73,9 @@ final class PlanBudgetActionMapperTest extends TestCase
         );
         $this->assertStringContainsString('$5,718', implode(' ', $actions[0]['steps']));
         $this->assertStringContainsString('opening cash', implode(' ', $actions[1]['steps']));
+        $this->assertSame('Let the reassessment recalculate funding and runway', $actions[3]['title']);
+        $this->assertStringContainsString('All changes saved', $actions[3]['steps'][0]);
+        $this->assertStringContainsString('Run reassessment', $actions[3]['steps'][0]);
         $this->assertStringContainsString('additional funding', implode(' ', $actions[3]['steps']));
         $this->assertStringContainsString('Runway needs checking', implode(' ', $actions[3]['steps']));
         $this->assertStringContainsString('The plan and Budget use different payment dates.', implode(' ', $actions[4]['steps']));

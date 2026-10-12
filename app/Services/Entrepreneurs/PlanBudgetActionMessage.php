@@ -17,8 +17,32 @@ final class PlanBudgetActionMessage
     public function actions(PlanAssessment $assessment): array
     {
         $coherence = data_get($assessment->scoring_scope, 'plan_budget_coherence');
-        if (! is_array($coherence) || (bool) ($coherence['approval_available'] ?? true)) {
+        if (! is_array($coherence)) {
             return [];
+        }
+
+        return $this->actionsForCoherence($coherence);
+    }
+
+    /**
+     * Rebuild actions from the saved diagnostics whenever they are present.
+     *
+     * Assessments persist findings as the audit record, while action text is
+     * presentation guidance. Mapping the findings at read time keeps historic
+     * reviews aligned with current founder guidance, including autosave.
+     *
+     * @param  array{approval_available?:bool,actions?:array<int, mixed>|string,findings?:array<int, mixed>|string}  $coherence
+     * @return list<array{key:string,severity:string,title:string,destination:string,steps:list<string>}>
+     */
+    public function actionsForCoherence(array $coherence): array
+    {
+        if ((bool) ($coherence['approval_available'] ?? true)) {
+            return [];
+        }
+
+        $findings = $this->legacyFindings($coherence);
+        if ($findings !== []) {
+            return $this->actionMapper->map($findings);
         }
 
         $normalised = [];
@@ -60,7 +84,7 @@ final class PlanBudgetActionMessage
             return $normalised;
         }
 
-        return $this->actionMapper->map($this->legacyFindings($coherence));
+        return [];
     }
 
     /**

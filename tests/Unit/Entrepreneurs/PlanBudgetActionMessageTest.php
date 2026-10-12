@@ -111,4 +111,48 @@ final class PlanBudgetActionMessageTest extends TestCase
         $this->assertSame('Set and confirm the forecast start month', $actions[0]['title']);
         $this->assertStringContainsString('Tick “I have checked Month 1', implode(' ', $actions[0]['steps']));
     }
+
+    public function test_it_rebuilds_historic_actions_from_saved_findings_to_remove_manual_save_instructions(): void
+    {
+        $assessment = new PlanAssessment;
+        $assessment->scoring_scope = [
+            'plan_budget_coherence' => [
+                'approval_available' => false,
+                'actions' => [[
+                    'key' => 'funding_and_runway',
+                    'severity' => 'review',
+                    'title' => 'Recheck funding and runway after the Budget corrections',
+                    'destination' => 'Budget > Funding and runway',
+                    'steps' => [
+                        'First save the cost and forecast-date changes above, then rerun the assessment so the funding result is recalculated.',
+                        'Check the intended runway against the recalculated runway before changing the plan statement.',
+                    ],
+                ]],
+                'findings' => [
+                    [
+                        'category' => 'budget_support',
+                        'severity' => 'review',
+                        'message' => 'The forecast requires $4,686 of additional funding to cover the modelled cash trough.',
+                        'next_action' => 'Confirm the funding source and timing.',
+                    ],
+                    [
+                        'category' => 'plan_correlation',
+                        'severity' => 'review',
+                        'message' => 'Runway needs checking: The expected runway is more than 2 months away from the budget calculation.',
+                        'next_action' => 'Update the funding and runway assumptions.',
+                    ],
+                ],
+            ],
+        ];
+
+        $actions = (new PlanBudgetActionMessage(new PlanBudgetActionMapper))->actions($assessment);
+        $message = (new PlanBudgetActionMessage(new PlanBudgetActionMapper))->format($actions);
+
+        $this->assertSame(['funding_and_runway'], array_column($actions, 'key'));
+        $this->assertSame('Let the reassessment recalculate funding and runway', $actions[0]['title']);
+        $this->assertStringContainsString('All changes saved', $actions[0]['steps'][0]);
+        $this->assertStringContainsString('Run reassessment', $actions[0]['steps'][0]);
+        $this->assertStringNotContainsString('First save', $message);
+        $this->assertStringNotContainsString('Check the intended runway', $message);
+    }
 }
