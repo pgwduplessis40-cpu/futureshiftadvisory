@@ -208,8 +208,9 @@ final class AssessmentFeedback
         $planBudgetActions = $this->planBudgetActionMessage->actions($assessment);
         if ($planBudgetActions !== []) {
             return $this->changeRequestMessages->build($profile, [
-                'You do not need to start again. Please complete the Budget updates below, save your changes, then send the plan back for review.',
+                'You do not need to start again. Please complete the Budget updates below. Your changes save automatically, so you do not need to find a Save button. After editing, wait until the page shows “All changes saved.”',
                 $this->planBudgetActionMessage->format($planBudgetActions),
+                'Once all listed updates show “All changes saved,” select Run reassessment.',
                 'Use a reasonable estimate if an exact figure is not available yet. An invoice or other source is helpful if you have one, but it is not required for this update.',
                 'If anything is unclear, reply before changing it and we can talk it through together.',
             ]);

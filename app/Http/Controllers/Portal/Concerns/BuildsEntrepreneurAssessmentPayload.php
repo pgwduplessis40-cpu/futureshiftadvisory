@@ -11,7 +11,7 @@ use App\Services\Entrepreneurs\AssessmentScoring;
 
 /**
  * @phpstan-type PlanBudgetCoherenceFindingPayload array{category:string,severity:string,message:string,next_action:string}
- * @phpstan-type PlanBudgetCoherenceActionPayload array{key:string,severity:string,title:string,destination:string,steps:list<string>,completion:string}
+ * @phpstan-type PlanBudgetCoherenceActionPayload array{key:string,severity:string,title:string,destination:string,steps:list<string>}
  * @phpstan-type PlanBudgetCoherenceAdvisoryPayload array{key:string,category:string,message:string,next_action:string}
  * @phpstan-type PlanBudgetCoherenceDirectionPayload array{status:string,status_label:string,summary:string,unresolved_count:int}
  * @phpstan-type PlanBudgetCoherencePayload array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<PlanBudgetCoherenceFindingPayload>,actions:list<PlanBudgetCoherenceActionPayload>,advisories:list<PlanBudgetCoherenceAdvisoryPayload>,approval_available:bool,approval_message:string,budget_support:PlanBudgetCoherenceDirectionPayload,plan_correlation:PlanBudgetCoherenceDirectionPayload,unresolved_count:int}
@@ -412,14 +412,12 @@ trait BuildsEntrepreneurAssessmentPayload
                     'title' => trim((string) ($action['title'] ?? '')),
                     'destination' => trim((string) ($action['destination'] ?? '')),
                     'steps' => $steps,
-                    'completion' => trim((string) ($action['completion'] ?? '')),
                 ];
             })
             ->filter(fn (array $action): bool => $action['key'] !== ''
                 && $action['title'] !== ''
                 && $action['destination'] !== ''
-                && $action['steps'] !== []
-                && $action['completion'] !== '')
+                && $action['steps'] !== [])
             ->unique('key')
             ->values()
             ->all();

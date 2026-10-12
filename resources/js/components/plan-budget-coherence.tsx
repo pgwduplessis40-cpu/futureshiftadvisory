@@ -23,7 +23,6 @@ export type PlanBudgetCoherenceSummary = {
         title: string;
         destination: string;
         steps: string[];
-        completion: string;
     }[];
     advisories?: {
         key: string;
@@ -131,24 +130,30 @@ export function PlanBudgetCoherencePanel({
             </div>
 
             {actions.length > 0 ? (
-                <ul className="space-y-3 border-t pt-3">
-                    {actions.map((action) => (
-                        <li key={action.key} className="space-y-2">
-                            <p className="font-medium">{action.title}</p>
-                            <p className="text-muted-foreground">
-                                Go to: {action.destination}
-                            </p>
-                            <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
-                                {action.steps.map((step) => (
-                                    <li key={step}>{step}</li>
-                                ))}
-                            </ul>
-                            <p className="text-muted-foreground">
-                                When done: {action.completion}
-                            </p>
-                        </li>
-                    ))}
-                </ul>
+                <div className="space-y-3 border-t pt-3">
+                    <p className="rounded border bg-background/70 p-3 text-muted-foreground">
+                        Your Budget changes save automatically, so you do not
+                        need to find a Save button. After editing, wait until
+                        the page shows “All changes saved.” Once all listed
+                        updates show “All changes saved,” select Run
+                        reassessment.
+                    </p>
+                    <ul className="space-y-3">
+                        {actions.map((action) => (
+                            <li key={action.key} className="space-y-2">
+                                <p className="font-medium">{action.title}</p>
+                                <p className="text-muted-foreground">
+                                    Go to: {action.destination}
+                                </p>
+                                <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+                                    {action.steps.map((step) => (
+                                        <li key={step}>{step}</li>
+                                    ))}
+                                </ul>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
             ) : coherence.findings.length > 0 ? (
                 <ul className="space-y-3 border-t pt-3">
                     {coherence.findings.map((finding, index) => (
