@@ -778,8 +778,9 @@ final class AssessmentTest extends TestCase
         $this->assertStringContainsString('Go to: Budget > Monthly fixed costs, then Business plan > Financial assumptions', $reply);
         $this->assertStringContainsString('Add a cost row for: professional indemnity insurance, trademark registration and protection.', $reply);
         $this->assertStringContainsString('The plan states monthly operating costs of $600, while the Budget totals $51,573 per month.', $reply);
-        $this->assertStringContainsString('2. Confirm the sales forecast assumptions', $reply);
-        $this->assertStringContainsString('3. Let the reassessment recalculate funding and runway', $reply);
+        $this->assertStringContainsString('2. Set and confirm the forecast start month', $reply);
+        $this->assertStringContainsString('3. Confirm the sales forecast assumptions', $reply);
+        $this->assertStringContainsString('4. Let the reassessment recalculate funding and runway', $reply);
         $this->assertStringContainsString('Current result: The budget has a funding gap of $190,057 after planned launch costs.', $reply);
         $this->assertStringContainsString('Use a reasonable estimate if an exact figure is not available yet.', $reply);
         $this->assertStringNotContainsString('forecast_start_month', $reply);
@@ -805,10 +806,11 @@ final class AssessmentTest extends TestCase
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.approval_available', false)
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.budget_support.status', 'missing')
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.plan_correlation.status', 'review')
-                ->has('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions', 3)
+                ->has('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions', 4)
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.key', 'regular_costs')
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.1.key', 'sales_forecast')
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.2.key', 'funding_and_runway')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.1.key', 'forecast_calendar')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.2.key', 'sales_forecast')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.3.key', 'funding_and_runway')
                 ->missing('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.completion')
             );
 
