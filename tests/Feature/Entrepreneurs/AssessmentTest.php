@@ -11,6 +11,7 @@ use App\Models\BusinessPlan;
 use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
 use App\Models\LearningUpdate;
+use App\Models\Message;
 use App\Models\PlanAssessment;
 use App\Models\PlanRevision;
 use App\Models\PlanSection;
