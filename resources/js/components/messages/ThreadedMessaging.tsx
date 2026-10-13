@@ -23,6 +23,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePersistedWorkspaceDraft } from '@/hooks/use-persisted-workspace-draft';
 import { cn } from '@/lib/utils';
+import {
+    FounderActionLinks,
+    type FounderActionLink,
+} from './founder-action-links';
 
 export type MessagingClient = {
     id: string;
@@ -81,6 +85,7 @@ export type ThreadMessage = {
     }>;
     channel_decision: Record<string, unknown> | null;
     mine: boolean;
+    action_links: FounderActionLink[];
     attachments: Array<{
         document_id: string;
         type?: string;
@@ -548,6 +553,8 @@ function MessageBubble({ message }: { message: ThreadMessage }) {
             <p className="mt-2 text-sm leading-6 whitespace-pre-wrap">
                 {message.body}
             </p>
+
+            <FounderActionLinks links={message.action_links} />
 
             {message.attachments.length > 0 && (
                 <ul className="mt-3 flex flex-wrap gap-2">

@@ -11,6 +11,10 @@ import {
 import { useState } from 'react';
 import { toast } from 'sonner';
 import InputError from '@/components/input-error';
+import {
+    FounderActionLinks,
+    type FounderActionLink,
+} from '@/components/messages/founder-action-links';
 import { PlanBudgetCoherencePanel } from '@/components/plan-budget-coherence';
 import type { PlanBudgetCoherenceSummary } from '@/components/plan-budget-coherence';
 import { Badge } from '@/components/ui/badge';
@@ -164,6 +168,7 @@ type Props = {
         priorities: RevisionPriority[];
         suggested_feedback: string;
         suggested_reply: string;
+        action_links: FounderActionLink[];
         sent_at: string | null;
         action_url: string;
         plain_language_draft_url: string;
@@ -694,6 +699,22 @@ export default function EntrepreneurAssessment({
                                 />
                             </label>
                         </div>
+
+                        {advisorFeedback.action_links.length > 0 ? (
+                            <div>
+                                <p className="text-sm font-medium">
+                                    Founder action links
+                                </p>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    The founder will see this guided help below
+                                    your written reply.
+                                </p>
+                                <FounderActionLinks
+                                    links={advisorFeedback.action_links}
+                                    preview
+                                />
+                            </div>
+                        ) : null}
 
                         <div className="flex flex-wrap justify-end gap-2">
                             <Button

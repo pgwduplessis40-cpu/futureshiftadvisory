@@ -233,6 +233,46 @@ final class AssessmentFeedback
         ]);
     }
 
+    /**
+     * Build the safe, in-product destinations that sit beside the editable
+     * founder message. They are deliberately derived from the assessment
+     * action payload, rather than from the message text an advisor may edit.
+     *
+     * @return list<array{key:string,title:string,description:string,requirement:string,focus:string}>
+     */
+    public function founderActionLinks(PlanAssessment $assessment): array
+    {
+        return collect($this->planBudgetActionMessage->actions($assessment))
+            ->map(function (array $action): array {
+                $key = (string) $action['key'];
+                $focus = match ($key) {
+                    'regular_costs' => 'fixed-costs',
+                    'forecast_calendar' => 'forecast-start-month',
+                    'sales_forecast' => 'revenue-forecast',
+                    'funding_and_runway' => 'funding-sources',
+                    default => 'budget-overview',
+                };
+
+                $description = match ($focus) {
+                    'fixed-costs' => 'This opens the regular-cost list and highlights the “Add another cost” button.',
+                    'forecast-start-month' => 'This opens and highlights the Forecast start month field.',
+                    'revenue-forecast' => 'This opens and highlights the “How will money come in?” list.',
+                    'funding-sources' => 'This opens and highlights the “What funding or cash is available?” list.',
+                    default => 'This opens Financial assumptions and highlights the Budget editor.',
+                };
+
+                return [
+                    'key' => $key,
+                    'title' => (string) $action['title'],
+                    'description' => $description,
+                    'requirement' => 'financial-assumptions',
+                    'focus' => $focus,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
     public function isLegacyFeedback(string $feedback): bool
     {
         $feedback = trim($feedback);

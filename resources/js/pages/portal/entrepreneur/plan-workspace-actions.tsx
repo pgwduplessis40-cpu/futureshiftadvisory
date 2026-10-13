@@ -1,5 +1,6 @@
 import { Link, router } from '@inertiajs/react';
 import { Bot, ChevronDown, ChevronUp, Pencil, Trophy } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
 import { FormattedTextarea } from '@/components/formatted-textarea';
 import InputError from '@/components/input-error';
 import { DraftSaveStatus } from '@/components/portal/draft-save-status';
@@ -7,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CompletedPlanRequirements } from './completed-plan-requirements';
 import { ExecutiveSummaryNotice } from './executive-summary-notice';
+import { FounderBudgetActionFocus } from './founder-budget-action-focus';
+import { founderActionDeepLink } from './founder-action-deep-link';
 import { BudgetEditor, requirementId } from './plan-budget';
 import {
     IdeaValidationSnapshot,
@@ -98,6 +101,22 @@ export function PlanWorkspaceActions({
         acknowledgeBudgetFlag,
         dismissBudgetAdvisorNudge,
     } = workspace;
+    const founderActionLink = useMemo(() => founderActionDeepLink(), []);
+
+    useEffect(() => {
+        if (!founderActionLink) {
+            return;
+        }
+
+        const requirement = phases
+            .flatMap((phase) => phase.requirements)
+            .find((item) => item.key === founderActionLink.requirement);
+
+        if (requirement) {
+            setSelectedKey(requirementId(requirement));
+        }
+    }, [founderActionLink, phases, setSelectedKey]);
+
     const planChangesLocked = planChangesAreLocked(plan);
     const draft = { state: sectionDraftState, retry: retrySectionDraft };
     const approvedIdeaOnly =
@@ -595,29 +614,41 @@ export function PlanWorkspaceActions({
                                             </p>
                                         </div>
                                     ) : (
-                                        <BudgetEditor
-                                            budget={
-                                                budgetPresentation ??
-                                                plan.budget
+                                        <FounderBudgetActionFocus
+                                            focus={
+                                                founderActionLink?.focus ?? null
                                             }
-                                            form={budgetForm}
-                                            plan={plan}
-                                            ideaValidation={ideaValidation}
-                                            gamification={gamification}
-                                            refreshing={refreshingBudget}
-                                            autosaveState={budgetAutosaveState}
-                                            onRetryAutosave={
-                                                retryBudgetAutosave
+                                            showGuide={
+                                                founderActionLink?.showGuide ??
+                                                false
                                             }
-                                            onFormChange={setBudgetForm}
-                                            onRefresh={refreshBudget}
-                                            onAcknowledgeFlag={
-                                                acknowledgeBudgetFlag
-                                            }
-                                            onDismissAdvisorNudge={
-                                                dismissBudgetAdvisorNudge
-                                            }
-                                        />
+                                        >
+                                            <BudgetEditor
+                                                budget={
+                                                    budgetPresentation ??
+                                                    plan.budget
+                                                }
+                                                form={budgetForm}
+                                                plan={plan}
+                                                ideaValidation={ideaValidation}
+                                                gamification={gamification}
+                                                refreshing={refreshingBudget}
+                                                autosaveState={
+                                                    budgetAutosaveState
+                                                }
+                                                onRetryAutosave={
+                                                    retryBudgetAutosave
+                                                }
+                                                onFormChange={setBudgetForm}
+                                                onRefresh={refreshBudget}
+                                                onAcknowledgeFlag={
+                                                    acknowledgeBudgetFlag
+                                                }
+                                                onDismissAdvisorNudge={
+                                                    dismissBudgetAdvisorNudge
+                                                }
+                                            />
+                                        </FounderBudgetActionFocus>
                                     )
                                 ) : (
                                     <>

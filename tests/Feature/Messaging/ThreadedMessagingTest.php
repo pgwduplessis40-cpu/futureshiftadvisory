@@ -15,6 +15,7 @@ use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\MessageThreadParticipant;
 use App\Models\User;
+use App\Services\Messaging\MessageThreadService;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -250,6 +251,56 @@ final class ThreadedMessagingTest extends TestCase
                 ->where('backHref', route('portal.entrepreneur.dashboard', absolute: false))
                 ->where('selectedThread.id', $thread->id)
                 ->has('selectedThread.messages', 1));
+    }
+
+    public function test_founder_action_links_open_the_protected_budget_destination(): void
+    {
+        $advisor = $this->advisor();
+        $entrepreneur = $this->entrepreneurUser();
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->getKey(),
+            'user_id' => $entrepreneur->getKey(),
+            'name' => 'Guided Founder',
+            'email' => $entrepreneur->email,
+            'stage' => EntrepreneurStage::ONBOARDING,
+            'concept_summary' => 'A founder using the guided Budget links.',
+        ]);
+
+        $message = app(MessageThreadService::class)->startEntrepreneurThread(
+            profile: $profile,
+            sender: $advisor,
+            subject: 'Business plan assessment feedback',
+            body: 'Use the guided action below to update the regular costs.',
+            actionLinks: [[
+                'key' => 'regular_costs',
+                'title' => 'Reconcile the regular business costs',
+                'description' => 'This opens the regular-cost list and highlights the “Add another cost” button.',
+                'requirement' => 'financial-assumptions',
+                'focus' => 'fixed-costs',
+            ]],
+        );
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.messages.show', $message->thread))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('selectedThread.messages.0.action_links.0.key', 'regular_costs')
+                ->where('selectedThread.messages.0.action_links.0.open_url', route('portal.entrepreneur.plan.show', [
+                    'requirement' => 'financial-assumptions',
+                    'focus' => 'fixed-costs',
+                ], absolute: false))
+                ->where('selectedThread.messages.0.action_links.0.guide_url', route('portal.entrepreneur.plan.show', [
+                    'requirement' => 'financial-assumptions',
+                    'focus' => 'fixed-costs',
+                    'guide' => '1',
+                ], absolute: false)));
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.messages.show', [$profile, $message->thread]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('selectedThread.messages.0.action_links.0.open_url', null)
+                ->where('selectedThread.messages.0.action_links.0.guide_url', null));
     }
 
     public function test_entrepreneur_message_image_attachment_reaches_advisor_thread_and_can_be_downloaded(): void
