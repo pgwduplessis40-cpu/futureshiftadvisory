@@ -11,10 +11,8 @@ import {
 import { useState } from 'react';
 import { toast } from 'sonner';
 import InputError from '@/components/input-error';
-import {
-    FounderActionLinks,
-    type FounderActionLink,
-} from '@/components/messages/founder-action-links';
+import { FounderActionLinks } from '@/components/messages/founder-action-links';
+import type { FounderActionLink } from '@/components/messages/founder-action-links';
 import { PlanBudgetCoherencePanel } from '@/components/plan-budget-coherence';
 import type { PlanBudgetCoherenceSummary } from '@/components/plan-budget-coherence';
 import { Badge } from '@/components/ui/badge';

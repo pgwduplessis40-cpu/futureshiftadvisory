@@ -8,8 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CompletedPlanRequirements } from './completed-plan-requirements';
 import { ExecutiveSummaryNotice } from './executive-summary-notice';
-import { FounderBudgetActionFocus } from './founder-budget-action-focus';
 import { founderActionDeepLink } from './founder-action-deep-link';
+import { FounderBudgetActionFocus } from './founder-budget-action-focus';
 import { BudgetEditor, requirementId } from './plan-budget';
 import {
     IdeaValidationSnapshot,

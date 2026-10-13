@@ -23,10 +23,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { usePersistedWorkspaceDraft } from '@/hooks/use-persisted-workspace-draft';
 import { cn } from '@/lib/utils';
-import {
-    FounderActionLinks,
-    type FounderActionLink,
-} from './founder-action-links';
+import { FounderActionLinks } from './founder-action-links';
+import type { FounderActionLink } from './founder-action-links';
 
 export type MessagingClient = {
     id: string;
