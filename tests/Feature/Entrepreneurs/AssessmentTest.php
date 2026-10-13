@@ -775,13 +775,16 @@ final class AssessmentTest extends TestCase
         $this->assertStringContainsString('Your changes save automatically, so you do not need to find a Save button.', $reply);
         $this->assertStringContainsString('Once all listed updates show “All changes saved,” select Run reassessment.', $reply);
         $this->assertStringContainsString('1. Reconcile the regular business costs', $reply);
-        $this->assertStringContainsString('Go to: Budget > Monthly fixed costs, then Business plan > Financial assumptions', $reply);
-        $this->assertStringContainsString('Add a cost row for: professional indemnity insurance, trademark registration and protection.', $reply);
+        $this->assertStringContainsString('Go to: Business Plan & Budget > Plan requirements (left side) > Financial assumptions > Budget editor', $reply);
+        $this->assertStringContainsString('Above the cost list, select “Add another cost”.', $reply);
         $this->assertStringContainsString('The plan states monthly operating costs of $600, while the Budget totals $51,573 per month.', $reply);
         $this->assertStringContainsString('2. Set and confirm the forecast start month', $reply);
         $this->assertStringContainsString('3. Confirm the sales forecast assumptions', $reply);
         $this->assertStringContainsString('4. Let the reassessment recalculate funding and runway', $reply);
-        $this->assertStringContainsString('Current result: The budget has a funding gap of $190,057 after planned launch costs.', $reply);
+        $this->assertStringContainsString('Funding and runway are calculated automatically from the Budget. Do not change a funding figure just to clear this message.', $reply);
+        $this->assertStringContainsString('Current calculation: The budget has a funding gap of $190,057 after planned launch costs.', $reply);
+        $this->assertStringNotContainsString('Recheck funding and runway after the Budget corrections', $reply);
+        $this->assertStringNotContainsString('First save the cost and forecast-date changes above', $reply);
         $this->assertStringContainsString('Use a reasonable estimate if an exact figure is not available yet.', $reply);
         $this->assertStringNotContainsString('forecast_start_month', $reply);
         $this->assertStringNotContainsString('When done:', $reply);
@@ -811,6 +814,7 @@ final class AssessmentTest extends TestCase
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.1.key', 'forecast_calendar')
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.2.key', 'sales_forecast')
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.3.key', 'funding_and_runway')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.3.steps.0', 'Funding and runway are calculated automatically from the Budget. Do not change a funding figure just to clear this message.')
                 ->missing('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.completion')
             );
 
@@ -942,10 +946,9 @@ final class AssessmentTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.key', 'funding_and_runway')
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.title', 'Let the reassessment recalculate funding and runway')
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.steps.0', 'After the earlier Budget updates show “All changes saved”, select Run reassessment. The funding and runway result will be recalculated automatically.')
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.steps.1', 'Only if the reassessment still reports a funding gap, update the funding details it identifies. Current result: The forecast requires $4,686 of additional funding to cover the modelled cash trough.')
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.steps.2', 'Only if the reassessment still reports a runway difference, update the amount or timing it identifies. Current result: Runway needs checking: The expected runway is more than 2 months away from the budget calculation.')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.steps.0', 'Funding and runway are calculated automatically from the Budget. Do not change a funding figure just to clear this message.')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.steps.1', 'If you have a real funding source to include, select “Add another” above “What funding or cash is available?” and enter its name and amount. Current calculation: The forecast requires $4,686 of additional funding to cover the modelled cash trough.')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.steps.2', 'After the relevant Budget inputs autosave, select Run reassessment. The result below will be recalculated automatically. Current calculation: Runway needs checking: The expected runway is more than 2 months away from the budget calculation.')
             );
     }
 

@@ -225,8 +225,16 @@ final class PlanBudgetCoherenceTest extends TestCase
             'Set and confirm the forecast start month',
             $result['actions'][1]['title'],
         );
-        $this->assertStringContainsString('All changes saved', $result['actions'][2]['steps'][0]);
-        $this->assertStringContainsString('Run reassessment', $result['actions'][2]['steps'][0]);
+        $this->assertSame(
+            'Let the reassessment recalculate funding and runway',
+            $result['actions'][2]['title'],
+        );
+        $this->assertStringContainsString(
+            'Funding and runway are calculated automatically from the Budget.',
+            $result['actions'][2]['steps'][0],
+        );
+        $this->assertStringContainsString('Run reassessment', implode(' ', $result['actions'][2]['steps']));
+        $this->assertStringNotContainsString('All changes saved', implode(' ', $result['actions'][2]['steps']));
         $this->assertCount(9, $result['findings']);
         $this->assertSame(['payment_frequency'], array_column($result['advisories'], 'key'));
         $this->assertStringNotContainsString('Commercial kitchen or site cost', implode(' ', $result['actions'][0]['steps']));

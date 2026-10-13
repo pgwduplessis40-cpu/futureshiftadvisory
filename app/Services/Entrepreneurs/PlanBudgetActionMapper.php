@@ -42,6 +42,16 @@ final class PlanBudgetActionMapper
             fn (string $left, string $right): int => self::ACTION_ORDER[$left] <=> self::ACTION_ORDER[$right],
         );
 
+        $hasOtherAction = collect(array_keys($groups))
+            ->contains(fn (string $key): bool => $key !== 'funding_and_runway');
+        $groups = array_filter(
+            $groups,
+            fn (array $group, string $key): bool => $key !== 'funding_and_runway'
+                || ! $hasOtherAction
+                || $this->fundingNeedsAnInputUpdate($group),
+            ARRAY_FILTER_USE_BOTH,
+        );
+
         return array_map(
             fn (array $group, string $key): array => $this->action($key, $group),
             $groups,
@@ -142,7 +152,7 @@ final class PlanBudgetActionMapper
         $steps = [];
         $paymentFrequencyRows = $this->paymentFrequencyRows($messages);
         if ($paymentFrequencyRows !== []) {
-            $steps[] = 'Check how often these existing Budget costs are paid: '.implode(', ', $paymentFrequencyRows).'. If the saved frequency is your best estimate, mark it as checked; an invoice is helpful but not required.';
+            $steps[] = 'In the cost list, find these existing rows: '.implode(', ', $paymentFrequencyRows).'. For each row, choose how often the cost is paid, then tick “I have checked how often this cost is paid”. If your best estimate is all you have, you can still tick it.';
         }
 
         $missingCosts = $this->missingCostRows($messages);
@@ -155,7 +165,7 @@ final class PlanBudgetActionMapper
         }
 
         if ($missingCosts !== []) {
-            $steps[] = 'Add a cost row for: '.implode(', ', $missingCosts).'.';
+            $steps[] = 'Above the cost list, select “Add another cost”. A new row opens at the bottom of the list. Add one row for each of: '.implode(', ', $missingCosts).'. Enter the item name, amount, how often it is paid, and tick the check box.';
         }
 
         $costMismatch = collect($messages)
@@ -165,12 +175,12 @@ final class PlanBudgetActionMapper
         }
 
         if ($steps === []) {
-            $steps[] = 'Review the regular cost rows identified in this assessment and correct the cost amount or payment frequency that is not yet aligned.';
+            $steps[] = 'In the cost list, find the row named in this assessment and correct its amount or how often it is paid.';
         }
 
         return [
             'title' => 'Reconcile the regular business costs',
-            'destination' => 'Budget > Monthly fixed costs, then Business plan > Financial assumptions',
+            'destination' => 'Business Plan & Budget > Plan requirements (left side) > Financial assumptions > Budget editor > “What will you pay every month even if sales are slow?”',
             'steps' => $steps,
         ];
     }
@@ -195,7 +205,7 @@ final class PlanBudgetActionMapper
 
         return [
             'title' => 'Set and confirm the forecast start month',
-            'destination' => 'Budget > Financial assumptions',
+            'destination' => 'Business Plan & Budget > Plan requirements (left side) > Financial assumptions > Budget editor > “Forecast start month”',
             'steps' => $steps,
         ];
     }
@@ -207,27 +217,27 @@ final class PlanBudgetActionMapper
     private function fundingAndRunwayAction(array $messages): array
     {
         $steps = [
-            'After the earlier Budget updates show “All changes saved”, select Run reassessment. The funding and runway result will be recalculated automatically.',
+            'Funding and runway are calculated automatically from the Budget. Do not change a funding figure just to clear this message.',
         ];
 
         foreach ($messages as $message) {
             $normalised = strtolower($message);
             if (str_contains($normalised, 'additional funding') || str_contains($normalised, 'funding gap')) {
-                $steps[] = 'Only if the reassessment still reports a funding gap, update the funding details it identifies. Current result: '.$message;
+                $steps[] = 'If you have a real funding source to include, select “Add another” above “What funding or cash is available?” and enter its name and amount. Current calculation: '.$message;
                 break;
             }
         }
 
         foreach ($messages as $message) {
             if (str_contains(strtolower($message), 'runway')) {
-                $steps[] = 'Only if the reassessment still reports a runway difference, update the amount or timing it identifies. Current result: '.$message;
+                $steps[] = 'After the relevant Budget inputs autosave, select Run reassessment. The result below will be recalculated automatically. Current calculation: '.$message;
                 break;
             }
         }
 
         return [
             'title' => 'Let the reassessment recalculate funding and runway',
-            'destination' => 'Budget > Funding and runway',
+            'destination' => 'Business Plan & Budget > Plan requirements (left side) > Financial assumptions > Budget editor > “What funding or cash is available?”',
             'steps' => $steps,
         ];
     }
@@ -240,7 +250,7 @@ final class PlanBudgetActionMapper
     {
         return [
             'title' => 'Confirm the sales forecast assumptions',
-            'destination' => 'Budget > Revenue forecast',
+            'destination' => 'Business Plan & Budget > Plan requirements (left side) > Financial assumptions > Budget editor > “How will money come in?”',
             'steps' => [
                 'For each affected revenue line, set the expected sales, price, payment timing, and monthly delivery capacity.',
                 'Use the assessment detail to correct the named revenue line before changing unrelated estimates.',
@@ -256,7 +266,7 @@ final class PlanBudgetActionMapper
     {
         return [
             'title' => 'Make the plan and Budget use the same figures',
-            'destination' => 'Business plan > Financial assumptions, Revenue model, and Funding and support',
+            'destination' => 'Business Plan & Budget > Plan requirements (left side) > open the named plan section, then Financial assumptions > Budget editor',
             'steps' => [
                 'Update the matching plan statement and Budget row so both use the same amount, timing, and payment frequency.',
                 ...$this->assessmentDetailSteps($messages),
@@ -272,7 +282,7 @@ final class PlanBudgetActionMapper
     {
         return [
             'title' => 'Complete the Budget inputs needed for this assessment',
-            'destination' => 'Budget > Financial assumptions',
+            'destination' => 'Business Plan & Budget > Plan requirements (left side) > Financial assumptions > Budget editor',
             'steps' => [
                 'Complete the specific Budget input identified in the assessment using the best information available today.',
                 ...$this->assessmentDetailSteps($messages),
@@ -313,6 +323,26 @@ final class PlanBudgetActionMapper
         }
 
         return $this->uniqueStrings($rows);
+    }
+
+    /**
+     * A funding gap or runway result is produced by the calculator. It does
+     * not tell a founder which field to change, so it must not become a
+     * separate client task while other Budget corrections are pending. Keep
+     * it when it is the only issue, or when the finding names an actual
+     * funding input that can be completed.
+     *
+     * @param  list<Finding>  $findings
+     */
+    private function fundingNeedsAnInputUpdate(array $findings): bool
+    {
+        return collect($findings)->contains(function (array $finding): bool {
+            $text = strtolower($finding['message'].' '.$finding['next_action']);
+
+            return str_contains($text, 'funding source')
+                || str_contains($text, 'funding position')
+                || str_contains($text, 'funding purpose');
+        });
     }
 
     /**

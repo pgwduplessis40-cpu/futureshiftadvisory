@@ -112,7 +112,7 @@ final class PlanBudgetActionMessageTest extends TestCase
         $this->assertStringContainsString('Tick “I have checked Month 1', implode(' ', $actions[0]['steps']));
     }
 
-    public function test_it_rebuilds_historic_actions_from_saved_findings_to_remove_manual_save_instructions(): void
+    public function test_it_rebuilds_historic_actions_without_asking_the_founder_to_save_or_recheck_a_derived_funding_result(): void
     {
         $assessment = new PlanAssessment;
         $assessment->scoring_scope = [
@@ -150,8 +150,8 @@ final class PlanBudgetActionMessageTest extends TestCase
 
         $this->assertSame(['funding_and_runway'], array_column($actions, 'key'));
         $this->assertSame('Let the reassessment recalculate funding and runway', $actions[0]['title']);
-        $this->assertStringContainsString('All changes saved', $actions[0]['steps'][0]);
-        $this->assertStringContainsString('Run reassessment', $actions[0]['steps'][0]);
+        $this->assertStringContainsString('calculated automatically', $actions[0]['steps'][0]);
+        $this->assertStringContainsString('Add another', $actions[0]['steps'][1]);
         $this->assertStringNotContainsString('First save', $message);
         $this->assertStringNotContainsString('Check the intended runway', $message);
     }

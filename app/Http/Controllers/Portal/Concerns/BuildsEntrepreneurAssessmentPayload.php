@@ -399,6 +399,11 @@ trait BuildsEntrepreneurAssessmentPayload
             ->values()
             ->all();
         $actions = app(PlanBudgetActionMessage::class)->actionsForCoherence($coherence);
+        $unresolvedActionCount = count($actions);
+        $summary = (string) ($coherence['summary'] ?? 'Plan–budget coherence has not been established.');
+        if ($unresolvedActionCount > 0) {
+            $summary = $unresolvedActionCount.' plan–budget '.($unresolvedActionCount === 1 ? 'action needs' : 'actions need').' resolution before the assessment can be finalised.';
+        }
         $advisories = collect((array) ($coherence['advisories'] ?? []))
             ->filter(fn (mixed $advisory): bool => is_array($advisory))
             ->map(fn (array $advisory): array => [
@@ -421,7 +426,7 @@ trait BuildsEntrepreneurAssessmentPayload
             'status' => (string) ($coherence['status'] ?? 'missing'),
             'status_label' => (string) ($coherence['status_label'] ?? 'Blocked — evidence needed'),
             'score' => (int) ($coherence['score'] ?? 0),
-            'summary' => (string) ($coherence['summary'] ?? 'Plan–budget coherence has not been established.'),
+            'summary' => $summary,
             'evidence' => collect((array) ($coherence['evidence'] ?? []))
                 ->filter(fn (mixed $evidence): bool => is_string($evidence) && trim($evidence) !== '')
                 ->values()
@@ -433,7 +438,7 @@ trait BuildsEntrepreneurAssessmentPayload
             'approval_message' => (string) ($coherence['approval_message'] ?? 'Resolve the plan–budget coherence findings before finalising.'),
             'budget_support' => $direction($coherence['budget_support'] ?? null),
             'plan_correlation' => $direction($coherence['plan_correlation'] ?? null),
-            'unresolved_count' => (int) ($coherence['unresolved_count'] ?? count($actions !== [] ? $actions : $findings)),
+            'unresolved_count' => $unresolvedActionCount,
         ];
     }
 }
