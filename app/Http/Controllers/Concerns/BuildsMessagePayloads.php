@@ -128,8 +128,69 @@ trait BuildsMessagePayloads
             'sender_user_type' => $message->sender?->user_type,
             'mine' => (string) $message->sender_user_id === (string) $viewer->getKey(),
             'attachments' => $attachments,
+            'action_links' => $this->messageActionLinks($message, $viewer),
             'sent_at' => $message->sent_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * Action links are stored as semantic targets, never as supplied URLs.
+     * Resolve the protected portal route only for the founder who owns the
+     * thread, so an advisor's message view cannot expose a misleading link.
+     *
+     * @return list<array{key:string,title:string,description:string,open_url:string|null,guide_url:string|null}>
+     */
+    private function messageActionLinks(Message $message, User $viewer): array
+    {
+        $allowedFocuses = [
+            'fixed-costs',
+            'forecast-start-month',
+            'revenue-forecast',
+            'funding-sources',
+            'budget-overview',
+        ];
+        $links = [];
+
+        foreach ($message->action_links ?? [] as $link) {
+            if (! is_array($link)) {
+                continue;
+            }
+
+            $key = trim((string) ($link['key'] ?? ''));
+            $title = trim((string) ($link['title'] ?? ''));
+            $description = trim((string) ($link['description'] ?? ''));
+            $requirement = (string) ($link['requirement'] ?? '');
+            $focus = (string) ($link['focus'] ?? '');
+            if ($key === '' || $title === '' || $description === ''
+                || $requirement !== 'financial-assumptions'
+                || ! in_array($focus, $allowedFocuses, true)) {
+                continue;
+            }
+
+            $canOpenPlan = $viewer->user_type === User::TYPE_ENTREPRENEUR;
+            $openUrl = $canOpenPlan
+                ? route('portal.entrepreneur.plan.show', [
+                    'requirement' => $requirement,
+                    'focus' => $focus,
+                ], absolute: false)
+                : null;
+
+            $links[] = [
+                'key' => $key,
+                'title' => $title,
+                'description' => $description,
+                'open_url' => $openUrl,
+                'guide_url' => $canOpenPlan
+                    ? route('portal.entrepreneur.plan.show', [
+                        'requirement' => $requirement,
+                        'focus' => $focus,
+                        'guide' => '1',
+                    ], absolute: false)
+                    : null,
+            ];
+        }
+
+        return $links;
     }
 
     /**

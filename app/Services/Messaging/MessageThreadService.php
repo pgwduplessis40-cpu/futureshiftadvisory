@@ -70,6 +70,7 @@ final class MessageThreadService
 
     /**
      * @param  array<int, UploadedFile>  $attachments
+     * @param  list<array{key:string,title:string,description:string,requirement:string,focus:string}>  $actionLinks
      */
     public function startEntrepreneurThread(
         EntrepreneurProfile $profile,
@@ -77,8 +78,9 @@ final class MessageThreadService
         string $subject,
         string $body,
         array $attachments = [],
+        array $actionLinks = [],
     ): Message {
-        $message = DB::transaction(function () use ($profile, $sender, $subject, $body, $attachments): Message {
+        $message = DB::transaction(function () use ($profile, $sender, $subject, $body, $attachments, $actionLinks): Message {
             $thread = MessageThread::query()->create([
                 'entrepreneur_profile_id' => $profile->getKey(),
                 'created_by_user_id' => $sender->getKey(),
@@ -87,7 +89,7 @@ final class MessageThreadService
             ]);
 
             $this->syncEntrepreneurParticipants($thread, $profile, $sender);
-            $message = $this->persistEntrepreneurMessage($thread, $profile, $sender, $body, $attachments);
+            $message = $this->persistEntrepreneurMessage($thread, $profile, $sender, $body, $attachments, $actionLinks);
 
             $this->auditWriter->record('entrepreneur_message_thread.created', subject: $thread, actor: $sender, after: [
                 'thread_id' => $thread->id,
@@ -204,6 +206,7 @@ final class MessageThreadService
 
     /**
      * @param  array<int, UploadedFile>  $attachments
+     * @param  list<array{key:string,title:string,description:string,requirement:string,focus:string}>  $actionLinks
      */
     private function persistEntrepreneurMessage(
         MessageThread $thread,
@@ -211,6 +214,7 @@ final class MessageThreadService
         User $sender,
         string $body,
         array $attachments,
+        array $actionLinks = [],
     ): Message {
         $sentAt = now();
         $attachmentIds = $this->storeEntrepreneurAttachments($profile, $sender, $thread, $body, $attachments);
@@ -220,6 +224,7 @@ final class MessageThreadService
             'sender_user_id' => $sender->getKey(),
             'body' => trim($body),
             'attachments' => $attachmentIds === [] ? null : $attachmentIds,
+            'action_links' => $actionLinks === [] ? null : $actionLinks,
             'sent_at' => $sentAt,
         ]);
 

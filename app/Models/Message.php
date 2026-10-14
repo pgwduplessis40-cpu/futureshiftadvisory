@@ -39,6 +39,7 @@ final class Message extends Model
 
     protected $casts = [
         'attachments' => 'array',
+        'action_links' => 'array',
         'channel_decision' => 'array',
         'email_recipients' => 'array',
         'sent_at' => 'datetime',

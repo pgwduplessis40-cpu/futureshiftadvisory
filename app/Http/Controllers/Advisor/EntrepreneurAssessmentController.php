@@ -85,6 +85,7 @@ final class EntrepreneurAssessmentController extends Controller
                 'priorities' => $priorities,
                 'suggested_feedback' => $suggestedFeedback,
                 'suggested_reply' => $suggestedReply,
+                'action_links' => $this->feedbacks->founderActionLinks($planAssessment),
                 'sent_at' => $notes['feedback_sent_at'] ?? null,
                 'action_url' => route('advisor.entrepreneurs.assessments.feedback.update', [$profile, $planAssessment], absolute: false),
                 'plain_language_draft_url' => route('advisor.entrepreneurs.assessments.feedback.plain-language-draft', [$profile, $planAssessment], absolute: false),

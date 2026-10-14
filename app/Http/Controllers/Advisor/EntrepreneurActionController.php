@@ -209,6 +209,7 @@ final class EntrepreneurActionController extends Controller
                 sender: $advisor,
                 subject: 'Business plan assessment feedback',
                 body: (string) $validated['proposed_reply'],
+                actionLinks: $feedbacks->founderActionLinks($assessment),
             );
         }
 

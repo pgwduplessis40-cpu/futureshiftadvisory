@@ -11,6 +11,7 @@ use App\Models\BusinessPlan;
 use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
 use App\Models\LearningUpdate;
+use App\Models\Message;
 use App\Models\PlanAssessment;
 use App\Models\PlanRevision;
 use App\Models\PlanSection;
@@ -1349,6 +1350,21 @@ final class AssessmentTest extends TestCase
         [$advisor, $plan] = $this->plan('assessment-feedback-founder@example.test');
         $profile = $plan->entrepreneurProfile()->firstOrFail();
         $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $assessment->forceFill([
+            'scoring_scope' => [
+                'plan_budget_coherence' => [
+                    'approval_available' => false,
+                    'actions' => [[
+                        'key' => 'regular_costs',
+                        'severity' => 'review',
+                        'title' => 'Reconcile the regular business costs',
+                        'destination' => 'Budget > Monthly fixed costs',
+                        'steps' => ['Check the recurring costs.'],
+                    ]],
+                    'findings' => [],
+                ],
+            ],
+        ])->save();
         $feedback = 'Strengthen the financial assumptions and add customer evidence before the next assessment.';
         $proposedReply = str_repeat('A', 10_000);
 
@@ -1381,6 +1397,16 @@ final class AssessmentTest extends TestCase
         $this->assertDatabaseHas('messages', [
             'body' => $proposedReply,
         ]);
+        $message = Message::query()->where('body', $proposedReply)->firstOrFail();
+        $this->assertEquals([
+            [
+                'key' => 'regular_costs',
+                'title' => 'Reconcile the regular business costs',
+                'description' => 'This opens the regular-cost list and highlights the “Add another cost” button.',
+                'requirement' => 'financial-assumptions',
+                'focus' => 'fixed-costs',
+            ],
+        ], $message->action_links);
         $this->assertDatabaseHas('audit_events', [
             'action' => 'entrepreneur.plan_assessment_feedback_sent',
             'subject_id' => $assessment->getKey(),
@@ -1397,6 +1423,8 @@ final class AssessmentTest extends TestCase
                 ->component('portal/entrepreneur/Assessment')
                 ->where('advisorFeedback.feedback', $feedback)
                 ->where('advisorFeedback.proposed_reply', $proposedReply)
+                ->where('advisorFeedback.action_links.0.key', 'regular_costs')
+                ->where('advisorFeedback.action_links.0.focus', 'fixed-costs')
                 ->missing('assessment.mentor_notes.feedback_snapshot')
             );
     }
