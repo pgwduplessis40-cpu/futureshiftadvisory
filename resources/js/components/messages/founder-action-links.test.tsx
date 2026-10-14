@@ -3,7 +3,7 @@ import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { FounderActionLinks } from './founder-action-links';
 
-test('founder action links give the client both direct navigation and visual help', () => {
+test('founder action links make the guided destination the primary action', () => {
     const html = renderToStaticMarkup(
         <FounderActionLinks
             links={[
@@ -21,8 +21,8 @@ test('founder action links give the client both direct navigation and visual hel
         />,
     );
 
-    assert.match(html, /Open this step/);
-    assert.match(html, /Show me where/);
+    assert.match(html, /Open and highlight/);
+    assert.match(html, /Open without guide/);
     assert.match(html, /fixed-costs/);
     assert.match(html, /highlights the/);
 });

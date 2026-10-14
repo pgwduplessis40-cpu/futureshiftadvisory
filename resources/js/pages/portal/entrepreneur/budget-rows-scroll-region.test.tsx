@@ -3,15 +3,14 @@ import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { BudgetRowsScrollRegion } from './budget-rows-scroll-region';
 
-test('budget rows provide persistent left and right controls for wide tables', () => {
+test('budget rows provide one native horizontal input region without a duplicate scroll rail', () => {
     const html = renderToStaticMarkup(
         <BudgetRowsScrollRegion title="Monthly fixed costs">
             <div className="min-w-[56rem]">Cost fields</div>
         </BudgetRowsScrollRegion>,
     );
 
-    assert.match(html, /Monthly fixed costs table controls/);
-    assert.match(html, /Scroll Monthly fixed costs fields left/);
-    assert.match(html, /Scroll Monthly fixed costs fields right/);
-    assert.match(html, /Scroll Monthly fixed costs fields horizontally/);
+    assert.match(html, /Monthly fixed costs inputs\. Scroll horizontally/);
+    assert.doesNotMatch(html, /All fields are visible/);
+    assert.doesNotMatch(html, /Scroll Monthly fixed costs fields horizontally/);
 });

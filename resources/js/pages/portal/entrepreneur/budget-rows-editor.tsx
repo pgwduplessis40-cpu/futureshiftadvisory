@@ -37,6 +37,7 @@ export function BudgetRowsEditor({
     revenue = false,
     timed = false,
     fixedCost = false,
+    focusTarget,
 }: {
     title: string;
     helper?: string;
@@ -47,10 +48,14 @@ export function BudgetRowsEditor({
     revenue?: boolean;
     timed?: boolean;
     fixedCost?: boolean;
+    focusTarget?: string;
 }) {
     const itemInputs = useRef<Array<HTMLInputElement | null>>([]);
     const pendingFocusIndex = useRef<number | null>(null);
     const [quickAddNotice, setQuickAddNotice] = useState<string | null>(null);
+    const coBrowseTarget = focusTarget
+        ? `entrepreneur.plan.${focusTarget}`
+        : undefined;
 
     useEffect(() => {
         if (pendingFocusIndex.current === null) {
@@ -103,7 +108,11 @@ export function BudgetRowsEditor({
     };
 
     return (
-        <section className="space-y-2 rounded-md border bg-muted/20 p-3">
+        <section
+            className="scroll-mt-28 space-y-2 rounded-md border bg-muted/20 p-3"
+            data-founder-action-target={focusTarget}
+            data-co-browse-target={fixedCost ? undefined : coBrowseTarget}
+        >
             <div className="flex items-center justify-between gap-3">
                 <div className="text-sm font-medium">{title}</div>
                 <Button
@@ -111,6 +120,12 @@ export function BudgetRowsEditor({
                     size="sm"
                     variant="outline"
                     onClick={appendBlankRow}
+                    data-founder-action-target={
+                        focusTarget ? `${focusTarget}-add-row` : undefined
+                    }
+                    data-co-browse-target={
+                        fixedCost ? coBrowseTarget : undefined
+                    }
                     aria-label={
                         fixedCost ? 'Add another cost' : `Add another ${title}`
                     }
@@ -161,14 +176,18 @@ export function BudgetRowsEditor({
                     <div
                         key={index}
                         className={cn(
-                            'grid gap-3 md:min-w-[42rem] md:grid-cols-[minmax(13rem,1.35fr)_minmax(7rem,0.75fr)_minmax(5rem,0.55fr)_minmax(8rem,0.8fr)_auto]',
+                            'grid gap-3',
+                            !revenue &&
+                                !timed &&
+                                !fixedCost &&
+                                'xl:grid-cols-[minmax(13rem,1.35fr)_minmax(7rem,0.75fr)_minmax(5rem,0.55fr)_minmax(8rem,0.8fr)_auto]',
                             timed &&
                                 !revenue &&
-                                'md:min-w-[50rem] md:grid-cols-[minmax(13rem,1.35fr)_minmax(7rem,0.75fr)_minmax(5rem,0.55fr)_minmax(5rem,0.55fr)_minmax(8rem,0.8fr)_auto]',
+                                '2xl:grid-cols-[minmax(13rem,1.35fr)_minmax(7rem,0.75fr)_minmax(5rem,0.55fr)_minmax(5rem,0.55fr)_minmax(8rem,0.8fr)_auto]',
                             revenue &&
-                                'xl:min-w-[72rem] xl:grid-cols-[minmax(12rem,1.2fr)_repeat(8,minmax(5rem,0.55fr))_minmax(8rem,0.8fr)_auto]',
+                                '2xl:grid-cols-[minmax(12rem,1.2fr)_repeat(8,minmax(5rem,0.55fr))_minmax(8rem,0.8fr)_auto]',
                             fixedCost &&
-                                'xl:min-w-[56rem] xl:grid-cols-[minmax(12rem,1.2fr)_repeat(4,minmax(6rem,0.6fr))_minmax(8rem,0.8fr)_auto]',
+                                '2xl:grid-cols-[minmax(12rem,1.2fr)_repeat(4,minmax(6rem,0.6fr))_minmax(8rem,0.8fr)_auto]',
                         )}
                     >
                         <BudgetInput

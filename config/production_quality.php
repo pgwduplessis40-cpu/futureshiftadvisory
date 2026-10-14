@@ -120,6 +120,11 @@ return [
             'production_limit' => 1040,
             'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Entrepreneurs/AssessmentTest.php', 'tests/Feature/Portal/PortalWorkspaceDraftTest.php'],
         ],
+        'resources/js/pages/portal/entrepreneur/plan-budget.tsx' => [
+            'ceiling' => 2435,
+            'production_limit' => 2500,
+            'contract_tests' => ['resources/js/**/*.test.{ts,tsx}', 'tests/Feature/Entrepreneurs'],
+        ],
         'resources/js/pages/portal/entrepreneur/use-plan-workspace.ts' => [
             'ceiling' => 1033,
             'production_limit' => 1100,

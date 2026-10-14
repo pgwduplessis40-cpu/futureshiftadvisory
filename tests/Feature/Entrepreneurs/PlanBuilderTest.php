@@ -166,6 +166,22 @@ final class PlanBuilderTest extends TestCase
             );
     }
 
+    public function test_entrepreneur_plan_workspace_provides_guided_assistance_on_the_plan_page(): void
+    {
+        [, $profile] = $this->profile('plan-guided-assistance-founder@example.test');
+        $entrepreneur = $profile->user()->firstOrFail();
+        config(['co-browse.enabled' => true]);
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.plan.show'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->has('coBrowse.portal_context_token')
+                ->where('coBrowse.connection_url', route('portal.co-browse.connections.store', absolute: false))
+                ->where('coBrowse.heartbeat_seconds', 10)
+            );
+    }
+
     public function test_entrepreneur_can_save_a_company_or_proposed_company_name_for_plan_exports(): void
     {
         [, $profile] = $this->profile('company-name-founder@example.test');

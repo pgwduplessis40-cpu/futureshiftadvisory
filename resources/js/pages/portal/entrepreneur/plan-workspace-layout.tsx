@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { Download, Eye, FileText, MessageSquare, Trophy } from 'lucide-react';
 import { useState } from 'react';
+import { ClientCoBrowse } from '@/components/co-browse/ClientCoBrowse';
 import { DraftSaveStatus } from '@/components/portal/draft-save-status';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ export function PlanWorkspaceLayout(workspace: PlanWorkspace) {
         profile,
         plan,
         gamification,
+        coBrowse,
         urls,
         activeTab,
         setActiveTab,
@@ -52,6 +54,7 @@ export function PlanWorkspaceLayout(workspace: PlanWorkspace) {
                         : 'Idea Validation'
                 }
             />
+            <ClientCoBrowse config={coBrowse} />
 
             <div className="space-y-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

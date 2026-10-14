@@ -50,6 +50,7 @@ export function usePlanWorkspace({
     advisoryRequest,
     gamification,
     journey,
+    coBrowse,
     urls,
 }: Props) {
     const [activeTab, setActiveTab] = useState<Tab>('actions');
@@ -902,6 +903,7 @@ export function usePlanWorkspace({
         reports,
         advisoryRequest,
         gamification,
+        coBrowse,
         journey,
         urls,
         activeTab,

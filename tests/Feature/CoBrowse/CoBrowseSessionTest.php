@@ -198,6 +198,47 @@ final class CoBrowseSessionTest extends TestCase
         ]);
     }
 
+    public function test_entrepreneur_plan_can_register_guided_assistance_presence(): void
+    {
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'assigned_advisor_id' => $this->advisor->getKey(),
+            'name' => 'Plan Guided Assistance Entrepreneur',
+            'email' => 'plan-guided-assistance-entrepreneur@example.test',
+        ]);
+        $token = app(ClientPortalContextTokens::class)->issueForEntrepreneur(
+            $entrepreneur,
+            $profile,
+            'portal.entrepreneur.plan',
+        );
+        $csrfToken = 'plan-co-browse-csrf-token';
+
+        $response = $this->actingAs($entrepreneur)
+            ->withSession([
+                '_token' => $csrfToken,
+                'auth.mfa_user_id' => (string) $entrepreneur->getKey(),
+                'auth.mfa_confirmed_at' => now()->getTimestamp(),
+            ])
+            ->withHeader('X-CSRF-TOKEN', $csrfToken)
+            ->postJson(route('portal.co-browse.connections.store'), [
+                'portal_context_token' => $token,
+            ]);
+
+        $response->assertOk();
+        $this->assertDatabaseHas('co_browse_connections', [
+            'id' => $response->json('connection_id'),
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'user_id' => $entrepreneur->getKey(),
+            'participant_type' => CoBrowseConnection::TYPE_CLIENT,
+            'context_key' => 'portal.entrepreneur.plan',
+        ]);
+    }
+
     public function test_client_status_reports_when_the_advisor_ends_guided_assistance(): void
     {
         Event::fake([CoBrowsePrompt::class]);

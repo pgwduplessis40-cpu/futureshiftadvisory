@@ -6,7 +6,9 @@ import { FounderBudgetActionFocus } from './founder-budget-action-focus';
 test('the visual guide identifies the live Budget area for the founder', () => {
     const html = renderToStaticMarkup(
         <FounderBudgetActionFocus focus="fixed-costs" showGuide>
-            <section>Regular costs</section>
+            <button data-founder-action-target="fixed-costs-add-row">
+                Add another cost
+            </button>
         </FounderBudgetActionFocus>,
     );
 

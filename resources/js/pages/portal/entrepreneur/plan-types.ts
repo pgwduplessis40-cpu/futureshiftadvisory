@@ -1,3 +1,4 @@
+import type { ClientCoBrowseConfig } from '@/components/co-browse/ClientCoBrowse';
 import type {
     IdeaValidationVersion,
     SubmittedPlanVersion,
@@ -417,6 +418,7 @@ export type Props = {
     reports: ReportPayload[];
     advisoryRequest: AdvisoryRequestPayload;
     gamification: GamificationPayload;
+    coBrowse: ClientCoBrowseConfig | null;
     urls: {
         dashboard: string;
         planBudgetAccess: string;
