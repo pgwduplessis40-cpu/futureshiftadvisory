@@ -359,7 +359,11 @@ export function BudgetEditor({
 
     return (
         <div className="space-y-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+            <div
+                className="flex scroll-mt-28 flex-wrap items-start justify-between gap-3"
+                data-founder-action-target="budget-overview"
+                data-co-browse-target="entrepreneur.plan.budget"
+            >
                 <div>
                     <div className="flex items-center gap-2 text-sm font-medium">
                         <Banknote className="size-4" aria-hidden="true" />
@@ -634,6 +638,7 @@ export function BudgetEditor({
                             onFormChange={onFormChange}
                             quickAdds={template.monthly_fixed_costs}
                             fixedCost
+                            focusTarget="fixed-costs"
                         />
                         <BudgetRowsEditor
                             title="How will money come in?"
@@ -643,6 +648,7 @@ export function BudgetEditor({
                             onFormChange={onFormChange}
                             quickAdds={template.revenue_forecast}
                             revenue
+                            focusTarget="revenue-forecast"
                         />
                         <BudgetRowsEditor
                             title="What funding or cash is available?"
@@ -651,6 +657,7 @@ export function BudgetEditor({
                             rows={form.funding_sources}
                             onFormChange={onFormChange}
                             quickAdds={template.funding_sources}
+                            focusTarget="funding-sources"
                         />
                         <FutureCostsEditor
                             rows={form.future_costs}
@@ -722,6 +729,7 @@ export function BudgetEditor({
                             rows={form.monthly_fixed_costs}
                             onFormChange={onFormChange}
                             fixedCost
+                            focusTarget="fixed-costs"
                         />
                         <BudgetRowsEditor
                             title="Revenue forecast"
@@ -729,12 +737,14 @@ export function BudgetEditor({
                             rows={form.revenue_forecast}
                             onFormChange={onFormChange}
                             revenue
+                            focusTarget="revenue-forecast"
                         />
                         <BudgetRowsEditor
                             title="Funding sources"
                             group="funding_sources"
                             rows={form.funding_sources}
                             onFormChange={onFormChange}
+                            focusTarget="funding-sources"
                         />
                         <FutureCostsEditor
                             rows={form.future_costs}
@@ -884,7 +894,11 @@ export function BudgetAssumptionsEditor({
 
     return (
         <div className="space-y-3">
-            <label className="grid max-w-md gap-1 text-xs">
+            <label
+                className="grid max-w-md scroll-mt-28 gap-1 text-xs"
+                data-founder-action-target="forecast-start-month"
+                data-co-browse-target="entrepreneur.plan.forecast-start-month"
+            >
                 <span className="text-muted-foreground">
                     Forecast start month
                 </span>

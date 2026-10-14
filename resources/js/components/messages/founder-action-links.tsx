@@ -38,7 +38,7 @@ export function FounderActionLinks({
                     <p className="mt-1 text-sky-900">
                         {preview
                             ? 'The founder will receive these protected plan links with this reply.'
-                            : 'Choose a step to open the relevant Budget area, or use the visual guide to see it highlighted.'}
+                            : 'Each step opens the relevant Budget area and highlights the exact control to use.'}
                     </p>
                 </div>
             </div>
@@ -54,14 +54,20 @@ export function FounderActionLinks({
                         </p>
                         <p className="mt-1 text-sky-900">{link.description}</p>
                         <div className="mt-3 flex flex-wrap gap-2">
-                            {link.open_url ? (
+                            {(link.guide_url ?? link.open_url) ? (
                                 <Button asChild size="sm">
-                                    <Link href={link.open_url}>
+                                    <Link
+                                        href={
+                                            link.guide_url ??
+                                            link.open_url ??
+                                            '#'
+                                        }
+                                    >
                                         <LocateFixed
                                             className="size-4"
                                             aria-hidden="true"
                                         />
-                                        Open this step
+                                        Open and highlight
                                     </Link>
                                 </Button>
                             ) : (
@@ -70,28 +76,20 @@ export function FounderActionLinks({
                                         className="size-4"
                                         aria-hidden="true"
                                     />
-                                    Open this step
+                                    Open and highlight
                                 </Button>
                             )}
-                            {link.guide_url ? (
+                            {link.open_url && link.guide_url ? (
                                 <Button asChild size="sm" variant="outline">
-                                    <Link href={link.guide_url}>
+                                    <Link href={link.open_url}>
                                         <MapPinned
                                             className="size-4"
                                             aria-hidden="true"
                                         />
-                                        Show me where
+                                        Open without guide
                                     </Link>
                                 </Button>
-                            ) : (
-                                <Button size="sm" variant="outline" disabled>
-                                    <MapPinned
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    Show me where
-                                </Button>
-                            )}
+                            ) : null}
                         </div>
                     </li>
                 ))}

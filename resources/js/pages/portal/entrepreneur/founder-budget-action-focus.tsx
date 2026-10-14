@@ -5,35 +5,35 @@ import type { FounderBudgetActionFocus } from './founder-action-deep-link';
 
 const focusDetails: Record<
     FounderBudgetActionFocus,
-    { label: string; target: string; instruction: string }
+    { label: string; selector: string; instruction: string }
 > = {
     'fixed-costs': {
         label: 'Regular business costs',
-        target: 'What will you pay every month even if sales are slow?',
+        selector: '[data-founder-action-target="fixed-costs-add-row"]',
         instruction:
-            'Use this cost list to check existing costs or select Add another cost for a new one.',
+            'The Add another cost button is highlighted below. Select it to add a new regular cost row.',
     },
     'forecast-start-month': {
         label: 'Forecast start month',
-        target: 'Forecast start month',
+        selector: '[data-founder-action-target="forecast-start-month"]',
         instruction:
             'Choose the month that should be Month 1 in your forecast, then confirm it against your milestones.',
     },
     'revenue-forecast': {
         label: 'Sales forecast',
-        target: 'How will money come in?',
+        selector: '[data-founder-action-target="revenue-forecast"]',
         instruction:
             'Use this list to record the sales assumptions that fund the plan.',
     },
     'funding-sources': {
         label: 'Funding and cash',
-        target: 'What funding or cash is available?',
+        selector: '[data-founder-action-target="funding-sources"]',
         instruction:
             'Use this list to record real funding or cash that is available to the business.',
     },
     'budget-overview': {
         label: 'Budget editor',
-        target: 'Budget setup assistant',
+        selector: '[data-founder-action-target="budget-overview"]',
         instruction:
             'This is the Budget editor used for the changes in your advisor’s message.',
     },
@@ -56,16 +56,13 @@ export function FounderBudgetActionFocus({
             return;
         }
 
-        const target = Array.from(
-            container.current.querySelectorAll<HTMLElement>(
-                'div, h2, h3, h4, h5, label, span',
-            ),
-        ).find((element) => element.textContent?.trim() === details.target);
-        const highlighted = target?.closest('section') ?? target;
+        const highlighted = container.current.querySelector<HTMLElement>(
+            details.selector,
+        );
         const scrollFrame = window.requestAnimationFrame(() => {
             highlighted?.scrollIntoView({
                 behavior: 'smooth',
-                block: 'center',
+                block: 'start',
             });
         });
 
@@ -75,18 +72,20 @@ export function FounderBudgetActionFocus({
 
         highlighted.classList.add(
             'rounded-md',
-            'ring-2',
+            'ring-4',
             'ring-sky-500',
             'ring-offset-4',
+            'shadow-lg',
         );
 
         return () => {
             window.cancelAnimationFrame(scrollFrame);
             highlighted.classList.remove(
                 'rounded-md',
-                'ring-2',
+                'ring-4',
                 'ring-sky-500',
                 'ring-offset-4',
+                'shadow-lg',
             );
         };
     }, [details, showGuide]);

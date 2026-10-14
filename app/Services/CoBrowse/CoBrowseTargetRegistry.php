@@ -20,6 +20,14 @@ final class CoBrowseTargetRegistry
                 'entrepreneur.dashboard.journey' => 'Journey',
                 'entrepreneur.dashboard.progress' => 'Plan completion',
             ],
+            'portal.entrepreneur.plan' => [
+                'entrepreneur.plan.steps' => 'Plan steps',
+                'entrepreneur.plan.budget' => 'Budget editor',
+                'entrepreneur.plan.fixed-costs' => 'Add another cost',
+                'entrepreneur.plan.forecast-start-month' => 'Forecast start month',
+                'entrepreneur.plan.revenue-forecast' => 'Sales forecast',
+                'entrepreneur.plan.funding-sources' => 'Funding and cash',
+            ],
             default => [],
         };
     }

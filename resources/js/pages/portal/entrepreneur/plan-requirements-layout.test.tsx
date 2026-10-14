@@ -30,7 +30,8 @@ test('plan requirements have a visible collapse control and clear incomplete sta
         </PlanRequirementsLayout>,
     );
 
-    assert.match(html, /Collapse plan requirements/);
+    assert.match(html, /Minimise plan steps/);
     assert.match(html, /Financial assumptions: Needs attention/);
     assert.match(html, /Hide this list for more editing room/);
+    assert.match(html, /data-co-browse-target="entrepreneur.plan.steps"/);
 });
