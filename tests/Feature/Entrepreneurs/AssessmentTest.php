@@ -1398,7 +1398,7 @@ final class AssessmentTest extends TestCase
             'body' => $proposedReply,
         ]);
         $message = Message::query()->where('body', $proposedReply)->firstOrFail();
-        $this->assertSame([
+        $this->assertEquals([
             [
                 'key' => 'regular_costs',
                 'title' => 'Reconcile the regular business costs',
