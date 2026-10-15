@@ -28,6 +28,18 @@ use Throwable;
  * Owns the authenticated, fixed-price BP&B add-on checkout for an existing
  * Idea Validation client. The browser callback and Stripe webhook converge on
  * the same settlement path.
+ *
+ * @phpstan-type WaivedPlanBudgetSnapshot array{
+ *     id:string|null,
+ *     service_type:string,
+ *     package_scope:string|null,
+ *     client_label:string,
+ *     fixed_fee:float,
+ *     currency:string,
+ *     scope_description:string,
+ *     pilot_fee_waiver:array{active:true,reason:string,nominal_fixed_fee:int|float|null,program_status:string,starts_at:?string,expires_at:?string,stripe_required:false},
+ *     ...
+ * }
  */
 final class EntrepreneurPlanBudgetCheckout
 {
@@ -217,7 +229,7 @@ final class EntrepreneurPlanBudgetCheckout
                     'paid_at' => now(),
                     'metadata' => [
                         ...(array) ($purchase->metadata ?? []),
-                        'pilot_fee_waiver' => (array) ($snapshot['pilot_fee_waiver'] ?? []),
+                        'pilot_fee_waiver' => $snapshot['pilot_fee_waiver'],
                         'waived_from_idea_validation_id' => $validation->getKey(),
                     ],
                 ])->save();
@@ -431,7 +443,7 @@ final class EntrepreneurPlanBudgetCheckout
 
     /**
      * @param  array{eligible:bool, program_status:string, starts_at:?string, expires_at:?string}  $waiver
-     * @return array<string, mixed>
+     * @return WaivedPlanBudgetSnapshot
      */
     private function waivedPlanBudgetSnapshot(?ServiceRatePackage $package, array $waiver): array
     {
@@ -469,7 +481,10 @@ final class EntrepreneurPlanBudgetCheckout
                 'effective_from' => now()->toIso8601String(),
             ];
 
-        return $this->waivers->waivedPackageSnapshot($snapshot, $waiver);
+        /** @var WaivedPlanBudgetSnapshot $waived */
+        $waived = $this->waivers->waivedPackageSnapshot($snapshot, $waiver);
+
+        return $waived;
     }
 
     private function assertChargeMatches(Payment $payment, EntrepreneurPlanBudgetPurchase $purchase, PaymentChargeResult $charge): void
