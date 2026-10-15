@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import process from 'node:process';
 
 const comparisonRef = process.argv[2];
@@ -17,7 +17,8 @@ const changedPages = execFileSync(
 )
     .split(/\r?\n/)
     .filter(Boolean)
-    .filter((path) => /\.(?:ts|tsx)$/.test(path));
+    .filter((path) => /\.(?:ts|tsx)$/.test(path))
+    .filter((path) => existsSync(path));
 
 const implicitIntl =
     /new\s+Intl\.(?:NumberFormat|DateTimeFormat)\(\s*undefined\s*,/g;

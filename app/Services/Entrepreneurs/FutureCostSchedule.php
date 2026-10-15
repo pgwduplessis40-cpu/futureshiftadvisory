@@ -4,10 +4,20 @@ declare(strict_types=1);
 
 namespace App\Services\Entrepreneurs;
 
+/**
+ * @phpstan-type FutureCost array{
+ *     classification?: string|null,
+ *     year?: int|float|string|null,
+ *     amount?: int|float|string|null,
+ *     quantity?: int|float|string|null,
+ *     recurring?: bool|int|string|null,
+ *     repeat_every_years?: int|float|string|null
+ * }
+ */
 final class FutureCostSchedule
 {
     /**
-     * @param  array<int, array<string, mixed>>  $rows
+     * @param  array<int, FutureCost>  $rows
      */
     public static function operatingCostsForMonth(array $rows, int $year, int $monthInYear): float
     {
@@ -37,7 +47,7 @@ final class FutureCostSchedule
     }
 
     /**
-     * @param  array<string, mixed>  $row
+     * @param  FutureCost  $row
      */
     public static function timingLabel(array $row): string
     {
