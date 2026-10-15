@@ -55,6 +55,18 @@ final class EntrepreneurPlanBudgetCheckoutController extends Controller
         ]);
     }
 
+    public function claimWaivedAccess(Request $request, EntrepreneurPlanWorkspace $workspace): JsonResponse
+    {
+        $user = $workspace->user($request);
+        $profile = $workspace->profileFor($user);
+        $purchase = $this->checkout->claimWaivedAccess($user, $profile);
+
+        return response()->json([
+            'activated' => $purchase->activated(),
+            'next_url' => route('portal.entrepreneur.plan.show', absolute: false),
+        ]);
+    }
+
     public function confirmPayment(Request $request, EntrepreneurPlanWorkspace $workspace): JsonResponse
     {
         $validated = $request->validate([

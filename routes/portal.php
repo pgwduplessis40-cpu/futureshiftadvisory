@@ -107,6 +107,7 @@ Route::middleware(['auth', 'verified', 'mfa', EnsureEntrepreneurInviteOfferAccep
         Route::get('entrepreneur/plan-budget', EntrepreneurPlanBudgetAccessController::class)->name('entrepreneur.plan-budget.show');
         Route::get('entrepreneur/advisory-services', EntrepreneurAdvisoryServicesController::class)->name('entrepreneur.advisory-services.show');
         Route::post('entrepreneur/plan-budget/payment-intent', [EntrepreneurPlanBudgetCheckoutController::class, 'paymentIntent'])->name('entrepreneur.plan-budget.payment-intent');
+        Route::post('entrepreneur/plan-budget/claim-waived-access', [EntrepreneurPlanBudgetCheckoutController::class, 'claimWaivedAccess'])->name('entrepreneur.plan-budget.claim-waived-access');
         Route::post('entrepreneur/plan-budget/confirm-payment', [EntrepreneurPlanBudgetCheckoutController::class, 'confirmPayment'])->name('entrepreneur.plan-budget.confirm-payment');
         Route::post('entrepreneur/plan-budget/confirm-fixture-payment', [EntrepreneurPlanBudgetCheckoutController::class, 'confirmFixturePayment'])->name('entrepreneur.plan-budget.confirm-fixture-payment');
         Route::get('entrepreneur/plan/preview', [EntrepreneurPlanDocumentController::class, 'preview'])->name('entrepreneur.plan.preview');

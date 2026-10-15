@@ -11,6 +11,7 @@ use App\Models\Payment;
 use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Fees\PilotFeeWaiverManager;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Payments\GstCalculator;
 use App\Services\Payments\IdeaValidationPaymentIntent;
@@ -37,6 +38,7 @@ final class EntrepreneurPlanBudgetCheckout
         private readonly EntrepreneurPlanBudgetProvisioner $provisioner,
         private readonly AuditWriter $audit,
         private readonly RequestContext $context,
+        private readonly PilotFeeWaiverManager $waivers,
     ) {}
 
     public function beginPayment(User $user, EntrepreneurProfile $profile): IdeaValidationPaymentIntent
@@ -153,6 +155,89 @@ final class EntrepreneurPlanBudgetCheckout
         });
 
         return $intent;
+    }
+
+    /**
+     * Give an eligible pilot founder BP&B access without starting a Stripe
+     * payment. The eligibility check is intentionally repeated server-side so
+     * the client-facing waiver state cannot grant access by itself.
+     */
+    public function claimWaivedAccess(User $user, EntrepreneurProfile $profile): EntrepreneurPlanBudgetPurchase
+    {
+        $purchase = $this->context->withSystemContext(function () use ($user, $profile): EntrepreneurPlanBudgetPurchase {
+            return DB::transaction(function () use ($user, $profile): EntrepreneurPlanBudgetPurchase {
+                $validation = $this->assertOwnerAndApproved($user, $profile);
+                $waiver = $this->waivers->eligibility($profile);
+                if (! $waiver['eligible']) {
+                    throw ValidationException::withMessages([
+                        'checkout' => 'Your pilot fee waiver is no longer active. Please contact Future Shift Advisory for assistance.',
+                    ]);
+                }
+
+                $purchase = EntrepreneurPlanBudgetPurchase::query()
+                    ->where('entrepreneur_profile_id', $profile->getKey())
+                    ->lockForUpdate()
+                    ->first();
+                if ($purchase instanceof EntrepreneurPlanBudgetPurchase && $purchase->status === EntrepreneurPlanBudgetPurchase::STATUS_PAID) {
+                    return $purchase->refresh();
+                }
+
+                if ($purchase instanceof EntrepreneurPlanBudgetPurchase && $purchase->payment_id !== null) {
+                    throw ValidationException::withMessages([
+                        'checkout' => 'A BP&B payment has already been started for this idea and requires support review before a waiver can be applied.',
+                    ]);
+                }
+
+                if (! $purchase instanceof EntrepreneurPlanBudgetPurchase) {
+                    if ($profile->client_id === null) {
+                        throw new \LogicException('An Idea Validation client record is required before starting Business Plan & Budget.');
+                    }
+
+                    $purchase = EntrepreneurPlanBudgetPurchase::query()->create([
+                        'user_id' => $user->getKey(),
+                        'client_id' => $profile->client_id,
+                        'entrepreneur_profile_id' => $profile->getKey(),
+                        'advisor_id' => $profile->assigned_advisor_id,
+                        'status' => EntrepreneurPlanBudgetPurchase::STATUS_PAYMENT_PENDING,
+                    ]);
+                }
+
+                $package = $this->currentPlanBudgetPackage();
+                $snapshot = $this->waivedPlanBudgetSnapshot($package, $waiver);
+                $currency = strtoupper((string) ($package?->currency ?: 'NZD'));
+
+                $purchase->forceFill([
+                    'service_rate_package_id' => $package?->getKey(),
+                    'status' => EntrepreneurPlanBudgetPurchase::STATUS_PAID,
+                    'amount_ex_gst' => '0.00',
+                    'gst_amount' => '0.00',
+                    'amount_including_gst' => '0.00',
+                    'currency' => $currency,
+                    'package_snapshot' => $snapshot,
+                    'paid_at' => now(),
+                    'metadata' => [
+                        ...(array) ($purchase->metadata ?? []),
+                        'pilot_fee_waiver' => (array) ($snapshot['pilot_fee_waiver'] ?? []),
+                        'waived_from_idea_validation_id' => $validation->getKey(),
+                    ],
+                ])->save();
+
+                $this->audit->record('entrepreneur.plan_budget_purchase_waived', subject: $purchase, actor: $user, after: [
+                    'entrepreneur_profile_id' => $profile->getKey(),
+                    'idea_validation_id' => $validation->getKey(),
+                    'service_rate_package_id' => $package?->getKey(),
+                    'amount_ex_gst' => 0.0,
+                    'currency' => $currency,
+                    'stripe_required' => false,
+                ]);
+
+                return $purchase->refresh();
+            });
+        });
+
+        $this->provisioner->provision($profile, $user);
+
+        return $purchase->refresh();
     }
 
     public function confirmPayment(User $user, EntrepreneurProfile $profile, string $paymentIntentRef): ?EntrepreneurPlanBudgetPurchase
@@ -317,8 +402,19 @@ final class EntrepreneurPlanBudgetCheckout
 
     private function planBudgetPackage(): ServiceRatePackage
     {
+        $package = $this->currentPlanBudgetPackage();
+        if (! $package instanceof ServiceRatePackage) {
+            throw ValidationException::withMessages(['checkout' => 'Business Plan & Budget checkout is temporarily unavailable because a current Service Rate could not be found.']);
+        }
+
+        return $package;
+    }
+
+    private function currentPlanBudgetPackage(): ?ServiceRatePackage
+    {
         $now = now();
-        $package = ServiceRatePackage::query()
+
+        return ServiceRatePackage::query()
             ->where('service_type', ServiceRatePackage::SERVICE_ENTREPRENEUR)
             ->where('package_scope', ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET)
             ->where('billing_model', ServiceRatePackage::BILLING_FIXED_FEE)
@@ -331,11 +427,49 @@ final class EntrepreneurPlanBudgetCheckout
             ->where('fixed_fee', '>', 0)
             ->latest('effective_from')
             ->first();
-        if (! $package instanceof ServiceRatePackage) {
-            throw ValidationException::withMessages(['checkout' => 'Business Plan & Budget checkout is temporarily unavailable because a current Service Rate could not be found.']);
-        }
+    }
 
-        return $package;
+    /**
+     * @param  array{eligible:bool, program_status:string, starts_at:?string, expires_at:?string}  $waiver
+     * @return array<string, mixed>
+     */
+    private function waivedPlanBudgetSnapshot(?ServiceRatePackage $package, array $waiver): array
+    {
+        $access = ServiceRatePackage::accessFor(
+            ServiceRatePackage::SERVICE_ENTREPRENEUR,
+            ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET,
+        );
+
+        $snapshot = $package instanceof ServiceRatePackage
+            ? $package->snapshot()
+            : [
+                'id' => null,
+                'service_type' => ServiceRatePackage::SERVICE_ENTREPRENEUR,
+                'package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET,
+                'package_name' => 'Business Plan & Budget',
+                'client_label' => 'Business Plan & Budget',
+                'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+                'fixed_fee' => null,
+                'deposit_percent' => 100.0,
+                'hourly_rate' => null,
+                'retainer_amount' => null,
+                'purchase_price_min' => null,
+                'purchase_price_max' => null,
+                'currency' => 'NZD',
+                'scope_description' => 'Business Plan & Budget access granted under an active pilot fee waiver.',
+                'included_stages' => $access['included_stages'],
+                'client_outcomes' => $access['client_outcomes'],
+                'access' => $access,
+                'payment_split' => [
+                    'deposit_percent' => 100.0,
+                    'card_deposit_amount' => 0.0,
+                    'bank_transfer_amount' => 0.0,
+                    'requires_bank_transfer' => false,
+                ],
+                'effective_from' => now()->toIso8601String(),
+            ];
+
+        return $this->waivers->waivedPackageSnapshot($snapshot, $waiver);
     }
 
     private function assertChargeMatches(Payment $payment, EntrepreneurPlanBudgetPurchase $purchase, PaymentChargeResult $charge): void

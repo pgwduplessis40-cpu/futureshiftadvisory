@@ -9,6 +9,7 @@ use App\Models\EntrepreneurPlanBudgetPurchase;
 use App\Models\IdeaValidation;
 use App\Models\ServiceRatePackage;
 use App\Services\Entrepreneurs\EntrepreneurServiceOffer;
+use App\Services\Fees\PilotFeeWaiverManager;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,6 +20,7 @@ final class EntrepreneurPlanBudgetAccessController extends Controller
         Request $request,
         EntrepreneurPlanWorkspace $workspace,
         EntrepreneurServiceOffer $offers,
+        PilotFeeWaiverManager $waivers,
     ): Response {
         $user = $workspace->user($request);
         $profile = $workspace->profileFor($user);
@@ -31,11 +33,16 @@ final class EntrepreneurPlanBudgetAccessController extends Controller
             ->where('entrepreneur_profile_id', $profile->getKey())
             ->latest()
             ->first();
+        $pilotFeeWaiver = $waivers->eligibility($profile);
+        $offer = $offers->forScope(ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET);
 
         return Inertia::render('portal/entrepreneur/PlanBudgetAccess', [
             'hasPlanBudgetAccess' => $access['includes_plan_budget'],
             'ideaValidationApproved' => $ideaValidationApproved,
-            'offer' => $offers->forScope(ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET),
+            'offer' => $offer,
+            'pilotFeeWaiver' => [
+                'active' => $pilotFeeWaiver['eligible'],
+            ],
             'purchase' => $purchase instanceof EntrepreneurPlanBudgetPurchase ? [
                 'status' => $purchase->status,
                 'amount_ex_gst' => $purchase->amount_ex_gst !== null ? (float) $purchase->amount_ex_gst : null,
@@ -47,6 +54,7 @@ final class EntrepreneurPlanBudgetAccessController extends Controller
                 'paymentIntent' => route('portal.entrepreneur.plan-budget.payment-intent', absolute: false),
                 'confirmPayment' => route('portal.entrepreneur.plan-budget.confirm-payment', absolute: false),
                 'confirmFixturePayment' => route('portal.entrepreneur.plan-budget.confirm-fixture-payment', absolute: false),
+                'claimWaivedAccess' => route('portal.entrepreneur.plan-budget.claim-waived-access', absolute: false),
             ],
             'workspaceUrl' => route('portal.entrepreneur.plan.show', absolute: false),
         ]);

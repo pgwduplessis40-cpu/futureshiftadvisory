@@ -50,6 +50,7 @@ final class OperationalHealthCheckTest extends TestCase
         config()->set('operational_health.timezone', 'Pacific/Auckland');
         config()->set('operational_health.weekday_times', null);
         config()->set('operational_health.weekend_times', null);
+        config()->set('operational_health.ensure_fixtures', false);
 
         Artisan::call('schedule:list');
 
@@ -99,6 +100,13 @@ final class OperationalHealthCheckTest extends TestCase
         $this->assertNotNull($quarantineRecovery);
         $this->assertSame('*/10 * * * *', $quarantineRecovery->expression);
         $this->assertStringContainsString('fsa:rescan-quarantined-documents', $quarantineRecovery->command);
+
+        $operationalHealthCommands = $events
+            ->filter(fn ($event): bool => str_starts_with((string) $event->description, 'fsa-operational-health-'))
+            ->pluck('command');
+        $this->assertTrue($operationalHealthCommands->every(
+            fn (string $command): bool => ! str_contains($command, '--ensure-fixtures'),
+        ));
     }
 
     public function test_due_runner_catches_up_missed_weekday_health_checks_once(): void

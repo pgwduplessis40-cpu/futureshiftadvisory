@@ -14,6 +14,7 @@ use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
 use App\Models\Payment;
 use App\Models\PaymentWebhookEvent;
+use App\Models\PilotFeeWaiverProgram;
 use App\Models\PlanSection;
 use App\Models\ServiceRatePackage;
 use App\Models\User;
@@ -23,6 +24,7 @@ use App\Services\Entrepreneurs\ApprovedIdeaPlanStarter;
 use App\Services\Entrepreneurs\EntrepreneurPlanBudgetCheckout;
 use App\Services\Entrepreneurs\EntrepreneurPlanBudgetProvisioner;
 use App\Services\Entrepreneurs\IdeaValidationService;
+use App\Services\Fees\PilotFeeWaiverManager;
 use App\Services\Payments\PaymentWebhookReconciler;
 use App\Services\Pdf\PdfRenderer;
 use App\Support\RequestContext;
@@ -108,6 +110,37 @@ final class EntrepreneurPlanBudgetCheckoutTest extends TestCase
         app(ApprovedIdeaPlanStarter::class)->start($profile, $laterApproved, $founder);
 
         $this->assertSame('Founder-owned BP&B content must not be overwritten.', $section->refresh()->body);
+    }
+
+    public function test_active_pilot_waiver_starts_bpb_without_a_current_rate_or_stripe_payment(): void
+    {
+        [$advisor, $founder, $profile] = $this->profile();
+        $approved = $this->ideaValidation($profile, $advisor, approved: true);
+        $waivers = app(PilotFeeWaiverManager::class);
+        $waivers->updateProgram(PilotFeeWaiverProgram::STATUS_OPEN, $advisor);
+        $waivers->updateEntrepreneur($profile, [
+            'enabled' => true,
+            'starts_at' => now()->toDateString(),
+            'expires_at' => now()->addMonth()->toDateString(),
+            'reason' => 'Founder pilot access.',
+        ], $advisor);
+
+        $purchase = app(EntrepreneurPlanBudgetCheckout::class)->claimWaivedAccess($founder, $profile);
+
+        $this->assertSame(EntrepreneurPlanBudgetPurchase::STATUS_PAID, $purchase->status);
+        $this->assertSame('0.00', $purchase->amount_ex_gst);
+        $this->assertSame('0.00', $purchase->gst_amount);
+        $this->assertSame('0.00', $purchase->amount_including_gst);
+        $this->assertNull($purchase->payment_id);
+        $this->assertNotNull($purchase->activated_at);
+        $this->assertSame((string) $approved->getKey(), (string) $purchase->approved_idea_validation_id);
+        $this->assertSame(true, data_get($purchase->package_snapshot, 'pilot_fee_waiver.active'));
+        $this->assertSame(false, data_get($purchase->package_snapshot, 'pilot_fee_waiver.stripe_required'));
+        $this->assertDatabaseCount('payments', 0);
+        $this->assertDatabaseHas('business_plans', [
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'source_type' => BusinessPlan::SOURCE_ENTREPRENEUR,
+        ]);
     }
 
     public function test_paid_bpb_client_can_open_the_locked_advisory_services_page(): void
