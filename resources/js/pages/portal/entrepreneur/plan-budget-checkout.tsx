@@ -4,7 +4,7 @@ import type {
     StripeElements,
     StripePaymentElement,
 } from '@stripe/stripe-js';
-import { CreditCard, Loader2 } from 'lucide-react';
+import { ArrowRight, CreditCard, Loader2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ type CheckoutUrls = {
     paymentIntent: string;
     confirmPayment: string;
     confirmFixturePayment: string;
+    claimWaivedAccess: string;
 };
 
 type Intent = {
@@ -37,10 +38,12 @@ type Intent = {
 
 export function PlanBudgetCheckout({
     offer,
+    pilotFeeWaiver,
     purchase,
     urls,
 }: {
     offer: { amount_ex_gst: number | null; currency: string | null };
+    pilotFeeWaiver: { active: boolean };
     purchase: Purchase;
     urls: CheckoutUrls;
 }) {
@@ -113,6 +116,45 @@ export function PlanBudgetCheckout({
                 reason instanceof Error
                     ? reason.message
                     : 'Secure payment could not be started.',
+            );
+            setStatus('idle');
+        }
+    };
+
+    const claimWaivedAccess = async () => {
+        setStatus('loading');
+        setError(null);
+
+        try {
+            const response = await fetch(urls.claimWaivedAccess, {
+                method: 'POST',
+                headers: jsonHeaders(),
+            });
+            const payload = (await response.json().catch(() => null)) as
+                | { activated?: boolean; next_url?: string }
+                | ErrorPayload
+                | null;
+
+            if (
+                !response.ok ||
+                !payload ||
+                !('activated' in payload) ||
+                !payload.activated
+            ) {
+                throw new Error(
+                    errorMessage(
+                        payload,
+                        'Business Plan & Budget access could not be started.',
+                    ),
+                );
+            }
+
+            window.location.assign(payload.next_url ?? window.location.href);
+        } catch (reason) {
+            setError(
+                reason instanceof Error
+                    ? reason.message
+                    : 'Business Plan & Budget access could not be started.',
             );
             setStatus('idle');
         }
@@ -202,16 +244,21 @@ export function PlanBudgetCheckout({
         }
     };
 
-    const net =
-        intent?.amount_ex_gst ?? purchase?.amount_ex_gst ?? offer.amount_ex_gst;
-    const gst =
-        intent?.gst_amount ??
-        purchase?.gst_amount ??
-        (net === null ? null : Math.round(net * 0.15 * 100) / 100);
-    const gross =
-        intent?.amount_including_gst ??
-        purchase?.amount_including_gst ??
-        (net === null ? null : Math.round((net + (gst ?? 0)) * 100) / 100);
+    const net = pilotFeeWaiver.active
+        ? 0
+        : (intent?.amount_ex_gst ??
+          purchase?.amount_ex_gst ??
+          offer.amount_ex_gst);
+    const gst = pilotFeeWaiver.active
+        ? 0
+        : (intent?.gst_amount ??
+          purchase?.gst_amount ??
+          (net === null ? null : Math.round(net * 0.15 * 100) / 100));
+    const gross = pilotFeeWaiver.active
+        ? 0
+        : (intent?.amount_including_gst ??
+          purchase?.amount_including_gst ??
+          (net === null ? null : Math.round((net + (gst ?? 0)) * 100) / 100));
     const currency =
         intent?.currency ?? purchase?.currency ?? offer.currency ?? 'NZD';
 
@@ -222,6 +269,13 @@ export function PlanBudgetCheckout({
                 Your approved Idea Validation will seed the plan foundation. You
                 will confirm all financial assumptions in the Budget Pack.
             </p>
+
+            {pilotFeeWaiver.active ? (
+                <p className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                    Your active pilot fee waiver covers Business Plan &amp;
+                    Budget. No payment will be taken.
+                </p>
+            ) : null}
 
             <div className="mt-4 rounded-md bg-muted/40 p-4 text-sm">
                 <div className="flex justify-between gap-4">
@@ -248,7 +302,20 @@ export function PlanBudgetCheckout({
                 className={intent && !intent.fixture ? 'mt-5' : 'hidden'}
             />
 
-            {intent === null ? (
+            {pilotFeeWaiver.active ? (
+                <Button
+                    className="mt-5"
+                    onClick={() => void claimWaivedAccess()}
+                    disabled={status === 'loading'}
+                >
+                    {status === 'loading' ? (
+                        <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                        <ArrowRight className="size-4" />
+                    )}
+                    Start Business Plan &amp; Budget
+                </Button>
+            ) : intent === null ? (
                 <Button
                     className="mt-5"
                     onClick={() => void startCheckout()}
@@ -343,6 +410,7 @@ function errorMessage(
         | ErrorPayload
         | Intent
         | { paid?: boolean; next_url?: string }
+        | { activated?: boolean; next_url?: string }
         | null,
     fallback: string,
 ): string {

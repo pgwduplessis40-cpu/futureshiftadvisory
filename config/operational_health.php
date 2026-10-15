@@ -67,7 +67,14 @@ return [
 
     'retention_days' => (int) env('OPERATIONAL_HEALTH_RETENTION_DAYS', 90),
 
-    'ensure_fixtures' => env('OPERATIONAL_HEALTH_ENSURE_FIXTURES', true),
+    // Monitor fixtures are useful in local and test databases, but are not
+    // commercial data and must never be re-created by the production scheduler.
+    // A production operator can still provision them deliberately with the
+    // explicit command option when recovering the monitoring estate.
+    'ensure_fixtures' => env(
+        'OPERATIONAL_HEALTH_ENSURE_FIXTURES',
+        env('APP_ENV', 'production') !== 'production',
+    ),
 
     'users' => [
         'super_admin_email' => env('OPERATIONAL_HEALTH_SUPER_ADMIN_EMAIL', 'operational-health-admin@futureshiftadvisory.test'),

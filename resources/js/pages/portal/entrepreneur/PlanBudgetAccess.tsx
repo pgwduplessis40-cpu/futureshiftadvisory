@@ -19,6 +19,7 @@ export default function PlanBudgetAccess({
     hasPlanBudgetAccess,
     ideaValidationApproved,
     offer,
+    pilotFeeWaiver,
     purchase,
     checkoutUrls,
     workspaceUrl,
@@ -26,6 +27,7 @@ export default function PlanBudgetAccess({
     hasPlanBudgetAccess: boolean;
     ideaValidationApproved: boolean;
     offer: Offer;
+    pilotFeeWaiver: { active: boolean };
     purchase: {
         status: string;
         amount_ex_gst: number | null;
@@ -37,6 +39,7 @@ export default function PlanBudgetAccess({
         paymentIntent: string;
         confirmPayment: string;
         confirmFixturePayment: string;
+        claimWaivedAccess: string;
     };
     workspaceUrl: string;
 }) {
@@ -109,11 +112,17 @@ export default function PlanBudgetAccess({
                                 </h2>
                                 <p className="mt-1 text-sm text-muted-foreground">
                                     Business Plan &amp; Budget is ready for your
-                                    next step{price ? ` — ${price}.` : '.'}
+                                    next step
+                                    {pilotFeeWaiver.active
+                                        ? ' — your pilot fee waiver applies.'
+                                        : price
+                                          ? ` — ${price}.`
+                                          : '.'}
                                 </p>
-                                {offer.available ? (
+                                {offer.available || pilotFeeWaiver.active ? (
                                     <PlanBudgetCheckout
                                         offer={offer}
+                                        pilotFeeWaiver={pilotFeeWaiver}
                                         purchase={purchase}
                                         urls={checkoutUrls}
                                     />
