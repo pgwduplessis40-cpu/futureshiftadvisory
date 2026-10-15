@@ -1161,15 +1161,17 @@ export function FutureCostsEditor({
 }) {
     return (
         <section className="space-y-2 rounded-md border bg-muted/20 p-3">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <div className="text-sm font-medium">
-                        What extra costs might happen in later years?
+                        What future or long-term commitments might happen?
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                         Add expansion, equipment replacement, extra staff,
-                        larger premises, or platform upgrades that are not
-                        standard CPI increases.
+                        larger premises, platform upgrades, or a scheduled
+                        renewal such as a trademark. Commitments outside this
+                        budget's forecast stay visible without changing its cash
+                        flow.
                     </p>
                 </div>
                 <Button
@@ -1194,7 +1196,7 @@ export function FutureCostsEditor({
                 {rows.map((row, index) => (
                     <div
                         key={index}
-                        className="grid gap-3 xl:grid-cols-[minmax(12rem,1.2fr)_repeat(5,minmax(5rem,0.55fr))_minmax(8rem,0.8fr)_auto]"
+                        className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3"
                     >
                         <BudgetInput
                             label="Item"
@@ -1226,8 +1228,9 @@ export function FutureCostsEditor({
                             }
                         />
                         <BudgetInput
-                            label="Year"
+                            label="First due year"
                             type="number"
+                            min={2}
                             value={row.year ?? 2}
                             onChange={(value) =>
                                 updateFutureCostRow(onFormChange, index, {
@@ -1237,21 +1240,67 @@ export function FutureCostsEditor({
                         />
                         <label className="grid gap-1 text-xs">
                             <span className="text-muted-foreground">
-                                Recurring
+                                Schedule
                             </span>
                             <select
-                                value={row.recurring ? 'yes' : 'no'}
-                                onChange={(event) =>
-                                    updateFutureCostRow(onFormChange, index, {
-                                        recurring: event.target.value === 'yes',
-                                    })
+                                value={
+                                    row.recurring
+                                        ? 'monthly'
+                                        : numberFromInput(
+                                                row.repeat_every_years ?? '',
+                                            ) > 0
+                                          ? 'renewal'
+                                          : 'one-off'
                                 }
+                                onChange={(event) =>
+                                    updateFutureCostRow(
+                                        onFormChange,
+                                        index,
+                                        event.target.value === 'monthly'
+                                            ? {
+                                                  recurring: true,
+                                                  repeat_every_years: null,
+                                              }
+                                            : event.target.value === 'renewal'
+                                              ? {
+                                                    recurring: false,
+                                                    repeat_every_years:
+                                                        numberFromInput(
+                                                            row.repeat_every_years ??
+                                                                '',
+                                                        ) || 10,
+                                                }
+                                              : {
+                                                    recurring: false,
+                                                    repeat_every_years: null,
+                                                },
+                                    )
+                                }
+                                disabled={row.classification === 'capital'}
                                 className="h-9 rounded-md border bg-background px-2 text-sm"
                             >
-                                <option value="no">One-off</option>
-                                <option value="yes">Monthly</option>
+                                <option value="one-off">One-off</option>
+                                <option value="monthly">
+                                    Monthly from this year
+                                </option>
+                                <option value="renewal">Renewal cycle</option>
                             </select>
                         </label>
+                        {!row.recurring &&
+                        numberFromInput(row.repeat_every_years ?? '') > 0 ? (
+                            <BudgetInput
+                                label="Renew every (years)"
+                                type="number"
+                                min={1}
+                                value={row.repeat_every_years ?? 10}
+                                onChange={(value) =>
+                                    updateFutureCostRow(onFormChange, index, {
+                                        recurring: false,
+                                        repeat_every_years: value,
+                                    })
+                                }
+                            />
+                        ) : null}
                         <label className="grid gap-1 text-xs">
                             <span className="text-muted-foreground">
                                 Treatment
@@ -1268,6 +1317,10 @@ export function FutureCostsEditor({
                                             event.target.value === 'capital'
                                                 ? false
                                                 : row.recurring,
+                                        repeat_every_years:
+                                            event.target.value === 'capital'
+                                                ? null
+                                                : row.repeat_every_years,
                                     })
                                 }
                                 className="h-9 rounded-md border bg-background px-2 text-sm"
@@ -2027,6 +2080,7 @@ export function blankFutureCostRow(): FutureCostRow {
         quantity: 1,
         year: 2,
         recurring: false,
+        repeat_every_years: null,
         classification: 'operating',
         useful_life_years: 3,
         confidence: 'estimate',
@@ -2223,8 +2277,12 @@ export function cleanFutureCostRows(rows: FutureCostRow[]) {
             label: budgetRowLabel(row),
             amount: numberFromInput(row.amount),
             quantity: numberFromInput(row.quantity ?? 1) || 1,
-            year: Math.min(5, Math.max(2, numberFromInput(row.year ?? 2) || 2)),
+            year: Math.min(
+                30,
+                Math.max(2, numberFromInput(row.year ?? 2) || 2),
+            ),
             recurring: Boolean(row.recurring),
+            repeat_every_years: futureCostRepeatEveryYears(row),
             classification:
                 row.classification === 'capital' ? 'capital' : 'operating',
             useful_life_years: Math.min(
@@ -2269,13 +2327,26 @@ export function normaliseFutureCostRow(row: FutureCostRow): FutureCostRow {
         label: budgetRowLabel(row),
         amount: row.amount ?? '',
         quantity: numberFromInput(row.quantity ?? 1) || 1,
-        year: Math.min(5, Math.max(2, numberFromInput(row.year ?? 2) || 2)),
+        year: Math.min(30, Math.max(2, numberFromInput(row.year ?? 2) || 2)),
         recurring: Boolean(row.recurring),
+        repeat_every_years: futureCostRepeatEveryYears(row),
         classification:
             row.classification === 'capital' ? 'capital' : 'operating',
         useful_life_years: numberFromInput(row.useful_life_years ?? 3) || 3,
         confidence: budgetRowConfidence(row.confidence),
     };
+}
+
+function futureCostRepeatEveryYears(row: FutureCostRow): number | null {
+    if (row.recurring || row.classification === 'capital') {
+        return null;
+    }
+
+    const repeatEveryYears = numberFromInput(row.repeat_every_years ?? '');
+
+    return repeatEveryYears > 0
+        ? Math.min(30, Math.max(1, repeatEveryYears))
+        : null;
 }
 
 export function normaliseFundingScenario(

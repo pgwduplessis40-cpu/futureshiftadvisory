@@ -257,6 +257,38 @@ final class BudgetCalculatorTest extends TestCase
         $this->assertEqualsWithDelta(-7_000.0, $monthThirteen['net_cash_flow'], 0.01);
     }
 
+    public function test_scheduled_renewals_are_recorded_separately_and_only_hit_the_due_year(): void
+    {
+        $computed = $this->calculator()->compute(
+            launchCosts: [],
+            monthlyFixedCosts: [],
+            revenueForecast: [],
+            fundingSources: [],
+            expectedRunwayMonths: null,
+            forecastYears: 5,
+            futureCosts: [[
+                'label' => 'Trademark renewal',
+                'amount' => 100,
+                'year' => 2,
+                'repeat_every_years' => 2,
+                'classification' => 'operating',
+            ]],
+        );
+
+        $normalised = $this->calculator()->normaliseFutureCosts([[
+            'label' => 'Trademark renewal',
+            'amount' => 100,
+            'year' => 10,
+            'repeat_every_years' => 10,
+        ]]);
+
+        $this->assertSame(100.0, $computed['monthly_detail'][12]['fixed_costs']);
+        $this->assertSame(0.0, $computed['monthly_detail'][24]['fixed_costs']);
+        $this->assertSame(100.0, $computed['monthly_detail'][36]['fixed_costs']);
+        $this->assertSame(10, $normalised[0]['year']);
+        $this->assertSame(10, $normalised[0]['repeat_every_years']);
+    }
+
     public function test_automatic_downside_scenarios_are_generated(): void
     {
         $computed = $this->calculator()->compute(

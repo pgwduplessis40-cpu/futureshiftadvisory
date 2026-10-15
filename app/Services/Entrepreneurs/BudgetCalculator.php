@@ -192,16 +192,24 @@ final class BudgetCalculator implements ProvidesMethodology
     public function normaliseFutureCosts(array $rows): array
     {
         return collect($rows)
-            ->map(fn (array $row): array => [
-                'label' => trim((string) ($row['label'] ?? $row['name'] ?? '')),
-                'amount' => $this->money($row['amount'] ?? 0),
-                'quantity' => max(1.0, $this->number($row['quantity'] ?? 1)),
-                'year' => min(5, max(2, (int) ($row['year'] ?? 2))),
-                'recurring' => (bool) ($row['recurring'] ?? false),
-                'classification' => ($row['classification'] ?? null) === 'capital' ? 'capital' : 'operating',
-                'useful_life_years' => min(20, max(1, (int) ($row['useful_life_years'] ?? 3))),
-                'confidence' => $this->confidence($row['confidence'] ?? null),
-            ])
+            ->map(function (array $row): array {
+                $classification = ($row['classification'] ?? null) === 'capital' ? 'capital' : 'operating';
+                $recurring = (bool) ($row['recurring'] ?? false);
+
+                return [
+                    'label' => trim((string) ($row['label'] ?? $row['name'] ?? '')),
+                    'amount' => $this->money($row['amount'] ?? 0),
+                    'quantity' => max(1.0, $this->number($row['quantity'] ?? 1)),
+                    'year' => min(30, max(2, (int) ($row['year'] ?? 2))),
+                    'recurring' => $recurring,
+                    'repeat_every_years' => $recurring || $classification === 'capital'
+                        ? null
+                        : $this->futureCostRepeatEveryYears($row['repeat_every_years'] ?? null),
+                    'classification' => $classification,
+                    'useful_life_years' => min(20, max(1, (int) ($row['useful_life_years'] ?? 3))),
+                    'confidence' => $this->confidence($row['confidence'] ?? null),
+                ];
+            })
             ->filter(fn (array $row): bool => $row['label'] !== '' || $row['amount'] > 0)
             ->values()
             ->all();
@@ -722,6 +730,15 @@ final class BudgetCalculator implements ProvidesMethodology
                 return $year >= $rowYear ? $total + $amount : $total;
             }
 
+            $repeatEveryYears = (int) ($row['repeat_every_years'] ?? 0);
+            if ($repeatEveryYears > 0) {
+                return $year >= $rowYear
+                    && ($year - $rowYear) % $repeatEveryYears === 0
+                    && $monthInYear === 1
+                    ? $total + $amount
+                    : $total;
+            }
+
             return $year === $rowYear && $monthInYear === 1 ? $total + $amount : $total;
         }, 0.0);
     }
@@ -1146,6 +1163,15 @@ final class BudgetCalculator implements ProvidesMethodology
         return in_array($value, ['monthly', 'annual'], true)
             ? (string) $value
             : 'monthly';
+    }
+
+    private function futureCostRepeatEveryYears(mixed $value): ?int
+    {
+        if (! is_numeric($value) || (int) $value < 1) {
+            return null;
+        }
+
+        return min(30, (int) $value);
     }
 
     private function signedPercent(mixed $value): float

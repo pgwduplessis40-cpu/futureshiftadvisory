@@ -799,6 +799,7 @@ HTML,
             ->map(function (array $row): array {
                 $year = max(2, (int) ($row['year'] ?? 2));
                 $recurring = (bool) ($row['recurring'] ?? false);
+                $repeatEveryYears = max(0, (int) ($row['repeat_every_years'] ?? 0));
                 $classification = ($row['classification'] ?? 'operating') === 'capital' ? 'capital' : 'operating';
 
                 return [
@@ -806,7 +807,9 @@ HTML,
                     'amount' => round((float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1), 2),
                     'timing' => $recurring
                         ? 'From Year '.$year.', monthly'
-                        : 'Year '.$year.', Month 1 once',
+                        : ($repeatEveryYears > 0
+                            ? 'From Year '.$year.', every '.$repeatEveryYears.' years'
+                            : 'Year '.$year.', Month 1 once'),
                     'classification' => $classification === 'capital'
                         ? 'Capital asset; depreciated over '.max(1, (int) ($row['useful_life_years'] ?? 3)).' years'
                         : 'Operating cost',
