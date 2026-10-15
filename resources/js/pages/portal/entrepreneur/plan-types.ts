@@ -179,6 +179,7 @@ export type BudgetAssumptions = {
 export type FutureCostRow = BudgetRow & {
     year?: string | number;
     recurring?: boolean;
+    repeat_every_years?: string | number | null;
     classification?: 'operating' | 'capital';
     useful_life_years?: string | number;
 };

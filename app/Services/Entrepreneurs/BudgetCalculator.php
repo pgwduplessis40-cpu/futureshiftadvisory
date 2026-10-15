@@ -192,16 +192,24 @@ final class BudgetCalculator implements ProvidesMethodology
     public function normaliseFutureCosts(array $rows): array
     {
         return collect($rows)
-            ->map(fn (array $row): array => [
-                'label' => trim((string) ($row['label'] ?? $row['name'] ?? '')),
-                'amount' => $this->money($row['amount'] ?? 0),
-                'quantity' => max(1.0, $this->number($row['quantity'] ?? 1)),
-                'year' => min(5, max(2, (int) ($row['year'] ?? 2))),
-                'recurring' => (bool) ($row['recurring'] ?? false),
-                'classification' => ($row['classification'] ?? null) === 'capital' ? 'capital' : 'operating',
-                'useful_life_years' => min(20, max(1, (int) ($row['useful_life_years'] ?? 3))),
-                'confidence' => $this->confidence($row['confidence'] ?? null),
-            ])
+            ->map(function (array $row): array {
+                $classification = ($row['classification'] ?? null) === 'capital' ? 'capital' : 'operating';
+                $recurring = (bool) ($row['recurring'] ?? false);
+
+                return [
+                    'label' => trim((string) ($row['label'] ?? $row['name'] ?? '')),
+                    'amount' => $this->money($row['amount'] ?? 0),
+                    'quantity' => max(1.0, $this->number($row['quantity'] ?? 1)),
+                    'year' => min(30, max(2, (int) ($row['year'] ?? 2))),
+                    'recurring' => $recurring,
+                    'repeat_every_years' => $recurring || $classification === 'capital'
+                        ? null
+                        : $this->futureCostRepeatEveryYears($row['repeat_every_years'] ?? null),
+                    'classification' => $classification,
+                    'useful_life_years' => min(20, max(1, (int) ($row['useful_life_years'] ?? 3))),
+                    'confidence' => $this->confidence($row['confidence'] ?? null),
+                ];
+            })
             ->filter(fn (array $row): bool => $row['label'] !== '' || $row['amount'] > 0)
             ->values()
             ->all();
@@ -406,7 +414,7 @@ final class BudgetCalculator implements ProvidesMethodology
                 + ($this->contractorDeliveryCostsForMonth($revenueRows, $month - $creditorLagMonths, $assumptions, $revenueMultiplier) * $costMultiplier));
             $workingCapitalTimingAdjustment = $this->money(($cashCollected - $revenue) + ($variableCosts - $variableCostsPaid));
             $fixedCosts = $this->money($this->fixedCostsForMonth($fixedRows, $month, $assumptions) * $costMultiplier);
-            $futureOperatingCosts = $this->money($this->futureOperatingCostsForMonth($futureRows, $year, $monthInYear) * $costMultiplier);
+            $futureOperatingCosts = $this->money(FutureCostSchedule::operatingCostsForMonth($futureRows, $year, $monthInYear) * $costMultiplier);
             $capitalExpenditure = $this->money($this->capitalExpenditureForMonth($futureRows, $month) * $costMultiplier);
             $depreciation = $this->money($this->depreciationForMonth($futureRows, $month) * $costMultiplier);
             $launchCosts = $this->money($this->rowsForMonth($launchRows, $month) * $costMultiplier);
@@ -702,27 +710,6 @@ final class BudgetCalculator implements ProvidesMethodology
             $amount = $this->monthlyFixedAmount($row);
 
             return $total + ($amount * $this->growthFactor((float) $assumptions['cost_inflation_percent'], $year - 1));
-        }, 0.0);
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $rows
-     */
-    private function futureOperatingCostsForMonth(array $rows, int $year, int $monthInYear): float
-    {
-        return array_reduce($rows, function (float $total, array $row) use ($year, $monthInYear): float {
-            if (($row['classification'] ?? 'operating') === 'capital') {
-                return $total;
-            }
-
-            $rowYear = (int) $row['year'];
-            $amount = ((float) $row['amount']) * ((float) $row['quantity']);
-
-            if ((bool) $row['recurring']) {
-                return $year >= $rowYear ? $total + $amount : $total;
-            }
-
-            return $year === $rowYear && $monthInYear === 1 ? $total + $amount : $total;
         }, 0.0);
     }
 
@@ -1146,6 +1133,15 @@ final class BudgetCalculator implements ProvidesMethodology
         return in_array($value, ['monthly', 'annual'], true)
             ? (string) $value
             : 'monthly';
+    }
+
+    private function futureCostRepeatEveryYears(mixed $value): ?int
+    {
+        if (! is_numeric($value) || (int) $value < 1) {
+            return null;
+        }
+
+        return min(30, (int) $value);
     }
 
     private function signedPercent(mixed $value): float

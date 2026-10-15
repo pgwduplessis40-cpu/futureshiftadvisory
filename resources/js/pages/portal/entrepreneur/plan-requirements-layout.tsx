@@ -20,6 +20,24 @@ function idFor(requirement: PlanRequirementPayload): string {
     return `${requirement.phase_key}:${requirement.key}`;
 }
 
+export function planRequirementsGridClass(collapsed: boolean): string {
+    return cn(
+        'relative grid items-start gap-6',
+        collapsed
+            ? 'xl:grid-cols-[minmax(0,1fr)]'
+            : 'xl:grid-cols-[minmax(15rem,0.58fr)_minmax(0,1.42fr)]',
+    );
+}
+
+export function planRequirementsNavigationClass(collapsed: boolean): string {
+    return cn(
+        'space-y-3 xl:self-start',
+        collapsed
+            ? 'xl:absolute xl:top-0 xl:left-0 xl:z-10 xl:max-w-xs xl:rounded-md xl:border xl:bg-background/95 xl:p-2 xl:shadow-sm xl:backdrop-blur'
+            : 'xl:sticky xl:top-24',
+    );
+}
+
 export function PlanRequirementsLayout({
     phases,
     selectedRequirement,
@@ -32,16 +50,9 @@ export function PlanRequirementsLayout({
         .filter((requirement) => !requirement.complete).length;
 
     return (
-        <div
-            className={cn(
-                'grid items-start gap-6',
-                collapsed
-                    ? 'xl:grid-cols-[minmax(12rem,0.35fr)_minmax(0,1fr)]'
-                    : 'xl:grid-cols-[minmax(15rem,0.58fr)_minmax(0,1.42fr)]',
-            )}
-        >
+        <div className={planRequirementsGridClass(collapsed)}>
             <nav
-                className="space-y-3 xl:sticky xl:top-24 xl:self-start"
+                className={planRequirementsNavigationClass(collapsed)}
                 aria-label="Plan requirements"
                 data-co-browse-target="entrepreneur.plan.steps"
             >
@@ -146,7 +157,9 @@ export function PlanRequirementsLayout({
                     : null}
             </nav>
 
-            {children}
+            <div className={cn('min-w-0', collapsed && 'xl:pt-20')}>
+                {children}
+            </div>
         </div>
     );
 }

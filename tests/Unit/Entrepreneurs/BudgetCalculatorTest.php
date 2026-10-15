@@ -6,6 +6,7 @@ namespace Tests\Unit\Entrepreneurs;
 
 use App\Services\Entrepreneurs\BudgetCalculator;
 use App\Services\Entrepreneurs\FixedCostCadenceQuantityGuard;
+use App\Services\Entrepreneurs\FutureCostSchedule;
 use PHPUnit\Framework\TestCase;
 
 final class BudgetCalculatorTest extends TestCase
@@ -255,6 +256,54 @@ final class BudgetCalculatorTest extends TestCase
         $this->assertEqualsWithDelta(333.33, $monthThirteen['depreciation'], 0.01);
         $this->assertSame(12_000.0, $monthThirteen['capital_expenditure']);
         $this->assertEqualsWithDelta(-7_000.0, $monthThirteen['net_cash_flow'], 0.01);
+    }
+
+    public function test_scheduled_renewals_are_recorded_separately_and_only_hit_the_due_year(): void
+    {
+        $computed = $this->calculator()->compute(
+            launchCosts: [],
+            monthlyFixedCosts: [],
+            revenueForecast: [],
+            fundingSources: [],
+            expectedRunwayMonths: null,
+            forecastYears: 5,
+            futureCosts: [[
+                'label' => 'Trademark renewal',
+                'amount' => 100,
+                'year' => 2,
+                'repeat_every_years' => 2,
+                'classification' => 'operating',
+            ]],
+        );
+
+        $normalised = $this->calculator()->normaliseFutureCosts([[
+            'label' => 'Trademark renewal',
+            'amount' => 100,
+            'year' => 10,
+            'repeat_every_years' => 10,
+        ]]);
+
+        $this->assertSame(100.0, $computed['monthly_detail'][12]['fixed_costs']);
+        $this->assertSame(0.0, $computed['monthly_detail'][24]['fixed_costs']);
+        $this->assertSame(100.0, $computed['monthly_detail'][36]['fixed_costs']);
+        $this->assertSame(10, $normalised[0]['year']);
+        $this->assertSame(10, $normalised[0]['repeat_every_years']);
+    }
+
+    public function test_future_cost_schedule_skips_unscheduled_months(): void
+    {
+        $renewal = [
+            'amount' => 100,
+            'quantity' => 1,
+            'year' => 2,
+            'recurring' => false,
+            'repeat_every_years' => 2,
+            'classification' => 'operating',
+        ];
+
+        $this->assertSame(100.0, FutureCostSchedule::operatingCostsForMonth([$renewal], 2, 1));
+        $this->assertSame(0.0, FutureCostSchedule::operatingCostsForMonth([$renewal], 2, 2));
+        $this->assertSame(100.0, FutureCostSchedule::operatingCostsForMonth([$renewal], 4, 1));
     }
 
     public function test_automatic_downside_scenarios_are_generated(): void

@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { PlanRequirementsLayout } from './plan-requirements-layout';
+import {
+    planRequirementsGridClass,
+    planRequirementsNavigationClass,
+    PlanRequirementsLayout,
+} from './plan-requirements-layout';
 
 test('plan requirements have a visible collapse control and clear incomplete status', () => {
     const html = renderToStaticMarkup(
@@ -34,4 +38,10 @@ test('plan requirements have a visible collapse control and clear incomplete sta
     assert.match(html, /Financial assumptions: Needs attention/);
     assert.match(html, /Hide this list for more editing room/);
     assert.match(html, /data-co-browse-target="entrepreneur.plan.steps"/);
+    assert.match(
+        planRequirementsGridClass(true),
+        /xl:grid-cols-\[minmax\(0,1fr\)\]/,
+    );
+    assert.match(planRequirementsNavigationClass(true), /xl:absolute/);
+    assert.doesNotMatch(planRequirementsNavigationClass(true), /xl:sticky/);
 });

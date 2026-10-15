@@ -20,7 +20,6 @@ import {
     quickAddBudgetRow,
     updateBudgetRow,
 } from './budget-row-state';
-import { BudgetRowsScrollRegion } from './budget-rows-scroll-region';
 import {
     FixedCostCadenceControl,
     fixedCostQuantityWarning,
@@ -62,7 +61,9 @@ export function BudgetRowsEditor({
             return;
         }
 
-        itemInputs.current[pendingFocusIndex.current]?.focus();
+        const input = itemInputs.current[pendingFocusIndex.current];
+        input?.focus();
+        input?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         pendingFocusIndex.current = null;
     }, [rows]);
 
@@ -113,12 +114,13 @@ export function BudgetRowsEditor({
             data-founder-action-target={focusTarget}
             data-co-browse-target={fixedCost ? undefined : coBrowseTarget}
         >
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="text-sm font-medium">{title}</div>
                 <Button
                     type="button"
                     size="sm"
                     variant="outline"
+                    className="shrink-0"
                     onClick={appendBlankRow}
                     data-founder-action-target={
                         focusTarget ? `${focusTarget}-add-row` : undefined
@@ -171,23 +173,12 @@ export function BudgetRowsEditor({
                 </p>
             ) : null}
 
-            <BudgetRowsScrollRegion title={title}>
+            <div className="space-y-3">
                 {rows.map((row, index) => (
                     <div
                         key={index}
                         className={cn(
-                            'grid gap-3',
-                            !revenue &&
-                                !timed &&
-                                !fixedCost &&
-                                'xl:grid-cols-[minmax(13rem,1.35fr)_minmax(7rem,0.75fr)_minmax(5rem,0.55fr)_minmax(8rem,0.8fr)_auto]',
-                            timed &&
-                                !revenue &&
-                                '2xl:grid-cols-[minmax(13rem,1.35fr)_minmax(7rem,0.75fr)_minmax(5rem,0.55fr)_minmax(5rem,0.55fr)_minmax(8rem,0.8fr)_auto]',
-                            revenue &&
-                                '2xl:grid-cols-[minmax(12rem,1.2fr)_repeat(8,minmax(5rem,0.55fr))_minmax(8rem,0.8fr)_auto]',
-                            fixedCost &&
-                                '2xl:grid-cols-[minmax(12rem,1.2fr)_repeat(4,minmax(6rem,0.6fr))_minmax(8rem,0.8fr)_auto]',
+                            'grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3',
                         )}
                     >
                         <BudgetInput
@@ -226,7 +217,7 @@ export function BudgetRowsEditor({
                         />
                         {timed && !revenue ? (
                             <BudgetInput
-                                label="Month"
+                                label="When paid (forecast month)"
                                 type="number"
                                 min={1}
                                 value={row.month ?? 1}
@@ -486,7 +477,7 @@ export function BudgetRowsEditor({
                         </div>
                     </div>
                 ))}
-            </BudgetRowsScrollRegion>
+            </div>
         </section>
     );
 }
