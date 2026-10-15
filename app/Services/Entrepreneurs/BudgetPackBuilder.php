@@ -797,19 +797,12 @@ HTML,
     {
         return collect((array) ($budget->future_costs ?? []))
             ->map(function (array $row): array {
-                $year = max(2, (int) ($row['year'] ?? 2));
-                $recurring = (bool) ($row['recurring'] ?? false);
-                $repeatEveryYears = max(0, (int) ($row['repeat_every_years'] ?? 0));
                 $classification = ($row['classification'] ?? 'operating') === 'capital' ? 'capital' : 'operating';
 
                 return [
                     'label' => (string) ($row['label'] ?? 'Unlabelled later-year cost'),
                     'amount' => round((float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1), 2),
-                    'timing' => $recurring
-                        ? 'From Year '.$year.', monthly'
-                        : ($repeatEveryYears > 0
-                            ? 'From Year '.$year.', every '.$repeatEveryYears.' years'
-                            : 'Year '.$year.', Month 1 once'),
+                    'timing' => FutureCostSchedule::timingLabel($row),
                     'classification' => $classification === 'capital'
                         ? 'Capital asset; depreciated over '.max(1, (int) ($row['useful_life_years'] ?? 3)).' years'
                         : 'Operating cost',

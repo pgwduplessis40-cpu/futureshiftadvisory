@@ -6,6 +6,7 @@ namespace Tests\Unit\Entrepreneurs;
 
 use App\Services\Entrepreneurs\BudgetCalculator;
 use App\Services\Entrepreneurs\FixedCostCadenceQuantityGuard;
+use App\Services\Entrepreneurs\FutureCostSchedule;
 use PHPUnit\Framework\TestCase;
 
 final class BudgetCalculatorTest extends TestCase
@@ -287,6 +288,22 @@ final class BudgetCalculatorTest extends TestCase
         $this->assertSame(100.0, $computed['monthly_detail'][36]['fixed_costs']);
         $this->assertSame(10, $normalised[0]['year']);
         $this->assertSame(10, $normalised[0]['repeat_every_years']);
+    }
+
+    public function test_future_cost_schedule_skips_unscheduled_months(): void
+    {
+        $renewal = [
+            'amount' => 100,
+            'quantity' => 1,
+            'year' => 2,
+            'recurring' => false,
+            'repeat_every_years' => 2,
+            'classification' => 'operating',
+        ];
+
+        $this->assertSame(100.0, FutureCostSchedule::operatingCostsForMonth([$renewal], 2, 1));
+        $this->assertSame(0.0, FutureCostSchedule::operatingCostsForMonth([$renewal], 2, 2));
+        $this->assertSame(100.0, FutureCostSchedule::operatingCostsForMonth([$renewal], 4, 1));
     }
 
     public function test_automatic_downside_scenarios_are_generated(): void

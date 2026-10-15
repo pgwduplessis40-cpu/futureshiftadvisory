@@ -54,3 +54,21 @@ test('future cost rows preserve a scheduled renewal cycle', () => {
         ],
     );
 });
+
+test('one-off future costs do not gain a renewal cycle', () => {
+    const [oneOffCost] = cleanFutureCostRows([
+        {
+            label: 'Website refresh',
+            amount: '900',
+            quantity: 1,
+            year: 3,
+            recurring: false,
+            repeat_every_years: '',
+            classification: 'operating',
+            useful_life_years: 3,
+            confidence: 'estimate',
+        },
+    ]);
+
+    assert.equal(oneOffCost.repeat_every_years, null);
+});
