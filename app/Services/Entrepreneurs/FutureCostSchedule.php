@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Entrepreneurs;
 
+use App\Support\Methodology\ProvidesMethodology;
+
 /**
  * @phpstan-type FutureCost array{
  *     classification?: string|null,
@@ -14,8 +16,13 @@ namespace App\Services\Entrepreneurs;
  *     repeat_every_years?: int|float|string|null
  * }
  */
-final class FutureCostSchedule
+final class FutureCostSchedule implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['entrepreneur.budget_forecast'];
+    }
+
     /**
      * @param  array<int, FutureCost>  $rows
      */
