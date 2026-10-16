@@ -1,5 +1,8 @@
+import { router } from '@inertiajs/react';
 import { MonitorUp, PhoneOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { ClientSupportPresenceStatus } from '@/components/screen-share/ClientSupportPresenceStatus';
+import type { PresenceStatus } from '@/components/screen-share/ClientSupportPresenceStatus';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -86,6 +89,9 @@ export function ClientSupport({ config }: Props) {
     const [advisorName, setAdvisorName] = useState<string | null>(null);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const [shareError, setShareError] = useState<string | null>(null);
+    const [presenceStatus, setPresenceStatus] =
+        useState<PresenceStatus>('connecting');
+    const [presenceRefresh, setPresenceRefresh] = useState(0);
     const peer = useRef<RTCPeerConnection | null>(null);
     const stream = useRef<MediaStream | null>(null);
     const callTone = useRef<{ context: AudioContext; interval: number } | null>(
@@ -97,6 +103,9 @@ export function ClientSupport({ config }: Props) {
     const offerSignaled = useRef(false);
     const reconnectTimer = useRef<number | null>(null);
     const reconnectAttempted = useRef(false);
+    const presenceRefreshPending = useRef(false);
+    const lastPresenceRefreshAt = useRef(0);
+    const sharingRef = useRef(false);
     const lastPolledSignalId = useRef(0);
     const receivedSignalIds = useRef(new Set<number>());
     const handleIncomingSignalRef = useRef<(event: Signal) => Promise<void>>(
@@ -105,6 +114,51 @@ export function ClientSupport({ config }: Props) {
     const stopRef = useRef<() => void>(() => undefined);
     const connectionScope = screenShareConnectionScopeKey(config);
     const connectionConfig = useRef<ClientScreenShareConfig>(config);
+    sharingRef.current = sharing;
+
+    const refreshPresence = (force = false): void => {
+        if (presenceRefreshPending.current || sharingRef.current) {
+            return;
+        }
+
+        const now = Date.now();
+
+        if (!force && now - lastPresenceRefreshAt.current < 30_000) {
+            setPresenceStatus('unavailable');
+
+            return;
+        }
+
+        presenceRefreshPending.current = true;
+        lastPresenceRefreshAt.current = now;
+        setPresenceStatus('reconnecting');
+        router.reload({
+            only: ['portalScreenShare'],
+            onSuccess: (page) => {
+                const nextConfig = (
+                    page.props as {
+                        portalScreenShare?: ClientScreenShareConfig;
+                    }
+                ).portalScreenShare;
+
+                presenceRefreshPending.current = false;
+
+                if (!nextConfig) {
+                    setPresenceStatus('unavailable');
+
+                    return;
+                }
+
+                connectionConfig.current = nextConfig;
+                setCredentials(null);
+                setPresenceRefresh((current) => current + 1);
+            },
+            onError: () => {
+                presenceRefreshPending.current = false;
+                setPresenceStatus('unavailable');
+            },
+        });
+    };
 
     // The server deliberately provides a new one-time portal token after each
     // Inertia visit. Keep the original config for the established connection;
@@ -124,9 +178,11 @@ export function ClientSupport({ config }: Props) {
         }
 
         let active = true;
+        let heartbeatFailures = 0;
         let promptPoll: number | null = null;
         let connectionHeartbeat: number | null = null;
         let refreshPresenceOnVisibilityChange: (() => void) | null = null;
+        setPresenceStatus('connecting');
         void registerScreenShareConnection(activeConfig.connection_url, {
             portal_context_token: activeConfig.portal_context_token,
         })
@@ -136,6 +192,8 @@ export function ClientSupport({ config }: Props) {
                 }
 
                 setCredentials(next);
+                lastPresenceRefreshAt.current = 0;
+                setPresenceStatus('ready');
                 const pollForPrompt = (): void => {
                     void screenSharePost<PendingPromptResponse>(
                         replaceConnection(
@@ -160,7 +218,23 @@ export function ClientSupport({ config }: Props) {
                             next.connection_id,
                         ),
                         participant(next),
-                    ).catch(() => undefined);
+                    )
+                        .then(() => {
+                            heartbeatFailures = 0;
+                            setPresenceStatus('ready');
+                        })
+                        .catch(() => {
+                            if (!active) {
+                                return;
+                            }
+
+                            heartbeatFailures += 1;
+                            setPresenceStatus('reconnecting');
+
+                            if (heartbeatFailures >= 2) {
+                                refreshPresence();
+                            }
+                        });
                 };
                 heartbeat();
                 connectionHeartbeat = window.setInterval(
@@ -209,7 +283,11 @@ export function ClientSupport({ config }: Props) {
                     // The authenticated polling fallback continues when realtime is unavailable.
                 }
             })
-            .catch(() => undefined);
+            .catch(() => {
+                if (active) {
+                    refreshPresence();
+                }
+            });
 
         return () => {
             active = false;
@@ -232,7 +310,7 @@ export function ClientSupport({ config }: Props) {
             stopRef.current();
             closeScreenShareEcho();
         };
-    }, [connectionScope]);
+    }, [connectionScope, presenceRefresh]);
 
     useEffect(() => {
         if (!config || !credentials || !sessionId) {
@@ -820,6 +898,12 @@ export function ClientSupport({ config }: Props) {
                         End
                     </Button>
                 </div>
+            ) : null}
+            {config && !sharing ? (
+                <ClientSupportPresenceStatus
+                    status={presenceStatus}
+                    onRetry={() => refreshPresence(true)}
+                />
             ) : null}
         </>
     );

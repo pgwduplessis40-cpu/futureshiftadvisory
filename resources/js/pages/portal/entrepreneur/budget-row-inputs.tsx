@@ -1,4 +1,5 @@
 import type { Ref } from 'react';
+import { budgetTermForLabel, BudgetTermLabel } from './budget-term-help';
 import type { BudgetRow } from './plan-types';
 
 export function BudgetEvidenceInputs({
@@ -13,7 +14,11 @@ export function BudgetEvidenceInputs({
     return (
         <>
             <label className="grid gap-1 text-xs">
-                <span className="text-muted-foreground">Evidence source</span>
+                <span className="text-muted-foreground">
+                    <BudgetTermLabel term="evidence-source">
+                        Evidence source
+                    </BudgetTermLabel>
+                </span>
                 <select
                     value={row.source_type ?? 'unverified'}
                     onChange={(event) =>
@@ -77,9 +82,17 @@ export function BudgetInput({
     min?: number;
     inputRef?: Ref<HTMLInputElement>;
 }) {
+    const term = budgetTermForLabel(label);
+
     return (
         <label className="grid gap-1 text-xs">
-            <span className="text-muted-foreground">{label}</span>
+            <span className="text-muted-foreground">
+                {term ? (
+                    <BudgetTermLabel term={term}>{label}</BudgetTermLabel>
+                ) : (
+                    label
+                )}
+            </span>
             <input
                 ref={inputRef}
                 type={type}
@@ -101,7 +114,9 @@ export function BudgetConfidenceSelect({
 }) {
     return (
         <label className="grid gap-1 text-xs">
-            <span className="text-muted-foreground">Confidence</span>
+            <span className="text-muted-foreground">
+                <BudgetTermLabel term="confidence">Confidence</BudgetTermLabel>
+            </span>
             <select
                 value={value}
                 onChange={(event) =>

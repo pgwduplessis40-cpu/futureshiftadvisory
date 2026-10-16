@@ -743,7 +743,8 @@ final class ScreenShareSessionTest extends TestCase
             ->assertUnprocessable();
 
         $this->assertStringContainsString('not connected to screen support', (string) $response->json('message'));
-        $this->assertStringContainsString('open or refresh the Future Shift portal', (string) $response->json('message'));
+        $this->assertStringContainsString('open the Future Shift portal', (string) $response->json('message'));
+        $this->assertStringContainsString('connect automatically', (string) $response->json('message'));
 
         $event = AuditEvent::query()
             ->where('action', 'screen_share.request_failed')
