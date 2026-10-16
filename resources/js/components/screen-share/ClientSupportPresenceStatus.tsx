@@ -2,7 +2,10 @@ import { MonitorUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export type PresenceStatus =
-    'connecting' | 'ready' | 'reconnecting' | 'unavailable';
+    | 'connecting'
+    | 'ready'
+    | 'reconnecting'
+    | 'unavailable';
 
 export function ClientSupportPresenceStatus({
     status,
