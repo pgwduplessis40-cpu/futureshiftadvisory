@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { BudgetInput } from './budget-row-inputs';
+import { BudgetTermLabel } from './budget-term-help';
 import type { BudgetAssumptions, BudgetFormState } from './plan-types';
 
 export function BudgetAssumptionsEditor({
@@ -49,7 +50,9 @@ export function BudgetAssumptionsEditor({
                 data-co-browse-target="entrepreneur.plan.forecast-start-month"
             >
                 <span className="text-muted-foreground">
-                    Forecast start month
+                    <BudgetTermLabel term="forecast-start-month">
+                        Forecast start month
+                    </BudgetTermLabel>
                 </span>
                 <input
                     type="month"
@@ -99,7 +102,19 @@ export function BudgetAssumptionsEditor({
                     ] as const
                 ).map(([key, label, min]) => (
                     <label key={key} className="grid min-w-0 gap-1 text-xs">
-                        <span className="text-muted-foreground">{label}</span>
+                        <span className="text-muted-foreground">
+                            <BudgetTermLabel
+                                term={
+                                    key === 'opening_cash_balance'
+                                        ? 'opening-cash'
+                                        : key === 'debtor_days'
+                                          ? 'debtor-days'
+                                          : 'creditor-days'
+                                }
+                            >
+                                {label}
+                            </BudgetTermLabel>
+                        </span>
                         <input
                             type="number"
                             min={min}
@@ -159,7 +174,9 @@ export function BudgetAssumptionsEditor({
             </div>
             <label className="grid max-w-md gap-1 text-xs">
                 <span className="text-muted-foreground">
-                    Revenue after Year 1
+                    <BudgetTermLabel term="revenue-basis">
+                        Revenue after Year 1
+                    </BudgetTermLabel>
                 </span>
                 <select
                     value={assumptions.year_two_revenue_basis}
@@ -193,7 +210,9 @@ export function BudgetAssumptionsEditor({
             <div className="grid gap-3 rounded-md border bg-muted/20 p-3 text-xs md:grid-cols-[minmax(14rem,0.8fr)_minmax(16rem,1.2fr)]">
                 <label className="grid gap-1">
                     <span className="text-muted-foreground">
-                        Funding position
+                        <BudgetTermLabel term="funding-position">
+                            Funding position
+                        </BudgetTermLabel>
                     </span>
                     <select
                         value={assumptions.funding_position ?? 'undecided'}
@@ -264,7 +283,20 @@ export function BudgetAssumptionsEditor({
                         className="grid min-w-0 gap-1 text-xs"
                     >
                         <span className="text-muted-foreground">
-                            {field.label}
+                            <BudgetTermLabel
+                                term={
+                                    field.key === 'revenue_growth_percent'
+                                        ? 'growth-rate'
+                                        : field.key === 'cost_inflation_percent'
+                                          ? 'cost-inflation'
+                                          : field.key ===
+                                              'target_gross_profit_percent'
+                                            ? 'gross-profit'
+                                            : 'net-profit'
+                                }
+                            >
+                                {field.label}
+                            </BudgetTermLabel>
                         </span>
                         <input
                             type="number"

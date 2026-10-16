@@ -1,3 +1,4 @@
+import { BudgetTermLabel } from './budget-term-help';
 import type { BudgetRow } from './plan-types';
 
 type FixedCostCadenceControlProps = {
@@ -15,7 +16,11 @@ export function FixedCostCadenceControl({
 }: FixedCostCadenceControlProps) {
     return (
         <label className="grid gap-1 text-xs">
-            <span className="text-muted-foreground">Payment frequency</span>
+            <span className="text-muted-foreground">
+                <BudgetTermLabel term="payment-frequency">
+                    Payment frequency
+                </BudgetTermLabel>
+            </span>
             <select
                 value={cadence ?? 'monthly'}
                 onChange={(event) =>

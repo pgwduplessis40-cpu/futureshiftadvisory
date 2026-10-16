@@ -33,6 +33,7 @@ import {
     BudgetCalculationRefresh,
     BudgetHeaderActions,
 } from './budget-save-controls';
+import { BudgetTermLabel, FounderBudgetGuide } from './budget-term-help';
 import { formatLabel } from './plan-dashboard-panels';
 import type {
     BudgetAssumptions,
@@ -430,6 +431,8 @@ export function BudgetEditor({
                 </div>
             ) : null}
 
+            <FounderBudgetGuide />
+
             {!budgetUnlocked ? (
                 <section className="grid gap-3 rounded-md border bg-muted/20 p-4 text-sm md:grid-cols-[1fr_auto] md:items-start">
                     <div className="flex gap-3">
@@ -599,8 +602,10 @@ export function BudgetEditor({
 
                     <label className="grid gap-1 text-sm md:max-w-sm">
                         <span>
-                            How many months should the business survive before
-                            it supports itself?
+                            <BudgetTermLabel term="runway">
+                                How many months should the business survive
+                                before it supports itself?
+                            </BudgetTermLabel>
                         </span>
                         <input
                             type="number"
@@ -674,7 +679,11 @@ export function BudgetEditor({
                 <div className="space-y-4">
                     <div className="grid gap-4 sm:grid-cols-2">
                         <label className="grid gap-1 text-sm">
-                            <span>Expected runway months</span>
+                            <span>
+                                <BudgetTermLabel term="runway">
+                                    Expected runway months
+                                </BudgetTermLabel>
+                            </span>
                             <input
                                 type="number"
                                 min={0}
@@ -942,7 +951,9 @@ export function FutureCostsEditor({
                         />
                         <label className="grid gap-1 text-xs">
                             <span className="text-muted-foreground">
-                                Schedule
+                                <BudgetTermLabel term="renewal-cycle">
+                                    Schedule
+                                </BudgetTermLabel>
                             </span>
                             <select
                                 value={
@@ -1005,7 +1016,9 @@ export function FutureCostsEditor({
                         ) : null}
                         <label className="grid gap-1 text-xs">
                             <span className="text-muted-foreground">
-                                Treatment
+                                <BudgetTermLabel term="cost-treatment">
+                                    Treatment
+                                </BudgetTermLabel>
                             </span>
                             <select
                                 value={row.classification ?? 'operating'}
@@ -1262,9 +1275,25 @@ export function BudgetMetric({
     label: string;
     value: string;
 }) {
+    const term = {
+        'Break-even year': 'break-even',
+        'Cash positive': 'cash-positive',
+        'Planned one-off costs': 'amount',
+        'Profit year': 'profit-year',
+    } as const;
+    const explanation = term[label as keyof typeof term];
+
     return (
         <div className="rounded-md border bg-background p-3">
-            <div className="text-xs text-muted-foreground">{label}</div>
+            <div className="text-xs text-muted-foreground">
+                {explanation ? (
+                    <BudgetTermLabel term={explanation}>
+                        {label}
+                    </BudgetTermLabel>
+                ) : (
+                    label
+                )}
+            </div>
             <div className="mt-1 text-sm font-medium">{value}</div>
         </div>
     );

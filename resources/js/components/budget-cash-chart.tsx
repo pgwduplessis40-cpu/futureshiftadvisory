@@ -27,6 +27,12 @@ export function BudgetCashChart({
     description = 'Monthly revenue uses the right axis; cumulative cash uses the left axis.',
     explanation,
 }: BudgetCashChartProps) {
+    const chartExplanation: Explanation = explanation ?? {
+        title: 'Cash curve',
+        what: 'The forecast bank balance month by month, alongside monthly revenue. Lowest cash marks the most pressure on your cash buffer.',
+        action: 'Check when break-even happens, how long cash stays above zero, and whether a large bill lands before revenue arrives.',
+        why: 'Profit and cash move at different times. A profitable year can still include a month when the business needs more funding.',
+    };
     const points = series
         .filter(
             (point) =>
@@ -94,9 +100,7 @@ export function BudgetCashChart({
                 <div>
                     <div className="flex items-center gap-2">
                         <h3 className="text-sm font-medium">{title}</h3>
-                        {explanation ? (
-                            <Explainer explanation={explanation} />
-                        ) : null}
+                        <Explainer explanation={chartExplanation} />
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                         {description}

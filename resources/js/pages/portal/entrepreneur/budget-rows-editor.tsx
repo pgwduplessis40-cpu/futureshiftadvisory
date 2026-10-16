@@ -20,6 +20,7 @@ import {
     quickAddBudgetRow,
     updateBudgetRow,
 } from './budget-row-state';
+import { BudgetTermLabel } from './budget-term-help';
 import {
     FixedCostCadenceControl,
     fixedCostQuantityWarning,
@@ -294,7 +295,9 @@ export function BudgetRowsEditor({
                                 />
                                 <label className="grid gap-1 text-xs">
                                     <span className="text-muted-foreground">
-                                        Growth cadence
+                                        <BudgetTermLabel term="growth-cadence">
+                                            Growth cadence
+                                        </BudgetTermLabel>
                                     </span>
                                     <select
                                         value={row.growth_cadence ?? 'monthly'}

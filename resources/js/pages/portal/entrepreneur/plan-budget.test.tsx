@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { fixedCostQuantityWarning } from './fixed-cost-cadence';
-import { cleanFutureCostRows } from './plan-budget';
+import { BudgetMetric, cleanFutureCostRows } from './plan-budget';
 
 test('fixed-cost quantity warnings distinguish units from billing periods', () => {
     assert.match(
@@ -71,4 +72,12 @@ test('one-off future costs do not gain a renewal cycle', () => {
     ]);
 
     assert.equal(oneOffCost.repeat_every_years, null);
+});
+
+test('budget outcome terms attach founder-friendly explanations', () => {
+    const html = renderToStaticMarkup(
+        <BudgetMetric label="Break-even year" value="Year 2" />,
+    );
+
+    assert.match(html, /aria-label="Explain Break-even year"/);
 });

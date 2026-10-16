@@ -43,17 +43,23 @@ final class EntrepreneurScreenShareRequests
 
         $connections = $this->presence->activeConnectionsFor($profile, $entrepreneur);
         if ($connections->isEmpty()) {
+            $latestConnection = $this->presence->latestConnectionFor($profile, $entrepreneur);
+            $latestUserConnection = $this->connections->latestClientParticipantConnectionFor($entrepreneur);
             $this->auditRequestFailure(
                 $advisor,
                 $profile,
                 $entrepreneur,
                 $advisorConnection,
-                $this->presence->latestConnectionFor($profile, $entrepreneur),
-                $this->connections->latestClientParticipantConnectionFor($entrepreneur),
+                $latestConnection,
+                $latestUserConnection,
                 'no_active_entrepreneur_connection',
             );
 
-            abort(422, $this->offlineMessage('entrepreneur', $entrepreneur));
+            abort(422, $this->offlineMessage(
+                $entrepreneur,
+                $latestConnection,
+                $latestUserConnection,
+            ));
         }
 
         [$session, $deliveries] = $this->context->withSystemContext(function () use ($advisor, $advisorConnection, $attachment, $connections, $entrepreneur, $profile): array {
@@ -132,11 +138,23 @@ final class EntrepreneurScreenShareRequests
         return max(15, (int) config('screen-share.request_timeout_seconds', 60));
     }
 
-    private function offlineMessage(string $role, User $user): string
-    {
-        $name = trim($user->name ?: $user->email ?: 'The selected '.$role);
+    private function offlineMessage(
+        User $entrepreneur,
+        ?ScreenShareConnection $latestConnection,
+        ?ScreenShareConnection $latestUserConnection,
+    ): string {
+        $name = trim($entrepreneur->name ?: $entrepreneur->email ?: 'The selected entrepreneur');
 
-        return $name.' is not connected to screen support. Ask them to open or refresh the Future Shift portal and keep the tab visible, then request view again.';
+        if (! $latestConnection instanceof ScreenShareConnection
+            && $latestUserConnection instanceof ScreenShareConnection) {
+            return $name.' is not connected to screen support for this workspace. They are online elsewhere in Future Shift; ask them to open this business plan or dashboard and screen support will reconnect automatically.';
+        }
+
+        if ($latestConnection instanceof ScreenShareConnection) {
+            return $name.' is not connected to screen support right now because their portal connection needs to reconnect. Ask them to return to the Future Shift tab; it will retry automatically. If this continues, they can refresh the tab and keep it visible.';
+        }
+
+        return $name.' is not connected to screen support yet. Ask them to open the Future Shift portal; screen support will connect automatically once the tab is ready.';
     }
 
     private function auditRequestFailure(
