@@ -4,16 +4,9 @@ import { AlertTriangle } from 'lucide-react';
 type Props = {
     email: string;
     expiredAt: string | null;
-    acceptedAt: string | null;
-    isAccepted: boolean;
 };
 
-export default function InviteExpired({
-    email,
-    expiredAt,
-    acceptedAt,
-    isAccepted,
-}: Props) {
+export default function InviteExpired({ email, expiredAt }: Props) {
     return (
         <>
             <Head title="Invitation unavailable" />
@@ -28,10 +21,7 @@ export default function InviteExpired({
                 <div className="space-y-2 text-sm text-muted-foreground">
                     <p>
                         The invitation for {email} is no longer available.
-                        {isAccepted && acceptedAt
-                            ? ` It was accepted ${formatDateTime(acceptedAt)}.`
-                            : null}
-                        {!isAccepted && expiredAt
+                        {expiredAt
                             ? ` It expired ${formatDateTime(expiredAt)}.`
                             : null}
                     </p>

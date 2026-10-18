@@ -77,11 +77,15 @@ final class InviteAcceptController extends Controller
                 ],
             );
 
+            if ($invite->isAccepted()) {
+                return Inertia::render('auth/invite-accepted', [
+                    'email' => $invite->email,
+                ]);
+            }
+
             return Inertia::render('auth/invite-expired', [
                 'email' => $invite->email,
                 'expiredAt' => $invite->expires_at?->toIso8601String(),
-                'acceptedAt' => $invite->accepted_at?->toIso8601String(),
-                'isAccepted' => $invite->isAccepted(),
             ]);
         }
 

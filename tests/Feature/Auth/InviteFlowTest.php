@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Auth;
 
 use App\Enums\EntrepreneurStage;
+use App\Mail\InvitationMail;
 use App\Models\EntrepreneurProfile;
 use App\Models\InviteToken;
 use App\Models\PanelMember;
@@ -76,6 +77,35 @@ final class InviteFlowTest extends TestCase
             'action' => 'invite.accepted',
             'subject_id' => $issued->invite->id,
         ]);
+    }
+
+    public function test_entrepreneur_invitation_includes_app_guidance_and_a_clickable_website_login(): void
+    {
+        Mail::fake();
+
+        $issued = app(InviteIssuer::class)->issue(
+            email: 'founder@example.test',
+            targetUserType: User::TYPE_ENTREPRENEUR,
+            targetRole: User::TYPE_ENTREPRENEUR,
+            deliver: true,
+        );
+
+        $this->assertStringContainsString('initial account setup only', $issued->emailBody);
+        $this->assertStringContainsString('desktop or taskbar', $issued->emailBody);
+        $this->assertStringContainsString('Settings > Install app', $issued->emailBody);
+        $this->assertStringContainsString(route('login'), $issued->emailBody);
+        $this->assertStringContainsString('If you have not activated your account', $issued->emailBody);
+        Mail::assertSent(InvitationMail::class, function (InvitationMail $mail) use ($issued): bool {
+            $html = $mail->render();
+            $this->assertStringContainsString(
+                '<a href="'.e(route('login')).'">Log in on the website</a>',
+                $html,
+            );
+            $this->assertStringContainsString(e($issued->acceptUrl), $html);
+            $this->assertStringContainsString('Settings &gt; Install app', $html);
+
+            return $mail->hasTo('founder@example.test');
+        });
     }
 
     public function test_accepting_panel_invite_links_the_panel_member_record(): void
@@ -347,15 +377,48 @@ final class InviteFlowTest extends TestCase
         $this->get(route('invite.accept', $issued->plainToken))
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->component('auth/invite-expired')
+                ->component('auth/invite-accepted')
                 ->where('email', 'client@example.com')
-                ->where('isAccepted', true));
+                ->missing('token'));
+        $this->assertGuest();
         $this->post(route('invite.store', $issued->plainToken), [
             'name' => 'Replay Person',
             'mobile_phone' => '+64 21 222 3333',
             'password' => 'A-secure-password-123',
             'password_confirmation' => 'A-secure-password-123',
         ])->assertNotFound();
+    }
+
+    public function test_accepted_entrepreneur_invite_still_shows_login_guidance_after_expiry(): void
+    {
+        Mail::fake();
+
+        $issued = app(InviteIssuer::class)->issue(
+            email: 'returning-founder@example.test',
+            targetUserType: User::TYPE_ENTREPRENEUR,
+            targetRole: User::TYPE_ENTREPRENEUR,
+        );
+        $user = User::factory()->create([
+            'email' => 'returning-founder@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $issued->invite->markAccepted($user);
+        $issued->invite->forceFill(['expires_at' => now()->subMinute()])->save();
+
+        $this->get(route('invite.accept', $issued->plainToken))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('auth/invite-accepted')
+                ->where('email', 'returning-founder@example.test')
+                ->missing('token'));
+
+        $this->assertGuest();
+        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'invite.expired_or_used_viewed',
+            'subject_id' => $issued->invite->getKey(),
+        ]);
     }
 
     public function test_expired_invite_token_is_rejected(): void
