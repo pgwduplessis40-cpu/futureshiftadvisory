@@ -30,9 +30,16 @@ final class InvitationMail extends Mailable
 
     private function bodyHtml(): string
     {
+        $loginUrl = e(route('login'));
+        $body = str_replace(
+            $loginUrl,
+            sprintf('<a href="%s">Log in on the website</a>', $loginUrl),
+            nl2br(e($this->bodyText)),
+        );
+
         return sprintf(
             '<div style="font-family:Arial,sans-serif;line-height:1.5;color:#1f2933;">%s</div>',
-            nl2br(e($this->bodyText)),
+            $body,
         );
     }
 }
