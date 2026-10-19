@@ -25,6 +25,7 @@ use App\Services\Entrepreneurs\Assessment;
 use App\Services\Entrepreneurs\AssessmentFeedback;
 use App\Services\Entrepreneurs\AssessmentScoring;
 use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
+use App\Services\Entrepreneurs\BusinessPlanSnapshot;
 use App\Services\Entrepreneurs\ExecutiveSummaryEligibility;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBuilder;
@@ -1562,6 +1563,45 @@ final class AssessmentTest extends TestCase
     /**
      * @return array{0: User, 1: BusinessPlan}
      */
+    public function test_plan_snapshot_orders_same_second_sections_deterministically(): void
+    {
+        [$advisor, $plan] = $this->plan('snapshot-order-founder@example.test');
+
+        foreach (['first', 'second', 'third'] as $label) {
+            app(PlanBuilder::class)->upsertSection(
+                plan: $plan->refresh(),
+                phaseKey: 'market',
+                key: 'order-check-'.$label,
+                title: ucfirst($label).' order check',
+                body: ucfirst($label).' order check evidence.',
+                actor: $advisor,
+            );
+        }
+
+        $sectionIds = PlanSection::query()
+            ->where('business_plan_id', $plan->id)
+            ->where('key', 'like', 'order-check-%')
+            ->orderBy('id')
+            ->pluck('id');
+
+        // Force the tie that fast saves produce (created_at is stored to the
+        // second), then rewrite the earliest row so Postgres no longer returns
+        // the rows in creation order. Without a tie-breaker this reorders them.
+        DB::table('plan_sections')->whereIn('id', $sectionIds)->update(['created_at' => now()->startOfSecond()]);
+        DB::table('plan_sections')->where('id', $sectionIds->first())->update(['body' => 'First order check evidence, revised.']);
+
+        $market = collect(app(BusinessPlanSnapshot::class)->capture($plan->refresh())['phases'])->firstWhere('key', 'market');
+
+        $this->assertSame(
+            $sectionIds->map(fn (mixed $id): string => (string) $id)->all(),
+            collect($market['sections'])
+                ->filter(fn (array $section): bool => str_starts_with((string) $section['key'], 'order-check-'))
+                ->map(fn (array $section): string => (string) $section['id'])
+                ->values()
+                ->all(),
+        );
+    }
+
     private function plan(string $email = 'assessment-founder@example.test'): array
     {
         $advisor = User::factory()->withTwoFactor()->create([

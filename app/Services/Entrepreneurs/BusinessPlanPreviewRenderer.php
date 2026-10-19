@@ -103,7 +103,9 @@ final class BusinessPlanPreviewRenderer
                     'status' => (string) ($phase?->status ?? 'pending'),
                     'requirements' => $requirements[$phaseKey] ?? [],
                     'sections' => $phase?->sections
-                        ->sortBy('created_at')
+                        // Same-second sections tie on created_at; the time-ordered
+                        // id keeps the rendered order stable.
+                        ->sortBy([['created_at', 'asc'], ['id', 'asc']])
                         ->map(fn (PlanSection $section): array => [
                             'id' => $section->id,
                             'title' => $section->title,

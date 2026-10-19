@@ -81,7 +81,10 @@ final class BusinessPlanSnapshot
                         'requirements' => $requirements[$phaseKey] ?? [],
                         'sections' => $phase instanceof PlanPhase
                             ? $phase->sections
-                                ->sortBy('created_at')
+                                // created_at is stored to the second, so sections saved
+                                // together tie; the time-ordered id keeps the order
+                                // stable instead of following database row order.
+                                ->sortBy([['created_at', 'asc'], ['id', 'asc']])
                                 ->map(fn (PlanSection $section): array => $this->sectionSnapshot($section, $phaseKey))
                                 ->values()
                                 ->all()
