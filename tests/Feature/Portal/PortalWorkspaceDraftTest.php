@@ -160,6 +160,9 @@ final class PortalWorkspaceDraftTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('portal/Dashboard')
+                // Clients see this engagement as "Business Advisory"; the
+                // standard_advisory key stays internal.
+                ->where('serviceJourney.primary.service_label', 'Business Advisory')
                 ->where('serviceJourney.primary.status_label', 'Waiting for questionnaire')
                 ->where('serviceJourney.primary.action_url', route('portal.onboarding.step', [
                     'step' => OnboardingWizard::STEP_QUESTIONNAIRE,
