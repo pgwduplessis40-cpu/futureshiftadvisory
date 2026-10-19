@@ -54,5 +54,8 @@ jobs:
       - name: TypeScript (tsc --noEmit)
         run: npm run types:check
 
+      - name: Install Chrome for Puppeteer
+        run: npx --no-install puppeteer browsers install chrome
+
       - name: Idea Validation editor browser regression
         run: npm run test:idea-validation-editor
