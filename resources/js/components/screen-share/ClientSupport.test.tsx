@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ClientSupport } from './ClientSupport';
+import { PRESENCE_FAILURES_BEFORE_REFRESH } from './screen-share-presence-recovery';
 
 test('client sees a recoverable screen-support connection status before an advisor requests view', () => {
     const html = renderToStaticMarkup(
@@ -35,4 +36,8 @@ test('client sees a recoverable screen-support connection status before an advis
     assert.match(html, /role="status"/);
     assert.match(html, /Connecting screen support/);
     assert.match(html, /Retry/);
+});
+
+test('screen-support polling retries its portal presence before reporting an unavailable connection', () => {
+    assert.equal(PRESENCE_FAILURES_BEFORE_REFRESH, 2);
 });

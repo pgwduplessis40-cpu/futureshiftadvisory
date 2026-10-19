@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { ArrowRight, CheckCircle2, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatNzdCurrency } from '@/lib/formatters';
+import { FounderBudgetPathwayIntro } from './budget-term-help';
 import { PlanBudgetCheckout } from './plan-budget-checkout';
 
 type Offer = {
@@ -61,6 +62,8 @@ export default function PlanBudgetAccess({
                         practical plan and budget.
                     </p>
                 </div>
+
+                <FounderBudgetPathwayIntro />
 
                 {hasPlanBudgetAccess ? (
                     <section className="rounded-md border bg-background p-5">

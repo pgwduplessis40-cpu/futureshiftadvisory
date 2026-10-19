@@ -20,6 +20,7 @@ import {
     screenSharePost,
 } from '@/lib/screen-share';
 import { screenShareConnectionScopeKey } from '@/lib/screen-share-connection-scope';
+import { nextScreenSharePresenceFailure } from './screen-share-presence-recovery';
 
 export type ClientScreenShareConfig = {
     portal_context_token: string;
@@ -179,6 +180,7 @@ export function ClientSupport({ config }: Props) {
 
         let active = true;
         let heartbeatFailures = 0;
+        let promptPollFailures = 0;
         let promptPoll: number | null = null;
         let connectionHeartbeat: number | null = null;
         let refreshPresenceOnVisibilityChange: (() => void) | null = null;
@@ -203,11 +205,20 @@ export function ClientSupport({ config }: Props) {
                         participant(next),
                     )
                         .then((response) => {
+                            promptPollFailures = 0;
+
                             if (active && response.prompt) {
                                 setPrompt(response.prompt);
                             }
                         })
-                        .catch(() => undefined);
+                        .catch(() => {
+                            promptPollFailures = nextScreenSharePresenceFailure(
+                                promptPollFailures,
+                                active,
+                                setPresenceStatus,
+                                refreshPresence,
+                            );
+                        });
                 };
                 pollForPrompt();
                 promptPoll = window.setInterval(pollForPrompt, 3_000);
@@ -224,16 +235,12 @@ export function ClientSupport({ config }: Props) {
                             setPresenceStatus('ready');
                         })
                         .catch(() => {
-                            if (!active) {
-                                return;
-                            }
-
-                            heartbeatFailures += 1;
-                            setPresenceStatus('reconnecting');
-
-                            if (heartbeatFailures >= 2) {
-                                refreshPresence();
-                            }
+                            heartbeatFailures = nextScreenSharePresenceFailure(
+                                heartbeatFailures,
+                                active,
+                                setPresenceStatus,
+                                refreshPresence,
+                            );
                         });
                 };
                 heartbeat();

@@ -257,6 +257,7 @@ export function BudgetEditor({
     onRefresh,
     onAcknowledgeFlag,
     onDismissAdvisorNudge,
+    onOpenPlanRequirement,
 }: {
     budget: BudgetPayload;
     form: BudgetFormState;
@@ -270,6 +271,7 @@ export function BudgetEditor({
     onRefresh: () => void;
     onAcknowledgeFlag: (key: string) => void;
     onDismissAdvisorNudge: () => void;
+    onOpenPlanRequirement?: (requirement: string) => void;
 }) {
     const computed = budget.computed ?? {};
     const activeFlags = budget.active_flags ?? [];
@@ -431,7 +433,7 @@ export function BudgetEditor({
                 </div>
             ) : null}
 
-            <FounderBudgetGuide />
+            <FounderBudgetGuide onOpenPlanRequirement={onOpenPlanRequirement} />
 
             {!budgetUnlocked ? (
                 <section className="grid gap-3 rounded-md border bg-muted/20 p-4 text-sm md:grid-cols-[1fr_auto] md:items-start">
@@ -573,7 +575,11 @@ export function BudgetEditor({
 
                     <section className="grid gap-4 rounded-md border bg-background p-3 md:grid-cols-[220px_minmax(0,1fr)]">
                         <label className="grid gap-1 text-sm">
-                            <span>Budget horizon</span>
+                            <span>
+                                <BudgetTermLabel term="budget-horizon">
+                                    Budget horizon
+                                </BudgetTermLabel>
+                            </span>
                             <select
                                 value={form.forecast_years}
                                 onChange={(event) =>
@@ -700,7 +706,11 @@ export function BudgetEditor({
                             />
                         </label>
                         <label className="grid gap-1 text-sm">
-                            <span>Budget horizon</span>
+                            <span>
+                                <BudgetTermLabel term="budget-horizon">
+                                    Budget horizon
+                                </BudgetTermLabel>
+                            </span>
                             <select
                                 value={form.forecast_years}
                                 onChange={(event) =>
@@ -1145,7 +1155,11 @@ export function FundingScenariosEditor({
                             }
                         />
                         <label className="grid gap-1 text-xs">
-                            <span className="text-muted-foreground">Type</span>
+                            <span className="text-muted-foreground">
+                                <BudgetTermLabel term="funding-type">
+                                    Type
+                                </BudgetTermLabel>
+                            </span>
                             <select
                                 value={row.type}
                                 onChange={(event) =>

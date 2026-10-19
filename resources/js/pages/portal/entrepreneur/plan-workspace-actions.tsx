@@ -10,6 +10,7 @@ import { CompletedPlanRequirements } from './completed-plan-requirements';
 import { ExecutiveSummaryNotice } from './executive-summary-notice';
 import { founderActionDeepLink } from './founder-action-deep-link';
 import { FounderBudgetActionFocus } from './founder-budget-action-focus';
+import { IdeaValidationFieldLabel } from './founder-plan-term-help';
 import { BudgetEditor, requirementId } from './plan-budget';
 import {
     IdeaValidationSnapshot,
@@ -435,7 +436,9 @@ export function PlanWorkspaceActions({
                                     >
                                         <span className="flex items-center justify-between gap-3">
                                             <label htmlFor={fieldId}>
-                                                {field.label}
+                                                <IdeaValidationFieldLabel
+                                                    label={field.label}
+                                                />
                                             </label>
                                             <span className="shrink-0 text-xs font-normal text-muted-foreground tabular-nums">
                                                 {fieldValue.length}
@@ -647,6 +650,29 @@ export function PlanWorkspaceActions({
                                                 onDismissAdvisorNudge={
                                                     dismissBudgetAdvisorNudge
                                                 }
+                                                onOpenPlanRequirement={(
+                                                    key,
+                                                ) => {
+                                                    const requirement = phases
+                                                        .flatMap(
+                                                            (phase) =>
+                                                                phase.requirements,
+                                                        )
+                                                        .find(
+                                                            (item) =>
+                                                                item.key ===
+                                                                key,
+                                                        );
+
+                                                    if (requirement) {
+                                                        rememberWorkspacePosition();
+                                                        setSelectedKey(
+                                                            requirementId(
+                                                                requirement,
+                                                            ),
+                                                        );
+                                                    }
+                                                }}
                                             />
                                         </FounderBudgetActionFocus>
                                     )
