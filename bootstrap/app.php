@@ -53,6 +53,7 @@ use App\Http\Middleware\MeasureDashboardLaunch;
 use App\Http\Middleware\NormalizePortalOfflineSyncResponse;
 use App\Http\Middleware\PreventEntrepreneurTwoFactorDisable;
 use App\Http\Middleware\RedirectUnpaidIdeaValidationBuyer;
+use App\Http\Middleware\RedirectWwwToApex;
 use App\Http\Middleware\RequireAcceptedTerms;
 use App\Http\Middleware\RequireFreshStepUp;
 use App\Http\Middleware\RequireMfa;
@@ -78,6 +79,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
         $middleware->web(prepend: [
+            // Canonical-host redirect must run before session/auth middleware so
+            // a www request is 301'd without ever starting a session.
+            RedirectWwwToApex::class,
             AddSecurityHeaders::class,
             LogFailedRequest::class,
         ]);

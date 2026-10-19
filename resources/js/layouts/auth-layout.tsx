@@ -1,3 +1,5 @@
+import { Head } from '@inertiajs/react';
+
 import AuthLayoutTemplate from '@/layouts/auth/auth-simple-layout';
 
 export default function AuthLayout({
@@ -10,8 +12,15 @@ export default function AuthLayout({
     children: React.ReactNode;
 }) {
     return (
-        <AuthLayoutTemplate title={title} description={description}>
-            {children}
-        </AuthLayoutTemplate>
+        <>
+            {/* Auth pages (login, password reset, MFA, invites) carry no search
+                value and must stay out of the index. */}
+            <Head>
+                <meta name="robots" content="noindex, nofollow" />
+            </Head>
+            <AuthLayoutTemplate title={title} description={description}>
+                {children}
+            </AuthLayoutTemplate>
+        </>
     );
 }
