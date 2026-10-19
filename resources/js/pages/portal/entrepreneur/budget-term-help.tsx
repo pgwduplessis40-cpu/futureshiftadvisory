@@ -1,9 +1,13 @@
+import type { ReactNode } from 'react';
 import { Explainer } from '@/components/explainer';
 import type { Explanation } from '@/components/explainer';
+import { Button } from '@/components/ui/button';
+import { FounderPlanTermLabel } from './founder-plan-term-help';
 
 export type BudgetTerm =
     | 'amount'
     | 'break-even'
+    | 'budget-horizon'
     | 'cash-curve'
     | 'cash-positive'
     | 'capacity'
@@ -15,9 +19,13 @@ export type BudgetTerm =
     | 'direct-cost'
     | 'evidence-reference'
     | 'evidence-source'
+    | 'equity-share'
     | 'first-due-year'
     | 'forecast-month'
     | 'forecast-start-month'
+    | 'funding-scenario'
+    | 'funding-type'
+    | 'funding-year'
     | 'funding-position'
     | 'funding-purpose'
     | 'growth-cadence'
@@ -34,6 +42,9 @@ export type BudgetTerm =
     | 'renewal-cycle'
     | 'revenue-basis'
     | 'runway'
+    | 'contractor-unit-cost'
+    | 'unit-cost'
+    | 'unit-label'
     | 'units'
     | 'useful-life';
 
@@ -49,6 +60,12 @@ const explanations: Record<BudgetTerm, Explanation> = {
         what: 'The first forecast year in which revenue covers the costs of running the business.',
         action: 'Compare it with the sales plan and funding runway. If it arrives late, test a different price, cost, timing, or funding assumption.',
         why: 'It shows when the operating model is expected to stand on its own. It is different from a cash-positive year.',
+    },
+    'budget-horizon': {
+        title: 'Budget horizon',
+        what: 'The number of future years included in this forecast.',
+        action: 'Choose a period long enough to show the launch, the funding needed, and the point at which the business is expected to become sustainable.',
+        why: 'A short forecast can hide future renewals, repayments, or the time needed to reach break-even.',
     },
     'cash-curve': {
         title: '12-month cash curve',
@@ -116,6 +133,12 @@ const explanations: Record<BudgetTerm, Explanation> = {
         action: 'Choose the closest source type, then add the precise record in Evidence reference.',
         why: 'A source category tells a reviewer how reliable a number is; it is different from an explanation of how you chose it.',
     },
+    'equity-share': {
+        title: 'Equity %',
+        what: 'The percentage of ownership an investor would receive in return for their investment.',
+        action: 'Use only for an investor scenario and confirm the proposed ownership share before relying on it.',
+        why: 'Equity funding does not create loan repayments, but it changes who owns the business and shares in future value.',
+    },
     'first-due-year': {
         title: 'First due year',
         what: 'The first forecast year in which a future cost is expected to be paid.',
@@ -133,6 +156,24 @@ const explanations: Record<BudgetTerm, Explanation> = {
         what: 'The calendar month represented by Month 1 of the budget.',
         action: 'Set it to the planned launch or decision month and check it against your milestones.',
         why: 'It connects the budget’s timing to the business plan and prevents a cash forecast with no real-world date.',
+    },
+    'funding-scenario': {
+        title: 'Funding scenario',
+        what: 'A possible way of funding the business, such as a bank loan, an investor, or a mix of both.',
+        action: 'Name the option clearly and compare it with the base case before making a funding decision.',
+        why: 'Different funding choices change ownership, repayments, interest, and the cash available at launch.',
+    },
+    'funding-type': {
+        title: 'Funding type',
+        what: 'Whether the scenario uses a bank loan, an investor, or both.',
+        action: 'Choose the option that matches the terms you are actually considering.',
+        why: 'The forecast applies loan costs and investor ownership differently.',
+    },
+    'funding-year': {
+        title: 'Funding year',
+        what: 'The forecast year in which the funding is expected to arrive.',
+        action: 'Use Year 1 for funding available at launch, or the later year if it is genuinely expected after the business starts trading.',
+        why: 'Funding received later cannot cover an earlier low-cash point.',
     },
     'funding-position': {
         title: 'Funding position',
@@ -236,6 +277,24 @@ const explanations: Record<BudgetTerm, Explanation> = {
         action: 'Use 1 for one billed item. Do not enter the number of months or payments in a year here.',
         why: 'Units multiplies the rate. Payment frequency separately tells the forecast when the bill is due.',
     },
+    'unit-label': {
+        title: 'Unit label',
+        what: 'The plain name for one thing you sell or deliver, such as a session, subscription, job, order, or licence.',
+        action: 'Use the same word that appears in your offer and pricing so the forecast is easy to check.',
+        why: 'It makes the sales, capacity, and direct-cost assumptions understandable to you and your advisor.',
+    },
+    'unit-cost': {
+        title: 'Unit cost',
+        what: 'The direct cost of delivering one sale or one unit, in dollars.',
+        action: 'Include costs that happen only when that unit is sold, such as materials, a contractor, delivery, or payment fees.',
+        why: 'It turns sales into a realistic gross profit calculation.',
+    },
+    'contractor-unit-cost': {
+        title: 'Contractor cost / unit',
+        what: 'The amount paid to a contractor each time they help deliver one sale or unit.',
+        action: 'Use the agreed contractor rate for each job, session, order, or other unit of delivery.',
+        why: 'It prevents contractor delivery costs from being missed when revenue grows.',
+    },
     'useful-life': {
         title: 'Useful life years',
         what: 'How long a capital item is expected to support the business before it needs replacement.',
@@ -246,9 +305,12 @@ const explanations: Record<BudgetTerm, Explanation> = {
 
 const labelTerms: Partial<Record<string, BudgetTerm>> = {
     Amount: 'amount',
+    'Budget horizon': 'budget-horizon',
+    'Contractor cost / unit': 'contractor-unit-cost',
     'Creditor days': 'creditor-days',
     'Cost %': 'direct-cost',
     'Evidence reference': 'evidence-reference',
+    'Equity %': 'equity-share',
     'First due year': 'first-due-year',
     'Forecast month': 'forecast-month',
     'Founder units / month': 'units',
@@ -259,11 +321,16 @@ const labelTerms: Partial<Record<string, BudgetTerm>> = {
     'Max units / month': 'capacity',
     'Rate / billing period': 'rate-billing-period',
     'Renew every (years)': 'renewal-cycle',
+    Scenario: 'funding-scenario',
     Term: 'loan-term',
+    Type: 'funding-type',
+    'Unit cost': 'unit-cost',
+    'Unit label': 'unit-label',
     Units: 'units',
     Qty: 'units',
     'Useful life years': 'useful-life',
     'When paid (forecast month)': 'forecast-month',
+    Year: 'funding-year',
 };
 
 export function budgetTermForLabel(label: string): BudgetTerm | undefined {
@@ -290,7 +357,54 @@ export function BudgetTermLabel({
     );
 }
 
-export function FounderBudgetGuide() {
+export function FounderBudgetPathwayIntro() {
+    return (
+        <section
+            className="rounded-md border bg-muted/20 p-5"
+            aria-labelledby="founder-budget-pathway"
+        >
+            <h2 id="founder-budget-pathway" className="font-medium">
+                From approved idea to a finance-backed plan
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+                You do not need to be a finance expert. Start with the business
+                evidence, turn it into a practical plan, then use the budget to
+                check whether the timing and cash work.
+            </p>
+            <ol className="mt-4 grid gap-3 text-sm md:grid-cols-3">
+                <PathwayStep
+                    number="1"
+                    title="Explain the business"
+                    copy={
+                        <>
+                            Describe the customer problem, demand, offer, price,{' '}
+                            <FounderPlanTermLabel term="operating-model">
+                                operating model
+                            </FounderPlanTermLabel>
+                            , and milestones.
+                        </>
+                    }
+                />
+                <PathwayStep
+                    number="2"
+                    title="Build the forecast"
+                    copy="Add costs, income, funding, and the evidence behind each important assumption."
+                />
+                <PathwayStep
+                    number="3"
+                    title="Test the cash"
+                    copy="Use the 12-month cash curve, lowest cash point, runway, and break-even timing to make a decision."
+                />
+            </ol>
+        </section>
+    );
+}
+
+export function FounderBudgetGuide({
+    onOpenPlanRequirement,
+}: {
+    onOpenPlanRequirement?: (requirement: string) => void;
+} = {}) {
     return (
         <section
             className="rounded-md border bg-muted/20 p-4"
@@ -359,13 +473,73 @@ export function FounderBudgetGuide() {
                     ]}
                 />
             </div>
-            <a
-                href="#business-plan-requirements"
-                className="mt-4 inline-flex text-sm font-medium underline underline-offset-4"
-            >
-                Review the linked business-plan requirements
-            </a>
+            {onOpenPlanRequirement ? (
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                        Open the evidence in your plan:
+                    </span>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                            onOpenPlanRequirement('industry-customer-demand')
+                        }
+                    >
+                        Demand and revenue
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                            onOpenPlanRequirement('business-type-location')
+                        }
+                    >
+                        Operating model
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                            onOpenPlanRequirement('goals-objectives')
+                        }
+                    >
+                        Funding and milestones
+                    </Button>
+                </div>
+            ) : (
+                <a
+                    href="#business-plan-requirements"
+                    className="mt-4 inline-flex text-sm font-medium underline underline-offset-4"
+                >
+                    Review the linked business-plan requirements
+                </a>
+            )}
         </section>
+    );
+}
+
+function PathwayStep({
+    number,
+    title,
+    copy,
+}: {
+    number: string;
+    title: string;
+    copy: ReactNode;
+}) {
+    return (
+        <li className="rounded-md border bg-background p-3">
+            <span className="text-xs font-medium text-muted-foreground">
+                Step {number}
+            </span>
+            <h3 className="mt-1 font-medium">{title}</h3>
+            <p className="mt-1 text-xs leading-snug text-muted-foreground">
+                {copy}
+            </p>
+        </li>
     );
 }
 
