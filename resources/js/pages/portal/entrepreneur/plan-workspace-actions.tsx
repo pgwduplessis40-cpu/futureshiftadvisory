@@ -469,7 +469,9 @@ export function PlanWorkspaceActions({
                                             maxLength={
                                                 IDEA_VALIDATION_FIELD_MAX_LENGTH
                                             }
-                                            rows={4}
+                                            rows={6}
+                                            autoGrowMaxRows={12}
+                                            expandable
                                             placeholder={field.placeholder}
                                             ariaLabel={field.label}
                                         />

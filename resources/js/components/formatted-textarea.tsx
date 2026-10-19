@@ -1,6 +1,6 @@
 import { Bold, Italic, List, ListOrdered } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Fragment, useRef } from 'react';
+import { Fragment, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,6 +10,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useTextareaSizing } from '@/hooks/use-textarea-sizing';
 import { cn } from '@/lib/utils';
 
 type FormattingAction = 'bold' | 'italic' | 'bullet-list' | 'numbered-list';
@@ -31,6 +32,8 @@ type FormattedTextareaProps = {
     value: string;
     onChange: (value: string) => void;
     rows?: number;
+    autoGrowMaxRows?: number;
+    expandable?: boolean;
     maxLength?: number;
     placeholder?: string;
     disabled?: boolean;
@@ -71,6 +74,8 @@ export function FormattedTextarea({
     value,
     onChange,
     rows = 4,
+    autoGrowMaxRows,
+    expandable = false,
     maxLength,
     placeholder,
     disabled = false,
@@ -79,6 +84,18 @@ export function FormattedTextarea({
     textareaClassName,
 }: FormattedTextareaProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const generatedId = useId();
+    const textareaId = id ?? generatedId;
+    const [expanded, setExpanded] = useState(false);
+    const maxRows = autoGrowMaxRows ?? (expandable ? rows * 2 : undefined);
+
+    useTextareaSizing({
+        textareaRef,
+        value,
+        rows,
+        maxRows,
+        expanded,
+    });
 
     const applyFormatting = (action: FormattingAction) => {
         const textarea = textareaRef.current;
@@ -114,7 +131,7 @@ export function FormattedTextarea({
             )}
         >
             <TooltipProvider>
-                <div className="flex h-10 items-center gap-1 border-b bg-muted/20 px-2">
+                <div className="flex min-h-10 flex-wrap items-center gap-1 border-b bg-muted/20 px-2">
                     {formattingControls.map(({ action, label, Icon }) => (
                         <Tooltip key={action}>
                             <TooltipTrigger asChild>
@@ -136,11 +153,31 @@ export function FormattedTextarea({
                             <TooltipContent>{label}</TooltipContent>
                         </Tooltip>
                     ))}
+                    {expandable ? (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="ml-auto"
+                            aria-controls={textareaId}
+                            aria-expanded={expanded}
+                            aria-label={`${expanded ? 'Collapse' : 'Expand'} answer${ariaLabel ? `: ${ariaLabel}` : ''}`}
+                            disabled={disabled}
+                            onClick={() => {
+                                setExpanded((current) => !current);
+                                textareaRef.current?.focus({
+                                    preventScroll: true,
+                                });
+                            }}
+                        >
+                            {expanded ? 'Collapse answer' : 'Expand answer'}
+                        </Button>
+                    ) : null}
                 </div>
             </TooltipProvider>
             <Textarea
                 ref={textareaRef}
-                id={id}
+                id={textareaId}
                 value={value}
                 onChange={(event) => onChange(event.target.value)}
                 rows={rows}
@@ -150,6 +187,8 @@ export function FormattedTextarea({
                 aria-label={ariaLabel}
                 className={cn(
                     'min-h-0 resize-y rounded-none border-0 bg-transparent shadow-none focus-visible:border-transparent focus-visible:ring-0',
+                    maxRows !== undefined &&
+                        '[scrollbar-gutter:stable] overflow-y-auto',
                     textareaClassName,
                 )}
             />
