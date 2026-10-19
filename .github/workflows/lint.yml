@@ -53,3 +53,6 @@ jobs:
 
       - name: TypeScript (tsc --noEmit)
         run: npm run types:check
+
+      - name: Idea Validation editor browser regression
+        run: npm run test:idea-validation-editor
