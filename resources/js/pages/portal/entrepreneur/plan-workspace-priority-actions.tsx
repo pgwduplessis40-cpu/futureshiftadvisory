@@ -144,7 +144,7 @@ export function PlanWorkspacePriorityActions({
                                     ? 'Available'
                                     : 'Locked'
                         }
-                        explanation="Request advisory once the plan has been assessed as advisory ready. This asks your advisor to convert the plan into a standard advisory engagement."
+                        explanation="Request advisory once the plan has been assessed as advisory ready. This asks your advisor to convert the plan into a business advisory engagement."
                     >
                         {!includesPlanBudget ? (
                             <Badge variant="outline">Not in package</Badge>

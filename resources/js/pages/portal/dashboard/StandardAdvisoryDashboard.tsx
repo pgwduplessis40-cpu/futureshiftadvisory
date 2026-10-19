@@ -106,7 +106,7 @@ export function StandardAdvisoryDashboard({
 
     return (
         <>
-            <Head title="Standard Advisory" />
+            <Head title="Business Advisory" />
             <ClientCoBrowse config={coBrowse} />
             <main
                 className="flex-1 space-y-6"
@@ -117,7 +117,7 @@ export function StandardAdvisoryDashboard({
                         {client.trading_name || client.legal_name}
                     </h1>
                     <p className="mt-1 text-sm text-muted-foreground">
-                        Standard Advisory
+                        Business Advisory
                     </p>
                 </div>
                 <WorkspaceSwitcher workspaces={workspaces} />
@@ -144,7 +144,7 @@ export function StandardAdvisoryDashboard({
                                 aria-valuenow={progress.percentage}
                                 aria-valuemin={0}
                                 aria-valuemax={100}
-                                aria-label="Standard Advisory onboarding completion"
+                                aria-label="Business Advisory onboarding completion"
                             >
                                 <div
                                     className="h-2 rounded-full bg-[var(--fs-admiralty)]"

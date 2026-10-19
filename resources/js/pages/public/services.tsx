@@ -169,7 +169,7 @@ export default function Services({
         <>
             <Seo
                 title="Our services - support for entrepreneurs, SMEs & not-for-profits"
-                description="Helping entrepreneurs start and build good businesses is the heart of what we do. Around it: Standard Advisory, Due Diligence, Post-acquisition Advisory, and dedicated support for not-for-profits and social enterprises."
+                description="Helping entrepreneurs start and build good businesses is the heart of what we do. Around it: Business Advisory, Due Diligence, Post-acquisition Advisory, and dedicated support for not-for-profits and social enterprises."
                 jsonLd={[
                     servicesLd(base, engagementTypes),
                     breadcrumbLd(base, [

@@ -50,7 +50,7 @@ final class EntrepreneurAdvisoryRequestController extends Controller
                 sender: $user,
                 subject: EntrepreneurPlanWorkspace::ADVISORY_REQUEST_SUBJECT,
                 body: sprintf(
-                    'I would like to request standard advisory support using my entrepreneur business plan%s.',
+                    'I would like to request business advisory support using my entrepreneur business plan%s.',
                     $plan instanceof BusinessPlan ? ' ('.$plan->title.')' : '',
                 ),
             );

@@ -69,7 +69,7 @@ final class WelcomeMessageRenderer
             'business_name' => static fn (): string => 'Riverside Joinery Ltd',
             'practice_name' => static fn (): string => self::DEFAULT_PRACTICE_NAME,
             'advisor_name' => static fn (): string => 'Sam Whiteley',
-            'engagement_type_label' => static fn (): string => 'Standard Advisory',
+            'engagement_type_label' => static fn (): string => 'Business Advisory',
         ]);
     }
 

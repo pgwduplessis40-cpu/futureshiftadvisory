@@ -121,7 +121,7 @@ export function StandardAdvisoryPanel({
                 <div className="flex items-center gap-2">
                     <ListChecks className="size-4" aria-hidden="true" />
                     <h2 className="text-sm font-medium">
-                        Standard Advisory workflow
+                        Business Advisory workflow
                     </h2>
                     <Badge
                         variant={standardAdvisoryStatusVariant(summary.status)}
@@ -155,7 +155,7 @@ export function StandardAdvisoryPanel({
                             </span>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" className="max-w-xs">
-                            Runs every Standard Advisory analysis module,
+                            Runs every Business Advisory analysis module,
                             including the website review, then refreshes the
                             business health radar.
                         </TooltipContent>
@@ -409,7 +409,7 @@ export function StandardAdvisoryPanel({
                 </RollupPanel>
             ) : (
                 <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-                    Standard Advisory workflow is ready for the client
+                    Business Advisory workflow is ready for the client
                     conversation.
                 </div>
             )}

@@ -310,7 +310,7 @@ export default function ClientsShow({
             ? [
                   {
                       key: 'standard_advisory' as const,
-                      label: 'Standard Advisory',
+                      label: 'Business Advisory',
                       description:
                           'Questionnaire, evidence, analysis, and advisory report pack.',
                       status: standardAdvisoryReportStatus,

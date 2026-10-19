@@ -757,7 +757,7 @@ function StepContent({
                     ) : questionnaire.available ? (
                         <CheckboxField
                             id="questionnaire_set_acknowledged"
-                            label="Use the Standard Advisory questionnaire path."
+                            label="Use the Business Advisory questionnaire path."
                             checked={form.data.questionnaire_set_acknowledged}
                             onCheckedChange={(checked) =>
                                 form.setData(
@@ -791,7 +791,7 @@ function StepContent({
                     description={
                         client.engagement_type === 'due_diligence'
                             ? 'Upload acquisition evidence that FSA needs to assess the target business.'
-                            : 'Upload the evidence your advisor needs before the Standard Advisory review can move into analysis.'
+                            : 'Upload the evidence your advisor needs before the Business Advisory review can move into analysis.'
                     }
                     explanation={stepExplanations.documents}
                 >
