@@ -90,8 +90,8 @@ export function AdvisorServiceWorkspace({
     if (activeTab === 'standard_advisory' && client.standard_advisory) {
         return (
             <ClientDetailSection
-                title="Standard Advisory actions"
-                description="Actions for this client's Standard Advisory engagement: analysis, report pack, and client report release."
+                title="Business Advisory actions"
+                description="Actions for this client's Business Advisory engagement: analysis, report pack, and client report release."
             >
                 <StandardAdvisoryPanel
                     summary={client.standard_advisory}

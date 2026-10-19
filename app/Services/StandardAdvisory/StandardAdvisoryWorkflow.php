@@ -171,7 +171,7 @@ final class StandardAdvisoryWorkflow
         $missing = [];
         $warnings = [];
         if (! $response instanceof QuestionnaireResponse) {
-            $missing[] = 'Submit the Standard Advisory questionnaire.';
+            $missing[] = 'Submit the Business Advisory questionnaire.';
         }
         if ($documents->isEmpty()) {
             $missing[] = 'Upload supporting documents for the advisory review.';
@@ -183,9 +183,9 @@ final class StandardAdvisoryWorkflow
             $missing[] = 'Confirm the client website URL before running the website review.';
         }
         if ($analysisCompleted === 0 && $analysisWaived === 0) {
-            $missing[] = 'Run Standard Advisory analysis.';
+            $missing[] = 'Run Business Advisory analysis.';
         } elseif (! $analysisReadyForPack) {
-            $missing[] = 'Complete or waive Standard Advisory analysis modules: '.$this->incompleteAnalysisModuleLabels($analysisModules).'.';
+            $missing[] = 'Complete or waive Business Advisory analysis modules: '.$this->incompleteAnalysisModuleLabels($analysisModules).'.';
         }
         if (! $healthBatch instanceof Collection) {
             $missing[] = 'Recompute the business health radar from the latest analysis.';
@@ -309,7 +309,7 @@ final class StandardAdvisoryWorkflow
         $reason = trim($reason);
         if ($reason === '') {
             throw ValidationException::withMessages([
-                'waiver_reason' => 'Add the advisor reason before waiving incomplete Standard Advisory modules.',
+                'waiver_reason' => 'Add the advisor reason before waiving incomplete Business Advisory modules.',
             ]);
         }
 
@@ -332,7 +332,7 @@ final class StandardAdvisoryWorkflow
 
         if ($modules === [] || $invalid !== []) {
             throw ValidationException::withMessages([
-                'waiver_modules' => 'Choose only incomplete, failed, or stale Standard Advisory modules for the waiver.',
+                'waiver_modules' => 'Choose only incomplete, failed, or stale Business Advisory modules for the waiver.',
             ]);
         }
 
@@ -366,7 +366,7 @@ final class StandardAdvisoryWorkflow
     {
         if (! $this->isStandardAdvisory($client)) {
             throw ValidationException::withMessages([
-                'standard_advisory' => 'This workflow is only available for Standard Advisory clients.',
+                'standard_advisory' => 'This workflow is only available for Business Advisory clients.',
             ]);
         }
     }
@@ -609,7 +609,7 @@ final class StandardAdvisoryWorkflow
             return $this->websiteAuditReadinessPayload(
                 status: 'waiting_questionnaire',
                 label: 'Waiting for questionnaire',
-                nextAction: 'Ask the client to complete the Standard Advisory questionnaire before relying on website alignment findings.',
+                nextAction: 'Ask the client to complete the Business Advisory questionnaire before relying on website alignment findings.',
             );
         }
 
@@ -648,7 +648,7 @@ final class StandardAdvisoryWorkflow
             return $this->websiteAuditReadinessPayload(
                 status: 'ready_to_fetch',
                 label: 'Ready to fetch',
-                nextAction: 'Run Standard Advisory analysis to fetch and evaluate the confirmed website.',
+                nextAction: 'Run Business Advisory analysis to fetch and evaluate the confirmed website.',
                 hasUrl: true,
                 hasProductServiceEvidence: $hasProductServiceEvidence,
                 confirmedUrl: $confirmation->root_url,
@@ -1091,8 +1091,8 @@ final class StandardAdvisoryWorkflow
             'waiting_questionnaire' => 'Ask the client to complete onboarding.',
             'waiting_documents' => 'Ask the client to upload supporting evidence.',
             'verification_blocked' => 'Resolve document verification flags.',
-            'ready_for_analysis' => 'Run Standard Advisory analysis.',
-            'analysis_incomplete' => 'Complete every Standard Advisory analysis module before generating the pack.',
+            'ready_for_analysis' => 'Run Business Advisory analysis.',
+            'analysis_incomplete' => 'Complete every Business Advisory analysis module before generating the pack.',
             'ready_for_pack_with_waiver' => 'Generate the advisory pack with the recorded partial-analysis waiver.',
             'ready_for_pack' => 'Generate the advisory pack.',
             'awaiting_report_release' => 'Review and release the client report.',

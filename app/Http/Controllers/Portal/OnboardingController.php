@@ -402,7 +402,7 @@ final class OnboardingController extends Controller
             validator([], [
                 'supporting_documents' => ['required'],
             ], [
-                'supporting_documents.required' => 'Upload at least one supporting document before submitting Standard Advisory onboarding.',
+                'supporting_documents.required' => 'Upload at least one supporting document before submitting Business Advisory onboarding.',
             ])->validate();
         }
 

@@ -16,7 +16,7 @@ enum EngagementType: string
     public function label(): string
     {
         return match ($this) {
-            self::STANDARD_ADVISORY => 'Standard Advisory',
+            self::STANDARD_ADVISORY => 'Business Advisory',
             self::DUE_DILIGENCE => 'Due Diligence',
             self::POST_ACQUISITION_ADVISORY => 'Post-acquisition Advisory',
             self::ENTREPRENEUR_MODULE => 'Entrepreneur Module',

@@ -236,10 +236,10 @@ final class OnboardingWizard
         return match ($type) {
             EngagementType::STANDARD_ADVISORY => [
                 'set' => 'standard_advisory',
-                'title' => 'Standard Advisory Questionnaire',
+                'title' => 'Business Advisory Questionnaire',
                 'available' => true,
                 'phase' => 'Phase 1',
-                'description' => 'Complete the Standard Advisory questionnaire for the current engagement.',
+                'description' => 'Complete the Business Advisory questionnaire for the current engagement.',
             ],
             EngagementType::DUE_DILIGENCE => [
                 'set' => 'dd_specific',

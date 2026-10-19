@@ -407,11 +407,11 @@ final class FoundingAdvisoryService
                     outcomes: [
                         'Strengthen delivery, governance, and reporting for the next stage of trading.',
                         'Use evidence from trading to decide the next investment and growth priorities.',
-                        'Prepare the transition review into Standard Advisory when meaningful operating data exists.',
+                        'Prepare the transition review into Business Advisory when meaningful operating data exists.',
                     ],
                     milestones: [
                         $this->milestone('Review the operating model against actual sales, margin, capacity, and cash evidence.', 'joint', 210),
-                        $this->milestone('Agree the conditions for transition to Standard Advisory or a further founding cycle.', 'advisor', 255),
+                        $this->milestone('Agree the conditions for transition to Business Advisory or a further founding cycle.', 'advisor', 255),
                     ],
                 ),
             ],

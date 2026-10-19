@@ -7,7 +7,7 @@ const standardAdvisoryClient = {
     onboarding_complete: false,
 } as NonNullable<Parameters<typeof navGroupsFor>[1]>;
 
-test('Standard Advisory presents Business Plan & Budget as a request until the add-on is active', () => {
+test('Business Advisory presents Business Plan & Budget as a request until the add-on is active', () => {
     const requestGroups = navGroupsFor(
         'client_primary',
         standardAdvisoryClient,
@@ -64,7 +64,7 @@ test('Standard Advisory presents Business Plan & Budget as a request until the a
                 {
                     key: 'standard_advisory',
                     service_type: 'standard_advisory',
-                    label: 'Standard Advisory',
+                    label: 'Business Advisory',
                     description: 'Primary advisory workspace.',
                     href: '/portal',
                     primary: true,

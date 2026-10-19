@@ -22,7 +22,7 @@ final class StandardAdvisoryQuestionnaireSeeder extends Seeder
                     'version' => '1',
                 ],
                 [
-                    'title' => 'Standard Advisory Questionnaire',
+                    'title' => 'Business Advisory Questionnaire',
                     'published_at' => now(),
                 ],
             );

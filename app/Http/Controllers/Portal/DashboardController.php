@@ -484,7 +484,7 @@ final class DashboardController extends Controller
 
             return $this->journeyPrimary(
                 serviceType: EngagementType::STANDARD_ADVISORY->value,
-                serviceLabel: 'Standard Advisory',
+                serviceLabel: EngagementType::STANDARD_ADVISORY->label(),
                 statusLabel: (string) ($standardAdvisory['status_label'] ?? 'In progress'),
                 owner: $owner,
                 nextAction: (string) ($standardAdvisory['next_action'] ?? data_get($nextMomentum, 'description', 'Continue the advisory journey.')),

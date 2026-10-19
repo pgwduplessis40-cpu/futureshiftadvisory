@@ -36,15 +36,15 @@ final class EngagementTypeCatalog
                     'A business plan and budget with real numbers - the kind a bank, investor, or funder will actually read',
                     'A staged build plan with regular mentoring',
                     'An honest assessment of whether you are ready to launch',
-                    'A natural path into Standard Advisory once you are trading',
+                    'A natural path into Business Advisory once you are trading',
                 ],
                 'detail_path' => '/services/entrepreneur',
                 'accent' => 'cognac',
             ],
             [
                 'slug' => 'standard_advisory',
-                'title' => 'Standard Advisory',
-                'tagline' => 'Where most journeys start.',
+                'title' => 'Business Advisory',
+                'tagline' => 'For when you are up and running.',
                 'summary' => 'We get to know your whole business - the numbers, the people, the day-to-day, and where you want to take it - then give you a clear, honest picture of where you stand. Together we agree the handful of moves that will make the biggest difference, explained in plain language, with the reasoning shown. You will always know why we are recommending something.',
                 'audience' => 'Established New Zealand SMEs who want a straight, well-grounded read on the business and a practical plan for what to tackle first.',
                 'deliverables' => [

@@ -168,7 +168,7 @@ export default function Home({
                     </SectionTitle>
                     <SectionLead>
                         Helping founders start and build good businesses is
-                        where we focus. From there, we also run Standard
+                        where we focus. From there, we also run Business
                         Advisory reviews for established SMEs, due diligence on
                         a purchase, support after an acquisition, and health
                         checks for not-for-profits.

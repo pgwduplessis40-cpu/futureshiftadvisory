@@ -184,7 +184,7 @@ final class WebsiteAudit implements AnalysisModule
     private function offerAttributions(Client $client): array
     {
         return array_map(static fn (array $item): array => [
-            'claim' => 'The client stated this product or service evidence in the Standard Advisory questionnaire.',
+            'claim' => 'The client stated this product or service evidence in the Business Advisory questionnaire.',
             'source_reference' => 'questionnaire_answer:'.$item['answer_id'],
         ], $this->productServiceEvidence($client));
     }

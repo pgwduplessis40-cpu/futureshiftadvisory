@@ -70,7 +70,7 @@ final class WelcomeMessageController extends Controller
             ['token' => '{{business_name}}', 'description' => 'Trading name, falling back to the legal name.'],
             ['token' => '{{practice_name}}', 'description' => 'Your practice name (Future Shift Advisory).'],
             ['token' => '{{advisor_name}}', 'description' => 'Lead advisor, falling back to "your advisory team".'],
-            ['token' => '{{engagement_type_label}}', 'description' => 'e.g. Standard Advisory, NPO, Due Diligence.'],
+            ['token' => '{{engagement_type_label}}', 'description' => 'e.g. Business Advisory, NPO, Due Diligence.'],
         ];
     }
 }

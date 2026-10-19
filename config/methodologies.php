@@ -474,7 +474,7 @@ return [
             'area' => 'Engagement',
             'name' => 'Client Engagement Score',
             'summary' => 'Uses the active workspace workflow to combine progress, activity recency, and milestone status into an internal engagement status.',
-            'formula' => 'Standard advisory clients use questionnaire, verified-document, milestone, and communication weights. Entrepreneur workspaces before plan-builder use idea-validation progress, validation or communication activity recency, and milestone weights. Clients with an entrepreneur business plan use plan completion, plan or communication activity recency, and milestone weights. The result is compared with the configured green and amber thresholds.',
+            'formula' => 'Business advisory clients use questionnaire, verified-document, milestone, and communication weights. Entrepreneur workspaces before plan-builder use idea-validation progress, validation or communication activity recency, and milestone weights. Clients with an entrepreneur business plan use plan completion, plan or communication activity recency, and milestone weights. The result is compared with the configured green and amber thresholds.',
             'inputs' => [
                 'Questionnaire completion percentage',
                 'Verified document coverage',

@@ -128,7 +128,7 @@ final class OnboardingWizardTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('portal/Dashboard')
-                ->where('serviceJourney.primary.service_label', 'Standard Advisory')
+                ->where('serviceJourney.primary.service_label', 'Business Advisory')
                 ->where('serviceJourney.primary.owner_label', 'Awaiting you')
                 ->has('serviceJourney.stages', 5)
                 ->has('serviceJourney.metrics', 3)
@@ -248,7 +248,7 @@ final class OnboardingWizardTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('portal/Dashboard')
-                ->where('serviceJourney.primary.service_label', 'Standard Advisory')
+                ->where('serviceJourney.primary.service_label', 'Business Advisory')
                 ->where('serviceJourney.primary.service_type', EngagementType::STANDARD_ADVISORY->value)
                 ->where('workspaces.active_key', 'standard_advisory')
                 ->where('workspaces.items.0.key', 'standard_advisory')

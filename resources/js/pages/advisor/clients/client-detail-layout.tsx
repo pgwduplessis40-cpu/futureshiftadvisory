@@ -367,7 +367,7 @@ export function ClientDetailLayout({
                                 {client.standard_advisory && (
                                     <ActionTile
                                         icon={ListChecks}
-                                        title="Standard Advisory"
+                                        title="Business Advisory"
                                         value={standardAdvisoryReportStatus}
                                         explanation="Tracks questionnaire, evidence, analysis, advisory pack generation, and client report release."
                                         href="#section-standard-advisory"

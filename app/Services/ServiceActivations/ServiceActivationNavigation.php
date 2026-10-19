@@ -53,7 +53,7 @@ final class ServiceActivationNavigation
                 ),
                 $this->advisorLedOption(
                     'standard_advisory',
-                    'Standard Advisory',
+                    'Business Advisory',
                     'Whole-business diagnostic, prioritised advisory roadmap, valuation context, and client-ready report.',
                     'Advisor-led engagement',
                     'Ask your FSA advisor to confirm or open this engagement path.',
