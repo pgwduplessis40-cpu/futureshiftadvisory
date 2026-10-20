@@ -33,29 +33,16 @@ final class ApprovalFlow
         private readonly ReferenceDataProjector $referenceDataProjector,
         private readonly LearningCapabilityProfile $capabilityProfile,
         private readonly LearningUpdatePlainEnglishSummary $plainEnglishSummary,
+        private readonly LearningRecommendationWorkflow $recommendations,
     ) {}
 
     /**
+     * @param  EloquentCollection<int, LearningUpdate>|null  $updates
      * @return Collection<int, array<string, mixed>>
      */
-    public function cards(): Collection
+    public function cards(?EloquentCollection $updates = null): Collection
     {
-        return LearningUpdate::query()
-            ->with([
-                'decisions' => fn ($query) => $query->latest('decided_at'),
-                'implementations' => fn ($query) => $query->latest('implemented_at'),
-            ])
-            ->whereIn('status', [
-                LearningUpdate::STATUS_DETECTED,
-                LearningUpdate::STATUS_STAGED,
-                LearningUpdate::STATUS_DEFERRED,
-                LearningUpdate::STATUS_APPROVED,
-                LearningUpdate::STATUS_IMPLEMENTED,
-                LearningUpdate::STATUS_ROLLED_BACK,
-            ])
-            ->orderByRaw("case status when 'detected' then 0 when 'staged' then 1 when 'deferred' then 2 else 3 end")
-            ->latest('created_at')
-            ->get()
+        return ($updates ?? $this->recommendations->queueLearnings())
             ->map(fn (LearningUpdate $update): array => $this->card($update));
     }
 

@@ -90,10 +90,9 @@ final class LearningRecommendationWorkflowTest extends TestCase
             'status' => LearningRecommendation::STATUS_RELEASED,
             'release_reference' => 'deploy-production 1.0.165',
         ]);
-        $this->assertStringContainsString('Calibrate praise language', $workflow->developerBrief());
-        $this->assertStringContainsString('Quality engineering', $workflow->developerBrief());
-        $this->assertStringContainsString('Flagged language rate: 30%', $workflow->developerBrief());
-        $this->assertStringContainsString('Revert the prompt version', $workflow->developerBrief());
+        $this->assertStringNotContainsString((string) $update->id, $workflow->developerBrief());
+        $this->assertStringContainsString('No learnings are pending approval.', $workflow->developerBrief());
+        $this->assertTrue($workflow->activeRecommendations()->contains('id', $recommendation->id));
         $workflow->updateDelivery($recommendation->refresh(), $admin, [
             'status' => LearningRecommendation::STATUS_VERIFIED,
             'verification_notes' => 'Assessment and advisor review regression journeys passed after deployment.',
@@ -156,6 +155,8 @@ final class LearningRecommendationWorkflowTest extends TestCase
             );
 
         $this->assertSame(LearningUpdate::STATUS_DETECTED, $duplicate->refresh()->status);
+        $this->assertStringNotContainsString((string) $duplicate->id, $workflow->developerBrief());
+        $this->assertStringContainsString('Pending items: 0', $workflow->developerBrief());
     }
 
     public function test_approved_recommendation_can_record_an_already_deployed_release_with_complete_evidence(): void
