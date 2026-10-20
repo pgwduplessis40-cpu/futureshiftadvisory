@@ -194,7 +194,9 @@ export default function LearningUpdatesIndex({
     recommendation_bulk_approve_url,
 }: Props) {
     const [activeTab, setActiveTab] = useState<LearningTab>('actions');
-    const approvedCards = cards.filter(isApprovedLearning);
+    const approvedCards = cards.filter((card) =>
+        approvedLearningStatuses.has(card.status),
+    );
     const pendingIds = new Set(pending_learning_ids);
     const pendingCards = cards.filter((card) => pendingIds.has(card.id));
     const draftRecommendations = recommendations.filter(
@@ -1395,10 +1397,6 @@ function CapabilityStrip({
             )}
         </div>
     );
-}
-
-function isApprovedLearning(card: LearningUpdateCard): boolean {
-    return approvedLearningStatuses.has(card.status);
 }
 
 function similarLearningCounts(
