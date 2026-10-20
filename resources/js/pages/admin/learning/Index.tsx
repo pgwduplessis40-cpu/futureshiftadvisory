@@ -71,6 +71,7 @@ type LearningUpdateCard = {
 
 type Props = {
     cards: LearningUpdateCard[];
+    pending_learning_ids: string[];
     decisions: Decision[];
     impact_reviews: ImpactReviewCard[];
     recommendations: LearningRecommendation[];
@@ -182,6 +183,7 @@ const approvedLearningStatuses = new Set([
 
 export default function LearningUpdatesIndex({
     cards,
+    pending_learning_ids,
     decisions,
     impact_reviews,
     recommendations,
@@ -193,7 +195,8 @@ export default function LearningUpdatesIndex({
 }: Props) {
     const [activeTab, setActiveTab] = useState<LearningTab>('actions');
     const approvedCards = cards.filter(isApprovedLearning);
-    const pendingCards = cards.filter((card) => !isApprovedLearning(card));
+    const pendingIds = new Set(pending_learning_ids);
+    const pendingCards = cards.filter((card) => pendingIds.has(card.id));
     const draftRecommendations = recommendations.filter(
         (recommendation) => recommendation.status === 'draft',
     );

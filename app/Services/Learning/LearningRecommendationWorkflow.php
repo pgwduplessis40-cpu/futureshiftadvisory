@@ -20,6 +20,8 @@ final class LearningRecommendationWorkflow
         private readonly AuditWriter $audit,
         private readonly LearningUpdatePlainEnglishSummary $plainEnglish,
         private readonly LearningCapabilityProfile $capabilities,
+        private readonly BudgetLearningSignal $learningSignals,
+        private readonly PendingLearningDeveloperBrief $pendingBrief,
     ) {}
 
     /**
@@ -236,53 +238,54 @@ final class LearningRecommendationWorkflow
             ->get();
     }
 
+    /**
+     * @param  Collection<int, LearningRecommendation>|null  $recommendations
+     * @return Collection<int, LearningUpdate>
+     */
+    public function queueLearnings(?Collection $recommendations = null): Collection
+    {
+        $recommendations ??= $this->activeRecommendations();
+        $coveredIds = $recommendations->pluck('learning_update_id')->all();
+        $coveredSignals = $recommendations
+            ->map(fn (LearningRecommendation $item): ?string => $this->learningSignals->keyForUpdate($item->learningUpdate))
+            ->filter()->unique()->values()->all();
+
+        return LearningUpdate::query()
+            ->with([
+                'decisions' => fn ($query) => $query->latest('decided_at'),
+                'implementations' => fn ($query) => $query->latest('implemented_at'),
+            ])
+            ->whereIn('status', [
+                LearningUpdate::STATUS_DETECTED,
+                LearningUpdate::STATUS_STAGED,
+                LearningUpdate::STATUS_DEFERRED,
+                LearningUpdate::STATUS_APPROVED,
+                LearningUpdate::STATUS_IMPLEMENTED,
+                LearningUpdate::STATUS_ROLLED_BACK,
+            ])
+            ->whereNotIn('id', $coveredIds)
+            ->orderByRaw("case status when 'detected' then 0 when 'staged' then 1 when 'deferred' then 2 else 3 end")
+            ->latest('created_at')
+            ->orderByDesc('id')
+            ->get()
+            ->reject(fn (LearningUpdate $update): bool => in_array($this->learningSignals->keyForUpdate($update), $coveredSignals, true))
+            ->values();
+    }
+
+    /**
+     * @param  Collection<int, LearningUpdate>|null  $learnings
+     * @return Collection<int, LearningUpdate>
+     */
+    public function pendingLearnings(?Collection $learnings = null): Collection
+    {
+        return ($learnings ?? $this->queueLearnings())
+            ->whereIn('status', [LearningUpdate::STATUS_DETECTED, LearningUpdate::STATUS_STAGED, LearningUpdate::STATUS_DEFERRED])
+            ->values();
+    }
+
     public function developerBrief(?CarbonInterface $generatedAt = null): string
     {
-        $generatedAt ??= now();
-        $recommendations = $this->activeRecommendations();
-        $lines = [
-            '# Future Shift Advisory developer delivery brief',
-            '',
-            'Generated: '.$generatedAt->toIso8601String(),
-            'This briefing contains only recommendations explicitly approved for development or already in the delivery path. It does not authorise product changes without normal review, tests, release gates, verification, and rollback evidence.',
-            '',
-        ];
-
-        $deliveryItems = $recommendations->filter(fn (LearningRecommendation $item): bool => $item->status !== LearningRecommendation::STATUS_DRAFT);
-        if ($deliveryItems->isEmpty()) {
-            return implode("\n", [...$lines, 'No approved recommendations are currently waiting for development.', '']);
-        }
-
-        foreach ($deliveryItems as $item) {
-            $lines[] = '## '.$item->title;
-            $lines[] = '';
-            $lines[] = '- Status: '.$item->status;
-            $lines[] = '- Learning ID: '.$item->learning_update_id;
-            $lines[] = '- Delivery owner: '.($item->delivery_owner ?: 'To be assigned before development starts.');
-            $lines[] = '- Delivery target: '.($item->delivery_target ?: 'To be set before development starts.');
-            $lines[] = '';
-            $lines[] = '### Decision context';
-            $lines[] = '';
-            $lines[] = '- Failure / shortfall: '.$item->failure_shortfall;
-            $lines[] = '- Impact: '.$item->impact;
-            $lines[] = '- Area of impact: '.$item->impact_area;
-            $lines[] = '- Recommendation: '.$item->recommendation;
-            $lines[] = '- Expected impact: '.$item->recommendation_impact;
-            $lines[] = '';
-            $lines[] = '### Delivery and assurance';
-            $lines[] = '';
-            $lines[] = '- Baseline metrics: '.($this->joined($item->baseline_metrics) ?: 'To be recorded before development starts.');
-            $lines[] = '- Acceptance criteria: '.($this->joined($item->acceptance_criteria) ?: 'To be added before development starts.');
-            $lines[] = '- Regression journeys: '.($this->joined($item->regression_journeys) ?: 'To be added before release.');
-            $lines[] = '- Rollback plan: '.($item->rollback_plan ?: 'To be recorded before development starts.');
-            $lines[] = '- Development reference: '.($item->development_reference ?: 'Not started.');
-            $lines[] = '- Release reference: '.($item->release_reference ?: 'Not released.');
-            $lines[] = '- Verification evidence: '.($item->verification_notes ?: 'Not yet verified.');
-            $lines[] = '- Review due: '.($item->review_due_at?->toDateString() ?: 'Set when released.');
-            $lines[] = '';
-        }
-
-        return implode("\n", $lines);
+        return $this->pendingBrief->render($this->pendingLearnings(), $generatedAt ?? now());
     }
 
     /** @return array<string,string> */
@@ -381,15 +384,6 @@ final class LearningRecommendationWorkflow
             'confidence' => $update->confidence,
             'clients_affected' => $update->clients_affected,
         ];
-    }
-
-    /** @param array<mixed>|null $items */
-    private function joined(?array $items): string
-    {
-        return collect($items)
-            ->filter(fn (mixed $item): bool => is_string($item) && trim($item) !== '')
-            ->map(fn (string $item): string => trim($item))
-            ->join('; ');
     }
 
     private function stringInput(mixed $value): ?string
