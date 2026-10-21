@@ -20,7 +20,7 @@ export default function About() {
         <>
             <Seo
                 title="About us - a Hamilton advisory practice you can trust"
-                description="Future Shift Advisory is a Hamilton-based practice for New Zealand SMEs, founders, buyers, and not-for-profits. Honest, evidence-based, and genuinely local."
+                description="Hamilton-based advisory helping New Zealand founders validate an idea and build a business plan with real numbers. Honest, evidence-based, genuinely local."
                 jsonLd={breadcrumbLd(base, [
                     { name: 'Home', path: '/' },
                     { name: 'About', path: '/about' },
@@ -37,11 +37,13 @@ export default function About() {
                 </SectionTitle>
                 <GoldRule className="mt-6" />
                 <SectionLead>
-                    Future Shift Advisory is a Hamilton-based practice working
-                    with New&nbsp;Zealand SMEs, founders, people buying a
-                    business, and not-for-profits. We are here to give you a
-                    clear, honest, well-grounded read on where you stand - and a
-                    sensible plan for what comes next.
+                    Future Shift Advisory is a Hamilton-based practice helping
+                    New&nbsp;Zealand founders find out whether an idea holds up,
+                    and build the business plan and budget to back it. We also
+                    work with established SMEs, people buying a business, and
+                    not-for-profits. Whoever you are, you get a clear, honest,
+                    well-grounded read on where you stand - and a sensible plan
+                    for what comes next.
                 </SectionLead>
             </Section>
 
@@ -132,10 +134,7 @@ export default function About() {
                             structure behind it, where every finding is backed
                             by evidence, and where you hear what the numbers
                             actually say rather than what is easiest to tell
-                            you. We are as comfortable with the technology
-                            behind a business as we are with its numbers - and
-                            when a small tool will fix a stubborn process, we
-                            can build it.
+                            you.
                         </p>
 
                         <p className="mt-4 text-base leading-relaxed text-[var(--fs-graphite)]">
@@ -226,15 +225,23 @@ export default function About() {
                                 If this sounds like the kind of advisor you want
                             </h2>
                             <p className="font-accent mt-3 max-w-xl text-lg text-[#E0D8CC] italic">
-                                Start with a 30-minute discovery call.
+                                Start by testing your idea - or book a 30-minute
+                                discovery call.
                             </p>
                         </div>
-                        <div className="md:col-span-4 md:text-right">
-                            <Link
-                                href="/contact"
+                        <div className="flex flex-col items-start gap-3 md:col-span-4 md:items-end">
+                            <a
+                                href="/validate-idea/purchase"
                                 className="inline-flex items-center gap-2 rounded-md bg-[var(--fs-warm-gold)] px-5 py-3 text-sm font-semibold text-[var(--fs-admiralty)] transition hover:bg-[var(--fs-champagne)]"
                             >
-                                Book a discovery call{' '}
+                                Validate my idea{' '}
+                                <ArrowRight className="h-4 w-4" />
+                            </a>
+                            <Link
+                                href="/contact"
+                                className="inline-flex items-center gap-2 text-sm font-medium text-[#E0D8CC] hover:text-white"
+                            >
+                                Or book a discovery call{' '}
                                 <ArrowRight className="h-4 w-4" />
                             </Link>
                         </div>

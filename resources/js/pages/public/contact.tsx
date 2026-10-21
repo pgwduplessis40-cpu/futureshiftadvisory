@@ -1,5 +1,5 @@
 import { Form, usePage } from '@inertiajs/react';
-import { Loader2, Mail, MapPin, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Loader2, Mail, MapPin, ShieldCheck } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 
 import InputError from '@/components/input-error';
@@ -138,6 +138,21 @@ export default function Contact({
                     figure out. We respond personally - usually within a working
                     day. No automated funnels.
                 </p>
+                <a
+                    href="/validate-idea/purchase"
+                    className="group mt-8 flex max-w-2xl items-center justify-between gap-4 rounded-xl border border-[var(--fs-sand)] bg-white p-5 shadow-[0_1px_2px_rgba(28,43,69,0.04)] transition hover:shadow-[0_8px_24px_rgba(28,43,69,0.08)]"
+                >
+                    <span>
+                        <span className="block text-sm font-semibold text-[var(--fs-admiralty)]">
+                            Have a business idea you want tested?
+                        </span>
+                        <span className="mt-1 block text-sm text-[var(--fs-graphite)]">
+                            You do not need a call. Validate it online, with an
+                            advisor review within 24 hours.
+                        </span>
+                    </span>
+                    <ArrowRight className="h-5 w-5 shrink-0 text-[var(--fs-admiralty)] transition group-hover:translate-x-0.5" />
+                </a>
             </Section>
 
             {/* ── WHAT HAPPENS NEXT ───────────────────────────── */}

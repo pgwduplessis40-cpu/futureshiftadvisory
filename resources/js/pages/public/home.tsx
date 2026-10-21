@@ -91,12 +91,11 @@ export default function Home({
                         <GoldRule className="mt-6" />
                         <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--fs-graphite)]">
                             We help New&nbsp;Zealand founders find out -
-                            honestly, and early - whether an idea holds up, then
-                            build the business plan and the numbers to back it.
-                            And once you are trading, we stay in your corner:
-                            advisory reviews, due diligence, and support for
-                            not-for-profits, all with the same straight,
-                            evidence-based advice.
+                            honestly, and early - whether an idea holds up.
+                            Start with idea validation: self-paced, online, and
+                            reviewed by an advisor within 24 hours. If the idea
+                            holds up, your answers become the start of your
+                            business plan and budget.
                         </p>
                         <div className="mt-10 flex flex-wrap items-center gap-4">
                             <a
@@ -234,11 +233,6 @@ export default function Home({
                         </div>
                     ))}
                 </div>
-
-                <p className="font-accent mt-14 text-center text-lg text-[var(--fs-cognac)] italic">
-                    Practical, not just theoretical - where it helps, we can
-                    even build the small tools that make the change stick.
-                </p>
             </Section>
 
             {/* ── FROM THE BLOG ───────────────────────────────── */}
@@ -304,20 +298,30 @@ export default function Home({
                                 Ready when you are
                             </p>
                             <h2 className="font-display mt-3 text-3xl leading-tight text-[var(--fs-parchment)] sm:text-4xl">
-                                Let’s have a 30-minute chat.
+                                Got an idea? Find out if it holds up.
                             </h2>
                             <p className="font-accent mt-4 max-w-xl text-lg text-[#E0D8CC] italic">
-                                No prepared slides, no hard sell. We listen, ask
-                                a few good questions, and tell you honestly
-                                whether we are the right fit.
+                                Self-paced and online, with an advisor review
+                                within 24 hours. Prefer to talk first? A
+                                30-minute call is free - no slides, no hard
+                                sell.
                             </p>
                         </div>
-                        <div className="md:col-span-4 md:text-right">
-                            <Link
-                                href="/contact"
+                        <div className="flex flex-col items-start gap-3 md:col-span-4 md:items-end">
+                            <a
+                                href="/validate-idea/purchase"
                                 className="inline-flex items-center gap-2 rounded-md bg-[var(--fs-warm-gold)] px-5 py-3 text-sm font-semibold text-[var(--fs-admiralty)] transition hover:bg-[var(--fs-champagne)]"
                             >
-                                Book a discovery call{' '}
+                                {validationPrice
+                                    ? `Validate my idea — ${validationPrice}`
+                                    : 'Validate my idea'}{' '}
+                                <ArrowRight className="h-4 w-4" />
+                            </a>
+                            <Link
+                                href="/contact"
+                                className="inline-flex items-center gap-2 text-sm font-medium text-[#E0D8CC] hover:text-white"
+                            >
+                                Or book a discovery call{' '}
                                 <ArrowRight className="h-4 w-4" />
                             </Link>
                         </div>
