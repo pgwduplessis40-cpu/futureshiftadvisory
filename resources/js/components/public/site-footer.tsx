@@ -21,15 +21,15 @@ export function SiteFooter() {
                     <div className="md:col-span-5">
                         <BrandMark variant="dark" width={184} />
                         <p className="font-accent mt-5 max-w-sm text-base text-[#E0D8CC] italic">
-                            Evidence-based advisory for New&nbsp;Zealand SMEs
-                            and entrepreneurs.
+                            Evidence-based help for New&nbsp;Zealand founders,
+                            from first idea to a plan with real numbers.
                         </p>
-                        <Link
-                            href="/contact"
+                        <a
+                            href="/validate-idea/purchase"
                             className="mt-6 inline-flex items-center gap-2 rounded-md border border-[var(--fs-warm-gold)] px-4 py-2 text-sm font-medium text-[var(--fs-warm-gold)] transition-colors hover:bg-[var(--fs-warm-gold)] hover:text-[var(--fs-admiralty)]"
                         >
-                            Book a discovery call &rarr;
-                        </Link>
+                            Validate my idea &rarr;
+                        </a>
 
                         <div className="mt-6 flex items-center gap-3">
                             <a
@@ -51,18 +51,18 @@ export function SiteFooter() {
                         <ul className="mt-4 space-y-2 text-sm">
                             <li>
                                 <Link
-                                    href="/services"
-                                    className="text-[#E0D8CC] hover:text-white"
-                                >
-                                    Services
-                                </Link>
-                            </li>
-                            <li>
-                                <Link
                                     href="/validate-idea"
                                     className="text-[#E0D8CC] hover:text-white"
                                 >
                                     Idea Validation
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    href="/services"
+                                    className="text-[#E0D8CC] hover:text-white"
+                                >
+                                    Services
                                 </Link>
                             </li>
                             <li>

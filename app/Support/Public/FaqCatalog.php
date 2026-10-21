@@ -20,41 +20,6 @@ final class FaqCatalog
     {
         return [
             [
-                'group' => 'About the work',
-                'question' => 'What does Future Shift Advisory do?',
-                'answer' => 'We are a New Zealand business advisory practice. We help SME owners, people buying a business, founders getting started, and not-for-profits - with clear, honest advice they can act on. We look at what is really going on, explain what we find in plain language, and help you decide what to do next.',
-            ],
-            [
-                'group' => 'About the work',
-                'question' => 'Who do you work with?',
-                'answer' => 'Established New Zealand SMEs who want a straight read on the business, people weighing up buying a business, founders building something new, and charities, community groups, and social enterprises. If you are after comfortable reassurance, we are probably not your people. If you want the honest picture, kindly delivered, we will get on well.',
-            ],
-            [
-                'group' => 'About the work',
-                'question' => 'Are you really focused on New Zealand?',
-                'answer' => 'Yes. We are based in Hamilton and work with organisations across the country. Our advice is grounded in the New Zealand context - local regulation, tax, and the way business actually works here - rather than a borrowed overseas playbook.',
-            ],
-            [
-                'group' => 'About the work',
-                'question' => 'Do you use AI in your advice?',
-                'answer' => 'We use good tools to work through information quickly and thoroughly, but the judgement and the recommendations are ours - a real advisor stands behind every one. Whatever we tell you, we can show you the evidence for it.',
-            ],
-            [
-                'group' => 'How engagements start',
-                'question' => 'How do I become a client?',
-                'answer' => 'Send us a note through the contact form. We reply personally, set up a no-pressure conversation, and if it is a good fit we invite you in. We do not run open sign-ups - every client is invited and verified, which helps keep your information safe.',
-            ],
-            [
-                'group' => 'How engagements start',
-                'question' => 'What will it cost?',
-                'answer' => 'It depends which engagement you need, and we are upfront about how each one is priced. Due Diligence and our entrepreneur work are quoted as fixed fees - you know the number before we start, and it does not move unless you ask for something outside the agreed scope. For Business Advisory and not-for-profit work, the fee is set after we have properly looked at your organisation: we evaluate where things stand, analyse what we find, and shape a strategic plan - then the quote follows from that, sized to the work genuinely needed rather than guessed at upfront. Either way you will see the number, and how we arrived at it, before any work begins.',
-            ],
-            [
-                'group' => 'How engagements start',
-                'question' => 'How long does an engagement take?',
-                'answer' => 'A Business Advisory review usually takes weeks, not months. Due diligence follows your deal timeline. Work with founders runs in stages over a few months - because the work is real, not because we are stretching it out.',
-            ],
-            [
                 'group' => 'Starting a new business',
                 'question' => 'How do I start a business in New Zealand?',
                 'answer' => 'Start with the idea, not the paperwork. Before you register anything, it is worth knowing whether the idea actually holds up - real demand, who else is already doing it, and whether the numbers work. That is what idea validation is for, and it is the cheapest step to get right first. From there the practical path is roughly: validate the idea, write a business plan and budget with real numbers, decide on a structure (sole trader or company), register with the Companies Office and IRD, and line up any funding you need. We walk New Zealand founders through the early stretch - the validation, the plan, and getting funding-ready - so you make the leap on evidence, not hope.',
@@ -67,7 +32,7 @@ final class FaqCatalog
             [
                 'group' => 'Starting a new business',
                 'question' => 'What does it cost to validate my business idea?',
-                'answer' => 'There is a cost, and we quote it as a fixed fee up front so you know exactly what you are committing to before you decide. It is worth weighing that against what is actually at risk. The expensive part of a business idea is rarely the checking - it is the borrowed money, the savings, and the year or two spent building something the evidence never supported. Validation is a small, known cost paid early to avoid a much larger, unknown one later. And if the idea does stack up, you are not just left with a yes: you come out with the plan and the numbers to take to a bank or an investor.',
+                'answer' => 'Idea validation is a small fixed fee, shown before you pay, with no hidden costs. It is worth weighing that against what is actually at risk. The expensive part of a business idea is rarely the checking - it is the borrowed money, the savings, and the year or two spent building something the evidence never supported. Validation is a small, known cost paid early to avoid a much larger, unknown one later. And if the idea does stack up, you are not starting from scratch: your validation answers carry straight into your business plan and budget, the next step.',
             ],
             [
                 'group' => 'Starting a new business',
@@ -93,6 +58,41 @@ final class FaqCatalog
                 'group' => 'Starting a new business',
                 'question' => 'Do I have to quit my job to validate an idea or build a business plan?',
                 'answer' => 'No - and you should not. Idea validation and your business plan and budget are self-paced and done online, so you can work through them in your own time, alongside the job you already have. The whole point is to test the idea properly before you decide whether to leave, not after. You make the leap when the evidence says it is worth it, not before.',
+            ],
+            [
+                'group' => 'About the work',
+                'question' => 'What does Future Shift Advisory do?',
+                'answer' => 'We are a New Zealand advisory practice focused on founders: we help you find out whether a business idea holds up, then build the business plan and budget to back it. We also help established SMEs, people buying a business, and not-for-profits - with the same clear, honest advice they can act on. We look at what is really going on, explain what we find in plain language, and help you decide what to do next.',
+            ],
+            [
+                'group' => 'About the work',
+                'question' => 'Who do you work with?',
+                'answer' => 'Mostly New Zealand founders - people testing a business idea and turning it into a plan with real numbers. We also work with established SMEs who want a straight read on the business, people weighing up buying a business, and charities, community groups, and social enterprises. If you are after comfortable reassurance, we are probably not your people. If you want the honest picture, kindly delivered, we will get on well.',
+            ],
+            [
+                'group' => 'About the work',
+                'question' => 'Are you really focused on New Zealand?',
+                'answer' => 'Yes. We are based in Hamilton and work with organisations across the country. Our advice is grounded in the New Zealand context - local regulation, tax, and the way business actually works here - rather than a borrowed overseas playbook.',
+            ],
+            [
+                'group' => 'About the work',
+                'question' => 'Do you use AI in your advice?',
+                'answer' => 'We use good tools to work through information quickly and thoroughly, but the judgement and the recommendations are ours - a real advisor stands behind every one. Whatever we tell you, we can show you the evidence for it.',
+            ],
+            [
+                'group' => 'How engagements start',
+                'question' => 'How do I become a client?',
+                'answer' => 'If you have a business idea, you can start straight away by validating it online: you create an account, verify your email, secure it with an authenticator app, and pay the fixed fee. For everything else, send us a note through the contact form. We reply personally, set up a no-pressure conversation, and if it is a good fit we invite you in. Every account is verified and protected with multi-factor sign-in, which helps keep your information safe.',
+            ],
+            [
+                'group' => 'How engagements start',
+                'question' => 'What will it cost?',
+                'answer' => 'It depends which engagement you need, and we are upfront about how each one is priced. Due Diligence and our entrepreneur work are quoted as fixed fees - you know the number before we start, and it does not move unless you ask for something outside the agreed scope. For Business Advisory and not-for-profit work, the fee is set after we have properly looked at your organisation: we evaluate where things stand, analyse what we find, and shape a strategic plan - then the quote follows from that, sized to the work genuinely needed rather than guessed at upfront. Either way you will see the number, and how we arrived at it, before any work begins.',
+            ],
+            [
+                'group' => 'How engagements start',
+                'question' => 'How long does an engagement take?',
+                'answer' => 'A Business Advisory review usually takes weeks, not months. Due diligence follows your deal timeline. Work with founders runs in stages over a few months - because the work is real, not because we are stretching it out.',
             ],
             [
                 'group' => 'Working with not-for-profits',

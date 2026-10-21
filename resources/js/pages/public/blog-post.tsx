@@ -115,22 +115,22 @@ export default function BlogPost({
                     <p className="mt-3 text-base leading-relaxed text-[var(--fs-graphite)]">
                         Idea validation is the cheapest step to get right first
                         - an honest, evidence-based read on whether it holds up,
-                        before you spend real money.
+                        before you spend real money. If it holds up, your
+                        answers carry straight into your business plan.
                     </p>
                     <div className="mt-6 flex flex-wrap items-center gap-4">
-                        <Link
-                            href="/services/entrepreneur"
+                        <a
+                            href="/validate-idea/purchase"
                             className="inline-flex items-center gap-2 rounded-md bg-[var(--fs-admiralty)] px-5 py-3 text-sm font-medium text-[var(--fs-parchment)] shadow-sm transition-colors hover:bg-[var(--fs-commodore)]"
                         >
-                            How idea validation works{' '}
+                            Validate your idea{' '}
                             <ArrowRight className="h-4 w-4" />
-                        </Link>
+                        </a>
                         <Link
-                            href="/contact"
+                            href="/services/entrepreneur"
                             className="inline-flex items-center gap-2 text-sm font-medium text-[var(--fs-admiralty)] hover:text-[var(--fs-pacific)]"
                         >
-                            Or book a discovery call{' '}
-                            <ArrowRight className="h-4 w-4" />
+                            See how it works <ArrowRight className="h-4 w-4" />
                         </Link>
                     </div>
                 </div>

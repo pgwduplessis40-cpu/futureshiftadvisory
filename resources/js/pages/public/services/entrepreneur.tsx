@@ -34,26 +34,21 @@ const VALIDATION_CHECKS = [
 const STAGES = [
     {
         step: '1',
-        title: 'Readiness',
-        body: 'An honest look at where you and the idea stand today.',
+        title: 'Idea validation',
+        body: 'An honest look at where you and the idea stand, pressure-tested against evidence rather than optimism. An advisor reviews your answers within 24 hours.',
     },
     {
         step: '2',
-        title: 'Idea validation',
-        body: 'Pressure-testing the concept against evidence rather than optimism.',
+        title: 'Business plan and budget',
+        body: 'If the idea holds up, your validation answers become the starting point. Staged work on the plan, the numbers, and the model, with regular mentoring.',
     },
     {
         step: '3',
-        title: 'Building',
-        body: 'Staged work on the plan, the numbers, and the model, with regular mentoring.',
+        title: 'Assessment',
+        body: 'A written view of where the plan has landed.',
     },
     {
         step: '4',
-        title: 'Assessment',
-        body: 'A written view of where the idea has landed.',
-    },
-    {
-        step: '5',
         title: 'Launch, or not',
         body: 'A clear recommendation either way.',
     },
@@ -241,6 +236,11 @@ export default function EntrepreneurService({
                     round - as the thing you actually run the business from.
                 </p>
                 <p className="mt-4 max-w-3xl text-base leading-relaxed text-[var(--fs-graphite)]">
+                    And you do not start from a blank page. Your idea validation
+                    answers carry straight into the plan, so nothing you have
+                    already worked out is wasted.
+                </p>
+                <p className="mt-4 max-w-3xl text-base leading-relaxed text-[var(--fs-graphite)]">
                     It covers the plan and the budget together, with the numbers
                     worked through rather than guessed: what you will spend,
                     what you need to earn, when you break even, and what happens
@@ -299,9 +299,9 @@ export default function EntrepreneurService({
                     ))}
                 </div>
                 <p className="mt-8 max-w-3xl rounded-md bg-[var(--fs-linen)] px-4 py-3 text-sm text-[var(--fs-admiralty)]">
-                    Quoted as a fixed fee, agreed before we start - and worth
-                    weighing against the cost of finding out the hard way, with
-                    borrowed money.
+                    The business plan and budget is quoted as a fixed fee,
+                    agreed before you start - and worth weighing against the
+                    cost of finding out the hard way, with borrowed money.
                 </p>
             </Section>
 

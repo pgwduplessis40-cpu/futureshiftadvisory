@@ -23,9 +23,20 @@ export function SiteHeader() {
 
     const isActive = (path: string) =>
         path === '/' ? url === '/' : url.startsWith(path);
+    const onIdeaValidation =
+        isActive('/services/entrepreneur') || isActive('/validate-idea');
 
     const nav: NavItem[] = [
-        { label: 'Services', href: '/services', active: isActive('/services') },
+        {
+            label: 'Idea validation',
+            href: '/services/entrepreneur',
+            active: onIdeaValidation,
+        },
+        {
+            label: 'Services',
+            href: '/services',
+            active: isActive('/services') && !onIdeaValidation,
+        },
         { label: 'About', href: '/about', active: isActive('/about') },
         { label: 'Blog', href: '/blog', active: isActive('/blog') },
         { label: 'FAQ', href: '/faq', active: isActive('/faq') },
@@ -46,7 +57,7 @@ export function SiteHeader() {
                     <BrandMark width={168} />
                 </Link>
 
-                <nav className="hidden items-center gap-8 md:flex">
+                <nav className="hidden items-center gap-8 lg:flex">
                     {nav.map((item) => (
                         <Link
                             key={item.href}
@@ -66,26 +77,26 @@ export function SiteHeader() {
                     ))}
                 </nav>
 
-                <div className="hidden items-center gap-3 md:flex">
+                <div className="hidden items-center gap-3 lg:flex">
                     <a
                         href={loginHref}
                         className="text-xs font-medium tracking-wide text-[var(--fs-graphite)] uppercase hover:text-[var(--fs-admiralty)]"
                     >
                         Client Login
                     </a>
-                    <Link
-                        href="/contact"
+                    <a
+                        href="/validate-idea/purchase"
                         className="rounded-md bg-[var(--fs-admiralty)] px-4 py-2 text-sm font-medium text-[var(--fs-parchment)] shadow-sm transition-colors hover:bg-[var(--fs-commodore)]"
                     >
-                        Book a discovery call
-                    </Link>
+                        Validate my idea
+                    </a>
                 </div>
 
                 <button
                     type="button"
                     aria-label={open ? 'Close menu' : 'Open menu'}
                     onClick={() => setOpen((v) => !v)}
-                    className="-mr-2 rounded-md p-2 text-[var(--fs-admiralty)] md:hidden"
+                    className="-mr-2 rounded-md p-2 text-[var(--fs-admiralty)] lg:hidden"
                 >
                     {open ? (
                         <X className="h-5 w-5" />
@@ -96,7 +107,7 @@ export function SiteHeader() {
             </div>
 
             {open && (
-                <div className="border-t border-[var(--fs-sand)] bg-[var(--fs-parchment)] md:hidden">
+                <div className="border-t border-[var(--fs-sand)] bg-[var(--fs-parchment)] lg:hidden">
                     <div className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-4">
                         {nav.map((item) => (
                             <Link
@@ -121,13 +132,13 @@ export function SiteHeader() {
                             >
                                 Client Login
                             </a>
-                            <Link
-                                href="/contact"
+                            <a
+                                href="/validate-idea/purchase"
                                 onClick={() => setOpen(false)}
                                 className="rounded-md bg-[var(--fs-admiralty)] px-4 py-2 text-sm font-medium text-[var(--fs-parchment)]"
                             >
-                                Book a discovery call
-                            </Link>
+                                Validate my idea
+                            </a>
                         </div>
                     </div>
                 </div>
