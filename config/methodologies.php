@@ -776,17 +776,21 @@ return [
             'area' => 'Integrations',
             'name' => 'Integration Health Banding',
             'summary' => 'Bands integration service health as green, amber, or red from success rate and p95 latency.',
-            'formula' => 'Green requires success rate >= configured green minimum and p95 latency <= green maximum; amber requires success rate >= amber minimum and p95 latency <= amber maximum; otherwise red.',
+            'formula' => 'Availability uses configured success-rate bands; response time uses configured latency bands. Overall health is the worse measured band. Anthropic AI completions have separate configurable latency targets; a latency-only red requires the configured minimum event count. Billing sync uses its own service rollup. Stale and legacy samples are shown separately from current health.',
             'inputs' => [
                 'Success rate',
                 'P95 latency in milliseconds',
                 'Configured green and amber thresholds',
+                'Service operation and event count',
             ],
             'config_refs' => [
                 'integrations.health.green.min_success_rate',
                 'integrations.health.green.max_p95_latency_ms',
                 'integrations.health.amber.min_success_rate',
                 'integrations.health.amber.max_p95_latency_ms',
+                'integrations.health.anthropic.green_p95_ms',
+                'integrations.health.anthropic.amber_p95_ms',
+                'integrations.health.anthropic.latency_red_min_samples',
             ],
             'where_used' => [
                 'admin.integration_health',
@@ -795,7 +799,7 @@ return [
                 'PLAN-METHODOLOGY-REGISTRY.md',
             ],
             'owning_service' => IntegrationHealthBander::class,
-            'version' => '2026-05-wo-m02',
+            'version' => '2026-10-api-health-guidance',
             'internal_only' => true,
         ],
 

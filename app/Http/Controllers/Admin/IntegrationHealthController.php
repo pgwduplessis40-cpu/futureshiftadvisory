@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Console\Commands\AggregateIntegrationHealth;
+use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Models\AiUsageEvent;
 use App\Models\IntegrationCall;
 use App\Models\IntegrationHealthAlert;
 use App\Models\IntegrationHealthSample;
-use App\Services\Ai\AdvisorAiNotice;
 use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Integration\IntegrationCredentials;
+use App\Services\Integration\IntegrationHealthOperation;
 use App\Services\Integration\IntegrationRegistry;
 use App\Services\Integration\Resilience\HealthRecorder;
 use Carbon\CarbonInterface;
@@ -26,13 +27,15 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
 
+/**
+ * @phpstan-import-type HealthDiagnostics from IntegrationHealthSample
+ */
 final class IntegrationHealthController extends Controller
 {
     public function __construct(
         private readonly IntegrationActivationResolver $activations,
         private readonly IntegrationCredentials $credentials,
         private readonly IntegrationRegistry $registry,
-        private readonly AdvisorAiNotice $aiNotice,
         private readonly HealthRecorder $healthRecorder,
     ) {}
 
@@ -66,16 +69,15 @@ final class IntegrationHealthController extends Controller
             'aiUsage' => $this->aiUsagePayload(),
             'governanceNotices' => $this->governanceNotices(),
             'generatedAt' => now()->toIso8601String(),
+            'credentialsUrl' => request()->user()?->can(Permission::CREDENTIAL_MANAGE->value)
+                ? route('admin.integration-credentials.index', absolute: false)
+                : null,
         ]);
     }
 
     public function refresh(): RedirectResponse
     {
-        $officialCost = $this->anthropicOfficialCostPayload(now(), recordHealthProbe: true);
-
-        if ($officialCost['status'] === 'synced') {
-            $this->aiNotice->clear();
-        }
+        $this->anthropicOfficialCostPayload(now(), recordHealthProbe: true);
 
         Artisan::call(AggregateIntegrationHealth::class, [
             '--minutes' => 5,
@@ -91,17 +93,20 @@ final class IntegrationHealthController extends Controller
      */
     private function summary(Collection $samples): array
     {
+        $states = $samples->map(fn (IntegrationHealthSample $sample): string => $this->displayHealth($sample));
+
         return [
             'total' => $samples->count(),
-            'green' => $samples->where('health', IntegrationHealthSample::HEALTH_GREEN)->count(),
-            'amber' => $samples->where('health', IntegrationHealthSample::HEALTH_AMBER)->count(),
-            'red' => $samples->where('health', IntegrationHealthSample::HEALTH_RED)->count(),
-            'stale' => $samples->filter(fn (IntegrationHealthSample $sample): bool => $this->isStale($sample))->count(),
+            'green' => $states->filter(fn (string $state): bool => $state === 'green')->count(),
+            'amber' => $states->filter(fn (string $state): bool => $state === 'amber')->count(),
+            'red' => $states->filter(fn (string $state): bool => $state === 'red')->count(),
+            'stale' => $states->filter(fn (string $state): bool => $state === 'stale')->count(),
+            'unknown' => $states->filter(fn (string $state): bool => $state === 'unknown')->count(),
         ];
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{id:string,service:string,label:string,health:string,display_health:string,success_rate:float,p95_latency_ms:int|null,window_start:string|null,window_end:string|null,lag_seconds:int|null,fresh:bool,diagnostics:HealthDiagnostics|null}
      */
     private function servicePayload(IntegrationHealthSample $sample): array
     {
@@ -112,14 +117,22 @@ final class IntegrationHealthController extends Controller
         return [
             'id' => $sample->id,
             'service' => $sample->service,
+            'label' => IntegrationHealthOperation::label($sample->service),
             'health' => $sample->health,
+            'display_health' => $this->displayHealth($sample),
             'success_rate' => $sample->success_rate,
             'p95_latency_ms' => $sample->p95_latency_ms,
             'window_start' => $sample->window_start?->toIso8601String(),
             'window_end' => $sample->window_end?->toIso8601String(),
             'lag_seconds' => $lagSeconds,
             'fresh' => ! $this->isStale($sample),
+            'diagnostics' => $sample->diagnostics,
         ];
+    }
+
+    private function displayHealth(IntegrationHealthSample $sample): string
+    {
+        return $this->isStale($sample) ? 'stale' : ($sample->diagnostics === null ? 'unknown' : $sample->health);
     }
 
     /**
@@ -455,11 +468,15 @@ final class IntegrationHealthController extends Controller
         $key = $this->credentials->get('anthropic_admin', 'key');
 
         if (! is_string($key) || trim($key) === '') {
+            $this->recordAnthropicCostProbe($recordHealthProbe, IntegrationCall::STATUS_FAILURE, null, ['reason' => 'admin_api_key_missing']);
+
             return $this->emptyAnthropicOfficialPayload('admin_api_key_missing');
         }
 
         $key = trim($key);
         if (! str_starts_with($key, 'sk-ant-admin')) {
+            $this->recordAnthropicCostProbe($recordHealthProbe, IntegrationCall::STATUS_FAILURE, null, ['reason' => 'invalid_admin_api_key']);
+
             return $this->emptyAnthropicOfficialPayload('invalid_admin_api_key');
         }
 
@@ -595,7 +612,7 @@ final class IntegrationHealthController extends Controller
     private function recordAnthropicCostProbe(
         bool $enabled,
         string $status,
-        int $startedAt,
+        ?int $startedAt,
         ?array $errorPayload = null,
     ): void {
         if (! $enabled || ! Schema::hasTable('integration_calls')) {
@@ -603,11 +620,11 @@ final class IntegrationHealthController extends Controller
         }
 
         $this->healthRecorder->record(
-            service: 'anthropic',
+            service: 'anthropic_admin',
             endpoint: 'https://api.anthropic.com/v1/organizations/cost_report',
             status: $status,
             attempt: 1,
-            latencyMs: max(0, (int) round((hrtime(true) - $startedAt) / 1_000_000)),
+            latencyMs: $startedAt === null ? null : max(0, (int) round((hrtime(true) - $startedAt) / 1_000_000)),
             errorPayload: $errorPayload,
         );
     }

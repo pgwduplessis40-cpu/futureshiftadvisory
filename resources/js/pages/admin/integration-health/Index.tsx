@@ -1,9 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import {
-    AlertTriangle,
     BrainCircuit,
-    CheckCircle2,
-    Clock3,
     CircleDollarSign,
     PlugZap,
     RotateCw,
@@ -19,20 +16,8 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-
-type HealthLevel = 'green' | 'amber' | 'red';
-
-type ServiceHealth = {
-    id: string;
-    service: string;
-    health: HealthLevel;
-    success_rate: number;
-    p95_latency_ms: number | null;
-    window_start: string | null;
-    window_end: string | null;
-    lag_seconds: number | null;
-    fresh: boolean;
-};
+import { HealthChecks } from './HealthChecks';
+import type { ServiceHealth } from './HealthChecks';
 
 type HealthAlert = {
     id: string;
@@ -131,6 +116,7 @@ type Props = {
         amber: number;
         red: number;
         stale: number;
+        unknown: number;
     };
     services: ServiceHealth[];
     recentAlerts: HealthAlert[];
@@ -138,6 +124,7 @@ type Props = {
     aiUsage: AiUsage;
     governanceNotices: GovernanceNotice[];
     generatedAt: string;
+    credentialsUrl: string | null;
 };
 
 export default function IntegrationHealthIndex({
@@ -147,7 +134,7 @@ export default function IntegrationHealthIndex({
     stripe,
     aiUsage,
     governanceNotices,
-    generatedAt,
+    credentialsUrl,
 }: Props) {
     const [refreshing, setRefreshing] = useState(false);
     const failedProviderAttemptsToday =
@@ -198,7 +185,7 @@ export default function IntegrationHealthIndex({
                             />
                             Refresh
                         </Button>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
                             <Metric
                                 label="Services"
                                 value={summary.total}
@@ -220,6 +207,11 @@ export default function IntegrationHealthIndex({
                                 explanation="Services currently breaching health thresholds."
                             />
                             <Metric
+                                label="Unknown"
+                                value={summary.unknown}
+                                explanation="Earlier samples without recorded diagnostic details."
+                            />
+                            <Metric
                                 label="Stale"
                                 value={summary.stale}
                                 explanation="Services whose latest sample is older than the freshness threshold."
@@ -227,6 +219,13 @@ export default function IntegrationHealthIndex({
                         </div>
                     </div>
                 </header>
+
+                <HealthChecks
+                    services={services}
+                    refreshing={refreshing}
+                    onRefresh={refreshHealth}
+                    credentialsUrl={credentialsUrl}
+                />
 
                 {governanceNotices.length > 0 ? (
                     <section className="space-y-3">
@@ -592,119 +591,6 @@ export default function IntegrationHealthIndex({
                 </section>
 
                 <section className="space-y-4 rounded-md border bg-background p-4">
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                            <Clock3 className="size-4" aria-hidden="true" />
-                            <h2 className="text-sm font-medium">
-                                Latest rollups
-                            </h2>
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                            {formatDate(generatedAt)}
-                        </span>
-                    </div>
-
-                    {services.length === 0 ? (
-                        <p className="rounded-md border px-3 py-8 text-sm text-muted-foreground">
-                            No integration health samples recorded.
-                        </p>
-                    ) : (
-                        <div className="overflow-hidden rounded-md border">
-                            <table className="fsa-responsive-table">
-                                <thead className="bg-muted/60 text-left">
-                                    <tr>
-                                        <th className="px-3 py-2 font-medium">
-                                            Service
-                                        </th>
-                                        <th className="px-3 py-2 font-medium">
-                                            Health
-                                        </th>
-                                        <th className="px-3 py-2 font-medium">
-                                            Success
-                                        </th>
-                                        <th className="px-3 py-2 font-medium">
-                                            P95
-                                        </th>
-                                        <th className="px-3 py-2 font-medium">
-                                            Lag
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {services.map((service) => (
-                                        <tr
-                                            key={service.id}
-                                            className="border-t"
-                                        >
-                                            <td
-                                                className="px-3 py-2"
-                                                data-label="Service"
-                                            >
-                                                <div className="font-medium">
-                                                    {service.service}
-                                                </div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {formatDate(
-                                                        service.window_end,
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td
-                                                className="px-3 py-2"
-                                                data-label="Health"
-                                            >
-                                                <Badge
-                                                    variant={healthVariant(
-                                                        service.health,
-                                                    )}
-                                                >
-                                                    <HealthIcon
-                                                        health={service.health}
-                                                    />
-                                                    {service.health}
-                                                </Badge>
-                                            </td>
-                                            <td
-                                                className="px-3 py-2"
-                                                data-label="Success"
-                                            >
-                                                {formatPercent(
-                                                    service.success_rate,
-                                                )}
-                                            </td>
-                                            <td
-                                                className="px-3 py-2"
-                                                data-label="P95"
-                                            >
-                                                {service.p95_latency_ms === null
-                                                    ? 'n/a'
-                                                    : `${service.p95_latency_ms}ms`}
-                                            </td>
-                                            <td
-                                                className="px-3 py-2"
-                                                data-label="Lag"
-                                            >
-                                                <Badge
-                                                    variant={
-                                                        service.fresh
-                                                            ? 'outline'
-                                                            : 'destructive'
-                                                    }
-                                                >
-                                                    {formatLag(
-                                                        service.lag_seconds,
-                                                    )}
-                                                </Badge>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </section>
-
-                <section className="space-y-4 rounded-md border bg-background p-4">
                     <div className="flex items-center gap-2">
                         <ShieldAlert className="size-4" aria-hidden="true" />
                         <h2 className="text-sm font-medium">
@@ -767,28 +653,6 @@ function Metric({
             </TooltipContent>
         </Tooltip>
     );
-}
-
-function HealthIcon({ health }: { health: HealthLevel }) {
-    if (health === 'green') {
-        return <CheckCircle2 className="size-3" aria-hidden="true" />;
-    }
-
-    return <AlertTriangle className="size-3" aria-hidden="true" />;
-}
-
-function healthVariant(
-    health: HealthLevel,
-): 'default' | 'secondary' | 'outline' | 'destructive' {
-    if (health === 'green') {
-        return 'secondary';
-    }
-
-    if (health === 'amber') {
-        return 'outline';
-    }
-
-    return 'destructive';
 }
 
 function formatPercent(value: number): string {
@@ -864,18 +728,6 @@ function budgetExplanation(aiUsage: AiUsage): string {
     }
 
     return `${formatCurrency(remaining)} remaining from the monthly AI budget.`;
-}
-
-function formatLag(value: number | null): string {
-    if (value === null) {
-        return 'unknown';
-    }
-
-    if (value < 60) {
-        return `${value}s`;
-    }
-
-    return `${Math.floor(value / 60)}m`;
 }
 
 function formatDate(value: string | null): string {

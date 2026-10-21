@@ -26,4 +26,23 @@ final class IntegrationHealthBanderTest extends TestCase
         $this->assertSame(IntegrationHealthSample::HEALTH_RED, $bander->band(0.94, 100));
         $this->assertSame(IntegrationHealthSample::HEALTH_RED, $bander->band(0.99, 3001));
     }
+
+    public function test_ai_completion_time_is_separate_from_availability_and_billing_latency(): void
+    {
+        config(['integrations.health.anthropic.green_p95_ms' => 30000, 'integrations.health.anthropic.amber_p95_ms' => 60000, 'integrations.health.anthropic.latency_red_min_samples' => 5]);
+        $bander = new IntegrationHealthBander;
+        $checks = $bander->checks(1.0, 25805, 'anthropic', 1);
+
+        $this->assertSame('green', $checks['health']);
+        $this->assertSame('green', $checks['availability']);
+        $this->assertSame(30000, $checks['green_latency_ms']);
+        $this->assertSame('red', $bander->band(1.0, 25805, 'anthropic_admin', 1));
+        $this->assertSame('amber', $bander->band(1.0, 60001, 'anthropic', 1));
+        $this->assertSame('red', $bander->band(1.0, 60001, 'anthropic', 5));
+        $this->assertSame('red', $bander->band(0.0, 100, 'anthropic', 1));
+        $this->assertSame('unknown', $bander->checks(1.0, null, 'anthropic', 1)['response_time']);
+
+        config(['integrations.health.anthropic.green_p95_ms' => 20000]);
+        $this->assertSame('amber', $bander->band(1.0, 25805, 'anthropic', 1));
+    }
 }

@@ -66,8 +66,9 @@ final class HealthDashboardTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('admin/integration-health/Index')
                 ->where('summary.total', 2)
-                ->where('summary.red', 1)
-                ->where('summary.amber', 1)
+                ->where('summary.red', 0)
+                ->where('summary.amber', 0)
+                ->where('summary.unknown', 2)
                 ->where('summary.stale', 0)
                 ->where('services.0.service', 'nzbn')
                 ->where('services.0.health', IntegrationHealthSample::HEALTH_RED)
@@ -163,7 +164,7 @@ final class HealthDashboardTest extends TestCase
             ->assertRedirect(route('admin.integration-health.index'));
 
         $call = IntegrationCall::query()
-            ->where('service', 'anthropic')
+            ->where('service', 'anthropic_admin')
             ->where('endpoint', 'https://api.anthropic.com/v1/organizations/cost_report')
             ->firstOrFail();
         $this->assertSame('The organization is not eligible for Usage and Cost API access. Credential [redacted]', data_get($call->error_payload, 'provider_message'));
@@ -255,7 +256,7 @@ final class HealthDashboardTest extends TestCase
         ]);
     }
 
-    public function test_refresh_records_a_successful_anthropic_health_probe_and_clears_an_obsolete_provider_alert(): void
+    public function test_refresh_records_billing_health_without_clearing_an_ai_provider_alert(): void
     {
         $this->travelTo(now()->setMicrosecond(0));
         config(['services.anthropic.admin_key' => 'sk-ant-admin01-test']);
@@ -275,9 +276,9 @@ final class HealthDashboardTest extends TestCase
             ->post(route('admin.integration-health.refresh'))
             ->assertRedirect(route('admin.integration-health.index'));
 
-        $this->assertNull(Cache::get(AdvisorAiNotice::CACHE_KEY));
+        $this->assertNotNull(Cache::get(AdvisorAiNotice::CACHE_KEY));
         $this->assertDatabaseHas('integration_health_samples', [
-            'service' => 'anthropic',
+            'service' => 'anthropic_admin',
             'success_rate' => 1.0,
             'health' => IntegrationHealthSample::HEALTH_GREEN,
         ]);

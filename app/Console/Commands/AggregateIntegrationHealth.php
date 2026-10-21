@@ -7,6 +7,8 @@ namespace App\Console\Commands;
 use App\Models\IntegrationCall;
 use App\Models\IntegrationHealthSample;
 use App\Services\Integration\IntegrationHealthBander;
+use App\Services\Integration\IntegrationHealthIssue;
+use App\Services\Integration\IntegrationHealthOperation;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -19,7 +21,7 @@ final class AggregateIntegrationHealth extends Command
 
     protected $description = 'Aggregate integration call rows into Green/Amber/Red health samples.';
 
-    public function handle(IntegrationHealthBander $bander): int
+    public function handle(IntegrationHealthBander $bander, IntegrationHealthIssue $issues): int
     {
         $minutes = max(1, (int) $this->option('minutes'));
         $windowEndInput = $this->option('window-end');
@@ -33,7 +35,7 @@ final class AggregateIntegrationHealth extends Command
             ->where('occurred_at', '<=', $windowEnd)
             ->orderBy('occurred_at')
             ->get()
-            ->groupBy('service');
+            ->groupBy(fn (IntegrationCall $call): string => IntegrationHealthOperation::key($call));
 
         $samples = 0;
 
@@ -49,6 +51,10 @@ final class AggregateIntegrationHealth extends Command
                 ->count();
             $successRate = $successCount / $total;
             $p95Latency = $this->p95Latency($serviceCalls);
+            $checks = $bander->checks($successRate, $p95Latency, (string) $service, $total);
+            $health = $checks['health'];
+            unset($checks['health']);
+            $latestIssue = $serviceCalls->last(fn (IntegrationCall $call): bool => $call->status !== IntegrationCall::STATUS_SUCCESS);
 
             IntegrationHealthSample::query()->updateOrCreate(
                 [
@@ -59,7 +65,17 @@ final class AggregateIntegrationHealth extends Command
                 [
                     'success_rate' => round($successRate, 4),
                     'p95_latency_ms' => $p95Latency,
-                    'health' => $bander->band($successRate, $p95Latency),
+                    'health' => $health,
+                    'diagnostics' => [
+                        ...$checks,
+                        'event_count' => $total,
+                        'success_count' => $successCount,
+                        'retry_count' => $serviceCalls->where('status', IntegrationCall::STATUS_RETRY)->count(),
+                        'failure_count' => $serviceCalls->where('status', IntegrationCall::STATUS_FAILURE)->count(),
+                        'fallback_count' => $serviceCalls->where('status', IntegrationCall::STATUS_FALLBACK)->count(),
+                        'cached_count' => $serviceCalls->where('status', IntegrationCall::STATUS_CACHED)->count(),
+                        'latest_issue' => $latestIssue instanceof IntegrationCall ? $issues->forCall($latestIssue) : null,
+                    ],
                 ],
             );
 
