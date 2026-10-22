@@ -34,6 +34,9 @@ final class CalendarPageTest extends TestCase
 
     public function test_advisor_can_create_list_edit_and_cancel_meetings_without_external_calendar(): void
     {
+        // Keep the happy-path dates away from holidays regardless of when CI runs.
+        $this->travelTo('2026-06-15 09:00:00');
+
         [$advisor, $client] = $this->advisorAndClient('advisor-calendar-page@example.test');
 
         $this->actingAsMfa($advisor)
@@ -53,6 +56,7 @@ final class CalendarPageTest extends TestCase
                 'location' => 'Board room',
                 'attendees' => 'Owner, Advisor',
             ])
+            ->assertSessionHasNoErrors()
             ->assertRedirect(route('advisor.calendar.index', absolute: false));
 
         /** @var Meeting $meeting */
@@ -79,6 +83,7 @@ final class CalendarPageTest extends TestCase
                 'link' => 'https://meet.example.test/strategy',
                 'attendees' => 'Owner',
             ])
+            ->assertSessionHasNoErrors()
             ->assertRedirect(route('advisor.calendar.index', absolute: false));
 
         $this->assertDatabaseHas('meetings', [
@@ -89,12 +94,47 @@ final class CalendarPageTest extends TestCase
 
         $this->actingAsMfa($advisor)
             ->delete(route('advisor.calendar.meetings.cancel', $meeting))
+            ->assertSessionHasNoErrors()
             ->assertRedirect(route('advisor.calendar.index', absolute: false));
 
         $this->assertDatabaseHas('meetings', [
             'id' => $meeting->id,
             'status' => Meeting::STATUS_CANCELLED,
             'cancelled_by_user_id' => $advisor->id,
+        ]);
+    }
+
+    public function test_meeting_edit_on_labour_day_is_rejected_without_changing_the_meeting(): void
+    {
+        $this->travelTo('2026-10-22 09:00:00');
+
+        [$advisor, $client] = $this->advisorAndClient('advisor-calendar-holiday-edit@example.test');
+        $meeting = Meeting::query()->create([
+            'client_id' => $client->getKey(),
+            'title' => 'Strategy check-in',
+            'scheduled_at' => '2026-10-23 09:00:00',
+            'location' => 'Board room',
+            'attendees' => [],
+            'status' => Meeting::STATUS_SCHEDULED,
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->patch(route('advisor.calendar.meetings.update', $meeting), [
+                'client_id' => $client->id,
+                'title' => 'Updated strategy check-in',
+                'scheduled_at' => now()->addDays(4)->format('Y-m-d H:i:s'),
+                'location' => 'Online',
+            ])
+            ->assertSessionHasErrors([
+                'scheduled_at' => 'Meetings cannot be scheduled on Labour Day. Choose another date for this client.',
+            ]);
+
+        $this->assertDatabaseHas('meetings', [
+            'id' => $meeting->id,
+            'title' => 'Strategy check-in',
+            'scheduled_at' => '2026-10-23 09:00:00',
+            'location' => 'Board room',
         ]);
     }
 
