@@ -29,6 +29,13 @@ return [
     ],
 
     'health' => [
+        // Full AI completion times, not time to first token. Operational defaults;
+        // tune against observed workloads and agreed response-time objectives.
+        'anthropic' => [
+            'green_p95_ms' => (int) env('ANTHROPIC_HEALTH_GREEN_P95_MS', 30000),
+            'amber_p95_ms' => (int) env('ANTHROPIC_HEALTH_AMBER_P95_MS', 60000),
+            'latency_red_min_samples' => (int) env('ANTHROPIC_HEALTH_LATENCY_RED_MIN_SAMPLES', 5),
+        ],
         'green' => [
             'min_success_rate' => (float) env('INTEGRATION_HEALTH_GREEN_SUCCESS_RATE', 0.99),
             'max_p95_latency_ms' => (int) env('INTEGRATION_HEALTH_GREEN_P95_MS', 1000),

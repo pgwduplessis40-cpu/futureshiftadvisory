@@ -183,6 +183,8 @@ final class ResilientHttp
                 $errorPayload = [
                     'http_status' => $response->status(),
                     'request_id' => $this->providerRequestId($response),
+                    'retry_after_seconds' => ctype_digit((string) $response->header('Retry-After'))
+                        ? (int) $response->header('Retry-After') : null,
                     'body' => Str::limit($response->body(), 500),
                 ];
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Integration\Resilience;
 
 use App\Models\IntegrationCall;
+use App\Services\Integration\IntegrationHealthIssue;
 use App\Services\Integration\Resilience\ResilientHttp;
 use App\Services\Integration\Resilience\RetryPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -61,6 +62,16 @@ final class ResilientHttpTest extends TestCase
         ], $calls->pluck('status')->all());
         $this->assertSame([1, 2, 3], $calls->pluck('attempt')->all());
         $this->assertSame(1, $calls->pluck('correlation_id')->unique()->count());
+    }
+
+    public function test_rate_limit_log_retains_the_provider_retry_delay_for_health_guidance(): void
+    {
+        Http::fake(['api.example.test/*' => Http::response(['error' => ['type' => 'rate_limit_error']], 429, ['Retry-After' => '120'])]);
+        app(ResilientHttp::class)->get('anthropic', 'https://api.example.test/messages', maxAttempts: 1);
+
+        $call = IntegrationCall::where('service', 'anthropic')->where('status', IntegrationCall::STATUS_FAILURE)->sole();
+        $this->assertSame(120, $call->error_payload['retry_after_seconds']);
+        $this->assertStringContainsString('Wait at least 120 seconds', app(IntegrationHealthIssue::class)->forCall($call)['action']);
     }
 
     public function test_open_breaker_short_circuits_to_cached_value_without_network_hit(): void

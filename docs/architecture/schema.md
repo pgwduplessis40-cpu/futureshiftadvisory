@@ -643,6 +643,9 @@ Key columns:
 - `success_rate`
 - `p95_latency_ms`
 - `health` (`green`, `amber`, `red`)
+- `diagnostics` nullable JSONB: availability and response-time bands, the thresholds used, event/status counts, and a safe issue code, guidance and provider request ID. Older rows are labelled as earlier samples without diagnostic evidence.
+
+AI completion samples use service `anthropic`; billing-sync samples use `anthropic_admin`. Legacy cost-report call rows are classified separately during aggregation without rewriting the original call log.
 
 ## WO-06 - Secure file storage + virus scanning
 
