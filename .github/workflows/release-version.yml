@@ -221,7 +221,9 @@ jobs:
           test -n "${DEPLOY_BUNDLE:-}" || { echo "Deployment bundle was not created." >&2; exit 1; }
 
           remote_bundle="/tmp/futureshiftadvisory-${DEPLOY_COMMIT}.bundle"
-          scp -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes -P "$DEPLOY_PORT" "$DEPLOY_BUNDLE" "$DEPLOY_USER@$DEPLOY_HOST:$remote_bundle"
+          scp -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=30 -o ServerAliveInterval=30 -o ServerAliveCountMax=6 \
+            -P "$DEPLOY_PORT" "$DEPLOY_BUNDLE" "$DEPLOY_USER@$DEPLOY_HOST:$remote_bundle"
           echo "DEPLOY_REMOTE_BUNDLE=$remote_bundle" >> "$GITHUB_ENV"
 
       - name: Deploy the released commit
@@ -245,7 +247,10 @@ jobs:
           # execute that release's deploy.sh.
           deploy_log="$RUNNER_TEMP/production-deploy.log"
           set +e
-          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+          # Keep quiet dependency installs from leaving the SSH transport idle.
+          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=30 -o ServerAliveInterval=30 -o ServerAliveCountMax=6 \
+            -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "DEPLOY_PATH='$DEPLOY_PATH' DEPLOY_COMMIT='$DEPLOY_COMMIT' DEPLOY_REMOTE_BUNDLE='$DEPLOY_REMOTE_BUNDLE' DEPLOY_VERSION='$DEPLOY_VERSION' EDGE_WATCHDOG_ALERT_WEBHOOK_B64='$edge_watchdog_alert_webhook_b64' bash -s" <<'REMOTE_DEPLOY' \
             2>&1 | tee "$deploy_log"
           set -euo pipefail
@@ -290,6 +295,16 @@ jobs:
           set -e
 
           if [ "$deploy_exit" -ne 0 ]; then
+            if [ "$deploy_exit" -eq 255 ]; then
+              echo '::error title=Deployment SSH session interrupted::SSH returned exit 255; the remote deployment outcome is unknown. Check server logs, resources and running deployment processes before retrying.'
+              {
+                printf '%s\n' '### Deployment SSH session interrupted' '' \
+                  'SSH returned exit 255 before deployment completion was confirmed.' \
+                  'Check VPS SSH/kernel logs, memory, disk space and running deploy/npm processes before retrying; a disconnected command may still be running.' \
+                  'Compare /api/deployment with the intended commit and version. A release tag or HTTP 200 alone does not confirm deployment.' \
+                  'See docs/deployment-ssr.md for recovery steps. No automatic retry was attempted.'
+              } >> "$GITHUB_STEP_SUMMARY"
+            fi
             deploy_tail="$(tail -n 40 "$deploy_log")"
             deploy_tail="${deploy_tail//'%'/'%25'}"
             deploy_tail="${deploy_tail//$'\r'/'%0D'}"

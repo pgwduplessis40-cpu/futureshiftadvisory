@@ -54,6 +54,9 @@ jobs:
       - name: TypeScript (tsc --noEmit)
         run: npm run types:check
 
+      - name: Deployment SSH transport regression
+        run: node scripts/check-release-ssh-transport.mjs
+
       - name: Install Chrome for Puppeteer
         run: npx --no-install puppeteer browsers install chrome
 
