@@ -51,7 +51,7 @@ export function SiteFooter() {
                         <ul className="mt-4 space-y-2 text-sm">
                             <li>
                                 <Link
-                                    href="/validate-idea"
+                                    href="/services/entrepreneur"
                                     className="text-[#E0D8CC] hover:text-white"
                                 >
                                     Idea Validation

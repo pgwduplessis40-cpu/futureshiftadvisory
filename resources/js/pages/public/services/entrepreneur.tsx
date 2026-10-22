@@ -90,7 +90,7 @@ export default function EntrepreneurService({
                 description="Honest idea validation, a business plan with real numbers, and funding readiness for New Zealand founders. We tell you if the idea does not stack up."
                 jsonLd={[
                     serviceLd(base, {
-                        name: 'Entrepreneurs',
+                        name: 'Idea validation and business plans',
                         description:
                             'Idea validation, business planning, and funding readiness for New Zealand founders - from first idea through to launch.',
                         path: '/services/entrepreneur',
@@ -108,7 +108,7 @@ export default function EntrepreneurService({
                         { name: 'Home', path: '/' },
                         { name: 'Services', path: '/services' },
                         {
-                            name: 'Entrepreneurs',
+                            name: 'Idea validation',
                             path: '/services/entrepreneur',
                         },
                     ]),
@@ -117,21 +117,21 @@ export default function EntrepreneurService({
 
             {/* ── HERO ─────────────────────────────────────────── */}
             <Section className="pt-20 pb-16 lg:pt-24">
-                <SectionEyebrow>Entrepreneurs</SectionEyebrow>
+                <SectionEyebrow>Idea validation</SectionEyebrow>
                 <SectionTitle as="h1" className="mt-4">
-                    Is your business idea{' '}
+                    How idea validation{' '}
                     <span className="font-accent text-[var(--fs-cognac)] italic">
-                        worth building?
+                        works.
                     </span>
                 </SectionTitle>
                 <GoldRule className="mt-6" />
                 <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[var(--fs-graphite)]">
-                    Every good business starts as an idea that might not work.
-                    The useful question is not whether you believe in it - it is
-                    whether the evidence does. We help New&nbsp;Zealand founders
-                    find that out early: honest idea validation, a business plan
-                    with real numbers behind it, and a straight read on whether
-                    you are ready to launch.
+                    Idea validation is where every founder&rsquo;s work with us
+                    starts. It tests your idea against the evidence - not
+                    optimism, and not friends&rsquo; encouragement. If the idea
+                    holds up, your answers become the foundation of your
+                    business plan and budget, and we help you get ready to
+                    launch.
                 </p>
                 <p className="mt-4 max-w-2xl text-lg leading-relaxed text-[var(--fs-admiralty)]">
                     And you do not have to quit your job to find out. Idea
@@ -304,6 +304,124 @@ export default function EntrepreneurService({
                     cost of finding out the hard way, with borrowed money.
                 </p>
             </Section>
+
+            {/* ── FOUNDER STORY ───────────────────────────────── */}
+            <div
+                id="founder-story"
+                className="scroll-mt-24 bg-[var(--fs-linen)] py-16"
+            >
+                <Section>
+                    <figure className="max-w-3xl">
+                        <SectionEyebrow>A founder’s story</SectionEyebrow>
+                        <h2 className="font-display mt-3 text-2xl text-[var(--fs-admiralty)] sm:text-3xl">
+                            From idea validation to business plan
+                        </h2>
+                        <blockquote className="mt-6 space-y-4 text-base leading-relaxed text-[var(--fs-graphite)]">
+                            <p>
+                                I found the process of validating my business
+                                idea genuinely exciting, particularly as I’ve
+                                spent the past few years pivoting how I serve my
+                                clients in this next season of business. The
+                                validation process came at just the right time.
+                                I was ready to bring all the pieces together,
+                                articulate what I’d been developing, and explore
+                                whether it had real potential.
+                            </p>
+                            <p>
+                                After three iterations, refining a couple of
+                                areas to ensure they were solid, I successfully
+                                graduated from idea validation and moved into
+                                developing my business plan. The next stage is
+                                implementation and advisory.
+                            </p>
+                            <p>
+                                The validation process helped me feel as though
+                                my feet were planted firmly on a rock. It helped
+                                me skim off the dross, clarify my thinking, and
+                                strengthen the core of my idea. When I
+                                interviewed a selection of people from my target
+                                market who weren’t already in my circle, their
+                                responses helped me recognise that I was onto
+                                something with the way my services had taken
+                                shape.
+                            </p>
+                            <p>
+                                With this newfound confidence, I was able to
+                                move forward into creating my business plan with
+                                greater clarity and conviction.
+                            </p>
+                            <p>
+                                Working alongside Pieter has been incredibly
+                                helpful. He’s encouraging, takes the time to
+                                explain things, and genuinely cares about
+                                helping people navigate the process. In the
+                                interest of transparency, Pieter and I have also
+                                been collaborating throughout this journey, with
+                                me providing ongoing feedback from the
+                                perspective of a business owner using the
+                                software. I’ve been sharing what I would want to
+                                understand at each stage and how the experience
+                                could be made clearer and more useful. Pieter
+                                has expressed how valuable this feedback is,
+                                which is wonderful to know. It demonstrates his
+                                commitment to developing software and an app
+                                that genuinely serve the people using them.
+                            </p>
+                            <p>
+                                I would highly recommend the validation process,
+                                especially if you’ve been sitting on an idea for
+                                years and need help getting it over the line.
+                                For those of us with a naturally high
+                                idea-generation capacity, the biggest challenge
+                                may be choosing <em>one</em> idea to take all
+                                the way through the process! But once you commit
+                                to one, the process can help you become much
+                                more grounded in understanding whether it’s the
+                                right idea to move forward with.
+                            </p>
+                            <p>
+                                <strong className="text-[var(--fs-admiralty)]">
+                                    Your idea is worth the investment in
+                                    properly exploring and validating it.
+                                </strong>{' '}
+                                Sometimes, what you need most isn’t another
+                                idea. It’s the clarity and confidence to know
+                                which one to build.
+                            </p>
+                        </blockquote>
+                        <figcaption className="mt-6 flex items-center gap-4 text-sm text-[var(--fs-graphite)]">
+                            <img
+                                src="/images/tania-hassounia.png"
+                                alt="Illustration of Tania Hassounia"
+                                width={72}
+                                height={72}
+                                loading="lazy"
+                                className="h-[72px] w-[72px] shrink-0 rounded-full border border-[var(--fs-sand)] bg-white"
+                            />
+                            <div>
+                                <span className="font-semibold text-[var(--fs-admiralty)]">
+                                    Tania Hassounia
+                                </span>
+                                ,{' '}
+                                <a
+                                    href="https://drawerfullofgiants.com"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="underline decoration-[var(--fs-sand)] underline-offset-4 hover:text-[var(--fs-admiralty)]"
+                                >
+                                    Drawer Full of Giants Ltd
+                                </a>
+                                , Hamilton
+                                <span className="mt-2 block text-xs">
+                                    Shared with Tania’s permission and lightly
+                                    shortened. Tania was an early user who also
+                                    gave feedback on our platform.
+                                </span>
+                            </div>
+                        </figcaption>
+                    </figure>
+                </Section>
+            </div>
 
             {/* ── WHO IT IS FOR ───────────────────────────────── */}
             <div className="bg-[var(--fs-parchment)] py-16">

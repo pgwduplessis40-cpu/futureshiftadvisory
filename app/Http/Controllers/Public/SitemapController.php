@@ -21,8 +21,7 @@ class SitemapController extends Controller
         $routes = [
             '/' => ['weekly', '1.0'],
             '/services' => ['monthly', '0.9'],
-            '/services/entrepreneur' => ['monthly', '0.8'],
-            '/validate-idea' => ['monthly', '0.8'],
+            '/services/entrepreneur' => ['monthly', '0.9'],
             '/blog' => ['weekly', '0.7'],
             '/terms' => ['monthly', '0.4'],
             '/privacy' => ['monthly', '0.4'],
