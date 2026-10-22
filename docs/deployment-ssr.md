@@ -137,6 +137,42 @@ so page copy, titles and structured data silently go stale. Prefer the script.
 
 ## Verifying after deploy
 
+### Recovering an interrupted deployment connection
+
+The release workflow sends encrypted SSH keepalives after 30 seconds without received
+data and disconnects after six unanswered probes. It also bounds connection setup to
+30 seconds. This helps prevent idle connections being dropped during quiet dependency
+installs; it does not fix a server restart, memory exhaustion or network outage. See
+the [OpenSSH options](https://man.openbsd.org/ssh_config#ServerAliveInterval).
+
+An SSH exit of 255 or `Broken pipe` means the workflow did not confirm the remote
+result. It is not evidence that `npm ci` failed, and the remote process may still be
+running. Before retrying, inspect the VPS using its administrative console or SSH:
+
+```bash
+date -u
+uptime
+free -h
+df -h
+df -i
+pgrep -af 'deploy\.sh|npm ci|vite'
+sudo journalctl -u ssh --since '30 minutes ago' --no-pager
+sudo journalctl -k --since '30 minutes ago' --no-pager
+```
+
+Use the server's actual SSH service name if it differs. Investigate disconnects,
+restarts, out-of-memory kills and disk exhaustion; do not kill an active deployment
+or start a second one blindly. Once no deployment remains active and the underlying
+problem is resolved, retry only the failed deployment job for the intended release.
+An old job rerun uses its original workflow revision; deploying a workflow repair
+requires a new release from the updated main branch.
+
+Afterwards, require successful deployment and availability jobs, then compare
+`/api/deployment` with the intended commit and version and both manifest hashes.
+An HTTP 200, a green source test or a release tag alone does not prove completion.
+
+### Checking rendered pages
+
 ```bash
 curl -s https://futureshiftadvisory.nz/ | grep -c 'data-server-rendered'   # expect 1
 curl -s https://futureshiftadvisory.nz/faq | grep -c 'FAQPage'            # expect 1

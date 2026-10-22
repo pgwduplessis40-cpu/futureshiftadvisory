@@ -15,10 +15,13 @@ const server = await createServer({
     root,
     plugins: [react(), tailwindcss()],
     resolve: { alias: { '@': resolve(root, 'resources/js') } },
-    server: { host: '127.0.0.1', port: 0 },
+    server: { host: '127.0.0.1', port: 0, watch: null },
     logLevel: 'error',
 });
 let savedProblem = '';
+// Keep the first save in flight until scrolling and the baseline are complete.
+const firstSaveGate = Promise.withResolvers();
+
 server.middlewares.use(async (request, response, next) => {
     if (request.url === '/draft') {
         if (request.method === 'POST') {
@@ -29,6 +32,7 @@ server.middlewares.use(async (request, response, next) => {
             }
 
             savedProblem = JSON.parse(body).payload.problem;
+            await firstSaveGate.promise;
         }
 
         response.setHeader('Content-Type', 'application/json');
@@ -63,10 +67,22 @@ try {
     await server.listen();
     browser = await puppeteer.launch({
         headless: true,
+        pipe: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
     const page = await browser.newPage();
     const errors = [];
+    const fixtureOrigin = new URL(server.resolvedUrls.local[0]).origin;
+
+    // Remote font timing must not change layout during this interaction check.
+    await page.setRequestInterception(true);
+    page.on('request', (request) => {
+        if (new URL(request.url()).origin === fixtureOrigin) {
+            void request.continue();
+        } else {
+            void request.abort();
+        }
+    });
 
     page.on('pageerror', (error) => {
         errors.push(error.message);
@@ -78,6 +94,7 @@ try {
     await page.waitForFunction(
         () => document.querySelector('#draft-state').textContent === 'saved',
     );
+    await page.evaluate(() => document.fonts.ready);
 
     const metrics = () =>
         page.$eval('#problem', (textarea) => ({
@@ -102,8 +119,6 @@ try {
                 JSON.parse(response.request().postData()).payload.problem ===
                     answer,
         );
-    const firstSave = waitForSave(longAnswer);
-
     await page.focus('#problem');
     await page.keyboard.sendCharacter(longAnswer);
     const filled = await metrics();
@@ -119,6 +134,9 @@ try {
     assert.ok(
         filled.scrollHeight > filled.clientHeight,
         'Long answers overflow',
+    );
+    await page.waitForFunction(
+        () => document.querySelector('#draft-state').textContent === 'saving',
     );
     await page.keyboard.down('Control');
     await page.keyboard.press('Home');
@@ -136,14 +154,29 @@ try {
     );
 
     await page.hover('#problem');
+    await page.$eval('#problem', (textarea) => {
+        const start = textarea.scrollTop;
+        textarea.dataset.wheelScrollEnded = 'false';
+        const onScrollEnd = () => {
+            if (textarea.scrollTop >= start + 199) {
+                textarea.dataset.wheelScrollEnded = 'true';
+                textarea.removeEventListener('scrollend', onScrollEnd);
+            }
+        };
+
+        textarea.addEventListener('scrollend', onScrollEnd);
+    });
     await page.mouse.wheel({ deltaY: 200 });
+    // Reaching the target offset can precede the final compositor adjustment.
     await page.waitForFunction(
-        (start) => document.querySelector('#problem').scrollTop >= start + 199,
-        {},
-        atStart.scrollTop,
+        () =>
+            document.querySelector('#problem').dataset.wheelScrollEnded ===
+            'true',
     );
     const beforeSave = await metrics();
+    const firstSave = waitForSave(longAnswer);
 
+    firstSaveGate.resolve();
     await firstSave;
     await page.waitForFunction(
         () => document.querySelector('#draft-state').textContent === 'saved',
@@ -291,6 +324,7 @@ try {
         'Idea Validation editor: growth, scrolling, expansion, manual resize, autosave, hydration, keyboard and mobile touch checks passed.',
     );
 } finally {
+    firstSaveGate.resolve();
     await browser?.close();
     await server.close();
 }
