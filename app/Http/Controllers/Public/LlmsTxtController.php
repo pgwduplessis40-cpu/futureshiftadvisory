@@ -57,14 +57,14 @@ class LlmsTxtController extends Controller
 
         $lines[] = '## Pages';
         $lines[] = '';
-        $lines[] = "- [Home]({$base}/): Overview of the practice and how we work.";
-        $lines[] = "- [Services]({$base}/services): All engagement types, who each is for, and what you receive.";
-        $lines[] = "- [Entrepreneurs]({$base}/services/entrepreneur): Idea validation, business plans, and funding readiness for founders.";
         $ideaOffer = $offers->forScope(ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION);
         $ideaPrice = $ideaOffer['available'] && $ideaOffer['amount_ex_gst'] !== null
             ? ' Current price: $'.number_format($ideaOffer['amount_ex_gst'], 2).' + GST.'
             : '';
-        $lines[] = "- [Validate your idea]({$base}/validate-idea): Idea Validation information, current rate, and advisor review within 24 hours.{$ideaPrice}";
+        $lines[] = "- [Home]({$base}/): Idea validation for New Zealand founders - the starting point, whose answers then feed the business plan and budget.";
+        $lines[] = "- [How idea validation works]({$base}/services/entrepreneur): What idea validation checks, the advisor review within 24 hours, how it feeds the business plan and budget, and funding readiness.{$ideaPrice}";
+        $lines[] = "- [Start idea validation]({$base}/validate-idea/purchase): Create an account and pay the fixed fee to begin.";
+        $lines[] = "- [Services]({$base}/services): Add-on services for established businesses, buyers, and not-for-profits - who each is for, and what you receive.";
         $lines[] = "- [Terms of Use]({$base}/terms): The current published customer terms, also available as structured JSON at {$base}/terms.json.";
         $lines[] = "- [Privacy Policy]({$base}/privacy): How Future Shift Advisory collects, uses, holds, and shares personal information, also available as structured JSON at {$base}/privacy.json.";
         $lines[] = "- [About]({$base}/about): The practice's principles and the Principal Advisor's background.";

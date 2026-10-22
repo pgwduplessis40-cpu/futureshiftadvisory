@@ -13,10 +13,7 @@ use App\Http\Controllers\Public\LlmsTxtController;
 use App\Http\Controllers\Public\ServicesController;
 use App\Http\Controllers\Public\SitemapController;
 use App\Http\Controllers\Public\TermsAndPrivacyController;
-use App\Models\ServiceRatePackage;
-use App\Services\Entrepreneurs\EntrepreneurServiceOffer;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,11 +28,11 @@ use Inertia\Inertia;
 // Home keeps the short `home` route name so existing Wayfinder consumers
 // (auth layouts) continue to resolve `home()` without churn.
 Route::get('/', HomeController::class)->name('home');
-Route::get('/validate-idea', function (EntrepreneurServiceOffer $offers) {
-    return Inertia::render('public/validate-idea', [
-        'offer' => $offers->forScope(ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION),
-    ]);
-})->name('public.validate-idea');
+// The idea validation landing page now lives at /services/entrepreneur. Keep a
+// permanent redirect (and the route name) so older links and blog posts that
+// point here still land in the right place.
+Route::get('/validate-idea', fn () => redirect('/services/entrepreneur', 301))
+    ->name('public.validate-idea');
 Route::get('/validate-idea/purchase', [IdeaValidationPurchaseController::class, 'show'])
     ->name('public.validate-idea.purchase');
 Route::post('/validate-idea/purchase', [IdeaValidationPurchaseController::class, 'register'])

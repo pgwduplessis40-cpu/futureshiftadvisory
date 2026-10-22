@@ -12,17 +12,17 @@ final class IdeaValidationOfferTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_validate_idea_hides_a_price_when_no_current_rate_is_available(): void
+    public function test_the_idea_validation_page_hides_a_price_when_no_current_rate_is_available(): void
     {
-        $this->get('/validate-idea')
+        $this->get('/services/entrepreneur')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->component('public/validate-idea')
-                ->where('offer.available', false)
-                ->where('offer.amount_ex_gst', null));
+                ->component('public/services/entrepreneur')
+                ->where('ideaValidationOffer.available', false)
+                ->where('ideaValidationOffer.amount_ex_gst', null));
     }
 
-    public function test_validate_idea_reads_its_live_price_from_service_rates(): void
+    public function test_the_home_and_idea_validation_pages_read_the_live_price_from_service_rates(): void
     {
         ServiceRatePackage::query()->create([
             'service_type' => ServiceRatePackage::SERVICE_ENTREPRENEUR,
@@ -37,12 +37,26 @@ final class IdeaValidationOfferTest extends TestCase
             'effective_from' => now()->subMinute(),
         ]);
 
-        $this->get('/validate-idea')
+        $this->get('/services/entrepreneur')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->component('public/validate-idea')
-                ->where('offer.available', true)
-                ->where('offer.amount_ex_gst', 1650)
-                ->where('offer.currency', 'NZD'));
+                ->component('public/services/entrepreneur')
+                ->where('ideaValidationOffer.available', true)
+                ->where('ideaValidationOffer.amount_ex_gst', 1650)
+                ->where('ideaValidationOffer.currency', 'NZD'));
+
+        $this->get('/')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('public/home')
+                ->where('ideaValidationOffer.available', true)
+                ->where('ideaValidationOffer.amount_ex_gst', 1650));
+    }
+
+    public function test_the_old_validate_idea_url_permanently_redirects_to_the_idea_validation_page(): void
+    {
+        $this->get('/validate-idea')
+            ->assertStatus(301)
+            ->assertRedirect('/services/entrepreneur');
     }
 }

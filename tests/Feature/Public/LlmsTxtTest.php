@@ -20,7 +20,8 @@ final class LlmsTxtTest extends TestCase
             ->assertHeader('content-type', 'text/plain; charset=UTF-8')
             ->assertSeeText('# Future Shift Advisory')
             ->assertSeeText('https://futureshiftadvisory.nz/services#')
-            ->assertSeeText('https://futureshiftadvisory.nz/validate-idea')
+            ->assertSeeText('https://futureshiftadvisory.nz/services/entrepreneur')
+            ->assertSeeText('https://futureshiftadvisory.nz/validate-idea/purchase')
             ->assertSeeText('## Frequently asked questions')
             ->assertSeeText('hello@futureshiftadvisory.nz');
     }
