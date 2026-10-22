@@ -389,25 +389,35 @@ export default function EntrepreneurService({
                                 which one to build.
                             </p>
                         </blockquote>
-                        <figcaption className="mt-6 text-sm text-[var(--fs-graphite)]">
-                            <span className="font-semibold text-[var(--fs-admiralty)]">
-                                Tania Hassounia
-                            </span>
-                            ,{' '}
-                            <a
-                                href="https://drawerfullofgiants.com"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="underline decoration-[var(--fs-sand)] underline-offset-4 hover:text-[var(--fs-admiralty)]"
-                            >
-                                Drawer Full of Giants Ltd
-                            </a>
-                            , Hamilton
-                            <span className="mt-2 block text-xs">
-                                Shared with Tania’s permission and lightly
-                                shortened. Tania was an early user who also gave
-                                feedback on our platform.
-                            </span>
+                        <figcaption className="mt-6 flex items-center gap-4 text-sm text-[var(--fs-graphite)]">
+                            <img
+                                src="/images/tania-hassounia.png"
+                                alt="Illustration of Tania Hassounia"
+                                width={72}
+                                height={72}
+                                loading="lazy"
+                                className="h-[72px] w-[72px] shrink-0 rounded-full border border-[var(--fs-sand)] bg-white"
+                            />
+                            <div>
+                                <span className="font-semibold text-[var(--fs-admiralty)]">
+                                    Tania Hassounia
+                                </span>
+                                ,{' '}
+                                <a
+                                    href="https://drawerfullofgiants.com"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="underline decoration-[var(--fs-sand)] underline-offset-4 hover:text-[var(--fs-admiralty)]"
+                                >
+                                    Drawer Full of Giants Ltd
+                                </a>
+                                , Hamilton
+                                <span className="mt-2 block text-xs">
+                                    Shared with Tania’s permission and lightly
+                                    shortened. Tania was an early user who also
+                                    gave feedback on our platform.
+                                </span>
+                            </div>
                         </figcaption>
                     </figure>
                 </Section>

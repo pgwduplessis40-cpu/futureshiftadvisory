@@ -195,16 +195,26 @@ export default function Home({
                         off the dross, clarify my thinking, and strengthen the
                         core of my idea.&rdquo;
                     </blockquote>
-                    <figcaption className="mt-6 text-sm text-[var(--fs-graphite)]">
-                        <span className="font-semibold text-[var(--fs-admiralty)]">
-                            Tania Hassounia
-                        </span>
-                        , Drawer Full of Giants Ltd, Hamilton - completed idea
-                        validation, then her business plan and budget.
-                        <span className="mt-2 block text-xs">
-                            Tania was an early user who also gave feedback on
-                            our platform.
-                        </span>
+                    <figcaption className="mt-6 flex items-center gap-4 text-sm text-[var(--fs-graphite)]">
+                        <img
+                            src="/images/tania-hassounia.png"
+                            alt="Illustration of Tania Hassounia"
+                            width={64}
+                            height={64}
+                            loading="lazy"
+                            className="h-16 w-16 shrink-0 rounded-full border border-[var(--fs-sand)] bg-white"
+                        />
+                        <div>
+                            <span className="font-semibold text-[var(--fs-admiralty)]">
+                                Tania Hassounia
+                            </span>
+                            , Drawer Full of Giants Ltd, Hamilton - completed
+                            idea validation, then her business plan and budget.
+                            <span className="mt-2 block text-xs">
+                                Tania was an early user who also gave feedback
+                                on our platform.
+                            </span>
+                        </div>
                     </figcaption>
                     <Link
                         href="/services/entrepreneur#founder-story"
