@@ -20,3 +20,16 @@ test('founder action deep links only accept the supported financial-assumption t
         null,
     );
 });
+
+test('one-off feedback opens the one-off schedule rather than recurring costs', () => {
+    assert.deepEqual(
+        founderActionDeepLink(
+            '?requirement=financial-assumptions&focus=one-off-costs&guide=1',
+        ),
+        {
+            requirement: 'financial-assumptions',
+            focus: 'one-off-costs',
+            showGuide: true,
+        },
+    );
+});

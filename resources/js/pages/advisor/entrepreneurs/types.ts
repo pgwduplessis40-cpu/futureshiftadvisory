@@ -172,6 +172,18 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
                 corrected_monthly_equivalent: number | null;
                 duplicate_cadence_quantity: boolean;
             }[];
+            scheduled_cost_trace: {
+                schedule: 'one_off' | 'future';
+                label: string;
+                amount: number;
+                quantity: number;
+                total: number;
+                month: number | null;
+                year: number | null;
+                recurring: boolean;
+                repeat_every_years: number | null;
+                confidence: string;
+            }[];
             fixed_cost_cadence_repair_url: string | null;
             fixed_cost_cadence_repair_all_url: string | null;
         };

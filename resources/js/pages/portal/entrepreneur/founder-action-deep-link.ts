@@ -1,5 +1,6 @@
 export const founderBudgetActionFocuses = [
     'fixed-costs',
+    'one-off-costs',
     'forecast-start-month',
     'revenue-forecast',
     'funding-sources',

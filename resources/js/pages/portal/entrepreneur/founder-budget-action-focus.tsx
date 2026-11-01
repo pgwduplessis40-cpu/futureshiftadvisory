@@ -7,6 +7,12 @@ const focusDetails: Record<
     FounderBudgetActionFocus,
     { label: string; selector: string; instruction: string }
 > = {
+    'one-off-costs': {
+        label: 'One-off business costs',
+        selector: '[data-founder-action-target="one-off-costs"]',
+        instruction:
+            'Check for an existing entry first. Add a cost only if it is missing, and record the forecast month when it will be paid.',
+    },
     'fixed-costs': {
         label: 'Regular business costs',
         selector: '[data-founder-action-target="fixed-costs-add-row"]',

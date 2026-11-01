@@ -247,6 +247,7 @@ final class AssessmentFeedback
                 $key = (string) $action['key'];
                 $focus = match ($key) {
                     'regular_costs' => 'fixed-costs',
+                    'one_off_costs' => 'one-off-costs',
                     'forecast_calendar' => 'forecast-start-month',
                     'sales_forecast' => 'revenue-forecast',
                     'funding_and_runway' => 'funding-sources',
@@ -255,6 +256,7 @@ final class AssessmentFeedback
 
                 $description = match ($focus) {
                     'fixed-costs' => 'This opens the regular-cost list and highlights the “Add another cost” button.',
+                    'one-off-costs' => 'This opens the one-off cost list so you can check an existing entry before adding a cost.',
                     'forecast-start-month' => 'This opens and highlights the Forecast start month field.',
                     'revenue-forecast' => 'This opens and highlights the “How will money come in?” list.',
                     'funding-sources' => 'This opens and highlights the “What funding or cash is available?” list.',

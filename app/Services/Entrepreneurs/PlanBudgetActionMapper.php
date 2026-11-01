@@ -11,13 +11,14 @@ namespace App\Services\Entrepreneurs;
  * screen and the founder change-request message.
  *
  * @phpstan-type Finding array{category:'budget_support'|'plan_correlation',severity:'missing'|'review',message:string,next_action:string}
- * @phpstan-type Action array{key:'regular_costs'|'forecast_calendar'|'funding_and_runway'|'sales_forecast'|'plan_and_budget'|'budget_setup',severity:'missing'|'review',title:string,destination:string,steps:list<string>}
+ * @phpstan-type Action array{key:'regular_costs'|'one_off_costs'|'forecast_calendar'|'funding_and_runway'|'sales_forecast'|'plan_and_budget'|'budget_setup',severity:'missing'|'review',title:string,destination:string,steps:list<string>}
  */
 final class PlanBudgetActionMapper
 {
     /** @var array<string, int> */
     private const ACTION_ORDER = [
         'regular_costs' => 10,
+        'one_off_costs' => 15,
         'forecast_calendar' => 20,
         'sales_forecast' => 30,
         'funding_and_runway' => 40,
@@ -70,13 +71,18 @@ final class PlanBudgetActionMapper
             return 'forecast_calendar';
         }
 
+        if (str_contains($text, 'budget > one-off costs')
+            || (str_contains(strtolower($finding['message']), 'trademark')
+                && str_contains($finding['message'], 'does not name a matching cost row'))) {
+            return 'one_off_costs';
+        }
+
         if (str_contains($text, 'fixed cost')
             || str_contains($text, 'operating cost')
             || str_contains($text, 'recurring cost')
             || str_contains($text, 'payment frequency')
             || str_contains($text, 'cadence')
             || str_contains($text, 'insurance')
-            || str_contains($text, 'trademark')
             || str_contains($text, 'owner compensation')) {
             return 'regular_costs';
         }
@@ -114,6 +120,7 @@ final class PlanBudgetActionMapper
 
         $action = match ($key) {
             'regular_costs' => $this->regularCostsAction($messages),
+            'one_off_costs' => $this->oneOffCostsAction($messages),
             'forecast_calendar' => $this->forecastCalendarAction($messages),
             'sales_forecast' => $this->salesForecastAction($messages),
             'funding_and_runway' => $this->fundingAndRunwayAction($messages),
@@ -182,6 +189,25 @@ final class PlanBudgetActionMapper
             'title' => 'Reconcile the regular business costs',
             'destination' => 'Business Plan & Budget > Plan requirements (left side) > Financial assumptions > Budget editor > “What will you pay every month even if sales are slow?”',
             'steps' => $steps,
+        ];
+    }
+
+    /**
+     * @param  list<string>  $messages
+     * @return array{title:string,destination:string,steps:list<string>}
+     */
+    private function oneOffCostsAction(array $messages): array
+    {
+        $costs = $this->missingCostRows($messages);
+
+        return [
+            'title' => 'Check the one-off business costs',
+            'destination' => 'Business Plan & Budget > Plan requirements (left side) > Financial assumptions > Budget editor > “What one-off costs need funding?”',
+            'steps' => [
+                'Check the one-off cost list for '.($costs !== [] ? implode(', ', $costs) : 'the cost named in the assessment').'. If it is already listed, update that row instead of adding a duplicate.',
+                'Only if the cost is absent, select “Add another” above this list. Enter the item name, amount, quantity, forecast month when paid, and confidence. A registration charge is paid once; do not add it as a monthly running cost.',
+                'Keep any later renewal in the future-cost schedule with its actual renewal timing.',
+            ],
         ];
     }
 

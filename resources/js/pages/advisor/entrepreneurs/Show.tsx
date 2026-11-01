@@ -48,7 +48,7 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { AssessmentProgressList } from './assessment-progress-list';
-import { FixedCostCalculationAudit } from './fixed-cost-calculation-audit';
+import { BudgetCostAudit } from './budget-cost-audit';
 import {
     AdvisoryConversionAction,
     FounderReadyBriefAction,
@@ -2378,19 +2378,8 @@ export default function EntrepreneursShow({
                             />
                         ) : null}
 
-                        <FixedCostCalculationAudit
-                            trace={
-                                entrepreneur.latest_plan?.budget
-                                    .fixed_cost_trace ?? []
-                            }
-                            repairUrl={
-                                entrepreneur.latest_plan?.budget
-                                    .fixed_cost_cadence_repair_url ?? null
-                            }
-                            repairAllUrl={
-                                entrepreneur.latest_plan?.budget
-                                    .fixed_cost_cadence_repair_all_url ?? null
-                            }
+                        <BudgetCostAudit
+                            budget={entrepreneur.latest_plan.budget}
                         />
 
                         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">

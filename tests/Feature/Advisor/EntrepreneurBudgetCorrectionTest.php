@@ -21,6 +21,30 @@ final class EntrepreneurBudgetCorrectionTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_advisor_can_see_saved_one_off_costs_and_future_renewals_separately_from_fixed_costs(): void
+    {
+        [$advisor, $profile, $plan, $budget] = $this->budgetWithDuplicatedWeeklyQuantity();
+        $budget->update([
+            'launch_costs' => [['label' => 'Trademark example', 'amount' => 100, 'quantity' => 1, 'month' => 4, 'confidence' => 'estimate']],
+            'future_costs' => [['label' => 'Trademark renewal', 'amount' => 85.50, 'quantity' => 2, 'year' => 10, 'repeat_every_years' => 10, 'confidence' => 'known']],
+        ]);
+
+        $payload = app(AdvisorEntrepreneurWorkspacePayload::class)->show($advisor, $profile->fresh());
+        $rows = data_get($payload, 'entrepreneur.latest_plan.budget.scheduled_cost_trace');
+        $this->assertSame([
+            'schedule' => 'one_off', 'label' => 'Trademark example', 'amount' => 100.0,
+            'quantity' => 1.0, 'total' => 100.0, 'month' => 4, 'year' => null,
+            'recurring' => false, 'repeat_every_years' => null, 'confidence' => 'estimate',
+        ], $rows[0]);
+        $this->assertSame('future', $rows[1]['schedule']);
+        $this->assertSame(171.0, $rows[1]['total']);
+        $this->assertSame(10, $rows[1]['year']);
+        $this->assertSame(10, $rows[1]['repeat_every_years']);
+        $this->assertNull($rows[1]['month']);
+        $this->assertSame('Owner compensation', data_get($payload, 'entrepreneur.latest_plan.budget.fixed_cost_trace.0.label'));
+        $this->assertCount(1, $budget->fresh()->monthly_fixed_costs);
+    }
+
     public function test_advisor_can_correct_a_duplicate_weekly_cadence_quantity_and_queue_a_reassessment(): void
     {
         Queue::fake();

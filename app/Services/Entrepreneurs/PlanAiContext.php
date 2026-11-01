@@ -280,7 +280,9 @@ final class PlanAiContext
             ->all();
 
         return hash('sha256', json_encode([
-            'contract' => 'criterion_evidence_v1',
+            // Refresh the Budget evaluation once for the all-cost-schedules prompt;
+            // unrelated criteria retain their existing evidence hashes.
+            'contract' => (int) $criterion->number === 12 ? 'budget_cost_schedules_v2' : 'criterion_evidence_v1',
             'criterion_number' => (int) $criterion->number,
             'criterion_name' => (string) $criterion->name,
             'scope_fallback' => $scopeFallback,

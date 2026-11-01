@@ -12,7 +12,7 @@ namespace App\Services\Entrepreneurs;
  *
  * @phpstan-type Finding array{category:'budget_support'|'plan_correlation',severity:'missing'|'review',message:string,next_action:string}
  * @phpstan-type Advisory array{key:'fixed_cost_sources'|'revenue_sources'|'payment_frequency',category:'budget_support',message:string,next_action:string}
- * @phpstan-type Action array{key:'regular_costs'|'forecast_calendar'|'funding_and_runway'|'sales_forecast'|'plan_and_budget'|'budget_setup',severity:'missing'|'review',title:string,destination:string,steps:list<string>}
+ * @phpstan-type Action array{key:'regular_costs'|'one_off_costs'|'forecast_calendar'|'funding_and_runway'|'sales_forecast'|'plan_and_budget'|'budget_setup',severity:'missing'|'review',title:string,destination:string,steps:list<string>}
  * @phpstan-type Direction array{status:'met'|'review'|'missing',status_label:string,summary:string,unresolved_count:int}
  * @phpstan-type Reconciliation array{status:'met'|'review'|'missing',status_label:string,score:int,summary:string,evidence:list<string>,findings:list<Finding>,actions:list<Action>,advisories:list<Advisory>,approval_available:bool,approval_message:string,budget_support:Direction,plan_correlation:Direction,unresolved_count:int}
  * @phpstan-type BudgetRow array{label?:string,type?:string,amount?:float|int,quantity?:float|int,monthly_capacity_units?:float|int,cadence?:string}
@@ -20,8 +20,8 @@ namespace App\Services\Entrepreneurs;
  * @phpstan-type BudgetComputed array{available_after_launch?:float|int,monthly_fixed_costs?:float|int,runway_months?:float|int,runway_open_ended?:bool,input_count?:int,break_even_reached?:bool}
  * @phpstan-type BudgetAssumptions array{opening_cash_balance?:float|int}
  * @phpstan-type FundingReadiness array{required_additional_funding?:float|int,monthly_fixed_costs?:float|int,warnings?:list<string>}
- * @phpstan-type BudgetEvidence array{expected_runway_months?:float|int,assumptions?:BudgetAssumptions,monthly_fixed_costs?:list<BudgetRow>,revenue_forecast?:list<BudgetRow>,funding_sources?:list<BudgetRow>,funding_scenarios?:list<BudgetRow>,computed?:BudgetComputed,flags?:list<BudgetFlag>,funding_readiness?:FundingReadiness}
- * @phpstan-type Budget array{status:string,expected_runway_months?:float|int,assumptions?:BudgetAssumptions,monthly_fixed_costs?:list<BudgetRow>,revenue_forecast?:list<BudgetRow>,funding_sources?:list<BudgetRow>,funding_scenarios?:list<BudgetRow>,computed?:BudgetComputed,flags?:list<BudgetFlag>,funding_readiness?:FundingReadiness}
+ * @phpstan-type BudgetEvidence array{expected_runway_months?:float|int,assumptions?:BudgetAssumptions,monthly_fixed_costs?:list<BudgetRow>,launch_costs?:list<BudgetRow>,future_costs?:list<BudgetRow>,revenue_forecast?:list<BudgetRow>,funding_sources?:list<BudgetRow>,funding_scenarios?:list<BudgetRow>,computed?:BudgetComputed,flags?:list<BudgetFlag>,funding_readiness?:FundingReadiness}
+ * @phpstan-type Budget array{status:string,expected_runway_months?:float|int,assumptions?:BudgetAssumptions,monthly_fixed_costs?:list<BudgetRow>,launch_costs?:list<BudgetRow>,future_costs?:list<BudgetRow>,revenue_forecast?:list<BudgetRow>,funding_sources?:list<BudgetRow>,funding_scenarios?:list<BudgetRow>,computed?:BudgetComputed,flags?:list<BudgetFlag>,funding_readiness?:FundingReadiness}
  * @phpstan-type FinancialSection array{title?:string,body?:string,requirement_key?:string}
  * @phpstan-type SnapshotPhase array{sections?:list<FinancialSection>}
  * @phpstan-type SnapshotBudget array{status?:string,assessment_evidence?:BudgetEvidence}
@@ -116,7 +116,7 @@ final class PlanBudgetCoherence
                 : $unresolvedCount.' plan–budget '.($unresolvedCount === 1 ? 'action needs' : 'actions need').' resolution before the assessment can be finalised.',
             'evidence' => [
                 count($financialSections).' submitted financial plan section'.(count($financialSections) === 1 ? ' was' : 's were').' checked.',
-                is_array($budget) ? 'Captured budget cash, cost, revenue and funding evidence was checked.' : 'No captured budget evidence was available.',
+                is_array($budget) ? 'Captured cash, recurring costs, one-off costs, future costs, revenue and funding evidence was checked.' : 'No captured budget evidence was available.',
                 $approvalAvailable
                     ? 'Budget support and plan correlation are both reconciled.'
                     : $unresolvedCount.' unresolved plan–budget '.($unresolvedCount === 1 ? 'action remains.' : 'actions remain.'),
@@ -307,7 +307,11 @@ final class PlanBudgetCoherence
             }
         }
 
-        $this->addMissingPlannedCostFindings($planText, $fixedCosts, $findings);
+        $this->addMissingPlannedCostFindings($planText, [
+            ...$fixedCosts,
+            ...($budget['launch_costs'] ?? []),
+            ...($budget['future_costs'] ?? []),
+        ], $findings);
 
         $budgetMonthlyCosts = data_get($computed, 'monthly_fixed_costs');
         $planCostBasis = $planMonthlyCosts;
@@ -567,14 +571,14 @@ final class PlanBudgetCoherence
     }
 
     /**
-     * @param  list<BudgetRow>  $fixedCosts
+     * @param  list<BudgetRow>  $costRows
      * @param  list<Finding>  $findings
      */
-    private function addMissingPlannedCostFindings(string $planText, array $fixedCosts, array &$findings): void
+    private function addMissingPlannedCostFindings(string $planText, array $costRows, array &$findings): void
     {
         $budgetLabels = strtolower(implode(' ', array_map(
             fn (array $row): string => $this->rowLabel($row),
-            $fixedCosts,
+            $costRows,
         )));
         $commitments = [
             'professional indemnity insurance' => [
@@ -597,7 +601,9 @@ final class PlanBudgetCoherence
                 'plan_correlation',
                 'review',
                 'The plan refers to '.$commitment.', but the budget does not name a matching cost row.',
-                'Add the expected cost, timing and source in Budget > Monthly fixed costs or launch costs, then align the financial plan statement.',
+                $commitment === 'trademark registration and protection'
+                    ? 'Check Budget > One-off costs for the registration amount and payment month. Update an existing matching row or add it once if absent, then align the financial plan statement.'
+                    : 'Add the expected cost, timing and source in Budget > Monthly fixed costs or launch costs, then align the financial plan statement.',
             );
         }
     }
