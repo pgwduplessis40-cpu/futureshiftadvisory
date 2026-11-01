@@ -52,6 +52,7 @@ final class PlanBudgetActionMapperTest extends TestCase
 
         $this->assertSame([
             'regular_costs',
+            'one_off_costs',
             'forecast_calendar',
             'sales_forecast',
             'plan_and_budget',
@@ -72,13 +73,15 @@ final class PlanBudgetActionMapperTest extends TestCase
         );
         $this->assertStringContainsString(
             'trademark registration and protection',
-            implode(' ', $actions[0]['steps']),
+            implode(' ', $actions[1]['steps']),
         );
         $this->assertStringContainsString('$5,718', implode(' ', $actions[0]['steps']));
-        $this->assertStringContainsString('opening cash', implode(' ', $actions[1]['steps']));
+        $this->assertStringNotContainsString('trademark', implode(' ', $actions[0]['steps']));
+        $this->assertStringContainsString('What one-off costs need funding?', $actions[1]['destination']);
+        $this->assertStringContainsString('opening cash', implode(' ', $actions[2]['steps']));
         $this->assertStringNotContainsString('funding_and_runway', implode(' ', array_column($actions, 'key')));
-        $this->assertStringContainsString('The plan and Budget use different payment dates.', implode(' ', $actions[3]['steps']));
-        $this->assertStringContainsString('Add the launch-date financial assumption.', implode(' ', $actions[4]['steps']));
+        $this->assertStringContainsString('The plan and Budget use different payment dates.', implode(' ', $actions[4]['steps']));
+        $this->assertStringContainsString('Add the launch-date financial assumption.', implode(' ', $actions[5]['steps']));
     }
 
     public function test_it_uses_the_general_cost_instruction_when_no_specific_cost_detail_can_be_extracted(): void

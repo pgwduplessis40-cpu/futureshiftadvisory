@@ -14,6 +14,43 @@ use PHPUnit\Framework\TestCase;
 
 final class PlanAiContextTest extends TestCase
 {
+    public function test_budget_evaluation_refreshes_legacy_scores_and_includes_every_cost_schedule(): void
+    {
+        $evidence = [
+            'launch_costs' => [['label' => 'Trademark example', 'amount' => 100, 'month' => 4]],
+            'monthly_fixed_costs' => [['label' => 'Insurance', 'amount' => 20, 'cadence' => 'monthly']],
+            'future_costs' => [['label' => 'Trademark renewal', 'amount' => 100, 'year' => 10]],
+        ];
+        $snapshot = ['budget' => ['assessment_evidence' => $evidence]];
+        $contexts = new PlanAiContext;
+        foreach ([12 => 'Budget', 8 => 'Intellectual property'] as $number => $name) {
+            $context = $contexts->criterionAssessmentFromSnapshot($snapshot, new RatingCriterion([
+                'number' => $number, 'name' => $name,
+            ]));
+            $legacyHash = hash('sha256', json_encode([
+                'contract' => 'criterion_evidence_v1',
+                'criterion_number' => $number,
+                'criterion_name' => $name,
+                'scope_fallback' => true,
+                'sections' => [],
+                'budget_evidence' => $number === 12 ? $evidence : null,
+            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+
+            if ($number === 12) {
+                $this->assertNotSame($legacyHash, $context['evidence_hash']);
+                $this->assertSame($evidence, $context['budget_evidence']);
+                $this->assertSame($evidence, json_decode($contexts->assessmentText($context), true)['budget_evidence']);
+                $changed = $snapshot;
+                $changed['budget']['assessment_evidence']['launch_costs'][0]['month'] = 5;
+                $this->assertNotSame($context['evidence_hash'], $contexts->criterionAssessmentFromSnapshot($changed, new RatingCriterion([
+                    'number' => 12, 'name' => 'Budget',
+                ]))['evidence_hash']);
+            } else {
+                $this->assertSame($legacyHash, $context['evidence_hash']);
+            }
+        }
+    }
+
     public function test_requirement_assistance_keeps_long_form_founder_content_within_a_fixed_context_budget(): void
     {
         $context = (new PlanAiContext)->requirementAssistance(

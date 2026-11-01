@@ -637,6 +637,7 @@ export function BudgetEditor({
                             title="What one-off costs need funding?"
                             helper="Include setup, replacement, or growth items such as equipment, website, deposits, signage, licences, stock, or marketing."
                             group="launch_costs"
+                            focusTarget="one-off-costs"
                             rows={form.launch_costs}
                             onFormChange={onFormChange}
                             quickAdds={template.launch_costs}
@@ -739,6 +740,7 @@ export function BudgetEditor({
                         <BudgetRowsEditor
                             title="Planned one-off costs"
                             group="launch_costs"
+                            focusTarget="one-off-costs"
                             rows={form.launch_costs}
                             onFormChange={onFormChange}
                             timed

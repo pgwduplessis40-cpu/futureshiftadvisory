@@ -11,6 +11,7 @@ use App\Models\EntrepreneurProfile;
 use App\Models\PlanAssessment;
 use App\Models\PlanRevision;
 use App\Services\Entrepreneurs\AssessmentScoring;
+use App\Services\Entrepreneurs\BudgetCalculator;
 use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
 use App\Services\Entrepreneurs\FixedCostCadenceQuantityGuard;
@@ -20,7 +21,8 @@ use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
 /**
  * @phpstan-type AssessmentHistoryEntry array{id:string, round:int, status:string, overall_grade:string|null, weighted_score:float|null, automated_score_available:bool, score_delta:float|null, score_source_summary:string, created_at:string|null, submitted_at:string|null, snapshot_available:bool, snapshot_captured_at:mixed, snapshot_note:string, assessment_url:string, plan_snapshot_url:string|null}
  * @phpstan-type FixedCostTraceRow array{index:int,label:string,rate:float,quantity:float,cadence:string,cadence_confirmed:bool,monthly_equivalent:float,corrected_monthly_equivalent:float|null,duplicate_cadence_quantity:bool}
- * @phpstan-type BudgetSummary array{status:string, expected_runway_months:float|int|null, calculated_runway_months:mixed, runway_open_ended:bool, break_even_month:mixed, available_after_launch:mixed, active_flags:list<mixed>,fixed_cost_trace:list<FixedCostTraceRow>,fixed_cost_cadence_repair_url:string|null,fixed_cost_cadence_repair_all_url:string|null}
+ * @phpstan-type ScheduledCostRow array{schedule:'one_off'|'future',label:string,amount:float,quantity:float,total:float,month:int|null,year:int|null,recurring:bool,repeat_every_years:int|null,confidence:string}
+ * @phpstan-type BudgetSummary array{status:string, expected_runway_months:float|int|null, calculated_runway_months:mixed, runway_open_ended:bool, break_even_month:mixed, available_after_launch:mixed, active_flags:list<mixed>,fixed_cost_trace:list<FixedCostTraceRow>,scheduled_cost_trace:list<ScheduledCostRow>,fixed_cost_cadence_repair_url:string|null,fixed_cost_cadence_repair_all_url:string|null}
  * @phpstan-type AssessmentScopePayload array{is_full_reassessment:bool,has_scope_correction:bool,scope_correction_criterion_numbers:list<int>}
  * @phpstan-type AssessmentCriterionPayload array{criterion_number:int,name:string,score:float|int}
  * @phpstan-type PlanBudgetCoherenceFindingPayload array{category:string,severity:string,message:string,next_action:string}
@@ -364,6 +366,7 @@ final class AdvisorEntrepreneurPlanPayload
             'available_after_launch' => data_get($computed, 'available_after_launch'),
             'active_flags' => $activeFlags,
             'fixed_cost_trace' => $fixedCostTrace,
+            'scheduled_cost_trace' => $this->scheduledCostTrace($budget),
             'fixed_cost_cadence_repair_url' => $plan instanceof BusinessPlan && $plan->entrepreneurProfile instanceof EntrepreneurProfile
                 ? route('advisor.entrepreneurs.plans.budget.fixed-cost-cadence.repair', [$plan->entrepreneurProfile, $plan], absolute: false)
                 : null,
@@ -371,6 +374,39 @@ final class AdvisorEntrepreneurPlanPayload
                 ? route('advisor.entrepreneurs.plans.budget.fixed-cost-cadence.repair-all', [$plan->entrepreneurProfile, $plan], absolute: false)
                 : null,
         ];
+    }
+
+    /** @return list<ScheduledCostRow> */
+    private function scheduledCostTrace(?EntrepreneurBudget $budget): array
+    {
+        if (! $budget instanceof EntrepreneurBudget) {
+            return [];
+        }
+
+        $calculator = new BudgetCalculator;
+        $schedules = [
+            'one_off' => $calculator->normaliseRows((array) $budget->launch_costs),
+            'future' => $calculator->normaliseFutureCosts((array) $budget->future_costs),
+        ];
+        $trace = [];
+        foreach ($schedules as $schedule => $rows) {
+            foreach ($rows as $row) {
+                $trace[] = [
+                    'schedule' => $schedule,
+                    'label' => (string) $row['label'],
+                    'amount' => (float) $row['amount'],
+                    'quantity' => (float) $row['quantity'],
+                    'total' => round((float) $row['amount'] * (float) $row['quantity'], 2),
+                    'month' => $schedule === 'one_off' ? (int) $row['month'] : null,
+                    'year' => $schedule === 'future' ? (int) $row['year'] : null,
+                    'recurring' => (bool) ($row['recurring'] ?? false),
+                    'repeat_every_years' => isset($row['repeat_every_years']) ? (int) $row['repeat_every_years'] : null,
+                    'confidence' => (string) $row['confidence'],
+                ];
+            }
+        }
+
+        return $trace;
     }
 
     /** @return list<FixedCostTraceRow> */

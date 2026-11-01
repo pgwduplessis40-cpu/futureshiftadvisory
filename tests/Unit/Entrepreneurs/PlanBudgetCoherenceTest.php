@@ -4,11 +4,90 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Entrepreneurs;
 
+use App\Services\Entrepreneurs\BudgetCalculator;
 use App\Services\Entrepreneurs\PlanBudgetCoherence;
 use Tests\TestCase;
 
 final class PlanBudgetCoherenceTest extends TestCase
 {
+    public function test_planned_trademark_cost_is_recognised_in_each_cost_schedule(): void
+    {
+        foreach (['launch_costs', 'future_costs', 'monthly_fixed_costs'] as $schedule) {
+            $result = (new PlanBudgetCoherence)->evaluate([
+                'budget' => [
+                    'status' => 'complete',
+                    'assessment_evidence' => [
+                        $schedule => [['label' => 'Trademark example', 'amount' => 100, 'quantity' => 1, 'month' => 4, 'year' => 2]],
+                        'computed' => ['monthly_fixed_costs' => 0, 'input_count' => 0],
+                    ],
+                ],
+                'phases' => [['sections' => [[
+                    'requirement_key' => 'financial-assumptions',
+                    'body' => 'Opening cash is $1,000. Trademark registration and protection are budgeted.',
+                ]]]],
+            ]);
+
+            $this->assertSame([], $result['findings'], $schedule);
+            $this->assertSame([], $result['actions'], $schedule);
+            $this->assertTrue($result['approval_available'], $schedule);
+        }
+    }
+
+    public function test_missing_trademark_still_requires_a_one_off_entry_not_a_monthly_cost(): void
+    {
+        $result = (new PlanBudgetCoherence)->evaluate([
+            'budget' => ['status' => 'complete', 'assessment_evidence' => [
+                'launch_costs' => [['label' => 'Laptop', 'amount' => 100]],
+                'funding_sources' => [['label' => 'Trademark funding', 'amount' => 100]],
+            ]],
+            'phases' => [['sections' => [[
+                'requirement_key' => 'financial-assumptions',
+                'body' => 'Opening cash is $1,000. Trademark registration is required.',
+            ]]]],
+        ]);
+
+        $this->assertFalse($result['approval_available']);
+        $this->assertSame(['one_off_costs'], array_column($result['actions'], 'key'));
+        $this->assertStringContainsString('Budget > One-off costs', $result['findings'][0]['next_action']);
+        $this->assertStringContainsString('What one-off costs need funding?', $result['actions'][0]['destination']);
+        $this->assertStringNotContainsString('tick the check box', implode(' ', $result['actions'][0]['steps']));
+    }
+
+    public function test_one_off_payment_affects_budget_support_without_becoming_a_monthly_cost(): void
+    {
+        $costs = [['label' => 'Trademark example', 'amount' => 100, 'quantity' => 1, 'month' => 4]];
+        $computed = (new BudgetCalculator)->compute(
+            launchCosts: $costs,
+            monthlyFixedCosts: [],
+            revenueForecast: [],
+            fundingSources: [],
+            expectedRunwayMonths: null,
+            forecastYears: 1,
+            assumptions: ['opening_cash_balance' => 50],
+        );
+        $result = (new PlanBudgetCoherence)->evaluate([
+            'budget' => ['status' => 'complete', 'assessment_evidence' => [
+                'launch_costs' => $costs,
+                'assumptions' => ['opening_cash_balance' => 50],
+                'computed' => $computed,
+            ]],
+            'phases' => [['sections' => [[
+                'requirement_key' => 'financial-assumptions',
+                'body' => 'Opening cash is $50. Trademark registration is budgeted as a one-off payment.',
+            ]]]],
+        ]);
+
+        $this->assertSame(0.0, $computed['monthly_fixed_costs']);
+        $this->assertSame(100.0, $computed['monthly_detail'][3]['launch_costs']);
+        $this->assertSame(0.0, $computed['monthly_detail'][4]['launch_costs']);
+        $this->assertSame(-50.0, $computed['monthly_detail'][3]['cumulative_cash']);
+        $this->assertContains('The budget has a funding gap of $50 after planned launch costs.', array_column($result['findings'], 'message'));
+        $this->assertSame('review', $result['budget_support']['status']);
+        $this->assertSame('met', $result['plan_correlation']['status']);
+        $this->assertFalse($result['approval_available']);
+        $this->assertSame(['funding_and_runway'], array_column($result['actions'], 'key'));
+    }
+
     public function test_it_reconciles_total_costs_when_the_plan_explicitly_excludes_owner_compensation(): void
     {
         $result = (new PlanBudgetCoherence)->evaluate([
@@ -159,7 +238,7 @@ final class PlanBudgetCoherenceTest extends TestCase
         $this->assertStringContainsString('best estimate', $result['advisories'][0]['next_action']);
     }
 
-    public function test_it_groups_repeated_diagnostics_into_three_specific_founder_actions(): void
+    public function test_it_groups_repeated_diagnostics_into_specific_founder_actions(): void
     {
         $result = (new PlanBudgetCoherence)->evaluate([
             'budget' => [
@@ -213,28 +292,28 @@ final class PlanBudgetCoherenceTest extends TestCase
             ]],
         ]);
 
-        $this->assertSame(3, $result['unresolved_count']);
+        $this->assertSame(4, $result['unresolved_count']);
         $this->assertSame(
-            ['regular_costs', 'forecast_calendar', 'funding_and_runway'],
+            ['regular_costs', 'one_off_costs', 'forecast_calendar', 'funding_and_runway'],
             array_column($result['actions'], 'key'),
         );
         $this->assertStringContainsString('professional indemnity insurance', $result['actions'][0]['steps'][0]);
-        $this->assertStringContainsString('trademark registration and protection', implode(' ', $result['actions'][0]['steps']));
+        $this->assertStringContainsString('trademark registration and protection', implode(' ', $result['actions'][1]['steps']));
         $this->assertStringContainsString('$5,718', implode(' ', $result['actions'][0]['steps']));
         $this->assertSame(
             'Set and confirm the forecast start month',
-            $result['actions'][1]['title'],
+            $result['actions'][2]['title'],
         );
         $this->assertSame(
             'Let the reassessment recalculate funding and runway',
-            $result['actions'][2]['title'],
+            $result['actions'][3]['title'],
         );
         $this->assertStringContainsString(
             'Funding and runway are calculated automatically from the Budget.',
-            $result['actions'][2]['steps'][0],
+            $result['actions'][3]['steps'][0],
         );
-        $this->assertStringContainsString('Run reassessment', implode(' ', $result['actions'][2]['steps']));
-        $this->assertStringNotContainsString('All changes saved', implode(' ', $result['actions'][2]['steps']));
+        $this->assertStringContainsString('Run reassessment', implode(' ', $result['actions'][3]['steps']));
+        $this->assertStringNotContainsString('All changes saved', implode(' ', $result['actions'][3]['steps']));
         $this->assertCount(9, $result['findings']);
         $this->assertSame(['payment_frequency'], array_column($result['advisories'], 'key'));
         $this->assertStringNotContainsString('Commercial kitchen or site cost', implode(' ', $result['actions'][0]['steps']));

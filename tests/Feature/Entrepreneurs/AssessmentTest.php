@@ -780,9 +780,10 @@ final class AssessmentTest extends TestCase
         $this->assertStringContainsString('Go to: Business Plan & Budget > Plan requirements (left side) > Financial assumptions > Budget editor', $reply);
         $this->assertStringContainsString('Above the cost list, select “Add another cost”.', $reply);
         $this->assertStringContainsString('The plan states monthly operating costs of $600, while the Budget totals $51,573 per month.', $reply);
-        $this->assertStringContainsString('2. Set and confirm the forecast start month', $reply);
-        $this->assertStringContainsString('3. Confirm the sales forecast assumptions', $reply);
-        $this->assertStringContainsString('4. Let the reassessment recalculate funding and runway', $reply);
+        $this->assertStringContainsString('2. Check the one-off business costs', $reply);
+        $this->assertStringContainsString('3. Set and confirm the forecast start month', $reply);
+        $this->assertStringContainsString('4. Confirm the sales forecast assumptions', $reply);
+        $this->assertStringContainsString('5. Let the reassessment recalculate funding and runway', $reply);
         $this->assertStringContainsString('Funding and runway are calculated automatically from the Budget. Do not change a funding figure just to clear this message.', $reply);
         $this->assertStringContainsString('Current calculation: The budget has a funding gap of $190,057 after planned launch costs.', $reply);
         $this->assertStringNotContainsString('Recheck funding and runway after the Budget corrections', $reply);
@@ -793,6 +794,11 @@ final class AssessmentTest extends TestCase
         $this->assertStringNotContainsString('Save both sections, then rerun the assessment.', $reply);
         $this->assertStringNotContainsString('What we found:', $reply);
         $this->assertStringNotContainsString('The three areas below are simply the best places', $reply);
+
+        $links = app(AssessmentFeedback::class)->founderActionLinks($second);
+        $oneOffLink = collect($links)->firstWhere('key', 'one_off_costs');
+        $this->assertSame('one-off-costs', $oneOffLink['focus']);
+
         $this->assertTrue(app(AssessmentFeedback::class)->isLegacyReply("Dear Tania,\n\nBefore we can finish this review\n\nWhat we found:\n\nWhere to update:"));
 
         $notesBeforeDraftGeneration = $second->refresh()->mentor_notes;
@@ -811,14 +817,45 @@ final class AssessmentTest extends TestCase
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.approval_available', false)
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.budget_support.status', 'missing')
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.plan_correlation.status', 'review')
-                ->has('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions', 4)
+                ->has('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions', 5)
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.key', 'regular_costs')
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.1.key', 'forecast_calendar')
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.2.key', 'sales_forecast')
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.3.key', 'funding_and_runway')
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.3.steps.0', 'Funding and runway are calculated automatically from the Budget. Do not change a funding figure just to clear this message.')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.1.key', 'one_off_costs')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.2.key', 'forecast_calendar')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.3.key', 'sales_forecast')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.4.key', 'funding_and_runway')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.4.steps.0', 'Funding and runway are calculated automatically from the Budget. Do not change a funding figure just to clear this message.')
                 ->missing('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.completion')
             );
+
+        $budget = $plan->budgetRunway()->firstOrFail();
+        $budget->update(['launch_costs' => [[
+            'label' => 'Trademark example', 'amount' => 100, 'quantity' => 1,
+            'month' => 4, 'confidence' => 'estimate',
+        ]]]);
+        $thirdAi = new CapturingScoreAiClient(82);
+        $this->app->instance(AiClient::class, $thirdAi);
+        $third = app(Assessment::class)->firstPass($plan->refresh(), $advisor);
+        $this->assertSame([12], data_get($third->scoring_scope, 'rescored_criterion_numbers'));
+        $this->assertCount(1, $thirdAi->scorePrompts);
+        $this->assertSame($budget->refresh()->launch_costs, data_get($thirdAi->scorePrompts[0]->input, 'plan_context.budget_evidence.launch_costs'));
+        $this->assertStringContainsString('launch_costs are one-off payments in the recorded month', $thirdAi->scorePrompts[0]->body);
+        $this->assertStringContainsString('Correlate planned commitments against all cost schedules', $thirdAi->scorePrompts[0]->body);
+        $this->assertTrue(data_get($third->scoring_scope, 'cross_plan_review.required'));
+        $this->assertSame(4, data_get($third->plan_snapshot, 'budget.assessment_evidence.launch_costs.0.month'));
+        $this->assertSame(100, data_get($third->plan_snapshot, 'budget.assessment_evidence.launch_costs.0.amount'));
+        $this->assertStringNotContainsString('trademark', implode(' ', array_column(
+            data_get($third->scoring_scope, 'plan_budget_coherence.findings'), 'message',
+        )));
+        $this->assertStringContainsString('professional indemnity', implode(' ', array_column(
+            data_get($third->scoring_scope, 'plan_budget_coherence.findings'), 'message',
+        )));
+        $this->assertStringContainsString('trademark', implode(' ', array_column(
+            data_get($second->refresh()->scoring_scope, 'plan_budget_coherence.findings'), 'message',
+        )));
+        $this->assertNotContains('one_off_costs', array_column(
+            app(AssessmentFeedback::class)->founderActionLinks($third), 'key',
+        ));
+        $this->assertStringNotContainsString('trademark registration', app(AssessmentFeedback::class)->proposedReply($profile, $third));
 
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('Resolve the plan–budget findings before finalising');

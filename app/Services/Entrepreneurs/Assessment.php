@@ -760,9 +760,9 @@ final class Assessment implements ProvidesMethodology
     ): array {
         $prompt = new PromptEnvelope(
             id: EntrepreneurPromptRegistry::PLAN_SCORE_CRITERION,
-            version: '2026-09-05',
+            version: '2026-11-02',
             task: 'Select one rubric band for an entrepreneur business-plan criterion using only its scoped submitted-plan evidence.',
-            body: 'Return JSON only. Set metadata.band to exactly one of exceptional, strong, developing, or needs_work. Do not return a numeric score. Use the criterion descriptors and only the supplied criterion-scoped evidence. Budget evidence is supplied only for the Budget criterion. Do not infer a weakness in an unrelated plan area from evidence that is not supplied. Set text to a concise evidence-based rationale. Do not flatter weak evidence.',
+            body: 'Return JSON only. Set metadata.band to exactly one of exceptional, strong, developing, or needs_work. Do not return a numeric score. Use the criterion descriptors and only the supplied criterion-scoped evidence. Budget evidence is supplied only for the Budget criterion. Evaluate all its cost schedules: launch_costs are one-off payments in the recorded month, monthly_fixed_costs are recurring costs, and future_costs have their own payment and renewal timing. Correlate planned commitments against all cost schedules before calling a cost missing. Do not ask for an existing one-off payment to be duplicated as a monthly cost. Do not infer a weakness in an unrelated plan area from evidence that is not supplied. Set text to a concise evidence-based rationale. Do not flatter weak evidence.',
             input: [
                 'business_plan_id' => $plan->getKey(),
                 'criterion' => [
