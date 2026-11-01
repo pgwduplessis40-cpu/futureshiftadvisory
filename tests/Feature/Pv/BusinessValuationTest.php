@@ -17,6 +17,7 @@ use App\Models\ValuationMultiple;
 use App\Services\Pv\BusinessValuation as BusinessValuationService;
 use App\Services\Storage\KeyEnvelope;
 use App\Support\RequestContext;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -274,8 +275,12 @@ final class BusinessValuationTest extends TestCase
         ]);
     }
 
-    private function snapshot(Client $client, ?float $ebitda, float $sde, float $operatingCashFlow, string $periodEnd = '2026-04-30'): FinancialSnapshot
+    private function snapshot(Client $client, ?float $ebitda, float $sde, float $operatingCashFlow, ?string $periodEnd = null): FinancialSnapshot
     {
+        $periodEnd = $periodEnd !== null
+            ? CarbonImmutable::parse($periodEnd)
+            : CarbonImmutable::now()->subMonthNoOverflow()->endOfMonth();
+
         $connection = AccountingConnection::query()->create([
             'client_id' => $client->getKey(),
             'provider' => AccountingConnection::PROVIDER_XERO,
@@ -291,8 +296,8 @@ final class BusinessValuationTest extends TestCase
             'client_id' => $client->getKey(),
             'accounting_connection_id' => $connection->getKey(),
             'provider' => AccountingConnection::PROVIDER_XERO,
-            'period_start' => '2026-04-01',
-            'period_end' => $periodEnd,
+            'period_start' => $periodEnd->startOfMonth()->toDateString(),
+            'period_end' => $periodEnd->toDateString(),
             'source' => 'xero',
             'source_badge' => 'stub',
             'degraded' => false,
