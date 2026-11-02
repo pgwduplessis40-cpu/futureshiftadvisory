@@ -9,6 +9,9 @@ const brief: NonNullable<EntrepreneurDetail['latest_plan']>['lender_brief'] = {
     label: 'Lender brief blocked',
     reasons: ['Review the funding assumption.'],
     document_url: '/brief',
+    download_url: '/brief?download=1',
+    preview_url: '/brief/preview',
+    preview_download_url: '/brief/preview?download=1',
     retry_url: '/retry',
     approve_url: '/approve',
     approval_token: 'revision-1',
@@ -31,6 +34,11 @@ test('a failed summary has an actionable retry without premature release approva
         <FounderReadyBriefAction lenderBrief={brief} />,
     );
     assert.match(html, /Retry summary/);
+    assert.match(html, /View founder brief PDF/);
+    assert.match(html, /Download founder brief PDF/);
+    assert.match(html, /href="\/brief\/preview"/);
+    assert.match(html, /href="\/brief\/preview\?download=1"/);
+    assert.match(html, /Advisor draft available now/);
     assert.doesNotMatch(html, /disabled=""|<form|href="\/brief"/);
 });
 
@@ -93,6 +101,8 @@ test('an approved brief exposes the PDF link and recorded decision', () => {
         />,
     );
     assert.match(html, /href="\/brief"/);
+    assert.match(html, /href="\/brief\?download=1"/);
+    assert.doesNotMatch(html, /href="\/brief\/preview/);
     assert.match(html, /Advisor release approved/);
     assert.match(html, /Supporting records and funding assumptions checked/);
     assert.doesNotMatch(html, /<form|Retry summary/);

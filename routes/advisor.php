@@ -491,6 +491,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready-brief/pdf', [EntrepreneurPlanDocumentController::class, 'funderReadyBriefPdf'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.plans.funder-ready-brief.pdf');
+        Route::get('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/founder-brief/preview', [EntrepreneurPlanDocumentController::class, 'founderBriefPreview'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
+            ->name('entrepreneurs.plans.founder-brief.preview');
         Route::post('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/brief-summary/retry', [EntrepreneurBriefReleaseController::class, 'retry'])
             ->middleware(['permission:'.Permission::ENTREPRENEURS_ASSESS->value, 'throttle:6,1'])
             ->name('entrepreneurs.plans.brief-summary.retry');

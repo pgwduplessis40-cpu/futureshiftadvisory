@@ -215,6 +215,9 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             reasons: string[];
             document_url: string;
             retry_url: string;
+            download_url: string;
+            preview_url: string;
+            preview_download_url: string;
             approve_url: string;
             approval_token: string;
             review: {

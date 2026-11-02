@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { FileText, LoaderCircle, RefreshCw } from 'lucide-react';
+import { Download, FileText, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { EntrepreneurDetail } from './types';
@@ -78,22 +78,43 @@ function BriefReleaseActions({ brief }: { brief: Brief }) {
             className="basis-full space-y-3"
             aria-label="Founder-ready brief release"
         >
+            <p className="text-sm font-medium">Founder brief with financials</p>
+            <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="outline">
+                    <a
+                        href={
+                            brief.active
+                                ? brief.document_url
+                                : brief.preview_url
+                        }
+                        target="_blank"
+                        rel="noreferrer"
+                    >
+                        <FileText className="size-4" aria-hidden="true" />
+                        View founder brief PDF
+                    </a>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                    <a
+                        href={
+                            brief.active
+                                ? brief.download_url
+                                : brief.preview_download_url
+                        }
+                    >
+                        <Download className="size-4" aria-hidden="true" />
+                        Download founder brief PDF
+                    </a>
+                </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+                8–12 pages including financials.{' '}
+                {brief.active
+                    ? 'Approved for external issue.'
+                    : 'Advisor draft available now, including while the summary is pending. Review the PDF before approval; downloading it does not approve external issue.'}
+            </p>
             {brief.active ? (
                 <>
-                    <Button
-                        asChild
-                        size="sm"
-                        className="bg-emerald-600 text-white hover:bg-emerald-700"
-                    >
-                        <a
-                            href={brief.document_url}
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            <FileText className="size-4" aria-hidden="true" />
-                            Generate founder-ready brief
-                        </a>
-                    </Button>
                     <p role="status" className="text-sm">
                         The brief is ready for external issue.
                     </p>
@@ -160,8 +181,9 @@ function BriefReleaseActions({ brief }: { brief: Brief }) {
                                 role="status"
                                 className="text-sm text-muted-foreground"
                             >
-                                {brief.summary_recovery.message} Once it is
-                                ready, review and approve the brief here.
+                                {brief.summary_recovery.message} You can review
+                                the draft PDF now. Once the summary is ready,
+                                review the updated PDF and approve release here.
                             </p>
                         </div>
                     ) : null}
@@ -179,8 +201,8 @@ function BriefReleaseActions({ brief }: { brief: Brief }) {
                             }}
                         >
                             <p className="text-sm">
-                                Review the listed findings and the master plan
-                                preview. Record why this version can be issued.
+                                Review the founder brief PDF and the listed
+                                findings. Record why this version can be issued.
                                 Approval does not change the forecast figures or
                                 the client's answers.
                             </p>
