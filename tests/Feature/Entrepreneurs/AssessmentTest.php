@@ -1803,8 +1803,11 @@ final class AssessmentTest extends TestCase
         $retryUrl = route('advisor.entrepreneurs.plans.brief-summary.retry', [$profile, $plan]);
         $approveUrl = route('advisor.entrepreneurs.plans.brief-release.approve', [$profile, $plan]);
         $documentUrl = route('advisor.entrepreneurs.plans.funder-ready-brief.pdf', [$profile, $plan]);
+        $recovery->mark($assessment->id, 'complete');
         $status = app(FounderBriefRelease::class)->evaluate($plan->refresh(), $profile);
         $this->assertTrue($status['summary_recovery']['can_retry']);
+        $this->assertSame('idle', $status['summary_recovery']['state']);
+        $this->assertStringNotContainsString('approved summary is current', $status['summary_recovery']['message']);
         $this->post($approveUrl, ['note' => 'Not allowed without a current summary.', 'approval_token' => $status['approval_token'], 'acknowledged' => true])
             ->assertSessionHasErrors('brief_release');
         $this->post($retryUrl)->assertSessionHasNoErrors()->assertSessionHas('status', 'entrepreneur-summary-retry-queued');
@@ -1839,6 +1842,9 @@ final class AssessmentTest extends TestCase
             }
         });
         $this->get($documentUrl)->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $download = $this->get($documentUrl.'?download=1')->assertOk();
+        $this->assertStringStartsWith('attachment;', (string) $download->headers->get('Content-Disposition'));
+        $this->assertStringNotContainsString('ADVISOR DRAFT', $download->getContent());
 
         $nextRound = $assessment->replicate()->forceFill(['round' => $assessment->round + 1, 'finalised_at' => null]);
         $nextRound->save();
@@ -1860,10 +1866,13 @@ final class AssessmentTest extends TestCase
         $approveUrl = route('advisor.entrepreneurs.plans.brief-release.approve', [$profile, $plan]);
         $this->actingAsMfa($profile->user)->post($retryUrl)->assertForbidden();
         $this->post($approveUrl)->assertForbidden();
+        $previewUrl = route('advisor.entrepreneurs.plans.founder-brief.preview', [$profile, $plan]);
+        $this->get($previewUrl)->assertForbidden();
         $other = User::factory()->withTwoFactor()->create(['user_type' => User::TYPE_ADVISOR]);
         $other->assignRole('advisor');
         $this->actingAsMfa($other)->post($retryUrl)->assertForbidden();
         $this->post($approveUrl)->assertForbidden();
+        $this->get($previewUrl.'?download=1')->assertForbidden();
         $this->actingAsMfa($advisor)->post($retryUrl)->assertSessionHasErrors('executive_summary');
         $this->patch(route('advisor.entrepreneurs.assessments.budget-review', [$profile, $assessment]), ['note' => 'The existing reserve covers the forecast exposure.'])->assertSessionHasNoErrors();
         app(Assessment::class)->finalise($assessment->refresh(), $advisor);

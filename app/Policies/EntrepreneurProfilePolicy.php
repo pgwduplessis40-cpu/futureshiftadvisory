@@ -37,6 +37,13 @@ final class EntrepreneurProfilePolicy
         return $this->allows($user, Permission::ENTREPRENEURS_ASSESS);
     }
 
+    public function reviewBrief(User $user, EntrepreneurProfile $profile): bool
+    {
+        return $this->view($user, $profile)
+            && ($user->fsaRole() === User::TYPE_SUPER_ADMIN
+                || (string) $profile->assigned_advisor_id === (string) $user->getKey());
+    }
+
     public function assess(User $user, EntrepreneurProfile $profile): bool
     {
         return $this->canMutateEntrepreneurProfile($user, $profile);

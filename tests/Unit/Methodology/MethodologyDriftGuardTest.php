@@ -61,6 +61,8 @@ use App\Services\Entrepreneurs\ExecutiveSummaryRecovery;
 use App\Services\Entrepreneurs\ExternalIssueReview;
 use App\Services\Entrepreneurs\ExternalStripeRefundReconciler;
 use App\Services\Entrepreneurs\FixedCostCadenceQuantityGuard;
+use App\Services\Entrepreneurs\FounderBriefFinancials;
+use App\Services\Entrepreneurs\FounderBriefPages;
 use App\Services\Entrepreneurs\FounderBriefRelease;
 use App\Services\Entrepreneurs\FounderChangeRequestMessage;
 use App\Services\Entrepreneurs\FoundingAdvisoryService;
@@ -202,6 +204,8 @@ final class MethodologyDriftGuardTest extends TestCase
         ExecutiveSummaryEligibility::class => 'Enforces the published summary eligibility policy; it does not calculate or disclose an advisory methodology.',
         ExecutiveSummaryRecovery::class => 'Queues and tracks recovery of an eligible summary; it does not calculate an advisory methodology.',
         FounderBriefRelease::class => 'Records an advisor release decision against existing eligibility and document findings; it does not change the assessment or budget calculations.',
+        FounderBriefPages::class => 'Composes bounded document extracts from saved plan and Budget outputs; owns no scoring or financial methodology.',
+        FounderBriefFinancials::class => 'Presents saved Budget calculations in the founder brief without changing the forecasting methodology.',
         ExternalStripeRefundReconciler::class => 'Staff-only verification and recovery workflow; it compares exact recorded payment facts without calculating advisory methodology.',
         ExternalIssueReview::class => 'External-issue document-quality gate; plan and budget methodologies are owned elsewhere.',
         FixedCostCadenceQuantityGuard::class => 'Input-quality guard that detects a likely duplicated billing-period count; the forecast methodology is owned by BudgetCalculator.',

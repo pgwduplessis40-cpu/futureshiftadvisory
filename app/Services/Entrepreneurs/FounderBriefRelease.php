@@ -51,6 +51,11 @@ final class FounderBriefRelease
             && is_string($review['token'] ?? null) && hash_equals($review['token'], $token);
         $active = $eligible && $summary['usable'] && ($approved || (bool) ($readiness['external_issue_ready'] ?? false));
         $state = $summary['usable'] ? 'complete' : ($assessment === null ? 'idle' : $this->recovery->state((string) $assessment->getKey()));
+        // A completed job can describe an older version or an unusable fallback.
+        // Only the current summary's eligibility can establish completion.
+        if (! $summary['usable'] && $state === 'complete') {
+            $state = 'idle';
+        }
         $inFlight = in_array($state, ['queued', 'running', 'retrying'], true);
         $summaryMessage = match ($state) {
             'complete' => 'The approved summary is current.',

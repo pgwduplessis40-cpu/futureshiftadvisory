@@ -79,7 +79,7 @@ final class EntrepreneurPlanDocumentController extends Controller
         ]);
     }
 
-    public function funderReadyBriefPdf(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): Response
+    public function funderReadyBriefPdf(Request $request, EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): Response
     {
         Gate::authorize('view', $entrepreneurProfile);
         $this->assertPlanBelongsToProfile($businessPlan, $entrepreneurProfile);
@@ -88,7 +88,19 @@ final class EntrepreneurPlanDocumentController extends Controller
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="'.$this->funderReadyBriefs->filename($entrepreneurProfile).'"',
+            'Content-Disposition' => $this->pdfDisposition($this->funderReadyBriefs->filename($entrepreneurProfile), $request->boolean('download')),
+            'Cache-Control' => 'no-store, max-age=0',
+        ]);
+    }
+
+    public function founderBriefPreview(Request $request, EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan): Response
+    {
+        Gate::authorize('reviewBrief', $entrepreneurProfile);
+        $this->assertPlanBelongsToProfile($businessPlan, $entrepreneurProfile);
+
+        return response($this->funderReadyBriefs->previewPdf($entrepreneurProfile, $businessPlan), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => $this->pdfDisposition($this->funderReadyBriefs->filename($entrepreneurProfile, true), $request->boolean('download')),
             'Cache-Control' => 'no-store, max-age=0',
         ]);
     }
