@@ -15,4 +15,7 @@ test('the visual guide identifies the live Budget area for the founder', () => {
     assert.match(html, /You are here: Financial assumptions/);
     assert.match(html, /Regular business costs/);
     assert.match(html, /Add another cost/);
+    assert.match(html, /Correct an existing row if needed/);
+    assert.match(html, /only if it is missing/);
+    assert.doesNotMatch(html, /Select it to add a new regular cost row/);
 });

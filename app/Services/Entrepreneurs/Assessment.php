@@ -573,8 +573,8 @@ final class Assessment implements ProvidesMethodology
         if (! $this->planBudgetCoherenceAllowsFinalisation($assessment)) {
             throw ValidationException::withMessages([
                 'assessment' => (string) data_get(
-                    $assessment->scoring_scope,
-                    'plan_budget_coherence.approval_message',
+                    app(PlanBudgetFollowUp::class)->forAssessment($assessment),
+                    'approval_message',
                     'Run a fresh assessment and resolve the plan–budget coherence findings before finalising.',
                 ),
             ]);
@@ -704,9 +704,9 @@ final class Assessment implements ProvidesMethodology
 
     private function planBudgetCoherenceAllowsFinalisation(PlanAssessment $assessment): bool
     {
-        $coherence = data_get($assessment->scoring_scope, 'plan_budget_coherence');
+        $coherence = app(PlanBudgetFollowUp::class)->forAssessment($assessment);
 
-        return is_array($coherence) && (bool) ($coherence['approval_available'] ?? false);
+        return $coherence !== null && $coherence['approval_available'];
     }
 
     /**

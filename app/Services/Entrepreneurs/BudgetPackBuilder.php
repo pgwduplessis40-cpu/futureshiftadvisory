@@ -715,7 +715,7 @@ HTML,
             'reconciled' => $reconciled,
             'message' => $reconciled
                 ? 'The converted fixed-cost trace reconciles to the model base.'
-                : 'The converted fixed-cost trace differs from the model base by '.$this->money($difference).'. Add the missing rows or correct a payment frequency before external issue.',
+                : 'The converted fixed-cost trace differs from the model base by '.$this->money($difference).'. The advisor should recalculate the saved Budget and investigate any remaining difference before external issue.',
         ];
     }
 

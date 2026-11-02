@@ -174,6 +174,10 @@ type Props = {
     advisorScoringReview?: {
         action_url: string;
     } | null;
+    advisorBudgetReview?: {
+        review_url: string;
+        recalculate_url: string;
+    } | null;
 };
 
 const PROPOSED_REPLY_MAX_LENGTH = 10_000;
@@ -186,6 +190,7 @@ export default function EntrepreneurAssessment({
     reassessUrl = null,
     advisorFeedback = null,
     advisorScoringReview = null,
+    advisorBudgetReview = null,
 }: Props) {
     const framework = assessment.rating_framework;
     const usesOldRubric = framework.is_current === false;
@@ -421,6 +426,9 @@ export default function EntrepreneurAssessment({
 
                 <PlanBudgetCoherencePanel
                     coherence={assessment.plan_budget_coherence}
+                    audience={advisorFeedback ? 'advisor' : 'client'}
+                    reviewUrl={advisorBudgetReview?.review_url}
+                    recalculateUrl={advisorBudgetReview?.recalculate_url}
                     historicalMessage="This historical assessment cannot be used to finalise or issue lender-facing material until it is reassessed with the current coherence gate."
                 />
 

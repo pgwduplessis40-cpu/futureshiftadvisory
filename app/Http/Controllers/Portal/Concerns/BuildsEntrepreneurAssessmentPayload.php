@@ -8,14 +8,14 @@ use App\Models\PlanAssessment;
 use App\Models\RatingFramework;
 use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\AssessmentScoring;
-use App\Services\Entrepreneurs\PlanBudgetActionMessage;
+use App\Services\Entrepreneurs\PlanBudgetFollowUp;
 
 /**
  * @phpstan-type PlanBudgetCoherenceFindingPayload array{category:string,severity:string,message:string,next_action:string}
  * @phpstan-type PlanBudgetCoherenceActionPayload array{key:string,severity:string,title:string,destination:string,steps:list<string>}
  * @phpstan-type PlanBudgetCoherenceAdvisoryPayload array{key:string,category:string,message:string,next_action:string}
  * @phpstan-type PlanBudgetCoherenceDirectionPayload array{status:string,status_label:string,summary:string,unresolved_count:int}
- * @phpstan-type PlanBudgetCoherencePayload array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<PlanBudgetCoherenceFindingPayload>,actions:list<PlanBudgetCoherenceActionPayload>,advisories:list<PlanBudgetCoherenceAdvisoryPayload>,approval_available:bool,approval_message:string,budget_support:PlanBudgetCoherenceDirectionPayload,plan_correlation:PlanBudgetCoherenceDirectionPayload,unresolved_count:int}
+ * @phpstan-type PlanBudgetCoherencePayload array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<PlanBudgetCoherenceFindingPayload>,actions:list<PlanBudgetCoherenceActionPayload>,advisor_reviews?:list<PlanBudgetCoherenceFindingPayload>,calculation_issues?:list<PlanBudgetCoherenceFindingPayload>,review_completed?:bool,review_note?:string|null,advisories:list<PlanBudgetCoherenceAdvisoryPayload>,approval_available:bool,approval_message:string,budget_support:PlanBudgetCoherenceDirectionPayload,plan_correlation:PlanBudgetCoherenceDirectionPayload,unresolved_count:int}
  * @phpstan-type ScoringScope array{version?:string,rescored_criterion_numbers?:list<int|numeric-string>,reused_criterion_numbers?:list<int|numeric-string>,scope_correction_criterion_numbers?:list<int|numeric-string>,advisor_review?:array{required?:bool,confirmed_at?:string|null,confirmed_by_user_id?:int|null},cross_plan_review?:array{required?:bool,trigger?:string|null,message?:string|null},plan_budget_coherence?:PlanBudgetCoherencePayload}
  * @phpstan-type ScoringScopePayload array{rescored_criterion_numbers:list<int>,reused_criterion_numbers:list<int>,scope_correction_criterion_numbers:list<int>,is_full_reassessment:bool,has_scope_correction:bool,is_scope_correction_only:bool,advisor_review_required:bool,advisor_review_confirmed_at:string|null,cross_plan_review_required:bool,cross_plan_review_message:string|null}
  * @phpstan-type AssessmentCriterionPayload array{criterion_number:int,name:string,score:float|int}
@@ -25,13 +25,20 @@ trait BuildsEntrepreneurAssessmentPayload
     /**
      * @return array<string, mixed>
      */
-    protected function assessmentPayload(PlanAssessment $assessment, bool $includeEvidenceAudit = false): array
+    protected function assessmentPayload(PlanAssessment $assessment, bool $includeEvidenceAudit = false, bool $includeAdvisorReview = false): array
     {
         $assessment->loadMissing('businessPlan', 'ratingFramework.criteria');
 
         $criteria = AssessmentScoring::criteriaPayload($assessment);
         $scoringScope = $this->scoringScopePayload($assessment->scoring_scope, $criteria);
-        $planBudgetCoherence = $this->planBudgetCoherencePayload($assessment->scoring_scope);
+        $planBudgetCoherence = $this->planBudgetCoherencePayload($assessment);
+        if ($planBudgetCoherence !== null && ! $includeAdvisorReview) {
+            $planBudgetCoherence['findings'] = [];
+            $planBudgetCoherence['advisor_reviews'] = [];
+            $planBudgetCoherence['calculation_issues'] = [];
+            $planBudgetCoherence['advisories'] = [];
+            $planBudgetCoherence['review_note'] = null;
+        }
         $isFullEvidenceReassessment = (bool) data_get($scoringScope, 'is_full_reassessment', false);
         $hasScopeCorrection = (bool) data_get($scoringScope, 'has_scope_correction', false);
         $framework = $assessment->ratingFramework;
@@ -376,69 +383,9 @@ trait BuildsEntrepreneurAssessmentPayload
         ];
     }
 
-    /**
-     * @param  ScoringScope|null  $scope
-     * @return PlanBudgetCoherencePayload|null
-     */
-    private function planBudgetCoherencePayload(?array $scope): ?array
+    /** @return PlanBudgetCoherencePayload|null */
+    private function planBudgetCoherencePayload(PlanAssessment $assessment): ?array
     {
-        $coherence = data_get($scope, 'plan_budget_coherence');
-        if (! is_array($coherence)) {
-            return null;
-        }
-
-        $findings = collect((array) ($coherence['findings'] ?? []))
-            ->filter(fn (mixed $finding): bool => is_array($finding))
-            ->map(fn (array $finding): array => [
-                'category' => (string) ($finding['category'] ?? 'plan_correlation'),
-                'severity' => (string) ($finding['severity'] ?? 'review'),
-                'message' => (string) ($finding['message'] ?? ''),
-                'next_action' => (string) ($finding['next_action'] ?? ''),
-            ])
-            ->filter(fn (array $finding): bool => $finding['message'] !== '')
-            ->values()
-            ->all();
-        $actions = app(PlanBudgetActionMessage::class)->actionsForCoherence($coherence);
-        $unresolvedActionCount = count($actions);
-        $summary = (string) ($coherence['summary'] ?? 'Plan–budget coherence has not been established.');
-        if ($unresolvedActionCount > 0) {
-            $summary = $unresolvedActionCount.' plan–budget '.($unresolvedActionCount === 1 ? 'action needs' : 'actions need').' resolution before the assessment can be finalised.';
-        }
-        $advisories = collect((array) ($coherence['advisories'] ?? []))
-            ->filter(fn (mixed $advisory): bool => is_array($advisory))
-            ->map(fn (array $advisory): array => [
-                'key' => (string) ($advisory['key'] ?? 'evidence'),
-                'category' => (string) ($advisory['category'] ?? 'budget_support'),
-                'message' => (string) ($advisory['message'] ?? ''),
-                'next_action' => (string) ($advisory['next_action'] ?? ''),
-            ])
-            ->filter(fn (array $advisory): bool => $advisory['message'] !== '')
-            ->values()
-            ->all();
-        $direction = fn (mixed $value): array => [
-            'status' => (string) data_get($value, 'status', 'missing'),
-            'status_label' => (string) data_get($value, 'status_label', 'Evidence needed'),
-            'summary' => (string) data_get($value, 'summary', ''),
-            'unresolved_count' => (int) data_get($value, 'unresolved_count', 0),
-        ];
-
-        return [
-            'status' => (string) ($coherence['status'] ?? 'missing'),
-            'status_label' => (string) ($coherence['status_label'] ?? 'Blocked — evidence needed'),
-            'score' => (int) ($coherence['score'] ?? 0),
-            'summary' => $summary,
-            'evidence' => collect((array) ($coherence['evidence'] ?? []))
-                ->filter(fn (mixed $evidence): bool => is_string($evidence) && trim($evidence) !== '')
-                ->values()
-                ->all(),
-            'findings' => $findings,
-            'actions' => $actions,
-            'advisories' => $advisories,
-            'approval_available' => (bool) ($coherence['approval_available'] ?? false),
-            'approval_message' => (string) ($coherence['approval_message'] ?? 'Resolve the plan–budget coherence findings before finalising.'),
-            'budget_support' => $direction($coherence['budget_support'] ?? null),
-            'plan_correlation' => $direction($coherence['plan_correlation'] ?? null),
-            'unresolved_count' => $unresolvedActionCount,
-        ];
+        return app(PlanBudgetFollowUp::class)->forAssessment($assessment);
     }
 }

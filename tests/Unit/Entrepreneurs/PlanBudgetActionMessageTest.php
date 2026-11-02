@@ -11,7 +11,7 @@ use Tests\TestCase;
 
 final class PlanBudgetActionMessageTest extends TestCase
 {
-    public function test_it_normalises_and_formats_a_canonical_action_payload(): void
+    public function test_it_does_not_repeat_saved_actions_without_supporting_findings(): void
     {
         $assessment = new PlanAssessment;
         $assessment->scoring_scope = [
@@ -49,12 +49,8 @@ final class PlanBudgetActionMessageTest extends TestCase
         $actions = $messages->actions($assessment);
         $message = $messages->format($actions);
 
-        $this->assertSame(['forecast_calendar'], array_column($actions, 'key'));
-        $this->assertSame(['Choose the first forecast month.', '12'], $actions[0]['steps']);
-        $this->assertArrayNotHasKey('completion', $actions[0]);
-        $this->assertStringContainsString('1. Set the forecast start month', $message);
-        $this->assertStringContainsString('- Choose the first forecast month.', $message);
-        $this->assertStringContainsString('- 12', $message);
+        $this->assertSame([], $actions);
+        $this->assertSame('', $message);
         $this->assertStringNotContainsString('Duplicate action', $message);
         $this->assertStringNotContainsString('This action is incomplete.', $message);
         $this->assertStringNotContainsString('When done:', $message);
@@ -148,10 +144,8 @@ final class PlanBudgetActionMessageTest extends TestCase
         $actions = (new PlanBudgetActionMessage(new PlanBudgetActionMapper))->actions($assessment);
         $message = (new PlanBudgetActionMessage(new PlanBudgetActionMapper))->format($actions);
 
-        $this->assertSame(['funding_and_runway'], array_column($actions, 'key'));
-        $this->assertSame('Let the reassessment recalculate funding and runway', $actions[0]['title']);
-        $this->assertStringContainsString('calculated automatically', $actions[0]['steps'][0]);
-        $this->assertStringContainsString('Add another', $actions[0]['steps'][1]);
+        $this->assertSame([], $actions);
+        $this->assertSame('', $message);
         $this->assertStringNotContainsString('First save', $message);
         $this->assertStringNotContainsString('Check the intended runway', $message);
     }

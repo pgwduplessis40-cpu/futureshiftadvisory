@@ -21,6 +21,7 @@ use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Ai\Fake\FakeAiClient;
+use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\Assessment;
 use App\Services\Entrepreneurs\AssessmentFeedback;
 use App\Services\Entrepreneurs\AssessmentScoring;
@@ -28,6 +29,7 @@ use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\BusinessPlanSnapshot;
 use App\Services\Entrepreneurs\ExecutiveSummaryEligibility;
 use App\Services\Entrepreneurs\IdeaValidationService;
+use App\Services\Entrepreneurs\PlanBudgetFollowUp;
 use App\Services\Entrepreneurs\PlanBuilder;
 use App\Services\Pdf\PdfRenderer;
 use App\Support\RequestContext;
@@ -747,7 +749,7 @@ final class AssessmentTest extends TestCase
             array_column((array) data_get($coherence, 'findings'), 'message'),
         );
         $this->assertContains(
-            'Fixed-cost trace mismatch: itemised monthly fixed costs total $1,200, but the model base is $51,573. Add the missing rows or relabel the table if it is only a subset.',
+            'Fixed-cost trace mismatch: itemised monthly fixed costs total $1,200, but the model base is $51,573. The advisor should recalculate the saved Budget and investigate any remaining difference. This does not establish that a client cost is missing.',
             array_column((array) data_get($coherence, 'findings'), 'message'),
         );
         $this->assertContains(
@@ -776,16 +778,16 @@ final class AssessmentTest extends TestCase
         $this->assertStringContainsString('You do not need to start again.', $reply);
         $this->assertStringContainsString('Your changes save automatically, so you do not need to find a Save button.', $reply);
         $this->assertStringContainsString('Once all listed updates show “All changes saved,” select Run reassessment.', $reply);
-        $this->assertStringContainsString('1. Reconcile the regular business costs', $reply);
+        $this->assertStringContainsString('1. Confirm the payment frequency for Insurance', $reply);
         $this->assertStringContainsString('Go to: Business Plan & Budget > Plan requirements (left side) > Financial assumptions > Budget editor', $reply);
-        $this->assertStringContainsString('Above the cost list, select “Add another cost”.', $reply);
+        $this->assertStringContainsString('Check whether an existing row covers it', $reply);
         $this->assertStringContainsString('The plan states monthly operating costs of $600, while the Budget totals $51,573 per month.', $reply);
         $this->assertStringContainsString('2. Check the one-off business costs', $reply);
         $this->assertStringContainsString('3. Set and confirm the forecast start month', $reply);
-        $this->assertStringContainsString('4. Confirm the sales forecast assumptions', $reply);
-        $this->assertStringContainsString('5. Let the reassessment recalculate funding and runway', $reply);
-        $this->assertStringContainsString('Funding and runway are calculated automatically from the Budget. Do not change a funding figure just to clear this message.', $reply);
-        $this->assertStringContainsString('Current calculation: The budget has a funding gap of $190,057 after planned launch costs.', $reply);
+        $this->assertStringContainsString('4. Confirm the delivery capacity', $reply);
+        $this->assertStringContainsString('5. Confirm the opening cash balance', $reply);
+        $this->assertStringNotContainsString('Fixed-cost trace mismatch', $reply);
+        $this->assertStringNotContainsString('Current calculation: The budget has a funding gap', $reply);
         $this->assertStringNotContainsString('Recheck funding and runway after the Budget corrections', $reply);
         $this->assertStringNotContainsString('First save the cost and forecast-date changes above', $reply);
         $this->assertStringContainsString('Use a reasonable estimate if an exact figure is not available yet.', $reply);
@@ -822,8 +824,8 @@ final class AssessmentTest extends TestCase
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.1.key', 'one_off_costs')
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.2.key', 'forecast_calendar')
                 ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.3.key', 'sales_forecast')
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.4.key', 'funding_and_runway')
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.4.steps.0', 'Funding and runway are calculated automatically from the Budget. Do not change a funding figure just to clear this message.')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.4.key', 'plan_and_budget')
+                ->has('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.calculation_issues', 1)
                 ->missing('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.completion')
             );
 
@@ -858,7 +860,7 @@ final class AssessmentTest extends TestCase
         $this->assertStringNotContainsString('trademark registration', app(AssessmentFeedback::class)->proposedReply($profile, $third));
 
         $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage('Resolve the plan–budget findings before finalising');
+        $this->expectExceptionMessage('specific client updates are needed');
         app(Assessment::class)->finalise($second, $advisor);
     }
 
@@ -905,11 +907,9 @@ final class AssessmentTest extends TestCase
             $assessment->refresh(),
         );
 
-        $this->assertStringContainsString('1. Set the forecast start month', $reply);
-        $this->assertStringContainsString('- Choose the first forecast month.', $reply);
-        $this->assertStringContainsString('- 12', $reply);
-        $this->assertStringContainsString('Your changes save automatically, so you do not need to find a Save button.', $reply);
-        $this->assertStringContainsString('Once all listed updates show “All changes saved,” select Run reassessment.', $reply);
+        $this->assertStringNotContainsString('Set the forecast start month', $reply);
+        $this->assertStringNotContainsString('Choose the first forecast month.', $reply);
+        $this->assertStringNotContainsString('- 12', $reply);
         $this->assertStringNotContainsString('Duplicate action', $reply);
         $this->assertStringNotContainsString('This action is incomplete.', $reply);
         $this->assertStringNotContainsString('When done:', $reply);
@@ -984,10 +984,9 @@ final class AssessmentTest extends TestCase
             ->get(route('advisor.entrepreneurs.show', $plan->entrepreneurProfile()->firstOrFail()))
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.key', 'funding_and_runway')
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.steps.0', 'Funding and runway are calculated automatically from the Budget. Do not change a funding figure just to clear this message.')
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.steps.1', 'If you have a real funding source to include, select “Add another” above “What funding or cash is available?” and enter its name and amount. Current calculation: The forecast requires $4,686 of additional funding to cover the modelled cash trough.')
-                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions.0.steps.2', 'After the relevant Budget inputs autosave, select Run reassessment. The result below will be recalculated automatically. Current calculation: Runway needs checking: The expected runway is more than 2 months away from the budget calculation.')
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.actions', [])
+                ->has('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.advisor_reviews', 2)
+                ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.advisor_reviews.0.message', 'The forecast requires $4,686 of additional funding to cover the modelled cash trough.')
             );
     }
 
@@ -1243,7 +1242,7 @@ final class AssessmentTest extends TestCase
         $this->assertStringContainsString('Suggested next step:', $feedback);
         $this->assertStringContainsString('Plan sections reviewed:', $feedback);
         $this->assertStringContainsString('Dear Assessment,', $reply);
-        $this->assertStringContainsString('You have made real progress', $reply);
+        $this->assertStringContainsString('areas below the readiness threshold', $reply);
         $this->assertStringContainsString('Assessment finding:', $reply);
         $this->assertStringNotContainsString('What is missing:', $reply);
         $this->assertStringNotContainsString('Assessment completed:', $reply);
@@ -1436,15 +1435,7 @@ final class AssessmentTest extends TestCase
             'body' => $proposedReply,
         ]);
         $message = Message::query()->where('body', $proposedReply)->firstOrFail();
-        $this->assertEquals([
-            [
-                'key' => 'regular_costs',
-                'title' => 'Reconcile the regular business costs',
-                'description' => 'This opens the regular-cost list and highlights the “Add another cost” button.',
-                'requirement' => 'financial-assumptions',
-                'focus' => 'fixed-costs',
-            ],
-        ], $message->action_links);
+        $this->assertEmpty($message->action_links);
         $this->assertDatabaseHas('audit_events', [
             'action' => 'entrepreneur.plan_assessment_feedback_sent',
             'subject_id' => $assessment->getKey(),
@@ -1461,8 +1452,7 @@ final class AssessmentTest extends TestCase
                 ->component('portal/entrepreneur/Assessment')
                 ->where('advisorFeedback.feedback', $feedback)
                 ->where('advisorFeedback.proposed_reply', $proposedReply)
-                ->where('advisorFeedback.action_links.0.key', 'regular_costs')
-                ->where('advisorFeedback.action_links.0.focus', 'fixed-costs')
+                ->where('advisorFeedback.action_links', [])
                 ->missing('assessment.mentor_notes.feedback_snapshot')
             );
     }
@@ -1637,6 +1627,141 @@ final class AssessmentTest extends TestCase
                 ->values()
                 ->all(),
         );
+    }
+
+    public function test_budget_review_unlocks_finalisation_and_progression_when_nothing_else_is_outstanding(): void
+    {
+        Queue::fake();
+        [$advisor, $plan, $assessment] = $this->assessmentNeedingBudgetReview();
+        $profile = $plan->entrepreneurProfile;
+        $followUp = app(PlanBudgetFollowUp::class);
+        $this->assertFalse($followUp->forAssessment($assessment)['approval_available']);
+        $this->assertSame([], app(AssessmentFeedback::class)->priorities($assessment));
+        $this->assertStringContainsString('No changes are currently requested from you', app(AssessmentFeedback::class)->proposedReply($profile, $assessment));
+
+        $this->actingAsMfa($advisor)->patch(route('advisor.entrepreneurs.assessments.budget-review', [$profile, $assessment]), [
+            'note' => 'Reviewed the planned reserve and accepted the cash exposure.',
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $presented = $followUp->forAssessment($assessment->refresh());
+        $this->assertTrue($presented['approval_available']);
+        $this->assertSame(0, $presented['unresolved_count']);
+        $this->assertDatabaseHas('audit_events', ['action' => 'entrepreneur.plan_budget_review_recorded', 'subject_id' => $assessment->id]);
+        $this->get(route('advisor.entrepreneurs.show', $profile))->assertInertia(fn (Assert $page) => $page
+            ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.approval_available', true)
+            ->where('entrepreneur.latest_plan.latest_assessment.meets_advisory_threshold', true));
+        $finalised = app(Assessment::class)->finalise($assessment->refresh(), $advisor);
+        $this->assertNotNull($finalised->finalised_at);
+        $this->actingAsMfa($profile->user)->get(route('portal.entrepreneur.assessments.show', $assessment))
+            ->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('assessment.plan_budget_coherence.approval_available', true)
+            ->where('assessment.plan_budget_coherence.advisor_reviews', [])
+            ->where('assessment.plan_budget_coherence.calculation_issues', [])
+            ->where('assessment.plan_budget_coherence.review_note', null)
+            ->missing('advisorBudgetReview'));
+        $signal = app(AdvisoryReadiness::class)->evaluate($plan->refresh(), $advisor);
+        $this->assertNotNull($signal);
+        $this->assertSame(EntrepreneurStage::ADVISORY_READY, $profile->refresh()->stage);
+        $this->assertTrue(app(ExecutiveSummaryEligibility::class)->evaluate($plan->refresh(), $profile)['eligible']);
+    }
+
+    public function test_budget_review_cannot_clear_a_specific_client_correction_or_calculation_issue(): void
+    {
+        [$advisor, $plan, $assessment] = $this->assessmentNeedingBudgetReview();
+        $scope = $assessment->scoring_scope;
+        $scope['plan_budget_coherence']['findings'][] = [
+            'category' => 'plan_correlation', 'severity' => 'missing',
+            'message' => 'The plan refers to trademark registration and protection, but the budget does not name a matching cost row.', 'next_action' => 'Check the one-off costs.',
+        ];
+        $scope['plan_budget_coherence']['findings'][] = [
+            'category' => 'budget_support', 'severity' => 'review',
+            'message' => 'Fixed-cost trace mismatch: saved total $500 differs from $100.', 'next_action' => 'Recalculate.',
+        ];
+        $assessment->forceFill(['scoring_scope' => $scope])->save();
+        $this->actingAsMfa($advisor)->patch(route('advisor.entrepreneurs.assessments.budget-review', [$plan->entrepreneurProfile, $assessment]), [
+            'note' => 'Accepted the reserve assumption after reviewing it.',
+        ])->assertSessionHasNoErrors();
+        $coherence = app(PlanBudgetFollowUp::class)->forAssessment($assessment->refresh());
+        $this->assertTrue($coherence['review_completed']);
+        $this->assertFalse($coherence['approval_available']);
+        $this->assertSame(['one_off_costs'], array_column($coherence['actions'], 'key'));
+        $this->assertCount(1, $coherence['calculation_issues']);
+        $this->expectException(ValidationException::class);
+        app(Assessment::class)->finalise($assessment, $advisor);
+    }
+
+    public function test_budget_review_rejects_stale_inputs_and_invalidates_a_decision_after_budget_edits(): void
+    {
+        [$advisor, $plan, $assessment] = $this->assessmentNeedingBudgetReview();
+        $url = route('advisor.entrepreneurs.assessments.budget-review', [$plan->entrepreneurProfile, $assessment]);
+        $this->actingAsMfa($advisor)->patch($url, ['note' => 'Accepted after checking the reserve assumptions.'])->assertSessionHasNoErrors();
+        $budget = $plan->budgetRunway()->firstOrFail();
+        $budget->forceFill(['launch_costs' => [['label' => 'Trademark', 'amount' => 100, 'month' => 4, 'quantity' => 1]]])->save();
+
+        $this->assertFalse(app(PlanBudgetFollowUp::class)->forAssessment($assessment->refresh())['approval_available']);
+        $this->patch($url, ['note' => 'Accept the changed plan without reassessment.'])->assertSessionHasErrors('note');
+        $this->expectException(ValidationException::class);
+        app(Assessment::class)->finalise($assessment->refresh(), $advisor);
+    }
+
+    public function test_budget_review_requires_an_advisor_a_real_note_and_the_latest_unfinished_round(): void
+    {
+        [$advisor, $plan, $assessment] = $this->assessmentNeedingBudgetReview();
+        $profile = $plan->entrepreneurProfile;
+        $url = route('advisor.entrepreneurs.assessments.budget-review', [$profile, $assessment]);
+        $this->actingAsMfa($profile->user)->patch($url, ['note' => 'The client cannot accept an advisor review.'])->assertForbidden();
+        $this->actingAsMfa($advisor)->patch($url, ['note' => str_repeat(' ', 20)])->assertSessionHasErrors('note');
+        $assessment->replicate()->forceFill(['round' => $assessment->round + 1])->save();
+        $this->patch($url, ['note' => 'This old round cannot be reviewed now.'])->assertSessionHasErrors('assessment');
+        $this->assertNull(data_get($assessment->refresh()->scoring_scope, 'plan_budget_review'));
+    }
+
+    public function test_calculation_refresh_uses_saved_inputs_and_queues_reassessment_without_client_changes(): void
+    {
+        Queue::fake();
+        [$advisor, $plan, $assessment] = $this->assessmentNeedingBudgetReview();
+        $scope = $assessment->scoring_scope;
+        $scope['plan_budget_coherence']['findings'] = [[
+            'category' => 'budget_support', 'severity' => 'review',
+            'message' => 'Fixed-cost trace mismatch: saved total $500 differs from $100.', 'next_action' => 'Recalculate.',
+        ]];
+        $assessment->forceFill(['scoring_scope' => $scope])->save();
+        $budget = $plan->budgetRunway()->firstOrFail();
+        $budget->forceFill(['computed' => [...$budget->computed, 'monthly_fixed_costs' => 500],
+            'launch_costs' => [['label' => 'Trademark', 'amount' => 100, 'month' => 4, 'quantity' => 1]]])->save();
+
+        $this->actingAsMfa($advisor)->post(route('advisor.entrepreneurs.assessments.recalculate', [$plan->entrepreneurProfile, $assessment]), [
+            'monthly_fixed_costs' => [['label' => 'Malicious replacement', 'amount' => 999]],
+        ])->assertSessionHasNoErrors()->assertRedirect(route('advisor.entrepreneurs.show', $plan->entrepreneurProfile));
+
+        $this->assertEquals(100, data_get($budget->refresh()->computed, 'monthly_fixed_costs'));
+        $this->assertSame('Insurance', data_get($budget->monthly_fixed_costs, '0.label'));
+        $this->assertEquals(1200, data_get($budget->monthly_fixed_costs, '0.amount'));
+        $this->assertSame('Trademark', data_get($budget->launch_costs, '0.label'));
+        $this->assertEquals(100, data_get($budget->computed, 'monthly_detail.3.launch_costs'));
+        $this->assertSame('queued', $plan->refresh()->assessment_run_status);
+        Queue::assertPushed(RunEntrepreneurPlanAssessment::class);
+        $this->post(route('advisor.entrepreneurs.assessments.recalculate', [$plan->entrepreneurProfile, $assessment]))
+            ->assertSessionHasErrors('assessment');
+        Queue::assertPushed(RunEntrepreneurPlanAssessment::class, 1);
+    }
+
+    /** @return array{User,BusinessPlan,PlanAssessment} */
+    private function assessmentNeedingBudgetReview(): array
+    {
+        $this->app->instance(AiClient::class, new StructuredScoreAiClient(80));
+        [$advisor, $plan] = $this->plan();
+        $this->seedCoherentPlanBudget($plan, $advisor);
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+        $scope = $assessment->scoring_scope;
+        $scope['plan_budget_coherence'] = [
+            'approval_available' => false,
+            'findings' => [['category' => 'budget_support', 'severity' => 'review',
+                'message' => 'The forecast cash reserve needs advisor review.', 'next_action' => 'Old generic regular-cost instruction.']],
+        ];
+        $assessment->forceFill(['scoring_scope' => $scope])->save();
+
+        return [$advisor, $plan, $assessment];
     }
 
     private function plan(string $email = 'assessment-founder@example.test'): array

@@ -171,7 +171,8 @@ final class BudgetPackBuilderTest extends TestCase
         $html = app(BudgetPackBuilder::class)->html($profile, $plan);
 
         $this->assertStringContainsString('Fixed-cost reconciliation warning', $html);
-        $this->assertStringContainsString('Add the missing rows or correct a payment frequency', $html);
+        $this->assertStringContainsString('The advisor should recalculate the saved Budget', $html);
+        $this->assertStringNotContainsString('Add the missing rows', $html);
         $this->assertStringContainsString('Owner compensation', $html);
         $this->assertStringContainsString('<td>$875</td><td>52.00</td><td>Weekly</td>', $html);
     }

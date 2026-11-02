@@ -16,7 +16,7 @@ final class PlanBudgetActionMessage
      */
     public function actions(PlanAssessment $assessment): array
     {
-        $coherence = data_get($assessment->scoring_scope, 'plan_budget_coherence');
+        $coherence = app(PlanBudgetFollowUp::class)->forAssessment($assessment);
         if (! is_array($coherence)) {
             return [];
         }
@@ -40,48 +40,9 @@ final class PlanBudgetActionMessage
             return [];
         }
 
-        $findings = $this->legacyFindings($coherence);
+        $findings = $this->findingsForCoherence($coherence);
         if ($findings !== []) {
             return $this->actionMapper->map($findings);
-        }
-
-        $normalised = [];
-        $actions = $coherence['actions'] ?? [];
-        if (is_array($actions)) {
-            foreach ($actions as $action) {
-                if (! is_array($action)) {
-                    continue;
-                }
-
-                $title = trim((string) ($action['title'] ?? ''));
-                $destination = trim((string) ($action['destination'] ?? ''));
-                $steps = collect((array) ($action['steps'] ?? []))
-                    ->map(fn (mixed $step): string => trim((string) $step))
-                    ->filter()
-                    ->values()
-                    ->all();
-
-                if ($title === '' || $destination === '' || $steps === []) {
-                    continue;
-                }
-
-                $normalised[] = [
-                    'key' => trim((string) ($action['key'] ?? $title)),
-                    'severity' => trim((string) ($action['severity'] ?? 'review')),
-                    'title' => $title,
-                    'destination' => $destination,
-                    'steps' => $steps,
-                ];
-            }
-        }
-
-        $normalised = collect($normalised)
-            ->unique(fn (array $action): string => Str::lower($action['key']))
-            ->values()
-            ->all();
-
-        if ($normalised !== []) {
-            return $normalised;
         }
 
         return [];
@@ -115,7 +76,7 @@ final class PlanBudgetActionMessage
      * @param  array{approval_available?:bool,actions?:array<int, mixed>|string,findings?:array<int, mixed>|string}  $coherence
      * @return list<array{category:'budget_support'|'plan_correlation',severity:'missing'|'review',message:string,next_action:string}>
      */
-    private function legacyFindings(array $coherence): array
+    public function findingsForCoherence(array $coherence): array
     {
         $findings = $coherence['findings'] ?? [];
         if (! is_array($findings)) {

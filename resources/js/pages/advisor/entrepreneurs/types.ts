@@ -33,6 +33,10 @@ export type PlanBudgetCoherence = {
         next_action: string;
     }[];
     approval_available: boolean;
+    advisor_reviews?: { message: string; next_action: string }[];
+    calculation_issues?: { message: string; next_action: string }[];
+    review_completed?: boolean;
+    review_note?: string | null;
     approval_message: string;
     budget_support: {
         status: string;
@@ -129,6 +133,8 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             };
             url: string;
             finalise_url: string;
+            budget_review_url?: string;
+            budget_recalculate_url?: string;
         } | null;
         executive_summary: {
             present: boolean;

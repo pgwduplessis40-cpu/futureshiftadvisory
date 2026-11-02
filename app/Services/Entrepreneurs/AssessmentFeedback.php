@@ -99,6 +99,7 @@ final class AssessmentFeedback
             : collect();
 
         return collect(AssessmentScoring::criteriaPayload($assessment))
+            ->filter(fn (array $criterion): bool => (float) ($criterion['score'] ?? 0) < AdvisoryReadiness::THRESHOLD)
             ->sortBy('score')
             ->take(3)
             ->map(function (array $criterion) use ($previous, $previousCriteria): array {
@@ -197,7 +198,7 @@ final class AssessmentFeedback
 
         return implode("\n\n", [
             $intro,
-            'These are the three lowest-scoring criteria in this assessment:',
+            'These criteria are below the advisory-readiness threshold:',
             $this->formatPriorities($priorities, includeScores: true, includeEvidence: true),
             'Use the assessment finding and the reviewed plan sections to decide the next update.',
         ]);
@@ -218,16 +219,24 @@ final class AssessmentFeedback
         }
 
         $priorities = $this->priorities($assessment);
+        $coherence = app(PlanBudgetFollowUp::class)->forAssessment($assessment);
+
+        if ($priorities === [] && $coherence !== null && ! $coherence['approval_available']) {
+            return $this->changeRequestMessages->build($profile, [
+                'No changes are currently requested from you. Your advisor is checking the financial findings before completing the assessment.',
+                'Your advisor will explain any specific information needed from you. You do not need to change Budget figures or resubmit the plan just to clear a review message.',
+            ]);
+        }
 
         if ($priorities === []) {
             return $this->changeRequestMessages->build($profile, [
-                'You have made good progress. The next step is to add a little more practical detail so we can review the plan with confidence.',
-                'Reply if you would like to talk through the next update before you start.',
+                'The assessment has identified no further changes for you to make.',
+                'Your advisor can complete the remaining review and discuss progressing to the next stage with you.',
             ]);
         }
 
         return $this->changeRequestMessages->build($profile, [
-            'You have made real progress here. You do not need to start again. The three areas below are simply the best places to tighten the next version.',
+            'You do not need to start again. The assessment identified the following areas below the readiness threshold.',
             "I have set out what to focus on next:\n\n".$this->formatPriorities($priorities, includeScores: false, includeEvidence: false),
             'When you are ready, send the plan back and we will review the updated sections. Reply first if you would like to talk through any of these points.',
         ]);
@@ -255,7 +264,7 @@ final class AssessmentFeedback
                 };
 
                 $description = match ($focus) {
-                    'fixed-costs' => 'This opens the regular-cost list and highlights the “Add another cost” button.',
+                    'fixed-costs' => 'This opens the regular-cost list. Check the named item before adding any new cost.',
                     'one-off-costs' => 'This opens the one-off cost list so you can check an existing entry before adding a cost.',
                     'forecast-start-month' => 'This opens and highlights the Forecast start month field.',
                     'revenue-forecast' => 'This opens and highlights the “How will money come in?” list.',
