@@ -69,6 +69,11 @@ test('current summary exposes the advisor explanation and acknowledgement form',
     assert.match(html, /Reason for approving the brief/);
     assert.match(html, /I have reviewed all listed findings/);
     assert.match(html, /Approve brief for external issue/);
+    const checkbox = html.match(/<input[^>]*type="checkbox"[^>]*>/)?.[0] ?? '';
+    assert.match(checkbox, /name="acknowledged"/);
+    const checkboxId = checkbox.match(/id="([^"]+)"/)?.[1];
+    assert.ok(checkboxId);
+    assert.ok(html.includes(`<label for="${checkboxId}"`));
     assert.doesNotMatch(html, /Retry summary/);
 });
 

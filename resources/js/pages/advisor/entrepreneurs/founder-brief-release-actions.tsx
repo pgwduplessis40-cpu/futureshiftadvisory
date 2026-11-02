@@ -201,9 +201,14 @@ function BriefReleaseActions({ brief }: { brief: Brief }) {
                                 maxLength={2000}
                                 required
                             />
-                            <label className="flex items-start gap-2 text-sm">
+                            <label
+                                htmlFor={`${noteId}-acknowledged`}
+                                className="flex items-start gap-2 text-sm"
+                            >
                                 <input
                                     type="checkbox"
+                                    id={`${noteId}-acknowledged`}
+                                    name="acknowledged"
                                     className="mt-1"
                                     checked={acknowledged}
                                     onChange={(event) =>
