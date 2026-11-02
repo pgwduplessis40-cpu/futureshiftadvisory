@@ -15,9 +15,9 @@ const focusDetails: Record<
     },
     'fixed-costs': {
         label: 'Regular business costs',
-        selector: '[data-founder-action-target="fixed-costs-add-row"]',
+        selector: '[data-founder-action-target="fixed-costs"]',
         instruction:
-            'The Add another cost button is highlighted below. Select it to add a new regular cost row.',
+            'Check the item named in your feedback. Correct an existing row if needed, and add a new cost only if it is missing.',
     },
     'forecast-start-month': {
         label: 'Forecast start month',

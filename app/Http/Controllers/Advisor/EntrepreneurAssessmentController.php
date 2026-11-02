@@ -58,7 +58,7 @@ final class EntrepreneurAssessmentController extends Controller
             $proposedReply = $suggestedReply;
         }
 
-        $assessmentPayload = $this->assessmentPayload($planAssessment, includeEvidenceAudit: true);
+        $assessmentPayload = $this->assessmentPayload($planAssessment, includeEvidenceAudit: true, includeAdvisorReview: true);
         if ((bool) data_get($assessmentPayload, 'basis.plan_snapshot_available')) {
             $assessmentPayload['basis']['plan_snapshot_url'] = route(
                 'advisor.entrepreneurs.assessments.plan-preview',
@@ -95,6 +95,12 @@ final class EntrepreneurAssessmentController extends Controller
                 && empty(data_get($assessmentPayload, 'scoring_scope.advisor_review_confirmed_at'))
                 ? [
                     'action_url' => route('advisor.entrepreneurs.assessments.scoring-scope.confirm', [$profile, $planAssessment], absolute: false),
+                ]
+                : null,
+            'advisorBudgetReview' => Gate::allows('finaliseAssessment', $profile) && $planAssessment->finalised_at === null
+                ? [
+                    'review_url' => route('advisor.entrepreneurs.assessments.budget-review', [$profile, $planAssessment], absolute: false),
+                    'recalculate_url' => route('advisor.entrepreneurs.assessments.recalculate', [$profile, $planAssessment], absolute: false),
                 ]
                 : null,
             'dashboardUrl' => route('advisor.entrepreneurs.show', $profile, absolute: false),

@@ -20,6 +20,7 @@ use App\Http\Controllers\Advisor\ClientTransferRequestController;
 use App\Http\Controllers\Advisor\DocumentVerificationController;
 use App\Http\Controllers\Advisor\EntrepreneurActionController;
 use App\Http\Controllers\Advisor\EntrepreneurAssessmentController;
+use App\Http\Controllers\Advisor\EntrepreneurAssessmentReviewController;
 use App\Http\Controllers\Advisor\EntrepreneurBudgetCorrectionController;
 use App\Http\Controllers\Advisor\EntrepreneurController;
 use App\Http\Controllers\Advisor\EntrepreneurDocumentController;
@@ -513,6 +514,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/finalise', [EntrepreneurActionController::class, 'finalise'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.assessments.finalise');
+        Route::patch('entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/budget-review', [EntrepreneurAssessmentReviewController::class, 'review'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.assessments.budget-review');
+        Route::post('entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/recalculate', [EntrepreneurAssessmentReviewController::class, 'recalculate'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.assessments.recalculate');
         Route::post('entrepreneurs/{entrepreneurProfile}/convert', [EntrepreneurActionController::class, 'convert'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.convert');

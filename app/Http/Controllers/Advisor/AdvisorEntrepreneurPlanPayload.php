@@ -29,7 +29,7 @@ use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
  * @phpstan-type PlanBudgetCoherenceActionPayload array{key:string,severity:string,title:string,destination:string,steps:list<string>}
  * @phpstan-type PlanBudgetCoherenceAdvisoryPayload array{key:string,category:string,message:string,next_action:string}
  * @phpstan-type PlanBudgetCoherenceDirectionPayload array{status:string,status_label:string,summary:string,unresolved_count:int}
- * @phpstan-type PlanBudgetCoherencePayload array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<PlanBudgetCoherenceFindingPayload>,actions:list<PlanBudgetCoherenceActionPayload>,advisories:list<PlanBudgetCoherenceAdvisoryPayload>,approval_available:bool,approval_message:string,budget_support:PlanBudgetCoherenceDirectionPayload,plan_correlation:PlanBudgetCoherenceDirectionPayload,unresolved_count:int}
+ * @phpstan-type PlanBudgetCoherencePayload array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<PlanBudgetCoherenceFindingPayload>,actions:list<PlanBudgetCoherenceActionPayload>,advisor_reviews?:list<PlanBudgetCoherenceFindingPayload>,calculation_issues?:list<PlanBudgetCoherenceFindingPayload>,review_completed?:bool,review_note?:string|null,advisories:list<PlanBudgetCoherenceAdvisoryPayload>,approval_available:bool,approval_message:string,budget_support:PlanBudgetCoherenceDirectionPayload,plan_correlation:PlanBudgetCoherenceDirectionPayload,unresolved_count:int}
  * @phpstan-type LatestAssessmentPayload array{round:int,scoring_scope:AssessmentScopePayload|null,criteria:list<AssessmentCriterionPayload>,plan_budget_coherence:PlanBudgetCoherencePayload|null}
  * @phpstan-type CriterionDeltaPayload array{criterion_number:int,criterion_name:string,previous_score:float|int|null,current_score:int,delta:float|int,direction:string}
  * @phpstan-type LatestRevisionPayload array{id:string,round:int,submitted_at:string|null,trajectory_percent:float|int|null,overall_delta:float|int|null,biggest_improvements:list<mixed>,remaining_gaps:list<CriterionDeltaPayload>,comparison_mode:'evidence_progress'|'full_evidence_reassessment'|'scope_correction',comparison_notice:string|null}
@@ -54,7 +54,7 @@ final class AdvisorEntrepreneurPlanPayload
         $assessmentRunStatus = $plan->assessment_run_status;
         $assessmentRunInFlight = in_array($assessmentRunStatus, ['queued', 'running'], true);
         $latestAssessmentPayload = $latestAssessment instanceof PlanAssessment
-            ? $this->assessmentPayload($latestAssessment)
+            ? $this->assessmentPayload($latestAssessment, includeAdvisorReview: true)
             : null;
 
         return [
@@ -100,6 +100,8 @@ final class AdvisorEntrepreneurPlanPayload
                 'rating_framework' => $latestAssessmentPayload['rating_framework'],
                 'url' => route('advisor.entrepreneurs.assessments.show', [$profile, $latestAssessment], absolute: false),
                 'finalise_url' => route('advisor.entrepreneurs.assessments.finalise', [$profile, $latestAssessment], absolute: false),
+                'budget_review_url' => route('advisor.entrepreneurs.assessments.budget-review', [$profile, $latestAssessment], absolute: false),
+                'budget_recalculate_url' => route('advisor.entrepreneurs.assessments.recalculate', [$profile, $latestAssessment], absolute: false),
             ] : null,
             'executive_summary' => [
                 ...$this->executiveSummaries->status($plan, $profile),
@@ -138,7 +140,7 @@ final class AdvisorEntrepreneurPlanPayload
             ->sortBy('round')
             ->values()
             ->map(function (PlanAssessment $assessment) use ($plan, $profile, &$previousWeightedScore): array {
-                $payload = $this->assessmentPayload($assessment);
+                $payload = $this->assessmentPayload($assessment, includeAdvisorReview: true);
                 $snapshot = $assessment->plan_snapshot;
                 $snapshotAvailable = is_array($snapshot) && is_array($snapshot['phases'] ?? null);
                 $automatedScoreAvailable = (bool) ($payload['automated_score_available'] ?? true);

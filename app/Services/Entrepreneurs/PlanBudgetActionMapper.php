@@ -5,402 +5,157 @@ declare(strict_types=1);
 namespace App\Services\Entrepreneurs;
 
 /**
- * Converts detailed plan-budget diagnostics into the small number of distinct
- * founder actions that resolve them. The diagnostics remain on the assessment
- * for auditability; this map is the single action list used by the assessment
- * screen and the founder change-request message.
+ * Only recognised, specific input corrections become client tasks.
+ * Unrecognised warnings stay visible for an advisor to investigate.
  *
- * @phpstan-type Finding array{category:'budget_support'|'plan_correlation',severity:'missing'|'review',message:string,next_action:string}
- * @phpstan-type Action array{key:'regular_costs'|'one_off_costs'|'forecast_calendar'|'funding_and_runway'|'sales_forecast'|'plan_and_budget'|'budget_setup',severity:'missing'|'review',title:string,destination:string,steps:list<string>}
+ * @phpstan-import-type Finding from PlanBudgetCoherence
+ * @phpstan-import-type Action from PlanBudgetCoherence
+ *
+ * @phpstan-type Routing array{actions:list<Action>,advisor_reviews:list<Finding>,calculation_issues:list<Finding>}
  */
 final class PlanBudgetActionMapper
 {
-    /** @var array<string, int> */
-    private const ACTION_ORDER = [
-        'regular_costs' => 10,
-        'one_off_costs' => 15,
-        'forecast_calendar' => 20,
-        'sales_forecast' => 30,
-        'funding_and_runway' => 40,
-        'plan_and_budget' => 50,
-        'budget_setup' => 60,
-    ];
+    private const DESTINATION = 'Business Plan & Budget > Plan requirements (left side) > Financial assumptions > Budget editor';
 
-    /**
-     * @param  list<Finding>  $findings
+    /** @param list<Finding> $findings
      * @return list<Action>
      */
     public function map(array $findings): array
     {
-        /** @var array<string, list<Finding>> $groups */
-        $groups = [];
+        return $this->route($findings)['actions'];
+    }
+
+    /** @param list<Finding> $findings
+     * @return Routing
+     */
+    public function route(array $findings): array
+    {
+        $actions = [];
+        $reviews = [];
+        $calculations = [];
         foreach ($findings as $finding) {
-            $groups[$this->actionKey($finding)][] = $finding;
+            if (str_contains(strtolower($finding['message']), 'fixed-cost trace mismatch')) {
+                $calculations[] = [
+                    ...$finding,
+                    'message' => str_replace(' Add the missing rows or relabel the table if it is only a subset.', '', $finding['message']),
+                    'next_action' => 'Recalculate the saved Budget and reassess. If the totals still differ, investigate the calculation before finalising. The client does not need to change correct inputs.',
+                ];
+
+                continue;
+            }
+            $action = $this->clientAction($finding);
+            if ($action === null) {
+                $reviews[] = [
+                    ...$finding,
+                    'next_action' => 'Review the finding and the saved plan and Budget. Record why the plan can progress, or identify the exact input that needs clarification before requesting a client change.',
+                ];
+
+                continue;
+            }
+            $key = $action['key'];
+            if (isset($actions[$key])) {
+                $actions[$key]['steps'] = array_values(array_unique([...$actions[$key]['steps'], ...$action['steps']]));
+                if ($action['severity'] === 'missing') {
+                    $actions[$key]['severity'] = 'missing';
+                }
+            } else {
+                $actions[$key] = $action;
+            }
         }
+        $order = ['regular_costs', 'one_off_costs', 'forecast_calendar', 'sales_forecast', 'funding_and_runway', 'plan_and_budget', 'budget_setup'];
+        uksort($actions, fn (string $a, string $b): int => array_search($a, $order, true) <=> array_search($b, $order, true));
 
-        uksort(
-            $groups,
-            fn (string $left, string $right): int => self::ACTION_ORDER[$left] <=> self::ACTION_ORDER[$right],
-        );
-
-        $hasOtherAction = collect(array_keys($groups))
-            ->contains(fn (string $key): bool => $key !== 'funding_and_runway');
-        $groups = array_filter(
-            $groups,
-            fn (array $group, string $key): bool => $key !== 'funding_and_runway'
-                || ! $hasOtherAction
-                || $this->fundingNeedsAnInputUpdate($group),
-            ARRAY_FILTER_USE_BOTH,
-        );
-
-        return array_map(
-            fn (array $group, string $key): array => $this->action($key, $group),
-            $groups,
-            array_keys($groups),
-        );
+        return ['actions' => array_values($actions), 'advisor_reviews' => $reviews, 'calculation_issues' => $calculations];
     }
 
-    /** @param Finding $finding */
-    private function actionKey(array $finding): string
-    {
-        $text = strtolower($finding['message'].' '.$finding['next_action']);
-
-        if (str_contains($text, 'forecast_start_month')
-            || str_contains($text, 'forecast start month')
-            || str_contains($text, 'forecast calendar')) {
-            return 'forecast_calendar';
-        }
-
-        if (str_contains($text, 'budget > one-off costs')
-            || (str_contains(strtolower($finding['message']), 'trademark')
-                && str_contains($finding['message'], 'does not name a matching cost row'))) {
-            return 'one_off_costs';
-        }
-
-        if (str_contains($text, 'fixed cost')
-            || str_contains($text, 'operating cost')
-            || str_contains($text, 'recurring cost')
-            || str_contains($text, 'payment frequency')
-            || str_contains($text, 'cadence')
-            || str_contains($text, 'insurance')
-            || str_contains($text, 'owner compensation')) {
-            return 'regular_costs';
-        }
-
-        if (str_contains($text, 'funding')
-            || str_contains($text, 'runway')
-            || str_contains($text, 'cash trough')
-            || str_contains($text, 'break-even')
-            || str_contains($text, 'opening cash')) {
-            return 'funding_and_runway';
-        }
-
-        if (str_contains($text, 'revenue')
-            || str_contains($text, 'capacity')
-            || str_contains($text, 'contractor')) {
-            return 'sales_forecast';
-        }
-
-        return $finding['category'] === 'plan_correlation'
-            ? 'plan_and_budget'
-            : 'budget_setup';
-    }
-
-    /**
-     * @param  Action['key']  $key
-     * @param  list<Finding>  $findings
-     * @return Action
+    /** @param Finding $finding
+     * @return Action|null
      */
-    private function action(string $key, array $findings): array
+    private function clientAction(array $finding): ?array
     {
-        $messages = $this->messages($findings);
-        $severity = collect($findings)->contains(
-            fn (array $finding): bool => $finding['severity'] === 'missing',
-        ) ? 'missing' : 'review';
-
-        $action = match ($key) {
-            'regular_costs' => $this->regularCostsAction($messages),
-            'one_off_costs' => $this->oneOffCostsAction($messages),
-            'forecast_calendar' => $this->forecastCalendarAction($messages),
-            'sales_forecast' => $this->salesForecastAction($messages),
-            'funding_and_runway' => $this->fundingAndRunwayAction($messages),
-            'plan_and_budget' => $this->planAndBudgetAction($messages),
-            default => $this->budgetSetupAction($messages),
-        };
-
-        return [
-            'key' => $key,
-            'severity' => $severity,
-            ...$action,
-        ];
-    }
-
-    /**
-     * @param  list<Finding>  $findings
-     * @return list<string>
-     */
-    private function messages(array $findings): array
-    {
-        return collect($findings)
-            ->pluck('message')
-            ->map(fn (string $message): string => trim($message))
-            ->filter()
-            ->unique(fn (string $message): string => strtolower($message))
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @param  list<string>  $messages
-     * @return array{title:string,destination:string,steps:list<string>}
-     */
-    private function regularCostsAction(array $messages): array
-    {
+        $message = $finding['message'];
+        $text = strtolower($message);
+        $key = 'budget_setup';
+        $title = '';
+        $area = '';
         $steps = [];
-        $paymentFrequencyRows = $this->paymentFrequencyRows($messages);
-        if ($paymentFrequencyRows !== []) {
-            $steps[] = 'In the cost list, find these existing rows: '.implode(', ', $paymentFrequencyRows).'. For each row, choose how often the cost is paid, then tick “I have checked how often this cost is paid”. If your best estimate is all you have, you can still tick it.';
-        }
 
-        $missingCosts = $this->missingCostRows($messages);
-        $genericInsurance = collect($paymentFrequencyRows)->contains(
-            fn (string $row): bool => strtolower(trim($row)) === 'insurance',
-        );
-        if (in_array('professional indemnity insurance', $missingCosts, true) && $genericInsurance) {
-            $steps[] = 'Confirm whether “Insurance” covers professional indemnity insurance. Rename or split the row if it does; otherwise add a separate professional-indemnity insurance row.';
-            $missingCosts = array_values(array_diff($missingCosts, ['professional indemnity insurance']));
-        }
-
-        if ($missingCosts !== []) {
-            $steps[] = 'Above the cost list, select “Add another cost”. A new row opens at the bottom of the list. Add one row for each of: '.implode(', ', $missingCosts).'. Enter the item name, amount, how often it is paid, and tick the check box.';
-        }
-
-        $costMismatch = collect($messages)
-            ->first(fn (string $message): bool => str_contains(strtolower($message), 'monthly operating costs'));
-        if (is_string($costMismatch)) {
-            $steps[] = 'Make the written plan and the Budget use the same total monthly regular cost. The assessment currently shows: '.$costMismatch;
+        if (preg_match('/^The plan refers to (.+?), but the budget does not name a matching cost row\\.$/i', $message, $matches) === 1) {
+            $oneOff = str_contains(strtolower($matches[1]), 'trademark');
+            $key = $oneOff ? 'one_off_costs' : 'regular_costs';
+            $title = $oneOff ? 'Check the one-off business costs' : 'Identify the planned insurance cost';
+            $area = $oneOff ? 'What one-off costs need funding?' : 'What will you pay every month even if sales are slow?';
+            $steps = [
+                'Your plan includes '.$matches[1].', but no Budget cost is named for it. Check whether an existing row covers it and rename that row if it does.',
+                $oneOff
+                    ? 'Only if it is absent, add it under one-off costs with the amount, quantity and forecast month when paid. Do not duplicate a one-off payment as a monthly cost.'
+                    : 'Only if it is absent, add the expected amount and how often it is paid. An estimate is acceptable.',
+            ];
+        } elseif (preg_match('/^The plan describes "(.+)" as an annual cost, but the budget treats it as monthly\\.$/', $message, $matches) === 1) {
+            $key = 'regular_costs';
+            $title = 'Confirm the payment frequency for '.$matches[1];
+            $area = 'What will you pay every month even if sales are slow?';
+            $steps = [$message.' Is this payment annual or monthly? Set that row to the actual frequency and make the plan description agree.'];
+        } elseif (str_starts_with($text, 'the plan states monthly operating costs of ')) {
+            $key = 'regular_costs';
+            $title = 'Confirm the monthly running-cost total';
+            $area = 'What will you pay every month even if sales are slow?';
+            $steps = [$message, 'Check which costs the written total includes. Update the written total if the saved cost rows are correct; correct a row only if its amount or payment frequency is wrong.'];
+        } elseif (preg_match('/(?:billing cadence|payment frequency)[^:]*:\\s*(.+?)\\.$/i', $message, $matches) === 1) {
+            $key = 'regular_costs';
+            $title = 'Confirm how often the listed costs are paid';
+            $area = 'What will you pay every month even if sales are slow?';
+            $steps = ['For '.$matches[1].', check the payment frequency and tick “I have checked how often this cost is paid”. Your best estimate is acceptable.'];
+        } elseif (str_contains($text, 'quantities that duplicate billing periods') && str_contains($message, ': ')) {
+            $key = 'regular_costs';
+            $title = 'Check the number of units for the listed costs';
+            $area = 'What will you pay every month even if sales are slow?';
+            $steps = [$message, 'For those rows, Qty means the number of subscriptions, people or licences paid for at the same time. Enter the payment frequency separately.'];
+        } elseif (str_contains($text, 'forecast_start_month') || str_contains($text, 'set the forecast start month')) {
+            $key = 'forecast_calendar';
+            $title = 'Set and confirm the forecast start month';
+            $area = 'Forecast start month';
+            $steps = ['Set “Forecast start month” to the calendar month that should be Month 1 in your forecast.', 'Tick “I have checked Month 1 against the written milestones.”'];
+        } elseif (preg_match('/(?:capacity for every revenue line|capacity for:|capacity for each affected revenue line|revenue beyond founder capacity|revenue growth is monthly or annual)[^:]*:\\s*(.+?)\\.$/i', $message, $matches) === 1) {
+            $key = 'sales_forecast';
+            $title = 'Confirm the named sales assumptions';
+            $area = 'How will money come in?';
+            $field = str_contains($text, 'contractor') ? 'the cost of contractors needed beyond your own delivery capacity'
+                : (str_contains($text, 'growth') ? 'whether the growth rate applies each month or each year' : 'the maximum number of sales you can deliver per month');
+            $steps = ['For '.$matches[1].', enter and confirm '.$field.'. Use your best current estimate.'];
+        } elseif (preg_match('/^The budget allows .+ units per month for ".+", above the plan’s stated capacity of .+\\.$/', $message) === 1) {
+            $key = 'sales_forecast';
+            $title = 'Confirm the delivery capacity';
+            $area = 'How will money come in?';
+            $steps = [$message, 'Check how many sales you can deliver each month, then use that capacity in the named Budget row and written plan.'];
+        } elseif (str_contains($text, 'confirm whether') && (str_contains($text, 'self-funded') || str_contains($text, 'external funding'))) {
+            $key = 'funding_and_runway';
+            $title = 'Confirm how the business will be funded';
+            $area = 'Funding position';
+            $steps = ['Select whether the business will use its own available cash or seek external funding. If seeking funding, describe what it will pay for.'];
+        } elseif (str_starts_with($text, 'the plan states opening cash of ')) {
+            $key = 'plan_and_budget';
+            $title = 'Confirm the opening cash balance';
+            $area = 'Opening cash balance';
+            $steps = [$message, 'Check the cash available at the forecast start date and use that amount in both Financial assumptions and Opening cash balance.'];
+        } elseif (str_contains($text, 'financial plan does not state a checkable') || str_starts_with($text, 'the submitted plan has no financial assumptions,')) {
+            $key = 'plan_and_budget';
+            $title = 'State the financial assumptions in the plan';
+            $area = 'Financial assumptions (written plan)';
+            $steps = ['In Financial assumptions, state the opening cash amount, how long it must last, how the business will be funded, and how many sales you can deliver each month. Use the assumptions already entered in the Budget.'];
+        } elseif (str_starts_with($text, 'no budget evidence was captured')) {
+            $title = 'Complete the Budget for assessment';
+            $steps = ['Open Financial assumptions and complete the Budget with your planned costs, sales and available cash, then run reassessment.'];
         }
 
         if ($steps === []) {
-            $steps[] = 'In the cost list, find the row named in this assessment and correct its amount or how often it is paid.';
+            return null;
         }
 
         return [
-            'title' => 'Reconcile the regular business costs',
-            'destination' => 'Business Plan & Budget > Plan requirements (left side) > Financial assumptions > Budget editor > “What will you pay every month even if sales are slow?”',
+            'key' => $key, 'severity' => $finding['severity'], 'title' => $title,
+            'destination' => self::DESTINATION.($area !== '' ? ' > “'.$area.'”' : ''),
             'steps' => $steps,
         ];
-    }
-
-    /**
-     * @param  list<string>  $messages
-     * @return array{title:string,destination:string,steps:list<string>}
-     */
-    private function oneOffCostsAction(array $messages): array
-    {
-        $costs = $this->missingCostRows($messages);
-
-        return [
-            'title' => 'Check the one-off business costs',
-            'destination' => 'Business Plan & Budget > Plan requirements (left side) > Financial assumptions > Budget editor > “What one-off costs need funding?”',
-            'steps' => [
-                'Check the one-off cost list for '.($costs !== [] ? implode(', ', $costs) : 'the cost named in the assessment').'. If it is already listed, update that row instead of adding a duplicate.',
-                'Only if the cost is absent, select “Add another” above this list. Enter the item name, amount, quantity, forecast month when paid, and confidence. A registration charge is paid once; do not add it as a monthly running cost.',
-                'Keep any later renewal in the future-cost schedule with its actual renewal timing.',
-            ],
-        ];
-    }
-
-    /**
-     * @param  list<string>  $messages
-     * @return array{title:string,destination:string,steps:list<string>}
-     */
-    private function forecastCalendarAction(array $messages): array
-    {
-        $steps = [
-            'Set “Forecast start month” to the month that should be Month 1 in your forecast.',
-            'Tick “I have checked Month 1 against the written milestones.”',
-        ];
-
-        if (collect($messages)->contains(
-            fn (string $message): bool => str_contains(strtolower($message), 'opening cash')
-                || str_contains(strtolower($message), 'payment timing'),
-        )) {
-            $steps[] = 'Confirm the opening cash and customer/supplier payment timing used for Month 1.';
-        }
-
-        return [
-            'title' => 'Set and confirm the forecast start month',
-            'destination' => 'Business Plan & Budget > Plan requirements (left side) > Financial assumptions > Budget editor > “Forecast start month”',
-            'steps' => $steps,
-        ];
-    }
-
-    /**
-     * @param  list<string>  $messages
-     * @return array{title:string,destination:string,steps:list<string>}
-     */
-    private function fundingAndRunwayAction(array $messages): array
-    {
-        $steps = [
-            'Funding and runway are calculated automatically from the Budget. Do not change a funding figure just to clear this message.',
-        ];
-
-        foreach ($messages as $message) {
-            $normalised = strtolower($message);
-            if (str_contains($normalised, 'additional funding') || str_contains($normalised, 'funding gap')) {
-                $steps[] = 'If you have a real funding source to include, select “Add another” above “What funding or cash is available?” and enter its name and amount. Current calculation: '.$message;
-                break;
-            }
-        }
-
-        foreach ($messages as $message) {
-            if (str_contains(strtolower($message), 'runway')) {
-                $steps[] = 'After the relevant Budget inputs autosave, select Run reassessment. The result below will be recalculated automatically. Current calculation: '.$message;
-                break;
-            }
-        }
-
-        return [
-            'title' => 'Let the reassessment recalculate funding and runway',
-            'destination' => 'Business Plan & Budget > Plan requirements (left side) > Financial assumptions > Budget editor > “What funding or cash is available?”',
-            'steps' => $steps,
-        ];
-    }
-
-    /**
-     * @param  list<string>  $messages
-     * @return array{title:string,destination:string,steps:list<string>}
-     */
-    private function salesForecastAction(array $messages): array
-    {
-        return [
-            'title' => 'Confirm the sales forecast assumptions',
-            'destination' => 'Business Plan & Budget > Plan requirements (left side) > Financial assumptions > Budget editor > “How will money come in?”',
-            'steps' => [
-                'For each affected revenue line, set the expected sales, price, payment timing, and monthly delivery capacity.',
-                'Use the assessment detail to correct the named revenue line before changing unrelated estimates.',
-            ],
-        ];
-    }
-
-    /**
-     * @param  list<string>  $messages
-     * @return array{title:string,destination:string,steps:list<string>}
-     */
-    private function planAndBudgetAction(array $messages): array
-    {
-        return [
-            'title' => 'Make the plan and Budget use the same figures',
-            'destination' => 'Business Plan & Budget > Plan requirements (left side) > open the named plan section, then Financial assumptions > Budget editor',
-            'steps' => [
-                'Update the matching plan statement and Budget row so both use the same amount, timing, and payment frequency.',
-                ...$this->assessmentDetailSteps($messages),
-            ],
-        ];
-    }
-
-    /**
-     * @param  list<string>  $messages
-     * @return array{title:string,destination:string,steps:list<string>}
-     */
-    private function budgetSetupAction(array $messages): array
-    {
-        return [
-            'title' => 'Complete the Budget inputs needed for this assessment',
-            'destination' => 'Business Plan & Budget > Plan requirements (left side) > Financial assumptions > Budget editor',
-            'steps' => [
-                'Complete the specific Budget input identified in the assessment using the best information available today.',
-                ...$this->assessmentDetailSteps($messages),
-            ],
-        ];
-    }
-
-    /**
-     * @param  list<string>  $messages
-     * @return list<string>
-     */
-    private function assessmentDetailSteps(array $messages): array
-    {
-        return collect($messages)
-            ->take(2)
-            ->map(fn (string $message): string => 'Assessment detail: '.$message)
-            ->all();
-    }
-
-    /**
-     * @param  list<string>  $messages
-     * @return list<string>
-     */
-    private function paymentFrequencyRows(array $messages): array
-    {
-        $rows = [];
-        foreach ($messages as $message) {
-            if (preg_match('/(?:billing cadence|payment frequency)[^:]*:\s*(.+?)\.$/i', $message, $matches) !== 1) {
-                continue;
-            }
-
-            foreach (preg_split('/\s*,\s*/', trim($matches[1])) ?: [] as $row) {
-                $row = trim($row);
-                if ($row !== '') {
-                    $rows[] = $row;
-                }
-            }
-        }
-
-        return $this->uniqueStrings($rows);
-    }
-
-    /**
-     * A funding gap or runway result is produced by the calculator. It does
-     * not tell a founder which field to change, so it must not become a
-     * separate client task while other Budget corrections are pending. Keep
-     * it when it is the only issue, or when the finding names an actual
-     * funding input that can be completed.
-     *
-     * @param  list<Finding>  $findings
-     */
-    private function fundingNeedsAnInputUpdate(array $findings): bool
-    {
-        return collect($findings)->contains(function (array $finding): bool {
-            $text = strtolower($finding['message'].' '.$finding['next_action']);
-
-            return str_contains($text, 'funding source')
-                || str_contains($text, 'funding position')
-                || str_contains($text, 'funding purpose');
-        });
-    }
-
-    /**
-     * @param  list<string>  $messages
-     * @return list<string>
-     */
-    private function missingCostRows(array $messages): array
-    {
-        $rows = [];
-        foreach ($messages as $message) {
-            if (preg_match('/^The plan refers to (.+?), but the budget does not name a matching cost row\.$/i', $message, $matches) === 1) {
-                $rows[] = trim($matches[1]);
-            }
-        }
-
-        return $this->uniqueStrings(array_filter($rows));
-    }
-
-    /**
-     * @param  list<string>  $values
-     * @return list<string>
-     */
-    private function uniqueStrings(array $values): array
-    {
-        $unique = [];
-        foreach ($values as $value) {
-            $key = strtolower($value);
-            if ($key !== '' && ! array_key_exists($key, $unique)) {
-                $unique[$key] = $value;
-            }
-        }
-
-        return array_values($unique);
     }
 }

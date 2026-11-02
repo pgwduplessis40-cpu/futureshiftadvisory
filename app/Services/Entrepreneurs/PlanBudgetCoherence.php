@@ -14,7 +14,7 @@ namespace App\Services\Entrepreneurs;
  * @phpstan-type Advisory array{key:'fixed_cost_sources'|'revenue_sources'|'payment_frequency',category:'budget_support',message:string,next_action:string}
  * @phpstan-type Action array{key:'regular_costs'|'one_off_costs'|'forecast_calendar'|'funding_and_runway'|'sales_forecast'|'plan_and_budget'|'budget_setup',severity:'missing'|'review',title:string,destination:string,steps:list<string>}
  * @phpstan-type Direction array{status:'met'|'review'|'missing',status_label:string,summary:string,unresolved_count:int}
- * @phpstan-type Reconciliation array{status:'met'|'review'|'missing',status_label:string,score:int,summary:string,evidence:list<string>,findings:list<Finding>,actions:list<Action>,advisories:list<Advisory>,approval_available:bool,approval_message:string,budget_support:Direction,plan_correlation:Direction,unresolved_count:int}
+ * @phpstan-type Reconciliation array{status:'met'|'review'|'missing',status_label:string,score:int,summary:string,evidence:list<string>,findings:list<Finding>,actions:list<Action>,advisor_reviews?:list<Finding>,calculation_issues?:list<Finding>,review_completed?:bool,review_note?:string|null,advisories:list<Advisory>,approval_available:bool,approval_message:string,budget_support:Direction,plan_correlation:Direction,unresolved_count:int}
  * @phpstan-type BudgetRow array{label?:string,type?:string,amount?:float|int,quantity?:float|int,monthly_capacity_units?:float|int,cadence?:string}
  * @phpstan-type BudgetFlag array{key?:string,message?:string,title?:string}
  * @phpstan-type BudgetComputed array{available_after_launch?:float|int,monthly_fixed_costs?:float|int,runway_months?:float|int,runway_open_ended?:bool,input_count?:int,break_even_reached?:bool}
@@ -94,7 +94,8 @@ final class PlanBudgetCoherence
             'The submitted financial plan correlates with the budget mechanics.',
             'The submitted financial plan cannot yet be fully reconciled with the budget.',
         );
-        $unresolvedCount = count($actions);
+        $routing = (new PlanBudgetActionMapper)->route($findings);
+        $unresolvedCount = count($actions) + count($routing['advisor_reviews']) + count($routing['calculation_issues']);
         $missingCount = count(array_filter(
             $actions,
             fn (array $action): bool => $action['severity'] === 'missing',
@@ -103,7 +104,7 @@ final class PlanBudgetCoherence
         $approvalAvailable = $unresolvedCount === 0;
         $status = $approvalAvailable ? 'met' : ($missingCount > 0 ? 'missing' : 'review');
 
-        return [
+        return (new PlanBudgetFollowUp)->present([
             'status' => $status,
             'status_label' => match ($status) {
                 'met' => 'Reconciled',
@@ -131,7 +132,7 @@ final class PlanBudgetCoherence
             'budget_support' => $budgetSupport,
             'plan_correlation' => $planCorrelation,
             'unresolved_count' => $unresolvedCount,
-        ];
+        ]);
     }
 
     /**

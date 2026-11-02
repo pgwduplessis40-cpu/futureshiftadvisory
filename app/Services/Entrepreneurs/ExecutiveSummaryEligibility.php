@@ -45,14 +45,14 @@ final class ExecutiveSummaryEligibility
             return $this->blocked('The finalised assessment does not contain valid scores for every criterion. Run and finalise a fresh assessment before generating the executive summary.', $contextHash, $assessment);
         }
 
-        $planBudgetCoherence = data_get($assessment->scoring_scope, 'plan_budget_coherence');
+        $planBudgetCoherence = app(PlanBudgetFollowUp::class)->forAssessment($assessment);
         if (! is_array($planBudgetCoherence)) {
             return $this->blocked('This finalised assessment predates Plan–budget coherence. Reassess the current plan and budget before generating the executive summary.', $contextHash, $assessment);
         }
 
-        if (! (bool) ($planBudgetCoherence['approval_available'] ?? false)) {
+        if (! $planBudgetCoherence['approval_available']) {
             return $this->blocked(
-                (string) ($planBudgetCoherence['approval_message'] ?? 'Resolve the plan–budget coherence findings before generating the executive summary.'),
+                $planBudgetCoherence['approval_message'],
                 $contextHash,
                 $assessment,
             );

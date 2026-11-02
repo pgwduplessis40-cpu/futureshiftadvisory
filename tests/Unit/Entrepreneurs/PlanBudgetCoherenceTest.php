@@ -85,7 +85,8 @@ final class PlanBudgetCoherenceTest extends TestCase
         $this->assertSame('review', $result['budget_support']['status']);
         $this->assertSame('met', $result['plan_correlation']['status']);
         $this->assertFalse($result['approval_available']);
-        $this->assertSame(['funding_and_runway'], array_column($result['actions'], 'key'));
+        $this->assertSame([], $result['actions']);
+        $this->assertContains('The budget has a funding gap of $50 after planned launch costs.', array_column($result['advisor_reviews'], 'message'));
     }
 
     public function test_it_reconciles_total_costs_when_the_plan_explicitly_excludes_owner_compensation(): void
@@ -292,9 +293,9 @@ final class PlanBudgetCoherenceTest extends TestCase
             ]],
         ]);
 
-        $this->assertSame(4, $result['unresolved_count']);
+        $this->assertSame(7, $result['unresolved_count']);
         $this->assertSame(
-            ['regular_costs', 'one_off_costs', 'forecast_calendar', 'funding_and_runway'],
+            ['regular_costs', 'one_off_costs', 'forecast_calendar'],
             array_column($result['actions'], 'key'),
         );
         $this->assertStringContainsString('professional indemnity insurance', $result['actions'][0]['steps'][0]);
@@ -304,16 +305,8 @@ final class PlanBudgetCoherenceTest extends TestCase
             'Set and confirm the forecast start month',
             $result['actions'][2]['title'],
         );
-        $this->assertSame(
-            'Let the reassessment recalculate funding and runway',
-            $result['actions'][3]['title'],
-        );
-        $this->assertStringContainsString(
-            'Funding and runway are calculated automatically from the Budget.',
-            $result['actions'][3]['steps'][0],
-        );
-        $this->assertStringContainsString('Run reassessment', implode(' ', $result['actions'][3]['steps']));
-        $this->assertStringNotContainsString('All changes saved', implode(' ', $result['actions'][3]['steps']));
+        $this->assertNotEmpty($result['advisor_reviews']);
+        $this->assertSame([], $result['calculation_issues']);
         $this->assertCount(9, $result['findings']);
         $this->assertSame(['payment_frequency'], array_column($result['advisories'], 'key'));
         $this->assertStringNotContainsString('Commercial kitchen or site cost', implode(' ', $result['actions'][0]['steps']));

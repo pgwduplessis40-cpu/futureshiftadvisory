@@ -148,7 +148,7 @@ final class BudgetFundingReadiness
 
         $fixedCostReconciliation = $this->fixedCostReconciliation($budget, $computed);
         if (! (bool) ($fixedCostReconciliation['reconciled'] ?? true)) {
-            $warnings->push('Fixed-cost trace mismatch: itemised monthly fixed costs total '.$this->money($fixedCostReconciliation['listed_total'] ?? 0).', but the model base is '.$this->money($fixedCostReconciliation['model_base'] ?? 0).'. Add the missing rows or relabel the table if it is only a subset.');
+            $warnings->push('Fixed-cost trace mismatch: itemised monthly fixed costs total '.$this->money($fixedCostReconciliation['listed_total'] ?? 0).', but the model base is '.$this->money($fixedCostReconciliation['model_base'] ?? 0).'. The advisor should recalculate the saved Budget and investigate any remaining difference. This does not establish that a client cost is missing.');
         }
 
         $ambiguousOwnerCompensation = collect((array) ($budget->monthly_fixed_costs ?? []))

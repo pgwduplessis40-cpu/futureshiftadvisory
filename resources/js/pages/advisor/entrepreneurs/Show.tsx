@@ -2373,6 +2373,17 @@ export default function EntrepreneursShow({
                         {latestAssessment ? (
                             <PlanBudgetCoherencePanel
                                 coherence={planBudgetCoherence}
+                                audience="advisor"
+                                reviewUrl={
+                                    latestAssessment.finalised_at
+                                        ? undefined
+                                        : latestAssessment.budget_review_url
+                                }
+                                recalculateUrl={
+                                    latestAssessment.finalised_at
+                                        ? undefined
+                                        : latestAssessment.budget_recalculate_url
+                                }
                                 heading="h3"
                                 historicalMessage="This historical round predates the coherence gate. Run a reassessment before using it to finalise or issue lender-facing material."
                             />
