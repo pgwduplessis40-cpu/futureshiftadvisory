@@ -4,9 +4,12 @@ import { join } from 'node:path';
 import process from 'node:process';
 import axe from 'axe-core';
 import { generateSync } from 'otplib';
-import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 import puppeteer from 'puppeteer';
+import {
+    approvedScreenshotNames,
+    compareApprovedScreenshots,
+} from './browser-screenshot.mjs';
 
 const required = [
     'E2E_BASE_URL',
@@ -33,10 +36,6 @@ const baseUrl = new URL(process.env.E2E_BASE_URL);
 const screenshotRoot = process.env.E2E_SNAPSHOT_DIR ?? 'e2e/snapshots';
 const artifactRoot =
     process.env.E2E_ARTIFACT_DIR ?? 'storage/app/e2e-artifacts';
-// Hosted Chrome can alter anti-aliased font-edge pixels between otherwise
-// identical runs. One changed pixel per thousand is noise, not a visual
-// approval bypass; layout and content changes exceed this bound.
-const maxScreenshotDifferenceRatio = 0.001;
 const failures = [];
 mkdirSync(artifactRoot, { recursive: true });
 
@@ -905,7 +904,9 @@ async function assertKeyboardFocus(
 
 async function assertApprovedScreenshot(page, flow, viewport) {
     const snapshotName = `${safeName(flow.name)}-${viewport}.png`;
-    const expectedPath = join(screenshotRoot, snapshotName);
+    const expectedPaths = approvedScreenshotNames(snapshotName).map((name) =>
+        join(screenshotRoot, name),
+    );
     const actualPath = join(
         artifactRoot,
         `${safeName(flow.name)}-${viewport}.actual.png`,
@@ -915,40 +916,19 @@ async function assertApprovedScreenshot(page, flow, viewport) {
     const actual = Buffer.from(await page.screenshot({ fullPage: true }));
     writeFileSync(actualPath, actual);
 
-    if (!existsSync(expectedPath)) {
-        throw new Error(
-            `Missing approved screenshot ${expectedPath}. Review the artifact and commit an approved baseline.`,
+    for (const expectedPath of expectedPaths) {
+        if (!existsSync(expectedPath)) {
+            throw new Error(
+                `Missing approved screenshot ${expectedPath}. Review the artifact and commit an approved baseline.`,
+            );
+        }
+    }
+
+    const { changedPixels, allowedChangedPixels, diff } =
+        compareApprovedScreenshots(
+            actual,
+            expectedPaths.map((path) => readFileSync(path)),
         );
-    }
-
-    const expected = PNG.sync.read(readFileSync(expectedPath));
-    const received = PNG.sync.read(actual);
-
-    if (
-        expected.width !== received.width ||
-        expected.height !== received.height
-    ) {
-        throw new Error(`Screenshot dimensions changed for ${snapshotName}.`);
-    }
-
-    const diff = new PNG({ width: expected.width, height: expected.height });
-    const changedPixels = pixelmatch(
-        expected.data,
-        received.data,
-        diff.data,
-        expected.width,
-        expected.height,
-        {
-            // The hosted Chrome runners can vary at anti-aliased font edges
-            // even with the same DOM and browser revision. Keep layout and
-            // colour changes strict while excluding that rasterisation noise.
-            threshold: 0.2,
-        },
-    );
-
-    const allowedChangedPixels = Math.ceil(
-        expected.width * expected.height * maxScreenshotDifferenceRatio,
-    );
 
     if (changedPixels > allowedChangedPixels) {
         writeFileSync(

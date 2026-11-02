@@ -104,6 +104,7 @@ jobs:
 
       - name: Run authenticated browser quality gate
         run: |
+          node scripts/check-browser-screenshot.mjs
           npm run browser:e2e
           php artisan db:seed --class=Database\\Seeders\\BrowserE2eDdSeeder --env=testing --force
           E2E_BROWSER_FLOW=dd npm run browser:e2e

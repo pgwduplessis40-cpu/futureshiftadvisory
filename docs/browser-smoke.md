@@ -44,3 +44,12 @@ Optional route and expected-text overrides are `E2E_ONBOARDING_PATH`,
 `E2E_ADVISOR_DASHBOARD_PATH`, `E2E_NPO_PATH`, `E2E_BUDGET_PATH`, and their
 matching `_EXPECT` variables. Do not approve a screenshot until the rendered
 page and its accessibility result have been reviewed.
+
+The desktop Budget page has two explicitly reviewed reference images for
+observed Chromium text-rendering differences. Their provenance is recorded in
+`e2e/snapshots/README.md`. Each whole image is compared at the original
+threshold and noise budget; all other captures use a single image. Alternatives
+must be explicitly listed in `scripts/browser-screenshot.mjs` and visually
+reviewed, never generated or accepted automatically. Run
+`node scripts/check-browser-screenshot.mjs` to verify that reviewed renderings
+pass while missing controls, layout displacement and resizing fail.
