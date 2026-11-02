@@ -1,0 +1,64 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { PlanBudgetFinaliseReportAction } from './founder-ready-brief-controls';
+
+const assessment = {
+    threshold: 75,
+    finalise_url: '/assessment/finalise',
+    url: '/assessment',
+    finalisation_blocking_message: null as string | null,
+};
+
+test('a passing Budget does not show an enabled green finalise button while scoring review is pending', () => {
+    const reason =
+        'An advisor must confirm the rescored criteria before finalisation.';
+    const html = renderToStaticMarkup(
+        <PlanBudgetFinaliseReportAction
+            assessment={{
+                ...assessment,
+                finalisation_blocking_message: reason,
+            }}
+            ready
+            blocked={false}
+            blockingMessage={null}
+        />,
+    );
+    assert.match(html, /disabled=""/);
+    assert.match(html, /An advisor must confirm the rescored criteria/);
+    assert.match(html, /href="\/assessment"/);
+    assert.match(html, /Review assessment/);
+    assert.doesNotMatch(html, /bg-emerald-600/);
+});
+
+test('clear assessments explain the outcome and keep conversion separate', () => {
+    const html = renderToStaticMarkup(
+        <PlanBudgetFinaliseReportAction
+            assessment={assessment}
+            ready
+            blocked={false}
+            blockingMessage={null}
+        />,
+    );
+    assert.doesNotMatch(html, /disabled=""|Review assessment/);
+    assert.match(html, /bg-emerald-600/);
+    assert.match(
+        html,
+        /creates its report and moves the client to Advisory Ready/,
+    );
+    assert.match(html, /Advisory conversion is a separate action/);
+});
+
+test('a blocked Budget retains its specific explanation and a review link', () => {
+    const html = renderToStaticMarkup(
+        <PlanBudgetFinaliseReportAction
+            assessment={assessment}
+            ready={false}
+            blocked
+            blockingMessage="Confirm the annual Insurance payment."
+        />,
+    );
+    assert.match(html, /disabled=""/);
+    assert.match(html, /Confirm the annual Insurance payment/);
+    assert.match(html, /Review assessment/);
+});

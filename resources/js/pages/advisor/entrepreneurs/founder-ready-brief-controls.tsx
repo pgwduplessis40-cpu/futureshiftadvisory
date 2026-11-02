@@ -1,5 +1,7 @@
-import { router } from '@inertiajs/react';
-import { CheckCircle2, FileText } from 'lucide-react';
+import { Link, router } from '@inertiajs/react';
+import { CheckCircle2, FileText, LoaderCircle } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,6 +23,8 @@ type FinaliseReportActionProps = {
     assessment: {
         threshold: number;
         finalise_url: string;
+        url: string;
+        finalisation_blocking_message: string | null;
     };
     ready: boolean;
     blocked: boolean;
@@ -122,35 +126,97 @@ export function PlanBudgetFinaliseReportAction({
     blocked,
     blockingMessage,
 }: FinaliseReportActionProps) {
+    const [pending, setPending] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const submitting = useRef(false);
+    const reason =
+        assessment.finalisation_blocking_message ??
+        (blocked
+            ? (blockingMessage ??
+              'Run a reassessment with Plan–budget coherence before finalising.')
+            : null);
+    const explanation = ready
+        ? 'Finalising completes this assessment, creates its report and moves the client to Advisory Ready. The approved executive summary is queued automatically when eligible. Advisory conversion is a separate action.'
+        : 'Finalising completes this assessment and creates its report. A result below the readiness threshold returns the client to revision.';
+    const finalise = () => {
+        if (reason || submitting.current) {
+            return;
+        }
+
+        submitting.current = true;
+        setPending(true);
+        setError(null);
+        router.patch(
+            assessment.finalise_url,
+            {},
+            {
+                preserveScroll: true,
+                onError: (errors) =>
+                    setError(
+                        Object.values(errors).join(' ') ||
+                            'The assessment could not be finalised. Review the assessment and try again.',
+                    ),
+                onSuccess: () =>
+                    toast.success(
+                        ready
+                            ? 'Assessment finalised and report created. The client is Advisory Ready; conversion is available separately.'
+                            : 'Assessment finalised and report created. The client remains in revision.',
+                    ),
+                onFinish: () => {
+                    submitting.current = false;
+                    setPending(false);
+                },
+            },
+        );
+    };
+
     return (
-        <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={blocked}
-            className={
-                ready
-                    ? 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white'
-                    : undefined
-            }
-            title={
-                blocked
-                    ? (blockingMessage ??
-                      'Run a reassessment with Plan–budget coherence before finalising.')
-                    : ready
-                      ? `Score meets the ${assessment.threshold}/100 advisory-readiness threshold. Finalising activates the advisory conversion request and automatically queues the approved executive summary for this assessed plan and budget.`
-                      : 'Finalise the assessment report and record the advisor outcome.'
-            }
-            onClick={() =>
-                router.patch(
-                    assessment.finalise_url,
-                    {},
-                    { preserveScroll: true },
-                )
-            }
-        >
-            <CheckCircle2 className="size-4" aria-hidden="true" />
-            Finalise report
-        </Button>
+        <div className="basis-full space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={reason !== null || pending}
+                    aria-busy={pending}
+                    className={
+                        ready && reason === null
+                            ? 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white'
+                            : undefined
+                    }
+                    title={reason ?? explanation}
+                    onClick={finalise}
+                >
+                    {pending ? (
+                        <LoaderCircle
+                            className="size-4 animate-spin"
+                            aria-hidden="true"
+                        />
+                    ) : (
+                        <CheckCircle2 className="size-4" aria-hidden="true" />
+                    )}
+                    {pending ? 'Finalising report…' : 'Finalise report'}
+                </Button>
+                {reason || error ? (
+                    <Button asChild size="sm" variant="outline">
+                        <Link href={assessment.url}>Review assessment</Link>
+                    </Button>
+                ) : null}
+            </div>
+            {reason ? (
+                <p role="status" className="text-sm text-amber-800">
+                    {reason} Open “Review assessment” to complete the required
+                    check.
+                </p>
+            ) : null}
+            {error ? (
+                <p role="alert" className="text-sm text-destructive">
+                    {error}
+                </p>
+            ) : null}
+            <p className="max-w-2xl text-sm text-muted-foreground">
+                {explanation}
+            </p>
+        </div>
     );
 }
