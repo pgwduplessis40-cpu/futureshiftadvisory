@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { PlanBudgetFinaliseReportAction } from './founder-ready-brief-controls';
+import {
+    FounderReadyBriefAction,
+    PlanBudgetFinaliseReportAction,
+} from './founder-ready-brief-controls';
 
 const assessment = {
     threshold: 75,
@@ -9,6 +12,26 @@ const assessment = {
     url: '/assessment',
     finalisation_blocking_message: null as string | null,
 };
+
+test('blocked brief reasons are readable without hovering over a disabled button', () => {
+    const reason = 'The automatic executive summary needs a system retry.';
+    const html = renderToStaticMarkup(
+        <FounderReadyBriefAction
+            lenderBrief={{
+                active: false,
+                label: 'Lender brief blocked',
+                reasons: [reason],
+                document_url: '/brief',
+            }}
+        />,
+    );
+    assert.match(
+        html,
+        /<li>The automatic executive summary needs a system retry\.<\/li>/,
+    );
+    assert.match(html, /separate from client progression/);
+    assert.match(html, /disabled=""/);
+});
 
 test('a passing Budget does not show an enabled green finalise button while scoring review is pending', () => {
     const reason =

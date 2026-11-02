@@ -29,7 +29,7 @@ final class PlanBudgetFollowUp
         /** @var ReviewRecord|null $review */
         $review = is_array($review) ? $review : null;
         $currentHash = $review !== null && $assessment->businessPlan instanceof BusinessPlan
-            ? $this->currentInputsHash($assessment->businessPlan)
+            ? $this->reviewInputsHash($assessment, $assessment->businessPlan, $review)
             : null;
 
         return $this->present($coherence, $review, $currentHash);
@@ -113,11 +113,31 @@ final class PlanBudgetFollowUp
         return $this->snapshotInputsHash(app(BusinessPlanSnapshot::class)->capture($plan));
     }
 
+    /** @param ReviewRecord $review */
+    private function reviewInputsHash(PlanAssessment $assessment, BusinessPlan $plan, array $review): string
+    {
+        $current = app(BusinessPlanSnapshot::class)->capture($plan);
+        $snapshot = (array) $assessment->plan_snapshot;
+        // Keep the original fingerprint for saved decisions. Only ignore the derived
+        // summary when the decision demonstrably covered this assessed revision.
+        if (hash_equals($review['inputs_hash'], $this->snapshotInputsHash($snapshot))
+            && hash_equals($this->snapshotInputsHash($snapshot, false), $this->snapshotInputsHash($current, false))) {
+            return $review['inputs_hash'];
+        }
+
+        return $this->snapshotInputsHash($current);
+    }
+
     /** @param array<array-key,mixed> $snapshot */
-    public function snapshotInputsHash(array $snapshot): string
+    public function snapshotInputsHash(array $snapshot, bool $includeExecutiveSummary = true): string
     {
         $sections = collect((array) ($snapshot['phases'] ?? []))
             ->flatMap(fn (array $phase): array => (array) ($phase['sections'] ?? []))
+            ->reject(fn (array $section): bool => ! $includeExecutiveSummary && (
+                ($section['requirement_key'] ?? null) === BusinessPlanExecutiveSummary::REQUIREMENT_KEY
+                || ($section['key'] ?? null) === BusinessPlanExecutiveSummary::SECTION_KEY
+                || strcasecmp(trim((string) ($section['title'] ?? '')), 'Executive summary') === 0
+            ))
             ->map(fn (array $section): array => array_intersect_key($section, array_flip([
                 'id', 'title', 'body', 'requirement_key', 'attached_document_ids',
             ])))

@@ -32,6 +32,7 @@ final class PlanIssueReadiness
         $contentReview = $this->externalIssueReview->evaluate($plan);
         $executiveSummary = $this->executiveSummaries->status($plan);
         $reasons = [];
+        $summaryReason = null;
 
         if (! $completion['complete']) {
             $reasons[] = 'Complete all business-plan requirements before external issue.';
@@ -46,9 +47,10 @@ final class PlanIssueReadiness
         }
 
         if (! (bool) ($executiveSummary['usable'] ?? false)) {
-            $reasons[] = (bool) ($executiveSummary['legacy_draft'] ?? false)
+            $summaryReason = (bool) ($executiveSummary['legacy_draft'] ?? false)
                 ? 'A manually authored executive-summary draft is held from external issue. Finalise a passing assessment to generate the approved AI summary.'
                 : (string) ($executiveSummary['readiness_reason'] ?? 'A current executive summary is required before external issue.');
+            $reasons[] = $summaryReason;
         }
 
         $reasons = [...$reasons, ...(array) ($contentReview['blocking_reasons'] ?? []), ...(array) ($contentReview['warnings'] ?? [])];
@@ -73,6 +75,7 @@ final class PlanIssueReadiness
             'budget' => $budget,
             'content_review' => $contentReview,
             'executive_summary' => $executiveSummary,
+            'executive_summary_reason' => $summaryReason,
         ];
     }
 }

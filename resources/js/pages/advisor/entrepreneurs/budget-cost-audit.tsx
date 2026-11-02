@@ -1,4 +1,5 @@
 import { formatNzdCurrency } from '@/lib/formatters';
+import { BudgetAuditSection } from './budget-audit-section';
 import { FixedCostCalculationAudit } from './fixed-cost-calculation-audit';
 import type { EntrepreneurDetail } from './types';
 
@@ -35,10 +36,13 @@ function ScheduledCosts({
     rows: ScheduledCost[];
 }) {
     return (
-        <section className="min-w-0 rounded-md border">
+        <BudgetAuditSection
+            title={title}
+            count={rows.length}
+            defaultOpen={title === 'One-off costs'}
+        >
             <div className="border-b p-4">
-                <h3 className="text-sm font-medium">{title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                     Current saved Budget entries. Amounts are shown per payment,
                     separately from monthly running costs. Reassess after Budget
                     changes to update the assessment findings.
@@ -105,7 +109,7 @@ function ScheduledCosts({
                     </table>
                 </div>
             )}
-        </section>
+        </BudgetAuditSection>
     );
 }
 
