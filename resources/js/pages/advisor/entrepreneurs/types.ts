@@ -214,6 +214,21 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             label: string;
             reasons: string[];
             document_url: string;
+            retry_url: string;
+            approve_url: string;
+            approval_token: string;
+            review: {
+                can_approve: boolean;
+                approved: boolean;
+                note: string | null;
+                approved_at: string | null;
+                findings: string[];
+            };
+            summary_recovery: {
+                can_retry: boolean;
+                state: string;
+                message: string;
+            };
         };
         assess_url: string;
         assessment_history: {

@@ -28,6 +28,8 @@ use App\Services\Entrepreneurs\AssessmentScoring;
 use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\BusinessPlanSnapshot;
 use App\Services\Entrepreneurs\ExecutiveSummaryEligibility;
+use App\Services\Entrepreneurs\ExecutiveSummaryRecovery;
+use App\Services\Entrepreneurs\FounderBriefRelease;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBudgetFollowUp;
 use App\Services\Entrepreneurs\PlanBuilder;
@@ -1765,7 +1767,7 @@ final class AssessmentTest extends TestCase
         $this->assertTrue(app(PlanBudgetFollowUp::class)->forAssessment($assessment->refresh())['review_completed']);
         $this->get(route('advisor.entrepreneurs.show', $profile))->assertInertia(fn (Assert $page) => $page
             ->where('entrepreneur.latest_plan.lender_brief.active', false)
-            ->where('entrepreneur.latest_plan.lender_brief.reasons.0', fn (string $reason): bool => str_contains($reason, 'no new assessment or client changes are needed')));
+            ->where('entrepreneur.latest_plan.lender_brief.summary_recovery.state', 'retrying'));
 
         Queue::fake();
         $command = ['assessment' => $assessment->id];
@@ -1783,6 +1785,97 @@ final class AssessmentTest extends TestCase
         $plan->budgetRunway()->firstOrFail()->forceFill(['launch_costs' => [['label' => 'Trademark', 'amount' => 200]]])->save();
         $this->artisan('entrepreneurs:recover-executive-summary', [...$command, '--queue' => true])->assertFailed();
         Queue::assertPushed(GenerateEligibleExecutiveSummary::class, 1);
+    }
+
+    public function test_advisor_can_retry_summary_then_approve_and_download_the_brief_with_a_recorded_explanation(): void
+    {
+        Queue::fake();
+        [$advisor, $plan, $assessment] = $this->assessmentNeedingBudgetReview();
+        $profile = $plan->entrepreneurProfile;
+        $this->actingAsMfa($advisor)->patch(route('advisor.entrepreneurs.assessments.budget-review', [$profile, $assessment]), [
+            'note' => 'The existing reserve covers the forecast exposure.',
+        ])->assertSessionHasNoErrors();
+        app(Assessment::class)->finalise($assessment->refresh(), $advisor);
+        $review = data_get($assessment->refresh()->scoring_scope, 'plan_budget_review');
+        $recovery = app(ExecutiveSummaryRecovery::class);
+        (new GenerateEligibleExecutiveSummary($assessment->id))->failed(new \RuntimeException('Temporary generation failure.'));
+        Queue::fake();
+        $retryUrl = route('advisor.entrepreneurs.plans.brief-summary.retry', [$profile, $plan]);
+        $approveUrl = route('advisor.entrepreneurs.plans.brief-release.approve', [$profile, $plan]);
+        $documentUrl = route('advisor.entrepreneurs.plans.funder-ready-brief.pdf', [$profile, $plan]);
+        $status = app(FounderBriefRelease::class)->evaluate($plan->refresh(), $profile);
+        $this->assertTrue($status['summary_recovery']['can_retry']);
+        $this->post($approveUrl, ['note' => 'Not allowed without a current summary.', 'approval_token' => $status['approval_token'], 'acknowledged' => true])
+            ->assertSessionHasErrors('brief_release');
+        $this->post($retryUrl)->assertSessionHasNoErrors()->assertSessionHas('status', 'entrepreneur-summary-retry-queued');
+        $this->post($retryUrl)->assertSessionHasErrors('executive_summary');
+        Queue::assertPushed(GenerateEligibleExecutiveSummary::class, 1);
+        $this->assertSame('queued', $recovery->state($assessment->id));
+
+        (new GenerateEligibleExecutiveSummary($assessment->id))->handle(app(RequestContext::class), app(ExecutiveSummaryEligibility::class), app(BusinessPlanExecutiveSummary::class));
+        $this->assertSame('complete', $recovery->state($assessment->id));
+        $status = app(FounderBriefRelease::class)->evaluate($plan->refresh(), $profile);
+        $this->assertTrue($status['review']['can_approve']);
+        $this->assertFalse($status['active']);
+        $this->get($documentUrl)->assertStatus(409);
+        $note = 'I checked the supporting records and the operating forecast. The disclosed funding exposure is acceptable for this brief.';
+        $data = ['note' => $note, 'approval_token' => $status['approval_token'], 'acknowledged' => true];
+        $this->post($approveUrl, [...$data, 'note' => '   '])->assertSessionHasErrors('note');
+        $this->post($approveUrl, [...$data, 'acknowledged' => false])->assertSessionHasErrors('acknowledged');
+        $this->post($approveUrl, $data)->assertSessionHasNoErrors()->assertSessionHas('status', 'entrepreneur-brief-release-approved');
+        $this->get(route('advisor.entrepreneurs.show', $profile))->assertInertia(fn (Assert $page) => $page
+            ->where('entrepreneur.latest_plan.lender_brief.active', true)
+            ->where('entrepreneur.latest_plan.lender_brief.review.note', $note)
+            ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.status_label', 'Assessment finalised'));
+        $this->assertDatabaseHas('audit_events', ['action' => 'entrepreneur.brief_release_approved', 'subject_id' => $assessment->id]);
+        $this->assertSame($advisor->id, data_get($assessment->refresh()->scoring_scope, 'brief_release_review.approved_by_user_id'));
+        $this->assertSame($review, data_get($assessment->scoring_scope, 'plan_budget_review'));
+        $this->assertSame(1, $plan->assessments()->count());
+        $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
+        {
+            public function render(string $html): string
+            {
+                return '%PDF-1.4 '.strip_tags($html);
+            }
+        });
+        $this->get($documentUrl)->assertOk()->assertHeader('Content-Type', 'application/pdf');
+
+        $nextRound = $assessment->replicate()->forceFill(['round' => $assessment->round + 1, 'finalised_at' => null]);
+        $nextRound->save();
+        $this->get($documentUrl)->assertStatus(409);
+        $nextRound->delete();
+
+        $summary = $plan->sections()->where('key', BusinessPlanExecutiveSummary::SECTION_KEY)->firstOrFail();
+        $summary->forceFill(['body' => $summary->body.' Updated summary wording.'])->save();
+        $this->get($documentUrl)->assertStatus(409);
+        $this->post($approveUrl, $data)->assertSessionHasErrors('brief_release');
+    }
+
+    public function test_brief_actions_require_the_assigned_advisor_and_current_assessed_inputs(): void
+    {
+        Queue::fake();
+        [$advisor, $plan, $assessment] = $this->assessmentNeedingBudgetReview();
+        $profile = $plan->entrepreneurProfile;
+        $retryUrl = route('advisor.entrepreneurs.plans.brief-summary.retry', [$profile, $plan]);
+        $approveUrl = route('advisor.entrepreneurs.plans.brief-release.approve', [$profile, $plan]);
+        $this->actingAsMfa($profile->user)->post($retryUrl)->assertForbidden();
+        $this->post($approveUrl)->assertForbidden();
+        $other = User::factory()->withTwoFactor()->create(['user_type' => User::TYPE_ADVISOR]);
+        $other->assignRole('advisor');
+        $this->actingAsMfa($other)->post($retryUrl)->assertForbidden();
+        $this->post($approveUrl)->assertForbidden();
+        $this->actingAsMfa($advisor)->post($retryUrl)->assertSessionHasErrors('executive_summary');
+        $this->patch(route('advisor.entrepreneurs.assessments.budget-review', [$profile, $assessment]), ['note' => 'The existing reserve covers the forecast exposure.'])->assertSessionHasNoErrors();
+        app(Assessment::class)->finalise($assessment->refresh(), $advisor);
+        (new GenerateEligibleExecutiveSummary($assessment->id))->handle(app(RequestContext::class), app(ExecutiveSummaryEligibility::class), app(BusinessPlanExecutiveSummary::class));
+        $release = app(FounderBriefRelease::class);
+        $before = $release->evaluate($plan->refresh(), $profile);
+        $this->assertTrue($before['review']['can_approve']);
+        $plan->budgetRunway()->firstOrFail()->forceFill(['launch_costs' => [['label' => 'Trademark', 'amount' => 300]]])->save();
+        $this->post($approveUrl, ['note' => 'Approval cannot cover inputs changed after the assessment.', 'approval_token' => $before['approval_token'], 'acknowledged' => true])->assertSessionHasErrors('brief_release');
+        $this->post($retryUrl)->assertSessionHasErrors('executive_summary');
+        $this->assertFalse($release->evaluate($plan->refresh(), $profile)['active']);
+        $this->assertNull(data_get($assessment->refresh()->scoring_scope, 'brief_release_review'));
     }
 
     public function test_budget_review_cannot_clear_a_specific_client_correction_or_calculation_issue(): void

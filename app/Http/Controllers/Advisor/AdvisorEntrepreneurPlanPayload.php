@@ -123,6 +123,8 @@ final class AdvisorEntrepreneurPlanPayload
             ],
             'lender_brief' => [
                 ...$this->funderReadyBriefs->status($plan, $profile),
+                'retry_url' => route('advisor.entrepreneurs.plans.brief-summary.retry', [$profile, $plan], absolute: false),
+                'approve_url' => route('advisor.entrepreneurs.plans.brief-release.approve', [$profile, $plan], absolute: false),
                 'document_url' => route('advisor.entrepreneurs.plans.funder-ready-brief.pdf', [$profile, $plan], absolute: false),
             ],
             'assess_url' => route('advisor.entrepreneurs.plans.assessments.store', [$profile, $plan], absolute: false),
