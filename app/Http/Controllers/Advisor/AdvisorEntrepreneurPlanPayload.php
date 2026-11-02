@@ -10,6 +10,7 @@ use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
 use App\Models\PlanAssessment;
 use App\Models\PlanRevision;
+use App\Services\Entrepreneurs\Assessment;
 use App\Services\Entrepreneurs\AssessmentScoring;
 use App\Services\Entrepreneurs\BudgetCalculator;
 use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
@@ -100,6 +101,7 @@ final class AdvisorEntrepreneurPlanPayload
                 'rating_framework' => $latestAssessmentPayload['rating_framework'],
                 'url' => route('advisor.entrepreneurs.assessments.show', [$profile, $latestAssessment], absolute: false),
                 'finalise_url' => route('advisor.entrepreneurs.assessments.finalise', [$profile, $latestAssessment], absolute: false),
+                'finalisation_blocking_message' => app(Assessment::class)->finalisationBlockingReason($latestAssessment),
                 'budget_review_url' => route('advisor.entrepreneurs.assessments.budget-review', [$profile, $latestAssessment], absolute: false),
                 'budget_recalculate_url' => route('advisor.entrepreneurs.assessments.recalculate', [$profile, $latestAssessment], absolute: false),
             ] : null,

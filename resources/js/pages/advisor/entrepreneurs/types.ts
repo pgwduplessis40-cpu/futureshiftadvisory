@@ -133,6 +133,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             };
             url: string;
             finalise_url: string;
+            finalisation_blocking_message: string | null;
             budget_review_url?: string;
             budget_recalculate_url?: string;
         } | null;

@@ -545,39 +545,41 @@ final class Assessment implements ProvidesMethodology
         return $assessment->refresh();
     }
 
-    public function finalise(PlanAssessment $assessment, User $advisor): PlanAssessment
+    public function finalisationBlockingReason(PlanAssessment $assessment): ?string
     {
         $assessment->loadMissing('ratingFramework.criteria');
 
         $incompleteCriterionNumbers = AssessmentScoring::incompleteCriterionNumbers($assessment);
 
         if (AssessmentScoring::hasFallbackScores($assessment) || $incompleteCriterionNumbers !== []) {
-            $message = $incompleteCriterionNumbers === []
+            return $incompleteCriterionNumbers === []
                 ? 'This historical round has no valid AI score and cannot be finalised. Run a fresh assessment first.'
                 : sprintf(
                     'This assessment is missing valid scores for criterion %s and cannot be finalised. Run a fresh assessment first.',
                     implode(', ', $incompleteCriterionNumbers),
                 );
-
-            throw ValidationException::withMessages([
-                'assessment' => $message,
-            ]);
         }
 
         if ($this->requiresScoringScopeConfirmation($assessment)) {
-            throw ValidationException::withMessages([
-                'assessment' => 'An advisor must confirm the rescored criteria and any cross-plan review warning before this assessment can be finalised.',
-            ]);
+            return 'An advisor must confirm the rescored criteria and any cross-plan review warning before this assessment can be finalised.';
         }
 
         if (! $this->planBudgetCoherenceAllowsFinalisation($assessment)) {
-            throw ValidationException::withMessages([
-                'assessment' => (string) data_get(
-                    app(PlanBudgetFollowUp::class)->forAssessment($assessment),
-                    'approval_message',
-                    'Run a fresh assessment and resolve the plan–budget coherence findings before finalising.',
-                ),
-            ]);
+            return (string) data_get(
+                app(PlanBudgetFollowUp::class)->forAssessment($assessment),
+                'approval_message',
+                'Run a fresh assessment and resolve the plan–budget coherence findings before finalising.',
+            );
+        }
+
+        return null;
+    }
+
+    public function finalise(PlanAssessment $assessment, User $advisor): PlanAssessment
+    {
+        $blockingReason = $this->finalisationBlockingReason($assessment);
+        if ($blockingReason !== null) {
+            throw ValidationException::withMessages(['assessment' => $blockingReason]);
         }
 
         $weighted = $assessment->ratingFramework instanceof RatingFramework

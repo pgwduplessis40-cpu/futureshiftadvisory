@@ -32,6 +32,7 @@ use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBudgetFollowUp;
 use App\Services\Entrepreneurs\PlanBuilder;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Reports\Contracts\ReportArtifactRenderer;
 use App\Support\RequestContext;
 use Database\Seeders\FoundingRatingFrameworkValuesSeeder;
 use Database\Seeders\RatingFrameworkSeeder;
@@ -1663,6 +1664,45 @@ final class AssessmentTest extends TestCase
         $this->assertNotNull($signal);
         $this->assertSame(EntrepreneurStage::ADVISORY_READY, $profile->refresh()->stage);
         $this->assertTrue(app(ExecutiveSummaryEligibility::class)->evaluate($plan->refresh(), $profile)['eligible']);
+    }
+
+    public function test_finalise_action_exposes_the_pending_score_review_and_then_completes_the_http_workflow(): void
+    {
+        Queue::fake();
+        $this->mock(ReportArtifactRenderer::class)
+            ->shouldReceive('render')->once();
+        [$advisor, $plan, $assessment] = $this->assessmentNeedingBudgetReview();
+        $profile = $plan->entrepreneurProfile;
+        $this->actingAsMfa($advisor)->patch(route('advisor.entrepreneurs.assessments.budget-review', [$profile, $assessment]), [
+            'note' => 'The existing reserve covers this reviewed exposure.',
+        ])->assertSessionHasNoErrors();
+
+        $scope = $assessment->refresh()->scoring_scope;
+        $scope['advisor_review'] = ['required' => true, 'confirmed_at' => null];
+        $assessment->forceFill(['scoring_scope' => $scope])->save();
+        $reason = 'An advisor must confirm the rescored criteria and any cross-plan review warning before this assessment can be finalised.';
+        $this->get(route('advisor.entrepreneurs.show', $profile))->assertInertia(fn (Assert $page) => $page
+            ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.approval_available', true)
+            ->where('entrepreneur.latest_plan.latest_assessment.meets_advisory_threshold', true)
+            ->where('entrepreneur.latest_plan.latest_assessment.finalisation_blocking_message', $reason));
+        $finaliseUrl = route('advisor.entrepreneurs.assessments.finalise', [$profile, $assessment]);
+        $this->patch($finaliseUrl)->assertSessionHasErrors(['assessment' => $reason]);
+        $this->assertNull($assessment->refresh()->finalised_at);
+        $this->assertDatabaseMissing('reports', ['entrepreneur_profile_id' => $profile->id]);
+
+        $this->patch(route('advisor.entrepreneurs.assessments.scoring-scope.confirm', [$profile, $assessment]))
+            ->assertSessionHasNoErrors();
+        $this->get(route('advisor.entrepreneurs.show', $profile))->assertInertia(fn (Assert $page) => $page
+            ->where('entrepreneur.latest_plan.latest_assessment.finalisation_blocking_message', null));
+        $this->patch($finaliseUrl)->assertSessionHasNoErrors()
+            ->assertRedirect(route('advisor.entrepreneurs.show', $profile))
+            ->assertSessionHas('status', 'entrepreneur-assessment-finalised')
+            ->assertSessionHas('entrepreneur_assessment_report_id');
+        $this->assertNotNull($assessment->refresh()->finalised_at);
+        $this->assertSame(BusinessPlan::STATUS_FINALISED, $plan->refresh()->status);
+        $this->assertSame(EntrepreneurStage::ADVISORY_READY, $profile->refresh()->stage);
+        $this->assertDatabaseHas('reports', ['entrepreneur_profile_id' => $profile->id]);
+        Queue::assertPushed(GenerateEligibleExecutiveSummary::class);
     }
 
     public function test_budget_review_cannot_clear_a_specific_client_correction_or_calculation_issue(): void
