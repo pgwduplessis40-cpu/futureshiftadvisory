@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Models\PlanAssessment;
 use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\ExecutiveSummaryEligibility;
+use App\Services\Entrepreneurs\ExecutiveSummaryRecovery;
 use App\Support\RequestContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Cache\LockTimeoutException;
@@ -17,6 +18,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use RuntimeException;
+use Throwable;
 
 final class GenerateEligibleExecutiveSummary implements ShouldBeUnique, ShouldQueue
 {
@@ -57,6 +59,7 @@ final class GenerateEligibleExecutiveSummary implements ShouldBeUnique, ShouldQu
         }
 
         try {
+            app(ExecutiveSummaryRecovery::class)->mark($this->assessmentId, 'running');
             $assessment = PlanAssessment::query()
                 ->with('businessPlan.entrepreneurProfile')
                 ->find($this->assessmentId);
@@ -64,16 +67,22 @@ final class GenerateEligibleExecutiveSummary implements ShouldBeUnique, ShouldQu
             $profile = $plan?->entrepreneurProfile;
 
             if ($assessment === null || $plan === null || $profile === null) {
+                app(ExecutiveSummaryRecovery::class)->mark($this->assessmentId, 'idle');
+
                 return;
             }
 
             $current = $eligibility->evaluate($plan, $profile);
             if (! $current['eligible'] || $current['assessment_id'] !== (string) $assessment->getKey()) {
+                app(ExecutiveSummaryRecovery::class)->mark($this->assessmentId, 'idle');
+
                 return;
             }
 
             $status = $summaries->status($plan, $profile);
             if ((bool) ($status['usable'] ?? false)) {
+                app(ExecutiveSummaryRecovery::class)->mark($this->assessmentId, 'complete');
+
                 return;
             }
 
@@ -81,8 +90,17 @@ final class GenerateEligibleExecutiveSummary implements ShouldBeUnique, ShouldQu
             if (! (bool) data_get($generated, 'executive_summary.usable', false)) {
                 throw new RuntimeException('The qualifying executive-summary job did not receive a usable AI response.');
             }
+            app(ExecutiveSummaryRecovery::class)->mark($this->assessmentId, 'complete');
+        } catch (Throwable $exception) {
+            app(ExecutiveSummaryRecovery::class)->mark($this->assessmentId, 'retrying');
+            throw $exception;
         } finally {
             $lock->release();
         }
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        app(ExecutiveSummaryRecovery::class)->mark($this->assessmentId, 'failed');
     }
 }

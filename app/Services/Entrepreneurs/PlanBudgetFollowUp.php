@@ -32,7 +32,13 @@ final class PlanBudgetFollowUp
             ? $this->reviewInputsHash($assessment, $assessment->businessPlan, $review)
             : null;
 
-        return $this->present($coherence, $review, $currentHash);
+        $result = $this->present($coherence, $review, $currentHash);
+        if ($assessment->finalised_at !== null && $result['approval_available']) {
+            $result['status_label'] = 'Assessment finalised';
+            $result['summary'] = 'The assessment is finalised. No plan–budget items are outstanding.';
+        }
+
+        return $result;
     }
 
     /** @param SavedCoherence $coherence

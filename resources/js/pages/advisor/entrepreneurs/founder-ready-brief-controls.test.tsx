@@ -22,6 +22,21 @@ test('blocked brief reasons are readable without hovering over a disabled button
                 label: 'Lender brief blocked',
                 reasons: [reason],
                 document_url: '/brief',
+                retry_url: '/retry',
+                approve_url: '/approve',
+                approval_token: 'revision-1',
+                review: {
+                    can_approve: false,
+                    approved: false,
+                    note: null,
+                    approved_at: null,
+                    findings: [],
+                },
+                summary_recovery: {
+                    can_retry: true,
+                    state: 'failed',
+                    message: reason,
+                },
             }}
         />,
     );
@@ -30,7 +45,7 @@ test('blocked brief reasons are readable without hovering over a disabled button
         /<li>The automatic executive summary needs a system retry\.<\/li>/,
     );
     assert.match(html, /separate from client progression/);
-    assert.match(html, /disabled=""/);
+    assert.match(html, /Retry summary/);
 });
 
 test('a passing Budget does not show an enabled green finalise button while scoring review is pending', () => {

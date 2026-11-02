@@ -1,5 +1,5 @@
 import { Link, router } from '@inertiajs/react';
-import { CheckCircle2, FileText, LoaderCircle } from 'lucide-react';
+import { CheckCircle2, LoaderCircle } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
@@ -60,41 +60,7 @@ export function AdvisoryConversionAction({ conversion }: ConversionProps) {
     );
 }
 
-export function FounderReadyBriefAction({ lenderBrief }: Props) {
-    if (!lenderBrief) {
-        return null;
-    }
-
-    return lenderBrief.active ? (
-        <Button
-            asChild
-            size="sm"
-            className="bg-emerald-600 text-white hover:bg-emerald-700"
-            title="Compact lender decision brief: executive summary, financial position, selected highlights, and three-year outlook."
-        >
-            <a href={lenderBrief.document_url} target="_blank" rel="noreferrer">
-                <FileText className="size-4" aria-hidden="true" />
-                Generate founder-ready brief
-            </a>
-        </Button>
-    ) : (
-        <div className="basis-full space-y-2">
-            <Button type="button" size="sm" variant="outline" disabled>
-                <FileText className="size-4" aria-hidden="true" />
-                Founder-ready brief blocked
-            </Button>
-            <p className="text-sm text-muted-foreground">
-                This brief is for external issue. Its release checks are
-                separate from client progression.
-            </p>
-            <ul className="max-w-3xl list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                {lenderBrief.reasons.map((reason) => (
-                    <li key={reason}>{reason}</li>
-                ))}
-            </ul>
-        </div>
-    );
-}
+export { FounderReadyBriefAction } from './founder-brief-release-actions';
 
 export function FounderReadyBriefBadge({ lenderBrief }: Props) {
     if (!lenderBrief) {

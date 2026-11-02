@@ -21,6 +21,7 @@ use App\Http\Controllers\Advisor\DocumentVerificationController;
 use App\Http\Controllers\Advisor\EntrepreneurActionController;
 use App\Http\Controllers\Advisor\EntrepreneurAssessmentController;
 use App\Http\Controllers\Advisor\EntrepreneurAssessmentReviewController;
+use App\Http\Controllers\Advisor\EntrepreneurBriefReleaseController;
 use App\Http\Controllers\Advisor\EntrepreneurBudgetCorrectionController;
 use App\Http\Controllers\Advisor\EntrepreneurController;
 use App\Http\Controllers\Advisor\EntrepreneurDocumentController;
@@ -490,6 +491,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/funder-ready-brief/pdf', [EntrepreneurPlanDocumentController::class, 'funderReadyBriefPdf'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.plans.funder-ready-brief.pdf');
+        Route::post('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/brief-summary/retry', [EntrepreneurBriefReleaseController::class, 'retry'])
+            ->middleware(['permission:'.Permission::ENTREPRENEURS_ASSESS->value, 'throttle:6,1'])
+            ->name('entrepreneurs.plans.brief-summary.retry');
+        Route::post('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/brief-release', [EntrepreneurBriefReleaseController::class, 'approve'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.plans.brief-release.approve');
         Route::post('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/executive-summary', [EntrepreneurActionController::class, 'generateExecutiveSummary'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.plans.executive-summary.store');

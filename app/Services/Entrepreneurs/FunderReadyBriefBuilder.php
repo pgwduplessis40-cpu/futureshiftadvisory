@@ -19,7 +19,9 @@ use Throwable;
  * comprehensive master plan remains available as a separate internal preview.
  *
  * @phpstan-type ExecutiveSummaryStatus array{usable:bool,context_hash:string|null}
- * @phpstan-type FunderReadyBriefStatus array{active:bool,label:string,reasons:list<string>,executive_summary:ExecutiveSummaryStatus}
+ *
+ * @phpstan-import-type ReleaseStatus from FounderBriefRelease as FunderReadyBriefStatus
+ *
  * @phpstan-type FunderReadyBriefDocument array{profile:EntrepreneurProfile,plan:BusinessPlan,status:FunderReadyBriefStatus,business_name:string|null,summary:string,summary_status:ExecutiveSummaryStatus,budget:mixed,highlights:list<array{title:string,body:string,evidence_count:int}>,snapshot:string,prepared_at:string}
  */
 final class FunderReadyBriefBuilder
@@ -38,45 +40,15 @@ final class FunderReadyBriefBuilder
         private readonly BrandedReportLayout $layout,
         private readonly BusinessPlanIdentity $identity,
         private readonly BusinessPlanExecutiveSummary $executiveSummaries,
-        private readonly PlanIssueReadiness $issueReadiness,
         private readonly BudgetPackBuilder $budgetPack,
         private readonly EntrepreneurDocumentTemplate $templates,
-        private readonly ExecutiveSummaryEligibility $eligibility,
+        private readonly FounderBriefRelease $release,
     ) {}
 
     /** @return FunderReadyBriefStatus */
     public function status(BusinessPlan $plan, EntrepreneurProfile $profile): array
     {
-        $summary = $this->executiveSummaryStatus(
-            $this->executiveSummaries->status($plan, $profile),
-        );
-        $readiness = $this->issueReadiness->evaluate($plan);
-        $summaryReason = null;
-        if (! $summary['usable']) {
-            $eligibility = $this->eligibility->evaluate($plan, $profile);
-            $summaryReason = $eligibility['eligible']
-                ? 'The assessment is finalised. The automatic executive summary is not ready yet. If it remains pending, an administrator can retry summary generation; no new assessment or client changes are needed.'
-                : $eligibility['reason'];
-        }
-        $readinessReasons = collect((array) ($readiness['reasons'] ?? []))
-            ->filter(fn (mixed $reason): bool => is_string($reason) && trim($reason) !== '')
-            ->reject(fn (string $reason): bool => $reason === ($readiness['executive_summary_reason'] ?? null))
-            ->map(fn (mixed $reason): string => trim((string) $reason))
-            ->values()
-            ->all();
-        $reasons = array_values(array_unique([
-            ...($summaryReason !== null ? [$summaryReason] : []),
-            ...$readinessReasons,
-        ]));
-        $active = $summary['usable']
-            && (bool) ($readiness['external_issue_ready'] ?? false);
-
-        return [
-            'active' => $active,
-            'label' => $active ? 'Lender brief ready' : 'Lender brief blocked',
-            'reasons' => $reasons,
-            'executive_summary' => $summary,
-        ];
+        return $this->release->evaluate($plan, $profile);
     }
 
     public function filename(EntrepreneurProfile $profile): string
