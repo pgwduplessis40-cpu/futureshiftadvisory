@@ -1666,6 +1666,45 @@ final class AssessmentTest extends TestCase
         $this->assertTrue(app(ExecutiveSummaryEligibility::class)->evaluate($plan->refresh(), $profile)['eligible']);
     }
 
+    public function test_automatic_summary_preserves_the_saved_budget_decision_and_real_edits_still_invalidate_it(): void
+    {
+        Queue::fake();
+        [$advisor, $plan, $assessment] = $this->assessmentNeedingBudgetReview();
+        $profile = $plan->entrepreneurProfile;
+        // An existing authored draft is replaced by the automatic summary after finalisation.
+        app(PlanBuilder::class)->upsertSection($plan, 'financial', BusinessPlanExecutiveSummary::SECTION_KEY,
+            'Executive summary', 'Earlier authored summary.', $advisor,
+            ['requirement_key' => BusinessPlanExecutiveSummary::REQUIREMENT_KEY]);
+        $assessment->forceFill(['plan_snapshot' => app(BusinessPlanSnapshot::class)->capture($plan)])->save();
+        $note = 'The existing reserve covers this reviewed exposure.';
+        $this->actingAsMfa($advisor)->patch(route('advisor.entrepreneurs.assessments.budget-review', [$profile, $assessment]), [
+            'note' => $note,
+        ])->assertSessionHasNoErrors();
+        $review = data_get($assessment->refresh()->scoring_scope, 'plan_budget_review');
+        app(Assessment::class)->finalise($assessment, $advisor);
+        $job = new GenerateEligibleExecutiveSummary((string) $assessment->getKey());
+        $job->handle(app(RequestContext::class), app(ExecutiveSummaryEligibility::class), app(BusinessPlanExecutiveSummary::class));
+
+        $followUp = app(PlanBudgetFollowUp::class)->forAssessment($assessment->refresh());
+        $this->assertTrue($followUp['review_completed']);
+        $this->assertTrue($followUp['approval_available']);
+        $this->assertSame($note, $followUp['review_note']);
+        $this->assertSame($review, data_get($assessment->scoring_scope, 'plan_budget_review'));
+        $this->assertTrue(app(ExecutiveSummaryEligibility::class)->evaluate($plan->refresh(), $profile)['eligible']);
+        $this->get(route('advisor.entrepreneurs.show', $profile))->assertInertia(fn (Assert $page) => $page
+            ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.review_completed', true)
+            ->where('entrepreneur.latest_plan.executive_summary.usable', true));
+
+        $section = $plan->sections()->where('key', '!=', BusinessPlanExecutiveSummary::SECTION_KEY)->firstOrFail();
+        $body = $section->body;
+        $section->forceFill(['body' => $body.' Changed operating assumptions.'])->save();
+        $this->assertFalse(app(PlanBudgetFollowUp::class)->forAssessment($assessment->refresh())['approval_available']);
+        $section->forceFill(['body' => $body])->save();
+        $budget = $plan->budgetRunway()->firstOrFail();
+        $budget->forceFill(['launch_costs' => [['label' => 'Trademark', 'amount' => 200, 'quantity' => 1, 'month' => 4]]])->save();
+        $this->assertFalse(app(PlanBudgetFollowUp::class)->forAssessment($assessment->refresh())['approval_available']);
+    }
+
     public function test_finalise_action_exposes_the_pending_score_review_and_then_completes_the_http_workflow(): void
     {
         Queue::fake();
@@ -1703,6 +1742,47 @@ final class AssessmentTest extends TestCase
         $this->assertSame(EntrepreneurStage::ADVISORY_READY, $profile->refresh()->stage);
         $this->assertDatabaseHas('reports', ['entrepreneur_profile_id' => $profile->id]);
         Queue::assertPushed(GenerateEligibleExecutiveSummary::class);
+    }
+
+    public function test_failed_automatic_summary_can_be_recovered_without_reassessing_or_repeating_the_advisor_decision(): void
+    {
+        Queue::fake();
+        [$advisor, $plan, $assessment] = $this->assessmentNeedingBudgetReview();
+        $profile = $plan->entrepreneurProfile;
+        $this->actingAsMfa($advisor)->patch(route('advisor.entrepreneurs.assessments.budget-review', [$profile, $assessment]), [
+            'note' => 'The existing reserve covers this reviewed exposure.',
+        ])->assertSessionHasNoErrors();
+        app(Assessment::class)->finalise($assessment->refresh(), $advisor);
+        $review = data_get($assessment->refresh()->scoring_scope, 'plan_budget_review');
+        $this->app->instance(AiClient::class, new FakeAiClient);
+        $job = new GenerateEligibleExecutiveSummary((string) $assessment->getKey());
+        try {
+            $job->handle(app(RequestContext::class), app(ExecutiveSummaryEligibility::class), app(BusinessPlanExecutiveSummary::class));
+            $this->fail('A fallback summary must request a system retry.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('did not receive a usable AI response', $exception->getMessage());
+        }
+        $this->assertTrue(app(PlanBudgetFollowUp::class)->forAssessment($assessment->refresh())['review_completed']);
+        $this->get(route('advisor.entrepreneurs.show', $profile))->assertInertia(fn (Assert $page) => $page
+            ->where('entrepreneur.latest_plan.lender_brief.active', false)
+            ->where('entrepreneur.latest_plan.lender_brief.reasons.0', fn (string $reason): bool => str_contains($reason, 'no new assessment or client changes are needed')));
+
+        Queue::fake();
+        $command = ['assessment' => $assessment->id];
+        $this->artisan('entrepreneurs:recover-executive-summary', $command)->assertSuccessful();
+        Queue::assertNothingPushed();
+        $this->artisan('entrepreneurs:recover-executive-summary', [...$command, '--queue' => true])->assertSuccessful();
+        Queue::assertPushed(GenerateEligibleExecutiveSummary::class, 1);
+        $this->app->instance(AiClient::class, new StructuredScoreAiClient(80));
+        $job->handle(app(RequestContext::class), app(ExecutiveSummaryEligibility::class), app(BusinessPlanExecutiveSummary::class));
+        $this->assertTrue(app(BusinessPlanExecutiveSummary::class)->status($plan->refresh(), $profile)['usable']);
+        $this->assertSame($review, data_get($assessment->refresh()->scoring_scope, 'plan_budget_review'));
+        $this->assertSame(1, $plan->assessments()->count());
+        $this->artisan('entrepreneurs:recover-executive-summary', [...$command, '--queue' => true])->assertSuccessful();
+        Queue::assertPushed(GenerateEligibleExecutiveSummary::class, 1);
+        $plan->budgetRunway()->firstOrFail()->forceFill(['launch_costs' => [['label' => 'Trademark', 'amount' => 200]]])->save();
+        $this->artisan('entrepreneurs:recover-executive-summary', [...$command, '--queue' => true])->assertFailed();
+        Queue::assertPushed(GenerateEligibleExecutiveSummary::class, 1);
     }
 
     public function test_budget_review_cannot_clear_a_specific_client_correction_or_calculation_issue(): void

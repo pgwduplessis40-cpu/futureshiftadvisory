@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatNzdCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import { BudgetAuditSection } from './budget-audit-section';
 import type { EntrepreneurDetail } from './types';
 
 type FixedCostTrace = NonNullable<
@@ -87,25 +88,28 @@ export function FixedCostCalculationAudit({
     };
 
     return (
-        <section className="rounded-md border">
-            <div className="flex flex-wrap items-start justify-between gap-3 border-b p-4">
-                <div>
-                    <h3 className="text-sm font-medium">
-                        Fixed-cost calculation audit
-                    </h3>
-                    <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-                        These are the live stored rate, number of parallel
-                        units, payment frequency, and monthly equivalent used by
-                        the funding calculation. A payment-period count in Qty
-                        would convert the same period twice.
-                    </p>
-                </div>
+        <BudgetAuditSection
+            title="Fixed-cost calculation audit"
+            count={trace.length}
+            defaultOpen={duplicateCount > 0}
+            status={
                 <Badge
                     variant={duplicateCount > 0 ? 'destructive' : 'secondary'}
                 >
                     {duplicateCount} duplicate payment count
                     {duplicateCount === 1 ? '' : 's'}
                 </Badge>
+            }
+        >
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b p-4">
+                <div>
+                    <p className="max-w-3xl text-sm text-muted-foreground">
+                        These are the live stored rate, number of parallel
+                        units, payment frequency, and monthly equivalent used by
+                        the funding calculation. A payment-period count in Qty
+                        would convert the same period twice.
+                    </p>
+                </div>
                 {duplicateCount > 1 && repairAllUrl ? (
                     <Button
                         type="button"
@@ -225,6 +229,6 @@ export function FixedCostCalculationAudit({
                     {repairError}
                 </p>
             ) : null}
-        </section>
+        </BudgetAuditSection>
     );
 }

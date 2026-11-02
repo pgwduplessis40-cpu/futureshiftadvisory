@@ -41,6 +41,7 @@ final class FunderReadyBriefBuilder
         private readonly PlanIssueReadiness $issueReadiness,
         private readonly BudgetPackBuilder $budgetPack,
         private readonly EntrepreneurDocumentTemplate $templates,
+        private readonly ExecutiveSummaryEligibility $eligibility,
     ) {}
 
     /** @return FunderReadyBriefStatus */
@@ -50,15 +51,21 @@ final class FunderReadyBriefBuilder
             $this->executiveSummaries->status($plan, $profile),
         );
         $readiness = $this->issueReadiness->evaluate($plan);
+        $summaryReason = null;
+        if (! $summary['usable']) {
+            $eligibility = $this->eligibility->evaluate($plan, $profile);
+            $summaryReason = $eligibility['eligible']
+                ? 'The assessment is finalised. The automatic executive summary is not ready yet. If it remains pending, an administrator can retry summary generation; no new assessment or client changes are needed.'
+                : $eligibility['reason'];
+        }
         $readinessReasons = collect((array) ($readiness['reasons'] ?? []))
             ->filter(fn (mixed $reason): bool => is_string($reason) && trim($reason) !== '')
+            ->reject(fn (string $reason): bool => $reason === ($readiness['executive_summary_reason'] ?? null))
             ->map(fn (mixed $reason): string => trim((string) $reason))
             ->values()
             ->all();
         $reasons = array_values(array_unique([
-            ...(! $summary['usable']
-                ? ['Finalise a passing assessment to generate the approved executive summary.']
-                : []),
+            ...($summaryReason !== null ? [$summaryReason] : []),
             ...$readinessReasons,
         ]));
         $active = $summary['usable']

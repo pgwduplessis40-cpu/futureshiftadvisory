@@ -78,16 +78,21 @@ export function FounderReadyBriefAction({ lenderBrief }: Props) {
             </a>
         </Button>
     ) : (
-        <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled
-            title={lenderBrief.reasons.join(' ')}
-        >
-            <FileText className="size-4" aria-hidden="true" />
-            Founder-ready brief blocked
-        </Button>
+        <div className="basis-full space-y-2">
+            <Button type="button" size="sm" variant="outline" disabled>
+                <FileText className="size-4" aria-hidden="true" />
+                Founder-ready brief blocked
+            </Button>
+            <p className="text-sm text-muted-foreground">
+                This brief is for external issue. Its release checks are
+                separate from client progression.
+            </p>
+            <ul className="max-w-3xl list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                {lenderBrief.reasons.map((reason) => (
+                    <li key={reason}>{reason}</li>
+                ))}
+            </ul>
+        </div>
     );
 }
 
