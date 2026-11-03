@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Entrepreneurs;
 
 use App\Models\BusinessPlan;
+use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
 use App\Models\PlanAssessment;
 use App\Models\User;
@@ -15,9 +16,9 @@ use Illuminate\Validation\ValidationException;
  * @phpstan-type SummaryStatus array{usable:bool,context_hash:string|null}
  * @phpstan-type ReleaseReview array{can_approve:bool,approved:bool,note:string|null,approved_at:string|null,findings:list<string>}
  *
- * @phpstan-import-type Reconciliation from FounderBriefReconciliation
+ * @phpstan-import-type Guide from PlanBudgetGuide
  *
- * @phpstan-type ReleaseStatus array{active:bool,label:string,reasons:list<string>,executive_summary:SummaryStatus,assessment_id:string|null,approval_token:string,review:ReleaseReview,reconciliation:Reconciliation,summary_recovery:array{can_retry:bool,state:string,message:string}}
+ * @phpstan-type ReleaseStatus array{active:bool,can_generate:bool,generation_reason:string|null,label:string,reasons:list<string>,executive_summary:SummaryStatus,assessment_id:string|null,approval_token:string,review:ReleaseReview,plan_guidance:Guide,summary_recovery:array{can_retry:bool,state:string,message:string}}
  */
 final class FounderBriefRelease
 {
@@ -26,7 +27,7 @@ final class FounderBriefRelease
         private readonly BusinessPlanExecutiveSummary $summaries,
         private readonly PlanIssueReadiness $readiness,
         private readonly ExecutiveSummaryRecovery $recovery,
-        private readonly FounderBriefReconciliation $reconciliation,
+        private readonly PlanBudgetGuide $guide,
     ) {}
 
     /** @return ReleaseStatus */
@@ -38,7 +39,11 @@ final class FounderBriefRelease
         $eligible = $eligibility['eligible'] && $assessment instanceof PlanAssessment
             && (string) $assessment->getKey() === $eligibility['assessment_id'];
         $readiness = $this->readiness->evaluate($plan);
-        $reconciliation = $this->reconciliation->evaluate($plan, $profile);
+        $complete = PlanRequirements::completion($plan)['complete']
+            && $plan->budgetRunway?->status === EntrepreneurBudget::STATUS_COMPLETE;
+        $canGenerate = $complete && $eligible && $summary['usable'];
+        $guidance = $this->guide->forPlan($plan);
+        $aligned = $guidance['issues'] === [];
         $findings = collect((array) ($readiness['reasons'] ?? []))
             ->filter(fn (mixed $reason): bool => is_string($reason) && trim($reason) !== '')
             ->reject(fn (string $reason): bool => $reason === ($readiness['executive_summary_reason'] ?? null))
@@ -50,12 +55,12 @@ final class FounderBriefRelease
             'context' => $eligibility['context_hash'],
             'summary' => $summaryBody,
             'findings' => $findings,
-            'reconciliation' => data_get($assessment?->scoring_scope, 'financial_reconciliation'),
+            'alignment' => $guidance['issues'],
         ], JSON_THROW_ON_ERROR));
         $review = data_get($assessment?->scoring_scope, 'brief_release_review');
-        $approved = $eligible && $summary['usable'] && $reconciliation['complete'] && is_array($review)
+        $approved = $canGenerate && $aligned && is_array($review)
             && is_string($review['token'] ?? null) && hash_equals($review['token'], $token);
-        $active = $eligible && $summary['usable'] && $reconciliation['complete'] && ($approved || (bool) ($readiness['external_issue_ready'] ?? false));
+        $active = $canGenerate && $aligned && ($approved || (bool) ($readiness['external_issue_ready'] ?? false));
         $state = $summary['usable'] ? 'complete' : ($assessment === null ? 'idle' : $this->recovery->state((string) $assessment->getKey()));
         // A completed job can describe an older version or an unusable fallback.
         // Only the current summary's eligibility can establish completion.
@@ -72,22 +77,27 @@ final class FounderBriefRelease
             default => 'The assessment is finalised. Select Retry summary to complete the automatic summary.',
         };
         $reasons = $active ? [] : array_values(array_unique([
+            ...(! $complete ? ['Complete the business plan and budget before generating the founder brief.'] : []),
             ...(! $eligible ? [$eligibility['reason'] ?? 'Finalise the latest assessment before releasing this brief.'] : []),
             ...($eligible && ! $summary['usable'] ? [$summaryMessage] : []),
             ...$findings,
-            ...(! $reconciliation['complete'] ? ['Complete the current financial reconciliation before external issue. Resolve each topic or record the agreed difference against the saved plan and Budget.'] : []),
+            ...array_column($guidance['issues'], 'detail'),
         ]));
 
         return [
             'active' => $active,
+            'can_generate' => $canGenerate,
+            'generation_reason' => $canGenerate ? null : (! $complete
+                ? 'Complete the business plan and budget, then have the current version assessed. The founder brief becomes available after the assessed summary is ready.'
+                : (! $eligible ? ($eligibility['reason'] ?? 'Finalise the latest assessment of the completed plan and budget before generating the founder brief.') : $summaryMessage)),
             'label' => $active ? 'Lender brief ready' : 'Lender brief blocked',
             'reasons' => $reasons,
             'executive_summary' => ['usable' => (bool) $summary['usable'], 'context_hash' => $eligibility['context_hash']],
             'assessment_id' => $assessment?->getKey(),
             'approval_token' => $token,
-            'reconciliation' => $reconciliation,
+            'plan_guidance' => $guidance,
             'review' => [
-                'can_approve' => $eligible && (bool) $summary['usable'] && $reconciliation['complete'] && ! $active,
+                'can_approve' => $canGenerate && $aligned && ! $active,
                 'approved' => $approved,
                 'note' => $approved ? (string) ($review['note'] ?? '') : null,
                 'approved_at' => $approved ? (string) ($review['approved_at'] ?? '') : null,

@@ -2,7 +2,7 @@ import { router } from '@inertiajs/react';
 import { Download, FileText, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { FounderBriefReconciliation } from './founder-brief-reconciliation';
+import { BriefWorkflow } from './founder-brief-workflow';
 import type { EntrepreneurDetail } from './types';
 
 type Brief = NonNullable<EntrepreneurDetail['latest_plan']>['lender_brief'];
@@ -76,49 +76,42 @@ function BriefReleaseActions({ brief }: { brief: Brief }) {
 
     return (
         <section
-            className="basis-full space-y-3"
+            className="space-y-4 rounded-md border bg-background p-5"
             aria-label="Founder-ready brief release"
         >
-            <p className="text-sm font-medium">Founder brief with financials</p>
-            <div className="flex flex-wrap gap-2">
-                <Button asChild size="sm" variant="outline">
-                    <a
-                        href={
-                            brief.active
-                                ? brief.document_url
-                                : brief.preview_url
-                        }
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        <FileText className="size-4" aria-hidden="true" />
-                        View founder brief PDF
-                    </a>
-                </Button>
-                <Button asChild size="sm" variant="outline">
-                    <a
-                        href={
-                            brief.active
-                                ? brief.download_url
-                                : brief.preview_download_url
-                        }
-                    >
-                        <Download className="size-4" aria-hidden="true" />
-                        Download founder brief PDF
-                    </a>
-                </Button>
-            </div>
-            <p className="text-sm text-muted-foreground">
-                8–12 pages including financials.{' '}
-                {brief.active
-                    ? 'Approved for external issue.'
-                    : 'Advisor draft available now, including while the summary is pending. Review the PDF before approval; downloading it does not approve external issue.'}
-            </p>
-            {brief.reconciliation ? (
-                <FounderBriefReconciliation
-                    reconciliation={brief.reconciliation}
-                    saveUrl={brief.reconciliation_url}
-                />
+            <h2 className="text-lg font-semibold">
+                Founder brief for investors and financiers
+            </h2>
+            <BriefWorkflow brief={brief} />
+            {brief.can_generate ? (
+                <div className="flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant="outline">
+                        <a
+                            href={
+                                brief.active
+                                    ? brief.document_url
+                                    : brief.preview_url
+                            }
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            <FileText className="size-4" aria-hidden="true" />
+                            View founder brief PDF
+                        </a>
+                    </Button>
+                    <Button asChild size="sm" variant="outline">
+                        <a
+                            href={
+                                brief.active
+                                    ? brief.download_url
+                                    : brief.preview_download_url
+                            }
+                        >
+                            <Download className="size-4" aria-hidden="true" />
+                            Download founder brief PDF
+                        </a>
+                    </Button>
+                </div>
             ) : null}
             {brief.active ? (
                 <>
@@ -148,13 +141,6 @@ function BriefReleaseActions({ brief }: { brief: Brief }) {
                 </>
             ) : (
                 <>
-                    <p className="text-sm font-medium">
-                        Founder-ready brief — action needed
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                        This brief is for external issue. Its release checks are
-                        separate from client progression.
-                    </p>
                     {brief.summary_recovery.can_retry || inFlight ? (
                         <div className="space-y-2">
                             <Button
@@ -188,17 +174,25 @@ function BriefReleaseActions({ brief }: { brief: Brief }) {
                                 role="status"
                                 className="text-sm text-muted-foreground"
                             >
-                                {brief.summary_recovery.message} You can review
-                                the draft PDF now. Once the summary is ready,
-                                review the updated PDF and approve release here.
+                                {brief.summary_recovery.message} Once the
+                                completed plan and budget have been assessed and
+                                the summary is ready, the PDF will be available
+                                here for review.
                             </p>
                         </div>
                     ) : null}
-                    <ul className="max-w-3xl list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                        {brief.reasons.map((reason) => (
-                            <li key={reason}>{reason}</li>
-                        ))}
-                    </ul>
+                    {brief.can_generate ? (
+                        <details className="rounded-md border p-3 text-sm">
+                            <summary className="cursor-pointer font-medium">
+                                All review findings ({brief.reasons.length})
+                            </summary>
+                            <ul className="mt-3 max-w-3xl list-disc space-y-2 pl-5 text-muted-foreground">
+                                {brief.reasons.map((reason) => (
+                                    <li key={reason}>{reason}</li>
+                                ))}
+                            </ul>
+                        </details>
+                    ) : null}
                     {brief.review.can_approve ? (
                         <form
                             className="space-y-3 rounded-md border p-3"

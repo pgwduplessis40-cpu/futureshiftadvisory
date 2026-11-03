@@ -108,7 +108,7 @@ final class FounderBriefFinancials
                 'The required additional funding is the Budget model result. An advisor release decision does not change this amount. Funding already available and the planned operating buffer are shown separately.',
             ], [Page::table('Funding requirement', ['Measure', 'Amount'], $fundingRows)]),
             Page::page('Regular running costs', [
-                'Saved rates and payment frequency are shown alongside their monthly equivalents. These are recurring costs; one-off payments are on the next page.',
+                'Saved rates and payment frequency are shown alongside their monthly equivalents. Staged payments show the average entered Year 1 rate. These are recurring costs; one-off payments are on the next page.',
                 'The largest ten monthly equivalents are listed individually; any remaining lines are grouped into the other-cost total. Monthly equivalents include saved quantities. The annual forecast applies start dates, growth and other Budget assumptions.',
             ], [Page::table('Recurring cost schedule', ['Cost', 'Rate', 'Frequency', 'Monthly equivalent'], $fixedRows)]),
             Page::page('One-off costs and future commitments', [

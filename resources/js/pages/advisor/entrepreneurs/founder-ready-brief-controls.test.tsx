@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { reconciliationFixture } from './founder-brief-reconciliation.test-fixtures';
 import {
     FounderReadyBriefAction,
     PlanBudgetFinaliseReportAction,
@@ -20,6 +19,9 @@ test('blocked brief reasons are readable without hovering over a disabled button
         <FounderReadyBriefAction
             lenderBrief={{
                 active: false,
+                can_generate: false,
+                generation_reason:
+                    'Complete and assess the current plan and budget first.',
                 label: 'Lender brief blocked',
                 reasons: [reason],
                 document_url: '/brief',
@@ -28,8 +30,6 @@ test('blocked brief reasons are readable without hovering over a disabled button
                 preview_download_url: '/brief/preview?download=1',
                 retry_url: '/retry',
                 approve_url: '/approve',
-                reconciliation_url: '/reconcile',
-                reconciliation: reconciliationFixture,
                 approval_token: 'revision-1',
                 review: {
                     can_approve: false,
@@ -48,9 +48,13 @@ test('blocked brief reasons are readable without hovering over a disabled button
     );
     assert.match(
         html,
-        /<li>The automatic executive summary needs a system retry\.<\/li>/,
+        /The automatic executive summary needs a system retry\./,
     );
-    assert.match(html, /separate from client progression/);
+    assert.match(html, /Plan to funding brief/);
+    assert.doesNotMatch(
+        html,
+        /Save financial reconciliation|Assumptions agreed as at/,
+    );
     assert.match(html, /Retry summary/);
 });
 

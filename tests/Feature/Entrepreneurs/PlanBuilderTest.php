@@ -501,6 +501,7 @@ final class PlanBuilderTest extends TestCase
                 ->where('entrepreneur.latest_plan.funder_ready.ready', false)
                 ->where('entrepreneur.latest_plan.funder_ready.document_url', route('advisor.entrepreneurs.plans.funder-ready.pdf', [$profile, $plan], absolute: false))
                 ->where('entrepreneur.latest_plan.lender_brief.active', false)
+                ->where('entrepreneur.latest_plan.lender_brief.can_generate', false)
                 ->where('entrepreneur.latest_plan.lender_brief.preview_url', route('advisor.entrepreneurs.plans.founder-brief.preview', [$profile, $plan], absolute: false))
                 ->where('entrepreneur.latest_plan.lender_brief.preview_download_url', route('advisor.entrepreneurs.plans.founder-brief.preview', [$profile, $plan, 'download' => 1], absolute: false))
                 ->where('entrepreneur.latest_plan.lender_brief.document_url', route('advisor.entrepreneurs.plans.funder-ready-brief.pdf', [$profile, $plan], absolute: false)));
@@ -510,17 +511,9 @@ final class PlanBuilderTest extends TestCase
             ->assertStatus(409);
 
         $previewUrl = route('advisor.entrepreneurs.plans.founder-brief.preview', [$profile, $plan]);
-        $preview = $this->get($previewUrl)->assertOk()->assertHeader('Content-Type', 'application/pdf');
-        $this->assertStringStartsWith('inline;', (string) $preview->headers->get('Content-Disposition'));
-        $this->assertStringContainsString('ADVISOR DRAFT', $renderer->html);
-        $this->assertStringContainsString('not approved for external issue', $renderer->html);
-        $this->assertStringContainsString('A current approved executive summary is not available', $renderer->html);
-        $this->assertStringContainsString('Year 1 monthly cash flow', $renderer->html);
-        $this->assertSame(11, substr_count($renderer->html, '<article class="brief-page'));
-        $download = $this->get($previewUrl.'?download=1')->assertOk();
-        $this->assertStringStartsWith('attachment;', (string) $download->headers->get('Content-Disposition'));
-        $this->assertStringContainsString('-advisor-draft.pdf', (string) $download->headers->get('Content-Disposition'));
-        $this->assertStringContainsString('no-store', (string) $download->headers->get('Cache-Control'));
+        $this->get($previewUrl)->assertStatus(409);
+        $this->get($previewUrl.'?download=1')->assertStatus(409);
+        $this->assertSame('', $renderer->html, 'Blocked requests must not invoke the PDF renderer.');
         $this->get(route('advisor.entrepreneurs.plans.funder-ready-brief.pdf', [$profile, $plan, 'download' => 1]))->assertStatus(409);
 
         $response = $this->actingAsMfa($advisor)

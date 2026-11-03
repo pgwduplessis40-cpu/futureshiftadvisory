@@ -1,23 +1,23 @@
-# Founder brief financial reconciliation
+# Business plan, budget and founder brief
 
-The advisor's founder brief controls include a financial reconciliation worksheet. It compares saved plan responses with the saved Budget and records a dated explanation for eleven topics: revenue scope, ramp and shared capacity, profitability, owner pay, cash and funding, forecast period, commitments, asset treatment, distributions, evidence and the financial narrative.
+The founder completes the business plan first. The budget uses those saved responses as guidance, and its calculated financial summary is displayed back in the plan. The founder brief is the final funding document produced from the completed, assessed version.
 
-## Advisor workflow
+## Client workflow
 
-1. Agree the forecast start date, base offers, quantities, delivery units, capacity, payment timing, owner pay and opening cash against source records. Separate unproven offers and conditional commitments from the base case.
-2. Update the plan and Budget where the sources disagree. Extend the forecast to cover committed later-year costs. Confirm asset classification and the timing of giving or distributions without double counting costs. Derive break-even and margins from the resulting calculation rather than forcing a target result.
-3. Reassess changed source inputs and regenerate the executive summary. Inspect the full plan, Budget Pack and draft founder brief. The brief labels its outlook according to the available forecast years; later-year cost rows alone do not constitute a forecast.
-4. Record the agreement date and a decision for every worksheet topic. A resolved topic requires an explanation with the agreed assumptions or disclosed difference and source references. Partial work can be saved with unresolved topics.
-5. Review the updated release status. Any remaining release findings still require the existing advisor explanation and acknowledgement before external issue.
+1. Complete the plan sections and attach evidence for the offers, prices, demand and costs.
+2. Build the budget beside the relevant plan statements. Explicit, unambiguous cash and percentage assumptions can be copied individually. Cost-name prompts contain no invented amounts, and references to loans, grants or additional offers do not create funding or sales rows.
+3. Enter monthly sales volumes when there is a ramp, and monthly payment rates when owner pay or other regular costs change. Blank schedule cells use the row's original amount or volume and growth; an explicit zero remains zero. Revenue schedules remain subject to delivery capacity. Year 2 uses the selected exit run rate or Year 1 average. Staged costs carry December's rate into later years and apply cost inflation. Cost traces and funding calculations use the average entered Year 1 rate, labelled accordingly.
+4. Check specific differences beside the relevant inputs, with a link back to the source plan section. Correct the actual input or plan statement. Break-even is a calculated result, not an outcome to force by adjusting assumptions.
+5. Submit the completed plan and budget for the existing assessment. The assessed summary is generated from that version. Review the resulting founder brief before external issue.
 
-Saving this record does not edit the client's figures, recalculate a Budget, create evidence, regenerate a summary, change assessment scores or advance the client. It records the advisor's review; a completed worksheet is not independent verification of its explanations.
+## Generation and release
 
-## Release behaviour
+- A founder brief cannot be generated, previewed or downloaded until all plan requirements and the budget are complete, the latest assessment is finalised and eligible, and its summary is current. Both PDF routes enforce this; hiding buttons is not the security control.
+- Changing the plan or budget invalidates the assessed source version. Reassessment and a current summary are required before generating the new brief.
+- Detected financial differences remain release blockers. The existing advisor release decision cannot waive those differences or incomplete/unassessed inputs.
+- The eleven-topic reconciliation worksheet is no longer shown or required. Historic records remain in assessment audit data; saving an old worksheet does not authorise brief generation or release.
+- Source comparisons are bounded checks of explicit statements, not a claim that every sentence has been understood. Ambiguous values prompt clarification. Missing evidence, unsupported claims and other existing issue-readiness checks remain visible during review.
 
-- External brief release requires a complete reconciliation of the current sources, in addition to the existing assessment, summary and issue-readiness checks.
-- Existing briefs without this record remain available as advisor drafts. Prior release decisions need a current reconciliation and, where findings remain, fresh release approval.
-- Plan, Budget or linked-evidence changes invalidate the decisions. Earlier notes remain visible for reference. Derived executive-summary generation does not invalidate the financial reconciliation, but changed summary wording remains subject to the existing release approval check.
-- Every reconciliation save has a unique revision and invalidates approval of a previous revision, including saves within the same second.
-- The record is stored in the latest assessment's `scoring_scope.financial_reconciliation`; saves are audited. Finalised assessment decisions and progression remain unchanged.
+The brief uses the saved forecast's actual horizon, labels a funding-buffer shortfall separately from negative cash, and preserves the distinction between operating costs and capital purchases. Its final page explains the evidence and funding decision rather than printing internal reconciliation instructions. Complete source responses and detailed schedules remain in the plan and Budget Pack.
 
-The interface distinguishes a negative forecast cash balance from a shortfall against planned costs, operating cover and contingency. A positive forecast cash balance does not itself establish that the planned funding target is covered. Missing Month 13 data is not treated as zero revenue or as a revenue decline.
+No existing client's plan, budget or evidence is rewritten automatically by this change.

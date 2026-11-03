@@ -1,4 +1,4 @@
-import type { FinancialReconciliation } from './founder-brief-reconciliation';
+import type { PlanBudgetGuidance } from '../../portal/entrepreneur/plan-budget-guide';
 
 export type CapacitySummary = {
     active_count: number;
@@ -213,6 +213,8 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         };
         lender_brief: {
             active: boolean;
+            can_generate: boolean;
+            generation_reason: string | null;
             label: string;
             reasons: string[];
             document_url: string;
@@ -221,8 +223,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             preview_url: string;
             preview_download_url: string;
             approve_url: string;
-            reconciliation_url: string;
-            reconciliation: FinancialReconciliation;
+            plan_guidance?: PlanBudgetGuidance;
             approval_token: string;
             review: {
                 can_approve: boolean;

@@ -8,6 +8,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { BudgetMonthlySchedule } from './budget-monthly-schedule';
 import {
     BudgetConfidenceSelect,
     BudgetEvidenceInputs,
@@ -445,6 +446,20 @@ export function BudgetRowsEditor({
                                     }
                                 />
                             </>
+                        ) : null}
+                        {revenue || fixedCost ? (
+                            <BudgetMonthlySchedule
+                                row={row}
+                                revenue={revenue}
+                                onChange={(patch) =>
+                                    updateBudgetRow(
+                                        onFormChange,
+                                        group,
+                                        index,
+                                        patch,
+                                    )
+                                }
+                            />
                         ) : null}
                         {fixedCost && fixedCostQuantityWarning(row) ? (
                             <p className="text-xs leading-snug text-destructive">

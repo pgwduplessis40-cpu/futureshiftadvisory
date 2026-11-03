@@ -207,7 +207,7 @@ export function normaliseBudgetRow(
         amount: row.amount ?? '',
         quantity: numberFromInput(row.quantity ?? 1) || 1,
         confidence: budgetRowConfidence(row.confidence),
-        ...(timed || revenue
+        ...(timed || revenue || fixedCost
             ? { month: numberFromInput(row.month ?? 1) || 1 }
             : {}),
         ...(fixedCost
@@ -221,6 +221,9 @@ export function normaliseBudgetRow(
                           : 'monthly',
                   cadence_confirmed: Boolean(row.cadence_confirmed),
               }
+            : {}),
+        ...(row.monthly_schedule
+            ? { monthly_schedule: row.monthly_schedule.slice(0, 12) }
             : {}),
         ...(fixedCost || revenue
             ? {

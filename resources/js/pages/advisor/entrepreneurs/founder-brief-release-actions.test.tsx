@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { reconciliationFixture } from './founder-brief-reconciliation.test-fixtures';
 import { FounderReadyBriefAction } from './founder-brief-release-actions';
 import type { EntrepreneurDetail } from './types';
 
 const brief: NonNullable<EntrepreneurDetail['latest_plan']>['lender_brief'] = {
     active: false,
+    can_generate: false,
+    generation_reason: 'Complete and assess the current plan and budget first.',
     label: 'Lender brief blocked',
     reasons: ['Review the funding assumption.'],
     document_url: '/brief',
@@ -15,8 +16,6 @@ const brief: NonNullable<EntrepreneurDetail['latest_plan']>['lender_brief'] = {
     preview_download_url: '/brief/preview?download=1',
     retry_url: '/retry',
     approve_url: '/approve',
-    reconciliation_url: '/reconcile',
-    reconciliation: reconciliationFixture,
     approval_token: 'revision-1',
     review: {
         can_approve: false,
@@ -37,11 +36,11 @@ test('a failed summary has an actionable retry without premature release approva
         <FounderReadyBriefAction lenderBrief={brief} />,
     );
     assert.match(html, /Retry summary/);
-    assert.match(html, /View founder brief PDF/);
-    assert.match(html, /Download founder brief PDF/);
-    assert.match(html, /href="\/brief\/preview"/);
-    assert.match(html, /href="\/brief\/preview\?download=1"/);
-    assert.match(html, /Advisor draft available now/);
+    assert.match(html, /Complete and assess the current plan and budget first/);
+    assert.doesNotMatch(
+        html,
+        /View founder brief PDF|Download founder brief PDF|href="\/brief\/preview/,
+    );
     assert.doesNotMatch(
         html,
         /Approve brief for external issue|href="\/brief"/,
@@ -71,6 +70,8 @@ test('current summary exposes the advisor explanation and acknowledgement form',
         <FounderReadyBriefAction
             lenderBrief={{
                 ...brief,
+                can_generate: true,
+                generation_reason: null,
                 review: { ...brief.review, can_approve: true },
                 summary_recovery: {
                     can_retry: false,
@@ -80,6 +81,7 @@ test('current summary exposes the advisor explanation and acknowledgement form',
             }}
         />,
     );
+    assert.match(html, /href="\/brief\/preview"/);
     assert.match(html, /Reason for approving the brief/);
     assert.match(html, /I have reviewed all listed findings/);
     assert.match(html, /Approve brief for external issue/);
@@ -97,6 +99,8 @@ test('an approved brief exposes the PDF link and recorded decision', () => {
             lenderBrief={{
                 ...brief,
                 active: true,
+                can_generate: true,
+                generation_reason: null,
                 reasons: [],
                 review: {
                     ...brief.review,

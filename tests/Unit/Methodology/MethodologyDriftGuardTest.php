@@ -82,6 +82,7 @@ use App\Services\Entrepreneurs\PlanBudgetActionMapper;
 use App\Services\Entrepreneurs\PlanBudgetActionMessage;
 use App\Services\Entrepreneurs\PlanBudgetCoherence;
 use App\Services\Entrepreneurs\PlanBudgetFollowUp;
+use App\Services\Entrepreneurs\PlanBudgetGuide;
 use App\Services\Entrepreneurs\PlanDocuments;
 use App\Services\Entrepreneurs\PlanIssueReadiness;
 use App\Services\Entrepreneurs\PlanRequirements;
@@ -230,6 +231,7 @@ final class MethodologyDriftGuardTest extends TestCase
         PlanBudgetActionMessage::class => 'Formats the canonical plan-budget action payload for the founder change request; it does not calculate a methodology.',
         PlanBudgetFollowUp::class => 'Routes existing assessment findings and records completion state; the assessment owns the underlying methodology.',
         PlanBudgetCoherence::class => 'Assessment evidence reconciliation helper; the assessment methodology is owned by Assessment.',
+        PlanBudgetGuide::class => 'Compares explicit source claims with saved results for the existing assessment and brief workflow; it does not set or calculate assumptions.',
         \App\Services\Entrepreneurs\PlanBuilder::class => 'Plan scaffolding workflow.',
         PlanDocuments::class => 'Document verification helper.',
         PlanIssueReadiness::class => 'External-issue status presentation state; budget and plan rules are owned elsewhere.',
