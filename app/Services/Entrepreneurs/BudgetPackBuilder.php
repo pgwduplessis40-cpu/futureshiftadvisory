@@ -233,7 +233,7 @@ HTML,
             $useOfFundsRows === '' ? '<tr><td colspan="3">No funding inputs saved.</td></tr>' : $useOfFundsRows,
         );
         $fixedCostsSection = sprintf(
-            '<article class="report-section"><h2>Monthly fixed-cost trace</h2><p class="section-intro">Each row separately shows the saved rate, number of billed units, payment frequency, and monthly equivalent used by the model. Units count parallel subscriptions, people, or licences; they are not payments in a year. The converted rows total %s per month; the model base is %s per month.</p>%s<table class="decision-table"><thead><tr><th>Cost item</th><th>Rate</th><th>Units</th><th>Payment frequency</th><th>Monthly equivalent</th><th>Starts</th><th>Review note</th></tr></thead><tbody>%s</tbody></table></article>',
+            '<article class="report-section"><h2>Monthly fixed-cost trace</h2><p class="section-intro">Staged payments show the average entered Year 1 rate. Each row separately shows the saved rate, number of billed units, payment frequency, and monthly equivalent used by the model. Units count parallel subscriptions, people, or licences; they are not payments in a year. The converted rows total %s per month; the model base is %s per month.</p>%s<table class="decision-table"><thead><tr><th>Cost item</th><th>Rate</th><th>Units</th><th>Payment frequency</th><th>Monthly equivalent</th><th>Starts</th><th>Review note</th></tr></thead><tbody>%s</tbody></table></article>',
             $this->money($fixedCostReconciliation['listed_total'] ?? 0),
             $this->money($fixedCostReconciliation['model_base'] ?? ($decision['monthly_fixed_costs'] ?? 0)),
             $fixedCostReconciliationNote,
@@ -645,8 +645,8 @@ HTML,
 
                 return [
                     'label' => $this->fixedCostDisplayLabel($label),
-                    'rate_amount' => round((float) ($row['amount'] ?? 0), 2), 'quantity' => round((float) ($row['quantity'] ?? 1), 2),
-                    'cadence_label' => $this->cadenceLabel((string) ($row['cadence'] ?? 'monthly'), (bool) ($row['cadence_confirmed'] ?? false)),
+                    'rate_amount' => round(BudgetMonthlySchedule::averageRate($row['monthly_schedule'] ?? [], (float) ($row['amount'] ?? 0)), 2), 'quantity' => round((float) ($row['quantity'] ?? 1), 2),
+                    'cadence_label' => $this->cadenceLabel((string) ($row['cadence'] ?? 'monthly'), (bool) ($row['cadence_confirmed'] ?? false)).(! empty($row['monthly_schedule']) ? ' (average rate)' : ''),
                     'monthly_amount' => round($this->monthlyEquivalent($row), 2),
                     'start_month_label' => 'Month '.$month,
                     'confidence' => (string) ($row['confidence'] ?? 'estimate'),
@@ -766,7 +766,7 @@ HTML,
      */
     private function monthlyEquivalent(array $row): float
     {
-        $amount = (float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1);
+        $amount = BudgetMonthlySchedule::averageRate($row['monthly_schedule'] ?? [], (float) ($row['amount'] ?? 0)) * (float) ($row['quantity'] ?? 1);
 
         return match ($row['cadence'] ?? 'monthly') {
             'weekly' => $amount * (52 / 12),

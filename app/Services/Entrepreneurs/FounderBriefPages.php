@@ -34,26 +34,23 @@ final class FounderBriefPages
         $plan->loadMissing('sections', 'budgetRunway');
         $summary = (string) $plan->sections->firstWhere('key', BusinessPlanExecutiveSummary::SECTION_KEY)?->body;
         $budget = $this->budgets->payload($profile, $plan);
-        $review = $status['review'];
-        $reviewText = $review['approved']
-            ? 'Advisor release decision: '.self::excerpt((string) $review['note'], 800)
-            : ($status['active'] ? 'The current brief meets the external-issue checks.' : 'External issue is not approved. The advisor must resolve or review the release findings in the workspace.');
-        $findings = array_slice($review['findings'], 0, 5);
-        $reviewParagraphs = [$reviewText, ...array_map(fn (string $text): string => 'Review finding: '.self::excerpt($text, 220), $findings)];
-        $reconciliation = $status['reconciliation'];
-        $reviewParagraphs[] = $reconciliation['complete']
-            ? 'Financial assumptions reconciled as at '.$reconciliation['as_of'].'. The advisor workspace records the agreed assumptions, explained differences and source references for this version.'
-            : 'Financial reconciliation is incomplete for this version. Agree the revenue scope, ramp, capacity, pay, cash, commitments and evidence before external issue.';
-        if (count($review['findings']) > 5) {
-            $reviewParagraphs[] = (count($review['findings']) - 5).' further findings are recorded in the advisor workspace.';
+        $evidenceCount = $plan->sections->flatMap(fn (PlanSection $section): array => (array) $section->attached_document_ids)->unique()->count();
+        $reviewParagraphs = [
+            'Basis of this brief: the saved business plan and Budget forecast as at '.now()->format('j M Y').'. Financial results are calculated from the Budget; the narrative summarises the plan responses.',
+            $evidenceCount > 0
+                ? 'Supporting files linked to the plan: '.$evidenceCount.'. Review the source evidence alongside the customer, market and pricing assumptions before making a funding decision.'
+                : 'No supporting files are linked to the saved plan. Customer, market and pricing statements remain founder assertions until corroborated.',
+            'Forecast sales are estimates, not contracted income unless supported by the source evidence. Consider delivery capacity, payment timing and the downside scenarios alongside the headline results.',
+            'Decision requested: consider the business case, funding requirement and use of funds set out in this brief. Any financing amount, terms and commitment require a separate agreement.',
+        ];
+        if ($preview && ! $status['active']) {
+            $reviewParagraphs[] = 'DRAFT: review is still required before this brief can be issued. Resolve the questions in the plan and budget workspace and review the completed PDF.';
         }
-        $reviewParagraphs[] = 'Supporting files linked to plan responses: '.$plan->sections->flatMap(fn (PlanSection $section): array => (array) $section->attached_document_ids)->unique()->count().'. The brief summarises the saved plan and Budget; supporting files and complete source wording remain in the master plan and evidence workspace.';
-        $reviewParagraphs[] = 'Decision requested: consider the business case together with the funding requirement, cash forecast and downside scenarios. Any financing terms or commitment require a separate decision.';
 
         $pages = [
             self::page('About this brief', [
                 $preview ? 'ADVISOR DRAFT. Review copy only; not approved for external issue. Viewing or downloading this copy does not approve release.' : 'This version is ready for external issue under the recorded release checks or advisor approval.',
-                'This eleven-page brief brings the business case and financials together. Narrative extracts and long cost schedules are condensed and labelled; the full business plan and Budget Pack retain the detail.',
+                'This brief brings the business case, funding requirement and financial outlook together. The full business plan, supporting evidence and Budget Pack provide the underlying detail.',
                 'Forecasts are planning estimates from the saved Budget, not historical accounts. Missing information is marked as unavailable rather than assumed to be zero.',
             ]),
             self::page('Executive summary',
@@ -74,7 +71,7 @@ final class FounderBriefPages
                 'risk-register' => 'Risks and responses',
             ])),
             ...$this->financials->build($budget, $plan->budgetRunway),
-            self::page('Advisor review and decision', $reviewParagraphs),
+            self::page('Evidence and funding decision', $reviewParagraphs),
         ];
         $contents = [];
         foreach (array_slice($pages, 1, null, true) as $index => $page) {
@@ -142,11 +139,11 @@ final class FounderBriefPages
                 $complete = $candidate;
             }
 
-            return $complete === '' ? 'Read the full source for this response.' : trim($complete).' [Extract; see full source.]';
+            return $complete === '' ? 'Read the full source for this response.' : trim($complete);
         }
         $break = mb_strrpos($prefix, ' ');
 
-        return rtrim($break === false ? $prefix : mb_substr($prefix, 0, $break)).' [Extract; see full source.]';
+        return rtrim($break === false ? $prefix : mb_substr($prefix, 0, $break)).'…';
     }
 
     /** @param list<string> $paragraphs

@@ -10,7 +10,7 @@ namespace App\Services\Entrepreneurs;
  * explicit claims that agree with the forecast. This runs from the captured
  * assessment snapshot, so a later edit cannot change a recorded result.
  *
- * @phpstan-type Finding array{category:'budget_support'|'plan_correlation',severity:'missing'|'review',message:string,next_action:string}
+ * @phpstan-type Finding array{category:'budget_support'|'plan_correlation',severity:'missing'|'review',message:string,next_action:string,input_key?:'regular_costs'|'sales_forecast'|'funding_and_runway'|'plan_and_budget'}
  * @phpstan-type Advisory array{key:'fixed_cost_sources'|'revenue_sources'|'payment_frequency',category:'budget_support',message:string,next_action:string}
  * @phpstan-type Action array{key:'regular_costs'|'one_off_costs'|'forecast_calendar'|'funding_and_runway'|'sales_forecast'|'plan_and_budget'|'budget_setup',severity:'missing'|'review',title:string,destination:string,steps:list<string>}
  * @phpstan-type Direction array{status:'met'|'review'|'missing',status_label:string,summary:string,unresolved_count:int}
@@ -26,6 +26,8 @@ namespace App\Services\Entrepreneurs;
  * @phpstan-type SnapshotPhase array{sections?:list<FinancialSection>}
  * @phpstan-type SnapshotBudget array{status?:string,assessment_evidence?:BudgetEvidence}
  * @phpstan-type Snapshot array{budget?:SnapshotBudget|null,phases?:list<SnapshotPhase>}
+ *
+ * @phpstan-import-type Budget from PlanBudgetGuide as GuideBudget
  */
 final class PlanBudgetCoherence
 {
@@ -79,6 +81,13 @@ final class PlanBudgetCoherence
             );
         } elseif (is_array($budget)) {
             $this->evaluatePlanCorrelation($planText, $budget, $planCorrelationFindings);
+            /** @var GuideBudget $guideBudget */
+            $guideBudget = $budget;
+            foreach ((new PlanBudgetGuide)->build($financialSections, $guideBudget)['issues'] as $issue) {
+                $planCorrelationFindings[] = [...$this->finding('plan_correlation', 'review', $issue['detail'], $issue['action']), 'input_key' => match ($issue['focus']) {
+                    'fixed-costs' => 'regular_costs', 'revenue-forecast' => 'sales_forecast', 'funding-sources' => 'funding_and_runway', default => 'plan_and_budget',
+                }];
+            }
         }
 
         $findings = [...$budgetSupportFindings, ...$planCorrelationFindings];
@@ -611,7 +620,7 @@ final class PlanBudgetCoherence
 
     /**
      * @param  Snapshot  $snapshot
-     * @return list<array{title:string,body:string}>
+     * @return list<array{title:string,body:string,requirement_key:string}>
      */
     private function financialSections(array $snapshot): array
     {
@@ -627,6 +636,7 @@ final class PlanBudgetCoherence
                 }
 
                 $sections[] = [
+                    'requirement_key' => $isFinancialRequirement ? $section['requirement_key'] : 'financial-assumptions',
                     'title' => trim((string) ($section['title'] ?? 'Financial plan')) ?: 'Financial plan',
                     'body' => $body,
                 ];

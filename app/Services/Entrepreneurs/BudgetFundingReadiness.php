@@ -318,7 +318,7 @@ final class BudgetFundingReadiness
      */
     private function monthlyEquivalent(array $row): float
     {
-        $amount = (float) ($row['amount'] ?? 0) * (float) ($row['quantity'] ?? 1);
+        $amount = BudgetMonthlySchedule::averageRate($row['monthly_schedule'] ?? [], (float) ($row['amount'] ?? 0)) * (float) ($row['quantity'] ?? 1);
 
         return match ($row['cadence'] ?? 'monthly') {
             'weekly' => $amount * (52 / 12),

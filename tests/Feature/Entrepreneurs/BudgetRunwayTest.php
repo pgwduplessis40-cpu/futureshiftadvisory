@@ -388,7 +388,7 @@ final class BudgetRunwayTest extends TestCase
             'plan_phase_id' => $phase->id,
             'key' => 'founder-financial-financial-assumptions',
             'title' => 'Financial assumptions',
-            'body' => str_repeat('Revenue grows, costs are forecast, and target margins are set. ', 3),
+            'body' => 'Opening cash is $5,000. '.str_repeat('Revenue grows, costs are forecast, and target margins are set. ', 3),
             'source_type' => 'founder',
             'completeness_status' => PlanSection::STATUS_COMPLETE,
             'metadata' => ['requirement_key' => 'financial-assumptions'],
@@ -401,6 +401,7 @@ final class BudgetRunwayTest extends TestCase
                 'expected_runway_months' => 6,
                 'forecast_years' => 1,
                 'assumptions' => [
+                    'opening_cash_balance' => 4000,
                     'revenue_growth_percent' => 10,
                     'cost_inflation_percent' => 3,
                     'target_gross_profit_percent' => 55,
@@ -411,10 +412,10 @@ final class BudgetRunwayTest extends TestCase
                     ['label' => 'Website', 'amount' => 500, 'quantity' => 1],
                 ],
                 'monthly_fixed_costs' => [
-                    ['label' => 'Software', 'amount' => 250, 'quantity' => 1, 'cadence' => 'monthly'],
+                    ['label' => 'Software', 'amount' => 250, 'quantity' => 1, 'cadence' => 'monthly', 'month' => 1, 'monthly_schedule' => [250, 0, null]],
                 ],
                 'revenue_forecast' => [
-                    ['label' => 'Sales', 'amount' => 1_000, 'quantity' => 1, 'month' => 1],
+                    ['label' => 'Sales', 'amount' => 1_000, 'quantity' => 1, 'month' => 1, 'monthly_schedule' => [0, 2, 3]],
                 ],
                 'funding_sources' => [
                     ['label' => 'Founder cash', 'amount' => 5_000, 'quantity' => 1],
@@ -424,7 +425,14 @@ final class BudgetRunwayTest extends TestCase
             ->assertJsonPath('status', 'entrepreneur-budget-autosaved')
             ->assertJsonPath('budget.revision', 1)
             ->assertJsonPath('budget.status', EntrepreneurBudget::STATUS_COMPLETE)
-            ->assertJsonPath('budget.computed.monthly_fixed_costs', 250);
+            ->assertJsonPath('budget.computed.monthly_fixed_costs', 229.17)
+            ->assertJsonPath('budget.monthly_fixed_costs.0.month', 1)
+            ->assertJsonPath('budget.monthly_fixed_costs.0.monthly_schedule', [250, 0, null])
+            ->assertJsonPath('budget.revenue_forecast.0.monthly_schedule', [0, 2, 3])
+            ->assertJsonPath('budget.computed.monthly_series.0.revenue', 0)
+            ->assertJsonPath('budget.computed.monthly_series.1.revenue', 2000)
+            ->assertJsonPath('budget.plan_guidance.facts.0.value', 5000)
+            ->assertJsonPath('budget.plan_guidance.issues.0.key', 'opening_cash_balance');
     }
 
     /**

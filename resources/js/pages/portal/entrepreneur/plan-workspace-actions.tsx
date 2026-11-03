@@ -12,11 +12,13 @@ import { founderActionDeepLink } from './founder-action-deep-link';
 import { FounderBudgetActionFocus } from './founder-budget-action-focus';
 import { IdeaValidationFieldLabel } from './founder-plan-term-help';
 import { BudgetEditor, requirementId } from './plan-budget';
+import { PlanFinancialSummary } from './plan-budget-guide';
 import {
     IdeaValidationSnapshot,
     formatDate,
     ideaFields,
 } from './plan-dashboard-panels';
+import { PlanIdeaStarter } from './plan-idea-starter';
 import { PlanRequirementsLayout } from './plan-requirements-layout';
 import { PlanSupportingDocuments } from './plan-supporting-documents';
 import {
@@ -747,33 +749,20 @@ export function PlanWorkspaceActions({
                                                 ) : null}
                                             </div>
                                         </div>
-                                        {ideaStarter ? (
-                                            <div className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-950">
-                                                <div className="font-medium">
-                                                    From your validated idea
-                                                </div>
-                                                <p className="mt-1 whitespace-pre-line text-sky-900">
-                                                    {ideaStarter}
-                                                </p>
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="mt-3 border-sky-300 bg-white"
-                                                    disabled={planChangesLocked}
-                                                    onClick={() =>
-                                                        setSectionBody(
-                                                            (current) =>
-                                                                current.trim()
-                                                                    ? `${current}\n\n${ideaStarter}`
-                                                                    : ideaStarter,
-                                                        )
-                                                    }
-                                                >
-                                                    Use as a starting point
-                                                </Button>
-                                            </div>
+                                        {selectedRequirement.key ===
+                                            'financial-assumptions' &&
+                                        plan?.budget ? (
+                                            <PlanFinancialSummary
+                                                budget={plan.budget}
+                                            />
                                         ) : null}
+                                        <PlanIdeaStarter
+                                            ideaStarter={ideaStarter}
+                                            planChangesLocked={
+                                                planChangesLocked
+                                            }
+                                            setSectionBody={setSectionBody}
+                                        />
                                         {selectedRequirement.key ===
                                             'executive-summary' &&
                                         plan?.executive_summary ? (

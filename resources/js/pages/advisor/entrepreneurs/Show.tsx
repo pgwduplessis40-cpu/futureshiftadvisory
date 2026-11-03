@@ -846,7 +846,7 @@ export default function EntrepreneursShow({
                 <div className="grid items-start gap-6 md:grid-cols-2 xl:grid-cols-3">
                     <section
                         className={cn(
-                            'space-y-4 rounded-md border bg-background p-4',
+                            'space-y-4 rounded-md border bg-background p-4 md:col-span-2 xl:col-span-3',
                             activeTab !== 'actions' && 'hidden',
                         )}
                     >
@@ -982,15 +982,6 @@ export default function EntrepreneursShow({
                                         </a>
                                     </Button>
                                 ) : null}
-                                {executiveSummary ? (
-                                    <span className="self-center text-sm text-muted-foreground">
-                                        Executive summary generation is
-                                        automatic after a passing assessment.
-                                    </span>
-                                ) : null}
-                                <FounderReadyBriefAction
-                                    lenderBrief={lenderBrief}
-                                />
                                 {funderReady ? (
                                     <Button
                                         asChild
@@ -1159,6 +1150,14 @@ export default function EntrepreneursShow({
                             </div>
                         ) : null}
                     </section>
+
+                    {activeTab === 'actions' ? (
+                        <div className="min-w-0 md:col-span-2 xl:col-span-3">
+                            <FounderReadyBriefAction
+                                lenderBrief={lenderBrief}
+                            />
+                        </div>
+                    ) : null}
 
                     <section
                         className={cn(

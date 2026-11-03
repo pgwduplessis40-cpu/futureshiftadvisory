@@ -1,4 +1,5 @@
 import type { ClientCoBrowseConfig } from '@/components/co-browse/ClientCoBrowse';
+import type { PlanBudgetGuidance } from './plan-budget-guide';
 import type {
     IdeaValidationVersion,
     SubmittedPlanVersion,
@@ -124,6 +125,7 @@ export type PlanRequirementPayload = {
 };
 
 export type BudgetRow = {
+    monthly_schedule?: (number | null)[];
     label: string;
     amount: string | number;
     quantity?: string | number;
@@ -197,6 +199,7 @@ export type FundingScenarioRow = {
 };
 
 export type BudgetPayload = {
+    plan_guidance?: PlanBudgetGuidance;
     id: string | null;
     revision: number;
     expected_runway_months: number | null;

@@ -7,6 +7,7 @@ namespace App\Services\Entrepreneurs;
 use App\Models\PlanAssessment;
 use Illuminate\Support\Str;
 
+/** @phpstan-import-type Finding from PlanBudgetCoherence */
 final class PlanBudgetActionMessage
 {
     public function __construct(private readonly PlanBudgetActionMapper $actionMapper) {}
@@ -74,7 +75,7 @@ final class PlanBudgetActionMessage
      * reviews produce one consistent set of founder instructions.
      *
      * @param  array{approval_available?:bool,actions?:array<int, mixed>|string,findings?:array<int, mixed>|string}  $coherence
-     * @return list<array{category:'budget_support'|'plan_correlation',severity:'missing'|'review',message:string,next_action:string}>
+     * @return list<Finding>
      */
     public function findingsForCoherence(array $coherence): array
     {
@@ -96,12 +97,14 @@ final class PlanBudgetActionMessage
             }
 
             $severity = (string) ($finding['severity'] ?? 'review');
+            $inputKey = $finding['input_key'] ?? null;
 
             $normalised[] = [
                 'category' => $category,
                 'severity' => $severity === 'missing' ? 'missing' : 'review',
                 'message' => $message,
                 'next_action' => trim((string) ($finding['next_action'] ?? 'Update the matching Budget input.')),
+                ...(in_array($inputKey, ['regular_costs', 'sales_forecast', 'funding_and_runway', 'plan_and_budget'], true) ? ['input_key' => $inputKey] : []),
             ];
         }
 

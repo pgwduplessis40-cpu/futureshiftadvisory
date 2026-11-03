@@ -73,6 +73,16 @@ final class PlanBudgetActionMapper
      */
     private function clientAction(array $finding): ?array
     {
+        if (isset($finding['input_key'])) {
+            return [
+                'key' => $finding['input_key'], 'severity' => $finding['severity'],
+                'title' => match ($finding['input_key']) {
+                    'regular_costs' => 'Match planned pay and running costs', 'sales_forecast' => 'Match sales to the plan',
+                    'funding_and_runway' => 'Confirm the cash available', default => 'Update the plan and its financial outlook',
+                },
+                'destination' => self::DESTINATION, 'steps' => [$finding['message'], $finding['next_action']],
+            ];
+        }
         $message = $finding['message'];
         $text = strtolower($message);
         $key = 'budget_setup';

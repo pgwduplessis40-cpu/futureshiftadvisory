@@ -9,6 +9,7 @@ use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
 use App\Models\PlanSection;
 use App\Services\Entrepreneurs\BudgetCalculator;
+use App\Services\Entrepreneurs\BudgetPackBuilder;
 use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\FounderBriefPages;
 use App\Services\Entrepreneurs\FunderReadyBriefBuilder;
@@ -20,6 +21,21 @@ use Tests\TestCase;
 
 final class FounderBriefPdfTest extends TestCase
 {
+    public function test_staged_pay_reconciles_to_the_funding_base_and_is_labelled_as_an_average(): void
+    {
+        [$profile, $plan, $status] = $this->fixture();
+        $budget = $plan->budgetRunway;
+        $fixed = [['label' => 'Owner pay', 'amount' => 550, 'quantity' => 1, 'cadence' => 'weekly', 'cadence_confirmed' => true, 'monthly_schedule' => [550, 550, 875, 875, 875, 875, 1200, 1200, 1200, 1200, 1200, 1500]]];
+        $budget->monthly_fixed_costs = $fixed;
+        $budget->computed = app(BudgetCalculator::class)->compute([], $fixed, [], [], null, forecastYears: 3);
+        $payload = app(BudgetPackBuilder::class)->payload($profile, $plan);
+        $this->assertTrue($payload['fixed_cost_reconciliation']['reconciled']);
+        $this->assertEqualsWithDelta(data_get($budget->computed, 'monthly_fixed_costs'), $payload['fixed_costs'][0]['monthly_amount'], 0.01);
+        $this->assertStringContainsString('average rate', $payload['fixed_costs'][0]['cadence_label']);
+        $pages = app(FounderBriefPages::class)->build($profile, $plan, $status, true);
+        $this->assertStringContainsString('average entered Year 1 rate', $pages[7]['paragraphs'][0]);
+    }
+
     public function test_brief_includes_saved_financials_and_keeps_one_off_payments_separate(): void
     {
         [$profile, $plan, $status] = $this->fixture();
@@ -121,7 +137,7 @@ final class FounderBriefPdfTest extends TestCase
     public function test_narrative_extracts_end_at_complete_sentences(): void
     {
         $source = 'The business serves local founders. '.str_repeat('The next sentence explains delivery in considerable detail ', 20).'.';
-        $this->assertSame('The business serves local founders. [Extract; see full source.]', FounderBriefPages::excerpt($source, 100, completeSentences: true));
+        $this->assertSame('The business serves local founders.', FounderBriefPages::excerpt($source, 100, completeSentences: true));
         $this->assertSame('Read the full source for this response.', FounderBriefPages::excerpt(str_repeat('An unfinished claim ', 40), 100, completeSentences: true));
         $this->assertSame('Sales are $1.50 per item.', FounderBriefPages::excerpt('Sales are $1.50 per item.', 100, completeSentences: true));
     }
@@ -193,10 +209,10 @@ final class FounderBriefPdfTest extends TestCase
         $budget = new EntrepreneurBudget(['launch_costs' => $launch, 'monthly_fixed_costs' => $fixed, 'revenue_forecast' => $revenue, 'future_costs' => $future, 'expected_runway_months' => 2, 'forecast_years' => $forecastYears, 'computed' => $computed]);
         $plan = (new BusinessPlan(['title' => 'Illustrative Studio']))->setRelation('sections', new Collection($sections))->setRelation('budgetRunway', $budget);
         $status = [
-            'active' => false, 'label' => 'Review required', 'reasons' => ['Review source evidence.'],
+            'active' => false, 'can_generate' => true, 'generation_reason' => null, 'label' => 'Review required', 'reasons' => ['Review source evidence.'],
             'executive_summary' => ['usable' => true, 'context_hash' => 'sample'], 'assessment_id' => null,
             'approval_token' => str_repeat('a', 64),
-            'reconciliation' => ['source_token' => str_repeat('b', 64), 'available' => true, 'current' => false, 'complete' => false, 'as_of' => null, 'saved_at' => null, 'topics' => [], 'sources' => []],
+            'plan_guidance' => ['sources' => [], 'facts' => [], 'issues' => []],
             'review' => ['can_approve' => true, 'approved' => false, 'note' => null, 'approved_at' => null, 'findings' => $dense ? array_fill(0, 15, str_repeat('Review the source evidence before external issue. ', 10)) : ['Review source evidence.']],
             'summary_recovery' => ['can_retry' => false, 'state' => 'complete', 'message' => 'Current'],
         ];

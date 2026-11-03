@@ -49,7 +49,10 @@ final class FunderReadyBriefBuilder
 
     public function previewPdf(EntrepreneurProfile $profile, BusinessPlan $plan): string
     {
-        return $this->render($profile, $plan, $this->status($plan, $profile), true);
+        $status = $this->status($plan, $profile);
+        abort_unless($status['can_generate'], 409, $status['generation_reason'] ?? 'Complete and assess the current business plan and budget before generating the founder brief.');
+
+        return $this->render($profile, $plan, $status, true);
     }
 
     /** @param FunderReadyBriefStatus $status */

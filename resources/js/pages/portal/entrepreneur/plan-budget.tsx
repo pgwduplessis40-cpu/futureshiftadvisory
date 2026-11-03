@@ -1,7 +1,6 @@
 import {
     AlertTriangle,
     Banknote,
-    Bot,
     Eye,
     FileText,
     Plus,
@@ -21,9 +20,7 @@ import {
     blankBudgetRow,
     budgetRowConfidence,
     budgetRowLabel,
-    dedupeBudgetRows,
     isBlankBudgetRow,
-    mergeBudgetRows,
     normaliseBudgetRow,
     numberFromInput,
     signedNumberFromInput,
@@ -34,6 +31,12 @@ import {
     BudgetHeaderActions,
 } from './budget-save-controls';
 import { BudgetTermLabel, FounderBudgetGuide } from './budget-term-help';
+import {
+    PlanBudgetStarter,
+    PlanBudgetSource,
+    PlanBudgetQuestions,
+    PlanFinancialSummary,
+} from './plan-budget-guide';
 import { formatLabel } from './plan-dashboard-panels';
 import type {
     BudgetAssumptions,
@@ -298,69 +301,6 @@ export function BudgetEditor({
     const assumptionLabels = computed.assumptions?.field_labels ?? {};
     const missingAssumptions = computed.missing_assumptions ?? [];
 
-    const applyTemplate = () => {
-        onFormChange((current) => ({
-            ...current,
-            expected_runway_months:
-                current.expected_runway_months ||
-                String(template.expected_runway_months),
-            launch_costs: mergeBudgetRows(
-                current.launch_costs,
-                template.launch_costs,
-                false,
-                true,
-            ),
-            monthly_fixed_costs: mergeBudgetRows(
-                current.monthly_fixed_costs,
-                template.monthly_fixed_costs,
-            ),
-            revenue_forecast: mergeBudgetRows(
-                current.revenue_forecast,
-                template.revenue_forecast,
-                true,
-            ),
-            funding_sources: mergeBudgetRows(
-                current.funding_sources,
-                template.funding_sources,
-            ),
-        }));
-    };
-    const applyPlanClues = () => {
-        const key = inferBudgetTemplateKey(plan, ideaValidation);
-        const suggestions = budgetRowsFromPlan(plan, ideaValidation, key);
-        const planAssumptions = budgetAssumptionsFromPlan(plan);
-
-        onFormChange((current) => ({
-            ...current,
-            assumptions: mergeBudgetAssumptions(
-                current.assumptions,
-                planAssumptions,
-            ),
-            expected_runway_months:
-                current.expected_runway_months ||
-                String(suggestions.expected_runway_months),
-            launch_costs: mergeBudgetRows(
-                current.launch_costs,
-                suggestions.launch_costs,
-                false,
-                true,
-            ),
-            monthly_fixed_costs: mergeBudgetRows(
-                current.monthly_fixed_costs,
-                suggestions.monthly_fixed_costs,
-            ),
-            revenue_forecast: mergeBudgetRows(
-                current.revenue_forecast,
-                suggestions.revenue_forecast,
-                true,
-            ),
-            funding_sources: mergeBudgetRows(
-                current.funding_sources,
-                suggestions.funding_sources,
-            ),
-        }));
-    };
-
     return (
         <div className="space-y-5">
             <div
@@ -374,8 +314,8 @@ export function BudgetEditor({
                         Budget setup assistant
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                        Start with plain questions and example rows. You can
-                        switch to advanced editing at any time.
+                        Turn your plan into a forecast, then use the results to
+                        explain how the business will work financially.
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -466,74 +406,10 @@ export function BudgetEditor({
                 </section>
             ) : mode === 'guided' ? (
                 <div className="space-y-4">
-                    <section className="space-y-3 rounded-md border bg-muted/20 p-3">
-                        <div>
-                            <div className="text-sm font-medium">
-                                Plan-based budget starter
-                            </div>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                This uses the completed Foundation requirement
-                                and the rest of the business plan to suggest
-                                starter rows. The numbers are placeholders to
-                                adjust, not a judgement.
-                            </p>
-                        </div>
-                        <div className="grid gap-3 rounded-md border bg-background p-3 text-sm md:grid-cols-3">
-                            <BudgetSourceDetail
-                                label="Plan source"
-                                value={
-                                    budgetSource.section?.title ??
-                                    budgetSource.requirement?.title ??
-                                    'Foundation requirement'
-                                }
-                            />
-                            <BudgetSourceDetail
-                                label="Detected starter"
-                                value={template.title}
-                                helper={template.description}
-                            />
-                            <BudgetSourceDetail
-                                label="Revenue clue"
-                                value={
-                                    ideaValidation?.revenue_model?.trim() ||
-                                    'Use the Revenue model section when available'
-                                }
-                            />
-                        </div>
-                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-background p-3 text-sm">
-                            <span className="text-muted-foreground">
-                                Add starter rows for{' '}
-                                {template.title.toLowerCase()}, then adjust the
-                                amounts and confidence levels.
-                            </span>
-                            <div className="flex flex-wrap gap-2">
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={applyPlanClues}
-                                >
-                                    <Bot
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    Use plan clues
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={applyTemplate}
-                                >
-                                    <Plus
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    Use starter budget
-                                </Button>
-                            </div>
-                        </div>
-                    </section>
+                    <PlanBudgetStarter
+                        guidance={budget.plan_guidance}
+                        onFormChange={onFormChange}
+                    />
 
                     {missingAssumptions.length > 0 ? (
                         <section className="grid gap-3 rounded-md border bg-amber-50 p-3 text-sm text-amber-950 md:grid-cols-[1fr_auto] md:items-start">
@@ -633,6 +509,17 @@ export function BudgetEditor({
                     </label>
 
                     <div className="grid gap-4">
+                        <PlanBudgetSource
+                            focus="one-off-costs"
+                            guidance={budget.plan_guidance}
+                            requirement="financial-assumptions"
+                            onOpenPlanRequirement={onOpenPlanRequirement}
+                        />
+                        <PlanBudgetQuestions
+                            guidance={budget.plan_guidance}
+                            focus="one-off-costs"
+                            onOpenPlanRequirement={onOpenPlanRequirement}
+                        />
                         <BudgetRowsEditor
                             title="What one-off costs need funding?"
                             helper="Include setup, replacement, or growth items such as equipment, website, deposits, signage, licences, stock, or marketing."
@@ -640,8 +527,24 @@ export function BudgetEditor({
                             focusTarget="one-off-costs"
                             rows={form.launch_costs}
                             onFormChange={onFormChange}
-                            quickAdds={template.launch_costs}
+                            quickAdds={template.launch_costs.map((row) => ({
+                                ...row,
+                                amount: '',
+                                quantity: 1,
+                                confidence: 'guess' as const,
+                            }))}
                             timed
+                        />
+                        <PlanBudgetSource
+                            focus="fixed-costs"
+                            guidance={budget.plan_guidance}
+                            requirement="financial-assumptions"
+                            onOpenPlanRequirement={onOpenPlanRequirement}
+                        />
+                        <PlanBudgetQuestions
+                            guidance={budget.plan_guidance}
+                            focus="fixed-costs"
+                            onOpenPlanRequirement={onOpenPlanRequirement}
                         />
                         <BudgetRowsEditor
                             title="What will you pay every month even if sales are slow?"
@@ -649,9 +552,27 @@ export function BudgetEditor({
                             group="monthly_fixed_costs"
                             rows={form.monthly_fixed_costs}
                             onFormChange={onFormChange}
-                            quickAdds={template.monthly_fixed_costs}
+                            quickAdds={template.monthly_fixed_costs.map(
+                                (row) => ({
+                                    ...row,
+                                    amount: '',
+                                    quantity: 1,
+                                    confidence: 'guess' as const,
+                                }),
+                            )}
                             fixedCost
                             focusTarget="fixed-costs"
+                        />
+                        <PlanBudgetSource
+                            focus="revenue-forecast"
+                            guidance={budget.plan_guidance}
+                            requirement="revenue-model"
+                            onOpenPlanRequirement={onOpenPlanRequirement}
+                        />
+                        <PlanBudgetQuestions
+                            guidance={budget.plan_guidance}
+                            focus="revenue-forecast"
+                            onOpenPlanRequirement={onOpenPlanRequirement}
                         />
                         <BudgetRowsEditor
                             title="How will money come in?"
@@ -659,9 +580,25 @@ export function BudgetEditor({
                             group="revenue_forecast"
                             rows={form.revenue_forecast}
                             onFormChange={onFormChange}
-                            quickAdds={template.revenue_forecast}
+                            quickAdds={template.revenue_forecast.map((row) => ({
+                                ...row,
+                                amount: '',
+                                quantity: 1,
+                                confidence: 'guess' as const,
+                            }))}
                             revenue
                             focusTarget="revenue-forecast"
+                        />
+                        <PlanBudgetSource
+                            focus="funding-sources"
+                            guidance={budget.plan_guidance}
+                            requirement="launch-funding"
+                            onOpenPlanRequirement={onOpenPlanRequirement}
+                        />
+                        <PlanBudgetQuestions
+                            guidance={budget.plan_guidance}
+                            focus="funding-sources"
+                            onOpenPlanRequirement={onOpenPlanRequirement}
                         />
                         <BudgetRowsEditor
                             title="What funding or cash is available?"
@@ -669,8 +606,18 @@ export function BudgetEditor({
                             group="funding_sources"
                             rows={form.funding_sources}
                             onFormChange={onFormChange}
-                            quickAdds={template.funding_sources}
+                            quickAdds={template.funding_sources.map((row) => ({
+                                ...row,
+                                amount: '',
+                                quantity: 1,
+                                confidence: 'guess' as const,
+                            }))}
                             focusTarget="funding-sources"
+                        />
+                        <PlanBudgetQuestions
+                            guidance={budget.plan_guidance}
+                            focus="future-costs"
+                            onOpenPlanRequirement={onOpenPlanRequirement}
                         />
                         <FutureCostsEditor
                             rows={form.future_costs}
@@ -768,6 +715,11 @@ export function BudgetEditor({
                             onFormChange={onFormChange}
                             focusTarget="funding-sources"
                         />
+                        <PlanBudgetQuestions
+                            guidance={budget.plan_guidance}
+                            focus="future-costs"
+                            onOpenPlanRequirement={onOpenPlanRequirement}
+                        />
                         <FutureCostsEditor
                             rows={form.future_costs}
                             onFormChange={onFormChange}
@@ -782,6 +734,12 @@ export function BudgetEditor({
 
             {budgetUnlocked ? (
                 <>
+                    <PlanBudgetQuestions
+                        guidance={budget.plan_guidance}
+                        focus="budget-overview"
+                        onOpenPlanRequirement={onOpenPlanRequirement}
+                    />
+                    <PlanFinancialSummary budget={budget} />
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         <BudgetMetric
                             label="Planned one-off costs"
@@ -883,7 +841,10 @@ export function FutureCostsEditor({
     onFormChange: Dispatch<SetStateAction<BudgetFormState>>;
 }) {
     return (
-        <section className="space-y-2 rounded-md border bg-muted/20 p-3">
+        <section
+            data-founder-action-target="future-costs"
+            className="space-y-2 rounded-md border bg-muted/20 p-3"
+        >
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <div className="text-sm font-medium">
@@ -1505,191 +1466,6 @@ export function inferBudgetTemplateKey(
     return 'service';
 }
 
-export function budgetRowsFromPlan(
-    plan: BusinessPlanPayload,
-    ideaValidation: IdeaValidationPayload,
-    templateKey: BudgetTemplateKey,
-): BudgetTemplate {
-    const text = budgetSourceText(plan, ideaValidation);
-    const template = budgetTemplates[templateKey];
-    const launchCosts = [...template.launch_costs];
-    const monthlyFixedCosts = [...template.monthly_fixed_costs];
-    const revenueForecast = [...template.revenue_forecast];
-    const fundingSources = [...template.funding_sources];
-
-    if (hasAny(text, ['website', 'domain', 'landing page'])) {
-        launchCosts.push(
-            budgetRow('Website, domain, or landing page', 900, 'guess'),
-        );
-    }
-
-    if (hasAny(text, ['marketing', 'ads', 'launch campaign', 'social media'])) {
-        launchCosts.push(budgetRow('Launch marketing campaign', 1200, 'guess'));
-    }
-
-    if (hasAny(text, ['licence', 'license', 'permit', 'compliance', 'legal'])) {
-        launchCosts.push(
-            budgetRow('Licences, permits, or compliance setup', 800, 'guess'),
-        );
-    }
-
-    if (hasAny(text, ['software', 'system', 'crm', 'booking', 'accounting'])) {
-        monthlyFixedCosts.push(
-            budgetRow('Software and operating systems', 180, 'estimate'),
-        );
-    }
-
-    if (hasAny(text, ['insurance', 'liability'])) {
-        monthlyFixedCosts.push(budgetRow('Insurance', 200, 'guess'));
-    }
-
-    if (hasAny(text, ['rent', 'premises', 'workspace', 'office', 'storage'])) {
-        monthlyFixedCosts.push(
-            budgetRow('Premises, workspace, or storage', 700, 'guess'),
-        );
-    }
-
-    if (hasAny(text, ['grant'])) {
-        fundingSources.push(
-            budgetRow('Potential grant funding', 3000, 'guess'),
-        );
-    }
-
-    if (hasAny(text, ['loan', 'finance', 'lending'])) {
-        fundingSources.push(
-            budgetRow('Potential loan or finance', 5000, 'guess'),
-        );
-    }
-
-    if (hasAny(text, ['pre-sale', 'presale', 'deposit'])) {
-        fundingSources.push(
-            budgetRow('Customer deposits or pre-sales', 1500, 'guess'),
-        );
-    }
-
-    const revenueModel = ideaValidation?.revenue_model?.trim();
-
-    if (revenueModel) {
-        revenueForecast.push(
-            budgetRow(
-                `Revenue from ${revenueModel.slice(0, 90)}`,
-                500,
-                'guess',
-                {
-                    quantity: 3,
-                    month: 1,
-                    variable_cost_percent: 20,
-                },
-            ),
-        );
-    }
-
-    return {
-        ...template,
-        launch_costs: dedupeBudgetRows(launchCosts),
-        monthly_fixed_costs: dedupeBudgetRows(monthlyFixedCosts),
-        revenue_forecast: dedupeBudgetRows(revenueForecast),
-        funding_sources: dedupeBudgetRows(fundingSources),
-    };
-}
-
-export function budgetAssumptionsFromPlan(
-    plan: BusinessPlanPayload,
-): Partial<BudgetAssumptions> {
-    const section = plan?.phases
-        .flatMap((phase) => phase.sections)
-        .find(
-            (row) => row.requirement_key === BUDGET_ASSUMPTIONS_REQUIREMENT_KEY,
-        );
-    const text = `${section?.title ?? ''} ${section?.body ?? ''}`.toLowerCase();
-
-    return {
-        revenue_growth_percent: percentNear(text, [
-            'revenue growth',
-            'sales growth',
-            'growth',
-        ]),
-        cost_inflation_percent: percentNear(text, [
-            'cost inflation',
-            'cpi',
-            'inflation',
-        ]),
-        target_gross_profit_percent: percentNear(text, [
-            'gross profit',
-            'gp',
-            'margin',
-        ]),
-        target_net_profit_before_tax_percent: percentNear(text, [
-            'net profit before tax',
-            'npbt',
-            'before tax',
-        ]),
-        target_net_profit_after_tax_percent: percentNear(text, [
-            'net profit after tax',
-            'npat',
-            'after tax',
-        ]),
-    };
-}
-
-export function mergeBudgetAssumptions(
-    current: BudgetAssumptions,
-    suggested: Partial<BudgetAssumptions>,
-): BudgetAssumptions {
-    return {
-        opening_cash_balance: current.opening_cash_balance,
-        opening_cash_verified: current.opening_cash_verified,
-        debtor_days: current.debtor_days,
-        creditor_days: current.creditor_days,
-        working_capital_verified: current.working_capital_verified,
-        revenue_growth_percent:
-            current.revenue_growth_percent ||
-            suggested.revenue_growth_percent ||
-            '',
-        forecast_start_month: current.forecast_start_month,
-        forecast_start_confirmed: current.forecast_start_confirmed,
-        funding_position: current.funding_position,
-        funding_position_confirmed: current.funding_position_confirmed,
-        funding_request_purpose: current.funding_request_purpose,
-        year_two_revenue_basis: current.year_two_revenue_basis,
-        cost_inflation_percent:
-            current.cost_inflation_percent ||
-            suggested.cost_inflation_percent ||
-            '',
-        target_gross_profit_percent:
-            current.target_gross_profit_percent ||
-            suggested.target_gross_profit_percent ||
-            '',
-        target_net_profit_before_tax_percent:
-            current.target_net_profit_before_tax_percent ||
-            suggested.target_net_profit_before_tax_percent ||
-            '',
-        target_net_profit_after_tax_percent:
-            current.target_net_profit_after_tax_percent ||
-            suggested.target_net_profit_after_tax_percent ||
-            '',
-    };
-}
-
-export function percentNear(text: string, labels: string[]): number | '' {
-    for (const label of labels) {
-        const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const after = new RegExp(
-            `${escaped}[^0-9%]{0,60}(\\d+(?:\\.\\d+)?)\\s*%`,
-        );
-        const before = new RegExp(
-            `(\\d+(?:\\.\\d+)?)\\s*%[^.]{0,60}${escaped}`,
-        );
-        const match = text.match(after) ?? text.match(before);
-
-        if (match?.[1]) {
-            return numberFromInput(match[1]);
-        }
-    }
-
-    return '';
-}
-
 export function budgetSourceText(
     plan: BusinessPlanPayload,
     ideaValidation: IdeaValidationPayload,
@@ -1935,7 +1711,7 @@ export function cleanBudgetRows(
             amount: numberFromInput(row.amount),
             quantity: numberFromInput(row.quantity ?? 1) || 1,
             confidence: budgetRowConfidence(row.confidence),
-            ...(timed || revenue
+            ...(timed || revenue || fixedCost
                 ? { month: numberFromInput(row.month ?? 1) || 1 }
                 : {}),
             ...(fixedCost
@@ -1949,6 +1725,9 @@ export function cleanBudgetRows(
                               : 'monthly',
                       cadence_confirmed: Boolean(row.cadence_confirmed),
                   }
+                : {}),
+            ...(row.monthly_schedule
+                ? { monthly_schedule: row.monthly_schedule.slice(0, 12) }
                 : {}),
             ...(fixedCost || revenue
                 ? {

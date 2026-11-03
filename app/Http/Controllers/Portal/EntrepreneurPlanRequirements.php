@@ -8,6 +8,7 @@ use App\Models\BusinessPlan;
 use App\Models\EntrepreneurBudget;
 use App\Models\PlanSection;
 use App\Services\Entrepreneurs\EntrepreneurBudgetService;
+use App\Services\Entrepreneurs\PlanBudgetGuide;
 use App\Services\Entrepreneurs\PlanRequirements;
 
 /**
@@ -15,7 +16,10 @@ use App\Services\Entrepreneurs\PlanRequirements;
  * @phpstan-type RequirementsPayload array<string, list<RequirementPayload>>
  * @phpstan-type RequirementCompletion array{complete:bool, missing:list<string>, completed:list<string>}
  * @phpstan-type BudgetValue scalar|null|array<array-key, scalar|null|array<array-key, scalar|null|array<array-key, scalar|null>>>
- * @phpstan-type BudgetPayload array<string, BudgetValue>
+ *
+ * @phpstan-import-type Guide from PlanBudgetGuide
+ *
+ * @phpstan-type BudgetPayload array<string, BudgetValue|Guide>
  * @phpstan-type RequirementDefinition array{key:string, title:string, description:string, type?:string}
  */
 final class EntrepreneurPlanRequirements
@@ -96,6 +100,7 @@ final class EntrepreneurPlanRequirements
 
         return [
             'id' => $budget?->id,
+            'plan_guidance' => app(PlanBudgetGuide::class)->forPlan($plan),
             'revision' => $budget instanceof EntrepreneurBudget ? $budget->revision : 0,
             'expected_runway_months' => $budget?->expected_runway_months,
             'forecast_years' => $budget instanceof EntrepreneurBudget ? $budget->forecast_years : 3,

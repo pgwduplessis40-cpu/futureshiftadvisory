@@ -158,6 +158,7 @@ final class BudgetCalculator implements ProvidesMethodology
                     'amount' => $amount,
                     'quantity' => round($quantity, 2),
                     'month' => $month,
+                    ...(! empty($row['monthly_schedule']) ? ['monthly_schedule' => BudgetMonthlySchedule::normalise($row['monthly_schedule'])] : []),
                     'cadence' => $cadence,
                     'cadence_confirmed' => (bool) ($row['cadence_confirmed'] ?? false),
                     'growth_percent' => round($growthPercent, 2),
@@ -596,10 +597,7 @@ final class BudgetCalculator implements ProvidesMethodology
 
         $year = (int) ceil($month / self::MONTHS_PER_YEAR);
         if ($year === 1) {
-            $elapsed = max(0, $month - (int) $row['month']);
-            $revenue = $this->rowBaseRevenue($row) * $this->rowGrowthFactor($row, $elapsed);
-
-            return $this->capRevenueToCapacity($row, $revenue);
+            return BudgetMonthlySchedule::yearOneRevenue($row, $month);
         }
 
         if ((int) $row['month'] > self::MONTHS_PER_YEAR) {
@@ -607,8 +605,8 @@ final class BudgetCalculator implements ProvidesMethodology
         }
 
         $revenue = ($assumptions['year_two_revenue_basis'] ?? 'exit_run_rate') === 'year_one_average'
-            ? $this->yearOneAverageRevenue($row) * $this->growthFactor((float) $assumptions['revenue_growth_percent'], $year - 1)
-            : $this->yearOneExitRunRate($row) * $this->annualGrowthForMonths(
+            ? BudgetMonthlySchedule::yearOneAverage($row) * $this->growthFactor((float) $assumptions['revenue_growth_percent'], $year - 1)
+            : BudgetMonthlySchedule::yearOneRevenue($row, 12) * $this->annualGrowthForMonths(
                 (float) $assumptions['revenue_growth_percent'],
                 $month - self::MONTHS_PER_YEAR,
             );
@@ -707,6 +705,7 @@ final class BudgetCalculator implements ProvidesMethodology
                 return $total;
             }
 
+            $row['amount'] = BudgetMonthlySchedule::rate($row['monthly_schedule'] ?? [], $month, (float) $row['amount']);
             $amount = $this->monthlyFixedAmount($row);
 
             return $total + ($amount * $this->growthFactor((float) $assumptions['cost_inflation_percent'], $year - 1));
@@ -907,34 +906,6 @@ final class BudgetCalculator implements ProvidesMethodology
     }
 
     /**
-     * @param  array<string, mixed>  $row
-     */
-    private function yearOneAverageRevenue(array $row): float
-    {
-        $values = [];
-        for ($month = 1; $month <= self::MONTHS_PER_YEAR; $month++) {
-            if ((int) $row['month'] > $month) {
-                continue;
-            }
-
-            $elapsed = max(0, $month - (int) $row['month']);
-            $values[] = $this->capRevenueToCapacity($row, $this->rowBaseRevenue($row) * $this->rowGrowthFactor($row, $elapsed));
-        }
-
-        return count($values) > 0 ? array_sum($values) / self::MONTHS_PER_YEAR : 0.0;
-    }
-
-    /**
-     * @param  array<string, mixed>  $row
-     */
-    private function yearOneExitRunRate(array $row): float
-    {
-        $elapsed = max(0, self::MONTHS_PER_YEAR - (int) $row['month']);
-
-        return $this->capRevenueToCapacity($row, $this->rowBaseRevenue($row) * $this->rowGrowthFactor($row, $elapsed));
-    }
-
-    /**
      * @param  array<int, array<string, mixed>>  $monthlyRows
      * @param  array<string, mixed>  $assumptions
      * @return array<string, mixed>
@@ -1004,7 +975,7 @@ final class BudgetCalculator implements ProvidesMethodology
     {
         return array_reduce(
             $rows,
-            fn (float $total, array $row): float => $total + $this->monthlyFixedAmount($row),
+            fn (float $total, array $row): float => $total + $this->monthlyFixedAmount([...$row, 'amount' => BudgetMonthlySchedule::averageRate($row['monthly_schedule'] ?? [], (float) $row['amount'])]),
             0.0,
         );
     }
@@ -1023,26 +994,6 @@ final class BudgetCalculator implements ProvidesMethodology
             'annual' => $amount / self::MONTHS_PER_YEAR,
             default => $amount,
         };
-    }
-
-    /**
-     * @param  array<string, mixed>  $row
-     */
-    private function rowBaseRevenue(array $row): float
-    {
-        return ((float) $row['amount']) * ((float) $row['quantity']);
-    }
-
-    /**
-     * @param  array<string, mixed>  $row
-     */
-    private function rowGrowthFactor(array $row, int $elapsedMonths): float
-    {
-        $growthPercent = (float) ($row['growth_percent'] ?? $row['monthly_growth_percent'] ?? 0);
-
-        return ($row['growth_cadence'] ?? 'monthly') === 'annual'
-            ? $this->annualGrowthForMonths($growthPercent, $elapsedMonths)
-            : $this->growthFactor($growthPercent, $elapsedMonths);
     }
 
     /**
