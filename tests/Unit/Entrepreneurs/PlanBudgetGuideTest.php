@@ -5,11 +5,32 @@ declare(strict_types=1);
 namespace Tests\Unit\Entrepreneurs;
 
 use App\Services\Entrepreneurs\BudgetCalculator;
+use App\Services\Entrepreneurs\PlanBudgetCoherence;
 use App\Services\Entrepreneurs\PlanBudgetGuide;
 use Tests\TestCase;
 
 final class PlanBudgetGuideTest extends TestCase
 {
+    public function test_assessment_routes_the_same_monthly_ramp_difference_to_the_budget_input(): void
+    {
+        $result = (new PlanBudgetCoherence)->evaluate([
+            'phases' => [['sections' => [[
+                'requirement_key' => 'financial-assumptions', 'title' => 'Financial assumptions',
+                'body' => 'Month 1 ($3,000). Opening cash is $7,300. The business is self-funded.',
+            ]]]],
+            'budget' => ['status' => 'complete', 'assessment_evidence' => [
+                'assumptions' => ['opening_cash_balance' => 7300],
+                'computed' => ['monthly_series' => [['month' => 1, 'revenue' => 12250]]],
+            ]],
+        ]);
+        $finding = collect($result['findings'])->firstWhere('input_key', 'sales_forecast');
+        $this->assertNotNull($finding);
+        $this->assertStringContainsString('Month 1 ($3,000)', $finding['message']);
+        $this->assertStringContainsString('12,250.00', $finding['message']);
+        $this->assertNotNull(collect($result['actions'])->firstWhere('key', 'sales_forecast'));
+        $this->assertFalse($result['approval_available']);
+    }
+
     public function test_specific_plan_claims_produce_specific_input_questions(): void
     {
         $guide = (new PlanBudgetGuide)->build([[

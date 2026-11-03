@@ -620,7 +620,7 @@ final class PlanBudgetCoherence
 
     /**
      * @param  Snapshot  $snapshot
-     * @return list<array{title:string,body:string}>
+     * @return list<array{title:string,body:string,requirement_key:string}>
      */
     private function financialSections(array $snapshot): array
     {
@@ -636,6 +636,7 @@ final class PlanBudgetCoherence
                 }
 
                 $sections[] = [
+                    'requirement_key' => $isFinancialRequirement ? $section['requirement_key'] : 'financial-assumptions',
                     'title' => trim((string) ($section['title'] ?? 'Financial plan')) ?: 'Financial plan',
                     'body' => $body,
                 ];
