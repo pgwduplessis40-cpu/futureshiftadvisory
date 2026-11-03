@@ -1,6 +1,6 @@
-import { Button } from '@/components/ui/button';
 import { router } from '@inertiajs/react';
 import { useId, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
 
 type DecisionState = 'unresolved' | 'aligned' | 'explained' | 'not_applicable';
 type Decision = { state: DecisionState; note: string };

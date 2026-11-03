@@ -1,7 +1,7 @@
-import { Button } from '@/components/ui/button';
 import { router } from '@inertiajs/react';
 import { Download, FileText, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { FounderBriefReconciliation } from './founder-brief-reconciliation';
 import type { EntrepreneurDetail } from './types';
 
