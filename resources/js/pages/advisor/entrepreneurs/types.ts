@@ -39,6 +39,9 @@ export type PlanBudgetCoherence = {
     calculation_issues?: { message: string; next_action: string }[];
     review_completed?: boolean;
     review_note?: string | null;
+    reviewed_at?: string | null;
+    review_assessment_round?: number | null;
+    review_status_message?: string | null;
     approval_message: string;
     budget_support: {
         status: string;
