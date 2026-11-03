@@ -63,6 +63,9 @@ use App\Services\Entrepreneurs\ExternalStripeRefundReconciler;
 use App\Services\Entrepreneurs\FixedCostCadenceQuantityGuard;
 use App\Services\Entrepreneurs\FounderBriefFinancials;
 use App\Services\Entrepreneurs\FounderBriefPages;
+use App\Services\Entrepreneurs\FounderBriefReconciliation;
+use App\Services\Entrepreneurs\FounderBriefReconciliationFacts;
+use App\Services\Entrepreneurs\FounderBriefReconciliationTopics;
 use App\Services\Entrepreneurs\FounderBriefRelease;
 use App\Services\Entrepreneurs\FounderChangeRequestMessage;
 use App\Services\Entrepreneurs\FoundingAdvisoryService;
@@ -206,6 +209,9 @@ final class MethodologyDriftGuardTest extends TestCase
         FounderBriefRelease::class => 'Records an advisor release decision against existing eligibility and document findings; it does not change the assessment or budget calculations.',
         FounderBriefPages::class => 'Composes bounded document extracts from saved plan and Budget outputs; owns no scoring or financial methodology.',
         FounderBriefFinancials::class => 'Presents saved Budget calculations in the founder brief without changing the forecasting methodology.',
+        FounderBriefReconciliation::class => 'Records an explicit advisor comparison bound to existing source inputs; owns no scoring or financial calculation methodology.',
+        FounderBriefReconciliationTopics::class => 'Defines editorial reconciliation prompts; owns no financial calculations.',
+        FounderBriefReconciliationFacts::class => 'Presents existing saved inputs and calculated results for advisor comparison.',
         ExternalStripeRefundReconciler::class => 'Staff-only verification and recovery workflow; it compares exact recorded payment facts without calculating advisory methodology.',
         ExternalIssueReview::class => 'External-issue document-quality gate; plan and budget methodologies are owned elsewhere.',
         FixedCostCadenceQuantityGuard::class => 'Input-quality guard that detects a likely duplicated billing-period count; the forecast methodology is owned by BudgetCalculator.',

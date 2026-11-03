@@ -123,6 +123,9 @@ final class FunderReadyBriefBuilder
 .brief-page tr { break-inside: avoid; }
 .brief-page th { background: #f4f0e7; color: #1c2f4a; }
 .brief-page td:first-child, .brief-page th:first-child { width: 34%; }
+.brief-cover table { font-size: 11px; }
+.brief-cover td, .brief-cover th { padding: 4px 7px; text-align: left; }
+.brief-cover td:first-child, .brief-cover th:first-child { width: 9%; }
 .report-hero h1 { font-size: 27px; overflow-wrap: anywhere; }
 CSS,
         );
@@ -146,7 +149,7 @@ CSS,
             foreach ($page['tables'] as $table) {
                 $blocks[] = ['type' => 'section', 'text' => $table['title']];
                 $widths = array_fill(0, count($table['headers']), 1);
-                $widths[0] = max(1, (count($widths) - 1) * 0.52);
+                $widths[0] = $index === 0 ? 0.12 : max(1, (count($widths) - 1) * 0.52);
                 $blocks[] = ['type' => 'table', 'headers' => $table['headers'], 'rows' => $table['rows'], 'widths' => $widths];
             }
         }

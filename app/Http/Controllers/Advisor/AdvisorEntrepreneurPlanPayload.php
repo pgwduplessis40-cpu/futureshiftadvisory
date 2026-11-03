@@ -125,6 +125,7 @@ final class AdvisorEntrepreneurPlanPayload
                 ...$this->funderReadyBriefs->status($plan, $profile),
                 'retry_url' => route('advisor.entrepreneurs.plans.brief-summary.retry', [$profile, $plan], absolute: false),
                 'approve_url' => route('advisor.entrepreneurs.plans.brief-release.approve', [$profile, $plan], absolute: false),
+                'reconciliation_url' => route('advisor.entrepreneurs.plans.brief-reconciliation.save', [$profile, $plan], absolute: false),
                 'document_url' => route('advisor.entrepreneurs.plans.funder-ready-brief.pdf', [$profile, $plan], absolute: false),
                 'download_url' => route('advisor.entrepreneurs.plans.funder-ready-brief.pdf', [$profile, $plan, 'download' => 1], absolute: false),
                 'preview_url' => route('advisor.entrepreneurs.plans.founder-brief.preview', [$profile, $plan], absolute: false),

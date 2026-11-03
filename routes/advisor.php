@@ -500,6 +500,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/brief-release', [EntrepreneurBriefReleaseController::class, 'approve'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.plans.brief-release.approve');
+        Route::post('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/brief-reconciliation', [EntrepreneurBriefReleaseController::class, 'reconcile'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.plans.brief-reconciliation.save');
         Route::post('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/executive-summary', [EntrepreneurActionController::class, 'generateExecutiveSummary'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.plans.executive-summary.store');

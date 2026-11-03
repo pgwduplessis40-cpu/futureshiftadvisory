@@ -61,7 +61,7 @@ final class ExternalIssueReview
         $monthTwelveRevenue = (float) data_get($monthTwelve, 'revenue', 0);
         $monthThirteenRevenue = (float) data_get($monthThirteen, 'revenue', 0);
 
-        if ($monthTwelveRevenue > 0 && $monthThirteenRevenue < ($monthTwelveRevenue * 0.8)) {
+        if (is_numeric(data_get($monthThirteen, 'revenue')) && $monthTwelveRevenue > 0 && $monthThirteenRevenue < ($monthTwelveRevenue * 0.8)) {
             $blocking[] = 'Month 13 revenue drops materially below the Year 1 exit run-rate. Confirm a seasonal averaging basis or revise the forecast before external issue.';
         }
 

@@ -10,6 +10,8 @@ use App\Models\EntrepreneurProfile;
 use App\Models\PlanAssessment;
 use App\Models\User;
 use App\Services\Entrepreneurs\ExecutiveSummaryRecovery;
+use App\Services\Entrepreneurs\FounderBriefReconciliation;
+use App\Services\Entrepreneurs\FounderBriefReconciliationTopics;
 use App\Services\Entrepreneurs\FounderBriefRelease;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,8 +20,35 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
+/** @phpstan-import-type Decisions from FounderBriefReconciliation */
 final class EntrepreneurBriefReleaseController extends Controller
 {
+    public function reconcile(Request $request, EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan, FounderBriefReconciliation $reconciliation): RedirectResponse
+    {
+        $advisor = $this->authorise($request, $entrepreneurProfile, $businessPlan);
+        $keys = array_keys(FounderBriefReconciliationTopics::all());
+        $rules = [
+            'source_token' => ['required', 'string', 'size:64'],
+            'as_of' => ['required', 'date_format:Y-m-d'],
+            'decisions' => ['required', 'array:'.implode(',', $keys)],
+        ];
+        foreach ($keys as $key) {
+            $rules['decisions.'.$key] = ['required', 'array:state,note'];
+            $rules['decisions.'.$key.'.state'] = ['required', 'in:unresolved,aligned,explained,not_applicable'];
+            $rules['decisions.'.$key.'.note'] = ['present', 'nullable', 'string', 'max:2000'];
+        }
+        $data = $request->validate($rules);
+        /** @var array<string,array{state:string,note:string|null}> $submitted */
+        $submitted = $data['decisions'];
+        $decisions = array_map(fn (array $row): array => ['state' => $row['state'], 'note' => $row['note'] ?? ''], $submitted);
+        DB::transaction(function () use ($businessPlan, $entrepreneurProfile, $advisor, $data, $decisions, $reconciliation): void {
+            $plan = BusinessPlan::query()->lockForUpdate()->findOrFail($businessPlan->getKey());
+            $reconciliation->save($plan, $entrepreneurProfile, $advisor, $data['source_token'], $data['as_of'], $decisions);
+        });
+
+        return back()->with('status', 'entrepreneur-financial-reconciliation-saved');
+    }
+
     public function retry(Request $request, EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan, FounderBriefRelease $release, ExecutiveSummaryRecovery $recovery): RedirectResponse
     {
         $advisor = $this->authorise($request, $entrepreneurProfile, $businessPlan);
