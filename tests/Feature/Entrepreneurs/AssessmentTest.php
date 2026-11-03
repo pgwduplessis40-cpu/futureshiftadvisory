@@ -29,6 +29,7 @@ use App\Services\Entrepreneurs\BusinessPlanExecutiveSummary;
 use App\Services\Entrepreneurs\BusinessPlanSnapshot;
 use App\Services\Entrepreneurs\ExecutiveSummaryEligibility;
 use App\Services\Entrepreneurs\ExecutiveSummaryRecovery;
+use App\Services\Entrepreneurs\FounderBriefReconciliationTopics;
 use App\Services\Entrepreneurs\FounderBriefRelease;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBudgetFollowUp;
@@ -1818,6 +1819,23 @@ final class AssessmentTest extends TestCase
         (new GenerateEligibleExecutiveSummary($assessment->id))->handle(app(RequestContext::class), app(ExecutiveSummaryEligibility::class), app(BusinessPlanExecutiveSummary::class));
         $this->assertSame('complete', $recovery->state($assessment->id));
         $status = app(FounderBriefRelease::class)->evaluate($plan->refresh(), $profile);
+        $this->assertFalse($status['review']['can_approve']);
+        $this->assertFalse($status['reconciliation']['complete']);
+        $this->post($approveUrl, ['note' => 'An explanation alone cannot skip reconciliation.', 'approval_token' => $status['approval_token'], 'acknowledged' => true])->assertSessionHasErrors('brief_release');
+        $reconcileUrl = route('advisor.entrepreneurs.plans.brief-reconciliation.save', [$profile, $plan]);
+        $decisions = array_fill_keys(array_keys(FounderBriefReconciliationTopics::all()), ['state' => 'unresolved', 'note' => '']);
+        $schedule = ['source_token' => $status['reconciliation']['source_token'], 'as_of' => now()->toDateString(), 'decisions' => $decisions];
+        $this->post($reconcileUrl, $schedule)->assertSessionHasNoErrors();
+        $this->get($documentUrl)->assertStatus(409);
+        $this->post($reconcileUrl, [...$schedule, 'decisions' => []])->assertSessionHasErrors();
+        $this->post($reconcileUrl, [...$schedule, 'as_of' => 'not a date'])->assertSessionHasErrors('as_of');
+        $shortDecisions = $decisions;
+        $shortDecisions['revenue_scope'] = ['state' => 'aligned', 'note' => 'OK'];
+        $this->post($reconcileUrl, [...$schedule, 'decisions' => $shortDecisions])->assertSessionHasErrors('reconciliation');
+        $decisions = array_fill_keys(array_keys(FounderBriefReconciliationTopics::all()), ['state' => 'explained', 'note' => 'Compared the current plan, dated source records and Budget; the disclosed difference is agreed.']);
+        $this->post($reconcileUrl, [...$schedule, 'decisions' => $decisions])->assertSessionHasNoErrors();
+        $status = app(FounderBriefRelease::class)->evaluate($plan->refresh(), $profile);
+        $this->assertTrue($status['reconciliation']['complete']);
         $this->assertTrue($status['review']['can_approve']);
         $this->assertFalse($status['active']);
         $this->get($documentUrl)->assertStatus(409);
@@ -1831,6 +1849,7 @@ final class AssessmentTest extends TestCase
             ->where('entrepreneur.latest_plan.lender_brief.review.note', $note)
             ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.status_label', 'Assessment finalised'));
         $this->assertDatabaseHas('audit_events', ['action' => 'entrepreneur.brief_release_approved', 'subject_id' => $assessment->id]);
+        $this->assertDatabaseHas('audit_events', ['action' => 'entrepreneur.financial_reconciliation_saved', 'subject_id' => $assessment->id]);
         $this->assertSame($advisor->id, data_get($assessment->refresh()->scoring_scope, 'brief_release_review.approved_by_user_id'));
         $this->assertSame($review, data_get($assessment->scoring_scope, 'plan_budget_review'));
         $this->assertSame(1, $plan->assessments()->count());
@@ -1845,6 +1864,21 @@ final class AssessmentTest extends TestCase
         $download = $this->get($documentUrl.'?download=1')->assertOk();
         $this->assertStringStartsWith('attachment;', (string) $download->headers->get('Content-Disposition'));
         $this->assertStringNotContainsString('ADVISOR DRAFT', $download->getContent());
+
+        $this->freezeTime();
+        $unfinished = $decisions;
+        $unfinished['evidence'] = ['state' => 'unresolved', 'note' => 'A source record still needs checking.'];
+        $this->post($reconcileUrl, [...$schedule, 'decisions' => $unfinished])->assertSessionHasNoErrors();
+        $this->get($documentUrl)->assertStatus(409);
+        $this->assertFalse(app(FounderBriefRelease::class)->evaluate($plan->refresh(), $profile)['review']['approved']);
+        $this->post($reconcileUrl, [...$schedule, 'decisions' => $decisions])->assertSessionHasNoErrors();
+        $status = app(FounderBriefRelease::class)->evaluate($plan->refresh(), $profile);
+        $this->post($approveUrl, [...$data, 'approval_token' => $status['approval_token']])->assertSessionHasNoErrors();
+        $this->post($reconcileUrl, [...$schedule, 'decisions' => $decisions])->assertSessionHasNoErrors();
+        $status = app(FounderBriefRelease::class)->evaluate($plan->refresh(), $profile);
+        $this->assertFalse($status['review']['approved']);
+        $this->assertTrue($status['review']['can_approve']);
+        $this->post($approveUrl, [...$data, 'approval_token' => $status['approval_token']])->assertSessionHasNoErrors();
 
         $nextRound = $assessment->replicate()->forceFill(['round' => $assessment->round + 1, 'finalised_at' => null]);
         $nextRound->save();
@@ -1864,14 +1898,17 @@ final class AssessmentTest extends TestCase
         $profile = $plan->entrepreneurProfile;
         $retryUrl = route('advisor.entrepreneurs.plans.brief-summary.retry', [$profile, $plan]);
         $approveUrl = route('advisor.entrepreneurs.plans.brief-release.approve', [$profile, $plan]);
+        $reconcileUrl = route('advisor.entrepreneurs.plans.brief-reconciliation.save', [$profile, $plan]);
         $this->actingAsMfa($profile->user)->post($retryUrl)->assertForbidden();
         $this->post($approveUrl)->assertForbidden();
+        $this->post($reconcileUrl)->assertForbidden();
         $previewUrl = route('advisor.entrepreneurs.plans.founder-brief.preview', [$profile, $plan]);
         $this->get($previewUrl)->assertForbidden();
         $other = User::factory()->withTwoFactor()->create(['user_type' => User::TYPE_ADVISOR]);
         $other->assignRole('advisor');
         $this->actingAsMfa($other)->post($retryUrl)->assertForbidden();
         $this->post($approveUrl)->assertForbidden();
+        $this->post($reconcileUrl)->assertForbidden();
         $this->get($previewUrl.'?download=1')->assertForbidden();
         $this->actingAsMfa($advisor)->post($retryUrl)->assertSessionHasErrors('executive_summary');
         $this->patch(route('advisor.entrepreneurs.assessments.budget-review', [$profile, $assessment]), ['note' => 'The existing reserve covers the forecast exposure.'])->assertSessionHasNoErrors();
@@ -1879,10 +1916,11 @@ final class AssessmentTest extends TestCase
         (new GenerateEligibleExecutiveSummary($assessment->id))->handle(app(RequestContext::class), app(ExecutiveSummaryEligibility::class), app(BusinessPlanExecutiveSummary::class));
         $release = app(FounderBriefRelease::class);
         $before = $release->evaluate($plan->refresh(), $profile);
-        $this->assertTrue($before['review']['can_approve']);
+        $this->assertFalse($before['review']['can_approve']);
         $plan->budgetRunway()->firstOrFail()->forceFill(['launch_costs' => [['label' => 'Trademark', 'amount' => 300]]])->save();
         $this->post($approveUrl, ['note' => 'Approval cannot cover inputs changed after the assessment.', 'approval_token' => $before['approval_token'], 'acknowledged' => true])->assertSessionHasErrors('brief_release');
         $this->post($retryUrl)->assertSessionHasErrors('executive_summary');
+        $this->post($reconcileUrl, ['source_token' => $before['reconciliation']['source_token'], 'as_of' => now()->toDateString(), 'decisions' => array_fill_keys(array_keys(FounderBriefReconciliationTopics::all()), ['state' => 'unresolved', 'note' => ''])])->assertSessionHasErrors('reconciliation');
         $this->assertFalse($release->evaluate($plan->refresh(), $profile)['active']);
         $this->assertNull(data_get($assessment->refresh()->scoring_scope, 'brief_release_review'));
     }

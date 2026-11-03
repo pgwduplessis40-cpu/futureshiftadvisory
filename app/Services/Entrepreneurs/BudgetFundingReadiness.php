@@ -257,11 +257,11 @@ final class BudgetFundingReadiness
     private function decisionHeadline(string $readinessLabel, float $requiredAdditionalFunding, float $fundingGapOrSurplus, string $fundingPosition): string
     {
         if ($requiredAdditionalFunding > 0 && $fundingPosition === 'self_funded') {
-            return 'The self-funded position conflicts with '.number_format($requiredAdditionalFunding, 2).' of required funding. Revise the assumptions or change the written funding position.';
+            return 'The self-funded position conflicts with $'.number_format($requiredAdditionalFunding, 2).' of required funding. Revise the assumptions or change the written funding position.';
         }
 
         if ($requiredAdditionalFunding > 0 && $fundingPosition === 'external_funding') {
-            return 'The forecast supports an external funding request of '.number_format($requiredAdditionalFunding, 2).' once its stated purpose and source inputs are verified.';
+            return 'The forecast supports an external funding request of $'.number_format($requiredAdditionalFunding, 2).' once its stated purpose and source inputs are verified.';
         }
 
         if ($readinessLabel === 'Not ready for external issue') {

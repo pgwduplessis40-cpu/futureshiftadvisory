@@ -7,6 +7,7 @@ namespace App\Services\Entrepreneurs;
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurProfile;
 use App\Models\PlanSection;
+use App\Services\Pdf\PdfText;
 use Illuminate\Support\Str;
 
 /**
@@ -39,24 +40,27 @@ final class FounderBriefPages
             : ($status['active'] ? 'The current brief meets the external-issue checks.' : 'External issue is not approved. The advisor must resolve or review the release findings in the workspace.');
         $findings = array_slice($review['findings'], 0, 5);
         $reviewParagraphs = [$reviewText, ...array_map(fn (string $text): string => 'Review finding: '.self::excerpt($text, 220), $findings)];
+        $reconciliation = $status['reconciliation'];
+        $reviewParagraphs[] = $reconciliation['complete']
+            ? 'Financial assumptions reconciled as at '.$reconciliation['as_of'].'. The advisor workspace records the agreed assumptions, explained differences and source references for this version.'
+            : 'Financial reconciliation is incomplete for this version. Agree the revenue scope, ramp, capacity, pay, cash, commitments and evidence before external issue.';
         if (count($review['findings']) > 5) {
             $reviewParagraphs[] = (count($review['findings']) - 5).' further findings are recorded in the advisor workspace.';
         }
         $reviewParagraphs[] = 'Supporting files linked to plan responses: '.$plan->sections->flatMap(fn (PlanSection $section): array => (array) $section->attached_document_ids)->unique()->count().'. The brief summarises the saved plan and Budget; supporting files and complete source wording remain in the master plan and evidence workspace.';
         $reviewParagraphs[] = 'Decision requested: consider the business case together with the funding requirement, cash forecast and downside scenarios. Any financing terms or commitment require a separate decision.';
 
-        return [
+        $pages = [
             self::page('About this brief', [
                 $preview ? 'ADVISOR DRAFT. Review copy only; not approved for external issue. Viewing or downloading this copy does not approve release.' : 'This version is ready for external issue under the recorded release checks or advisor approval.',
                 'This eleven-page brief brings the business case and financials together. Narrative extracts and long cost schedules are condensed and labelled; the full business plan and Budget Pack retain the detail.',
-                'Reading guide: 2 Executive summary; 3 Business and market; 4 Delivery and risks; 5 Financial outlook; 6 Monthly cash flow; 7 Funding; 8 Running costs; 9 One-off and future costs; 10 Assumptions and sensitivities; 11 Advisor review.',
                 'Forecasts are planning estimates from the saved Budget, not historical accounts. Missing information is marked as unavailable rather than assumed to be zero.',
             ]),
-            self::page('Executive summary', [
+            self::page('Executive summary',
                 $status['executive_summary']['usable'] && trim($summary) !== ''
-                    ? self::excerpt($summary, 2800)
-                    : 'A current approved executive summary is not available. The following pages can still be reviewed against the saved plan and Budget. Complete summary generation before approving external issue.',
-            ]),
+                    ? $this->summaryParagraphs($summary)
+                    : ['A current approved executive summary is not available. The following pages can still be reviewed against the saved plan and Budget. Complete summary generation before approving external issue.'],
+            ),
             self::page('Business and market', $this->extracts($plan, [
                 'business-type-location' => 'Business and operating model',
                 'mission-vision' => 'Purpose and direction',
@@ -72,6 +76,13 @@ final class FounderBriefPages
             ...$this->financials->build($budget, $plan->budgetRunway),
             self::page('Advisor review and decision', $reviewParagraphs),
         ];
+        $contents = [];
+        foreach (array_slice($pages, 1, null, true) as $index => $page) {
+            $contents[] = [(string) ($index + 1), $page['title']];
+        }
+        $pages[0]['tables'][] = self::table('Reading guide', ['Page', 'Section'], $contents);
+
+        return $pages;
     }
 
     /** @param array<string,string> $requirements
@@ -83,19 +94,56 @@ final class FounderBriefPages
         foreach ($requirements as $key => $label) {
             $section = $plan->sections->first(fn (PlanSection $row): bool => data_get($row->metadata, 'requirement_key') === $key || str_ends_with($row->key, '-'.$key));
             $text = trim((string) $section?->body);
-            $paragraphs[] = $label.': '.($text === '' ? 'No saved response is available.' : self::excerpt($text, 500));
+            $paragraphs[] = $label.': '.($text === '' ? 'No saved response is available.' : self::excerpt($text, 500, completeSentences: true));
         }
 
         return $paragraphs;
     }
 
-    public static function excerpt(string $text, int $limit): string
+    /** @return list<string> */
+    private function summaryParagraphs(string $summary): array
     {
-        $plain = trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags(Str::markdown($text, ['html_input' => 'strip', 'allow_unsafe_links' => false])), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')) ?? '');
+        $text = self::excerpt($summary, 2800, completeSentences: true);
+        $sentences = preg_split('/(?<=[.!?])\s+(?=[\p{Lu}\d])/u', $text) ?: [$text];
+        $paragraphs = [];
+        $paragraph = '';
+        foreach ($sentences as $sentence) {
+            if ($paragraph !== '' && mb_strlen($paragraph.' '.$sentence) > 600) {
+                $paragraphs[] = $paragraph;
+                $paragraph = '';
+            }
+            $paragraph = $paragraph === '' ? $sentence : $paragraph.' '.$sentence;
+        }
+        if ($paragraph !== '') {
+            $paragraphs[] = $paragraph;
+        }
+
+        return $paragraphs;
+    }
+
+    public static function excerpt(string $text, int $limit, bool $completeSentences = false): string
+    {
+        $plain = html_entity_decode(strip_tags(Str::markdown($text, ['html_input' => 'strip', 'allow_unsafe_links' => false])), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $plain = trim(preg_replace('/\s+/u', ' ', PdfText::normalise($plain)) ?? '');
         if (mb_strlen($plain) <= $limit) {
             return $plain;
         }
         $prefix = mb_substr($plain, 0, $limit);
+        if ($completeSentences) {
+            // Do not turn a bounded extract into an unfinished claim. The
+            // lookahead uses the full source so a cut decimal is not a sentence.
+            preg_match_all('/[.!?](?:["\x{201D}\x{2019}])?(?=\s|$)/u', $plain, $ends, PREG_OFFSET_CAPTURE);
+            $complete = '';
+            foreach ($ends[0] as [$ending, $offset]) {
+                $candidate = substr($plain, 0, $offset + strlen($ending));
+                if (mb_strlen($candidate) > $limit) {
+                    break;
+                }
+                $complete = $candidate;
+            }
+
+            return $complete === '' ? 'Read the full source for this response.' : trim($complete).' [Extract; see full source.]';
+        }
         $break = mb_strrpos($prefix, ' ');
 
         return rtrim($break === false ? $prefix : mb_substr($prefix, 0, $break)).' [Extract; see full source.]';

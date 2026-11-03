@@ -2,6 +2,7 @@ import { router } from '@inertiajs/react';
 import { Download, FileText, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { FounderBriefReconciliation } from './founder-brief-reconciliation';
 import type { EntrepreneurDetail } from './types';
 
 type Brief = NonNullable<EntrepreneurDetail['latest_plan']>['lender_brief'];
@@ -113,6 +114,12 @@ function BriefReleaseActions({ brief }: { brief: Brief }) {
                     ? 'Approved for external issue.'
                     : 'Advisor draft available now, including while the summary is pending. Review the PDF before approval; downloading it does not approve external issue.'}
             </p>
+            {brief.reconciliation ? (
+                <FounderBriefReconciliation
+                    reconciliation={brief.reconciliation}
+                    saveUrl={brief.reconciliation_url}
+                />
+            ) : null}
             {brief.active ? (
                 <>
                     <p role="status" className="text-sm">

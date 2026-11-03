@@ -16,6 +16,20 @@ final class FounderBriefFinancials
         $data = (array) $payload;
         $decision = (array) ($data['funding_decision'] ?? []);
         $annual = array_slice((array) ($data['annual_totals'] ?? []), 0, 3);
+        $outlookTitle = match (count($annual)) {
+            1 => 'One-year financial outlook',
+            2 => 'Two-year financial outlook',
+            3 => 'Three-year financial outlook',
+            default => 'Financial outlook',
+        };
+        $coverage = match (count($annual)) {
+            1 => 'Only Year 1 is available in the saved forecast. Years 2 and 3 are not available.',
+            2 => 'Years 1 and 2 are available in the saved forecast. Year 3 is not available.',
+            3 => count((array) ($data['annual_totals'] ?? [])) > 3
+                ? 'This brief shows the first three years. The full forecast is in the Budget Pack.'
+                : 'The saved forecast covers Years 1 to 3.',
+            default => 'No saved annual forecast is available.',
+        };
         $annualRows = [];
         foreach ([
             'revenue' => 'Revenue', 'gross_profit' => 'Gross profit', 'fixed_costs' => 'Running costs',
@@ -59,6 +73,7 @@ final class FounderBriefFinancials
         $futureRows = $future->take(5)->map(fn (array $row): array => [
             Page::excerpt((string) ($row['label'] ?? ''), 55), Page::money($row['amount'] ?? null),
             Page::excerpt((string) ($row['timing'] ?? 'Not recorded'), 65),
+            (string) ($row['classification'] ?? 'Not recorded'),
         ])->values()->all();
         $scenarioRows = collect((array) ($data['scenarios'] ?? []))->take(4)->map(fn (array $row): array => [
             Page::excerpt((string) ($row['name'] ?? 'Scenario'), 65), Page::money($row['lowest_cash'] ?? null),
@@ -69,10 +84,15 @@ final class FounderBriefFinancials
         $available = (bool) ($data['available'] ?? false);
         $currency = 'NZD; '.((bool) ($data['gst_exclusive'] ?? true) ? 'GST exclusive' : 'GST inclusive').'. Figures are from the saved Budget forecast.';
         $cashStory = array_map(fn (mixed $line): string => Page::excerpt((string) $line, 320), array_slice((array) ($data['cash_story'] ?? []), 0, 2));
+        $fundingNote = (float) ($decision['required_additional_funding'] ?? 0) > 0
+            && is_numeric($decision['lowest_cash'] ?? null) && (float) $decision['lowest_cash'] >= 0
+            ? 'Forecast cash stays above zero. The required funding amount is the shortfall against the planned costs, operating buffer and contingency target.'
+            : 'The required additional funding covers the larger of the forecast cash deficit and the shortfall against the planned funding target.';
 
         return [
-            Page::page('Three-year financial outlook', [
+            Page::page($outlookTitle, [
                 $currency,
+                $coverage,
                 (bool) ($data['tax_configured'] ?? false) ? 'Tax uses the configured Budget assumptions.' : 'Company tax is not configured; any zero tax forecast must not be read as a tax exemption.',
                 'Profit and cash differ because of payment timing, funding and capital spending. Closing cash includes the saved opening balance. Full calculations are in the Budget Pack.',
             ], [Page::table('Forecast results', ['Measure', ...($years ?: ['Forecast'])], $annual === [] ? [] : $annualRows)]),
@@ -84,6 +104,7 @@ final class FounderBriefFinancials
             Page::page('Funding and use of funds', [
                 $available ? Page::excerpt((string) ($decision['headline'] ?? 'Funding position not confirmed.'), 450) : 'No saved Budget is available.',
                 'Declared funding position: '.(string) ($decision['funding_position_label'] ?? 'Not confirmed').'.',
+                $fundingNote,
                 'The required additional funding is the Budget model result. An advisor release decision does not change this amount. Funding already available and the planned operating buffer are shown separately.',
             ], [Page::table('Funding requirement', ['Measure', 'Amount'], $fundingRows)]),
             Page::page('Regular running costs', [
@@ -91,11 +112,12 @@ final class FounderBriefFinancials
                 'The largest ten monthly equivalents are listed individually; any remaining lines are grouped into the other-cost total. Monthly equivalents include saved quantities. The annual forecast applies start dates, growth and other Budget assumptions.',
             ], [Page::table('Recurring cost schedule', ['Cost', 'Rate', 'Frequency', 'Monthly equivalent'], $fixedRows)]),
             Page::page('One-off costs and future commitments', [
-                'One-off amounts include quantity and are paid once in the indicated forecast month. Future amounts are per scheduled payment; repeat timing is shown separately. These amounts are not monthly running costs.',
-                'Schedules show up to five items per category. '.($future->count() > 5 ? ($future->count() - 5).' further future items are in the full Budget Pack. ' : '').'Read the complete Budget Pack for all line items, confidence and assumptions.',
+                'One-off payments happen once. Future commitments can repeat at the frequency shown. Amounts include quantity; treatment follows the saved Budget classification.',
+                'Costs scheduled beyond the saved forecast period are not included in the forecast results.',
+                'Schedules show up to five items per category. '.($future->count() > 5 ? ($future->count() - 5).' more future '.($future->count() === 6 ? 'item is' : 'items are').' in the full Budget Pack. ' : '').'Read the complete Budget Pack for all line items, confidence and assumptions.',
             ], [
                 Page::table('One-off payments', ['Item', 'Total payment', 'When paid'], $launchRows),
-                Page::table('Future costs and renewals', ['Item', 'Per payment', 'Timing'], $futureRows),
+                Page::table('Future costs and renewals', ['Item', 'Per payment', 'Timing', 'Treatment'], $futureRows),
             ]),
             Page::page('Assumptions and downside sensitivity', [
                 'Sensitivity scenarios show how the saved forecast responds to changed assumptions. Additional funding is the modelled cash cover for each scenario.',

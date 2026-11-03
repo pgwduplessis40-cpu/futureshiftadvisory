@@ -13,6 +13,24 @@ use Tests\TestCase;
 
 final class ExternalIssueReviewTest extends TestCase
 {
+    public function test_absent_month_thirteen_is_not_treated_as_a_revenue_drop(): void
+    {
+        $plan = (new BusinessPlan)->setRelation('sections', new EloquentCollection);
+        foreach ([null, [], ['month' => 13, 'revenue' => null], ['month' => 13, 'revenue' => 0]] as $nextMonth) {
+            $rows = [['month' => 12, 'revenue' => 15000, 'cumulative_cash' => 20000]];
+            if ($nextMonth !== null) {
+                $rows[] = $nextMonth;
+            }
+            $plan->setRelation('budgetRunway', new EntrepreneurBudget(['computed' => ['monthly_detail' => $rows]]));
+            $reasons = implode(' ', (new ExternalIssueReview)->evaluate($plan)['blocking_reasons']);
+            if (($nextMonth['revenue'] ?? null) === 0) {
+                $this->assertStringContainsString('Month 13 revenue', $reasons);
+            } else {
+                $this->assertStringNotContainsString('Month 13 revenue', $reasons);
+            }
+        }
+    }
+
     public function test_blocks_unresolved_merge_fields_dated_patches_revenue_cliffs_and_conflicting_funding_claims(): void
     {
         $plan = new BusinessPlan;

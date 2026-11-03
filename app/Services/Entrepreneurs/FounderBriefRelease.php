@@ -14,7 +14,10 @@ use Illuminate\Validation\ValidationException;
 /**
  * @phpstan-type SummaryStatus array{usable:bool,context_hash:string|null}
  * @phpstan-type ReleaseReview array{can_approve:bool,approved:bool,note:string|null,approved_at:string|null,findings:list<string>}
- * @phpstan-type ReleaseStatus array{active:bool,label:string,reasons:list<string>,executive_summary:SummaryStatus,assessment_id:string|null,approval_token:string,review:ReleaseReview,summary_recovery:array{can_retry:bool,state:string,message:string}}
+ *
+ * @phpstan-import-type Reconciliation from FounderBriefReconciliation
+ *
+ * @phpstan-type ReleaseStatus array{active:bool,label:string,reasons:list<string>,executive_summary:SummaryStatus,assessment_id:string|null,approval_token:string,review:ReleaseReview,reconciliation:Reconciliation,summary_recovery:array{can_retry:bool,state:string,message:string}}
  */
 final class FounderBriefRelease
 {
@@ -23,6 +26,7 @@ final class FounderBriefRelease
         private readonly BusinessPlanExecutiveSummary $summaries,
         private readonly PlanIssueReadiness $readiness,
         private readonly ExecutiveSummaryRecovery $recovery,
+        private readonly FounderBriefReconciliation $reconciliation,
     ) {}
 
     /** @return ReleaseStatus */
@@ -34,6 +38,7 @@ final class FounderBriefRelease
         $eligible = $eligibility['eligible'] && $assessment instanceof PlanAssessment
             && (string) $assessment->getKey() === $eligibility['assessment_id'];
         $readiness = $this->readiness->evaluate($plan);
+        $reconciliation = $this->reconciliation->evaluate($plan, $profile);
         $findings = collect((array) ($readiness['reasons'] ?? []))
             ->filter(fn (mixed $reason): bool => is_string($reason) && trim($reason) !== '')
             ->reject(fn (string $reason): bool => $reason === ($readiness['executive_summary_reason'] ?? null))
@@ -45,11 +50,12 @@ final class FounderBriefRelease
             'context' => $eligibility['context_hash'],
             'summary' => $summaryBody,
             'findings' => $findings,
+            'reconciliation' => data_get($assessment?->scoring_scope, 'financial_reconciliation'),
         ], JSON_THROW_ON_ERROR));
         $review = data_get($assessment?->scoring_scope, 'brief_release_review');
-        $approved = $eligible && $summary['usable'] && is_array($review)
+        $approved = $eligible && $summary['usable'] && $reconciliation['complete'] && is_array($review)
             && is_string($review['token'] ?? null) && hash_equals($review['token'], $token);
-        $active = $eligible && $summary['usable'] && ($approved || (bool) ($readiness['external_issue_ready'] ?? false));
+        $active = $eligible && $summary['usable'] && $reconciliation['complete'] && ($approved || (bool) ($readiness['external_issue_ready'] ?? false));
         $state = $summary['usable'] ? 'complete' : ($assessment === null ? 'idle' : $this->recovery->state((string) $assessment->getKey()));
         // A completed job can describe an older version or an unusable fallback.
         // Only the current summary's eligibility can establish completion.
@@ -69,6 +75,7 @@ final class FounderBriefRelease
             ...(! $eligible ? [$eligibility['reason'] ?? 'Finalise the latest assessment before releasing this brief.'] : []),
             ...($eligible && ! $summary['usable'] ? [$summaryMessage] : []),
             ...$findings,
+            ...(! $reconciliation['complete'] ? ['Complete the current financial reconciliation before external issue. Resolve each topic or record the agreed difference against the saved plan and Budget.'] : []),
         ]));
 
         return [
@@ -78,8 +85,9 @@ final class FounderBriefRelease
             'executive_summary' => ['usable' => (bool) $summary['usable'], 'context_hash' => $eligibility['context_hash']],
             'assessment_id' => $assessment?->getKey(),
             'approval_token' => $token,
+            'reconciliation' => $reconciliation,
             'review' => [
-                'can_approve' => $eligible && (bool) $summary['usable'] && ! $active,
+                'can_approve' => $eligible && (bool) $summary['usable'] && $reconciliation['complete'] && ! $active,
                 'approved' => $approved,
                 'note' => $approved ? (string) ($review['note'] ?? '') : null,
                 'approved_at' => $approved ? (string) ($review['approved_at'] ?? '') : null,

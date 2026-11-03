@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { reconciliationFixture } from './founder-brief-reconciliation.test-fixtures';
 import {
     FounderReadyBriefAction,
     PlanBudgetFinaliseReportAction,
@@ -27,6 +28,8 @@ test('blocked brief reasons are readable without hovering over a disabled button
                 preview_download_url: '/brief/preview?download=1',
                 retry_url: '/retry',
                 approve_url: '/approve',
+                reconciliation_url: '/reconcile',
+                reconciliation: reconciliationFixture,
                 approval_token: 'revision-1',
                 review: {
                     can_approve: false,

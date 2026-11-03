@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { reconciliationFixture } from './founder-brief-reconciliation.test-fixtures';
 import { FounderReadyBriefAction } from './founder-brief-release-actions';
 import type { EntrepreneurDetail } from './types';
 
@@ -14,6 +15,8 @@ const brief: NonNullable<EntrepreneurDetail['latest_plan']>['lender_brief'] = {
     preview_download_url: '/brief/preview?download=1',
     retry_url: '/retry',
     approve_url: '/approve',
+    reconciliation_url: '/reconcile',
+    reconciliation: reconciliationFixture,
     approval_token: 'revision-1',
     review: {
         can_approve: false,
@@ -39,7 +42,10 @@ test('a failed summary has an actionable retry without premature release approva
     assert.match(html, /href="\/brief\/preview"/);
     assert.match(html, /href="\/brief\/preview\?download=1"/);
     assert.match(html, /Advisor draft available now/);
-    assert.doesNotMatch(html, /disabled=""|<form|href="\/brief"/);
+    assert.doesNotMatch(
+        html,
+        /Approve brief for external issue|href="\/brief"/,
+    );
 });
 
 test('queued summary work is visible and cannot be submitted twice', () => {
@@ -105,5 +111,5 @@ test('an approved brief exposes the PDF link and recorded decision', () => {
     assert.doesNotMatch(html, /href="\/brief\/preview/);
     assert.match(html, /Advisor release approved/);
     assert.match(html, /Supporting records and funding assumptions checked/);
-    assert.doesNotMatch(html, /<form|Retry summary/);
+    assert.doesNotMatch(html, /Approve brief for external issue|Retry summary/);
 });

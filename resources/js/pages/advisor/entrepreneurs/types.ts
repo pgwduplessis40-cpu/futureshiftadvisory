@@ -1,3 +1,5 @@
+import type { FinancialReconciliation } from './founder-brief-reconciliation';
+
 export type CapacitySummary = {
     active_count: number;
     limit: number;
@@ -219,6 +221,8 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             preview_url: string;
             preview_download_url: string;
             approve_url: string;
+            reconciliation_url: string;
+            reconciliation: FinancialReconciliation;
             approval_token: string;
             review: {
                 can_approve: boolean;
