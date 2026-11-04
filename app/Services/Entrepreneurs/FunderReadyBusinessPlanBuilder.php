@@ -85,14 +85,21 @@ final class FunderReadyBusinessPlanBuilder
 
     public function pdf(EntrepreneurProfile $profile, BusinessPlan $plan): string
     {
+        return app(ReleaseGate\DraftDelivery::class)->render($plan, 'plan', fn () => $this->renderDraft($profile, $plan));
+    }
+
+    private function renderDraft(EntrepreneurProfile $profile, BusinessPlan $plan): ReleaseGate\RenderedDraft
+    {
         $document = $this->document($profile, $plan);
 
         try {
-            return $this->pdf->render($this->html($document));
+            $html = $this->html($document);
+
+            return new ReleaseGate\RenderedDraft($this->pdf->render($html), 'primary', $html);
         } catch (Throwable $exception) {
             report($exception);
 
-            return $this->fallback($document);
+            return new ReleaseGate\RenderedDraft($this->fallback($document), 'fallback');
         }
     }
 
@@ -163,7 +170,7 @@ final class FunderReadyBusinessPlanBuilder
                     || $candidate->key === 'founder-'.(string) $requirement['phase_key'].'-'.$key
                 ));
                 $body = $section instanceof PlanSection
-                    ? $this->cleanBody((string) $section->body)
+                    ? $this->cleanBody(app(ReleaseGate\GeneratedNarrative::class)->body($section))
                     : '';
 
                 return [$key => [
@@ -333,7 +340,7 @@ final class FunderReadyBusinessPlanBuilder
             ))
             ->implode('');
         $useOfFunds = collect((array) ($budget['use_of_funds'] ?? []))
-            ->map(fn (array $row): string => '<tr><td>'.$this->escape((string) ($row['label'] ?? 'Funding item')).'</td><td>'.$this->money($row['amount'] ?? 0).'</td><td>'.$this->escape((string) ($row['note'] ?? '')).'</td></tr>')
+            ->map(fn (array $row): string => '<tr><td>'.$this->escape((string) ($row['label'] ?? 'Funding item')).'</td><td>'.$this->escape($row['display_amount'] ?? $this->money($row['amount'] ?? 0)).'</td><td>'.$this->escape((string) ($row['note'] ?? '')).'</td></tr>')
             ->implode('');
         $scenarios = collect((array) ($budget['scenarios'] ?? []))
             ->map(fn (array $scenario): string => sprintf(
@@ -355,7 +362,7 @@ final class FunderReadyBusinessPlanBuilder
             .'<section class="funder-finance-block"><h3>10.1 Financial Snapshot</h3><table><tbody>'
             .'<tr><th>Declared funding position</th><td>'.$this->escape((string) ($decision['funding_position_label'] ?? 'Funding position not confirmed')).'</td></tr>'
             .'<tr><th>Lowest cash position</th><td>'.$this->moneyWithMonth($decision['lowest_cash'] ?? null, $decision['lowest_cash_month'] ?? null).'</td></tr>'
-            .'<tr><th>Required additional funding</th><td>'.$this->money($decision['required_additional_funding'] ?? 0).'</td></tr>'
+            .'<tr><th>Forecast cash deficit</th><td>'.$this->money($decision['required_additional_funding'] ?? 0).'</td></tr>'
             .'<tr><th>Funding available</th><td>'.$this->money($decision['available_funding'] ?? 0).'</td></tr>'
             .'<tr><th>Break-even timing</th><td>'.$this->yearValue($summary['break_even_year'] ?? null).'</td></tr>'
             .'<tr><th>Cash-positive timing</th><td>'.$this->yearValue($summary['cash_flow_positive_year'] ?? null).'</td></tr>'
@@ -443,7 +450,7 @@ final class FunderReadyBusinessPlanBuilder
             'rows' => [
                 ['Lowest cash position', $this->moneyWithMonth($decision['lowest_cash'] ?? null, $decision['lowest_cash_month'] ?? null)],
                 ['Declared funding position', (string) ($decision['funding_position_label'] ?? 'Funding position not confirmed')],
-                ['Required additional funding', $this->money($decision['required_additional_funding'] ?? 0)],
+                ['Forecast cash deficit', $this->money($decision['required_additional_funding'] ?? 0)],
                 ['Funding available', $this->money($decision['available_funding'] ?? 0)],
                 ['Break-even', $this->yearValue($summary['break_even_year'] ?? null)],
                 ['Cash positive', $this->yearValue($summary['cash_flow_positive_year'] ?? null)],
@@ -461,7 +468,7 @@ final class FunderReadyBusinessPlanBuilder
             'rows' => collect((array) ($budget['use_of_funds'] ?? []))
                 ->map(fn (array $row): array => [
                     (string) ($row['label'] ?? 'Funding item'),
-                    $this->money($row['amount'] ?? 0),
+                    (string) ($row['display_amount'] ?? $this->money($row['amount'] ?? 0)),
                     (string) ($row['note'] ?? ''),
                 ])->all(),
             'widths' => [1.2, 0.7, 2],

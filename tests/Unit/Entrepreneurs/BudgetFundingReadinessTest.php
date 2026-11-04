@@ -37,7 +37,8 @@ final class BudgetFundingReadinessTest extends TestCase
         $this->assertSame('Not ready for external issue', $decision['readiness_label']);
         $this->assertFalse($decision['external_issue_ready']);
         $this->assertSame(3_500.0, $decision['additional_funding_needed']);
-        $this->assertSame(4_200.0, $decision['required_additional_funding']);
+        $this->assertSame(3_500.0, $decision['required_additional_funding']);
+        $this->assertSame(4_200.0, $decision['reserve_target_shortfall']);
         $this->assertSame(2, $decision['lowest_cash_month']);
     }
 
@@ -116,7 +117,7 @@ final class BudgetFundingReadinessTest extends TestCase
         $this->assertStringContainsString('Verify the pipeline, contract, or pricing source', $warnings);
     }
 
-    public function test_a_verified_external_request_can_be_ready_when_its_use_of_funds_matches_the_forecast(): void
+    public function test_a_reserve_shortfall_is_a_review_separate_from_the_cash_deficit_and_request(): void
     {
         $budget = new EntrepreneurBudget([
             'status' => EntrepreneurBudget::STATUS_COMPLETE,
@@ -151,10 +152,12 @@ final class BudgetFundingReadinessTest extends TestCase
 
         $decision = (new BudgetFundingReadiness)->evaluate($budget);
 
-        $this->assertGreaterThan(0, $decision['required_additional_funding']);
+        $this->assertSame(0.0, $decision['required_additional_funding']);
+        $this->assertSame(4_200.0, $decision['reserve_target_shortfall']);
+        $this->assertNull($decision['external_funding_request']);
         $this->assertSame('External funding request', $decision['funding_position_label']);
         $this->assertTrue($decision['funding_position_aligned']);
-        $this->assertTrue($decision['external_issue_ready']);
-        $this->assertStringContainsString('external funding request', $decision['headline']);
+        $this->assertFalse($decision['external_issue_ready']);
+        $this->assertSame('Needs advisor review', $decision['readiness_label']);
     }
 }

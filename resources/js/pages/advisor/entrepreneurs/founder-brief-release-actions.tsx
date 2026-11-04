@@ -83,6 +83,11 @@ function BriefReleaseActions({ brief }: { brief: Brief }) {
                 Founder brief for investors and financiers
             </h2>
             <BriefWorkflow brief={brief} />
+            {brief.release_gate_url ? (
+                <a className="text-sm underline" href={brief.release_gate_url}>
+                    Review release checks and source values
+                </a>
+            ) : null}
             {brief.can_generate ? (
                 <div className="flex flex-wrap gap-2">
                     <Button asChild size="sm" variant="outline">

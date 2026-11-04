@@ -1,0 +1,174 @@
+{
+  "fixture_version": "F1-anonymised-1",
+  "extracted_at": "2026-11-04",
+  "extractor": "pypdf text extraction with rendered-page review; selected observations normalised to typed facts",
+  "sources": {
+    "brief": {
+      "pages": 11,
+      "sha256": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+    },
+    "budget": {
+      "pages": 11,
+      "sha256": "1e3610e1046ddba6e929d7327be388ef8c41d99709961dfae680108c977bc789"
+    },
+    "plan": {
+      "pages": 49,
+      "sha256": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+    }
+  },
+  "derivative": {
+    "file": "f1.json",
+    "sha256": "c5c5546cdda44fbc80845629a686767d8773fc745185632d4aad5813ab9aca5a"
+  },
+  "privacy": "Names, contacts, original PDFs and client prose are excluded. Short synthetic excerpts preserve the reviewed hygiene defects. Financial observations are unchanged; unknowns are explicit.",
+  "expectations": {
+    "PM-01": {
+      "result": "fail",
+      "detail": "Fail / Block"
+    },
+    "PM-02": {
+      "result": "fail",
+      "detail": "Fail / Block"
+    },
+    "PM-03": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Block"
+    },
+    "PM-04": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Block"
+    },
+    "PM-05": {
+      "result": "fail",
+      "detail": "Fail / Block"
+    },
+    "PM-06": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Block"
+    },
+    "PM-07": {
+      "result": "fail",
+      "detail": "Fail / Review"
+    },
+    "PM-08": {
+      "result": "fail",
+      "detail": "Fail / Review"
+    },
+    "PM-09": {
+      "result": "fail",
+      "detail": "Fail / Block for $1,750; Review for unpriced items"
+    },
+    "PM-10": {
+      "result": "fail",
+      "detail": "Fail / Review"
+    },
+    "PM-11": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Block"
+    },
+    "PM-12": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Block for sources; Review for reserve gap"
+    },
+    "MI-01": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Block for full ledger; balance subchecks Pass"
+    },
+    "MI-02": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Block"
+    },
+    "MI-03": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Block at full precision; displayed-total subcheck Pass"
+    },
+    "MI-04": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Block for full tax schedule; annual display subcheck Pass"
+    },
+    "MI-05": {
+      "result": "fail",
+      "detail": "Fail / Review"
+    },
+    "MI-06": {
+      "result": "fail",
+      "detail": "Fail / Block"
+    },
+    "MI-07": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Block for external issue"
+    },
+    "MI-08": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Review"
+    },
+    "SS-01": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Block for full scenarios; no monotonicity failure"
+    },
+    "SS-02": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Review"
+    },
+    "SS-03": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Block"
+    },
+    "DH-01": {
+      "result": "fail",
+      "detail": "Fail / Block on external transition; Not applicable to draft-only prompts during internal viewing"
+    },
+    "DH-02": {
+      "result": "fail",
+      "detail": "Fail / Block"
+    },
+    "DH-03": {
+      "result": "fail",
+      "detail": "Fail / Review"
+    },
+    "DH-04": {
+      "result": "fail",
+      "detail": "Fail / Block"
+    },
+    "DH-05": {
+      "result": "fail",
+      "detail": "Fail / Review"
+    },
+    "DH-06": {
+      "result": "fail",
+      "detail": "Fail / Autofix before rerender/recheck"
+    },
+    "DH-07": {
+      "result": "fail",
+      "detail": "Fail / Review"
+    },
+    "NB-01": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Block"
+    },
+    "NB-02": {
+      "result": "pass",
+      "detail": "Pass for comparable rendered financial metrics"
+    },
+    "EV-01": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Block"
+    },
+    "EV-02": {
+      "result": "fail",
+      "detail": "Fail / Block"
+    },
+    "EV-03": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Review"
+    },
+    "EV-04": {
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Review"
+    },
+    "EV-05": {
+      "result": "fail",
+      "detail": "Fail / Block"
+    }
+  }
+}

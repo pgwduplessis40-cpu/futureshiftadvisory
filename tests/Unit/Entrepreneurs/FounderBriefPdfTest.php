@@ -117,7 +117,8 @@ final class FounderBriefPdfTest extends TestCase
         $computed['assumptions']['funding_position'] = 'self_funded';
         $plan->budgetRunway->computed = $computed;
         $pages = app(FounderBriefPages::class)->build($profile, $plan, $status, true);
-        $this->assertStringContainsString('conflicts with $', $pages[6]['paragraphs'][0]);
+        $this->assertStringNotContainsString('conflicts with $', $pages[6]['paragraphs'][0]);
+        $this->assertStringContainsString('Reserve-target shortfall:', implode(' ', $pages[6]['paragraphs']));
         $this->assertStringContainsString('Forecast cash stays above zero.', $pages[6]['paragraphs'][2]);
         $this->assertContains('Costs scheduled beyond the saved forecast period are not included in the forecast results.', $pages[8]['paragraphs']);
         $this->assertSame(['Item', 'Per payment', 'Timing', 'Treatment'], $pages[8]['tables'][1]['headers']);

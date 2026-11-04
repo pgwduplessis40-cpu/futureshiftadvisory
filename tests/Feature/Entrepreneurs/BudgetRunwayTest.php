@@ -432,7 +432,7 @@ final class BudgetRunwayTest extends TestCase
             ->assertJsonPath('budget.computed.monthly_series.0.revenue', 0)
             ->assertJsonPath('budget.computed.monthly_series.1.revenue', 2000)
             ->assertJsonPath('budget.plan_guidance.facts.0.value', 5000)
-            ->assertJsonPath('budget.plan_guidance.issues.0.key', 'opening_cash_balance');
+            ->assertJsonPath('budget.plan_guidance.issues', fn (array $issues): bool => collect($issues)->contains(fn (array $issue): bool => str_starts_with($issue['key'], 'PM-03:') && str_contains($issue['detail'], 'Cannot verify')));
     }
 
     /**

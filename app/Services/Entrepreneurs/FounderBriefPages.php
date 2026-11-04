@@ -32,7 +32,8 @@ final class FounderBriefPages
     public function build(EntrepreneurProfile $profile, BusinessPlan $plan, array $status, bool $preview): array
     {
         $plan->loadMissing('sections', 'budgetRunway');
-        $summary = (string) $plan->sections->firstWhere('key', BusinessPlanExecutiveSummary::SECTION_KEY)?->body;
+        $summarySection = $plan->sections->firstWhere('key', BusinessPlanExecutiveSummary::SECTION_KEY);
+        $summary = $summarySection instanceof PlanSection ? app(ReleaseGate\GeneratedNarrative::class)->body($summarySection) : '';
         $budget = $this->budgets->payload($profile, $plan);
         $evidenceCount = $plan->sections->flatMap(fn (PlanSection $section): array => (array) $section->attached_document_ids)->unique()->count();
         $reviewParagraphs = [

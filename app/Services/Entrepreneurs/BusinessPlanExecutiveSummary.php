@@ -402,20 +402,9 @@ final class BusinessPlanExecutiveSummary
      */
     private function fundingSentence(array $context): string
     {
-        $required = (float) data_get($context, 'funding_readiness.required_additional_funding', 0);
-        $available = (float) data_get($context, 'funding_readiness.available_funding', 0);
-
-        if ($required > 0) {
-            return 'The funding ask is '.$this->money($required).', or equivalent assumption changes, to cover the larger of the forecast cash trough and the lender-style operating buffer.';
-        }
-
-        if ($available > 0) {
-            return 'The plan asks the reader to assess whether available funding of '.$this->money($available).' is sufficient against the budget pack, operating buffer, and cash curve.';
-        }
-
         return data_get($context, 'budget') === null
             ? 'The funding decision is not lender-ready until the budget pack is complete and reconciled to the written plan.'
-            : 'The plan currently presents no external funding ask, so that position needs to remain consistent with the budget cash curve and support requested.';
+            : ReleaseGate\FundingPresentation::headline((array) data_get($context, 'funding_readiness', []));
     }
 
     /**
@@ -570,10 +559,5 @@ final class BusinessPlanExecutiveSummary
         }
 
         return $generated ? 'Executive summary current' : 'Legacy executive-summary draft held from external issue';
-    }
-
-    private function money(float $amount): string
-    {
-        return '$'.number_format($amount, 0);
     }
 }

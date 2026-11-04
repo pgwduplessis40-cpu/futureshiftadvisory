@@ -13,6 +13,7 @@ final class PlanIssueReadiness
         private readonly BudgetFundingReadiness $budgetReadiness,
         private readonly ExternalIssueReview $externalIssueReview,
         private readonly BusinessPlanExecutiveSummary $executiveSummaries,
+        private readonly ReleaseGate\ReleaseGate $releaseGate,
     ) {}
 
     /**
@@ -31,6 +32,7 @@ final class PlanIssueReadiness
         $budget = $this->budgetReadiness->evaluate($plan->budgetRunway);
         $contentReview = $this->externalIssueReview->evaluate($plan);
         $executiveSummary = $this->executiveSummaries->status($plan);
+        $gate = $this->releaseGate->evaluate($plan, 'plan');
         $reasons = [];
         $summaryReason = null;
 
@@ -55,7 +57,8 @@ final class PlanIssueReadiness
 
         $reasons = [...$reasons, ...(array) ($contentReview['blocking_reasons'] ?? []), ...(array) ($contentReview['warnings'] ?? [])];
 
-        $ready = $completion['complete']
+        $reasons[] = 'Draft: complete the release checks, evidence review and final-file verification before external issue.';
+        $ready = $gate->jsonSerialize()['can_certify'] && $completion['complete']
             && $evidencedSections->isNotEmpty()
             && (bool) ($budget['external_issue_ready'] ?? false)
             && (bool) ($executiveSummary['usable'] ?? false)
@@ -76,6 +79,7 @@ final class PlanIssueReadiness
             'content_review' => $contentReview,
             'executive_summary' => $executiveSummary,
             'executive_summary_reason' => $summaryReason,
+            'release_gate' => $gate->jsonSerialize(),
         ];
     }
 }

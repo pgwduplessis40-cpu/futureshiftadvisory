@@ -29,7 +29,8 @@ final class FounderBriefReconciliationTest extends TestCase
         $facts = collect($initial['topics'])->keyBy('key');
         $this->assertStringContainsString('$875.00 x 1, weekly', implode(' ', $facts['owner_pay']['budget_facts']));
         $this->assertStringContainsString('cash-deficit cover: $0.00', implode(' ', $facts['cash_funding']['budget_facts']));
-        $this->assertStringContainsString('required additional funding: $2,300.00', implode(' ', $facts['cash_funding']['budget_facts']));
+        $this->assertStringContainsString('Reserve-target shortfall: $2,300.00', implode(' ', $facts['cash_funding']['budget_facts']));
+        $this->assertStringContainsString('Proposed external request: Not recorded', implode(' ', $facts['cash_funding']['budget_facts']));
         $this->assertStringContainsString('operating cost', implode(' ', $facts['asset_treatment']['budget_facts']));
         $this->complete($plan, $initial['source_token']);
         $this->assertTrue($service->evaluate($plan, $profile)['complete']);

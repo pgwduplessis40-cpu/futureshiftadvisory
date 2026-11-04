@@ -35,7 +35,10 @@ final class PlanBudgetGuide
         /** @var Budget $budget */
         $budget = $plan->budgetRunway?->only(['forecast_years', 'assumptions', 'monthly_fixed_costs', 'revenue_forecast', 'future_costs', 'computed']) ?? [];
 
-        return $this->build($sections, $budget);
+        $guide = $this->build($sections, $budget);
+        $guide['issues'] = (new ReleaseGate\LegacyGateAdapter)->guide(app(ReleaseGate\ReleaseGate::class)->evaluate($plan), $guide['issues']);
+
+        return $guide;
     }
 
     /** @param list<Section> $sections

@@ -51,7 +51,8 @@ final class BudgetPackBuilder
         }
 
         $computed = (array) ($budget->computed ?? []);
-        $fundingDecision = $this->readiness->evaluate($budget);
+        $fundingDecision = [...$this->readiness->evaluate($budget), 'external_issue_ready' => false,
+            'readiness_label' => 'Draft - release checks outstanding', 'readiness_tone' => 'medium'];
         $monthlyByYear = collect((array) data_get($computed, 'monthly_detail', []))
             ->groupBy('year')
             ->map(fn (Collection $rows, int|string $year): array => [
@@ -204,7 +205,7 @@ HTML,
             $this->escape($this->fundingPositionHeadline($decision)),
             $this->metricHtml('Declared funding position', (string) ($decision['funding_position_label'] ?? 'Funding position not confirmed')),
             $this->metricHtml('Lowest cash point', $this->moneyWithMonth($decision['lowest_cash'] ?? null, $decision['lowest_cash_month'] ?? null)),
-            $this->metricHtml('Required additional funding', $this->money($decision['required_additional_funding'] ?? 0)),
+            $this->metricHtml('Forecast cash deficit', $this->money($decision['required_additional_funding'] ?? 0)),
             $this->metricHtml('Funding available', $this->money($decision['available_funding'] ?? 0)),
             $this->metricHtml('Runway', $this->runwayText($summary)),
         );
@@ -335,7 +336,7 @@ HTML,
                 'rows' => [
                     ['Declared funding position', (string) ($decision['funding_position_label'] ?? 'Funding position not confirmed')],
                     ['Lowest cash point', $this->moneyWithMonth($decision['lowest_cash'] ?? null, $decision['lowest_cash_month'] ?? null)],
-                    ['Required additional funding', $this->money($decision['required_additional_funding'] ?? 0)],
+                    ['Forecast cash deficit', $this->money($decision['required_additional_funding'] ?? 0)],
                     ['Funding available', $this->money($decision['available_funding'] ?? 0)],
                     ['Runway', $this->runwayText($summary)],
                 ],
@@ -820,40 +821,7 @@ HTML,
      */
     private function useOfFunds(EntrepreneurBudget $budget, array $decision): array
     {
-        $operatingCoverMonths = (int) ($decision['operating_cover_months'] ?? 0);
-
-        return [
-            [
-                'label' => 'Planned one-off costs',
-                'amount' => (float) ($decision['launch_costs'] ?? 0),
-                'note' => 'One-off costs entered in the budget, whether for setup, replacement, or growth.',
-            ],
-            [
-                'label' => 'Operating cover',
-                'amount' => (float) ($decision['operating_cover_amount'] ?? 0),
-                'note' => $operatingCoverMonths.' months of fixed costs, aligned to lender-style runway checks.',
-            ],
-            [
-                'label' => 'Contingency reserve',
-                'amount' => (float) ($decision['contingency_amount'] ?? 0),
-                'note' => '10% buffer on planned one-off costs and operating cover for timing and pricing variance.',
-            ],
-            [
-                'label' => 'Recommended funding target',
-                'amount' => (float) ($decision['recommended_funding_target'] ?? 0),
-                'note' => 'Funding target before comparing against cash already available.',
-            ],
-            [
-                'label' => 'Funding and opening cash available',
-                'amount' => (float) ($decision['available_funding'] ?? 0),
-                'note' => 'Saved funding sources plus opening cash balance in the forecast.',
-            ],
-            [
-                'label' => 'Required additional funding',
-                'amount' => (float) ($decision['required_additional_funding'] ?? 0),
-                'note' => 'The single funding action figure: the larger of the planned funding-target shortfall and the monthly cash-curve deficit.',
-            ],
-        ];
+        return ReleaseGate\FundingPresentation::rows($decision);
     }
 
     /**
@@ -1012,13 +980,7 @@ HTML,
      */
     private function fundingPositionHeadline(array $decision): string
     {
-        $requiredAdditionalFunding = (float) ($decision['required_additional_funding'] ?? 0);
-
-        if ($requiredAdditionalFunding > 0) {
-            return 'Required additional funding is '.$this->money($requiredAdditionalFunding).'. This single figure covers whichever is larger: the planned funding-target shortfall or the cash-curve deficit.';
-        }
-
-        return 'Current funding and opening cash cover the planned one-off costs, operating cover, contingency, and the monthly cash curve.';
+        return ReleaseGate\FundingPresentation::headline($decision);
     }
 
     /**

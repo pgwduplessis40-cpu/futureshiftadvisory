@@ -46,7 +46,8 @@ final class PlanBudgetReviewDecision
             || ! hash_equals($review['findings_hash'], $this->findingsHash($this->reviews($source)))) {
             return [...$result, 'message' => 'The saved decision cannot be matched to its original assessed inputs and findings. Review the original approval record.'];
         }
-        if (! hash_equals($review['findings_hash'], $this->findingsHash($this->reviews($assessment)))) {
+        if (! hash_equals($review['findings_hash'], $this->findingsHash($this->reviews($assessment)))
+            && ! $this->sameFundingWording($this->reviews($source), $this->reviews($assessment))) {
             return [...$result, 'message' => 'The findings have changed since the saved advisor decision. Review the new findings before finalising.'];
         }
         $current = app(BusinessPlanSnapshot::class)->capture($assessment->businessPlan);
@@ -57,7 +58,9 @@ final class PlanBudgetReviewDecision
             return [...$result, 'message' => 'The plan or Budget inputs have changed since the saved advisor decision. Reassess the changed information before recording a new decision.'];
         }
 
-        return [...$result, 'inputs_hash' => $review['inputs_hash']];
+        // Present the verified wording equivalent without rewriting the saved approval.
+        return [...$result, 'review' => [...$review, 'findings_hash' => $this->findingsHash($this->reviews($assessment))],
+            'inputs_hash' => $review['inputs_hash']];
     }
 
     /** @return list<Finding> */
@@ -81,7 +84,22 @@ final class PlanBudgetReviewDecision
         // Legacy findings have no stable identifier. Restrict this compatibility
         // rule to the funding-exposure finding; other reviews keep all evidence.
         return count($findings) === 1 && $findings[0]['category'] === 'budget_support'
-            && preg_match('/^The forecast requires \$[\d,]+(?:\.\d+)? of additional funding to cover the modelled cash trough and planned operating buffer\.$/', $findings[0]['message']) === 1;
+            && preg_match('/^The forecast requires \$[\d,]+(?:\.\d+)? of additional funding to cover the modelled cash trough(?: and planned operating buffer)?\.$/', $findings[0]['message']) === 1;
+    }
+
+    /**
+     * @param  list<Finding>  $original
+     * @param  list<Finding>  $current
+     */
+    private function sameFundingWording(array $original, array $current): bool
+    {
+        if (! $this->isFundingDecision($original) || ! $this->isFundingDecision($current)) {
+            return false;
+        }
+        $original[0]['message'] = str_replace(' and planned operating buffer', '', $original[0]['message']);
+        $current[0]['message'] = str_replace(' and planned operating buffer', '', $current[0]['message']);
+
+        return hash_equals($this->findingsHash($original), $this->findingsHash($current));
     }
 
     /** @param array<array-key,mixed> $snapshot */
@@ -92,6 +110,14 @@ final class PlanBudgetReviewDecision
             // changing the approved exposure. Keep every input, computed result,
             // funding amount, timing and position in the comparison.
             $readiness = (array) data_get($snapshot, 'budget.assessment_evidence.funding_readiness', []);
+            if (array_key_exists('cash_deficit', $readiness)) {
+                // Compare the old combined exposure on the same basis while
+                // retaining every underlying budget input and model result.
+                $readiness['required_additional_funding'] = round(max((float) ($readiness['additional_funding_needed'] ?? 0), max(0.0, -(float) ($readiness['funding_gap_or_surplus'] ?? 0))), 2);
+            }
+            foreach (['cash_deficit', 'reserve_target_shortfall', 'external_funding_request', 'external_issue_ready', 'funding_position_aligned'] as $key) {
+                unset($readiness[$key]);
+            }
             foreach (['input_status_label', 'readiness_label', 'readiness_tone', 'headline', 'funding_position_label', 'risk_reasons', 'warnings'] as $key) {
                 unset($readiness[$key]);
             }

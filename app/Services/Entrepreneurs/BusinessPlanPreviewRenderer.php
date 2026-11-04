@@ -8,12 +8,10 @@ use App\Models\BusinessPlan;
 use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
 use App\Models\PlanSection;
-use App\Services\Pdf\PdfRenderer;
 use App\Services\Pdf\PdfText;
 use App\Services\Pdf\SimpleTextPdf;
 use App\Services\Reports\BrandedReportLayout;
 use Illuminate\Support\Str;
-use Throwable;
 
 final class BusinessPlanPreviewRenderer
 {
@@ -22,7 +20,7 @@ final class BusinessPlanPreviewRenderer
     private const BUDGET_ASSUMPTIONS_REQUIREMENT_KEY = 'financial-assumptions';
 
     public function __construct(
-        private readonly PdfRenderer $pdf,
+        private readonly ReleaseGate\PdfDraftRenderer $pdf,
         private readonly SimpleTextPdf $fallbackPdf,
         private readonly BrandedReportLayout $layout,
         private readonly BusinessPlanIdentity $identity,
@@ -32,18 +30,17 @@ final class BusinessPlanPreviewRenderer
 
     public function pdf(EntrepreneurProfile $profile, ?BusinessPlan $plan): string
     {
+        return app(ReleaseGate\DraftDelivery::class)->render($plan, 'plan', fn () => $this->renderDraft($profile, $plan));
+    }
+
+    private function renderDraft(EntrepreneurProfile $profile, ?BusinessPlan $plan): ReleaseGate\RenderedDraft
+    {
         $phases = $plan instanceof BusinessPlan
             ? $this->planPhases($plan)
             : $this->templatePreviewPhases();
         $html = $this->html($profile, $plan, $phases);
 
-        try {
-            return $this->pdf->render($html);
-        } catch (Throwable $exception) {
-            report($exception);
-
-            return $this->fallbackPdf($profile, $plan, $phases);
-        }
+        return $this->pdf->render($html, fn () => $this->fallbackPdf($profile, $plan, $phases));
     }
 
     /**
@@ -51,10 +48,16 @@ final class BusinessPlanPreviewRenderer
      */
     public function pdfFromSnapshot(EntrepreneurProfile $profile, BusinessPlan $plan, array $snapshot, int $round): string
     {
+        return app(ReleaseGate\DraftDelivery::class)->render($plan, 'plan', fn () => $this->renderSnapshotDraft($profile, $plan, $snapshot, $round), ReleaseGate\CanonicalJson::encode($snapshot));
+    }
+
+    /** @param array<array-key, mixed> $snapshot */
+    private function renderSnapshotDraft(EntrepreneurProfile $profile, BusinessPlan $plan, array $snapshot, int $round): ReleaseGate\RenderedDraft
+    {
         $capturedAt = (string) ($snapshot['captured_at'] ?? '');
         $documentMeta = [
             'document_tag' => 'Submitted plan',
-            'eyebrow' => 'Plan snapshot captured for assessment round '.$round,
+            'eyebrow' => 'INTERNAL DRAFT - Plan snapshot captured for assessment round '.$round,
             'footer' => $capturedAt !== ''
                 ? 'Snapshot captured '.$capturedAt.' from the submitted entrepreneur workspace'
                 : 'Snapshot captured from the submitted entrepreneur workspace',
@@ -62,13 +65,7 @@ final class BusinessPlanPreviewRenderer
         $phases = $this->snapshotPhases($snapshot);
         $html = $this->html($profile, $plan, $phases, $documentMeta);
 
-        try {
-            return $this->pdf->render($html);
-        } catch (Throwable $exception) {
-            report($exception);
-
-            return $this->fallbackPdf($profile, $plan, $phases, $documentMeta);
-        }
+        return $this->pdf->render($html, fn () => $this->fallbackPdf($profile, $plan, $phases, $documentMeta));
     }
 
     public function filename(EntrepreneurProfile $profile): string
@@ -110,7 +107,7 @@ final class BusinessPlanPreviewRenderer
                         ->map(fn (PlanSection $section): array => [
                             'id' => $section->id,
                             'title' => $section->title,
-                            'body' => $section->body,
+                            'body' => app(ReleaseGate\GeneratedNarrative::class)->body($section),
                             'attached_document_ids' => $section->attached_document_ids ?? [],
                             'requirement_key' => data_get($section->metadata, 'requirement_key'),
                             'executive_summary_generated' => (bool) data_get($section->metadata, 'executive_summary.generated'),

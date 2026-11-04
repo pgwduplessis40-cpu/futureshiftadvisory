@@ -41,10 +41,7 @@ final class FunderReadyBriefBuilder
 
     public function pdf(EntrepreneurProfile $profile, BusinessPlan $plan): string
     {
-        $status = $this->status($plan, $profile);
-        abort_unless($status['active'], 409, implode(' ', $status['reasons']));
-
-        return $this->render($profile, $plan, $status, false);
+        app(ReleaseGate\ReleaseGate::class)->assertExternalRelease($plan, 'brief', auth()->user());
     }
 
     public function previewPdf(EntrepreneurProfile $profile, BusinessPlan $plan): string
@@ -52,11 +49,16 @@ final class FunderReadyBriefBuilder
         $status = $this->status($plan, $profile);
         abort_unless($status['can_generate'], 409, $status['generation_reason'] ?? 'Complete and assess the current business plan and budget before generating the founder brief.');
 
-        return $this->render($profile, $plan, $status, true);
+        return app(ReleaseGate\DraftDelivery::class)->render($plan, 'brief', function () use ($profile, $plan): ReleaseGate\RenderedDraft {
+            $current = $this->status($plan, $profile);
+            abort_unless($current['can_generate'], 409, $current['generation_reason'] ?? 'The current plan and budget are not ready for a draft.');
+
+            return $this->render($profile, $plan, $current, true);
+        });
     }
 
     /** @param FunderReadyBriefStatus $status */
-    private function render(EntrepreneurProfile $profile, BusinessPlan $plan, array $status, bool $preview): string
+    private function render(EntrepreneurProfile $profile, BusinessPlan $plan, array $status, bool $preview): ReleaseGate\RenderedDraft
     {
         $pages = $this->pages->build($profile, $plan, $status, $preview);
         $name = $this->identity->businessName($profile, $plan, $plan->sections->pluck('body')->filter()->all()) ?? 'Business plan';
@@ -64,11 +66,13 @@ final class FunderReadyBriefBuilder
         $footer = 'Future Shift Advisory | '.$label;
 
         try {
-            return $this->pdf->render($this->html($name, $pages, $status, $label, $footer));
+            $html = $this->html($name, $pages, $status, $label, $footer);
+
+            return new ReleaseGate\RenderedDraft($this->pdf->render($html), 'primary', $html);
         } catch (Throwable $exception) {
             report($exception);
 
-            return $this->fallback($name, $pages, $footer);
+            return new ReleaseGate\RenderedDraft($this->fallback($name, $pages, $footer), 'fallback');
         }
     }
 

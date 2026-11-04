@@ -7,16 +7,14 @@ namespace App\Http\Controllers\Advisor;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurProfile;
-use App\Services\Entrepreneurs\BudgetPackBuilder;
 use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
 use App\Services\Entrepreneurs\FunderReadyBriefBuilder;
 use App\Services\Entrepreneurs\FunderReadyBusinessPlanBuilder;
-use App\Services\Pdf\PdfRenderer;
+use App\Services\Entrepreneurs\ReleaseGate\BudgetDraft;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
-use Throwable;
 
 final class EntrepreneurPlanDocumentController extends Controller
 {
@@ -24,8 +22,6 @@ final class EntrepreneurPlanDocumentController extends Controller
         private readonly BusinessPlanPreviewRenderer $planPreview,
         private readonly FunderReadyBriefBuilder $funderReadyBriefs,
         private readonly FunderReadyBusinessPlanBuilder $funderReadyPlans,
-        private readonly BudgetPackBuilder $budgetPack,
-        private readonly PdfRenderer $pdf,
     ) {}
 
     public function latestPlanPreview(Request $request, EntrepreneurProfile $entrepreneurProfile): Response
@@ -118,12 +114,7 @@ final class EntrepreneurPlanDocumentController extends Controller
 
     private function budgetPackPdfResponse(EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan, bool $download): Response
     {
-        try {
-            $pdf = $this->pdf->render($this->budgetPack->html($entrepreneurProfile, $businessPlan));
-        } catch (Throwable $exception) {
-            report($exception);
-            $pdf = $this->budgetPack->fallbackPdf($entrepreneurProfile, $businessPlan);
-        }
+        $pdf = app(BudgetDraft::class)->pdf($entrepreneurProfile, $businessPlan);
         $filename = Str::slug($entrepreneurProfile->name ?: 'entrepreneur').'-budget-pack.pdf';
 
         return response($pdf, 200, [

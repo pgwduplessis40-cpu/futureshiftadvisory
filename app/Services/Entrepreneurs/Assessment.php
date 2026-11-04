@@ -76,7 +76,8 @@ final class Assessment implements ProvidesMethodology
         }
 
         $planSnapshot = $this->snapshots->capture($plan);
-        $planBudgetCoherence = $this->planBudgetCoherence->evaluate($planSnapshot);
+        $planBudgetCoherence = $this->planBudgetCoherence->evaluate($planSnapshot, releaseGateOwnsComparisons: true);
+        $gateRecord = app(ReleaseGate\AssessmentGate::class)->capture($plan, $actor);
         $previousAssessment = PlanAssessment::query()
             ->where('business_plan_id', $plan->getKey())
             ->where('rating_framework_id', $framework->getKey())
@@ -209,6 +210,7 @@ final class Assessment implements ProvidesMethodology
                     : null,
             ],
             'plan_budget_coherence' => $planBudgetCoherence,
+            'release_gate' => $gateRecord,
         ];
 
         return DB::transaction(function () use ($plan, $actor, $framework, $aiScores, $advisorScores, $documentSupport, $planSnapshot, $scoringScope, $totalCriteria, $weighted): PlanAssessment {

@@ -51,6 +51,8 @@ enum Permission: string
     case LEARNING_UPDATES_APPROVE = 'learning_updates.approve';
     case ENTREPRENEURS_VIEW = 'entrepreneurs.view';
     case ENTREPRENEURS_ASSESS = 'entrepreneurs.assess';
+    case ENTREPRENEURS_ACCEPT_RELEASE_RISK = 'entrepreneurs.accept_release_risk';
+    case ENTREPRENEURS_RELEASE_POLICY = 'entrepreneurs.release_policy';
     case SURVEYS_MANAGE = 'surveys.manage';
     case SURVEYS_VIEW = 'surveys.view';
     case BROKER_PORTAL = 'broker.portal';
