@@ -27,6 +27,7 @@ use App\Http\Controllers\Advisor\EntrepreneurController;
 use App\Http\Controllers\Advisor\EntrepreneurDocumentController;
 use App\Http\Controllers\Advisor\EntrepreneurMessageController;
 use App\Http\Controllers\Advisor\EntrepreneurPlanDocumentController;
+use App\Http\Controllers\Advisor\EntrepreneurReleaseGateController;
 use App\Http\Controllers\Advisor\FoundingAdvisoryController;
 use App\Http\Controllers\Advisor\GoalController;
 use App\Http\Controllers\Advisor\IntegrationScopeController;
@@ -497,6 +498,13 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/brief-summary/retry', [EntrepreneurBriefReleaseController::class, 'retry'])
             ->middleware(['permission:'.Permission::ENTREPRENEURS_ASSESS->value, 'throttle:6,1'])
             ->name('entrepreneurs.plans.brief-summary.retry');
+        Route::prefix('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/release-gate')
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)->group(function (): void {
+                Route::get('/', [EntrepreneurReleaseGateController::class, 'show'])->name('entrepreneurs.plans.release-gate.show');
+                Route::post('/decisions', [EntrepreneurReleaseGateController::class, 'decision'])->name('entrepreneurs.plans.release-gate.decision');
+                Route::post('/claims', [EntrepreneurReleaseGateController::class, 'claim'])->name('entrepreneurs.plans.release-gate.claim');
+                Route::post('/policy', [EntrepreneurReleaseGateController::class, 'policy'])->name('entrepreneurs.plans.release-gate.policy');
+            });
         Route::post('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/brief-release', [EntrepreneurBriefReleaseController::class, 'approve'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.plans.brief-release.approve');

@@ -46,8 +46,8 @@ final class FounderBriefFinancials
             Page::money($row['cash_collected'] ?? null), Page::money($row['net_cash_flow'] ?? null),
             Page::money($row['cumulative_cash'] ?? null),
         ])->values()->all();
-        $fundingRows = collect((array) ($data['use_of_funds'] ?? []))->take(6)->map(fn (array $row): array => [
-            Page::excerpt((string) ($row['label'] ?? ''), 60), Page::money($row['amount'] ?? null),
+        $fundingRows = collect((array) ($data['use_of_funds'] ?? []))->take(8)->map(fn (array $row): array => [
+            Page::excerpt((string) ($row['label'] ?? ''), 60), (string) ($row['display_amount'] ?? Page::money($row['amount'] ?? null)),
         ])->values()->all();
         $fixed = collect((array) ($data['fixed_costs'] ?? []))->sortByDesc('monthly_amount')->values();
         $fixedRows = $fixed->take(10)->map(fn (array $row): array => [
@@ -84,10 +84,7 @@ final class FounderBriefFinancials
         $available = (bool) ($data['available'] ?? false);
         $currency = 'NZD; '.((bool) ($data['gst_exclusive'] ?? true) ? 'GST exclusive' : 'GST inclusive').'. Figures are from the saved Budget forecast.';
         $cashStory = array_map(fn (mixed $line): string => Page::excerpt((string) $line, 320), array_slice((array) ($data['cash_story'] ?? []), 0, 2));
-        $fundingNote = (float) ($decision['required_additional_funding'] ?? 0) > 0
-            && is_numeric($decision['lowest_cash'] ?? null) && (float) $decision['lowest_cash'] >= 0
-            ? 'Forecast cash stays above zero. The required funding amount is the shortfall against the planned costs, operating buffer and contingency target.'
-            : 'The required additional funding covers the larger of the forecast cash deficit and the shortfall against the planned funding target.';
+        $fundingNote = ReleaseGate\FundingPresentation::headline($decision);
 
         return [
             Page::page($outlookTitle, [
@@ -105,7 +102,7 @@ final class FounderBriefFinancials
                 $available ? Page::excerpt((string) ($decision['headline'] ?? 'Funding position not confirmed.'), 450) : 'No saved Budget is available.',
                 'Declared funding position: '.(string) ($decision['funding_position_label'] ?? 'Not confirmed').'.',
                 $fundingNote,
-                'The required additional funding is the Budget model result. An advisor release decision does not change this amount. Funding already available and the planned operating buffer are shown separately.',
+                'An advisor risk decision does not change the calculated cash deficit, the reserve policy or the separately proposed external request.',
             ], [Page::table('Funding requirement', ['Measure', 'Amount'], $fundingRows)]),
             Page::page('Regular running costs', [
                 'Saved rates and payment frequency are shown alongside their monthly equivalents. Staged payments show the average entered Year 1 rate. These are recurring costs; one-off payments are on the next page.',

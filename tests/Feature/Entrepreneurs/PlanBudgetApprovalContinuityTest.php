@@ -55,6 +55,21 @@ final class PlanBudgetApprovalContinuityTest extends TestCase
         $this->assertTrue(app(PlanBudgetFollowUp::class)->forAssessment($assessment)['review_completed']);
     }
 
+    public function test_corrected_cash_wording_preserves_an_identical_legacy_funding_decision_but_not_a_changed_amount(): void
+    {
+        [$plan, $original] = $this->approvedFundingDecision();
+        $saved = $original->refresh()->scoring_scope['plan_budget_review'];
+        $latest = $this->nextAssessment($original, app(BusinessPlanSnapshot::class)->capture($plan));
+        $scope = $latest->scoring_scope;
+        $scope['plan_budget_coherence']['findings'][0]['message'] = str_replace(' and planned operating buffer', '', $scope['plan_budget_coherence']['findings'][0]['message']);
+        $latest->forceFill(['scoring_scope' => $scope])->save();
+        $this->assertTrue(app(PlanBudgetFollowUp::class)->forAssessment($latest)['review_completed']);
+        $scope['plan_budget_coherence']['findings'][0]['message'] = str_replace('$233', '$234', $scope['plan_budget_coherence']['findings'][0]['message']);
+        $latest->forceFill(['scoring_scope' => $scope])->save();
+        $this->assertFalse(app(PlanBudgetFollowUp::class)->forAssessment($latest)['review_completed']);
+        $this->assertSame($saved, $original->refresh()->scoring_scope['plan_budget_review']);
+    }
+
     /** @return iterable<string,array{string,mixed}> */
     public static function financialChanges(): iterable
     {

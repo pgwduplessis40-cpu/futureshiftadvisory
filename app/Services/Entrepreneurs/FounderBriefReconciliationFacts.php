@@ -50,7 +50,7 @@ final class FounderBriefReconciliationFacts
                 'Opening cash: '.Page::money($computed['opening_cash_balance'] ?? null).'; saved funding: '.Page::money($computed['total_funding'] ?? null).'.',
                 'Declared funding position: '.(string) ($decision['funding_position_label'] ?? 'Not confirmed').'.',
                 'Lowest forecast cash: '.Page::money($decision['lowest_cash'] ?? null).'; cash-deficit cover: '.Page::money($decision['additional_funding_needed'] ?? null).'.',
-                'Planned funding target: '.Page::money($decision['recommended_funding_target'] ?? null).'; available funding and opening cash: '.Page::money($decision['available_funding'] ?? null).'; required additional funding: '.Page::money($decision['required_additional_funding'] ?? null).'.',
+                ReleaseGate\FundingPresentation::headline($decision),
             ],
             'forecast_period' => [...$forecast, ...$futureFacts],
             'commitments' => [...$commitments, ...$futureFacts, ...$costs],

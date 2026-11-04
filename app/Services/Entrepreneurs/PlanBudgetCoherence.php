@@ -42,7 +42,7 @@ final class PlanBudgetCoherence
      * @param  Snapshot  $snapshot
      * @return Reconciliation
      */
-    public function evaluate(array $snapshot): array
+    public function evaluate(array $snapshot, bool $releaseGateOwnsComparisons = false): array
     {
         $budgetSnapshot = data_get($snapshot, 'budget');
         $budgetEvidence = data_get($snapshot, 'budget.assessment_evidence');
@@ -80,10 +80,13 @@ final class PlanBudgetCoherence
                 'State the plan’s opening cash, runway, funding position, payment frequency and delivery capacity in the financial sections, then reassess.',
             );
         } elseif (is_array($budget)) {
-            $this->evaluatePlanCorrelation($planText, $budget, $planCorrelationFindings);
+            $this->evaluatePlanCorrelation($planText, $budget, $planCorrelationFindings, $releaseGateOwnsComparisons);
             /** @var GuideBudget $guideBudget */
             $guideBudget = $budget;
             foreach ((new PlanBudgetGuide)->build($financialSections, $guideBudget)['issues'] as $issue) {
+                if ($releaseGateOwnsComparisons && ReleaseGate\LegacyGateAdapter::ownsGuideIssue($issue['key'])) {
+                    continue;
+                }
                 $planCorrelationFindings[] = [...$this->finding('plan_correlation', 'review', $issue['detail'], $issue['action']), 'input_key' => match ($issue['focus']) {
                     'fixed-costs' => 'regular_costs', 'revenue-forecast' => 'sales_forecast', 'funding-sources' => 'funding_and_runway', default => 'plan_and_budget',
                 }];
@@ -223,7 +226,7 @@ final class PlanBudgetCoherence
      * @param  Budget  $budget
      * @param  list<Finding>  $findings
      */
-    private function evaluatePlanCorrelation(string $planText, array $budget, array &$findings): void
+    private function evaluatePlanCorrelation(string $planText, array $budget, array &$findings, bool $releaseGateOwnsComparisons = false): void
     {
         $computed = data_get($budget, 'computed');
         $computed = is_array($computed) ? $computed : [];
@@ -263,7 +266,7 @@ final class PlanBudgetCoherence
         }
 
         $budgetOpeningCash = data_get($assumptions, 'opening_cash_balance');
-        if ($planOpeningCash !== null && is_numeric($budgetOpeningCash) && ! $this->withinTolerance($planOpeningCash, (float) $budgetOpeningCash)) {
+        if (! $releaseGateOwnsComparisons && $planOpeningCash !== null && is_numeric($budgetOpeningCash) && ! $this->withinTolerance($planOpeningCash, (float) $budgetOpeningCash)) {
             $findings[] = $this->finding(
                 'plan_correlation',
                 'review',
@@ -275,7 +278,7 @@ final class PlanBudgetCoherence
         $revenueRows = data_get($budget, 'revenue_forecast');
         $revenueRows = is_array($revenueRows) ? $revenueRows : [];
         /** @var list<BudgetRow> $revenueRows */
-        if ($planCapacity !== null) {
+        if (! $releaseGateOwnsComparisons && $planCapacity !== null) {
             foreach ($revenueRows as $row) {
                 if (! is_numeric($row['monthly_capacity_units'] ?? null)) {
                     continue;
@@ -317,11 +320,13 @@ final class PlanBudgetCoherence
             }
         }
 
-        $this->addMissingPlannedCostFindings($planText, [
-            ...$fixedCosts,
-            ...($budget['launch_costs'] ?? []),
-            ...($budget['future_costs'] ?? []),
-        ], $findings);
+        if (! $releaseGateOwnsComparisons) {
+            $this->addMissingPlannedCostFindings($planText, [
+                ...$fixedCosts,
+                ...($budget['launch_costs'] ?? []),
+                ...($budget['future_costs'] ?? []),
+            ], $findings);
+        }
 
         $budgetMonthlyCosts = data_get($computed, 'monthly_fixed_costs');
         $planCostBasis = $planMonthlyCosts;
@@ -446,7 +451,7 @@ final class PlanBudgetCoherence
                 $findings,
                 'budget_support',
                 'review',
-                'The forecast requires '.$this->money((float) $requiredFunding).' of additional funding to cover the modelled cash trough and planned operating buffer.',
+                'The forecast requires '.$this->money((float) $requiredFunding).' of additional funding to cover the modelled cash trough.',
                 'Confirm the payment frequency, opening cash, forecast timing, revenue capacity and funding position before treating this as a funding requirement.',
             );
         }

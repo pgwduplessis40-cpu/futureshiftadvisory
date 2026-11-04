@@ -38,6 +38,8 @@ The guard has two layers:
 
 The guard verifies structure, not prose accuracy. Reviewers still need to compare registry wording with the owning service implementation.
 
+The entrepreneur release-gate method is owned by `EvaluateReleaseGate` under `entrepreneur.release_gate`. Its individual rule implementations, fact adapters, result types and persistence/rendering helpers are explicitly classified in the guard; they do not create independent methodology entries. Policy values come from the captured `RuleConfiguration` version and its code defaults, so they are listed as inputs rather than Laravel `config_refs`. The registry description is internal-only and does not grant document certification.
+
 ## Verification
 
 Run the focused guard set after changing the registry:

@@ -122,6 +122,7 @@ final class AdvisorEntrepreneurPlanPayload
                 'document_url' => route('advisor.entrepreneurs.plans.funder-ready.pdf', [$profile, $plan], absolute: false),
             ],
             'lender_brief' => [
+                'release_gate_url' => route('advisor.entrepreneurs.plans.release-gate.show', [$profile, $plan], absolute: false),
                 ...$this->funderReadyBriefs->status($plan, $profile),
                 'retry_url' => route('advisor.entrepreneurs.plans.brief-summary.retry', [$profile, $plan], absolute: false),
                 'approve_url' => route('advisor.entrepreneurs.plans.brief-release.approve', [$profile, $plan], absolute: false),

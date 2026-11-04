@@ -25,6 +25,9 @@ final class BudgetFundingReadiness
                 'lowest_cash' => null,
                 'additional_funding_needed' => 0.0,
                 'required_additional_funding' => 0.0,
+                'cash_deficit' => null,
+                'reserve_target_shortfall' => null,
+                'external_funding_request' => null,
                 'available_funding' => 0.0,
                 'launch_costs' => 0.0,
                 'monthly_fixed_costs' => 0.0,
@@ -58,7 +61,8 @@ final class BudgetFundingReadiness
         $contingency = round(($launchCosts + $operatingCover) * 0.10, 2);
         $recommendedFundingTarget = round($launchCosts + $operatingCover + $contingency, 2);
         $fundingGapOrSurplus = round($availableFunding - $recommendedFundingTarget, 2);
-        $requiredAdditionalFunding = round(max($additionalFunding, max(0.0, -$fundingGapOrSurplus)), 2);
+        $requiredAdditionalFunding = $additionalFunding;
+        $reserveShortfall = max(0.0, -$fundingGapOrSurplus);
         $assumptions = (array) data_get($computed, 'assumptions', []);
         $fundingPosition = (string) ($assumptions['funding_position'] ?? 'undecided');
         $fundingPositionConfirmed = (bool) ($assumptions['funding_position_confirmed'] ?? false);
@@ -95,7 +99,10 @@ final class BudgetFundingReadiness
         $notReady = $budgetStatus !== EntrepreneurBudget::STATUS_COMPLETE
             || ! $fundingPositionAligned
             || data_get($computed, 'cash_flow_positive_year') === null;
-        $needsReview = ! $notReady && ($warnings !== [] || data_get($computed, 'break_even_year') === null);
+        if ($reserveShortfall > 0) {
+            $riskReasons[] = 'Review the reserve-target shortfall separately from the forecast cash deficit. A reserve gap does not establish a borrowing requirement.';
+        }
+        $needsReview = ! $notReady && ($reserveShortfall > 0 || $warnings !== [] || data_get($computed, 'break_even_year') === null);
         $readinessLabel = $notReady
             ? 'Not ready for external issue'
             : ($needsReview ? 'Needs advisor review' : 'Ready for external issue');
@@ -111,6 +118,9 @@ final class BudgetFundingReadiness
             'lowest_cash' => $trough['value'],
             'additional_funding_needed' => $additionalFunding,
             'required_additional_funding' => $requiredAdditionalFunding,
+            'cash_deficit' => $trough['value'] === null ? null : $additionalFunding,
+            'reserve_target_shortfall' => $reserveShortfall,
+            'external_funding_request' => is_numeric($assumptions['external_funding_request_amount'] ?? null) ? (float) $assumptions['external_funding_request_amount'] : null,
             'available_funding' => $availableFunding,
             'launch_costs' => $launchCosts,
             'monthly_fixed_costs' => $monthlyFixedCosts,
@@ -261,11 +271,11 @@ final class BudgetFundingReadiness
         }
 
         if ($requiredAdditionalFunding > 0 && $fundingPosition === 'external_funding') {
-            return 'The forecast supports an external funding request of $'.number_format($requiredAdditionalFunding, 2).' once its stated purpose and source inputs are verified.';
+            return 'The forecast cash deficit is $'.number_format($requiredAdditionalFunding, 2).'. Confirm the separately proposed funding request, sources and timing.';
         }
 
         if ($readinessLabel === 'Not ready for external issue') {
-            return 'Complete the funding case and reach a positive cumulative cash position before presenting this budget externally.';
+            return 'Confirm the funding position and resolve the outstanding model checks before presenting this budget externally.';
         }
 
         if ($readinessLabel === 'Needs advisor review') {

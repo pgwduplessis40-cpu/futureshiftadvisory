@@ -86,8 +86,8 @@ final class ExternalIssueReviewTest extends TestCase
 
         $this->assertStringContainsString('Fixed-cost trace does not reconcile', $blocking);
         $this->assertStringContainsString('owner compensation row', $blocking);
-        $this->assertStringContainsString('written annual revenue target', $blocking);
-        $this->assertStringContainsString('monthly capacity and pricing evidence', $blocking);
+        $this->assertStringNotContainsString('written annual revenue target', $blocking);
+        $this->assertStringNotContainsString('monthly capacity and pricing evidence', $blocking);
         $this->assertStringContainsString('Reconcile historical rates with current pricing', $blocking);
         $this->assertStringContainsString('Repeated narrative phrasing', $warnings);
     }
@@ -111,7 +111,7 @@ final class ExternalIssueReviewTest extends TestCase
         $this->assertStringContainsString('Cite the source or attach evidence', implode("\n", $review['blocking_reasons']));
     }
 
-    public function test_blocks_a_saved_self_funded_position_when_the_budget_requires_external_capital(): void
+    public function test_a_reserve_only_gap_does_not_conflict_with_a_self_funded_position(): void
     {
         $plan = new BusinessPlan;
         $plan->setRelation('sections', new EloquentCollection([
@@ -142,9 +142,10 @@ final class ExternalIssueReviewTest extends TestCase
 
         $review = (new ExternalIssueReview)->evaluate($plan);
 
-        $this->assertStringContainsString(
+        $this->assertStringNotContainsString(
             'saved self-funded position conflicts with the required additional funding',
             implode("\n", $review['blocking_reasons']),
         );
+        $this->assertStringContainsString('reserve-target shortfall', implode(' ', $review['warnings']));
     }
 }

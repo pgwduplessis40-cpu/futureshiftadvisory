@@ -13,6 +13,7 @@ use App\Models\EntrepreneurProfile;
 use App\Models\LearningUpdate;
 use App\Models\Message;
 use App\Models\PlanAssessment;
+use App\Models\PlanGateRun;
 use App\Models\PlanRevision;
 use App\Models\PlanSection;
 use App\Models\User;
@@ -32,6 +33,7 @@ use App\Services\Entrepreneurs\ExecutiveSummaryRecovery;
 use App\Services\Entrepreneurs\FounderBriefReconciliationTopics;
 use App\Services\Entrepreneurs\FounderBriefRelease;
 use App\Services\Entrepreneurs\IdeaValidationService;
+use App\Services\Entrepreneurs\PlanBudgetCoherence;
 use App\Services\Entrepreneurs\PlanBudgetFollowUp;
 use App\Services\Entrepreneurs\PlanBuilder;
 use App\Services\Entrepreneurs\PlanRequirements;
@@ -737,10 +739,14 @@ final class AssessmentTest extends TestCase
             'The plan states 12 months of runway, but the budget forecasts 0 months.',
             array_column((array) data_get($coherence, 'findings'), 'message'),
         );
-        $this->assertContains(
+        $this->assertNotContains(
             'The plan states opening cash of $7,830, but the budget starts with $0.',
             array_column((array) data_get($coherence, 'findings'), 'message'),
         );
+        $run = PlanGateRun::query()->findOrFail(data_get($second->scoring_scope, 'release_gate.run_id'));
+        $cashRule = collect($run->result_payload['results'])->first(fn (array $row): bool => $row['rule']['id'] === 'PM-03');
+        $this->assertSame('cannot_verify', $cashRule['result']);
+        $this->assertNotEmpty(collect($cashRule['subchecks'])->firstWhere('id', 'basis:0')['missing_inputs']);
         $this->assertContains(
             'The plan describes "Insurance" as an annual cost, but the budget treats it as monthly.',
             array_column((array) data_get($coherence, 'findings'), 'message'),
@@ -757,16 +763,22 @@ final class AssessmentTest extends TestCase
             'Fixed-cost trace mismatch: itemised monthly fixed costs total $1,200, but the model base is $51,573. The advisor should recalculate the saved Budget and investigate any remaining difference. This does not establish that a client cost is missing.',
             array_column((array) data_get($coherence, 'findings'), 'message'),
         );
-        $this->assertContains(
+        $this->assertNotContains(
             'The plan refers to professional indemnity insurance, but the budget does not name a matching cost row.',
             array_column((array) data_get($coherence, 'findings'), 'message'),
         );
-        $this->assertContains(
+        $this->assertNotContains(
             'The plan refers to trademark registration and protection, but the budget does not name a matching cost row.',
             array_column((array) data_get($coherence, 'findings'), 'message'),
         );
 
+        $commitmentRule = collect($run->result_payload['results'])->first(fn (array $row): bool => $row['rule']['id'] === 'PM-09');
+        $this->assertSame('cannot_verify', $commitmentRule['result']);
+        $this->assertNotEmpty(collect($commitmentRule['subchecks'])->firstWhere('id', 'commitments')['missing_inputs']);
+
+        // Historical assessment records still need their original feedback and action links.
         $scope = (array) $second->scoring_scope;
+        $scope['plan_budget_coherence'] = app(PlanBudgetCoherence::class)->evaluate((array) $second->plan_snapshot);
         $findings = (array) data_get($scope, 'plan_budget_coherence.findings');
         $findings[] = $findings[0];
         $findings[] = [
@@ -853,7 +865,7 @@ final class AssessmentTest extends TestCase
         $this->assertStringNotContainsString('trademark', implode(' ', array_column(
             data_get($third->scoring_scope, 'plan_budget_coherence.findings'), 'message',
         )));
-        $this->assertStringContainsString('professional indemnity', implode(' ', array_column(
+        $this->assertStringNotContainsString('professional indemnity', implode(' ', array_column(
             data_get($third->scoring_scope, 'plan_budget_coherence.findings'), 'message',
         )));
         $this->assertStringContainsString('trademark', implode(' ', array_column(
@@ -1789,7 +1801,7 @@ final class AssessmentTest extends TestCase
         Queue::assertPushed(GenerateEligibleExecutiveSummary::class, 1);
     }
 
-    public function test_advisor_can_retry_summary_then_approve_and_download_the_brief_with_a_recorded_explanation(): void
+    public function test_summary_retry_and_draft_access_continue_but_legacy_approval_cannot_release_the_brief(): void
     {
         Queue::fake();
         [$advisor, $plan, $assessment] = $this->assessmentNeedingBudgetReview();
@@ -1806,12 +1818,19 @@ final class AssessmentTest extends TestCase
         $approveUrl = route('advisor.entrepreneurs.plans.brief-release.approve', [$profile, $plan]);
         $documentUrl = route('advisor.entrepreneurs.plans.funder-ready-brief.pdf', [$profile, $plan]);
         $previewUrl = route('advisor.entrepreneurs.plans.founder-brief.preview', [$profile, $plan]);
+        $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
+        {
+            public function render(string $html): string
+            {
+                return '%PDF-1.4 '.strip_tags($html);
+            }
+        });
         $recovery->mark($assessment->id, 'complete');
         $status = app(FounderBriefRelease::class)->evaluate($plan->refresh(), $profile);
         $this->assertTrue($status['summary_recovery']['can_retry']);
         $this->assertSame('idle', $status['summary_recovery']['state']);
-        $this->assertFalse($status['can_generate']);
-        $this->get($previewUrl)->assertStatus(409);
+        $this->assertTrue($status['can_generate']);
+        $this->get($previewUrl)->assertOk();
         $this->assertStringNotContainsString('approved summary is current', $status['summary_recovery']['message']);
         $this->post($approveUrl, ['note' => 'Not allowed without a current summary.', 'approval_token' => $status['approval_token'], 'acknowledged' => true])
             ->assertSessionHasErrors('brief_release');
@@ -1823,23 +1842,23 @@ final class AssessmentTest extends TestCase
         (new GenerateEligibleExecutiveSummary($assessment->id))->handle(app(RequestContext::class), app(ExecutiveSummaryEligibility::class), app(BusinessPlanExecutiveSummary::class));
         $this->assertSame('complete', $recovery->state($assessment->id));
         $status = app(FounderBriefRelease::class)->evaluate($plan->refresh(), $profile);
-        $this->assertSame([], $status['plan_guidance']['issues']);
+        $this->assertNotEmpty($status['plan_guidance']['issues']);
         $this->assertArrayNotHasKey('reconciliation', $status);
         $this->assertTrue($status['can_generate']);
-        $this->assertTrue($status['review']['can_approve']);
+        $this->assertFalse($status['review']['can_approve']);
         $this->assertFalse($status['active']);
         $this->get($documentUrl)->assertStatus(409);
         $note = 'I checked the supporting records and the operating forecast. The disclosed funding exposure is acceptable for this brief.';
         $data = ['note' => $note, 'approval_token' => $status['approval_token'], 'acknowledged' => true];
         $this->post($approveUrl, [...$data, 'note' => '   '])->assertSessionHasErrors('note');
         $this->post($approveUrl, [...$data, 'acknowledged' => false])->assertSessionHasErrors('acknowledged');
-        $this->post($approveUrl, $data)->assertSessionHasNoErrors()->assertSessionHas('status', 'entrepreneur-brief-release-approved');
+        $this->post($approveUrl, $data)->assertSessionHasErrors('brief_release');
         $this->get(route('advisor.entrepreneurs.show', $profile))->assertInertia(fn (Assert $page) => $page
-            ->where('entrepreneur.latest_plan.lender_brief.active', true)
-            ->where('entrepreneur.latest_plan.lender_brief.review.note', $note)
+            ->where('entrepreneur.latest_plan.lender_brief.active', false)
+            ->where('entrepreneur.latest_plan.lender_brief.review.note', null)
             ->where('entrepreneur.latest_plan.latest_assessment.plan_budget_coherence.status_label', 'Assessment finalised'));
-        $this->assertDatabaseHas('audit_events', ['action' => 'entrepreneur.brief_release_approved', 'subject_id' => $assessment->id]);
-        $this->assertSame($advisor->id, data_get($assessment->refresh()->scoring_scope, 'brief_release_review.approved_by_user_id'));
+        $this->assertDatabaseMissing('audit_events', ['action' => 'entrepreneur.brief_release_approved', 'subject_id' => $assessment->id]);
+        $this->assertNull(data_get($assessment->refresh()->scoring_scope, 'brief_release_review.approved_by_user_id'));
         $this->assertSame($review, data_get($assessment->scoring_scope, 'plan_budget_review'));
         $this->assertSame(1, $plan->assessments()->count());
         $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
@@ -1849,17 +1868,18 @@ final class AssessmentTest extends TestCase
                 return '%PDF-1.4 '.strip_tags($html);
             }
         });
-        $this->get($documentUrl)->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->get($documentUrl)->assertStatus(409);
         $this->get($previewUrl)->assertOk()->assertHeader('Content-Type', 'application/pdf');
-        $download = $this->get($documentUrl.'?download=1')->assertOk();
+        $this->get($documentUrl.'?download=1')->assertStatus(409);
+        $download = $this->get($previewUrl.'?download=1')->assertOk();
         $this->assertStringStartsWith('attachment;', (string) $download->headers->get('Content-Disposition'));
-        $this->assertStringNotContainsString('ADVISOR DRAFT', $download->getContent());
+        $this->assertStringContainsString('ADVISOR DRAFT', $download->getContent());
 
         $nextRound = $assessment->replicate()->forceFill(['round' => $assessment->round + 1, 'finalised_at' => null]);
         $nextRound->save();
         $this->get($documentUrl)->assertStatus(409);
-        $this->get($previewUrl.'?download=1')->assertStatus(409);
-        $this->assertFalse(app(FounderBriefRelease::class)->evaluate($plan->refresh(), $profile)['can_generate']);
+        $this->get($previewUrl.'?download=1')->assertOk();
+        $this->assertTrue(app(FounderBriefRelease::class)->evaluate($plan->refresh(), $profile)['can_generate']);
         $nextRound->delete();
 
         $summary = $plan->sections()->where('key', BusinessPlanExecutiveSummary::SECTION_KEY)->firstOrFail();
@@ -1893,11 +1913,10 @@ final class AssessmentTest extends TestCase
         (new GenerateEligibleExecutiveSummary($assessment->id))->handle(app(RequestContext::class), app(ExecutiveSummaryEligibility::class), app(BusinessPlanExecutiveSummary::class));
         $release = app(FounderBriefRelease::class);
         $before = $release->evaluate($plan->refresh(), $profile);
-        $this->assertTrue($before['review']['can_approve']);
+        $this->assertFalse($before['review']['can_approve']);
         $plan->budgetRunway()->firstOrFail()->forceFill(['launch_costs' => [['label' => 'Trademark', 'amount' => 300]]])->save();
-        $this->get($previewUrl)->assertStatus(409);
-        $this->get($previewUrl.'?download=1')->assertStatus(409);
-        $this->assertFalse($release->evaluate($plan->refresh(), $profile)['can_generate']);
+        $this->assertTrue($release->evaluate($plan->refresh(), $profile)['can_generate']);
+        $this->get(route('advisor.entrepreneurs.plans.funder-ready-brief.pdf', [$profile, $plan]))->assertStatus(409);
         $this->post($approveUrl, ['note' => 'Approval cannot cover inputs changed after the assessment.', 'approval_token' => $before['approval_token'], 'acknowledged' => true])->assertSessionHasErrors('brief_release');
         $this->post($retryUrl)->assertSessionHasErrors('executive_summary');
         $this->post($reconcileUrl, ['source_token' => str_repeat('0', 64), 'as_of' => now()->toDateString(), 'decisions' => array_fill_keys(array_keys(FounderBriefReconciliationTopics::all()), ['state' => 'unresolved', 'note' => ''])])->assertSessionHasErrors('reconciliation');

@@ -78,7 +78,7 @@ type FundingDecision = {
 
 type UseOfFundsRow = {
     label: string;
-    amount: number;
+    amount: number | null;
     display_amount?: string;
     note: string;
 };
@@ -598,7 +598,7 @@ function FundingDecisionPanel({ decision }: { decision: FundingDecision }) {
                     )}
                 />
                 <DecisionMetric
-                    label="Required additional funding"
+                    label="Forecast cash deficit"
                     value={formatCurrency(decision.required_additional_funding)}
                 />
                 <DecisionMetric

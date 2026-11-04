@@ -82,9 +82,8 @@ final class ExternalIssueReview
             $blocking[] = 'Cite the source or attach evidence for the industry and customer-demand claims before external issue.';
         }
 
-        foreach ($this->scaleMismatchReasons($content, $monthTwelveRevenue) as $reason) {
-            $blocking[] = $reason;
-        }
+        // Stream-specific capacity is checked by PM-04; aggregate revenue is
+        // not evidence that a particular offer exceeds its delivery capacity.
 
         if ($this->hasUnreconciledPricingEvidence($content)) {
             $blocking[] = 'Reconcile historical rates with current pricing before relying on the revenue assumptions externally.';
@@ -97,7 +96,10 @@ final class ExternalIssueReview
         $fundingDecision = $budget instanceof EntrepreneurBudget
             ? (new BudgetFundingReadiness)->evaluate($budget)
             : null;
-        $requiredAdditionalFunding = (float) ($fundingDecision['required_additional_funding'] ?? 0);
+        $requiredAdditionalFunding = (float) ($fundingDecision['cash_deficit'] ?? 0);
+        if (($fundingDecision['reserve_target_shortfall'] ?? 0) > 0) {
+            $warnings[] = 'Review the reserve-target shortfall separately from any cash deficit or external funding request (PM-12).';
+        }
         $declaredFundingPosition = (string) data_get($computed, 'assumptions.funding_position', 'undecided');
 
         if (($requiredAdditionalFunding > 0 || (is_numeric($cashTrough) && $cashTrough < 0)) && $signalsNoCapitalNeed) {
@@ -214,60 +216,6 @@ final class ExternalIssueReview
         };
     }
 
-    /**
-     * @return array<int, string>
-     */
-    private function scaleMismatchReasons(string $content, float $monthTwelveRevenue): array
-    {
-        if ($monthTwelveRevenue <= 0) {
-            return [];
-        }
-
-        $reasons = [];
-        $annualTarget = $this->writtenAnnualRevenueTarget($content);
-        if ($annualTarget !== null && $monthTwelveRevenue > $annualTarget) {
-            $reasons[] = 'Budget Year 1 December revenue exceeds the written annual revenue target. Align plan targets and forecast scale before external issue.';
-        }
-
-        $capacityRevenue = $this->writtenMonthlyCapacityRevenue($content);
-        if ($capacityRevenue !== null && $capacityRevenue > 0 && $monthTwelveRevenue > ($capacityRevenue * 5)) {
-            $reasons[] = 'Budget Year 1 December revenue materially exceeds the written monthly capacity and pricing evidence. Align capacity, pricing, and forecast scale before external issue.';
-        }
-
-        return $reasons;
-    }
-
-    private function writtenAnnualRevenueTarget(string $content): ?float
-    {
-        $matches = [];
-        preg_match_all('/(?:revenue|sales|turnover|target)[^.\n$]{0,80}\$?\s*([0-9][0-9,.]*)\s*(k|m)?\s*(?:-|to|and)\s*\$?\s*([0-9][0-9,.]*)\s*(k|m)?[^.\n]{0,80}(?:revenue|sales|turnover|target)?/i', $content, $matches, PREG_SET_ORDER);
-
-        $values = collect($matches)
-            ->map(fn (array $match): float => max(
-                $this->moneyNumber((string) $match[1], (string) ($match[2] ?? '')),
-                $this->moneyNumber((string) $match[3], (string) ($match[4] ?? '')),
-            ))
-            ->filter(fn (float $value): bool => $value > 0)
-            ->values();
-
-        return $values->isEmpty() ? null : (float) $values->max();
-    }
-
-    private function writtenMonthlyCapacityRevenue(string $content): ?float
-    {
-        $capacityMatched = preg_match('/([0-9]+)\s*(?:-|to)\s*([0-9]+)\s+(?:[A-Za-z]+\s+){0,3}(?:intensives|workshops|sessions|projects|clients)\s*(?:\/|per\s+)?month/i', $content, $capacity);
-        $priceMatched = preg_match('/\$\s*([0-9][0-9,.]*)\s*(k|m)?\s*(?:\+?\s*GST)?\s*(?:\/|per\s+)(?:day|session|intensive|workshop|project)/i', $content, $price);
-
-        if ($capacityMatched !== 1 || $priceMatched !== 1) {
-            return null;
-        }
-
-        $maxCapacity = max((float) $capacity[1], (float) $capacity[2]);
-        $unitPrice = $this->moneyNumber((string) $price[1], (string) ($price[2] ?? ''));
-
-        return $maxCapacity > 0 && $unitPrice > 0 ? round($maxCapacity * $unitPrice, 2) : null;
-    }
-
     private function hasUnreconciledPricingEvidence(string $content): bool
     {
         $hasHistoricalRange = preg_match('/(?:historical|historic|previous|past|earlier)[^.\n$]{0,80}\$?\s*[0-9][0-9,.]*\s*(?:-|to)\s*\$?\s*[0-9][0-9,.]*(?:\s*\+?\s*GST)?(?:\s*\/?\s*(?:day|session|intensive|workshop))?/i', $content) === 1;
@@ -283,17 +231,5 @@ final class ExternalIssueReview
             strtolower($content),
             'strategic thinking, creative problem-solving and practical implementation',
         ) >= 2;
-    }
-
-    private function moneyNumber(string $value, string $suffix = ''): float
-    {
-        $number = (float) str_replace(',', '', $value);
-        $suffix = strtolower($suffix);
-
-        return match ($suffix) {
-            'm' => $number * 1_000_000,
-            'k' => $number * 1_000,
-            default => $number,
-        };
     }
 }

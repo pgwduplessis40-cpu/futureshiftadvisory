@@ -9,6 +9,17 @@ declare(strict_types=1);
  * hidden by an unrelated, well-covered neighbour.
  */
 return [
+    'release_gate' => [
+        'paths' => [
+            'app/Services/Entrepreneurs/ReleaseGate/SourceCapture.php',
+            'app/Services/Entrepreneurs/ReleaseGate/GateRunRecorder.php',
+            'app/Services/Entrepreneurs/ReleaseGate/RiskDecisionStore.php',
+            'app/Services/Entrepreneurs/ReleaseGate/RulePolicyStore.php',
+            'app/Services/Entrepreneurs/ReleaseGate/ClaimVersionStore.php',
+            'app/Http/Controllers/Advisor/EntrepreneurReleaseGateController.php',
+        ],
+        'prefixes' => ['app/Services/Entrepreneurs/ReleaseGate/'],
+    ],
     'payments' => [
         'paths' => [
             'app/Models/AccountingInvoice.php',

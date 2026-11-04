@@ -1,0 +1,1406 @@
+{
+  "fixture_version": "F1-anonymised-1",
+  "kind": "observed_pdf_baseline",
+  "as_of": "2026-11-04",
+  "document": "plan",
+  "audience": "external",
+  "rendered_text_complete": true,
+  "required_horizon": 24,
+  "facts": [
+    {
+      "key": "plan.profitability",
+      "value": 2,
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "plan",
+          "location": "page:43",
+          "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+        }
+      ],
+      "unit": "year",
+      "basis": "annual_profit"
+    },
+    {
+      "key": "model.profitability",
+      "value": 1,
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "budget",
+          "location": "page:3",
+          "version": "1e3610e1046ddba6e929d7327be388ef8c41d99709961dfae680108c977bc789"
+        }
+      ],
+      "unit": "year",
+      "basis": "annual_profit"
+    },
+    {
+      "key": "plan.owner_pay",
+      "value": "550",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "plan",
+          "location": "page:45",
+          "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+        }
+      ],
+      "unit": "NZD/week"
+    },
+    {
+      "key": "plan.owner_pay",
+      "value": "3698",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "plan",
+          "location": "page:45",
+          "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+        }
+      ],
+      "unit": "NZD/month"
+    },
+    {
+      "key": "model.owner_pay",
+      "value": "875",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:8",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "unit": "NZD/week"
+    },
+    {
+      "key": "plan.opening_cash",
+      "value": "7300",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "plan",
+          "location": "page:45",
+          "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+        }
+      ],
+      "unit": "NZD"
+    },
+    {
+      "key": "model.opening_cash",
+      "value": "7531",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "unit": "NZD"
+    },
+    {
+      "key": "model.available_funds",
+      "value": "14183",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:7",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "unit": "NZD"
+    },
+    {
+      "key": "model.funding_total",
+      "value": "6652",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:7",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "unit": "NZD",
+      "basis": "available funds less opening cash; derived arithmetic only"
+    },
+    {
+      "key": "plan.margin_min",
+      "value": "20",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "plan",
+          "location": "page:40",
+          "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+        }
+      ],
+      "unit": "percent",
+      "period": "mature_business"
+    },
+    {
+      "key": "plan.margin_max",
+      "value": "30",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "plan",
+          "location": "page:40",
+          "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+        }
+      ],
+      "unit": "percent",
+      "period": "mature_business"
+    },
+    {
+      "key": "model.npbt_margin",
+      "value": "57.1",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "budget",
+          "location": "page:10",
+          "version": "1e3610e1046ddba6e929d7327be388ef8c41d99709961dfae680108c977bc789"
+        }
+      ],
+      "unit": "percent",
+      "period": "year:1"
+    },
+    {
+      "key": "plan.commitment",
+      "value": "1750",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "plan",
+          "location": "page:21",
+          "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+        }
+      ],
+      "entity": "content-work",
+      "unit": "NZD",
+      "period": "year:1"
+    },
+    {
+      "key": "plan.commitment_in_scope",
+      "value": true,
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "plan",
+          "location": "page:21",
+          "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+        }
+      ],
+      "entity": "content-work",
+      "period": "year:1"
+    },
+    {
+      "key": "budget.cost_mapping",
+      "value": false,
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "budget",
+          "location": "page:7",
+          "version": "1e3610e1046ddba6e929d7327be388ef8c41d99709961dfae680108c977bc789"
+        }
+      ],
+      "entity": "content-work",
+      "period": "year:1",
+      "basis": "displayed schedules only"
+    },
+    {
+      "key": "plan.commitment",
+      "value": null,
+      "sources": [
+        {
+          "kind": "synthetic",
+          "id": "unpriced-commitment",
+          "location": "fixture-extension",
+          "version": "1"
+        }
+      ],
+      "entity": "event",
+      "unit": "NZD",
+      "period": "unknown"
+    },
+    {
+      "key": "plan.funding_position",
+      "value": "self_funded",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "plan",
+          "location": "page:45",
+          "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+        }
+      ]
+    },
+    {
+      "key": "model.cash_deficit",
+      "value": "0",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "unit": "NZD"
+    },
+    {
+      "key": "model.reserve_gap",
+      "value": "232.73",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:7",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "unit": "NZD"
+    },
+    {
+      "key": "model.horizon",
+      "value": 12,
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:5",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "unit": "months"
+    },
+    {
+      "key": "scope.required_horizon",
+      "value": 24,
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "plan",
+          "location": "page:43",
+          "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+        }
+      ],
+      "unit": "months"
+    },
+    {
+      "key": "model.fixed_cost_display",
+      "value": "4335",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "budget",
+          "location": "page:5",
+          "version": "1e3610e1046ddba6e929d7327be388ef8c41d99709961dfae680108c977bc789"
+        }
+      ],
+      "unit": "NZD/month"
+    },
+    {
+      "key": "cost.trace_display",
+      "value": "4335",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "budget",
+          "location": "page:5",
+          "version": "1e3610e1046ddba6e929d7327be388ef8c41d99709961dfae680108c977bc789"
+        }
+      ],
+      "unit": "NZD/month"
+    },
+    {
+      "key": "tax.profit_display",
+      "value": "92734.44",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:5",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "unit": "NZD",
+      "period": "year:1"
+    },
+    {
+      "key": "tax.expense_display",
+      "value": "25965.66",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:5",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "unit": "NZD",
+      "period": "year:1"
+    },
+    {
+      "key": "tax.rate_display",
+      "value": "28",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "budget",
+          "location": "page:9",
+          "version": "1e3610e1046ddba6e929d7327be388ef8c41d99709961dfae680108c977bc789"
+        }
+      ],
+      "unit": "percent",
+      "period": "year:1"
+    },
+    {
+      "key": "cost.amount",
+      "value": "18000",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:9",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "unit": "NZD",
+      "entity": "vehicle",
+      "period": "year:3"
+    },
+    {
+      "key": "cost.classification",
+      "value": "operating",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:9",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "entity": "vehicle",
+      "period": "year:3"
+    },
+    {
+      "key": "cost.asset_like",
+      "value": true,
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:9",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "entity": "vehicle",
+      "period": "year:3"
+    },
+    {
+      "key": "scenario.lowest_cash",
+      "value": "8009.75",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "unit": "NZD"
+    },
+    {
+      "key": "scenario.lowest_cash",
+      "value": "8620.15",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:10",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "unit": "NZD",
+      "scenario": "revenue_downside"
+    },
+    {
+      "key": "scenario.tax_bridge",
+      "value": "610.40",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "budget",
+          "location": "page:10",
+          "version": "1e3610e1046ddba6e929d7327be388ef8c41d99709961dfae680108c977bc789"
+        }
+      ],
+      "unit": "NZD",
+      "scenario": "revenue_downside",
+      "basis": "illustrative explanation, not a verified scenario ledger"
+    },
+    {
+      "key": "cash.opening",
+      "value": "7531.00",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:1",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.movement",
+      "value": "478.75",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:1",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.closing",
+      "value": "8009.75",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:1",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.receipts",
+      "value": "0.00",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:1",
+      "unit": "NZD"
+    },
+    {
+      "key": "model.revenue",
+      "value": "12250.00",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:1",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.opening",
+      "value": "8009.75",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:2",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.movement",
+      "value": "4671.17",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:2",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.closing",
+      "value": "12680.92",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:2",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.receipts",
+      "value": "12250.00",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:2",
+      "unit": "NZD"
+    },
+    {
+      "key": "model.revenue",
+      "value": "12470.54",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:2",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.opening",
+      "value": "12680.92",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:3",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.movement",
+      "value": "4813.04",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:3",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.closing",
+      "value": "17493.96",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:3",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.receipts",
+      "value": "12470.54",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:3",
+      "unit": "NZD"
+    },
+    {
+      "key": "model.revenue",
+      "value": "12695.22",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:3",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.opening",
+      "value": "17493.96",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:4",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.movement",
+      "value": "4857.57",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:4",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.closing",
+      "value": "22351.53",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:4",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.receipts",
+      "value": "12695.22",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:4",
+      "unit": "NZD"
+    },
+    {
+      "key": "model.revenue",
+      "value": "12924.11",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:4",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.opening",
+      "value": "22351.53",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:5",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.movement",
+      "value": "5104.81",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:5",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.closing",
+      "value": "27456.34",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:5",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.receipts",
+      "value": "12924.11",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:5",
+      "unit": "NZD"
+    },
+    {
+      "key": "model.revenue",
+      "value": "13157.30",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:5",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.opening",
+      "value": "27456.34",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:6",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.movement",
+      "value": "5254.81",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:6",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.closing",
+      "value": "32711.15",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:6",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.receipts",
+      "value": "13157.30",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:6",
+      "unit": "NZD"
+    },
+    {
+      "key": "model.revenue",
+      "value": "13394.87",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:6",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.opening",
+      "value": "32711.15",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:7",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.movement",
+      "value": "5407.63",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:7",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.closing",
+      "value": "38118.78",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:7",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.receipts",
+      "value": "13394.87",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:7",
+      "unit": "NZD"
+    },
+    {
+      "key": "model.revenue",
+      "value": "13636.90",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:7",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.opening",
+      "value": "38118.78",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:8",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.movement",
+      "value": "5563.33",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:8",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.closing",
+      "value": "43682.11",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:8",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.receipts",
+      "value": "13636.90",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:8",
+      "unit": "NZD"
+    },
+    {
+      "key": "model.revenue",
+      "value": "13883.47",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:8",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.opening",
+      "value": "43682.11",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:9",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.movement",
+      "value": "5721.93",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:9",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.closing",
+      "value": "49404.04",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:9",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.receipts",
+      "value": "13883.47",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:9",
+      "unit": "NZD"
+    },
+    {
+      "key": "model.revenue",
+      "value": "14134.67",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:9",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.opening",
+      "value": "49404.04",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:10",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.movement",
+      "value": "5883.52",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:10",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.closing",
+      "value": "55287.56",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:10",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.receipts",
+      "value": "14134.67",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:10",
+      "unit": "NZD"
+    },
+    {
+      "key": "model.revenue",
+      "value": "14390.58",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:10",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.opening",
+      "value": "55287.56",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:11",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.movement",
+      "value": "6048.14",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:11",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.closing",
+      "value": "61335.70",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:11",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.receipts",
+      "value": "14390.58",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:11",
+      "unit": "NZD"
+    },
+    {
+      "key": "model.revenue",
+      "value": "14651.30",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:11",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.opening",
+      "value": "61335.70",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:12",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.movement",
+      "value": "6215.86",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:12",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.closing",
+      "value": "67551.56",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:12",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.receipts",
+      "value": "14651.30",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:12",
+      "unit": "NZD"
+    },
+    {
+      "key": "model.revenue",
+      "value": "14916.91",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:6",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "month:12",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.annual_movement",
+      "value": "60020.56",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:5",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "year:1",
+      "unit": "NZD"
+    },
+    {
+      "key": "cash.annual_closing",
+      "value": "67551.56",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "brief",
+          "location": "page:5",
+          "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+        }
+      ],
+      "period": "year:1",
+      "unit": "NZD"
+    }
+  ],
+  "blocks": [
+    {
+      "id": "prompt",
+      "text": "Record the source for pricing before external issue.",
+      "source": {
+        "kind": "synthetic_excerpt",
+        "id": "budget",
+        "location": "page:7",
+        "version": "1e3610e1046ddba6e929d7327be388ef8c41d99709961dfae680108c977bc789"
+      },
+      "internal_instruction": true
+    },
+    {
+      "id": "update",
+      "text": "UPDATED: current assumptions remain alongside the previous version.",
+      "source": {
+        "kind": "synthetic_excerpt",
+        "id": "plan",
+        "location": "page:43",
+        "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+      }
+    },
+    {
+      "id": "heading-1",
+      "text": "Client Preparation & Onboarding",
+      "source": {
+        "kind": "synthetic_excerpt",
+        "id": "plan",
+        "location": "page:36",
+        "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+      },
+      "heading": true
+    },
+    {
+      "id": "heading-2",
+      "text": "Client Preparation & Onboarding",
+      "source": {
+        "kind": "synthetic_excerpt",
+        "id": "plan",
+        "location": "page:37",
+        "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+      },
+      "heading": true
+    },
+    {
+      "id": "markdown",
+      "text": "**Collaboration **",
+      "source": {
+        "kind": "synthetic_excerpt",
+        "id": "plan",
+        "location": "page:22",
+        "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+      }
+    },
+    {
+      "id": "plural",
+      "text": "Debtor days: 1 days",
+      "source": {
+        "kind": "synthetic_excerpt",
+        "id": "brief",
+        "location": "page:10",
+        "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+      }
+    },
+    {
+      "id": "summary",
+      "text": "The founder provides a service — subject to review.",
+      "source": {
+        "kind": "synthetic_excerpt",
+        "id": "brief",
+        "location": "page:2",
+        "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
+      },
+      "generated": true
+    }
+  ],
+  "unknown_inputs": [
+    "dated cash account/restriction bridge",
+    "funding identity commitment and draw schedule",
+    "per-stream base membership and contributions",
+    "shared founder unit-to-time conversion",
+    "complete cash categories and dates",
+    "exact fixed-cost and cash payment schedules",
+    "tax policy losses and due dates",
+    "scenario input and cash bridges",
+    "elapsed actuals",
+    "typed narrative provenance",
+    "claim evidence dependency index"
+  ]
+}

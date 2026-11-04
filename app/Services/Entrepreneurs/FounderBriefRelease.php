@@ -9,7 +9,6 @@ use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
 use App\Models\PlanAssessment;
 use App\Models\User;
-use App\Services\Audit\AuditWriter;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -41,7 +40,7 @@ final class FounderBriefRelease
         $readiness = $this->readiness->evaluate($plan);
         $complete = PlanRequirements::completion($plan)['complete']
             && $plan->budgetRunway?->status === EntrepreneurBudget::STATUS_COMPLETE;
-        $canGenerate = $complete && $eligible && $summary['usable'];
+        $canGenerate = $plan->sections->contains(fn ($section): bool => trim((string) $section->body) !== '') && $plan->budgetRunway !== null;
         $guidance = $this->guide->forPlan($plan);
         $aligned = $guidance['issues'] === [];
         $findings = collect((array) ($readiness['reasons'] ?? []))
@@ -57,10 +56,8 @@ final class FounderBriefRelease
             'findings' => $findings,
             'alignment' => $guidance['issues'],
         ], JSON_THROW_ON_ERROR));
-        $review = data_get($assessment?->scoring_scope, 'brief_release_review');
-        $approved = $canGenerate && $aligned && is_array($review)
-            && is_string($review['token'] ?? null) && hash_equals($review['token'], $token);
-        $active = $canGenerate && $aligned && ($approved || (bool) ($readiness['external_issue_ready'] ?? false));
+        $approved = false;
+        $active = (bool) data_get($readiness, 'release_gate.can_certify', false) && $canGenerate && $aligned;
         $state = $summary['usable'] ? 'complete' : ($assessment === null ? 'idle' : $this->recovery->state((string) $assessment->getKey()));
         // A completed job can describe an older version or an unusable fallback.
         // Only the current summary's eligibility can establish completion.
@@ -77,7 +74,7 @@ final class FounderBriefRelease
             default => 'The assessment is finalised. Select Retry summary to complete the automatic summary.',
         };
         $reasons = $active ? [] : array_values(array_unique([
-            ...(! $complete ? ['Complete the business plan and budget before generating the founder brief.'] : []),
+            ...(! $complete ? ['Complete the business plan and budget before external issue.'] : []),
             ...(! $eligible ? [$eligibility['reason'] ?? 'Finalise the latest assessment before releasing this brief.'] : []),
             ...($eligible && ! $summary['usable'] ? [$summaryMessage] : []),
             ...$findings,
@@ -88,19 +85,19 @@ final class FounderBriefRelease
             'active' => $active,
             'can_generate' => $canGenerate,
             'generation_reason' => $canGenerate ? null : (! $complete
-                ? 'Complete the business plan and budget, then have the current version assessed. The founder brief becomes available after the assessed summary is ready.'
+                ? 'Save plan content and a budget to generate a working draft.'
                 : (! $eligible ? ($eligibility['reason'] ?? 'Finalise the latest assessment of the completed plan and budget before generating the founder brief.') : $summaryMessage)),
-            'label' => $active ? 'Lender brief ready' : 'Lender brief blocked',
+            'label' => $active ? 'Lender brief ready' : 'Draft - release checks outstanding',
             'reasons' => $reasons,
             'executive_summary' => ['usable' => (bool) $summary['usable'], 'context_hash' => $eligibility['context_hash']],
             'assessment_id' => $assessment?->getKey(),
             'approval_token' => $token,
             'plan_guidance' => $guidance,
             'review' => [
-                'can_approve' => $canGenerate && $aligned && ! $active,
+                'can_approve' => false,
                 'approved' => $approved,
-                'note' => $approved ? (string) ($review['note'] ?? '') : null,
-                'approved_at' => $approved ? (string) ($review['approved_at'] ?? '') : null,
+                'note' => null,
+                'approved_at' => null,
                 'findings' => $findings,
             ],
             'summary_recovery' => ['can_retry' => $eligible && ! $summary['usable'] && ! $inFlight, 'state' => $state, 'message' => $summaryMessage],
@@ -109,18 +106,6 @@ final class FounderBriefRelease
 
     public function approve(BusinessPlan $plan, EntrepreneurProfile $profile, User $advisor, string $token, string $note): void
     {
-        $status = $this->evaluate($plan, $profile);
-        if (! $status['review']['can_approve'] || ! hash_equals($status['approval_token'], $token)) {
-            throw ValidationException::withMessages(['brief_release' => 'The brief or its findings changed, or the summary is not ready. Refresh and review the current version before approval.']);
-        }
-        $assessment = PlanAssessment::query()->lockForUpdate()->findOrFail($status['assessment_id']);
-        $review = [
-            'token' => $token, 'note' => $note, 'approved_at' => now()->toIso8601String(),
-            'approved_by_user_id' => (int) $advisor->getKey(), 'findings' => $status['review']['findings'],
-        ];
-        $scope = (array) $assessment->scoring_scope;
-        $scope['brief_release_review'] = $review;
-        $assessment->forceFill(['scoring_scope' => $scope])->save();
-        app(AuditWriter::class)->record('entrepreneur.brief_release_approved', subject: $assessment, actor: $advisor, after: $review);
+        throw ValidationException::withMessages(['brief_release' => 'Use the current rule-level release review. A blanket approval cannot authorise external issue.']);
     }
 }

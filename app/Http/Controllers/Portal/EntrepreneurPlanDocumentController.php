@@ -9,14 +9,13 @@ use App\Models\BusinessPlan;
 use App\Models\EntrepreneurProfile;
 use App\Services\Entrepreneurs\BudgetPackBuilder;
 use App\Services\Entrepreneurs\BusinessPlanPreviewRenderer;
-use App\Services\Pdf\PdfRenderer;
+use App\Services\Entrepreneurs\ReleaseGate\BudgetDraft;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
-use Throwable;
 
 final class EntrepreneurPlanDocumentController extends Controller
 {
@@ -25,7 +24,6 @@ final class EntrepreneurPlanDocumentController extends Controller
         private readonly EntrepreneurPlanRequirements $requirements,
         private readonly BusinessPlanPreviewRenderer $planPreview,
         private readonly BudgetPackBuilder $budgetPack,
-        private readonly PdfRenderer $pdf,
     ) {}
 
     public function preview(Request $request): SymfonyResponse
@@ -78,12 +76,7 @@ final class EntrepreneurPlanDocumentController extends Controller
                 ->with('entrepreneur_plan_error', 'Complete Foundation: Business type, location, and operating model, plus Financial: Financial assumptions before viewing the budget PDF.');
         }
 
-        try {
-            $pdf = $this->pdf->render($this->budgetPack->html($profile, $plan));
-        } catch (Throwable $exception) {
-            report($exception);
-            $pdf = $this->budgetPack->fallbackPdf($profile, $plan);
-        }
+        $pdf = app(BudgetDraft::class)->pdf($profile, $plan);
         $filename = Str::slug($profile->name ?: 'entrepreneur').'-budget-pack.pdf';
 
         return response($pdf, 200, [
