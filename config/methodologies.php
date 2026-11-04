@@ -19,6 +19,7 @@ use App\Services\Entrepreneurs\BudgetCalculator;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\RatingFrameworkManager;
 use App\Services\Entrepreneurs\Readiness;
+use App\Services\Entrepreneurs\ReleaseGate\EvaluateReleaseGate;
 use App\Services\Entrepreneurs\Revision;
 use App\Services\Fees\FeeCalculator;
 use App\Services\Integration\IntegrationHealthBander;
@@ -77,6 +78,7 @@ return [
         'advisor.dd.buyer_decision' => 'Advisor DD buyer decision-readiness workflow',
         'advisor.entrepreneurs.advisory_readiness' => 'Advisor entrepreneur advisory readiness signal',
         'advisor.entrepreneurs.rating_framework' => 'Advisor entrepreneur rating framework manager',
+        'advisor.entrepreneurs.release_gate' => 'Advisor entrepreneur release-gate review',
         'advisor.fees.calculator' => 'Advisor fee calculator',
         'advisor.npo.governance_review_proposal' => 'Advisor NPO Governance Review proposal workflow',
         'advisor.npo.retainer_proposal' => 'Advisor NPO retainer proposal workflow',
@@ -922,6 +924,33 @@ return [
             ],
             'owning_service' => IdeaValidationService::class,
             'version' => '2026-05-wo-m02',
+            'internal_only' => true,
+        ],
+
+        'entrepreneur.release_gate' => [
+            'id' => 'entrepreneur.release_gate',
+            'area' => 'Entrepreneurs',
+            'name' => 'Entrepreneur Release Gate',
+            'summary' => 'Reconciles captured plan claims, financial evidence and document content through versioned release rules while retaining unknowns and draft-only status.',
+            'formula' => 'Compare like-for-like source facts using the captured rule-policy tolerances. Closing cash equals opening cash plus dated classified movements; funding availability must reconcile to distinct, eligible sources and draw dates. Annual totals reconcile to covered monthly periods, and each scenario independently reconciles its declared shocks, cash and tax. Preserve each subcheck; aggregate unresolved results at the highest severity, with Fail preceding Cannot verify at that severity. Otherwise report Pass when an applicable subcheck passes, or Not applicable. Deferred rules have no result. Eligible source- and policy-bound risk acceptance retains the original outcome, cannot waive integrity, and cannot certify final artifacts. Cash deficit, reserve shortfall and proposed external request remain separate amounts.',
+            'inputs' => [
+                'Captured plan claims, effective dates, units, measurement bases and source references',
+                'Monthly and annual model facts, dated cash/tax ledgers, funding provenance and required horizon',
+                'Scenario baseline inputs and declared shocks',
+                'Document audience, candidate content and display policy',
+                'Versioned RuleConfiguration thresholds, severities and messages; code-enforced floors and exception eligibility',
+                'Source dependency hashes and eligible Principal Advisor risk decisions',
+            ],
+            'config_refs' => [],
+            'where_used' => ['advisor.entrepreneurs.release_gate'],
+            'sources' => [
+                'FSA-Release-Gate-and-Evidence-Model-Spec.md',
+                'app/Services/Entrepreneurs/ReleaseGate/RuleCatalogue.php',
+                'app/Services/Entrepreneurs/ReleaseGate/RuleConfiguration.php',
+                'app/Services/Entrepreneurs/ReleaseGate/Rules/',
+            ],
+            'owning_service' => EvaluateReleaseGate::class,
+            'version' => '2026-11-phase-1',
             'internal_only' => true,
         ],
 

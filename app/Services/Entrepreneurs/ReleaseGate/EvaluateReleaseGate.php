@@ -4,8 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Entrepreneurs\ReleaseGate;
 
-final class EvaluateReleaseGate
+use App\Support\Methodology\ProvidesMethodology;
+
+final class EvaluateReleaseGate implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['entrepreneur.release_gate'];
+    }
+
     /** @var array<string,Rule> */
     private array $rules = [];
 
