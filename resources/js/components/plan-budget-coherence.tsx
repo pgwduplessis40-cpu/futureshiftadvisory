@@ -11,6 +11,9 @@ export type PlanBudgetCoherenceSummary = {
     calculation_issues?: { message: string; next_action: string }[];
     review_completed?: boolean;
     review_note?: string | null;
+    reviewed_at?: string | null;
+    review_assessment_round?: number | null;
+    review_status_message?: string | null;
     budget_support: {
         summary: string;
     };
@@ -204,8 +207,31 @@ export function PlanBudgetCoherencePanel({
                         />
                     ) : null}
                     {coherence.review_completed && coherence.review_note ? (
+                        <div className="space-y-1 rounded border p-3">
+                            <p>Advisor decision: {coherence.review_note}</p>
+                            {coherence.reviewed_at ? (
+                                <p className="text-muted-foreground">
+                                    Recorded{' '}
+                                    {new Date(
+                                        coherence.reviewed_at,
+                                    ).toLocaleDateString('en-NZ', {
+                                        day: 'numeric',
+                                        month: 'short',
+                                        year: 'numeric',
+                                        timeZone: 'Pacific/Auckland',
+                                    })}
+                                    {coherence.review_assessment_round
+                                        ? ` · Assessment ${coherence.review_assessment_round}`
+                                        : ''}
+                                    . This decision still applies to the
+                                    unchanged inputs and findings.
+                                </p>
+                            ) : null}
+                        </div>
+                    ) : null}
+                    {coherence.review_status_message ? (
                         <p className="rounded border p-3">
-                            Advisor decision: {coherence.review_note}
+                            {coherence.review_status_message}
                         </p>
                     ) : null}
                     <AdvisorPlanBudgetReview

@@ -15,7 +15,7 @@ use App\Services\Entrepreneurs\PlanBudgetFollowUp;
  * @phpstan-type PlanBudgetCoherenceActionPayload array{key:string,severity:string,title:string,destination:string,steps:list<string>}
  * @phpstan-type PlanBudgetCoherenceAdvisoryPayload array{key:string,category:string,message:string,next_action:string}
  * @phpstan-type PlanBudgetCoherenceDirectionPayload array{status:string,status_label:string,summary:string,unresolved_count:int}
- * @phpstan-type PlanBudgetCoherencePayload array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<PlanBudgetCoherenceFindingPayload>,actions:list<PlanBudgetCoherenceActionPayload>,advisor_reviews?:list<PlanBudgetCoherenceFindingPayload>,calculation_issues?:list<PlanBudgetCoherenceFindingPayload>,review_completed?:bool,review_note?:string|null,advisories:list<PlanBudgetCoherenceAdvisoryPayload>,approval_available:bool,approval_message:string,budget_support:PlanBudgetCoherenceDirectionPayload,plan_correlation:PlanBudgetCoherenceDirectionPayload,unresolved_count:int}
+ * @phpstan-type PlanBudgetCoherencePayload array{status:string,status_label:string,score:int,summary:string,evidence:list<string>,findings:list<PlanBudgetCoherenceFindingPayload>,actions:list<PlanBudgetCoherenceActionPayload>,advisor_reviews?:list<PlanBudgetCoherenceFindingPayload>,calculation_issues?:list<PlanBudgetCoherenceFindingPayload>,review_completed?:bool,review_note?:string|null,reviewed_at?:string|null,review_assessment_round?:int|null,review_status_message?:string|null,advisories:list<PlanBudgetCoherenceAdvisoryPayload>,approval_available:bool,approval_message:string,budget_support:PlanBudgetCoherenceDirectionPayload,plan_correlation:PlanBudgetCoherenceDirectionPayload,unresolved_count:int}
  * @phpstan-type ScoringScope array{version?:string,rescored_criterion_numbers?:list<int|numeric-string>,reused_criterion_numbers?:list<int|numeric-string>,scope_correction_criterion_numbers?:list<int|numeric-string>,advisor_review?:array{required?:bool,confirmed_at?:string|null,confirmed_by_user_id?:int|null},cross_plan_review?:array{required?:bool,trigger?:string|null,message?:string|null},plan_budget_coherence?:PlanBudgetCoherencePayload}
  * @phpstan-type ScoringScopePayload array{rescored_criterion_numbers:list<int>,reused_criterion_numbers:list<int>,scope_correction_criterion_numbers:list<int>,is_full_reassessment:bool,has_scope_correction:bool,is_scope_correction_only:bool,advisor_review_required:bool,advisor_review_confirmed_at:string|null,cross_plan_review_required:bool,cross_plan_review_message:string|null}
  * @phpstan-type AssessmentCriterionPayload array{criterion_number:int,name:string,score:float|int}
@@ -38,6 +38,9 @@ trait BuildsEntrepreneurAssessmentPayload
             $planBudgetCoherence['calculation_issues'] = [];
             $planBudgetCoherence['advisories'] = [];
             $planBudgetCoherence['review_note'] = null;
+            $planBudgetCoherence['reviewed_at'] = null;
+            $planBudgetCoherence['review_assessment_round'] = null;
+            $planBudgetCoherence['review_status_message'] = null;
         }
         $isFullEvidenceReassessment = (bool) data_get($scoringScope, 'is_full_reassessment', false);
         $hasScopeCorrection = (bool) data_get($scoringScope, 'has_scope_correction', false);

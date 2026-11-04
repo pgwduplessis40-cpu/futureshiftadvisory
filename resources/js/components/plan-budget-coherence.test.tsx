@@ -70,6 +70,8 @@ test('completed review leaves no client editing instructions or pending advisor 
         actions: [],
         review_completed: true,
         review_note: 'The reserve covers the cash exposure.',
+        reviewed_at: '2026-10-28T01:00:00Z',
+        review_assessment_round: 23,
         advisor_reviews: [
             {
                 message: 'Cash reserve needs review.',
@@ -95,7 +97,40 @@ test('completed review leaves no client editing instructions or pending advisor 
     );
     assert.match(advisor, /Advisor review completed/);
     assert.match(advisor, /The reserve covers the cash exposure/);
+    assert.match(advisor, /28 Oct 2026/);
+    assert.match(advisor, /Assessment 23/);
+    assert.match(advisor, /still applies to the unchanged inputs/);
     assert.doesNotMatch(advisor, /textarea|Review the risk/);
+});
+
+test('changed decisions explain the reason to the advisor without exposing it to the client', () => {
+    const coherence = {
+        status_label: 'Advisor action needed',
+        summary: 'One finding needs a decision.',
+        approval_available: false,
+        review_completed: false,
+        review_status_message:
+            'The plan or Budget inputs have changed since the saved advisor decision.',
+        budget_support: { summary: 'Review needed.' },
+        plan_correlation: { summary: 'Resolved.' },
+        findings: [],
+        actions: [],
+    };
+    const advisor = renderToStaticMarkup(
+        <PlanBudgetCoherencePanel
+            coherence={coherence}
+            historicalMessage=""
+            audience="advisor"
+        />,
+    );
+    const client = renderToStaticMarkup(
+        <PlanBudgetCoherencePanel coherence={coherence} historicalMessage="" />,
+    );
+    assert.match(
+        advisor,
+        /inputs have changed since the saved advisor decision/,
+    );
+    assert.doesNotMatch(client, /saved advisor decision/);
 });
 
 test('plan-budget actions explain autosave once and do not show manual-save completion text', () => {
