@@ -13,6 +13,43 @@ use Tests\TestCase;
 
 final class BudgetPackBuilderTest extends TestCase
 {
+    public function test_each_monthly_pdf_row_includes_cumulative_cash_in_the_last_column(): void
+    {
+        $profile = new EntrepreneurProfile(['name' => 'Budget Founder']);
+        $plan = new BusinessPlan(['title' => 'Three-year budget']);
+        $months = collect(range(1, 36))->map(fn (int $month): array => [
+            'month' => $month, 'month_in_year' => (($month - 1) % 12) + 1,
+            'year' => (int) ceil($month / 12), 'revenue' => 2000, 'cash_collected' => 1500,
+            'variable_costs' => 200, 'gross_profit' => 1800, 'fixed_costs' => 500,
+            'tax' => 100, 'net_profit_after_tax' => 1200, 'net_cash_flow' => 700,
+            'cumulative_cash' => ($month - 2) * 700,
+        ])->all();
+        $plan->setRelation('budgetRunway', new EntrepreneurBudget([
+            'status' => EntrepreneurBudget::STATUS_COMPLETE, 'forecast_years' => 3,
+            'computed' => ['forecast_years' => 3, 'monthly_detail' => $months],
+        ]));
+        $plan->setRelation('sections', new EloquentCollection);
+
+        $document = new \DOMDocument;
+        @$document->loadHTML(app(BudgetPackBuilder::class)->html($profile, $plan));
+        $xpath = new \DOMXPath($document);
+        $tables = $xpath->query('//article[contains(@class, "monthly-appendix")]/table');
+        $this->assertCount(3, $tables);
+        $index = 0;
+        foreach ($tables as $table) {
+            $this->assertSame('Cumulative cash', trim($xpath->query('thead/tr/th[last()]', $table)->item(0)->textContent));
+            $rows = $xpath->query('tbody/tr', $table);
+            $this->assertCount(12, $rows);
+            foreach ($rows as $row) {
+                $cells = $xpath->query('td', $row);
+                $this->assertCount(10, $cells);
+                $this->assertSame('$700', trim($cells->item(8)->textContent));
+                $balance = $months[$index++]['cumulative_cash'];
+                $this->assertSame(($balance < 0 ? '-' : '').'$'.number_format(abs($balance), 0), trim($cells->item(9)->textContent));
+            }
+        }
+    }
+
     public function test_budget_pack_html_contains_static_cash_curve_chart_with_markers(): void
     {
         $profile = new EntrepreneurProfile(['name' => 'Budget Founder']);

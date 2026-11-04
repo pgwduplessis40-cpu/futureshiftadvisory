@@ -6793,12 +6793,6 @@ parameters:
 			path: app/Services/Entrepreneurs/BudgetPackBuilder.php
 
 		-
-			message: '#^Call to sprintf contains 11 placeholders, 12 values given\.$#'
-			identifier: argument.sprintf
-			count: 1
-			path: app/Services/Entrepreneurs/BudgetPackBuilder.php
-
-		-
 			message: '#^Method App\\Services\\Entrepreneurs\\BudgetPackBuilder\:\:financeSummary\(\) is unused\.$#'
 			identifier: method.unused
 			count: 1

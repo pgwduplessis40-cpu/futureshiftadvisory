@@ -1461,7 +1461,7 @@ HTML,
                     && (float) $row['cumulative_cash'] === (float) $lowestCash;
 
                 return sprintf(
-                    '<tr%s><td>Month %s%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+                    '<tr%s><td>Month %s%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
                     $isTrough ? ' class="cash-trough-row"' : '',
                     $this->escape($row['month_in_year'] ?? ''),
                     $isTrough ? ' <span class="cash-trough-label">Lowest cash</span>' : '',
