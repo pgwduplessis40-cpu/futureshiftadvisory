@@ -58,4 +58,16 @@ Local verification on 6 November 2026 passed all 55 forecast, methodology and F1
 
 ### Navigation repair handover
 
+## Slice 2B implementation plan
+
+Rechecked on 6 November 2026 against merged Phase 2A `c6d849e80aecf31690af160d71575d8e16f6390f`, deployed as 1.0.283. The integration boundaries above still apply. `BudgetCalculator` currently converts debtor/creditor days to whole-month lags and defaults absent timing to zero; this standalone slice does not replace that workflow yet.
+
+- Add explicit cash-opening and movement contracts, calendar-date arithmetic and a ledger with an opening checkpoint, ordered same-day movements, monthly totals and retained beyond-horizon movements. Reject duplicate identities/ambiguous ordering. Unknown amounts/dates remain unknown; funding/opening verification stays distinct from calculable arithmetic.
+- Model receivables/payables and settlements independently of cash. Preserve opening and monthly closing balances, customer advances and supplier prepayments. Deposits occur at booking; balances can be due before delivery or invoice date plus actual calendar days. Never invent opening collections.
+- Calculate fixed costs from rate, quantity and explicit recurrence dates, with a separately supplied expense-recognition allocation; direct costs use delivered units or revenue. Keep creditor dates separate from expense recognition.
+- Generate weekly owner-pay dates from an explicit anchor and dated rate policies. Conditional tiers use the named trailing-three-completed-month average revenue measure, re-evaluated at every payment. Missing history prevents a known conditional rate; lower revenue can return pay to a lower tier. Report the 52/12 average separately from actual payment totals.
+- Use synthetic fixtures for the $100 opening / $150 early payment / $200 later funding case, deposits, beyond-horizon AR/AP, annual expense/payment differences, leap dates and reversible owner pay. Enable no rules, preserve F1 and defer bank/GST/restricted-cash reconciliation and reviewed actuals to 2C. The service fingerprint caveat from 2A still applies.
+
+### Navigation repair handover (Phase 2A baseline)
+
 PR #170 is merged and deployed as 1.0.282, with `/api/deployment` identifying `9f9e2a10d8e60b9d87893e181e23ed9f3195c631`. Authenticated Chrome checks returned HTTP 200 for Tania's direct document request (5.84 seconds), her name-link XHR (3.82 seconds), a full refresh (12.23 seconds), and another entrepreneur's direct document request (1.98 seconds). Each detail page rendered its matching heading; the previous 502/reconnecting state did not recur in these checks. These are individual production observations, not a latency guarantee: the full refresh remains materially slower than in-app navigation. No client data was edited during verification.
