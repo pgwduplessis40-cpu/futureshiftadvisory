@@ -16,6 +16,7 @@ use App\Services\Dd\Valuation as DdValuationService;
 use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\Assessment;
 use App\Services\Entrepreneurs\BudgetCalculator;
+use App\Services\Entrepreneurs\Forecast\RevenueProjection;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\RatingFrameworkManager;
 use App\Services\Entrepreneurs\Readiness;
@@ -92,6 +93,7 @@ return [
         'client.portal.business_health' => 'Client portal business health radar',
         'entrepreneur.portal.idea_validation' => 'Entrepreneur idea validation workflow',
         'entrepreneur.portal.budget_forecast' => 'Entrepreneur budget forecast workflow',
+        'entrepreneur.forecast.driver_model' => 'Entrepreneur driver model (not yet activated)',
         'entrepreneur.portal.plan_assessment' => 'Entrepreneur plan assessment workflow',
         'entrepreneur.portal.readiness' => 'Entrepreneur readiness assessment',
         'entrepreneur.portal.revision_progress' => 'Entrepreneur revision progress workflow',
@@ -951,6 +953,21 @@ return [
             ],
             'owning_service' => EvaluateReleaseGate::class,
             'version' => '2026-11-phase-1',
+            'internal_only' => true,
+        ],
+
+        'entrepreneur.driver_revenue' => [
+            'id' => 'entrepreneur.driver_revenue',
+            'area' => 'Entrepreneurs',
+            'name' => 'Driver-based Revenue and Shared Capacity',
+            'summary' => 'Projects explicitly scheduled stream delivery against allocated founder time and costed provider capacity. This standalone engine is not yet selected by stored budgets.',
+            'formula' => 'Founder capacity is allocated hours divided by preparation plus delivery hours per unit. Delivered units are the lesser of requested units and founder plus provider capacity. Revenue is delivered units times price; contractor expense is units beyond founder capacity times the provider rate. Included streams share one founder budget including administration and business development. Base totals exclude upside streams.',
+            'inputs' => ['Explicit forecast calendar', 'Stream membership, price, unit and hours per unit', 'Monthly bookings, deliveries and invoices', 'Founder hours and non-delivery allocations', 'Additional provider capacity, rate and any no-cost basis', 'Declared evidence status'],
+            'config_refs' => [],
+            'where_used' => ['entrepreneur.forecast.driver_model'],
+            'sources' => ['FSA-Release-Gate-and-Evidence-Model-Spec.md', 'docs/architecture/release-gate-phase-2-mapping.md'],
+            'owning_service' => RevenueProjection::class,
+            'version' => RevenueProjection::VERSION,
             'internal_only' => true,
         ],
 

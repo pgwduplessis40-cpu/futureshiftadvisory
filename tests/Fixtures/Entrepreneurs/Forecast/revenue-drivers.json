@@ -1,0 +1,17 @@
+{
+  "fixture_version": "synthetic-driver-revenue-1",
+  "description": "Independent shared-capacity example; no client data and not Fixture F2.",
+  "enabled_rule_ids": [],
+  "supports_future_rule_ids": ["PM-05", "PM-06", "PM-11"],
+  "calendar": { "start_month": "2027-01", "months": 1 },
+  "founder": { "available_hours": "80", "administration_hours": "16", "business_development_hours": "8" },
+  "streams": [
+    { "id": "a", "name": "Service A", "unit": "session", "price": "1000", "preparation_hours": "2", "delivery_hours": "6", "in_base_case": true,
+      "month": { "booked_units": "5", "delivery_units": "5", "invoiced_units": "4", "founder_hours": "32", "additional_capacity_units": "1", "provider": "Provider A", "provider_unit_cost": "300" } },
+    { "id": "b", "name": "Service B", "unit": "engagement", "price": "600", "preparation_hours": "3", "delivery_hours": "5", "in_base_case": true,
+      "month": { "booked_units": "6", "delivery_units": "4", "invoiced_units": "3", "founder_hours": "24", "additional_capacity_units": "1", "provider": "Provider B", "provider_unit_cost": "200" } },
+    { "id": "upside", "name": "Developing offer", "unit": "workshop", "price": "2000", "preparation_hours": "2", "delivery_hours": "6", "in_base_case": false,
+      "month": { "booked_units": "1", "delivery_units": "1", "invoiced_units": "1", "founder_hours": "8", "additional_capacity_units": "0", "provider": null, "provider_unit_cost": null } }
+  ],
+  "expected": { "base_revenue": "7400.00", "base_contractor_cost": "500.00", "founder_hours_allocated": "80", "status": "pass", "upside_potential_revenue": "2000.00" }
+}

@@ -9,6 +9,18 @@ declare(strict_types=1);
  * hidden by an unrelated, well-covered neighbour.
  */
 return [
+    'entrepreneur_forecast' => [
+        'paths' => [
+            'app/Services/Entrepreneurs/Forecast/RevenueProjection.php',
+            'app/Services/Entrepreneurs/Forecast/StreamProjection.php',
+            'app/Services/Entrepreneurs/Forecast/DriverNumbers.php',
+            'app/Services/Entrepreneurs/Forecast/ForecastCalendar.php',
+            'app/Services/Entrepreneurs/Forecast/FounderMonth.php',
+            'app/Services/Entrepreneurs/Forecast/RevenueStream.php',
+            'app/Services/Entrepreneurs/Forecast/StreamMonth.php',
+        ],
+        'prefixes' => ['app/Services/Entrepreneurs/Forecast/'],
+    ],
     'release_gate' => [
         'paths' => [
             'app/Services/Entrepreneurs/ReleaseGate/SourceCapture.php',
