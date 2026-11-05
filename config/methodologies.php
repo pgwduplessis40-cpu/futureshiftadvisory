@@ -16,6 +16,7 @@ use App\Services\Dd\Valuation as DdValuationService;
 use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\Assessment;
 use App\Services\Entrepreneurs\BudgetCalculator;
+use App\Services\Entrepreneurs\Forecast\CashLedger;
 use App\Services\Entrepreneurs\Forecast\RevenueProjection;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\RatingFrameworkManager;
@@ -94,6 +95,7 @@ return [
         'entrepreneur.portal.idea_validation' => 'Entrepreneur idea validation workflow',
         'entrepreneur.portal.budget_forecast' => 'Entrepreneur budget forecast workflow',
         'entrepreneur.forecast.driver_model' => 'Entrepreneur driver model (not yet activated)',
+        'entrepreneur.forecast.dated_cash' => 'Entrepreneur dated cash engine (not yet activated)',
         'entrepreneur.portal.plan_assessment' => 'Entrepreneur plan assessment workflow',
         'entrepreneur.portal.readiness' => 'Entrepreneur readiness assessment',
         'entrepreneur.portal.revision_progress' => 'Entrepreneur revision progress workflow',
@@ -968,6 +970,21 @@ return [
             'sources' => ['FSA-Release-Gate-and-Evidence-Model-Spec.md', 'docs/architecture/release-gate-phase-2-mapping.md'],
             'owning_service' => RevenueProjection::class,
             'version' => RevenueProjection::VERSION,
+            'internal_only' => true,
+        ],
+
+        'entrepreneur.dated_cash' => [
+            'id' => 'entrepreneur.dated_cash',
+            'area' => 'Entrepreneurs',
+            'name' => 'Dated Cash, Trade Balances and Owner Pay',
+            'summary' => 'Projects supplied dated movements, explicit cost schedules and reversible owner pay. This standalone engine is not yet selected by stored budgets or reconciled to bank cash.',
+            'formula' => 'Cash equals opening cash plus dated receipts less payments, with an opening checkpoint and ordered same-day movements. Trade balances equal amounts raised less settlements; pre-invoice settlements are advances/prepayments. Deposit and balance sum to the rounded sale total; debtor/creditor days are calendar days. Fixed charges are rate times quantity at explicit recurrence dates, allocated separately to expense periods by supplied weights with the cent residual in the final nonzero period. Direct costs use revenue times percentage or delivered units times rate. Weekly owner pay uses the latest dated policy and highest eligible threshold of the previous three completed months average revenue, re-evaluated each payment; average monthly pay is weekly times 52/12, distinct from calendar payments.',
+            'inputs' => ['Explicit forecast calendar and opening cash/source/verification', 'Dated, sourced and ordered cash movements', 'Receivables/payables and settlements, including opening obligations', 'Booking, invoice and delivery dates, deposit percentage and balance/creditor timing', 'Cost rate, quantity, frequency and recognition weights', 'Dated owner-pay policies, weekly anchor and prior monthly revenue'],
+            'config_refs' => [],
+            'where_used' => ['entrepreneur.forecast.dated_cash'],
+            'sources' => ['FSA-Release-Gate-and-Evidence-Model-Spec.md', 'docs/architecture/release-gate-phase-2-mapping.md'],
+            'owning_service' => CashLedger::class,
+            'version' => CashLedger::VERSION,
             'internal_only' => true,
         ],
 

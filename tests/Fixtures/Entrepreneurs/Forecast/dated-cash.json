@@ -1,0 +1,11 @@
+{
+    "purpose": "Synthetic timing case; not client data or an approved F2 reconstruction",
+    "enabled_rule_ids": [],
+    "supports_future_checks": ["MI-01", "MI-02", "MI-03", "PM-03", "PM-04", "PM-08", "F13"],
+    "opening_cash": "100.00",
+    "movements": [
+        {"id": "early-cost", "source": "synthetic-supplier-commitment", "date": "2027-01-05", "amount": "150.00", "direction": "out", "category": "operating_payment", "sequence": 10},
+        {"id": "later-funding", "source": "synthetic-confirmed-funding", "date": "2027-01-20", "amount": "200.00", "direction": "in", "category": "funding", "sequence": 10, "verified": true}
+    ],
+    "expected": {"lowest_cash": "-50.00", "lowest_cash_date": "2027-01-05", "closing_cash": "150.00"}
+}
