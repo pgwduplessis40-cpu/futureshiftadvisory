@@ -14,6 +14,7 @@ use App\Services\Entrepreneurs\ReleaseGate\RuleCatalogue;
 use App\Services\Entrepreneurs\ReleaseGate\RuleConfiguration;
 use App\Services\Entrepreneurs\ReleaseGate\Subcheck;
 
+/** @phpstan-type TextFingerprint array{text:string,heading:bool,length:int,grams:array<string,int>,count:int} */
 final readonly class HygieneRule implements Rule
 {
     public function __construct(private string $ruleId)
@@ -35,17 +36,20 @@ final readonly class HygieneRule implements Rule
         $seen = [];
         $display = DisplayPolicy::from($context->facts->one('document.display_policy'));
         foreach ($context->blocks as $block) {
+            $fingerprint = $this->ruleId === 'DH-03' ? $this->fingerprint($block) : null;
             $problem = match ($this->ruleId) {
                 'DH-01' => $block->internalInstruction || preg_match('/\b(?:record the (?:bank|source)|advisor[- ]entry|enter (?:your )?review note)\b/i', $block->text) === 1,
                 'DH-02' => preg_match('/\b(?:UPDATEed|UPDATED|TBD)\b|_{3,}|\[Extract; see full source\.\]/u', $block->text) === 1,
-                'DH-03' => $this->duplicate($block, $seen, (float) $configuration->threshold('duplicate_similarity_percent')),
+                'DH-03' => $fingerprint !== null && $this->duplicate($fingerprint, $seen, (float) $configuration->threshold('duplicate_similarity_percent')),
                 'DH-04' => preg_match('/\*\*[^\n]+\*\*|^\s*#{1,6}\s|\[[^\]]+\]\([^\)]+\)/m', $block->text) === 1,
                 'DH-05' => preg_match('/\b1\s+(?:days|weeks|months|years|people|units)\b/i', $block->text) === 1
                     || ($display !== null && ! $display->accepts($block->text)),
                 'DH-06' => $block->generated && ! $block->quotation && str_contains($block->text, '—'),
                 default => throw new \LogicException('Unknown hygiene rule.'),
             };
-            $seen[] = $block;
+            if ($fingerprint !== null) {
+                $seen[] = $fingerprint;
+            }
             $checks[] = new Subcheck('block:'.$block->id, $problem ? CheckStatus::Fail : CheckStatus::Pass, $severity,
                 $problem ? $this->message().' ('.$block->source->location.').' : 'This text block passes '.$this->ruleId.'.',
                 [new Fact('document.text', $block->text, entity: $block->id, sources: [$block->source])]);
@@ -62,23 +66,51 @@ final readonly class HygieneRule implements Rule
         return $checks;
     }
 
-    /** @param list<DocumentBlock> $seen */
-    private function duplicate(DocumentBlock $block, array $seen, float $threshold): bool
+    /** @return TextFingerprint */
+    private function fingerprint(DocumentBlock $block): array
     {
         $text = mb_strtolower(trim(preg_replace('/\s+/u', ' ', $block->text) ?? $block->text));
-        if (! $block->heading && mb_strlen($text) < 80) {
+        $characters = mb_str_split($text);
+        $length = count($characters);
+        $grams = [];
+        if (! $block->heading && $length >= 120) {
+            for ($i = 0; $i < $length - 2; $i++) {
+                $gram = $characters[$i].$characters[$i + 1].$characters[$i + 2];
+                $grams[$gram] = ($grams[$gram] ?? 0) + 1;
+            }
+        }
+
+        return ['text' => $text, 'heading' => $block->heading, 'length' => $length, 'grams' => $grams, 'count' => array_sum($grams)];
+    }
+
+    /** @param TextFingerprint $block
+     * @param  list<TextFingerprint>  $seen
+     */
+    private function duplicate(array $block, array $seen, float $threshold): bool
+    {
+        if (! $block['heading'] && $block['length'] < 80) {
             return false;
         }
         foreach ($seen as $previous) {
-            if ($previous->heading !== $block->heading) {
+            if ($previous['heading'] !== $block['heading']) {
                 continue;
             }
-            $other = mb_strtolower(trim(preg_replace('/\s+/u', ' ', $previous->text) ?? $previous->text));
-            if ($text !== '' && $text === $other) {
+            if ($block['text'] !== '' && $block['text'] === $previous['text']) {
                 return true;
             }
-            if (! $block->heading && mb_strlen($text) >= 120 && mb_strlen($other) >= 120) {
-                similar_text(mb_substr($text, 0, 4000), mb_substr($other, 0, 4000), $similarity);
+            if (! $block['heading'] && $block['count'] > 0 && $previous['count'] > 0) {
+                // Multiset Dice similarity over full Unicode character trigrams.
+                // Cache each fingerprint once; never run recursive similar_text
+                // on every pair of long plan sections during a page request.
+                $total = $block['count'] + $previous['count'];
+                if (200 * min($block['count'], $previous['count']) < $threshold * $total) {
+                    continue;
+                }
+                $overlap = 0;
+                foreach ($block['grams'] as $gram => $count) {
+                    $overlap += min($count, $previous['grams'][$gram] ?? 0);
+                }
+                $similarity = 200 * $overlap / $total;
                 if ($similarity >= $threshold) {
                     return true;
                 }
