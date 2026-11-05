@@ -15,6 +15,9 @@ final readonly class TradeItem implements \JsonSerializable
         ForecastDates::read($raisedOn);
         DriverNumbers::read($amount);
         foreach ($settlements ?? [] as $settlement) {
+            if ($settlement->category === 'restricted_transfer') {
+                throw new \InvalidArgumentException('Internal cash restrictions cannot settle a trade item.');
+            }
             if ($settlement->direction !== ($kind === 'receivable' ? 'in' : 'out')) {
                 throw new \InvalidArgumentException('Settlement direction does not match its trade item.');
             }
