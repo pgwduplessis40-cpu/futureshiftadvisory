@@ -50,7 +50,7 @@ final class PlanBudgetReviewDecision
             && ! $this->sameFundingWording($this->reviews($source), $this->reviews($assessment))) {
             return [...$result, 'message' => 'The findings have changed since the saved advisor decision. Review the new findings before finalising.'];
         }
-        $current = app(BusinessPlanSnapshot::class)->capture($assessment->businessPlan);
+        $current = app(BusinessPlanSnapshot::class)->captureInputs($assessment->businessPlan);
         $fundingOnly = $this->isFundingDecision($this->reviews($source));
         $basis = $this->basisHash($original, $fundingOnly);
         if (! hash_equals($basis, $this->basisHash((array) $assessment->plan_snapshot, $fundingOnly))

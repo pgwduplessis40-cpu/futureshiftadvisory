@@ -203,6 +203,14 @@ DH-03 now normalises case and whitespace once per block and compares full-text U
 
 Regression coverage includes exact and near duplicates, Unicode, configured thresholds, unrelated text, differing long suffixes, a 51-block performance budget, and advisor detail requests through both Inertia and direct navigation. F1 expectations and Draft-only release behaviour remain unchanged.
 
+### Assessment-history navigation correction
+
+After the DH-03 fix was deployed, the complete detail request still repeated current release analysis while constructing historical assessment rows. A regression with 16 long synthetic sections and saved advisor decisions measured 13.573 seconds / 7 gate source captures for one round, and 31.976 seconds / 31 captures for 25 rounds. The history table discarded the current review and readiness fields after computing them.
+
+History now derives only its displayed score, grade, scope, status and snapshot links from the saved assessment. The latest-assessment panel still evaluates current review validity. `BusinessPlanSnapshot::captureInputs()` refreshes source data and preserves the same review fingerprint while omitting derived `issue_readiness`; both recording and resolving advisor input decisions use this path. Full assessment snapshots still include readiness, and document and release actions retain their current checks. No cross-request result cache or stale approval shortcut is introduced.
+
+On the same local fixture, full requests measured 3.358 seconds for one round and 2.739 seconds for 25 rounds, with 3 gate source captures in each case. The regression requires history growth not to increase release evaluations, checks identical input fingerprints, and retains the saved review and Draft-only result. These are synthetic local request measurements; live client navigation must be timed again after deployment.
+
 ### Verification record
 
 Local verification completed on 5 November 2026:

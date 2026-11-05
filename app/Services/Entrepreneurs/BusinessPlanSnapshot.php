@@ -9,6 +9,12 @@ use App\Models\EntrepreneurBudget;
 use App\Models\PlanPhase;
 use App\Models\PlanSection;
 
+/**
+ * @phpstan-type SnapshotSection array{id:string,key:string,title:string,body:string|null,attached_document_ids:list<string>,requirement_key:string|null,completeness_status:string,created_at:string|null,updated_at:string|null}
+ * @phpstan-type SnapshotPhase array{id:string,key:string,title:string,status:string,position:int,requirements:array<int,mixed>,sections:list<SnapshotSection>}
+ * @phpstan-type SnapshotBudget array{status:string,expected_runway_months:mixed,calculated_runway_months:mixed,break_even_year:mixed,cash_flow_positive_year:mixed,updated_at:string|null,assessment_evidence:array{forecast_years:int,expected_runway_months:mixed,assumptions:mixed,launch_costs:mixed,monthly_fixed_costs:mixed,future_costs:mixed,revenue_forecast:mixed,funding_sources:mixed,funding_scenarios:mixed,computed:mixed,flags:mixed,funding_readiness:mixed}}
+ * @phpstan-type Snapshot array{schema_version:int,captured_at:string,business_plan:array{id:string,title:string,status:string,submitted_at:string|null,updated_at:string|null},completion:array{total:int,completed:int,percent:int},issue_readiness?:mixed,budget:SnapshotBudget|null,phases:list<SnapshotPhase>}
+ */
 final class BusinessPlanSnapshot
 {
     public function __construct(
@@ -20,6 +26,23 @@ final class BusinessPlanSnapshot
      * @return array<string, mixed>
      */
     public function capture(BusinessPlan $plan): array
+    {
+        return $this->build($plan, includeIssueReadiness: true);
+    }
+
+    /**
+     * Current source inputs for review fingerprints. Deliberately omits release
+     * readiness: callers must never treat this as a release decision.
+     *
+     * @return Snapshot
+     */
+    public function captureInputs(BusinessPlan $plan): array
+    {
+        return $this->build($plan, includeIssueReadiness: false);
+    }
+
+    /** @return Snapshot */
+    private function build(BusinessPlan $plan, bool $includeIssueReadiness): array
     {
         $plan = $plan->refresh()->load('phases.sections', 'sections', 'budgetRunway');
         $requirements = $this->requirements($plan);
@@ -45,7 +68,7 @@ final class BusinessPlanSnapshot
                 'completed' => $completed,
                 'percent' => $total > 0 ? (int) round(($completed / $total) * 100) : 0,
             ],
-            'issue_readiness' => $this->issueReadiness->evaluate($plan),
+            ...($includeIssueReadiness ? ['issue_readiness' => $this->issueReadiness->evaluate($plan)] : []),
             'budget' => $budget instanceof EntrepreneurBudget ? [
                 'status' => $budget->status,
                 'expected_runway_months' => $budget->expected_runway_months,
@@ -134,7 +157,7 @@ final class BusinessPlanSnapshot
     }
 
     /**
-     * @return array<string, mixed>
+     * @return SnapshotSection
      */
     private function sectionSnapshot(PlanSection $section, string $phaseKey): array
     {

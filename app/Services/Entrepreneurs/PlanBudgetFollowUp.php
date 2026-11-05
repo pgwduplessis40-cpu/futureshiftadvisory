@@ -113,7 +113,7 @@ final class PlanBudgetFollowUp
 
     public function currentInputsHash(BusinessPlan $plan): string
     {
-        return $this->snapshotInputsHash(app(BusinessPlanSnapshot::class)->capture($plan));
+        return $this->snapshotInputsHash(app(BusinessPlanSnapshot::class)->captureInputs($plan));
     }
 
     /** @param array<array-key,mixed> $snapshot */

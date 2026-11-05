@@ -436,6 +436,18 @@ async function runFlowViewport(browserInstance, flow, viewport) {
         await installFakeMedia(page);
         await login(page, flow.account, viewport.name);
 
+        if (flow.name === 'NPO Module' && viewport.isMobile) {
+            // This baseline shows the board with install help dismissed. Seed
+            // that state before navigation so the 1.5s popup timer cannot race
+            // the screenshot; dashboard flows still exercise the install help.
+            await page.evaluate(() => {
+                window.localStorage.setItem(
+                    'fsa.pwa.install.dismissed_until',
+                    String(Date.now() + 24 * 60 * 60 * 1000),
+                );
+            });
+        }
+
         const response = await page.goto(absoluteUrl(flow.path), {
             waitUntil: 'networkidle2',
         });

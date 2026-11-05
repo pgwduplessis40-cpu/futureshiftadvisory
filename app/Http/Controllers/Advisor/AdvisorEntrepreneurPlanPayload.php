@@ -148,13 +148,16 @@ final class AdvisorEntrepreneurPlanPayload
             ->sortBy('round')
             ->values()
             ->map(function (PlanAssessment $assessment) use ($plan, $profile, &$previousWeightedScore): array {
-                $payload = $this->assessmentPayload($assessment, includeAdvisorReview: true);
+                // History displays saved scores and scope, not current review or
+                // release eligibility. Do not rebuild live checks for every round.
+                $criteria = AssessmentScoring::criteriaPayload($assessment);
+                $scope = $this->scoringScopePayload($assessment->scoring_scope, $criteria);
                 $snapshot = $assessment->plan_snapshot;
                 $snapshotAvailable = is_array($snapshot) && is_array($snapshot['phases'] ?? null);
-                $automatedScoreAvailable = (bool) ($payload['automated_score_available'] ?? true);
-                $weightedScore = $automatedScoreAvailable ? (float) $payload['weighted_score'] : null;
-                $isFullEvidenceReassessment = (bool) data_get($payload, 'scoring_scope.is_full_reassessment', false);
-                $hasScopeCorrection = (bool) data_get($payload, 'scoring_scope.has_scope_correction', false);
+                $automatedScoreAvailable = ! AssessmentScoring::hasFallbackScores($assessment) && ! AssessmentScoring::hasIncompleteScores($assessment);
+                $weightedScore = $automatedScoreAvailable ? round(collect($criteria)->sum('contribution'), 2) : null;
+                $isFullEvidenceReassessment = (bool) data_get($scope, 'is_full_reassessment', false);
+                $hasScopeCorrection = (bool) data_get($scope, 'has_scope_correction', false);
                 $scoreDelta = $isFullEvidenceReassessment || $hasScopeCorrection || $weightedScore === null || $previousWeightedScore === null
                     ? null
                     : round($weightedScore - $previousWeightedScore, 1);
@@ -165,8 +168,8 @@ final class AdvisorEntrepreneurPlanPayload
                 return [
                     'id' => $assessment->id,
                     'round' => $assessment->round,
-                    'status' => $payload['status'],
-                    'overall_grade' => $automatedScoreAvailable ? $payload['overall_grade'] : null,
+                    'status' => $assessment->finalised_at === null ? 'in_review' : 'completed',
+                    'overall_grade' => $automatedScoreAvailable ? ($assessment->ratingFramework?->gradeFor((float) $weightedScore) ?? $assessment->overall_grade) : null,
                     'weighted_score' => $weightedScore,
                     'automated_score_available' => $automatedScoreAvailable,
                     'score_delta' => $scoreDelta,
