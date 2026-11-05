@@ -37,6 +37,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 use PHPUnit\Framework\Assert;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
@@ -82,6 +83,40 @@ final class ReleaseGateTest extends TestCase
         $this->assertDatabaseHas('audit_events', ['action' => 'entrepreneur.release_gate_evaluated']);
         $this->expectException(QueryException::class);
         DB::table('plan_gate_runs')->where('id', $run->id)->update(['document_kind' => 'plan']);
+    }
+
+    public function test_advisor_can_open_a_long_plan_through_inertia_and_direct_navigation(): void
+    {
+        for ($index = 0; $index < 40; $index++) {
+            $sentences = [];
+            for ($sentence = 0; $sentence < 50; $sentence++) {
+                $sentences[] = 'Evidence '.hash('sha256', $index.':'.$sentence).' supports this operating plan section.';
+            }
+            $section = $this->section->replicate(['id', 'created_at', 'updated_at']);
+            $section->forceFill(['key' => 'long-section-'.$index, 'title' => 'Operating plan '.$index, 'body' => implode(' ', $sentences)])->save();
+        }
+        EntrepreneurBudget::query()->create(['business_plan_id' => $this->plan->id, 'forecast_years' => 1, 'status' => 'partial']);
+        $profile = $this->plan->entrepreneurProfile;
+
+        foreach ([false, true] as $inertia) {
+            $headers = $inertia ? ['X-Inertia' => 'true', 'X-Inertia-Version' => Inertia::getVersion()] : [];
+            $response = $this->actingAsMfa($this->advisor)
+                ->get(route('advisor.entrepreneurs.show', $profile), $headers)
+                ->assertOk();
+            if ($inertia) {
+                $response->assertHeader('X-Inertia', 'true');
+            }
+            $page = $inertia ? $response->json() : $response->viewData('page');
+            foreach ([
+                'component' => 'advisor/entrepreneurs/Show',
+                'props.entrepreneur.id' => $profile->id,
+                'props.entrepreneur.latest_plan.id' => $this->plan->id,
+                'props.entrepreneur.latest_plan.lender_brief.active' => false,
+                'props.entrepreneur.latest_plan.lender_brief.review.can_approve' => false,
+            ] as $path => $expected) {
+                self::assertSame($expected, data_get($page, $path), $path);
+            }
+        }
     }
 
     public function test_principal_acceptance_retains_unknown_result_and_survives_derived_summary_only(): void

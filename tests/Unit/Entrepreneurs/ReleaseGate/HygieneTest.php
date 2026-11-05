@@ -16,10 +16,79 @@ use App\Services\Entrepreneurs\ReleaseGate\RuleCatalogue;
 use App\Services\Entrepreneurs\ReleaseGate\RuleConfiguration;
 use App\Services\Entrepreneurs\ReleaseGate\RuleResult;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\HygieneRule;
+use App\Services\Entrepreneurs\ReleaseGate\Subcheck;
 use PHPUnit\Framework\TestCase;
 
 final class HygieneTest extends TestCase
 {
+    public function test_duplicate_review_preserves_headings_short_cells_and_near_duplicate_unicode_text(): void
+    {
+        $text = str_repeat('The whānau business supplies seasonal produce with scheduled delivery and clear customer commitments. ', 8);
+        $checks = $this->duplicates([
+            ['heading' => true, 'text' => 'Delivery plan'],
+            ['heading' => true, 'text' => " DELIVERY\n PLAN "],
+            ['text' => '$100'],
+            ['text' => '$100'],
+            ['text' => $text],
+            ['text' => str_replace('seasonal produce', 'seasonal products', $text)],
+            ['text' => str_repeat('Equipment maintenance requires inspection records, spare parts and trained technicians. ', 8)],
+        ]);
+
+        self::assertSame([CheckStatus::Pass, CheckStatus::Fail, CheckStatus::Pass, CheckStatus::Pass,
+            CheckStatus::Pass, CheckStatus::Fail, CheckStatus::Pass], array_column($checks, 'status'));
+        $strict = $this->duplicates([['text' => $text], ['text' => $text.' An additional delivery.']], '100');
+        self::assertSame(CheckStatus::Pass, $strict[1]->status);
+        $exact = $this->duplicates([['text' => $text], ['text' => mb_strtoupper($text)]], '100');
+        self::assertSame(CheckStatus::Fail, $exact[1]->status);
+    }
+
+    public function test_duplicate_review_compares_the_full_block_beyond_the_old_four_thousand_character_prefix(): void
+    {
+        $shared = str_repeat('A shared introduction describes the business and its purpose. ', 80);
+        $checks = $this->duplicates([
+            ['text' => $shared.str_repeat('Delivery scheduling and customer service require careful planning. ', 150)],
+            ['text' => $shared.str_repeat('Equipment repairs and inventory storage depend on technical inspections. ', 150)],
+        ]);
+
+        self::assertSame(CheckStatus::Pass, $checks[1]->status);
+    }
+
+    public function test_long_plan_duplicate_review_finishes_within_the_page_request_budget(): void
+    {
+        $blocks = [];
+        for ($section = 0; $section < 50; $section++) {
+            $sentences = [];
+            for ($sentence = 0; $sentence < 60; $sentence++) {
+                $identifier = hash('sha256', $section.':'.$sentence);
+                $sentences[] = 'The business evidence '.$identifier.' supports this section of the operating plan.';
+            }
+            $blocks[] = ['text' => implode(' ', $sentences)];
+        }
+        $blocks[] = $blocks[0];
+        $started = microtime(true);
+        $checks = $this->duplicates($blocks);
+
+        self::assertSame(CheckStatus::Fail, $checks[50]->status);
+        self::assertSame(CheckStatus::Pass, $checks[49]->status);
+        self::assertLessThan(10.0, microtime(true) - $started, 'Long plan checks must not exhaust the HTTP execution limit.');
+    }
+
+    /** @param list<array{text:string,heading?:bool}> $rows
+     * @return list<Subcheck>
+     */
+    private function duplicates(array $rows, string $threshold = '90'): array
+    {
+        $base = SyntheticCase::context([]);
+        $source = SyntheticCase::fact('source', 'text')->sources[0];
+        $blocks = [];
+        foreach ($rows as $index => $row) {
+            $blocks[] = new DocumentBlock((string) $index, $row['text'], $source, heading: $row['heading'] ?? false);
+        }
+        $context = new DocumentContext($base->source, $base->facts, 'plan', Audience::External, $blocks, true);
+
+        return (new HygieneRule('DH-03'))->evaluate($context, new RuleConfiguration(['duplicate_similarity_percent' => $threshold]));
+    }
+
     public function test_display_policy_checks_precision_currency_and_real_calendar_dates(): void
     {
         $policy = DisplayPolicy::from(SyntheticCase::fact('document.display_policy', 'NZD; whole dollars; day month year'));

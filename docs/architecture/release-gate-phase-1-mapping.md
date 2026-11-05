@@ -195,6 +195,14 @@ The current model does not supply a complete provenance-bearing cash, tax or fun
 
 Phase 2's rebuilt financial engine, agreed F2 reconstruction, Phase 4 evidence classification and Phase 5 actuals/supersession remain outside this implementation. No original PDF or client record was changed.
 
+### DH-03 navigation performance correction
+
+The entrepreneur detail payload evaluates document readiness. Comparing every pair of long plan sections with recursive `similar_text` made this read path vulnerable to the HTTP execution limit. A local profile using the supplied plan's extracted text took 35.938 seconds for DH-03 alone; the replacement took 1.138 seconds on the same input. These measurements isolate the rule and are not production request timings.
+
+DH-03 now normalises case and whitespace once per block and compares full-text Unicode character-trigram multisets using Dice similarity (`200 * shared occurrences / total occurrences`). The configured similarity threshold remains 90 percent by default. Exact repeated headings and narrative still fail; short numeric cells remain exempt. Unlike the previous 4,000-character prefix comparison, differing content later in a block participates in the result. Fingerprint construction is linear in text length, with each pair comparison linear in the distinct trigrams; the number of block pairs remains quadratic. This is a duplicate-review heuristic, not semantic equivalence or release certification. Existing service dependency hashes invalidate decisions made against the old comparison code.
+
+Regression coverage includes exact and near duplicates, Unicode, configured thresholds, unrelated text, differing long suffixes, a 51-block performance budget, and advisor detail requests through both Inertia and direct navigation. F1 expectations and Draft-only release behaviour remain unchanged.
+
 ### Verification record
 
 Local verification completed on 5 November 2026:
