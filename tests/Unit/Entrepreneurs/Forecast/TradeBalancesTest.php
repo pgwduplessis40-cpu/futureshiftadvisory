@@ -11,10 +11,26 @@ use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
 use App\Services\Entrepreneurs\Forecast\TradeBalances;
 use App\Services\Entrepreneurs\Forecast\TradeItem;
 use App\Services\Entrepreneurs\Forecast\TradeTerms;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class TradeBalancesTest extends TestCase
 {
+    #[DataProvider('internalTransfers')]
+    public function test_internal_cash_restrictions_cannot_settle_historical_or_future_trade_balances(string $kind, string $direction, string $date): void
+    {
+        $transfer = new CashMovement('internal-transfer', 'reserve-policy', $date, '40', $direction, 'restricted_transfer', 0, true);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Internal cash restrictions cannot settle a trade item.');
+        new TradeItem('invoice-or-bill', 'document', $kind, '2027-01-01', '40', [$transfer]);
+    }
+
+    public static function internalTransfers(): array
+    {
+        return [['receivable', 'in', '2027-01-10'], ['receivable', 'in', '2027-03-10'],
+            ['payable', 'out', '2027-01-10'], ['payable', 'out', '2027-03-10']];
+    }
+
     public function test_booking_deposit_and_pre_delivery_balance_become_advances_before_the_invoice(): void
     {
         $sale = (new TradeTerms)->sale('sale', 'contract', '1000', '2027-01-10', '2027-02-05', '2027-02-05', '30', 'before_delivery', 5, 0);
