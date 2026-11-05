@@ -21,8 +21,8 @@ final readonly class CashMovement implements \JsonSerializable
         }
         $directions = match ($category) {
             'operating_receipt', 'funding' => ['in'],
-            'operating_payment', 'owner_pay', 'capex', 'debt_principal', 'distribution', 'interest', 'fees' => ['out'],
-            'tax', 'gst' => ['in', 'out'],
+            'operating_payment', 'owner_pay', 'debt_principal', 'distribution', 'interest', 'fees' => ['out'],
+            'tax', 'gst', 'capex', 'restricted_transfer' => ['in', 'out'],
             default => [],
         };
         if (! in_array($direction, $directions, true)) {

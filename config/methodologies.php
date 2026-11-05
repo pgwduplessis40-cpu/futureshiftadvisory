@@ -16,6 +16,7 @@ use App\Services\Dd\Valuation as DdValuationService;
 use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\Assessment;
 use App\Services\Entrepreneurs\BudgetCalculator;
+use App\Services\Entrepreneurs\Forecast\ActualsRebase;
 use App\Services\Entrepreneurs\Forecast\CashLedger;
 use App\Services\Entrepreneurs\Forecast\RevenueProjection;
 use App\Services\Entrepreneurs\IdeaValidationService;
@@ -96,6 +97,7 @@ return [
         'entrepreneur.portal.budget_forecast' => 'Entrepreneur budget forecast workflow',
         'entrepreneur.forecast.driver_model' => 'Entrepreneur driver model (not yet activated)',
         'entrepreneur.forecast.dated_cash' => 'Entrepreneur dated cash engine (not yet activated)',
+        'entrepreneur.forecast.assets_tax_actuals' => 'Entrepreneur assets, tax and actuals (not yet activated)',
         'entrepreneur.portal.plan_assessment' => 'Entrepreneur plan assessment workflow',
         'entrepreneur.portal.readiness' => 'Entrepreneur readiness assessment',
         'entrepreneur.portal.revision_progress' => 'Entrepreneur revision progress workflow',
@@ -985,6 +987,21 @@ return [
             'sources' => ['FSA-Release-Gate-and-Evidence-Model-Spec.md', 'docs/architecture/release-gate-phase-2-mapping.md'],
             'owning_service' => CashLedger::class,
             'version' => CashLedger::VERSION,
+            'internal_only' => true,
+        ],
+
+        'entrepreneur.assets_tax_actuals' => [
+            'id' => 'entrepreneur.assets_tax_actuals',
+            'area' => 'Entrepreneurs',
+            'name' => 'Assets, Supplied Tax Policy and Reviewed Actuals',
+            'summary' => 'Standalone planning calculations with explicit asset classification, supplied tax policy and reviewed monthly actuals. Not yet selected by stored budgets; review authorization and persistent snapshots belong to Phase 2E.',
+            'formula' => 'Purchase cash is separate from straight-line book depreciation and pre-use capital prepayments. Existing assets require opening accumulated depreciation. Eligible losses roll forward as opening plus generated less used; taxable profit after losses times the supplied rate is an indicative expense, never an automatic refund. Separately supplied tax/GST movements bridge analytical to bank cash; internal restrictions change available cash only. Every completed month through an explicit as-of date needs reviewed source/version/account mappings, reconciled bank/PBT/trade balances and continuity; only its closing balances and outstanding settlements seed future periods. Money lines round to cents before rollforward.',
+            'inputs' => ['Explicit calendar and as-of date', 'Asset classification policy, dates, cost, residual, life and depreciation method', 'Entity tax basis, rate, eligibility evidence, policy version and signed adjustments', 'Tax/GST schedule or documented scope state', 'Analytical, GST, bank and restricted opening balances', 'Monthly manual or non-degraded live Xero source, entity, period, account mappings and review', 'Actual profit, bank movements, opening/closing balances and outstanding obligations'],
+            'config_refs' => [],
+            'where_used' => ['entrepreneur.forecast.assets_tax_actuals'],
+            'sources' => ['FSA-Release-Gate-and-Evidence-Model-Spec.md', 'docs/architecture/release-gate-phase-2-mapping.md'],
+            'owning_service' => ActualsRebase::class,
+            'version' => ActualsRebase::VERSION,
             'internal_only' => true,
         ],
 

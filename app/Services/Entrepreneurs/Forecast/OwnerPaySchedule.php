@@ -43,7 +43,7 @@ final class OwnerPaySchedule implements ProvidesMethodology
         ksort($policies);
         foreach ($revenue as $period => $amount) {
             ForecastDates::read($period.'-01');
-            DriverNumbers::read($amount);
+            AccountingNumbers::signed($amount);
         }
         $payments = $rates = $missing = [];
         foreach (ForecastDates::recur($firstPaymentOn, ForecastDates::end($calendar), 'weekly') as $date) {
@@ -93,7 +93,7 @@ final class OwnerPaySchedule implements ProvidesMethodology
             $month = ForecastDates::read(substr($date, 0, 7).'-01');
             for ($index = 1; $index <= 3; $index++) {
                 $period = $month->modify('-'.$index.' months')->format('Y-m');
-                $amount = DriverNumbers::read($revenue[$period] ?? null);
+                $amount = AccountingNumbers::signed($revenue[$period] ?? null);
                 if ($amount === null) {
                     $missing[] = 'revenue.'.$period;
                 } else {
