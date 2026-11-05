@@ -211,6 +211,14 @@ History now derives only its displayed score, grade, scope, status and snapshot 
 
 On the same local fixture, full requests measured 3.358 seconds for one round and 2.739 seconds for 25 rounds, with 3 gate source captures in each case. The regression requires history growth not to increase release evaluations, checks identical input fingerprints, and retains the saved review and Draft-only result. These are synthetic local request measurements; live client navigation must be timed again after deployment.
 
+### Full-page response-header correction
+
+Production version 1.0.281 verified the history correction: Tania's in-app request returned HTTP 200 in 3.57 seconds, and another entrepreneur's action button returned HTTP 200 in 262 ms. Direct full-page loads still returned HTTP 502 for both profiles while the list loaded normally.
+
+The built detail page registers 27 Vite preload assets. A synthetic authenticated request using the built assets produced 4,336 response-header bytes, including 2,936 bytes for the Link field and 899 bytes for cookies. This exceeds a 4 KB FastCGI header buffer and is consistent with the observed gateway failure; production nginx error logs were not available to independently confirm its rejection reason. [Nginx documents that responses exceeding this buffer are invalid](https://nginx.org/en/docs/http/ngx_http_fastcgi_module.html#fastcgi_buffer_size).
+
+The web middleware now limits optional Link preload hints to eight assets using Laravel's supported middleware parameter. All asset tags remain in the HTML, and security headers, cookies, server rendering and release checks remain active. The same built-page request now emits 2,219 header bytes. The regression exercises a 40-import page through the web middleware, requires the complete response headers to fit below 4 KB, and verifies that every imported asset still appears in the HTML. Direct production loads require verification after this follow-up is deployed.
+
 ### Verification record
 
 Local verification completed on 5 November 2026:

@@ -94,7 +94,9 @@ return Application::configure(basePath: dirname(__DIR__))
             MeasureDashboardLaunch::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
-            AddLinkHeadersForPreloadedAssets::class,
+            // Bound optional HTTP hints so asset-heavy pages fit nginx's header
+            // buffer alongside session cookies. HTML retains every asset tag.
+            AddLinkHeadersForPreloadedAssets::using(8),
             PreventEntrepreneurTwoFactorDisable::class,
             EnforceClientScope::class,
             RedirectUnpaidIdeaValidationBuyer::class,
