@@ -54,7 +54,7 @@ final class ActualsFixture
             'movements' => [$partial, self::movement('feb-sale', '2027-02-10', '170', 'in', 'operating_receipt'), self::movement('feb-cost', '2027-02-20', '100', 'out', 'operating_payment')],
             'movementAccounts' => ['feb-partial' => 'document:cash.operating_receipt', 'feb-sale' => 'document:cash.operating_receipt', 'feb-cost' => 'document:cash.operating_payment'],
             'closingObligations' => [new TradeItem('invoice', 'synthetic-invoice', 'receivable', '2027-02-01', '100', [$partial, self::movement('outstanding', '2027-03-05', '70', 'in', 'operating_receipt')]),
-                new TradeItem('bill', 'synthetic-bill', 'payable', '2027-02-01', '40', [self::movement('later-payment','2027-06-01','40','out','operating_payment')])]]);
+                new TradeItem('bill', 'synthetic-bill', 'payable', '2027-02-01', '40', [self::movement('later-payment', '2027-06-01', '40', 'out', 'operating_payment')])]]);
 
         return [$january, $february];
     }
