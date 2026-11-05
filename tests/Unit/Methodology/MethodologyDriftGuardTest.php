@@ -61,6 +61,7 @@ use App\Services\Entrepreneurs\ExecutiveSummaryRecovery;
 use App\Services\Entrepreneurs\ExternalIssueReview;
 use App\Services\Entrepreneurs\ExternalStripeRefundReconciler;
 use App\Services\Entrepreneurs\FixedCostCadenceQuantityGuard;
+use App\Services\Entrepreneurs\Forecast;
 use App\Services\Entrepreneurs\FounderBriefFinancials;
 use App\Services\Entrepreneurs\FounderBriefPages;
 use App\Services\Entrepreneurs\FounderBriefReconciliation;
@@ -236,6 +237,9 @@ final class MethodologyDriftGuardTest extends TestCase
         PlanBudgetCoherence::class => 'Assessment evidence reconciliation helper; the assessment methodology is owned by Assessment.',
         PlanBudgetGuide::class => 'Compares explicit source claims with saved results for the existing assessment and brief workflow; it does not set or calculate assumptions.',
         PlanReleaseGate\AssessmentGate::class => 'Assessment capture adapter; release methodology is owned by EvaluateReleaseGate.',
+        Forecast\FounderMonth::class => 'Immutable founder-time input contract; calculations are owned by RevenueProjection.',
+        Forecast\RevenueStream::class => 'Immutable revenue-stream input contract; calculations are owned by RevenueProjection.',
+        Forecast\StreamMonth::class => 'Immutable monthly driver input contract; calculations are owned by RevenueProjection.',
         PlanReleaseGate\BudgetDraft::class => 'Budget PDF delivery workflow; release methodology is owned by EvaluateReleaseGate.',
         PlanReleaseGate\BudgetFacts::class => 'Adapts saved budget values into sourced release facts; release comparisons are owned by EvaluateReleaseGate.',
         PlanReleaseGate\CandidateBlocks::class => 'Extracts candidate document content for release checks.',
