@@ -13,6 +13,16 @@ use PHPUnit\Framework\TestCase;
 
 final class OwnerPayScheduleTest extends TestCase
 {
+    public function test_negative_reviewed_net_revenue_does_not_trigger_a_higher_owner_payment(): void
+    {
+        $result = (new OwnerPaySchedule)->calculate(new ForecastCalendar('2027-01', 1), 'policy', '2027-01-01',
+            [new OwnerPayStep('2027-01-01', '50', 'base'), new OwnerPayStep('2027-01-01', '100', 'trailing_three_month_average_revenue', '100')],
+            ['2026-10' => '-500', '2026-11' => '100', '2026-12' => '100'], 0);
+        self::assertSame('pass', $result['status']);
+        self::assertSame('-100.00', $result['rates'][0]['trailing_average_revenue']);
+        self::assertSame('50.00', $result['rates'][0]['weekly_amount']);
+    }
+
     public function test_weekly_cash_uses_five_then_four_dates_and_not_the_monthly_average(): void
     {
         $calendar = new ForecastCalendar('2027-01', 2);

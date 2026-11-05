@@ -1,0 +1,10 @@
+{
+  "fixture": "Synthetic Phase 2C arithmetic; not Tania, F2 or a statutory tax recommendation",
+  "enabled_rule_ids": [],
+  "asset": {"cost": "1200", "paid_on": "2027-01-20", "start_on": "2027-02-15", "life_months": 12},
+  "expected_asset": {"january_cash": "1200.00", "january_prepayment": "1200.00", "february_depreciation": "100.00", "february_carrying": "1100.00"},
+  "tax": {"rate_percent": "20", "opening_losses": "300", "profit": ["-1000", "1000", "500"], "adjustments": ["100", "0", "100"]},
+  "expected_tax": {"opening": ["300.00", "1200.00", "200.00"], "generated": ["900.00", "0.00", "0.00"], "used": ["0.00", "1000.00", "200.00"], "closing": ["1200.00", "200.00", "0.00"], "expense": ["0.00", "0.00", "80.00"]},
+  "expected_cash": {"analytical": "1080.00", "bank": "1085.00", "restricted": "220.00", "unrestricted": "865.00"},
+  "expected_actuals": {"opening_forecast_cash": "700", "forecast_periods": ["2027-03", "2027-04"], "outstanding_receipt": "70", "beyond_horizon_payment": "40"}
+}
