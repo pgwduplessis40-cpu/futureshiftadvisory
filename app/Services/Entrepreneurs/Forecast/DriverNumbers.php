@@ -31,4 +31,23 @@ final class DriverNumbers implements ProvidesMethodology
     {
         return (string) $value->toScale(2, RoundingMode::HalfUp);
     }
+
+    /** Reads a signed amount written by money().
+     *
+     * Drivers are non-negative by contract, but a cash balance is not: a
+     * closing balance below zero is the condition the funding measures exist
+     * to size. Reading one back through read() would reject the very number
+     * that matters.
+     */
+    public static function readSigned(?string $value): ?BigDecimal
+    {
+        if ($value === null) {
+            return null;
+        }
+        if (preg_match('/^-?\d{1,18}(?:\.\d{1,8})?$/D', $value) !== 1) {
+            throw new \InvalidArgumentException('Signed amounts are decimal strings with at most eight decimal places.');
+        }
+
+        return BigDecimal::of($value);
+    }
 }

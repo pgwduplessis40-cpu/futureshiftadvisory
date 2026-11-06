@@ -19,6 +19,7 @@ use App\Services\Entrepreneurs\BudgetCalculator;
 use App\Services\Entrepreneurs\Forecast\ActualsRebase;
 use App\Services\Entrepreneurs\Forecast\CashLedger;
 use App\Services\Entrepreneurs\Forecast\RevenueProjection;
+use App\Services\Entrepreneurs\Forecast\ScenarioCatalogue;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\RatingFrameworkManager;
 use App\Services\Entrepreneurs\Readiness;
@@ -98,6 +99,7 @@ return [
         'entrepreneur.forecast.driver_model' => 'Entrepreneur driver model (not yet activated)',
         'entrepreneur.forecast.dated_cash' => 'Entrepreneur dated cash engine (not yet activated)',
         'entrepreneur.forecast.assets_tax_actuals' => 'Entrepreneur assets, tax and actuals (not yet activated)',
+        'entrepreneur.forecast.scenarios_metrics_funding' => 'Entrepreneur scenarios, lender metrics and funding sizing (not yet activated)',
         'entrepreneur.portal.plan_assessment' => 'Entrepreneur plan assessment workflow',
         'entrepreneur.portal.readiness' => 'Entrepreneur readiness assessment',
         'entrepreneur.portal.revision_progress' => 'Entrepreneur revision progress workflow',
@@ -1002,6 +1004,21 @@ return [
             'sources' => ['FSA-Release-Gate-and-Evidence-Model-Spec.md', 'docs/architecture/release-gate-phase-2-mapping.md'],
             'owning_service' => ActualsRebase::class,
             'version' => ActualsRebase::VERSION,
+            'internal_only' => true,
+        ],
+
+        'entrepreneur.scenarios_metrics_funding' => [
+            'id' => 'entrepreneur.scenarios_metrics_funding',
+            'area' => 'Entrepreneurs',
+            'name' => 'Scenarios, Lender Metrics and Funding Sizing',
+            'summary' => 'Standalone scenario shocks over the driver, cash and actuals engines, with requested-against-effective reporting and dated funding measures. Not yet selected by stored budgets; persistence, model selection and gate adapters belong to Phase 2E.',
+            'formula' => 'Each required scenario declares typed shocks with their eligible targets and the defaults they came from. Volume shocks scale booked, delivered and invoiced units together; cost-rate shocks scale only direct cost, fixed cost and capex, never tax, financing receipts or historical actuals; collection delays move receipts later and never payments. Explicit shock periods are asserted against the actuals window and fail if they reach an elapsed reviewed month, while unbounded shocks cover the forecast window only. Requested and effective shock are reported separately with the reason they differ, and results are never adjusted to force monotonicity across scenarios.',
+            'inputs' => ['Reviewed actuals window with its forecast period set', 'Revenue streams with per-month booked, delivered and invoiced units', 'Eligible cost categories and their rates', 'Dated cash movements with direction and category', 'Configured scenario defaults or an explicit override set', 'Named ranking metric for worst-case selection'],
+            'config_refs' => [],
+            'where_used' => ['entrepreneur.forecast.scenarios_metrics_funding'],
+            'sources' => ['FSA-Release-Gate-and-Evidence-Model-Spec.md', 'docs/architecture/release-gate-phase-2-mapping.md'],
+            'owning_service' => ScenarioCatalogue::class,
+            'version' => ScenarioCatalogue::VERSION,
             'internal_only' => true,
         ],
 
