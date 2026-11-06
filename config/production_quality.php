@@ -154,6 +154,7 @@ return [
     'sensitive_models' => [
         'App\\Models\\AccountingInvoice' => 'app/Models/AccountingInvoice.php',
         'App\\Models\\FeeCalculation' => 'app/Models/FeeCalculation.php',
+        'App\\Models\\EntrepreneurForecastModel' => 'app/Models/EntrepreneurForecastModel.php',
         'App\\Models\\ClientFunderRecord' => 'app/Models/ClientFunderRecord.php',
         'App\\Models\\ServiceRatePackage' => 'app/Models/ServiceRatePackage.php',
         'App\\Models\\IdeaValidationPurchase' => 'app/Models/IdeaValidationPurchase.php',
