@@ -123,6 +123,33 @@ Local verification passed 215 forecast tests with 844 assertions and 22 methodol
 
 This slice enables no new release rules, selects no stored model, persists no scenario and sizes no real facility. F1 remains Draft and F2 still requires agreed current inputs. Proposed-facility recomputation, audited storage and model selection, committed-cost matching, input/review UI and gate adapters remain 2E; narrative binding in F8 and certification/supersession in F10 remain later-phase work.
 
+## Slice 2E delivery split
+
+Checked on 7 November 2026 against merged Phase 2D `76bae149` (release 387). The 2A-2D engine is complete at 44 classes and 3,616 lines under `app/Services/Entrepreneurs/Forecast/`, and no file outside that directory references any of it. 2E is therefore the whole integration surface, and the slice table's single row covers five separable jobs: audited revision-checked persistence with explicit model selection, an input/review UI, nine new rule adapters, five existing rules extended onto the new ledger, and the proof obligations for Cannot verify, invalidation, bounded history and Draft-only routes.
+
+Five of the nine new rules carry `Severity::Block`. Enabling them changes release verdicts for live entrepreneur clients, which is a production behaviour change rather than a refactor, so it does not belong in the same change that persists a 3,600-line engine for the first time. The Principal Advisor confirmed a four-pull-request split on 7 November 2026, with the rule activation isolated in the last and smallest of them.
+
+| Pull request | Contents | Behaviour change |
+| --- | --- | --- |
+| 2E-1 | Versioned driver persistence, explicit model selection, snapshot capture of the selected version | None. No rule reads the new store |
+| 2E-2 | The nine rule adapters and their fixtures, built and tested but not registered in `PhaseOneRules` | None. Adapters are unreachable from the evaluator |
+| 2E-3 | Focused driver, actuals and reserve-policy input/review UI | Advisors can record version-2 inputs; verdicts still come from the legacy twenty rules |
+| 2E-4 | Register the nine rules, extend MI-01/02/03/04 and SS-01 onto the new ledger | Catalogue goes from twenty to twenty-nine enabled rules for selected models only |
+
+The Principal Advisor also confirmed per-client opt-in on the same date. A business plan with no selected version-2 model keeps today's twenty-rule verdict and today's legacy arithmetic unchanged; the new rules evaluate only where an advisor has explicitly saved and selected a reconstruction. This follows boundary note 8, which already states that no automatic conversion of stored budgets is proposed, and it means 2E-4 cannot silently alter an existing client's gate report.
+
+### Slice 2E-1 implementation plan
+
+This slice stores the version-2 driver model and records which model a plan uses. It enables no rule, renders no document differently and changes no existing verdict. `EntrepreneurBudget`, `BudgetCalculator` and the legacy twelve-value monthly editors are not modified; the new store sits beside them.
+
+- Add `entrepreneur_forecast_models`, one row per business plan, holding the engine version, the typed driver payload, the reviewed actuals payload, the reserve policy and the computed outputs. Follow the `entrepreneur_budgets` row-level-security shape, with the read scope covering the owning client, the assigned advisor and the entrepreneur. Unlike the legacy budget policy, the write scope includes the assigned advisor, because the reconstruction is an advisor decision rather than a founder entry; record that difference rather than leaving it implicit.
+- Keep the store editable and revision-checked, not append-only. It is a working reconstruction, so `plan_gate_runs`-style immutability would be wrong; the audit trail comes from an `audit_events` row on every save, as the legacy budget service already does. Reuse the locked transaction, expected-revision assertion and change-fingerprint discipline in `EntrepreneurBudgetService::update()` rather than inventing a second concurrency story.
+- Make selection explicit and separately audited. A saved model is not a selected model: selection is its own recorded act with its own actor and timestamp, and deselection is recorded too. A plan with no selected model is the per-client opt-in default and must be indistinguishable, in every downstream payload, from a plan that has no forecast model at all.
+- Name the model version on the row and capture it in `BusinessPlanSnapshot::captureInputs()`, so a later slice can prove that snapshots and financial payloads share one version. Capture the version only; do not reintroduce derived release evaluation into input fingerprints, which boundary note 2 forbids.
+- Type the stored payloads. The structural-boundary gate rejects `array<string,mixed>`, and a financial payload is exactly the place where an untyped bag would hide a missing value. Round-trip every payload through the existing engine value objects so a stored model cannot deserialize into something the engine would have refused to construct.
+- Preserve missing values. A driver absent from the payload stays absent on read; it must never deserialize to zero, and a stored model that cannot be read back into the engine is a load failure, not a silently emptied reconstruction.
+- Cover with PostgreSQL feature tests: save and reload, revision conflict rejection, an `audit_events` row for save, select and deselect, row-level-security scoping for each of the owning client, assigned advisor, entrepreneur and an unrelated advisor, and a regression asserting that an unselected or absent model leaves the existing budget, snapshot and gate payloads byte-identical.
+
 ### Navigation repair handover (Phase 2A baseline)
 
 PR #170 is merged and deployed as 1.0.282, with `/api/deployment` identifying `9f9e2a10d8e60b9d87893e181e23ed9f3195c631`. Authenticated Chrome checks returned HTTP 200 for Tania's direct document request (5.84 seconds), her name-link XHR (3.82 seconds), a full refresh (12.23 seconds), and another entrepreneur's direct document request (1.98 seconds). Each detail page rendered its matching heading; the previous 502/reconnecting state did not recur in these checks. These are individual production observations, not a latency guarantee: the full refresh remains materially slower than in-app navigation. No client data was edited during verification.
