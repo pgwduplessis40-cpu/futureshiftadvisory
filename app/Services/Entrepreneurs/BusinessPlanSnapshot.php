@@ -8,18 +8,21 @@ use App\Models\BusinessPlan;
 use App\Models\EntrepreneurBudget;
 use App\Models\PlanPhase;
 use App\Models\PlanSection;
+use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelStore;
 
 /**
  * @phpstan-type SnapshotSection array{id:string,key:string,title:string,body:string|null,attached_document_ids:list<string>,requirement_key:string|null,completeness_status:string,created_at:string|null,updated_at:string|null}
  * @phpstan-type SnapshotPhase array{id:string,key:string,title:string,status:string,position:int,requirements:array<int,mixed>,sections:list<SnapshotSection>}
  * @phpstan-type SnapshotBudget array{status:string,expected_runway_months:mixed,calculated_runway_months:mixed,break_even_year:mixed,cash_flow_positive_year:mixed,updated_at:string|null,assessment_evidence:array{forecast_years:int,expected_runway_months:mixed,assumptions:mixed,launch_costs:mixed,monthly_fixed_costs:mixed,future_costs:mixed,revenue_forecast:mixed,funding_sources:mixed,funding_scenarios:mixed,computed:mixed,flags:mixed,funding_readiness:mixed}}
- * @phpstan-type Snapshot array{schema_version:int,captured_at:string,business_plan:array{id:string,title:string,status:string,submitted_at:string|null,updated_at:string|null},completion:array{total:int,completed:int,percent:int},issue_readiness?:mixed,budget:SnapshotBudget|null,phases:list<SnapshotPhase>}
+ * @phpstan-type SnapshotForecastModel array{engine_version:string,revision:int,selected_at:string|null}
+ * @phpstan-type Snapshot array{schema_version:int,captured_at:string,business_plan:array{id:string,title:string,status:string,submitted_at:string|null,updated_at:string|null},completion:array{total:int,completed:int,percent:int},issue_readiness?:mixed,forecast_model?:SnapshotForecastModel,budget:SnapshotBudget|null,phases:list<SnapshotPhase>}
  */
 final class BusinessPlanSnapshot
 {
     public function __construct(
         private readonly PlanIssueReadiness $issueReadiness,
         private readonly BudgetFundingReadiness $fundingReadiness,
+        private readonly ForecastModelStore $forecastModels,
     ) {}
 
     /**
@@ -39,6 +42,21 @@ final class BusinessPlanSnapshot
     public function captureInputs(BusinessPlan $plan): array
     {
         return $this->build($plan, includeIssueReadiness: false);
+    }
+
+    /** @return array{}|array{forecast_model:SnapshotForecastModel} */
+    private function selectedForecastModel(BusinessPlan $plan): array
+    {
+        $model = $this->forecastModels->selectedForPlan($plan);
+        if ($model === null) {
+            return [];
+        }
+
+        return ['forecast_model' => [
+            'engine_version' => (string) $model->engine_version,
+            'revision' => (int) $model->revision,
+            'selected_at' => $model->selected_at?->toIso8601String(),
+        ]];
     }
 
     /** @return Snapshot */
@@ -69,6 +87,13 @@ final class BusinessPlanSnapshot
                 'percent' => $total > 0 ? (int) round(($completed / $total) * 100) : 0,
             ],
             ...($includeIssueReadiness ? ['issue_readiness' => $this->issueReadiness->evaluate($plan)] : []),
+            // The selected model's version only, so a later slice can prove a
+            // snapshot and a financial payload share one version. A plan with
+            // no selected model omits the key entirely and keeps the snapshot
+            // it produced before this store existed. Never the release
+            // evaluation: boundary note 2 keeps derived verdicts out of input
+            // fingerprints.
+            ...$this->selectedForecastModel($plan),
             'budget' => $budget instanceof EntrepreneurBudget ? [
                 'status' => $budget->status,
                 'expected_runway_months' => $budget->expected_runway_months,
