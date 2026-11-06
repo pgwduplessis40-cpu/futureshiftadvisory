@@ -122,6 +122,111 @@ final class ScenarioApplication implements ProvidesMethodology
         return $shocked;
     }
 
+    /**
+     * Compares base and shocked revenue so the requested shock and its
+     * effective result are reported separately.
+     *
+     * A requested 0.8 on volumes rarely produces exactly a 20% revenue
+     * reduction. Capacity already bound some months, the shock may cover only
+     * part of the horizon, upside streams never counted toward base revenue,
+     * and streams outside the target set are untouched. Each of those is
+     * reported as a reason so the difference reads as a modelled consequence.
+     *
+     * @param  list<RevenueStream>  $baseStreams
+     * @param  array<string,FounderMonth>  $founderMonths
+     */
+    public function revenueShockReport(
+        ForecastCalendar $calendar,
+        ActualsWindow $actuals,
+        array $baseStreams,
+        array $founderMonths,
+        ScenarioDefinition $definition,
+    ): ?ShockReport {
+        $shocks = $definition->shocksOfType(ScenarioShock::TYPE_VOLUME_FACTOR);
+        if ($shocks === []) {
+            return null;
+        }
+
+        $projection = new RevenueProjection;
+        $baseline = $this->totalBaseRevenue($projection->calculate($calendar, $baseStreams, $founderMonths));
+        $shockedStreams = $this->shockStreams($actuals, $baseStreams, $definition);
+        $shocked = $this->totalBaseRevenue($projection->calculate($calendar, $shockedStreams, $founderMonths));
+
+        if ($baseline === null || $shocked === null) {
+            return null;
+        }
+
+        return new ShockReport(
+            $definition->id,
+            ScenarioShock::TYPE_VOLUME_FACTOR,
+            $shocks[0]->factor,
+            DriverNumbers::money($baseline),
+            DriverNumbers::money($shocked),
+            $this->divergenceReasons($calendar, $baseStreams, $shocks),
+        );
+    }
+
+    /** Sums usable base revenue. One unusable month makes the comparison
+     * meaningless, so the whole total is withheld rather than silently
+     * summing the months that happened to compute.
+     *
+     * @param  array{months:list<array{base_revenue:?string}>}  $projection
+     */
+    private function totalBaseRevenue(array $projection): ?BigDecimal
+    {
+        $total = BigDecimal::zero();
+        foreach ($projection['months'] as $month) {
+            if ($month['base_revenue'] === null) {
+                return null;
+            }
+            $total = $total->plus(BigDecimal::of($month['base_revenue']));
+        }
+
+        return $total;
+    }
+
+    /**
+     * @param  list<RevenueStream>  $streams
+     * @param  list<ScenarioShock>  $shocks
+     * @return list<string>
+     */
+    private function divergenceReasons(ForecastCalendar $calendar, array $streams, array $shocks): array
+    {
+        $reasons = [];
+        $constrained = [];
+        foreach ($shocks as $shock) {
+            if ($shock->periods !== null) {
+                $constrained = array_merge($constrained, $shock->periods);
+            }
+        }
+        if ($constrained !== [] && count(array_unique($constrained)) < count($calendar->periods)) {
+            $reasons[] = 'the shock covers only part of the forecast horizon';
+        }
+        foreach ($streams as $stream) {
+            if ($stream->inBaseCase === false) {
+                $reasons[] = 'upside streams are excluded from base revenue';
+
+                break;
+            }
+        }
+        foreach ($streams as $stream) {
+            $targeted = false;
+            foreach ($shocks as $shock) {
+                if ($shock->appliesToTarget($stream->id)) {
+                    $targeted = true;
+                }
+            }
+            if (! $targeted) {
+                $reasons[] = 'some streams are outside the shock target set';
+
+                break;
+            }
+        }
+        $reasons[] = 'capacity limits and pricing are applied after the volume shock';
+
+        return $reasons;
+    }
+
     /** @param list<ScenarioShock> $shocks */
     private function shockStream(ActualsWindow $actuals, RevenueStream $stream, array $shocks): RevenueStream
     {
