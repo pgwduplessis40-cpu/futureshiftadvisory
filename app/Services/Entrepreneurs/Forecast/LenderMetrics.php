@@ -18,7 +18,8 @@ use Brick\Math\RoundingMode;
  * does not have.
  *
  * @phpstan-type Checkpoint array{date:string,movement_id:?string,balance:?string}
- * @phpstan-type MetricResult array{status:string,value:?string,basis:?string,detail:array<string,mixed>}
+ * @phpstan-type MetricDetail array{missing?:list<string>,contribution_per_unit?:string,unit?:string,capacity_units?:string,utilisation?:string,mix_total?:string,monthly_expense_basis?:string,essential_basis_excluding_owner_pay?:string,essential_months_cover?:?string,balance?:string,horizon_end?:string,covers_horizon?:bool,period?:string,numerator?:string,denominator?:string,terms?:DebtService}
+ * @phpstan-type MetricResult array{status:string,value:?string,basis:?string,detail:MetricDetail}
  */
 final class LenderMetrics implements ProvidesMethodology
 {
@@ -249,7 +250,7 @@ final class LenderMetrics implements ProvidesMethodology
         return $missing;
     }
 
-    /** @param array<string,mixed> $detail
+    /** @param MetricDetail $detail
      * @return MetricResult
      */
     private function metric(string $status, ?string $value, ?string $basis, array $detail): array

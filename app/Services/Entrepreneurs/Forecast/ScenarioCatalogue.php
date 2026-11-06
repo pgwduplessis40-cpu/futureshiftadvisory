@@ -9,6 +9,8 @@ use App\Support\Methodology\ProvidesMethodology;
 /**
  * Builds the six required scenarios from configurable defaults.
  *
+ * @phpstan-type ScenarioDefaults array{revenue_volume_factor?:string,slow_start_factor?:string,slow_start_months?:int,cost_rate_factor?:string,collection_delay_days?:string,cost_categories?:list<string>}
+ *
  * Every scenario names the defaults it came from so a reader can tell a
  * configured factor from a hard-coded one. Slow start is bounded to the first
  * months of the forecast window supplied by the actuals rebase, which already
@@ -49,7 +51,7 @@ final class ScenarioCatalogue implements ProvidesMethodology
     /**
      * @param  list<string>  $streamIds  Streams eligible for a volume shock.
      * @param  list<string>  $collectionTargets  Collection groups eligible for a timing shock.
-     * @param  array<string,mixed>  $overrides  Configured replacements for DEFAULTS.
+     * @param  ScenarioDefaults  $overrides  Configured replacements for DEFAULTS.
      * @return list<ScenarioDefinition>
      */
     public static function required(ActualsWindow $actuals, array $streamIds, array $collectionTargets, array $overrides = []): array
@@ -110,7 +112,7 @@ final class ScenarioCatalogue implements ProvidesMethodology
     }
 
     /**
-     * @param  array<string,mixed>  $overrides
+     * @param  ScenarioDefaults  $overrides
      * @return array{revenue_volume_factor:string,slow_start_factor:string,slow_start_months:int,cost_rate_factor:string,collection_delay_days:string,cost_categories:list<string>}
      */
     private static function resolveDefaults(array $overrides): array
@@ -122,7 +124,7 @@ final class ScenarioCatalogue implements ProvidesMethodology
             }
             $defaults[$key] = $value;
         }
-        if (! is_int($defaults['slow_start_months']) || $defaults['slow_start_months'] < 1) {
+        if ($defaults['slow_start_months'] < 1) {
             throw new \InvalidArgumentException('Slow start covers a whole number of months, at least one.');
         }
         if ($defaults['cost_categories'] === []) {
