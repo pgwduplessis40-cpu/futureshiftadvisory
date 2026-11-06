@@ -66,7 +66,9 @@ final readonly class DebtService implements \JsonSerializable
         return ($principal ?? BigDecimal::zero())->plus($interest ?? BigDecimal::zero());
     }
 
-    /** Terms a lender needs before the ratio is quotable. */
+    /** Terms a lender needs before the ratio is quotable.
+     * @return list<string>
+     */
     public function missingTerms(): array
     {
         if ($this->isAbsent()) {

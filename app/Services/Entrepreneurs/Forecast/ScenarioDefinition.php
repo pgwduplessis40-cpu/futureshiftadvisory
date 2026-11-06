@@ -39,11 +39,8 @@ final readonly class ScenarioDefinition implements \JsonSerializable
         if (! in_array($rankingMetric, [self::RANK_CASH_DEFICIT, self::RANK_RESERVE_SHORTFALL, self::RANK_LOWEST_CASH, self::RANK_PROFIT], true)) {
             throw new \InvalidArgumentException('Name the metric used to rank this scenario.');
         }
-        foreach ($shocks as $shock) {
-            if (! $shock instanceof ScenarioShock) {
-                throw new \InvalidArgumentException('Scenario shocks must be ScenarioShock instances.');
-            }
-        }
+        // The shock list is a declared contract, as with every other Forecast
+        // value object; it is not re-checked at runtime here.
     }
 
     public function isBaseCase(): bool
@@ -72,7 +69,7 @@ final readonly class ScenarioDefinition implements \JsonSerializable
             }
         }
 
-        return $periods === [] ? null : array_values(array_keys($periods));
+        return $periods === [] ? null : array_keys($periods);
     }
 
     /** @return array{id:string,name:string,shocks:list<ScenarioShock>,defaults_source:string,ranking_metric:string} */

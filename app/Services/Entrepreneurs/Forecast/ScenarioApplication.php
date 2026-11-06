@@ -360,7 +360,7 @@ final class ScenarioApplication implements ProvidesMethodology
             }
         }
         if ($explicit !== []) {
-            $actuals->assertForecastPeriods(array_values(array_keys($explicit)));
+            $actuals->assertForecastPeriods(array_keys($explicit));
 
             return;
         }

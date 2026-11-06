@@ -31,7 +31,9 @@ final readonly class ReservePolicy implements \JsonSerializable
         }
     }
 
-    /** Inputs the policy needs before a target can be stated at all. */
+    /** Inputs the policy needs before a target can be stated at all.
+     * @return list<string>
+     */
     public function missing(): array
     {
         $missing = [];
