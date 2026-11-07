@@ -181,8 +181,10 @@ export function ForecastModelForm({
                             placeholder="Bank statement to 31 December 2025"
                         />
                     </label>
-                    <label className="sm:col-span-2">
+                    <div className="sm:col-span-2">
                         <input
+                            id="opening-verified"
+                            name="opening_verified"
                             type="checkbox"
                             className="mr-2"
                             checked={form.data.opening_verified}
@@ -193,8 +195,10 @@ export function ForecastModelForm({
                                 )
                             }
                         />
-                        I have seen the source document for this balance
-                    </label>
+                        <label htmlFor="opening-verified">
+                            I have seen the source document for this balance
+                        </label>
+                    </div>
                 </div>
             </fieldset>
             <fieldset className="rounded border p-4">
@@ -265,8 +269,10 @@ export function ForecastModelForm({
                             }
                         />
                     </label>
-                    <label className="sm:col-span-2">
+                    <div className="sm:col-span-2">
                         <input
+                            id="reserve-includes-owner-pay"
+                            name="reserve_includes_owner_pay"
                             type="checkbox"
                             className="mr-2"
                             checked={form.data.reserve_includes_owner_pay}
@@ -277,8 +283,10 @@ export function ForecastModelForm({
                                 )
                             }
                         />
-                        The monthly cost figure includes owner pay
-                    </label>
+                        <label htmlFor="reserve-includes-owner-pay">
+                            The monthly cost figure includes owner pay
+                        </label>
+                    </div>
                     <label className="sm:col-span-2">
                         What the monthly cost figure covers
                         <input
@@ -382,8 +390,10 @@ export function ForecastModelForm({
                                 placeholder="Required when the month is pre-trading"
                             />
                         </label>
-                        <label className="sm:col-span-2">
+                        <div className="sm:col-span-2">
                             <input
+                                id={`actual-reconciled-${index}`}
+                                name={`actual_reconciled_${index}`}
                                 type="checkbox"
                                 className="mr-2"
                                 checked={row.reconciled}
@@ -393,8 +403,10 @@ export function ForecastModelForm({
                                     })
                                 }
                             />
-                            Reconciled against the named record
-                        </label>
+                            <label htmlFor={`actual-reconciled-${index}`}>
+                                Reconciled against the named record
+                            </label>
+                        </div>
                         <button
                             type="button"
                             className="rounded border p-2 sm:col-span-2"
