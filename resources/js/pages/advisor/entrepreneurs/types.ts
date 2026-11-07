@@ -216,6 +216,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         };
         lender_brief: {
             release_gate_url?: string;
+            forecast_model_url?: string;
             active: boolean;
             can_generate: boolean;
             generation_reason: string | null;

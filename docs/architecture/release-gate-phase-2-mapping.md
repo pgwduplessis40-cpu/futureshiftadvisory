@@ -174,6 +174,26 @@ Writing the tests found a defect in PM-06 worth recording, because it is the fai
 
 Local verification passed 12 adapter tests with 90 assertions, and 73 release-gate and methodology unit tests with 1,786 assertions. The release-gate feature suite passed at 17 tests and 106 assertions, confirming the catalogue version change does not disturb stored gate runs. PHPStan level 6 is clean across the project, and the typed-boundary and mass-assignment gates pass. Exact-commit CI results are recorded on the pull request.
 
+### Slice 2E-3 implementation record
+
+`EntrepreneurForecastModelController` gives an advisor somewhere to build a version-2 reconstruction, at `entrepreneurs/{profile}/plans/{plan}/forecast-model`, reached from the founder-brief release panel beside the existing release-review link. Opening it needs `reviewBrief`; saving and selecting need `assess`, because a reconstruction is an advisor decision rather than a founder entry, which is the same reasoning behind the write scope widened in 2E-1.
+
+The screen is deliberately partial. It captures the forecast calendar, opening cash, the reserve policy and reviewed actual months. Revenue streams, founder capacity, trade terms, owner pay steps, assets and tax are not edited here. **A save from this screen carries those sections through unchanged**, rebuilt from the stored model rather than from the form, because a form that posts only what it displays would silently delete every stream a later screen captures. A feature test seeds a stream through the store, saves through the HTTP form, and asserts the stream survives with its price intact.
+
+What the screen does not capture, it reports. Every section is listed with whether it holds anything, what it holds, and whether this screen can edit it, so an advisor deciding whether to select a model can see the whole of it rather than the part that happens to have a form. Selecting an incomplete reconstruction is allowed and the page says what that means: the missing sections will read as Cannot verify, not as agreement. A reconstruction the engine refuses to decode is shown as the load failure it is, and selection of it is refused rather than recorded against a model nobody has read.
+
+The reserve target is displayed, never typed. It is recomputed from the policy on every render, so a stated target cannot drift away from the basis behind it, and when the policy is incomplete the page names the inputs still needed instead of showing a number. Empty form boxes stay empty: an opening balance nobody has established is absent rather than zero, which is the same rule the codec enforces on load.
+
+The engine's own constructors remain the validation of record. A value the engine refuses, such as a negative monthly fixed cost, is reported against the form and nothing is stored; a test asserts both the error and the absence of a saved row. Stale-revision conflicts and a repeated reporting month are refused the same way, and a refused save leaves the stored revision alone.
+
+This slice still changes no verdict. A test evaluates the release gate before and after a save and a selection and asserts the serialised results are identical, and that the nine phase-2 rules remain among the seventeen deferred.
+
+Local verification passed 10 input and review feature tests with 61 assertions, 6 page tests, and the full entrepreneur feature suite at 192 tests and 1,766 assertions. PHPStan level 6, `tsc --noEmit`, ESLint, Prettier, Pint, the typed-boundary, mass-assignment and monolith gates all pass. Exact-commit CI results are recorded on the pull request.
+
+One defect was found and fixed while wiring the form. After a successful save the form kept the revision it had loaded with, so a second save in a row would have been refused as a conflict that had not happened. The form is now keyed on the revision, which remounts it against the revision the save produced; a feature test saves twice in succession and asserts both land.
+
+Streams, founder capacity, trade terms, owner pay steps, assets and tax still have no editor. Until they do, a selected reconstruction will answer Cannot verify for the rules that read them, which is correct but is not a complete reconstruction. That editor and the rule activation remain 2E-4 and the slices after it.
+
 ### Navigation repair handover (Phase 2A baseline)
 
 PR #170 is merged and deployed as 1.0.282, with `/api/deployment` identifying `9f9e2a10d8e60b9d87893e181e23ed9f3195c631`. Authenticated Chrome checks returned HTTP 200 for Tania's direct document request (5.84 seconds), her name-link XHR (3.82 seconds), a full refresh (12.23 seconds), and another entrepreneur's direct document request (1.98 seconds). Each detail page rendered its matching heading; the previous 502/reconnecting state did not recur in these checks. These are individual production observations, not a latency guarantee: the full refresh remains materially slower than in-app navigation. No client data was edited during verification.
