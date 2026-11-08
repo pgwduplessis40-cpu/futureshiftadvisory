@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { DriversFormSection } from './forecast-model-drivers';
 import { ForecastModelForm, SelectionForm } from './forecast-model-forms';
+import { TermsFormSection } from './forecast-model-terms';
 import type { ForecastModelProps } from './forecast-model-types';
 
 export default function ForecastModelReview({
@@ -94,9 +95,9 @@ export default function ForecastModelReview({
                         Record the reconstruction
                     </h2>
                     <p>
-                        Trade terms, owner pay steps, assets and tax are not
-                        captured on this screen. Saving here leaves anything
-                        already recorded for them unchanged.
+                        This form captures the calendar, opening cash, reserve
+                        policy and reviewed actuals. Saving here leaves every
+                        other section unchanged.
                     </p>
                     {/* Keyed on the revision so a successful save remounts the
                         form against the revision it produced. Without this the
@@ -126,6 +127,27 @@ export default function ForecastModelReview({
                             key={model.revision}
                             model={model}
                             url={urls.drivers}
+                        />
+                    )}
+                </section>
+            ) : null}
+            {can_edit ? (
+                <section className="space-y-3">
+                    <h2 className="text-xl font-semibold">
+                        Trade terms, owner pay, assets and tax
+                    </h2>
+                    {model === null ? (
+                        <p>
+                            Depreciation and tax are both projected across a
+                            horizon. Record the forecast calendar and opening
+                            position above, then come back to the terms that sit
+                            inside it.
+                        </p>
+                    ) : (
+                        <TermsFormSection
+                            key={model.revision}
+                            model={model}
+                            url={urls.terms}
                         />
                     )}
                 </section>

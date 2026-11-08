@@ -75,6 +75,65 @@ const model: ForecastModel = {
             business_development_hours: '15',
         },
     ],
+    trade_items: [
+        {
+            id: 'invoice-104',
+            source: 'Sales ledger export',
+            kind: 'receivable',
+            raised_on: '2026-03-02',
+            amount: '900.00',
+            settlements: [
+                {
+                    id: 'invoice-104.payment',
+                    source: 'Bank statement March 2026',
+                    date: '2026-04-01',
+                    amount: '900.00',
+                    category: 'operating_receipt',
+                    verified: true,
+                },
+            ],
+        },
+    ],
+    owner_pay_steps: [
+        {
+            effective_on: '2026-07-01',
+            weekly_amount: '800',
+            trigger: 'trailing_three_month_average_revenue',
+            threshold: '12000',
+        },
+    ],
+    assets: [
+        {
+            id: 'laptop-2026',
+            source: 'Supplier invoice 8831',
+            cost: '2400.00',
+            classification: 'capital',
+            policy_source: 'Capitalisation policy v2',
+            reviewed: true,
+            paid_on: '2026-02-10',
+            recognition_start_on: '2026-02-01',
+            life_months: 36,
+            residual: '200.00',
+            method: 'straight_line_full_start_month',
+            opening_depreciation: '0.00',
+        },
+    ],
+    tax: {
+        entity_basis: 'Company',
+        rate_percent: '28',
+        losses_eligible: true,
+        policy_source: 'IR4 guidance',
+        eligibility_source: 'Shareholder continuity note',
+        version: '2026.1',
+        periods: [
+            {
+                start_on: '2026-04-01',
+                end_on: '2027-03-31',
+                accounting_profit: '-4500.00',
+                tax_adjustments: '500.00',
+            },
+        ],
+    },
     sections: [
         {
             key: 'calendar',
@@ -93,6 +152,13 @@ const model: ForecastModel = {
         {
             key: 'trade_items',
             label: 'Trade terms',
+            captured: true,
+            editable: true,
+            detail: '1 item captured.',
+        },
+        {
+            key: 'bank_opening',
+            label: 'Bank reconciliation opening',
             captured: false,
             editable: false,
             detail: 'Not captured.',
@@ -110,6 +176,7 @@ const props: ForecastModelProps = {
         review: '/model',
         save: '/model',
         drivers: '/model/drivers',
+        terms: '/model/terms',
         selection: '/model/selection',
         gate: '/gate',
         workspace: '/plan',
@@ -148,6 +215,10 @@ test('uncaptured sections are reported rather than left blank', async () => {
     const html = await render();
     assert.match(html, /Trade terms/);
     assert.match(html, /Not captured/);
+    // The bank reconciliation opening is held by the reconstruction and
+    // captured nowhere on this screen, so the table has to say so rather
+    // than let the list read as complete.
+    assert.match(html, /Bank reconciliation opening/);
     assert.match(html, /On a later screen/);
 });
 
@@ -178,6 +249,66 @@ test('the driver form is withheld until a calendar exists to hang months on', as
     assert.doesNotMatch(html, /Save streams and capacity/);
 });
 
+test('a settlement is offered only the categories its trade item can carry', async () => {
+    const html = await render({ can_edit: true });
+    assert.match(html, /Customer receipt/);
+    assert.match(html, /Tax refund/);
+    // A receivable brings cash in, so the outgoing categories are not on
+    // offer at all and the direction is never asked for.
+    assert.doesNotMatch(html, /Supplier or operating payment/);
+    assert.doesNotMatch(html, /Debt principal repaid/);
+});
+
+test('the asset and tax questions each keep an unanswered state', async () => {
+    const html = await render({ can_edit: true });
+    assert.match(html, /Not yet classified/);
+    assert.match(html, /Capital, depreciated over its life/);
+    assert.match(html, /Classification reviewed/);
+    assert.match(html, /reported as unclassified, not quietly/);
+    assert.match(html, /Losses available to carry forward/);
+});
+
+test('stored trade, pay, asset and tax values load into the terms form', async () => {
+    const html = await render({ can_edit: true });
+    assert.match(html, /Trade terms, owner pay, assets and tax/);
+    assert.match(html, /value="invoice-104"/);
+    assert.match(html, /value="laptop-2026"/);
+    assert.match(html, /value="36"/);
+    // A loss keeps its sign on the way back to the form.
+    assert.match(html, /value="-4500.00"/);
+    assert.match(html, /Save trade, pay, assets and tax/);
+});
+
+test('a revenue threshold is asked for only by the trigger that uses one', async () => {
+    const staged = await render({ can_edit: true });
+    assert.match(staged, /Revenue threshold/);
+
+    const dated = await render({
+        can_edit: true,
+        model: {
+            ...model,
+            owner_pay_steps: [
+                {
+                    effective_on: '2026-07-01',
+                    weekly_amount: '800',
+                    trigger: 'base',
+                    threshold: null,
+                },
+            ],
+        },
+    });
+    // The engine refuses a base step that carries a threshold, so the form
+    // never offers one to attach.
+    assert.doesNotMatch(dated, /Revenue threshold/);
+    assert.match(dated, /Its date alone/);
+});
+
+test('the terms form is withheld until a calendar exists to project across', async () => {
+    const html = await render({ can_edit: true, model: null });
+    assert.match(html, /Depreciation and tax are both projected across a/);
+    assert.doesNotMatch(html, /Save trade, pay, assets and tax/);
+});
+
 test('the reserve target is shown as a calculated figure with its parts', async () => {
     const html = await render();
     assert.match(html, /Reserve target 3350.00 NZD/);
@@ -202,6 +333,7 @@ test('an advisor without edit authority sees no form and no selection control', 
     const html = await render();
     assert.doesNotMatch(html, /Save reconstruction/);
     assert.doesNotMatch(html, /Save streams and capacity/);
+    assert.doesNotMatch(html, /Save trade, pay, assets and tax/);
     assert.doesNotMatch(html, /Select as the plan financial model/);
     const editable = await render({ can_edit: true });
     assert.match(editable, /Save reconstruction/);

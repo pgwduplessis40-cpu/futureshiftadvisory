@@ -72,7 +72,7 @@ final class ForecastModelInputsTest extends TestCase
         self::assertTrue($sections['calendar']['captured']);
         self::assertTrue($sections['actuals']['captured']);
         self::assertFalse($sections['streams']['captured'], 'An unentered section is reported as missing, not implied.');
-        self::assertFalse($sections['trade_items']['editable'], 'Trade terms are still captured on a later screen.');
+        self::assertFalse($sections['bank_opening']['editable'], 'The bank reconciliation opening is still captured on a later screen.');
         $this->assertDatabaseHas('audit_events', ['action' => 'entrepreneur.forecast_model_saved']);
     }
 
@@ -297,6 +297,257 @@ final class ForecastModelInputsTest extends TestCase
         self::assertSame([], app(ForecastModelStore::class)->inputs($model)->streams);
     }
 
+    public function test_trade_pay_asset_and_tax_terms_are_recorded_against_the_stored_calendar(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+
+        $this->post($this->url().'/terms', $this->terms())->assertRedirect()->assertSessionHasNoErrors();
+
+        $model = app(ForecastModelStore::class)->forPlan($this->plan);
+        self::assertNotNull($model);
+        $inputs = app(ForecastModelStore::class)->inputs($model);
+        self::assertSame('invoice-104', $inputs->tradeItems[0]->id);
+        self::assertSame('2026-07-01', $inputs->ownerPaySteps[0]->effectiveOn);
+        self::assertSame('12000', $inputs->ownerPaySteps[0]->threshold);
+        self::assertSame('laptop-2026', $inputs->assets[0]->id);
+        // A whole number typed into a text box has to arrive as an integer.
+        self::assertSame(36, $inputs->assets[0]->lifeMonths);
+        self::assertSame('28', $inputs->taxPolicy?->ratePercent);
+        self::assertTrue($inputs->taxPolicy->lossesEligible);
+        // A period that made a loss keeps its sign.
+        self::assertSame('-4500', $inputs->taxPeriods[0]->accountingProfit);
+        self::assertSame(2, $model->revision, 'The terms save is a revision of the same reconstruction.');
+    }
+
+    public function test_a_settlement_takes_its_direction_and_its_order_from_the_item_it_settles(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $terms = $this->terms();
+        // Two items settling on one day. The ledger positions a movement by
+        // its date and sequence together and refuses two in one position, so
+        // numbering each item's settlements from zero would make a stored
+        // model the ledger cannot read.
+        $terms['trade_items'][] = [
+            'id' => 'bill-77', 'source' => 'Supplier statement', 'kind' => 'payable',
+            'raised_on' => '2026-03-04', 'amount' => '300',
+            'settlements' => [[
+                'id' => 'bill-77.payment', 'source' => 'Bank statement April 2026', 'date' => '2026-04-01',
+                'amount' => '300', 'category' => 'operating_payment', 'verified' => 'no',
+            ]],
+        ];
+
+        $this->post($this->url().'/terms', $terms)->assertRedirect()->assertSessionHasNoErrors();
+
+        $model = app(ForecastModelStore::class)->forPlan($this->plan);
+        self::assertNotNull($model);
+        $items = app(ForecastModelStore::class)->inputs($model)->tradeItems;
+        $receipt = $items[0]->settlements[0] ?? null;
+        $payment = $items[1]->settlements[0] ?? null;
+        self::assertNotNull($receipt);
+        self::assertNotNull($payment);
+        self::assertSame('in', $receipt->direction, 'A receivable brings cash in; the direction is never typed.');
+        self::assertSame('out', $payment->direction);
+        self::assertSame($receipt->date, $payment->date, 'This case only means something while both settle on one day.');
+        self::assertNotSame($receipt->sequence, $payment->sequence,
+            'Two settlements on one day must hold different positions, or the ledger refuses the pair.');
+        self::assertFalse($payment->verified, 'An explicit "not verified" is not the same as saying nothing.');
+    }
+
+    public function test_an_unanswered_asset_classification_is_stored_as_absent_rather_than_as_expense(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $terms = $this->terms();
+        // The selects post empty strings, not nulls, when nobody has answered.
+        $terms['assets'][0]['classification'] = '';
+        $terms['assets'][0]['reviewed'] = '';
+        $terms['assets'][0]['method'] = '';
+
+        $this->post($this->url().'/terms', $terms)->assertRedirect()->assertSessionHasNoErrors();
+
+        $model = app(ForecastModelStore::class)->forPlan($this->plan);
+        self::assertNotNull($model);
+        $asset = app(ForecastModelStore::class)->inputs($model)->assets[0];
+        self::assertNull($asset->classification, 'An unanswered classification must not become a decision to expense.');
+        self::assertNull($asset->reviewed, 'An unstated review stays unstated rather than becoming a denial.');
+        $sections = collect(data_get($this->get($this->url())->viewData('page'), 'props.model.sections'))->keyBy('key');
+        self::assertStringContainsString('1 at or above 1000 NZD has no reviewed classification', $sections['assets']['detail']);
+    }
+
+    public function test_an_item_with_no_settlements_recorded_keeps_its_terms_absent(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $terms = $this->terms();
+        $terms['trade_items'][0]['settlements'] = [];
+
+        $this->post($this->url().'/terms', $terms)->assertRedirect()->assertSessionHasNoErrors();
+
+        $model = app(ForecastModelStore::class)->forPlan($this->plan);
+        self::assertNotNull($model);
+        self::assertNull(app(ForecastModelStore::class)->inputs($model)->tradeItems[0]->settlements,
+            'No recorded terms is not the same claim as terms that settle nothing.');
+        $sections = collect(data_get($this->get($this->url())->viewData('page'), 'props.model.sections'))->keyBy('key');
+        self::assertStringContainsString('1 of them has no settlement terms', $sections['trade_items']['detail']);
+    }
+
+    public function test_a_settlement_dated_before_the_forecast_opens_is_reported_rather_than_hidden(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $terms = $this->terms();
+        // The ledger refuses cash dated before the forecast opens, because
+        // that cash is already in the opening balance. Recording it is not
+        // blocked here, since the calendar can still move; it is reported.
+        $terms['trade_items'][0]['settlements'][0]['date'] = '2025-12-20';
+
+        $this->post($this->url().'/terms', $terms)->assertRedirect()->assertSessionHasNoErrors();
+
+        $sections = collect(data_get($this->get($this->url())->viewData('page'), 'props.model.sections'))->keyBy('key');
+        self::assertStringContainsString('1 settlement is dated before the forecast opens', $sections['trade_items']['detail']);
+        self::assertStringContainsString('belongs in the opening balance', $sections['trade_items']['detail']);
+    }
+
+    public function test_a_threshold_is_dropped_from_an_owner_pay_step_that_starts_on_its_date(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $terms = $this->terms();
+        // A trigger changed back to its date leaves the threshold behind in
+        // the form. The engine refuses that pair outright, so the value the
+        // advisor never restated is dropped rather than reported as an error.
+        $terms['owner_pay_steps'][0]['trigger'] = 'base';
+
+        $this->post($this->url().'/terms', $terms)->assertRedirect()->assertSessionHasNoErrors();
+
+        $model = app(ForecastModelStore::class)->forPlan($this->plan);
+        self::assertNotNull($model);
+        $step = app(ForecastModelStore::class)->inputs($model)->ownerPaySteps[0];
+        self::assertSame('base', $step->trigger);
+        self::assertNull($step->threshold);
+    }
+
+    public function test_saving_terms_with_nothing_said_about_tax_leaves_tax_uncaptured(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $terms = $this->terms();
+        foreach (['tax_entity_basis', 'tax_rate_percent', 'tax_losses_eligible', 'tax_policy_source',
+            'tax_eligibility_source', 'tax_version'] as $key) {
+            $terms[$key] = '';
+        }
+        $terms['tax_periods'] = [];
+
+        $this->post($this->url().'/terms', $terms)->assertRedirect()->assertSessionHasNoErrors();
+
+        $model = app(ForecastModelStore::class)->forPlan($this->plan);
+        self::assertNotNull($model);
+        self::assertNull(app(ForecastModelStore::class)->inputs($model)->taxPolicy,
+            'Saving the trade terms beside it must not turn an unstated tax policy into an empty one.');
+        $sections = collect(data_get($this->get($this->url())->viewData('page'), 'props.model.sections'))->keyBy('key');
+        self::assertFalse($sections['tax']['captured']);
+        self::assertTrue($sections['trade_items']['captured'], 'The sections that were recorded are still recorded.');
+    }
+
+    public function test_recording_terms_leaves_the_calendar_streams_and_actuals_untouched(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $this->post($this->url().'/drivers', $this->drivers())->assertSessionHasNoErrors();
+
+        $terms = $this->terms();
+        $terms['expected_revision'] = 2;
+        $this->post($this->url().'/terms', $terms)->assertSessionHasNoErrors();
+
+        $model = app(ForecastModelStore::class)->forPlan($this->plan);
+        self::assertNotNull($model);
+        $inputs = app(ForecastModelStore::class)->inputs($model);
+        self::assertSame(24, $inputs->calendar->months);
+        self::assertSame('1200', $inputs->cashOpening?->amount);
+        self::assertSame('1000', $inputs->reservePolicy?->monthlyFixedCosts);
+        self::assertCount(1, $inputs->streams, 'A stream must survive a save of the terms beside it.');
+        self::assertCount(1, $inputs->actualMonths);
+        self::assertSame('120', $inputs->founderMonths['2026-03']->availableHours);
+    }
+
+    public function test_recording_terms_changes_no_release_verdict(): void
+    {
+        $gate = app(ReleaseGate::class);
+        $before = $gate->evaluate($this->plan->refresh(), 'plan');
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+
+        $this->post($this->url().'/terms', $this->terms())->assertSessionHasNoErrors();
+        $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
+
+        $after = $gate->evaluate($this->plan->refresh(), 'plan');
+        self::assertSame(
+            CanonicalJson::encode($before->results),
+            CanonicalJson::encode($after->results),
+            'Recording terms must not move a verdict until the rules are switched on.',
+        );
+        self::assertCount(17, $after->deferred(), 'The nine phase-2 rules stay unimplemented in this slice.');
+    }
+
+    public function test_terms_are_refused_before_a_calendar_exists_to_hold_them(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url().'/terms', $this->terms())->assertSessionHasErrors('terms');
+
+        self::assertNull(app(ForecastModelStore::class)->forPlan($this->plan),
+            'Dated terms must not create a reconstruction with no horizon to project across.');
+    }
+
+    public function test_repeated_references_unsuitable_categories_and_tax_gaps_are_reported_against_the_form(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+
+        $shared = $this->terms();
+        $shared['trade_items'][] = $shared['trade_items'][0];
+        $this->post($this->url().'/terms', $shared)->assertSessionHasErrors('trade_items');
+
+        // Same cash allocated to two different items would count it twice.
+        $twiceAllocated = $this->terms();
+        $twiceAllocated['trade_items'][] = array_merge($twiceAllocated['trade_items'][0], ['id' => 'invoice-105']);
+        $this->post($this->url().'/terms', $twiceAllocated)->assertSessionHasErrors('trade_items');
+
+        $backwards = $this->terms();
+        $backwards['trade_items'][0]['settlements'][0]['category'] = 'operating_payment';
+        $this->post($this->url().'/terms', $backwards)->assertSessionHasErrors('trade_items');
+
+        $unchosen = $this->terms();
+        $unchosen['trade_items'][0]['settlements'][0]['category'] = '';
+        $this->post($this->url().'/terms', $unchosen)->assertSessionHasErrors('trade_items');
+
+        $repeatedAsset = $this->terms();
+        $repeatedAsset['assets'][] = $repeatedAsset['assets'][0];
+        $this->post($this->url().'/terms', $repeatedAsset)->assertSessionHasErrors('assets');
+
+        // Losses carry from one period into the next, so a gap between them
+        // is a reconstruction the engine would refuse to project.
+        $gapped = $this->terms();
+        $gapped['tax_periods'][] = ['start_on' => '2027-05-01', 'end_on' => '2028-03-31',
+            'accounting_profit' => '1000', 'tax_adjustments' => '0'];
+        $this->post($this->url().'/terms', $gapped)->assertSessionHasErrors('tax_periods');
+
+        $negative = $this->terms();
+        $negative['assets'][0]['cost'] = '-2400';
+        $this->post($this->url().'/terms', $negative)->assertSessionHasErrors('terms');
+
+        // Each group posts the revision it loaded with, so a terms form held
+        // open while somebody else saved cannot overwrite their work.
+        $stale = $this->terms();
+        $stale['expected_revision'] = 0;
+        $this->post($this->url().'/terms', $stale)->assertSessionHasErrors('revision');
+
+        $model = app(ForecastModelStore::class)->forPlan($this->plan);
+        self::assertNotNull($model);
+        self::assertSame(1, $model->revision, 'Every refused terms save leaves the stored revision alone.');
+    }
+
+    public function test_an_unassigned_advisor_cannot_record_terms(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+
+        $this->actingAsMfa($this->otherAdvisor)->post($this->url().'/terms', $this->terms())->assertForbidden();
+
+        $model = app(ForecastModelStore::class)->forPlan($this->plan);
+        self::assertNotNull($model);
+        self::assertSame([], app(ForecastModelStore::class)->inputs($model)->tradeItems);
+    }
+
     private function advisor(string $name): User
     {
         $user = User::factory()->withTwoFactor()->create(['name' => $name, 'user_type' => 'advisor', 'primary_role' => 'advisor']);
@@ -351,6 +602,47 @@ final class ForecastModelInputsTest extends TestCase
             'founder_months' => [[
                 'period' => '2026-03', 'available_hours' => '120',
                 'administration_hours' => '20', 'business_development_hours' => '15',
+            ]],
+        ];
+    }
+
+    /**
+     * The terms form as a browser sends it: every figure a string, every
+     * yes/no question one of '', 'yes' or 'no'.
+     *
+     * @return array<string,mixed>
+     */
+    private function terms(): array
+    {
+        return [
+            'expected_revision' => 1,
+            'trade_items' => [[
+                'id' => 'invoice-104', 'source' => 'Sales ledger export', 'kind' => 'receivable',
+                'raised_on' => '2026-03-02', 'amount' => '900',
+                'settlements' => [[
+                    'id' => 'invoice-104.payment', 'source' => 'Bank statement April 2026', 'date' => '2026-04-01',
+                    'amount' => '900', 'category' => 'operating_receipt', 'verified' => 'yes',
+                ]],
+            ]],
+            'owner_pay_steps' => [[
+                'effective_on' => '2026-07-01', 'weekly_amount' => '800',
+                'trigger' => 'trailing_three_month_average_revenue', 'threshold' => '12000',
+            ]],
+            'assets' => [[
+                'id' => 'laptop-2026', 'source' => 'Supplier invoice 8831', 'cost' => '2400',
+                'classification' => 'capital', 'policy_source' => 'Capitalisation policy v2', 'reviewed' => 'yes',
+                'paid_on' => '2026-02-10', 'recognition_start_on' => '2026-02-01', 'life_months' => '36',
+                'residual' => '200', 'method' => 'straight_line_full_start_month', 'opening_depreciation' => '0',
+            ]],
+            'tax_entity_basis' => 'Company',
+            'tax_rate_percent' => '28',
+            'tax_losses_eligible' => 'yes',
+            'tax_policy_source' => 'IR4 guidance',
+            'tax_eligibility_source' => 'Shareholder continuity note',
+            'tax_version' => '2026.1',
+            'tax_periods' => [[
+                'start_on' => '2026-04-01', 'end_on' => '2027-03-31',
+                'accounting_profit' => '-4500', 'tax_adjustments' => '500',
             ]],
         ];
     }
