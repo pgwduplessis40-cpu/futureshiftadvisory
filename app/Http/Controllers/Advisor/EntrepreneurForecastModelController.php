@@ -92,7 +92,12 @@ final class EntrepreneurForecastModelController extends Controller
         }
 
         try {
-            $store->save($businessPlan, $this->inputs($store, $businessPlan, $data), $actor, $data['expected_revision']);
+            $inputs = $this->inputs($store, $businessPlan, $data);
+            // A shortened calendar can strand months that streams already
+            // occupy, which is the same unprojectable state the driver form
+            // refuses from its own side.
+            $this->rejectMonthsOutsideCalendar($inputs, 'model');
+            $store->save($businessPlan, $inputs, $actor, $data['expected_revision']);
         } catch (\InvalidArgumentException $e) {
             // The engine's own constructors are the validation of record. A
             // value it refuses is reported against the form rather than
@@ -147,7 +152,9 @@ final class EntrepreneurForecastModelController extends Controller
         $this->rejectDuplicates($data['streams'], $data['founder_months']);
 
         try {
-            $store->save($businessPlan, $this->driverInputs($store, $businessPlan, $data), $actor, $data['expected_revision']);
+            $inputs = $this->driverInputs($store, $businessPlan, $data);
+            $this->rejectMonthsOutsideCalendar($inputs);
+            $store->save($businessPlan, $inputs, $actor, $data['expected_revision']);
         } catch (\InvalidArgumentException $e) {
             throw ValidationException::withMessages(['drivers' => $e->getMessage()]);
         }
@@ -243,6 +250,45 @@ final class EntrepreneurForecastModelController extends Controller
                 $blank($data['reserve_one_off_cash_costs']), $data['reserve_contingency_rate'], $blank($data['reserve_basis']),
             ),
         );
+    }
+
+    /**
+     * Refuses a reconstruction whose monthly schedules fall outside its own
+     * horizon.
+     *
+     * The revenue projection throws on a schedule that extends beyond the
+     * calendar rather than silently discarding the month, so a reconstruction
+     * stored in that state cannot be projected at all. The failure would
+     * surface later as an engine error with no month attached to it; naming
+     * the month here is the difference between a finding and a crash.
+     *
+     * Both forms can reach the state from their own side: the driver form by
+     * recording a month beyond the horizon, and the calendar form by
+     * shortening the horizon under months already recorded.
+     */
+    private function rejectMonthsOutsideCalendar(ForecastModelInputs $inputs, ?string $field = null): void
+    {
+        $calendar = $inputs->calendar;
+        $last = $calendar->periods[count($calendar->periods) - 1];
+        $recorded = [];
+        foreach (array_keys($inputs->founderMonths) as $period) {
+            $recorded[] = [$period, 'founder_months'];
+        }
+        foreach ($inputs->streams as $stream) {
+            foreach (array_keys($stream->schedule) as $period) {
+                $recorded[] = [$period, 'streams'];
+            }
+        }
+        foreach ($recorded as [$period, $source]) {
+            if (! in_array($period, $calendar->periods, true)) {
+                // Reported against whichever collection holds the month, so
+                // the advisor is sent to the one they have to change. The
+                // calendar form overrides that, because there the month is
+                // where it was and the horizon is what moved.
+                throw ValidationException::withMessages([$field ?? $source => $period.' is recorded against this reconstruction but falls outside its '
+                    .'forecast calendar, which runs '.$calendar->startMonth.' to '.$last.'. Change the calendar or the month so they agree.']);
+            }
+        }
     }
 
     /**

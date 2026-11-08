@@ -2,7 +2,69 @@ import { Head, Link } from '@inertiajs/react';
 import { DriversFormSection } from './forecast-model-drivers';
 import { ForecastModelForm, SelectionForm } from './forecast-model-forms';
 import { TermsFormSection } from './forecast-model-terms';
-import type { ForecastModelProps } from './forecast-model-types';
+import type {
+    ForecastModelProps,
+    Gap,
+    Projection,
+} from './forecast-model-types';
+
+const VERDICT: Record<string, string> = {
+    pass: 'The engine projects every month of this reconstruction.',
+    cannot_verify:
+        'The engine can read this reconstruction but cannot complete it.',
+    fail: 'The engine cannot project this reconstruction as it stands.',
+};
+
+/**
+ * What the engine makes of the reconstruction, which is a different question
+ * from what has been recorded into it. Gaps are reported by reason with the
+ * number of months each one reaches, because a sixty-month calendar missing
+ * one field would otherwise report it sixty times and bury the rest.
+ */
+function reach(gap: Gap): string {
+    if (gap.months === 0) {
+        return gap.reason;
+    }
+
+    return `${gap.reason} — in ${gap.months} month${gap.months === 1 ? '' : 's'}, first ${gap.first_period}`;
+}
+
+function ProjectionPanel({ projection }: { projection: Projection }) {
+    const coverage = `${projection.base_revenue_months} of ${projection.months_projected} months have a base revenue figure.`;
+
+    return (
+        <section className="space-y-2 rounded border p-4">
+            <h3 className="font-semibold">What the engine makes of it</h3>
+            <p>
+                {VERDICT[projection.status] ??
+                    'The engine returned an unrecognised verdict.'}{' '}
+                {coverage}
+            </p>
+            {projection.refusal ? (
+                <p role="alert">The engine refused it: {projection.refusal}</p>
+            ) : null}
+            {projection.errors.length > 0 ? (
+                <ul className="list-disc pl-5">
+                    {projection.errors.map((gap) => (
+                        <li key={gap.reason} role="alert">
+                            {reach(gap)}
+                        </li>
+                    ))}
+                </ul>
+            ) : null}
+            {projection.missing.length > 0 ? (
+                <>
+                    <p>Still needed before it can project in full:</p>
+                    <ul className="list-disc pl-5">
+                        {projection.missing.map((gap) => (
+                            <li key={gap.reason}>{reach(gap)}</li>
+                        ))}
+                    </ul>
+                </>
+            ) : null}
+        </section>
+    );
+}
 
 export default function ForecastModelReview({
     model,
@@ -77,6 +139,9 @@ export default function ForecastModelReview({
                             ))}
                         </tbody>
                     </table>
+                    {model.projection ? (
+                        <ProjectionPanel projection={model.projection} />
+                    ) : null}
                     {reserve ? (
                         <p>
                             {reserve.target === null

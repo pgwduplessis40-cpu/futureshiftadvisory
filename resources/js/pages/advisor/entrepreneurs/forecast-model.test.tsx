@@ -134,6 +134,21 @@ const model: ForecastModel = {
             },
         ],
     },
+    projection: {
+        engine_version: 'phase-2e.1',
+        status: 'cannot_verify',
+        months_projected: 24,
+        base_revenue_months: 1,
+        missing: [
+            {
+                reason: 'founder.available_hours',
+                months: 23,
+                first_period: '2026-01',
+            },
+        ],
+        errors: [],
+        refusal: null,
+    },
     sections: [
         {
             key: 'calendar',
@@ -307,6 +322,37 @@ test('the terms form is withheld until a calendar exists to project across', asy
     const html = await render({ can_edit: true, model: null });
     assert.match(html, /Depreciation and tax are both projected across a/);
     assert.doesNotMatch(html, /Save trade, pay, assets and tax/);
+});
+
+test('the engine verdict is reported beside what has been recorded', async () => {
+    const html = await render();
+    assert.match(html, /What the engine makes of it/);
+    assert.match(html, /cannot read|cannot complete/);
+    assert.match(html, /1 of 24 months have a base revenue figure/);
+    // Gaps are counted by reason, not repeated once per month.
+    assert.match(html, /founder.available_hours/);
+    assert.match(html, /in 23 months, first 2026-01/);
+});
+
+test('a reconstruction the engine refuses to project says so', async () => {
+    const html = await render({
+        model: {
+            ...model,
+            projection: {
+                engine_version: 'phase-2e.1',
+                status: 'fail',
+                months_projected: 0,
+                base_revenue_months: 0,
+                missing: [],
+                errors: [],
+                refusal:
+                    'A schedule extends beyond the declared calendar; do not silently discard required periods.',
+            },
+        },
+    });
+    assert.match(html, /cannot project this reconstruction as it stands/);
+    assert.match(html, /The engine refused it/);
+    assert.match(html, /extends beyond the declared calendar/);
 });
 
 test('the reserve target is shown as a calculated figure with its parts', async () => {
