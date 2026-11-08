@@ -249,6 +249,9 @@ final class EntrepreneurForecastModelController extends Controller
                 $blank($data['reserve_monthly_fixed_costs']), $data['reserve_months_covered'], $data['reserve_includes_owner_pay'],
                 $blank($data['reserve_one_off_cash_costs']), $data['reserve_contingency_rate'], $blank($data['reserve_basis']),
             ),
+            ownerPaySource: $existing?->ownerPaySource,
+            ownerPayFirstPaymentOn: $existing?->ownerPayFirstPaymentOn,
+            openingEligibleLosses: $existing?->openingEligibleLosses,
         );
     }
 
@@ -351,6 +354,9 @@ final class EntrepreneurForecastModelController extends Controller
             taxPeriods: $existing->taxPeriods,
             actualMonths: $existing->actualMonths,
             reservePolicy: $existing->reservePolicy,
+            ownerPaySource: $existing->ownerPaySource,
+            ownerPayFirstPaymentOn: $existing->ownerPayFirstPaymentOn,
+            openingEligibleLosses: $existing->openingEligibleLosses,
         );
     }
 

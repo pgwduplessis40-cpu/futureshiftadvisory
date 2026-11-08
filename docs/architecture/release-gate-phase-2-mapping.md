@@ -258,6 +258,26 @@ The remainder of 2E-4 therefore runs: **2E-4b** the three missing inputs and the
 
 This slice changes no verdict. It registers no rule and emits no fact; the seventeen deferred rules stay deferred. Adding a file under `app/Services/Entrepreneurs` changes the dependency hash in `SourceCapture`, which invalidates prior risk acceptances, as every slice touching that tree does.
 
+### Slice 2E-4b implementation record
+
+This slice runs the dated cash side of the stored reconstruction: the settlements, owner pay and asset purchases it holds, through `CashLedger` and the `FundingMeasures` that read it. It closes two of the three input gaps 2E-4a recorded and leaves the third, which belongs to a rule rather than to the cash run.
+
+**Three inputs the engine needed and the stored model did not hold.** `OwnerPaySchedule` requires the date the first payment lands and the record the arrangement comes from, because every payment it generates carries that provenance into the ledger; the steps alone say what is paid and from when, not when the series starts. `TaxProjection` requires the losses carried into the first planning period, which sits beside the policy rather than inside it: a policy with losses eligible and nothing carried in is complete, not incomplete. All three are now captured on the terms form, stored as optional keys, and read back as absent on reconstructions saved before they existed — an older model is incomplete, which the run reports, not unreadable.
+
+Because every form rebuilds the whole reconstruction, each new field had to be carried through the two forms that do not show it. A feature test records them on the terms form and then saves from both other forms in turn, asserting all three survive. This is the third time that carry-through has mattered, and the first time a field was added after the forms existed.
+
+**The ordering invariant again, one level up.** 2E-3c numbered settlements across the form so two on one day could not claim the same ledger position. Assembling the full movement set reintroduces the same hazard between *sources*: settlements arrive carrying the numbers the trade form gave them, so owner pay and each asset are numbered above the highest of those rather than from zero. A settlement and an asset purchase landing on one day would otherwise collide and the ledger would refuse the whole set. A unit test puts both on 2026-02-10 and asserts the ledger positions them.
+
+**Cash already in the opening balance is counted out rather than counted twice.** The ledger refuses a movement dated before the forecast opens, because that cash is in the opening position already. Settlements dated before the start are therefore excluded from the set handed to it and reported as a count, which is the figure the trade-terms section summary has been flagging since 2E-3c.
+
+**Two gaps found by writing tests that were wrong.** A cash position came back unknown where a figure was expected: the fixture's only pay step waits on trailing revenue with no base step beneath it, so the weekly rate is unknown on every payment date, and the ledger will not resolve an unknown amount into a position. Then the reserve target came back unknown too — `FundingMeasures` withholds every figure when the ledger is incomplete, rather than publishing a measure drawn from a ledger with holes in it. Both are the engine being right and the test being wrong; both are now asserted as the contract they are. The advisor screen shows the two funding measures apart and says they are never added, because a cash deficit already sits inside the reserve shortfall.
+
+Gap aggregation had to grow a second shape for this. A weekly pay series missing its rate reports the same gap on every payment date, which the per-reason counting introduced in 2E-4a does not collapse because the date is inside the reason string. Owner-pay gaps are now split back into reason and date, so one unknown rate reads as one gap with its reach; the ledger's own gaps are one-off and stay that way.
+
+**What is left of 2E-4.** PM-08's allocation facts remain unheld by any input section — that is an editor, not a cash input, so it is a slice of its own rather than part of this one. Then **2E-4c** captures the selected reconstruction into the gate's source snapshot and builds the fact producer, **2E-4d** registers the nine rules, and **2E-4e** extends MI-01 to MI-04 and SS-01.
+
+This slice changes no verdict. No rule is registered and no fact is emitted.
+
 ### Navigation repair handover (Phase 2A baseline)
 
 PR #170 is merged and deployed as 1.0.282, with `/api/deployment` identifying `9f9e2a10d8e60b9d87893e181e23ed9f3195c631`. Authenticated Chrome checks returned HTTP 200 for Tania's direct document request (5.84 seconds), her name-link XHR (3.82 seconds), a full refresh (12.23 seconds), and another entrepreneur's direct document request (1.98 seconds). Each detail page rendered its matching heading; the previous 502/reconnecting state did not recur in these checks. These are individual production observations, not a latency guarantee: the full refresh remains materially slower than in-app navigation. No client data was edited during verification.

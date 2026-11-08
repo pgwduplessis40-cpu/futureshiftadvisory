@@ -33,6 +33,12 @@ final class ForecastModelCodec
             DriverCodec::taxPeriods($drivers, 'tax_periods'),
             ActualsCodec::months($actuals, 'months'),
             $reservePolicy === null ? null : self::reservePolicy($reservePolicy),
+            // Reconstructions saved before these were captured load with them
+            // absent rather than failing to load at all. An older model is
+            // incomplete, which the run reports; it is not unreadable.
+            StoredValues::text($drivers, 'owner_pay_source'),
+            StoredValues::text($drivers, 'owner_pay_first_payment_on'),
+            StoredValues::text($drivers, 'opening_eligible_losses'),
         );
     }
 

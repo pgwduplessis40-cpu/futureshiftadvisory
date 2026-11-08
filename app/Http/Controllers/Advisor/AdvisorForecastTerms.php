@@ -29,7 +29,7 @@ use Illuminate\Validation\ValidationException;
  * @phpstan-type OwnerPayRow array{effective_on:string,weekly_amount:string|null,trigger:string,threshold:string|null}
  * @phpstan-type AssetRow array{id:string,source:string,cost:string|null,classification:string|null,policy_source:string|null,reviewed:string|null,paid_on:string|null,recognition_start_on:string|null,life_months:int|string|null,residual:string|null,method:string|null,opening_depreciation:string|null}
  * @phpstan-type TaxPeriodRow array{start_on:string,end_on:string,accounting_profit:string|null,tax_adjustments:string|null}
- * @phpstan-type TermsData array{expected_revision:int|null,trade_items:list<TradeRow>,owner_pay_steps:list<OwnerPayRow>,assets:list<AssetRow>,tax_entity_basis:string|null,tax_rate_percent:string|null,tax_losses_eligible:string|null,tax_policy_source:string|null,tax_eligibility_source:string|null,tax_version:string|null,tax_periods:list<TaxPeriodRow>}
+ * @phpstan-type TermsData array{expected_revision:int|null,trade_items:list<TradeRow>,owner_pay_steps:list<OwnerPayRow>,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,assets:list<AssetRow>,tax_entity_basis:string|null,tax_rate_percent:string|null,tax_losses_eligible:string|null,tax_policy_source:string|null,tax_eligibility_source:string|null,tax_version:string|null,tax_periods:list<TaxPeriodRow>,opening_eligible_losses:string|null}
  */
 final readonly class AdvisorForecastTerms
 {
@@ -88,6 +88,12 @@ final readonly class AdvisorForecastTerms
             'owner_pay_steps.*.weekly_amount' => $number,
             'owner_pay_steps.*.trigger' => ['required', 'in:base,trailing_three_month_average_revenue'],
             'owner_pay_steps.*.threshold' => $number,
+            // The steps say what is paid and from when; the schedule also
+            // needs the day the first payment lands and the record the whole
+            // arrangement comes from, which every payment carries into the
+            // ledger as its provenance.
+            'owner_pay_source' => ['present', 'nullable', 'string', 'max:255'],
+            'owner_pay_first_payment_on' => $date,
             'assets' => ['present', 'array', 'max:50'],
             'assets.*.id' => ['required', 'string', 'max:60'],
             'assets.*.source' => ['required', 'string', 'max:255'],
@@ -107,6 +113,10 @@ final readonly class AdvisorForecastTerms
             'tax_policy_source' => ['present', 'nullable', 'string', 'max:255'],
             'tax_eligibility_source' => ['present', 'nullable', 'string', 'max:255'],
             'tax_version' => ['present', 'nullable', 'string', 'max:60'],
+            // Losses brought into the first planning period, recorded beside
+            // the policy rather than inside it: a policy with losses eligible
+            // and nothing carried in is complete, not incomplete.
+            'opening_eligible_losses' => $number,
             'tax_periods' => ['present', 'array', 'max:24'],
             'tax_periods.*.start_on' => ['required', 'date_format:Y-m-d'],
             'tax_periods.*.end_on' => ['required', 'date_format:Y-m-d'],
@@ -140,6 +150,9 @@ final readonly class AdvisorForecastTerms
             taxPeriods: array_map($this->taxPeriod(...), $data['tax_periods']),
             actualMonths: $existing->actualMonths,
             reservePolicy: $existing->reservePolicy,
+            ownerPaySource: $this->blank($data['owner_pay_source']),
+            ownerPayFirstPaymentOn: $this->blank($data['owner_pay_first_payment_on']),
+            openingEligibleLosses: $this->blank($data['opening_eligible_losses']),
         );
     }
 

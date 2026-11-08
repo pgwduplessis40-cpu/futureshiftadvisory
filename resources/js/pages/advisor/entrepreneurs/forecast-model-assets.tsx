@@ -254,6 +254,18 @@ export function TaxFields({
                     </label>
                 ))}
                 <label>
+                    Losses carried into the first period (NZD)
+                    <input
+                        className={field}
+                        value={data.opening_eligible_losses}
+                        onChange={(e) =>
+                            onChange({
+                                opening_eligible_losses: e.target.value,
+                            })
+                        }
+                    />
+                </label>
+                <label>
                     Losses available to carry forward
                     <select
                         className={field}

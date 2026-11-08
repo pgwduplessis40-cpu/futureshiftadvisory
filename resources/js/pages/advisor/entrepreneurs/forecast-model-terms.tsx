@@ -119,6 +119,11 @@ function initial(model: ForecastModel | null): TermsForm {
                 opening_depreciation: text(asset.opening_depreciation),
             }),
         ),
+        owner_pay_source: text(model?.owner_pay_source ?? null),
+        owner_pay_first_payment_on: text(
+            model?.owner_pay_first_payment_on ?? null,
+        ),
+        opening_eligible_losses: text(model?.opening_eligible_losses ?? null),
         tax_entity_basis: text(model?.tax.entity_basis ?? null),
         tax_rate_percent: text(model?.tax.rate_percent ?? null),
         tax_losses_eligible: stated(model?.tax.losses_eligible ?? null),
@@ -433,6 +438,38 @@ export function TermsFormSection({
                     three-month average revenue to reach a threshold. A
                     threshold belongs only to the revenue trigger; a step that
                     starts on its date carries none.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                    <label>
+                        First payment lands on
+                        <input
+                            type="date"
+                            className={field}
+                            value={form.data.owner_pay_first_payment_on}
+                            onChange={(e) =>
+                                form.setData(
+                                    'owner_pay_first_payment_on',
+                                    e.target.value,
+                                )
+                            }
+                        />
+                    </label>
+                    <label>
+                        Where the arrangement is recorded
+                        <input
+                            className={field}
+                            value={form.data.owner_pay_source}
+                            onChange={(e) =>
+                                form.setData('owner_pay_source', e.target.value)
+                            }
+                        />
+                    </label>
+                </div>
+                <p className="my-2 text-sm">
+                    Both are needed before any pay reaches the cash ledger.
+                    Every payment the schedule generates carries that record as
+                    its provenance, and without a first payment date there is
+                    nothing to run the weekly series from.
                 </p>
                 {steps.map((step, row) => (
                     <div

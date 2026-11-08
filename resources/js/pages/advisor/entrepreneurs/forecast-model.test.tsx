@@ -149,6 +149,27 @@ const model: ForecastModel = {
         errors: [],
         refusal: null,
     },
+    cash: {
+        status: 'cannot_verify',
+        movements_counted: 2,
+        settled_before_opening: 1,
+        lowest_cash: '3500.00',
+        lowest_cash_date: '2026-02-10',
+        cash_deficit: '0.00',
+        reserve_target: '3350.00',
+        reserve_shortfall: '0.00',
+        missing: [
+            {
+                reason: 'owner_pay.source_and_first_payment_date',
+                months: 0,
+                first_period: '2026-01',
+            },
+        ],
+        refusal: null,
+    },
+    owner_pay_source: 'Signed owner drawings policy',
+    owner_pay_first_payment_on: '2026-07-03',
+    opening_eligible_losses: '4500.00',
     sections: [
         {
             key: 'calendar',
@@ -353,6 +374,44 @@ test('a reconstruction the engine refuses to project says so', async () => {
     assert.match(html, /cannot project this reconstruction as it stands/);
     assert.match(html, /The engine refused it/);
     assert.match(html, /extends beyond the declared calendar/);
+});
+
+test('the dated cash run reports its two funding measures apart', async () => {
+    const html = await render();
+    assert.match(html, /Dated cash/);
+    assert.match(html, /2 dated movements reached the ledger/);
+    // Cash already in the opening balance is counted out, not counted twice.
+    assert.match(html, /1 settled before the forecast opens/);
+    assert.match(html, /Lowest cash 3500.00 NZD on 2026-02-10/);
+    // The deficit sits inside the shortfall, so the page says not to add them.
+    assert.match(html, /never added/);
+    assert.match(html, /owner_pay.source_and_first_payment_date/);
+});
+
+test('a ledger the engine refuses to position says so', async () => {
+    const html = await render({
+        model: {
+            ...model,
+            cash: {
+                ...model.cash!,
+                refusal:
+                    'Provide unique same-day ordering and carry historical cash in the opening balance.',
+                lowest_cash: null,
+            },
+        },
+    });
+    assert.match(html, /The ledger refused it/);
+    assert.match(html, /unique same-day ordering/);
+});
+
+test('the owner pay start and the losses carried in are editable', async () => {
+    const html = await render({ can_edit: true });
+    assert.match(html, /First payment lands on/);
+    assert.match(html, /Where the arrangement is recorded/);
+    assert.match(html, /value="Signed owner drawings policy"/);
+    assert.match(html, /Losses carried into the first period/);
+    assert.match(html, /value="4500.00"/);
+    assert.match(html, /before any pay reaches the cash ledger/);
 });
 
 test('the reserve target is shown as a calculated figure with its parts', async () => {

@@ -3,6 +3,7 @@ import { DriversFormSection } from './forecast-model-drivers';
 import { ForecastModelForm, SelectionForm } from './forecast-model-forms';
 import { TermsFormSection } from './forecast-model-terms';
 import type {
+    CashRun,
     ForecastModelProps,
     Gap,
     Projection,
@@ -57,6 +58,53 @@ function ProjectionPanel({ projection }: { projection: Projection }) {
                     <p>Still needed before it can project in full:</p>
                     <ul className="list-disc pl-5">
                         {projection.missing.map((gap) => (
+                            <li key={gap.reason}>{reach(gap)}</li>
+                        ))}
+                    </ul>
+                </>
+            ) : null}
+        </section>
+    );
+}
+
+/**
+ * The dated cash the reconstruction implies.
+ *
+ * The deficit and the shortfall are shown as two separate figures and never
+ * added. A deficit is already inside the shortfall, so a reader who sums them
+ * counts the same hole twice — which is why the engine reports them apart.
+ */
+function CashPanel({ cash }: { cash: CashRun }) {
+    const counted = `${cash.movements_counted} dated movement${cash.movements_counted === 1 ? '' : 's'} reached the ledger.`;
+
+    return (
+        <section className="space-y-2 rounded border p-4">
+            <h3 className="font-semibold">Dated cash</h3>
+            <p>
+                {counted}
+                {cash.settled_before_opening > 0
+                    ? ` ${cash.settled_before_opening} settled before the forecast opens and sit in the opening balance instead.`
+                    : ''}
+            </p>
+            {cash.refusal ? (
+                <p role="alert">The ledger refused it: {cash.refusal}</p>
+            ) : null}
+            {cash.lowest_cash === null ? null : (
+                <p>
+                    {`Lowest cash ${cash.lowest_cash} NZD${cash.lowest_cash_date === null ? '' : ` on ${cash.lowest_cash_date}`}.`}
+                </p>
+            )}
+            {cash.cash_deficit === null &&
+            cash.reserve_shortfall === null ? null : (
+                <p>
+                    {`Cash deficit ${cash.cash_deficit ?? 'not measured'}; reserve shortfall ${cash.reserve_shortfall ?? 'not measured'} against a target of ${cash.reserve_target ?? 'not measured'}. These are separate measures and are never added: a deficit already sits inside the shortfall.`}
+                </p>
+            )}
+            {cash.missing.length > 0 ? (
+                <>
+                    <p>Still needed before the cash side is complete:</p>
+                    <ul className="list-disc pl-5">
+                        {cash.missing.map((gap) => (
                             <li key={gap.reason}>{reach(gap)}</li>
                         ))}
                     </ul>
@@ -142,6 +190,7 @@ export default function ForecastModelReview({
                     {model.projection ? (
                         <ProjectionPanel projection={model.projection} />
                     ) : null}
+                    {model.cash ? <CashPanel cash={model.cash} /> : null}
                     {reserve ? (
                         <p>
                             {reserve.target === null

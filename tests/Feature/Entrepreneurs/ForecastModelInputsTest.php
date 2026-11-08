@@ -694,6 +694,9 @@ final class ForecastModelInputsTest extends TestCase
                 'effective_on' => '2026-07-01', 'weekly_amount' => '800',
                 'trigger' => 'trailing_three_month_average_revenue', 'threshold' => '12000',
             ]],
+            'owner_pay_source' => 'Signed owner drawings policy',
+            'owner_pay_first_payment_on' => '2026-07-03',
+            'opening_eligible_losses' => '4500',
             'assets' => [[
                 'id' => 'laptop-2026', 'source' => 'Supplier invoice 8831', 'cost' => '2400',
                 'classification' => 'capital', 'policy_source' => 'Capitalisation policy v2', 'reviewed' => 'yes',
@@ -711,5 +714,60 @@ final class ForecastModelInputsTest extends TestCase
                 'accounting_profit' => '-4500', 'tax_adjustments' => '500',
             ]],
         ];
+    }
+
+    public function test_the_cash_inputs_the_engine_needs_are_recorded_and_survive_the_other_forms(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $this->post($this->url().'/terms', $this->terms())->assertSessionHasNoErrors();
+
+        $store = app(ForecastModelStore::class);
+        $model = $store->forPlan($this->plan);
+        self::assertNotNull($model);
+        $inputs = $store->inputs($model);
+        self::assertSame('Signed owner drawings policy', $inputs->ownerPaySource);
+        self::assertSame('2026-07-03', $inputs->ownerPayFirstPaymentOn);
+        self::assertSame('4500', $inputs->openingEligibleLosses);
+
+        // Every other form rebuilds the whole reconstruction, so a field one
+        // of them does not show is a field it can silently drop.
+        $drivers = $this->drivers();
+        $drivers['expected_revision'] = 2;
+        $this->post($this->url().'/drivers', $drivers)->assertSessionHasNoErrors();
+        $calendar = $this->payload();
+        $calendar['expected_revision'] = 3;
+        $this->post($this->url(), $calendar)->assertSessionHasNoErrors();
+
+        $carried = $store->inputs($store->forPlan($this->plan));
+        self::assertSame('Signed owner drawings policy', $carried->ownerPaySource,
+            'A pay arrangement recorded on the terms form must survive a save from either other form.');
+        self::assertSame('2026-07-03', $carried->ownerPayFirstPaymentOn);
+        self::assertSame('4500', $carried->openingEligibleLosses);
+    }
+
+    public function test_the_dated_cash_run_is_reported_beside_the_projection(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $this->post($this->url().'/terms', $this->terms())->assertSessionHasNoErrors();
+
+        $cash = data_get($this->get($this->url())->viewData('page'), 'props.model.cash');
+        self::assertNull(data_get($cash, 'refusal'), 'The settlement and the asset purchase must not collide in the ledger.');
+        // The receivable settles in April, the laptop is paid in February,
+        // and the weekly owner pay series runs from July to the end of the
+        // horizon.
+        self::assertGreaterThan(2, data_get($cash, 'movements_counted'));
+        self::assertSame(0, data_get($cash, 'settled_before_opening'));
+        // The only pay step waits on trailing revenue with no base step
+        // beneath it, so the weekly rate is unknown on every payment date.
+        // The engine withholds the funding measures as a set rather than
+        // publishing figures drawn from a ledger with holes in it, and a
+        // withheld figure is the honest answer here.
+        foreach (['lowest_cash', 'cash_deficit', 'reserve_target', 'reserve_shortfall'] as $measure) {
+            self::assertNull(data_get($cash, $measure), $measure.' must not be published from an incomplete ledger.');
+        }
+        $gaps = array_column((array) data_get($cash, 'missing'), 'months', 'reason');
+        self::assertArrayHasKey('owner_pay.base_policy', $gaps);
+        self::assertGreaterThan(50, $gaps['owner_pay.base_policy'],
+            'One unknown rate across a weekly series is one gap with its reach, not one gap per payment date.');
     }
 }
