@@ -8,6 +8,7 @@ use App\Services\Entrepreneurs\Forecast\ForecastRun;
 use App\Services\Entrepreneurs\Forecast\RevenueStream;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelCodec;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
+use App\Support\Methodology\ProvidesMethodology;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 
@@ -24,8 +25,22 @@ use Brick\Math\RoundingMode;
  * counted from the model's own start month, so a fact produced here can be
  * compared with one produced from the stored budget.
  */
-final class ForecastModelFacts
+final class ForecastModelFacts implements ProvidesMethodology
 {
+    /**
+     * Mostly this class adapts engine output into sourced facts, as the
+     * budget and plan producers beside it do. It is marked rather than
+     * excluded because it does own one figure: the month-on-month ramp it
+     * derives per stream. A formula that decides a release finding has to
+     * name the methodology it belongs to, and that one is a revenue driver.
+     *
+     * @return list<string>
+     */
+    public static function methodologyIds(): array
+    {
+        return ['entrepreneur.driver_revenue'];
+    }
+
     /**
      * Keys this producer deliberately does not emit yet.
      *
