@@ -49,10 +49,21 @@ final readonly class ForecastModelInputs
         public array $taxPeriods = [],
         public array $actualMonths = [],
         public ?ReservePolicy $reservePolicy = null,
+        // The owner-pay steps say what is paid and from when it applies; the
+        // schedule also needs the date the first payment actually lands and
+        // the record the whole arrangement comes from, because every payment
+        // it generates carries that provenance into the cash ledger.
+        public ?string $ownerPaySource = null,
+        public ?string $ownerPayFirstPaymentOn = null,
+        // Losses brought into the first planning period. The tax projection
+        // takes this beside the policy rather than inside it, because a
+        // policy with losses eligible and no opening balance is a complete
+        // policy with nothing carried in, not an incomplete one.
+        public ?string $openingEligibleLosses = null,
     ) {}
 
     /**
-     * @return array{calendar:ForecastCalendar,streams:list<RevenueStream>,founder_months:array<string,FounderMonth>,cash_opening:?CashOpening,bank_opening:?BankOpening,trade_items:list<TradeItem>,owner_pay_steps:list<OwnerPayStep>,assets:list<AssetInput>,tax_policy:?TaxPolicy,tax_periods:list<TaxPeriod>}
+     * @return array{calendar:ForecastCalendar,streams:list<RevenueStream>,founder_months:array<string,FounderMonth>,cash_opening:?CashOpening,bank_opening:?BankOpening,trade_items:list<TradeItem>,owner_pay_steps:list<OwnerPayStep>,owner_pay_source:?string,owner_pay_first_payment_on:?string,assets:list<AssetInput>,tax_policy:?TaxPolicy,tax_periods:list<TaxPeriod>,opening_eligible_losses:?string}
      */
     public function driversPayload(): array
     {
@@ -64,9 +75,12 @@ final readonly class ForecastModelInputs
             'bank_opening' => $this->bankOpening,
             'trade_items' => $this->tradeItems,
             'owner_pay_steps' => $this->ownerPaySteps,
+            'owner_pay_source' => $this->ownerPaySource,
+            'owner_pay_first_payment_on' => $this->ownerPayFirstPaymentOn,
             'assets' => $this->assets,
             'tax_policy' => $this->taxPolicy,
             'tax_periods' => $this->taxPeriods,
+            'opening_eligible_losses' => $this->openingEligibleLosses,
         ];
     }
 

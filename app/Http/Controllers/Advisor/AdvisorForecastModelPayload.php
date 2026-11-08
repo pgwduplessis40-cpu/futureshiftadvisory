@@ -42,8 +42,9 @@ use App\Services\Entrepreneurs\Forecast\TradeItem;
  * @phpstan-type TaxPayload array{entity_basis:string|null,rate_percent:string|null,losses_eligible:bool|null,policy_source:string|null,eligibility_source:string|null,version:string|null,periods:list<TaxPeriodPayload>}
  * @phpstan-type GapPayload array{reason:string,months:int,first_period:string}
  * @phpstan-type ProjectionPayload array{engine_version:string,status:string,months_projected:int,base_revenue_months:int,missing:list<GapPayload>,errors:list<GapPayload>,refusal:string|null}
+ * @phpstan-type CashPayload array{status:string,movements_counted:int,settled_before_opening:int,lowest_cash:string|null,lowest_cash_date:string|null,cash_deficit:string|null,reserve_target:string|null,reserve_shortfall:string|null,missing:list<GapPayload>,refusal:string|null}
  * @phpstan-type SectionPayload array{key:string,label:string,captured:bool,editable:bool,detail:string}
- * @phpstan-type ModelPayload array{revision:int,engine_version:string,readable:bool,load_error:string|null,selected:bool,selected_at:string|null,selected_by:string|null,calendar:CalendarPayload|null,cash_opening:CashOpeningPayload,reserve:ReservePayload,actuals:list<ActualPayload>,streams:list<StreamPayload>,founder_months:list<FounderMonthPayload>,trade_items:list<TradeItemPayload>,owner_pay_steps:list<OwnerPayPayload>,assets:list<AssetPayload>,tax:TaxPayload,projection:ProjectionPayload|null,sections:list<SectionPayload>}
+ * @phpstan-type ModelPayload array{revision:int,engine_version:string,readable:bool,load_error:string|null,selected:bool,selected_at:string|null,selected_by:string|null,calendar:CalendarPayload|null,cash_opening:CashOpeningPayload,reserve:ReservePayload,actuals:list<ActualPayload>,streams:list<StreamPayload>,founder_months:list<FounderMonthPayload>,trade_items:list<TradeItemPayload>,owner_pay_steps:list<OwnerPayPayload>,assets:list<AssetPayload>,tax:TaxPayload,projection:ProjectionPayload|null,cash:CashPayload|null,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,opening_eligible_losses:string|null,sections:list<SectionPayload>}
  */
 final readonly class AdvisorForecastModelPayload
 {
@@ -108,6 +109,10 @@ final readonly class AdvisorForecastModelPayload
             'assets' => array_map($this->asset(...), $inputs->assets ?? []),
             'tax' => $this->tax($inputs),
             'projection' => $inputs === null ? null : $this->projection($inputs),
+            'cash' => $inputs === null ? null : $this->cash($inputs),
+            'owner_pay_source' => $inputs?->ownerPaySource,
+            'owner_pay_first_payment_on' => $inputs?->ownerPayFirstPaymentOn,
+            'opening_eligible_losses' => $inputs?->openingEligibleLosses,
             'sections' => $this->sections($inputs),
         ];
     }
@@ -347,6 +352,26 @@ final readonly class AdvisorForecastModelPayload
             // how far it reaches, so a longer list adds length, not meaning.
             'missing' => array_slice($run['missing'], 0, 12), 'errors' => array_slice($run['errors'], 0, 12),
             'refusal' => $run['refusal']];
+    }
+
+    /**
+     * The dated cash the reconstruction implies, once the engine has run it.
+     *
+     * The deficit and the shortfall are passed through as the engine reports
+     * them and never combined: a deficit is already inside the shortfall, so
+     * a reader who adds them counts the same hole twice.
+     *
+     * @return CashPayload
+     */
+    private function cash(ForecastModelInputs $inputs): array
+    {
+        $run = $this->run->cash($inputs);
+
+        return ['status' => $run['status'], 'movements_counted' => $run['movements_counted'],
+            'settled_before_opening' => $run['settled_before_opening'], 'lowest_cash' => $run['lowest_cash'],
+            'lowest_cash_date' => $run['lowest_cash_date'], 'cash_deficit' => $run['cash_deficit'],
+            'reserve_target' => $run['reserve_target'], 'reserve_shortfall' => $run['reserve_shortfall'],
+            'missing' => array_slice($run['missing'], 0, 12), 'refusal' => $run['refusal']];
     }
 
     /** @return list<SectionPayload> */

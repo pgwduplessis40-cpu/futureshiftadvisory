@@ -130,6 +130,20 @@ export type Projection = {
     /** Set when the engine refused the reconstruction outright. */
     refusal: string | null;
 };
+/** The dated cash the reconstruction implies. The deficit and the shortfall
+ * are never summed: a deficit is already inside the shortfall. */
+export type CashRun = {
+    status: string;
+    movements_counted: number;
+    settled_before_opening: number;
+    lowest_cash: string | null;
+    lowest_cash_date: string | null;
+    cash_deficit: string | null;
+    reserve_target: string | null;
+    reserve_shortfall: string | null;
+    missing: Gap[];
+    refusal: string | null;
+};
 export type Section = {
     key: string;
     label: string;
@@ -156,6 +170,10 @@ export type ForecastModel = {
     assets: AssetRow[];
     tax: TaxRow;
     projection: Projection | null;
+    cash: CashRun | null;
+    owner_pay_source: string | null;
+    owner_pay_first_payment_on: string | null;
+    opening_eligible_losses: string | null;
     sections: Section[];
 };
 /** The shape the save form posts. Actual rows carry strings for every field
@@ -269,6 +287,8 @@ export type TermsForm = {
     expected_revision: number | null;
     trade_items: TradeItemInput[];
     owner_pay_steps: OwnerPayInput[];
+    owner_pay_source: string;
+    owner_pay_first_payment_on: string;
     assets: AssetInputRow[];
     tax_entity_basis: string;
     tax_rate_percent: string;
@@ -277,6 +297,7 @@ export type TermsForm = {
     tax_eligibility_source: string;
     tax_version: string;
     tax_periods: TaxPeriodInput[];
+    opening_eligible_losses: string;
 };
 export type ForecastModelProps = {
     model: ForecastModel | null;
