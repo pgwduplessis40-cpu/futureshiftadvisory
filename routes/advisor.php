@@ -503,6 +503,7 @@ Route::middleware(['auth', 'verified', 'mfa'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)->group(function (): void {
                 Route::get('/', [EntrepreneurForecastModelController::class, 'show'])->name('entrepreneurs.plans.forecast-model.show');
                 Route::post('/', [EntrepreneurForecastModelController::class, 'save'])->name('entrepreneurs.plans.forecast-model.save');
+                Route::post('/drivers', [EntrepreneurForecastModelController::class, 'drivers'])->name('entrepreneurs.plans.forecast-model.drivers');
                 Route::post('/selection', [EntrepreneurForecastModelController::class, 'selection'])->name('entrepreneurs.plans.forecast-model.selection');
             });
         Route::prefix('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/release-gate')

@@ -72,7 +72,7 @@ final class ForecastModelInputsTest extends TestCase
         self::assertTrue($sections['calendar']['captured']);
         self::assertTrue($sections['actuals']['captured']);
         self::assertFalse($sections['streams']['captured'], 'An unentered section is reported as missing, not implied.');
-        self::assertFalse($sections['streams']['editable']);
+        self::assertFalse($sections['trade_items']['editable'], 'Trade terms are still captured on a later screen.');
         $this->assertDatabaseHas('audit_events', ['action' => 'entrepreneur.forecast_model_saved']);
     }
 
@@ -179,6 +179,124 @@ final class ForecastModelInputsTest extends TestCase
         self::assertNull(app(ForecastModelStore::class)->forPlan($this->plan));
     }
 
+    public function test_streams_and_founder_capacity_are_recorded_against_the_stored_calendar(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+
+        $this->post($this->url().'/drivers', $this->drivers())->assertRedirect()->assertSessionHasNoErrors();
+
+        $model = app(ForecastModelStore::class)->forPlan($this->plan);
+        self::assertNotNull($model);
+        $inputs = app(ForecastModelStore::class)->inputs($model);
+        self::assertCount(1, $inputs->streams);
+        self::assertSame('workshops', $inputs->streams[0]->id);
+        self::assertTrue($inputs->streams[0]->inBaseCase);
+        self::assertSame('450', $inputs->streams[0]->price);
+        self::assertCount(1, $inputs->streams[0]->schedule);
+        self::assertSame('2', $inputs->streams[0]->schedule['2026-03']->bookedUnits);
+        self::assertSame('120', $inputs->founderMonths['2026-03']->availableHours);
+        self::assertSame(2, $model->revision, 'The driver save is a revision of the same reconstruction.');
+    }
+
+    public function test_an_unanswered_base_case_question_is_stored_as_absent_rather_than_as_exclusion(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $drivers = $this->drivers();
+        // The select posts an empty string, not a null, when nobody has
+        // answered. The unanswered state has to survive the wire as itself.
+        $drivers['streams'][0]['in_base_case'] = '';
+        $drivers['streams'][0]['evidence_status'] = '';
+
+        $this->post($this->url().'/drivers', $drivers)->assertRedirect()->assertSessionHasNoErrors();
+
+        $model = app(ForecastModelStore::class)->forPlan($this->plan);
+        self::assertNotNull($model);
+        $stream = app(ForecastModelStore::class)->inputs($model)->streams[0];
+        self::assertNull($stream->inBaseCase, 'An unanswered flag must not become a decision to exclude the stream.');
+        self::assertNull($stream->evidenceStatus, 'An unstated evidence status stays unstated rather than becoming a claim.');
+        $page = $this->get($this->url())->viewData('page');
+        self::assertNull(data_get($page, 'props.model.streams.0.in_base_case'));
+        $sections = collect(data_get($page, 'props.model.sections'))->keyBy('key');
+        self::assertStringContainsString('1 of them has no base-case flag', $sections['streams']['detail']);
+    }
+
+    public function test_recording_drivers_leaves_the_calendar_reserve_and_actuals_untouched(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+
+        $this->post($this->url().'/drivers', $this->drivers())->assertSessionHasNoErrors();
+
+        $model = app(ForecastModelStore::class)->forPlan($this->plan);
+        self::assertNotNull($model);
+        $inputs = app(ForecastModelStore::class)->inputs($model);
+        self::assertSame(24, $inputs->calendar->months);
+        self::assertSame('1200', $inputs->cashOpening?->amount);
+        self::assertSame('1000', $inputs->reservePolicy?->monthlyFixedCosts);
+        self::assertCount(1, $inputs->actualMonths, 'A reviewed month must survive a save of the streams beside it.');
+    }
+
+    public function test_recording_drivers_changes_no_release_verdict(): void
+    {
+        $gate = app(ReleaseGate::class);
+        $before = $gate->evaluate($this->plan->refresh(), 'plan');
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+
+        $this->post($this->url().'/drivers', $this->drivers())->assertSessionHasNoErrors();
+        $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
+
+        $after = $gate->evaluate($this->plan->refresh(), 'plan');
+        self::assertSame(
+            CanonicalJson::encode($before->results),
+            CanonicalJson::encode($after->results),
+            'Recording streams must not move a verdict until the rules are switched on.',
+        );
+        self::assertCount(17, $after->deferred(), 'The nine phase-2 rules stay unimplemented in this slice.');
+    }
+
+    public function test_drivers_are_refused_before_a_calendar_exists_to_hold_them(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url().'/drivers', $this->drivers())->assertSessionHasErrors('drivers');
+
+        self::assertNull(app(ForecastModelStore::class)->forPlan($this->plan),
+            'A schedule of months must not create a reconstruction with no horizon.');
+    }
+
+    public function test_duplicate_references_months_and_engine_refusals_are_reported_against_the_form(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+
+        $shared = $this->drivers();
+        $shared['streams'][] = $shared['streams'][0];
+        $this->post($this->url().'/drivers', $shared)->assertSessionHasErrors('streams');
+
+        $repeated = $this->drivers();
+        $repeated['streams'][0]['schedule'][] = $repeated['streams'][0]['schedule'][0];
+        $this->post($this->url().'/drivers', $repeated)->assertSessionHasErrors('streams');
+
+        $twiceCounted = $this->drivers();
+        $twiceCounted['founder_months'][] = $twiceCounted['founder_months'][0];
+        $this->post($this->url().'/drivers', $twiceCounted)->assertSessionHasErrors('founder_months');
+
+        $negative = $this->drivers();
+        $negative['streams'][0]['price'] = '-450';
+        $this->post($this->url().'/drivers', $negative)->assertSessionHasErrors('drivers');
+
+        $model = app(ForecastModelStore::class)->forPlan($this->plan);
+        self::assertNotNull($model);
+        self::assertSame(1, $model->revision, 'Every refused driver save leaves the stored revision alone.');
+    }
+
+    public function test_an_unassigned_advisor_cannot_record_drivers(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+
+        $this->actingAsMfa($this->otherAdvisor)->post($this->url().'/drivers', $this->drivers())->assertForbidden();
+
+        $model = app(ForecastModelStore::class)->forPlan($this->plan);
+        self::assertNotNull($model);
+        self::assertSame([], app(ForecastModelStore::class)->inputs($model)->streams);
+    }
+
     private function advisor(string $name): User
     {
         $user = User::factory()->withTwoFactor()->create(['name' => $name, 'user_type' => 'advisor', 'primary_role' => 'advisor']);
@@ -211,6 +329,28 @@ final class ForecastModelInputsTest extends TestCase
             'actuals' => [[
                 'period' => '2026-01', 'state' => 'trading', 'reconciled' => true, 'closing_bank_cash' => '5000',
                 'reviewed_by' => 'A. Advisor', 'reviewed_on' => '2026-02-05', 'pre_trading_evidence' => null,
+            ]],
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    private function drivers(): array
+    {
+        return [
+            'expected_revision' => 1,
+            'streams' => [[
+                'id' => 'workshops', 'name' => 'Weekend workshops', 'unit' => 'workshop', 'price' => '450',
+                'preparation_hours_per_unit' => '4', 'delivery_hours_per_unit' => '6',
+                'in_base_case' => 'base', 'evidence_status' => 'own_record',
+                'schedule' => [[
+                    'period' => '2026-03', 'booked_units' => '2', 'delivery_units' => '2', 'invoiced_units' => '2',
+                    'founder_hours' => '20', 'additional_capacity_units' => null, 'provider' => null,
+                    'provider_unit_cost' => null, 'no_cost_basis' => null,
+                ]],
+            ]],
+            'founder_months' => [[
+                'period' => '2026-03', 'available_hours' => '120',
+                'administration_hours' => '20', 'business_development_hours' => '15',
             ]],
         ];
     }

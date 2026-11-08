@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { DriversFormSection } from './forecast-model-drivers';
 import { ForecastModelForm, SelectionForm } from './forecast-model-forms';
 import type { ForecastModelProps } from './forecast-model-types';
 
@@ -93,10 +94,9 @@ export default function ForecastModelReview({
                         Record the reconstruction
                     </h2>
                     <p>
-                        Revenue streams, founder capacity, trade terms, owner
-                        pay steps, assets and tax are not captured on this
-                        screen. Saving here leaves anything already recorded for
-                        them unchanged.
+                        Trade terms, owner pay steps, assets and tax are not
+                        captured on this screen. Saving here leaves anything
+                        already recorded for them unchanged.
                     </p>
                     {/* Keyed on the revision so a successful save remounts the
                         form against the revision it produced. Without this the
@@ -107,6 +107,27 @@ export default function ForecastModelReview({
                         model={model}
                         url={urls.save}
                     />
+                </section>
+            ) : null}
+            {can_edit ? (
+                <section className="space-y-3">
+                    <h2 className="text-xl font-semibold">
+                        Revenue streams and founder capacity
+                    </h2>
+                    {model === null ? (
+                        <p>
+                            A monthly schedule only means something inside a
+                            horizon. Record the forecast calendar and opening
+                            position above, then come back to the streams that
+                            sit inside it.
+                        </p>
+                    ) : (
+                        <DriversFormSection
+                            key={model.revision}
+                            model={model}
+                            url={urls.drivers}
+                        />
+                    )}
                 </section>
             ) : null}
             <details className="rounded border p-4">
