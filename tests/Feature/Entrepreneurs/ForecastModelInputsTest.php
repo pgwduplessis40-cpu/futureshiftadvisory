@@ -15,7 +15,10 @@ use App\Services\Entrepreneurs\Forecast\StreamMonth;
 use App\Services\Entrepreneurs\ReleaseGate\CanonicalJson;
 use App\Services\Entrepreneurs\ReleaseGate\ForecastModelFacts;
 use App\Services\Entrepreneurs\ReleaseGate\GateContextFactory;
+use App\Services\Entrepreneurs\ReleaseGate\GateReport;
 use App\Services\Entrepreneurs\ReleaseGate\ReleaseGate;
+use App\Services\Entrepreneurs\ReleaseGate\RuleResult;
+use App\Services\Entrepreneurs\ReleaseGate\Subcheck;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -98,21 +101,51 @@ final class ForecastModelInputsTest extends TestCase
         self::assertSame(24, $inputs->calendar->months, 'The edited calendar is still applied.');
     }
 
-    public function test_saving_and_selecting_change_no_release_verdict(): void
+    public function test_selecting_a_reconstruction_moves_only_the_rules_that_read_it(): void
     {
         $gate = app(ReleaseGate::class);
         $before = $gate->evaluate($this->plan->refresh(), 'plan');
+        self::assertCount(11, $before->deferred(), 'Six of the nine phase-2 rules are registered.');
 
         $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
         $this->post($this->url().'/selection', ['selected' => true])->assertRedirect()->assertSessionHasNoErrors();
 
         $after = $gate->evaluate($this->plan->refresh(), 'plan');
+        // The six phase-2 rules read the selected model, so their results are
+        // expected to move. Every rule enabled before them must be
+        // byte-identical: the producer withholds the keys those rules already
+        // read, and this is the assertion that proves it.
         self::assertSame(
-            CanonicalJson::encode($before->results),
-            CanonicalJson::encode($after->results),
-            'Selecting a reconstruction must not move a verdict until the rules are switched on.',
+            CanonicalJson::encode($this->rulesEnabledBeforePhaseTwo($before)),
+            CanonicalJson::encode($this->rulesEnabledBeforePhaseTwo($after)),
+            'Selecting a reconstruction must move no rule that was enabled before it could be read.',
         );
-        self::assertCount(17, $after->deferred(), 'The nine phase-2 rules stay unimplemented in this slice.');
+        self::assertCount(11, $after->deferred());
+    }
+
+    public function test_the_elapsed_actuals_rule_reports_its_missing_evidence_before_a_model_supplies_it(): void
+    {
+        $gate = app(ReleaseGate::class);
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+
+        // Saved but not selected, so nothing supplies the snapshot date or
+        // the model start. The rule says what it is missing rather than
+        // treating an absent record as a month with nothing to report.
+        $unselected = $this->subchecks($gate->evaluate($this->plan->refresh(), 'plan'), 'MI-07');
+        self::assertCount(1, $unselected);
+        self::assertSame('cannot_verify', $unselected[0]->status->value);
+        self::assertNotSame([], $unselected[0]->missingInputs, 'Cannot verify has to name what is missing.');
+
+        $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
+
+        // Selected: the producer supplies the snapshot date and the model
+        // start, so the rule reaches the elapsed months themselves.
+        $selected = $this->subchecks($gate->evaluate($this->plan->refresh(), 'plan'), 'MI-07');
+        self::assertNotSame(
+            CanonicalJson::encode($unselected),
+            CanonicalJson::encode($selected),
+            'A selected reconstruction is the evidence this rule was waiting for.',
+        );
     }
 
     public function test_selection_and_deselection_are_recorded_and_shown(): void
@@ -248,11 +281,11 @@ final class ForecastModelInputsTest extends TestCase
 
         $after = $gate->evaluate($this->plan->refresh(), 'plan');
         self::assertSame(
-            CanonicalJson::encode($before->results),
-            CanonicalJson::encode($after->results),
-            'Recording streams must not move a verdict until the rules are switched on.',
+            CanonicalJson::encode($this->rulesEnabledBeforePhaseTwo($before)),
+            CanonicalJson::encode($this->rulesEnabledBeforePhaseTwo($after)),
+            'Recording streams must move no rule that was enabled before the model could be read.',
         );
-        self::assertCount(17, $after->deferred(), 'The nine phase-2 rules stay unimplemented in this slice.');
+        self::assertCount(11, $after->deferred(), 'Three phase-2 rules stay deferred until their facts can produce the specified Fail.');
     }
 
     public function test_drivers_are_refused_before_a_calendar_exists_to_hold_them(): void
@@ -543,11 +576,11 @@ final class ForecastModelInputsTest extends TestCase
 
         $after = $gate->evaluate($this->plan->refresh(), 'plan');
         self::assertSame(
-            CanonicalJson::encode($before->results),
-            CanonicalJson::encode($after->results),
-            'Recording terms must not move a verdict until the rules are switched on.',
+            CanonicalJson::encode($this->rulesEnabledBeforePhaseTwo($before)),
+            CanonicalJson::encode($this->rulesEnabledBeforePhaseTwo($after)),
+            'Recording terms must move no rule that was enabled before the model could be read.',
         );
-        self::assertCount(17, $after->deferred(), 'The nine phase-2 rules stay unimplemented in this slice.');
+        self::assertCount(11, $after->deferred(), 'Three phase-2 rules stay deferred until their facts can produce the specified Fail.');
     }
 
     public function test_terms_are_refused_before_a_calendar_exists_to_hold_them(): void
@@ -614,6 +647,36 @@ final class ForecastModelInputsTest extends TestCase
         $model = app(ForecastModelStore::class)->forPlan($this->plan);
         self::assertNotNull($model);
         self::assertSame([], app(ForecastModelStore::class)->inputs($model)->tradeItems);
+    }
+
+    /**
+     * The rules that were enabled before the phase-2 rules were registered.
+     *
+     * Selecting a reconstruction is meant to move the rules that read it and
+     * nothing else. Comparing this set across a selection proves the fact
+     * producer withholds the keys the older rules already read, rather than
+     * taking it on trust.
+     *
+     * @return list<RuleResult>
+     */
+    private function rulesEnabledBeforePhaseTwo(GateReport $report): array
+    {
+        $phaseTwo = ['PM-06', 'PM-11', 'MI-07', 'MI-08', 'SS-02', 'SS-03'];
+
+        return array_values(array_filter($report->results,
+            fn (RuleResult $result): bool => ! in_array($result->definition->id, $phaseTwo, true)));
+    }
+
+    /** @return list<Subcheck> */
+    private function subchecks(GateReport $report, string $ruleId): array
+    {
+        foreach ($report->results as $result) {
+            if ($result->definition->id === $ruleId) {
+                return $result->subchecks;
+            }
+        }
+
+        return [];
     }
 
     private function advisor(string $name): User

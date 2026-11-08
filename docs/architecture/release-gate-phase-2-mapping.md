@@ -315,6 +315,34 @@ So what remains of 2E-4 is: **new inputs** (two for PM-11, five for SS-03, fifte
 
 This slice changes no verdict.
 
+### Slice 2E-4d implementation record
+
+This is the slice that moves verdicts. Six of the nine phase-2 rules are now registered in `PhaseOneRules`, taking the enabled set from twenty to twenty-six and the deferred set from seventeen to eleven.
+
+**The F1 manifest decided which six, and corrected the design twice.** The slice began with a decorator that would have scoped the phase-2 rules to plans with a selected version-2 reconstruction, on the reasoning that a rule written against the version-2 model has nothing to say about a plan using the legacy budget, and that a blocking rule reporting its inputs missing would stop every legacy plan. That reasoning was wrong, and the reference package says so: `f1-manifest.json` already carries an expectation for all nine rules against the F1 package, which is a legacy-budget plan, and not one of them is "not applicable". Six are specified as Cannot verify and three as Fail. The specification's intent is that these rules apply to a real plan and report what is absent — which is what they exist to do.
+
+Registering all nine and running the package against the manifest gave the answer directly:
+
+```
+'PM-05' => 'fail expected, cannot_verify produced',
+'PM-08' => 'fail expected, cannot_verify produced',
+'PM-10' => 'fail expected, cannot_verify produced',
+```
+
+PM-06, PM-11, MI-07, MI-08, SS-02 and SS-03 match their specified verdict exactly. The other three expect a contradiction, and a rule with no facts can only report its inputs missing; registering one now would record Cannot verify where a Fail is specified, which understates the finding rather than making it. Those three stay deferred until the facts behind them exist — PM-05 needs the plan-side ramp claims, PM-08 an allocation section, PM-10 the runway computed from the ledger.
+
+The scoping decorator and the `model.version` marker fact it depended on were both removed rather than left in place unused.
+
+**The banner now says what selecting does.** It promised that every plan is checked against the same rules whether or not a reconstruction is selected, which is no longer true: a selected reconstruction is read by MI-07 and can hold up an external release until every closed month is reconciled or recorded as pre-trading. Saving still moves nothing, and the banner now draws that line rather than blurring it.
+
+**The verdict canary became more precise rather than weaker.** It previously asserted that selecting a reconstruction left every rule result byte-identical, which could only hold while no rule read the model. All three canaries now assert that every rule *enabled before this slice* is byte-identical, and say nothing about the six that now read the reconstruction. That is the stronger claim: it is exactly what the four keys withheld in 2E-4c exist to guarantee, and it keeps proving it while the rules this slice switched on are free to move.
+
+A first attempt excluded only MI-07, on the assumption that it was the single rule reading the model. PM-06 and PM-11 read the producer's facts too, so the canary failed and the assumption with it. The set, not the one rule, is the right boundary.
+
+`F1Test` now collects every mismatch and asserts once, instead of stopping at whichever rule comes first in the catalogue. That is what made the three-rule picture visible in a single run rather than three.
+
+**What remains of 2E-4.** PM-05, PM-08 and PM-10, each waiting on the inputs or engine work recorded in the 2E-4c inventory; the four withheld keys, which only the deferred rules need; and 2E-4e, extending MI-01 to MI-04 and SS-01 onto the new ledger.
+
 ### Navigation repair handover (Phase 2A baseline)
 
 PR #170 is merged and deployed as 1.0.282, with `/api/deployment` identifying `9f9e2a10d8e60b9d87893e181e23ed9f3195c631`. Authenticated Chrome checks returned HTTP 200 for Tania's direct document request (5.84 seconds), her name-link XHR (3.82 seconds), a full refresh (12.23 seconds), and another entrepreneur's direct document request (1.98 seconds). Each detail page rendered its matching heading; the previous 502/reconnecting state did not recur in these checks. These are individual production observations, not a latency guarantee: the full refresh remains materially slower than in-app navigation. No client data was edited during verification.

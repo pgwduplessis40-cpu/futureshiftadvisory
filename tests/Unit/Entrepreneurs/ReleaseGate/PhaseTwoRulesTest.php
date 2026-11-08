@@ -23,9 +23,14 @@ use App\Services\Entrepreneurs\ReleaseGate\Rules\StressDimensionRule;
 use PHPUnit\Framework\TestCase;
 
 /**
- * The nine phase-2 rules. These implementations are complete and tested here,
- * and deliberately absent from PhaseOneRules: registering them changes live
- * verdicts and is the separate, final step of slice 2E.
+ * The nine phase-2 rules, tested here against synthetic facts whether or not
+ * they are registered.
+ *
+ * Six are now registered, because on the F1 reference package each reaches
+ * the verdict the package specifies for it. Three are not: the package
+ * expects them to Fail, and a rule with no facts can only report its inputs
+ * missing, so registering one would record Cannot verify where a
+ * contradiction is specified.
  */
 final class PhaseTwoRulesTest extends TestCase
 {
@@ -37,14 +42,37 @@ final class PhaseTwoRulesTest extends TestCase
         return new RuleResult(RuleCatalogue::get($rule->id()), true, $rule->evaluate(SyntheticCase::context($facts, $required), new RuleConfiguration));
     }
 
-    public function test_the_nine_rules_are_built_but_stay_out_of_the_evaluator(): void
+    /**
+     * The six whose verdict on the F1 reference package matches what the
+     * package specifies for them. Each reports Cannot verify where its
+     * evidence is absent, which is the documented expectation.
+     */
+    private const REGISTERED = ['PM-06', 'PM-11', 'MI-07', 'MI-08', 'SS-02', 'SS-03'];
+
+    /**
+     * The three the package expects to Fail. A rule with no facts can only
+     * report its inputs missing, and Cannot verify where a contradiction is
+     * specified understates the finding rather than making it.
+     */
+    private const DEFERRED = ['PM-05', 'PM-08', 'PM-10'];
+
+    public function test_six_of_the_nine_rules_are_registered_and_three_await_the_facts_that_would_fail(): void
     {
         $registered = array_map(fn (Rule $rule): string => $rule->id(), PhaseOneRules::all());
-        self::assertCount(20, $registered, 'Slice 2E-2 adds implementations, not enabled rules.');
-        foreach (self::IDS as $id) {
-            self::assertNotContains($id, $registered, $id.' must not reach the evaluator before the rules are switched on.');
+        self::assertCount(26, $registered);
+        foreach (self::REGISTERED as $id) {
+            self::assertContains($id, $registered, $id.' reaches the verdict the F1 package specifies for it.');
             self::assertSame(2, RuleCatalogue::get($id)->phase);
         }
+        foreach (self::DEFERRED as $id) {
+            self::assertNotContains($id, $registered, $id.' cannot yet produce the Fail the F1 package specifies.');
+            self::assertSame(2, RuleCatalogue::get($id)->phase);
+        }
+        $accounted = [...self::REGISTERED, ...self::DEFERRED];
+        sort($accounted);
+        $all = self::IDS;
+        sort($all);
+        self::assertSame($all, $accounted, 'Every phase-2 rule is accounted for as either registered or deferred.');
     }
 
     public function test_each_rule_declares_the_facts_its_implementation_reads(): void

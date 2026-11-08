@@ -243,7 +243,11 @@ async function render(overrides: Partial<ForecastModelProps> = {}) {
 test('the page states that saving a reconstruction changes no verdict', async () => {
     const html = await render();
     assert.match(html, /Saving a reconstruction changes no release verdict/);
-    assert.match(html, /twenty enabled rules/);
+    // The banner has to say what selecting actually does, now that it moves
+    // a verdict rather than merely recording a model.
+    assert.match(html, /Selecting one does/);
+    assert.match(html, /elapsed-actuals check/);
+    assert.match(html, /hold up an external release/);
     assert.match(html, /Saved but not selected/);
 });
 
